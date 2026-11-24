@@ -637,7 +637,7 @@ function TreeNodeItem({
  * of showing the literal asterisks.
  */
 function renderHighlightedExcerpt(excerpt: string) {
-  const parts = excerpt.split(/(\*\*[^*]*\*\*)/g).filter((part) => part !== '')
+  const parts = excerpt.split(/(\*\*[^*]*\*\*)/g).filter((part) => String.isNonEmpty(part))
   let offset = 0
   return parts.map((part) => {
     const key = offset
@@ -1659,7 +1659,7 @@ function DraftRestoreBanner({
  * identical (services/wiki.ts#buildUnifiedDiff returns "" in that case).
  */
 function RevisionDiffView({ diff }: { diff: string }): JSX.Element {
-  if (diff === '') {
+  if (String.isEmpty(diff)) {
     return <p className='mt-2 mb-1 text-[0.75rem] text-text-muted italic'>No changes.</p>
   }
   const occurrences = new Map<string, number>()
@@ -1676,7 +1676,7 @@ function RevisionDiffView({ diff }: { diff: string }): JSX.Element {
         const cls = line.startsWith('+') ? 'text-green-600' : line.startsWith('-') ? 'text-red-600' : 'text-text-muted'
         return (
           <div key={`${line}:${occurrence}`} className={cls}>
-            {line.length > 0 ? line : ' '}
+            {String.isNonEmpty(line) ? line : ' '}
           </div>
         )
       })}

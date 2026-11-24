@@ -42,7 +42,7 @@ export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
 }
 
 const retentionCutoff = function retentionCutoff(raw: string | undefined, defaultDays: number): number {
-  const days = Predicate.isString(raw) && raw.trim() !== '' ? Number(raw) : Number.NaN
+  const days = Predicate.isString(raw) && String.isNonEmpty(raw.trim()) ? Number(raw) : Number.NaN
   return currentEpochSeconds() - (Number.isFinite(days) && days > 0 ? days : defaultDays) * SECONDS_PER_DAY
 }
 

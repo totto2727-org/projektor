@@ -107,10 +107,6 @@ const buildServerInstructions = function buildServerInstructions(workflowVersion
 
 const router = new Hono<HonoEnv>()
 
-const isPlainObject = function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && Predicate.isNotNullish(v) && !globalThis.Array.isArray(v)
-}
-
 /*
  * MCP endpoint: POST /mcp/{workspaceId}
  * Implements JSON-RPC 2.0 over HTTP (MCP Streamable HTTP transport)
@@ -141,14 +137,14 @@ router.post('/:workspaceId', async (httpContext) => {
       HTTP_BAD_REQUEST,
     )
   }
-  if (!isPlainObject(raw) || !Predicate.isString(raw.method)) {
-    const id = isPlainObject(raw) ? (raw.id ?? JSON_NULL) : JSON_NULL
+  if (!Predicate.isObject(raw) || !Predicate.isString(raw.method)) {
+    const id = Predicate.isObject(raw) ? (raw.id ?? JSON_NULL) : JSON_NULL
     return httpContext.json(
       jsonRpcError(id, { code: JSON_RPC_INVALID_REQUEST, message: 'Invalid Request' }),
       HTTP_BAD_REQUEST,
     )
   }
-  const body = raw as { jsonrpc: typeof JSON_RPC_VERSION; id: unknown; method: string; params?: unknown }
+  const body = raw
 
   if (body.jsonrpc !== JSON_RPC_VERSION) {
     return httpContext.json(
@@ -235,14 +231,14 @@ router.post('/:workspaceId', async (httpContext) => {
        * checked against the tool's declared required fields, so a handler never
        * destructures undefined into a 500.
        */
-      if (!isPlainObject(body.params) || !Predicate.isString(body.params.name)) {
+      if (!Predicate.isObject(body.params) || !Predicate.isString(body.params.name)) {
         return httpContext.json(
           jsonRpcError(body.id, { code: JSON_RPC_INVALID_PARAMS, message: 'Invalid params: `name` is required' }),
         )
       }
       const name = body.params.name
       const args = body.params.arguments ?? {}
-      if (!isPlainObject(args)) {
+      if (!Predicate.isObject(args)) {
         return httpContext.json(
           jsonRpcError(body.id, {
             code: JSON_RPC_INVALID_PARAMS,

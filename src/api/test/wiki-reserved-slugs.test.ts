@@ -1,3 +1,4 @@
+import { String } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { wikiRouter } from '#api/routes/wiki.ts'
@@ -32,7 +33,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     const fixedSegments = new Set(
       wikiRouter.routes
         .map((r) => r.path.split('/')[1] ?? '')
-        .filter((seg) => seg !== '' && !seg.startsWith(':') && seg !== '*'),
+        .filter((seg) => String.isNonEmpty(seg) && !seg.startsWith(':') && seg !== '*'),
     )
     expect(fixedSegments.size).toBeGreaterThan(5)
     const missing = [...fixedSegments].filter((seg) => !RESERVED_WIKI_SLUGS.has(seg))
@@ -100,7 +101,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
       .replace(/--[^\n]*/g, '')
       .split(';')
       .map((statement) => statement.trim())
-      .filter((statement) => statement.length > 0)
+      .filter((statement) => String.isNonEmpty(statement))
     for (const stmt of statements) {
       await env.DB.prepare(stmt).run()
     }

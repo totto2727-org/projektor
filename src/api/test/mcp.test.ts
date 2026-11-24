@@ -1,5 +1,5 @@
 import { Schema, Iterable } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import {
   authHeaders,
@@ -61,24 +61,28 @@ const IssuePageResponse = Schema.Struct({
 })
 
 describe('covers MCP endpoint', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let headers: Record<string, string>
+  type TestData = Readonly<{
+    headers: Record<string, string>
+    projectId: string
+    slug: string
+    token: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    headers = authHeaders(token, slug)
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    const workspaceId = fixture.workspace.id
+    const headers = authHeaders(token, slug)
     const project = await seedProject(workspaceId)
-    projectId = project.id
+    const projectId = project.id
     await seedGroupGrant(workspaceId, fixture.user.id, projectId)
-  })
+    return { headers, projectId, slug, token, workspaceId }
+  }
 
   test('initialize returns server info', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall(workspaceId, 'initialize', {}, headers)) as JsonRpcResult<{
       protocolVersion: string
       serverInfo: { name: string; version: string }
@@ -106,6 +110,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('initialize response carries no session identifier (PROJ-452)', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'initialize', {}, headers)
     expect(res.headers.get('Mcp-Session-Id')).toBeNull()
     const body = (await res.json()) as JsonRpcResult<Record<string, unknown>>
@@ -113,6 +118,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('calls tools/list directly with no prior initialize and no session header (PROJ-452)', async () => {
+    const { headers, workspaceId } = await seedTestData()
     /*
      * The 2026-07-28 spec drops the initialize/initialized handshake and
      * Mcp-Session-Id requirement; this asserts projektor never depended on
@@ -129,6 +135,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('tools/list includes cache hints (PROJ-454)', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ ttlMs: number; cacheScope: string }>(
       workspaceId,
       'tools/list',
@@ -140,6 +147,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('tools/list responses differ by query string back to back, same path (PROJ-717)', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const filtered = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -157,6 +165,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('tools/list returns core tools', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -171,6 +180,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('tools/call list_issues returns empty page initially', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -184,6 +194,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('tools/call create_issue then list_issues returns it', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     await mcpCall(
       workspaceId,
       'tools/call',
@@ -207,6 +218,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('tools/call search_wiki finds pages', async () => {
+    const { headers, workspaceId } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -225,6 +237,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('tools/call get_wiki_page retrieves a page', async () => {
+    const { headers, workspaceId } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -246,11 +259,13 @@ describe('covers MCP endpoint', () => {
   })
 
   test('returns JSON-RPC error for unknown method', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall(workspaceId, 'not/a/method', {}, headers)) as JsonRpcError
     expect(res.error.code).toBe(-32_601)
   })
 
   test('returns JSON-RPC error for unknown tool', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -264,6 +279,7 @@ describe('covers MCP endpoint', () => {
   // PROJ-893: a ValidationError's per-field messages travel in the tool error's
   // `fields` member of a successful JSON-RPC response.
   test('tools/call ValidationError carries Zod issues in the tool error fields', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -282,6 +298,7 @@ describe('covers MCP endpoint', () => {
    * still omits `details` entirely rather than sending it as null.
    */
   test('tools/call error without structured details omits details', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -296,6 +313,7 @@ describe('covers MCP endpoint', () => {
   // --- Issues: REST/MCP parity tests ---
 
   test('covers MCP create_issue with assigneeId and labels persists them', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const assignee = await seedUser('mcp-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -323,6 +341,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP update_issue with assigneeId and labels updates them', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const assignee = await seedUser('mcp-upd-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -351,6 +370,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP list_issues with assignee filter returns same subset as REST', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const assignee = await seedUser('mcp-list-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -395,6 +415,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP list_issues returns { items, next } (PROJ-891); REST keeps { items, nextCursor }', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -413,6 +434,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP get_issue by ref returns issue', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     // Create via MCP; project key is 'PROJ', first issue = PROJ-1
     await mcpCall(
       workspaceId,
@@ -435,6 +457,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP get_issue for unknown id returns error', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -449,6 +472,7 @@ describe('covers MCP endpoint', () => {
   // --- wiki parity tests ---
 
   test('covers MCP list_wiki_pages without parentId returns ALL pages', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -473,6 +497,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP search_wiki with empty query returns []', async () => {
+    const { headers, workspaceId } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -490,6 +515,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP search_wiki excerpt is at most 250 chars', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const longContent = 'z'.repeat(1000)
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -512,6 +538,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP create_wiki_page without slug auto-generates from title', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -523,6 +550,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP update_wiki_page by id creates a revision when content changes', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -549,6 +577,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP update_wiki_page title-only update does not create a revision', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -575,6 +604,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP update_wiki_page by slug works', async () => {
+    const { headers, workspaceId } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -597,6 +627,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP create_wiki_page with invalid title returns a validation tool error', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -608,6 +639,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP delete_wiki_page cascade=true removes the page and its subtree (PROJ-238)', async () => {
+    await seedTestData()
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -644,6 +676,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('covers MCP delete_wiki_page default promotes children instead of deleting them', async () => {
+    await seedTestData()
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -682,6 +715,7 @@ describe('covers MCP endpoint', () => {
   // --- get_prioritized_issues ---
 
   test('get_prioritized_issues returns empty list when no open issues', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -697,6 +731,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('get_prioritized_issues returns issues with _score and _score_breakdown', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
     await seedIssue(workspaceId, projectId, user.id, { priority: 'high', title: 'Issue A' })
     await seedIssue(workspaceId, projectId, user.id, { priority: 'low', title: 'Issue B' })
@@ -724,6 +759,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('get_prioritized_issues ranks high-priority issues above low-priority', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
     await seedIssue(workspaceId, projectId, user.id, { priority: 'urgent', title: 'Urgent' })
     await seedIssue(workspaceId, projectId, user.id, { priority: 'none', title: 'None' })
@@ -745,6 +781,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('get_prioritized_issues excludes done and cancelled issues', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
     await seedIssue(workspaceId, projectId, user.id, { priority: 'high', title: 'Open' })
     await seedIssue(workspaceId, projectId, user.id, {
@@ -772,6 +809,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('get_prioritized_issues respects limit parameter', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
     for (let index = 0; index < 5; index++) {
       await seedIssue(workspaceId, projectId, user.id, { title: `Issue ${index}` })
@@ -791,6 +829,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('get_prioritized_issues boosts issues with higher in-degree', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
     const target = await seedIssue(workspaceId, projectId, user.id, {
       priority: 'none',
@@ -829,6 +868,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('get_prioritized_issues uses story points custom field in scoring', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
     const fieldDef = await seedCustomFieldDef(workspaceId, {
       key: 'story_points',

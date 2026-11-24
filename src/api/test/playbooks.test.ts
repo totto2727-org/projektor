@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
@@ -7,18 +7,22 @@ import { fetchNativeApi } from './native-fetch.ts'
 import { readNativeJson } from './response-json.ts'
 
 describe('playbooks', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-  })
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    const workspaceId = fixture.workspace.id
+    return { slug, token, workspaceId }
+  }
 
   test('handles GET /api/playbooks lists the registry', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
@@ -38,6 +42,7 @@ describe('playbooks', () => {
    * Every other test here sends one, so only this asserts the prefix stays global.
    */
   test('handles GET /api/playbooks and /:name work without an X-Workspace-Slug header', async () => {
+    const { token } = await seedTestData()
     const auth = { Authorization: `Bearer ${token}` }
 
     const list = await fetchNativeApi('http://localhost/api/playbooks', { headers: auth })
@@ -48,6 +53,7 @@ describe('playbooks', () => {
   })
 
   test('covers MCP list_playbooks returns the same content as REST', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const restRes = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
@@ -70,6 +76,7 @@ describe('playbooks', () => {
   })
 
   test('handles GET /api/playbooks/:name returns the full playbook', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
@@ -82,6 +89,7 @@ describe('playbooks', () => {
   })
 
   test('handles GET /api/playbooks/idea-discovery returns the full playbook', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/playbooks/idea-discovery', {
       headers: authHeaders(token, slug),
     })
@@ -94,6 +102,7 @@ describe('playbooks', () => {
   })
 
   test('covers MCP get_playbook returns the same content as REST', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const restRes = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
@@ -116,6 +125,7 @@ describe('playbooks', () => {
   })
 
   test('handles GET /api/playbooks/:name 404s on an unknown name', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/playbooks/does-not-exist', {
       headers: authHeaders(token, slug),
     })
@@ -129,6 +139,7 @@ describe('playbooks', () => {
   })
 
   test('covers MCP get_playbook errors on an unknown name, naming valid options', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
         id: 1,

@@ -428,20 +428,24 @@ describe('the authorization request must name a workspace the user belongs to', 
 })
 
 describe('the consent screen', () => {
-  let workspaceId: string
-  let email: string
-  let jwt: string
+  type TestData = Readonly<{
+    email: string
+    jwt: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `member-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `member-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
-    jwt = await accessJwt(email)
-  })
+    const jwt = await accessJwt(email)
+    return { email, jwt, workspaceId }
+  }
 
   test('names the workspace, the identity and the permissions being granted', async () => {
+    const { email, jwt, workspaceId } = await seedTestData()
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
@@ -471,6 +475,7 @@ describe('the consent screen', () => {
   })
 
   test("warns when the client collects its response on the user's own machine", async () => {
+    const { jwt, workspaceId } = await seedTestData()
     // Claude Code's callback. Any local process can bind that port, so the
     // "application" is not something projektor can vouch for.
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:8976/callback'])
@@ -490,6 +495,7 @@ describe('the consent screen', () => {
   })
 
   test('matches a loopback callback on a different ephemeral port (RFC 8252 §7.3)', async () => {
+    const { jwt, workspaceId } = await seedTestData()
     // Claude Code registers one port and calls back on whatever it managed to bind.
     // Without the library's port-ignoring comparison this is where it breaks.
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:1/callback'])
@@ -509,6 +515,7 @@ describe('the consent screen', () => {
   })
 
   test('refuses a redirect_uri the client never registered', async () => {
+    const { jwt, workspaceId } = await seedTestData()
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
@@ -531,6 +538,7 @@ describe('the consent screen', () => {
   })
 
   test('declining tells the client instead of leaving it waiting', async () => {
+    const { jwt, workspaceId } = await seedTestData()
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     const consentPage = await fetchNativeApi(
@@ -548,18 +556,22 @@ describe('the consent screen', () => {
 })
 
 describe('the consent POST cannot be forged or replayed', () => {
-  let workspaceId: string
-  let email: string
+  type TestData = Readonly<{
+    email: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `csrf-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `csrf-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
-  })
+    return { email, workspaceId }
+  }
 
   test('rejects a POST with no consent token', async () => {
+    const { email } = await seedTestData()
     /*
      * The CSRF case: another site can make the browser POST here with its cookies,
      * but it cannot produce this field.
@@ -569,6 +581,7 @@ describe('the consent POST cannot be forged or replayed', () => {
   })
 
   test('rejects a tampered consent token', async () => {
+    const { email, workspaceId } = await seedTestData()
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
@@ -588,6 +601,7 @@ describe('the consent POST cannot be forged or replayed', () => {
   })
 
   test('rejects a consent token issued to a different user', async () => {
+    const { email, workspaceId } = await seedTestData()
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
@@ -608,19 +622,23 @@ describe('the consent POST cannot be forged or replayed', () => {
 })
 
 describe('the issued token is bound to the workspace it was granted for', () => {
-  let workspaceId: string
-  let email: string
+  type TestData = Readonly<{
+    email: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `grantee-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `grantee-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'admin')
-  })
+    return { email, workspaceId }
+  }
 
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   test('registers Orca and completes consent, the loopback callback and an MCP call', async () => {
+    const { email, workspaceId } = await seedTestData()
     const response = await registerClient()
     expect(response.status).toBe(201)
     const client = await response.json<{ client_id: string }>()
@@ -638,6 +656,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
   })
 
   test("refuses the same token against another workspace's MCP endpoint", async () => {
+    const { email, workspaceId } = await seedTestData()
     /*
      * The whole point of RFC 8707 audience binding. The grant names one workspace;
      * spending it anywhere else must fail, even though the user is a real member of
@@ -654,6 +673,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
   })
 
   test('grants only the scopes that were asked for', async () => {
+    const { email, workspaceId } = await seedTestData()
     const { tokens } = await connect({ email, scope: 'projektor:read', workspaceId })
 
     expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(200)
@@ -667,6 +687,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
   })
 
   test('rotates the refresh token, keeping exactly one generation alive', async () => {
+    const { email, workspaceId } = await seedTestData()
     const { tokens, clientId, resource } = await connect({ email, workspaceId })
     const refresh = (refresh_token: string): Promise<Response> =>
       exchange({ grant_type: 'refresh_token', refresh_token, client_id: clientId, resource })
@@ -699,6 +720,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
   })
 
   test('revokes a token at the endpoint the discovery document advertises', async () => {
+    const { email, workspaceId } = await seedTestData()
     /*
      * The AS metadata names the token endpoint as revocation_endpoint. If that ever
      * drifts to a path nothing serves, the SPA fallback answers 200 and a client
@@ -787,18 +809,22 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
 })
 
 describe("the token endpoint's failure modes", () => {
-  let workspaceId: string
-  let email: string
+  type TestData = Readonly<{
+    email: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `token-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `token-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
-  })
+    return { email, workspaceId }
+  }
 
   test('replaying an authorization code revokes everything the grant produced', async () => {
+    const { email, workspaceId } = await seedTestData()
     /*
      * OAuth 2.1's response to a stolen code: a second presentation means either the
      * client or an attacker is replaying, and the safe reading is that the code
@@ -840,6 +866,7 @@ describe("the token endpoint's failure modes", () => {
   })
 
   test('rejects an authorization request that omits code_challenge_method', async () => {
+    const { email, workspaceId } = await seedTestData()
     /*
      * RFC 7636 says an absent method means `plain`. OAuth 2.1 does not offer plain,
      * and the metadata document advertises S256 only, so this must be refused
@@ -861,6 +888,7 @@ describe("the token endpoint's failure modes", () => {
   })
 
   test('rejects a code exchanged with the wrong PKCE verifier', async () => {
+    const { email, workspaceId } = await seedTestData()
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()

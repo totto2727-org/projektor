@@ -1,3 +1,5 @@
+import { Array } from 'effect'
+
 export const prepareQuery = function prepareQuery(
   db: D1Database,
   query: Readonly<{ sql: string; params: unknown[] }>,
@@ -49,7 +51,7 @@ export const inChunks = async function inChunks<I, O>(
   items: Readonly<I[]>,
   op: (chunk: I[]) => Promise<O[]>,
 ): Promise<O[]> {
-  if (items.length === 0) {
+  if (Array.isReadonlyArrayEmpty(items)) {
     return []
   }
   const out: O[] = []

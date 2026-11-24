@@ -1,5 +1,7 @@
+import { String } from 'effect'
+
 export const parseStoryPoints = function parseStoryPoints(value: string): number | null {
-  if (value === '') {
+  if (String.isEmpty(value)) {
     return null
   }
   const num = parseFloat(value)

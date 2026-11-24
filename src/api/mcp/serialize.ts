@@ -92,7 +92,9 @@ const ShapeOptsSchema = z.object({
   verbose: z.boolean().optional(),
   fields: z
     .union([z.string(), z.array(z.string())])
-    .transform((v) => (Predicate.isString(v) ? v.split(',') : v).map((s) => s.trim()).filter((s) => s.length > 0))
+    .transform((v) =>
+      (Predicate.isString(v) ? v.split(',') : v).map((s) => s.trim()).filter((s) => String.isNonEmpty(s)),
+    )
     .pipe(z.array(z.enum(ISSUE_FIELD_NAMES)).max(ISSUE_FIELD_NAMES.length))
     .optional(),
 })

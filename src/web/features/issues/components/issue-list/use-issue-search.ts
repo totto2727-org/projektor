@@ -1,5 +1,5 @@
 'use client'
-import { Schema } from 'effect'
+import { String, Schema } from 'effect'
 import { useEffect, useRef } from 'react'
 
 import type { ReviewTarget } from '#contracts/review-targets.ts'
@@ -40,7 +40,7 @@ export const useIssueSearch = function useIssueSearch(seed: IssueSearchSeed, rou
     resultQuery: seed.query,
     searchResults: seed.results,
     searchInputRef,
-    isSearchActive: seed.query.trim().length > 0,
+    isSearchActive: String.isNonEmpty(seed.query.trim()),
     route,
   }
 }

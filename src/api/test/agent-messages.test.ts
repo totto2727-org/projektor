@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -25,17 +25,23 @@ import {
   readNativeJson,
 } from './response-json.ts'
 
-describe('agent Messages API', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-  let issueId: string
+type AgentMessagesFixture = Awaited<ReturnType<typeof seedIssueFixture>> &
+  Readonly<{
+    listMessages: (params?: Record<string, string>, bearerToken?: string, workspaceSlug?: string) => Promise<Response>
+    mcpCall: (
+      method: string,
+      args: Record<string, unknown>,
+      bearerToken?: string,
+      workspaceSlug?: string,
+      wsId?: string,
+    ) => Promise<Response>
+    ownSession: (id: string) => Promise<void>
+    postMessage: (body: Record<string, unknown>, bearerToken?: string, workspaceSlug?: string) => Promise<Response>
+  }>
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId, issueId } = await seedIssueFixture())
-  })
+const seedAgentMessagesFixture = async function seedAgentMessagesFixture(): Promise<AgentMessagesFixture> {
+  const fixture = await seedIssueFixture()
+  const { slug, token, workspaceId } = fixture
 
   const postMessage = async function postMessage(
     body: Record<string, unknown>,
@@ -65,7 +71,7 @@ describe('agent Messages API', () => {
     args: Record<string, unknown>,
     bearerToken = token,
     workspaceSlug = slug,
-    wsId = workspaceId,
+    wsId: string = workspaceId,
   ): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
@@ -83,11 +89,23 @@ describe('agent Messages API', () => {
     })
   }
 
+  const ownSession = async function ownSession(id: string): Promise<void> {
+    await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
+      (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
+      .bind(await hashToken(token), id)
+      .run()
+  }
+
+  return { ...fixture, listMessages, mcpCall, ownSession, postMessage }
+}
+
+describe('agent Messages API', () => {
   /*
    * C1: post_message to issue scope; list_messages returns it; cursor pagination stable
    * token: POST×3 (3/5); token2: GET all (1/5) + GET page2 (2/5); token3: GET page1 (1/5); token4: MCP (1/5)
    */
   test('c1: post_message({scope:issue}) and list_messages with cursor pagination (no dupes/gaps)', async () => {
+    const { issueId, listMessages, mcpCall, postMessage, slug, userId, workspaceId } = await seedAgentMessagesFixture()
     const scope = `issue:${issueId}`
 
     // Post 3 messages so we can page with limit=2
@@ -181,6 +199,7 @@ describe('agent Messages API', () => {
   // C2: workspace scope; messages visible via workspace scope; not returned under issue scope
   // 3 requests (post, list workspace scope, list issue scope) — within RATE_LIMIT_API_MAX=5
   test('c2: workspace-scoped post_message visible under workspace scope; not under issue scope', async () => {
+    const { issueId, listMessages, postMessage, slug, userId, workspaceId } = await seedAgentMessagesFixture()
     const wsScope = 'workspace'
     const issueScope = `issue:${issueId}`
 
@@ -213,6 +232,7 @@ describe('agent Messages API', () => {
   // C3: CAPSTONE — spans agents + file-claims + agent-messages
   // Uses multiple tokens to stay within rate limit (5 per token)
   test('c3: capstone — two agents coordinate via messages; force-claim posts override notice', async () => {
+    const { mcpCall, projectId, slug, token, userId, workspaceId } = await seedAgentMessagesFixture()
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Agent Issue' })
     const scope = `issue:${issue2.id}`
 
@@ -344,6 +364,7 @@ describe('agent Messages API', () => {
   // C4: workspace isolation; issue-scope isolation; cursor stability
   // 4 requests (post, list from other ws, post other-issue, list-ws scope) within limit
   test('c4: workspace isolation and issue-scope isolation', async () => {
+    const { issueId, listMessages, postMessage, slug, userId, workspaceId } = await seedAgentMessagesFixture()
     const scope = `issue:${issueId}`
 
     // Post a message in workspace X
@@ -399,14 +420,8 @@ describe('agent Messages API', () => {
     return row!.last_heartbeat_at
   }
 
-  const ownSession = async function ownSession(id: string): Promise<void> {
-    await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
-      (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
-      .bind(await hashToken(token), id)
-      .run()
-  }
-
   test("post_message refreshes a live agentId's heartbeat, but never revives a stale one", async () => {
+    const { issueId, ownSession, postMessage, workspaceId } = await seedAgentMessagesFixture()
     const { agentSessionId: live } = await seedAgentLease(workspaceId, issueId)
     await ownSession(live)
     const backdated = currentEpochSeconds() - 10

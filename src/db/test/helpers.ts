@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
-import { Iterable } from 'effect'
+import { String, Iterable } from 'effect'
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../migrations')
 
@@ -17,7 +17,7 @@ const splitStatements = function splitStatements(sql: string): string[] {
     .replace(/--[^\n]*/g, '')
     .split(';')
     .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0)
+    .filter((statement) => String.isNonEmpty(statement))
 }
 
 export const loadMigrations = function loadMigrations(): string[] {

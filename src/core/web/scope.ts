@@ -124,7 +124,7 @@ export const RequestScopeSchema = Schema.Struct({
 })
 
 export const queryHint = function queryHint(url: URL, name: string): string | undefined {
-  const values = url.searchParams.getAll(name).filter((value) => value !== '')
+  const values = url.searchParams.getAll(name).filter((value) => String.isNonEmpty(value))
   if (new Set(values).size > 1) {
     throw new ScopeError(HTTP_BAD_REQUEST, `Ambiguous ${name} parameter.`)
   }

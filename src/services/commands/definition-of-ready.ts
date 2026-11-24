@@ -5,6 +5,8 @@
  * schema change would break every existing issue's readiness overnight.
  */
 
+import { Array, String } from 'effect'
+
 export interface ReadinessCheck {
   ready: boolean
   missing: string[]
@@ -77,13 +79,13 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
     .replace(/`/gu, '')
   const sepIdx = inline.search(/[:—–]/)
   const afterColon = sepIdx === -1 ? '' : inline.slice(sepIdx + 1).trim()
-  if (afterColon !== '') {
+  if (String.isNonEmpty(afterColon)) {
     return true
   }
 
   for (let index = idx + 1; index < lines.length; index++) {
     const line = lines[index].trim()
-    if (line === '') {
+    if (String.isEmpty(line)) {
       continue
     }
     if (isSectionBoundary(line)) {
@@ -121,7 +123,7 @@ export const checkDefinitionOfReady = function checkDefinitionOfReady(body: stri
     missing.push('scope/files')
   }
 
-  return { ready: missing.length === 0, missing }
+  return { ready: Array.isArrayEmpty(missing), missing }
 }
 
 /** PROJ-859: the stored-column form of checkDefinitionOfReady — [dor_ready, dor_missing]. */

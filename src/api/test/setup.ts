@@ -1,3 +1,4 @@
+import { String } from 'effect'
 import { beforeAll, beforeEach } from 'vite-plus/test'
 
 import { configureCore, env } from './fixture-api.ts'
@@ -15,7 +16,7 @@ const splitStatements = function splitStatements(sql: string): string[] {
     .replace(/--[^\n]*/g, '')
     .split(';')
     .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0)
+    .filter((statement) => String.isNonEmpty(statement))
 }
 
 // Migrations run through the test-only Core fixture entrypoint. The actual public

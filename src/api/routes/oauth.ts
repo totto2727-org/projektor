@@ -175,7 +175,7 @@ const errorPage = function errorPage(
  */
 const consentSigningKey = function consentSigningKey(httpContext: Context<HonoEnv>): string | null {
   const secret = httpContext.env.JWT_SECRET
-  return secret && secret.length > 0 ? secret : null
+  return secret && String.isNonEmpty(secret) ? secret : null
 }
 
 const NO_SIGNING_KEY =

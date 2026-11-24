@@ -1346,20 +1346,24 @@ describe('wiki role guards', () => {
 
 // PROJ-483: slug uniqueness + rename redirects
 describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userId: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    userId = fixture.user.id
-  })
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    const workspaceId = fixture.workspace.id
+    const userId = fixture.user.id
+    return { slug, token, userId, workspaceId }
+  }
 
   test("handles POST /api/wiki rejects a title that slugifies to an existing page's slug (409)", async () => {
+    const { slug, token } = await seedTestData()
     const first = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'Operations' }),
       headers: authHeaders(token, slug),
@@ -1376,6 +1380,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('handles POST /api/wiki rejects an explicit slug that collides with an existing page (409)', async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'Operations' }),
       headers: authHeaders(token, slug),
@@ -1391,6 +1396,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles POST /api/wiki rejects the reserved slug 'view' (PROJ-487, 400)", async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', slug: 'view', title: 'View' }),
       headers: authHeaders(token, slug),
@@ -1400,6 +1406,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles POST /api/wiki auto-slugs the title 'View' to 'view-page' (PROJ-811)", async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'View' }),
       headers: authHeaders(token, slug),
@@ -1410,6 +1417,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles PUT /api/wiki/:slug rejects renaming to the reserved slug 'view' (PROJ-487, 400)", async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'g', title: 'Gamma' }),
       headers: authHeaders(token, slug),
@@ -1425,6 +1433,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles POST /api/wiki rejects a slug containing '/' (PROJ-517, 400)", async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', slug: 'a/b', title: 'Nested' }),
       headers: authHeaders(token, slug),
@@ -1434,6 +1443,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles PUT /api/wiki/:slug rejects renaming to a slug containing '/' (PROJ-517, 400)", async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'd', title: 'Delta' }),
       headers: authHeaders(token, slug),
@@ -1449,6 +1459,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('handles POST /api/wiki uses an opaque slug for a non-Latin title (empty derived slug, PROJ-517 #5)', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: '測試' }),
       headers: authHeaders(token, slug),
@@ -1466,6 +1477,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles POST /api/wiki uses an opaque slug when derived slug exceeds SlugSchema's 200-char max (PROJ-517)", async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ title: 'a'.repeat(300), content: 'v1' }),
       headers: authHeaders(token, slug),
@@ -1477,6 +1489,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("covers MCP create_wiki_page rejects a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'create_wiki_page',
@@ -1488,6 +1501,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("covers MCP update_wiki_page rejects renaming to a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const created = mcpData(
       await mcpCall(workspaceId, 'create_wiki_page', { content: 'd', title: 'Delta MCP' }, authHeaders(token, slug)),
       SlugResponse,
@@ -1504,6 +1518,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('a slashy slug rewritten by the PROJ-517 backfill still resolves, and the old slug redirects (#1)', async () => {
+    const { slug, token, userId, workspaceId } = await seedTestData()
     /*
      * Simulate a pre-PROJ-517 row that predates SlugSchema's no-slash rule by
      * inserting directly (SlugSchema would now reject this via the service layer).
@@ -1550,6 +1565,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles POST /api/wiki rejects the reserved slug 'index' (PROJ-487, 400)", async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', slug: 'index', title: 'Index' }),
       headers: authHeaders(token, slug),
@@ -1559,6 +1575,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles POST /api/wiki auto-slugs the title 'Index' to 'index-page' (PROJ-811)", async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'Index' }),
       headers: authHeaders(token, slug),
@@ -1569,6 +1586,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("handles PUT /api/wiki/:slug rejects renaming to the reserved slug 'index' (PROJ-487, 400)", async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'd', title: 'Delta' }),
       headers: authHeaders(token, slug),
@@ -1584,6 +1602,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('handles PUT /api/wiki/:slug renaming the slug creates a redirect; the old slug still resolves', async () => {
+    const { slug, token } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'Roadmap' }),
       headers: authHeaders(token, slug),
@@ -1615,6 +1634,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('handles PUT /api/wiki/:slug rejects renaming to a slug already used by another page (409)', async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'a', title: 'Alpha' }),
       headers: authHeaders(token, slug),
@@ -1635,6 +1655,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('redirect chains collapse: renaming a page twice still resolves the original slug in one hop', async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'Docs' }),
       headers: authHeaders(token, slug),
@@ -1666,6 +1687,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('getWikiPage prefers a live page over a stale redirect for a reused slug (never ambiguous)', async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'original', title: 'Old Name' }),
       headers: authHeaders(token, slug),
@@ -1694,6 +1716,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('the same slug in two different workspaces does not conflict', async () => {
+    const { slug, token } = await seedTestData()
     const other = await seedFixture()
 
     const first = await fetchNativeApi('http://localhost/api/wiki', {
@@ -1714,6 +1737,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('a redirect created in one workspace does not resolve in another workspace', async () => {
+    const { slug, token } = await seedTestData()
     const other = await seedFixture()
 
     await fetchNativeApi('http://localhost/api/wiki', {
@@ -1743,6 +1767,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('covers MCP update_wiki_page newSlug renames the slug and old slug resolves via redirect (parity with REST)', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const created = mcpData(
       await mcpCall(workspaceId, 'create_wiki_page', { content: 'v1', title: 'Handbook' }, authHeaders(token, slug)),
       SlugResponse,
@@ -1768,6 +1793,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('covers MCP create_wiki_page rejects a colliding slug with a ConflictError (conflict tool error)', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     await mcpCall(workspaceId, 'create_wiki_page', { title: 'Conflict Page' }, authHeaders(token, slug))
     const res = await mcpCall(workspaceId, 'create_wiki_page', { title: 'Conflict Page' }, authHeaders(token, slug))
     expect(isMcpError(res)).toBe(false)
@@ -1781,12 +1807,6 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
  * throughout — each behavior is exercised via both surfaces.
  */
 describe('wiki frontmatter metadata (PROJ-488)', () => {
-  let token: string, slug: string, workspaceId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
-  })
-
   const RUNBOOK_CONTENT = [
     '---',
     'type: runbook',
@@ -1801,6 +1821,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   ].join('\n')
 
   test('covers REST POST /api/wiki parses valid frontmatter into denormalized fields', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: RUNBOOK_CONTENT, title: 'Incident Runbook' }),
       headers: authHeaders(token, slug),
@@ -1839,6 +1860,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers MCP create_wiki_page parses valid frontmatter into denormalized fields (parity with REST)', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     const result = mcpData(
       await mcpCall(
         workspaceId,
@@ -1854,6 +1876,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('a page with no frontmatter gets empty/null metadata', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'just markdown, no frontmatter', title: 'Plain Page' }),
       headers: authHeaders(token, slug),
@@ -1877,6 +1900,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
    * runbook/adr/spec/note set is accepted and stored as-is, not rejected.
    */
   test('covers REST POST /api/wiki accepts a `type` value outside the well-known set (PROJ-513)', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\ntype: whitepaper\n---\nbody',
@@ -1891,6 +1915,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers MCP create_wiki_page accepts a `type` value outside the well-known set, parity with REST (PROJ-513)', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     const created = mcpData(
       await mcpCall(
         workspaceId,
@@ -1908,6 +1933,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
    * then usable as a filter on both list and search, exactly like a well-known one.
    */
   test('filters list/search by a `type` value outside the well-known set (PROJ-513)', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\ntype: whitepaper\n---\nlatency budget',
@@ -1945,6 +1971,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects an invalid `status` enum value with a structured error', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\nstatus: archived\n---\nbody',
@@ -1957,6 +1984,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects malformed YAML in the frontmatter block with a structured error, not a silent drop', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\ntags: [unterminated\n---\nbody',
@@ -1969,6 +1997,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects an unrecognized frontmatter key rather than silently ignoring it', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\nstauts: current\n---\nbody',
@@ -1981,6 +2010,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects tags with the wrong type (a string instead of an array)', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\ntags: ops\n---\nbody',
@@ -1993,6 +2023,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test("rejects a frontmatter block that isn't a YAML mapping", async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\n- one\n- two\n---\nbody',
@@ -2005,6 +2036,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test("rejects a verified_at that isn't a parseable date", async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\nverified_at: last tuesday\n---\nbody',
@@ -2017,6 +2049,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects a verified_at that is neither a date nor a number', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\nverified_at: true\n---\nbody',
@@ -2029,6 +2062,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('accepts a verified_at given as unix seconds', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\nverified_at: 1700000000\n---\nbody',
@@ -2043,6 +2077,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('update_wiki_page reparses frontmatter when content changes', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     const created = mcpData(
       await mcpCall(
         workspaceId,
@@ -2070,6 +2105,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('update_wiki_page leaves existing frontmatter metadata unchanged when content is omitted', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     const created = mcpData(
       await mcpCall(
         workspaceId,
@@ -2097,6 +2133,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('update_wiki_page rejects invalid frontmatter on a content edit', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     const created = mcpData(
       await mcpCall(
         workspaceId,
@@ -2121,6 +2158,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers REST GET /api/wiki filters by type and status', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: RUNBOOK_CONTENT, title: 'Filter Runbook' }),
       headers: authHeaders(token, slug),
@@ -2149,6 +2187,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers REST GET /api/wiki?tags= filters by any-of tag match', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '---\ntags: [ops]\n---\nbody', title: 'Tagged Ops' }),
       headers: authHeaders(token, slug),
@@ -2176,6 +2215,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers MCP list_wiki_pages filters by tags (any-of), parity with REST', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     await mcpCall(
       workspaceId,
       'create_wiki_page',
@@ -2197,6 +2237,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers REST GET /api/wiki/search filters by type/status/tags on top of the FTS match', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         content: '---\ntype: runbook\nstatus: current\ntags: [deploy]\n---\ndeploy steps',
@@ -2226,6 +2267,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('search results return tags/owners as arrays, same shape as list and get', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: RUNBOOK_CONTENT, title: 'Shape Runbook' }),
       headers: authHeaders(token, slug),
@@ -2260,6 +2302,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers MCP search_wiki filters by type, parity with REST', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     await mcpCall(
       workspaceId,
       'create_wiki_page',
@@ -2289,13 +2332,8 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
  * baseRevisionId via list_wiki_revisions using whatever reference the caller holds).
  */
 describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', () => {
-  let token: string, slug: string, workspaceId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
-  })
-
   test('covers REST: GET /:slug/revisions resolves via an old (pre-rename) slug', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'Runbook' }),
       headers: authHeaders(token, slug),
@@ -2335,6 +2373,7 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   })
 
   test('covers REST: GET /:slug/revisions/:revisionId resolves via an old (pre-rename) slug', async () => {
+    const { slug, token } = await seedWorkspaceFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1', title: 'Playbook' }),
       headers: authHeaders(token, slug),
@@ -2367,6 +2406,7 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   })
 
   test('covers MCP: list_wiki_revisions and get_wiki_revision resolve via an old (pre-rename) slug', async () => {
+    const { slug, token, workspaceId } = await seedWorkspaceFixture()
     const created = mcpData(
       await mcpCall(workspaceId, 'create_wiki_page', { content: 'v1', title: 'Charter' }, authHeaders(token, slug)),
       SlugResponse,
@@ -2401,6 +2441,7 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   })
 
   test('covers REST: DELETE /:slug resolves via an old (pre-rename) slug', async () => {
+    await seedWorkspaceFixture()
     // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
     const owner = await seedFixture({ role: 'owner' })
     await fetchNativeApi('http://localhost/api/wiki', {
@@ -4232,16 +4273,20 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 })
 
 describe('wiki write atomicity (PROJ-511)', () => {
-  let token: string
-  let slug: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-  })
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    return { slug, token }
+  }
 
   test("a slug race during create leaves wiki_links with only the winner's link, never a partial write", async () => {
+    const { slug, token } = await seedTestData()
     // createWikiPage's assertSlugAvailable-then-insert isn't atomic (services/wiki.ts):
     // two concurrent creates with the same title/slug can both pass the availability
     // check, so one loses to a UNIQUE constraint failure inside the ctx.db.batch() call
@@ -4284,6 +4329,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
   })
 
   test("a failed rename (slug conflict) leaves the page's content, wiki_links, and wiki_fts untouched", async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'how to page', title: 'Atomic Runbook' }),
       headers: authHeaders(token, slug),
@@ -4393,18 +4439,21 @@ describe('computeFreshness (PROJ-489)', () => {
 })
 
 describe('wiki freshness model (PROJ-489)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userEmail: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+    userEmail: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    userEmail = fixture.user.email
-  })
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    const workspaceId = fixture.workspace.id
+    const userEmail = fixture.user.email
+    return { slug, token, userEmail, workspaceId }
+  }
 
   const today = (): string => new Date().toISOString().slice(0, 10)
 
@@ -4425,6 +4474,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   }
 
   test('covers REST GET /api/wiki/:slug returns computed freshness in the page header', async () => {
+    const { slug, token } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ title: 'Overdue Runbook', content: overdueContent() }),
       headers: authHeaders(token, slug),
@@ -4444,6 +4494,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test("covers REST POST /api/wiki/:slug/verify stamps verified_at/verified_by using the CALLING user's identity", async () => {
+    const { slug, token, userEmail } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ title: 'Needs Verification', content: overdueContent() }),
       headers: authHeaders(token, slug),
@@ -4481,6 +4532,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('verify_wiki_page records a revision, same as any other content edit', async () => {
+    const { slug, token } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ title: 'Revision Check', content: overdueContent() }),
       headers: authHeaders(token, slug),
@@ -4510,6 +4562,7 @@ describe('wiki freshness model (PROJ-489)', () => {
    * stamp the CURRENT content — a stale read would silently revert the edit before it.
    */
   test('handles POST /api/wiki/:slug/verify stamps on top of the latest content, never a stale snapshot', async () => {
+    const { slug, token, userEmail } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ title: 'Edited Then Verified', content: overdueContent() }),
       headers: authHeaders(token, slug),
@@ -4537,6 +4590,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('handles POST /api/wiki/:slug/verify is rejected for a viewer', async () => {
+    await seedTestData()
     const roles = await seedWorkspaceRoles()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -4553,6 +4607,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('covers MCP verify_wiki_page stamps verified_at/verified_by, parity with REST', async () => {
+    const { slug, token, userEmail, workspaceId } = await seedTestData()
     const created = mcpData(
       await mcpCall(
         workspaceId,
@@ -4572,6 +4627,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('handles GET /api/wiki/search demotes a computed-stale page below a fresh page matching the same query', async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         title: 'Stale Deploy Guide',
@@ -4605,6 +4661,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('handles GET /api/wiki/search demotes an explicitly status: deprecated page too', async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
         title: 'Deprecated Onboarding',
@@ -4633,6 +4690,7 @@ describe('wiki freshness model (PROJ-489)', () => {
    * than a legacy page with no frontmatter at all just for declaring an interval.
    */
   test('handles GET /api/wiki/search does NOT demote an unverified page below a page with no freshness signal', async () => {
+    const { slug, token } = await seedTestData()
     /*
      * If "unverified" were still in the demotion tier, this page would sort AFTER
      * "No Signal" below regardless of relevance, the same way a stale/deprecated page
@@ -4671,6 +4729,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('handles GET /api/wiki/stale-pages lists computed-stale, unverified, deprecated pages, excluding fresh', async () => {
+    const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ title: 'Overdue Page', content: overdueContent() }),
       headers: authHeaders(token, slug),
@@ -4713,6 +4772,7 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('covers MCP list_stale_pages returns the same result shape as REST', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     await mcpCall(
       workspaceId,
       'create_wiki_page',

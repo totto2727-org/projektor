@@ -1657,7 +1657,7 @@ const extractSectionText = function extractSectionText(content: string, section:
 
 const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (Array.isArrayNonEmpty(out) && out[out.length - 1].trim() === '') {
+  while (Array.isArrayNonEmpty(out) && String.isEmpty(out[out.length - 1].trim())) {
     out.pop()
   }
   return out
@@ -1665,7 +1665,7 @@ const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<s
 
 const trimLeadingBlankLines = function trimLeadingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (Array.isArrayNonEmpty(out) && out[0].trim() === '') {
+  while (Array.isArrayNonEmpty(out) && String.isEmpty(out[0].trim())) {
     out.shift()
   }
   return out
@@ -1678,7 +1678,7 @@ const trimLeadingBlankLines = function trimLeadingBlankLines(lines: Readonly<str
  */
 const appendToPageEnd = function appendToPageEnd(content: string, text: string): string {
   const trimmed = content.replace(/\s+$/u, '')
-  if (trimmed === '') {
+  if (String.isEmpty(trimmed)) {
     return `${text.trimEnd()}\n`
   }
   return `${trimmed}\n\n${text.trimEnd()}\n`
@@ -1709,7 +1709,7 @@ const applySectionOp = function applySectionOp(
       ? [...trimmedBody, '', ...op.text.split('\n')]
       : op.text.split('\n')
   } else if (op.op === 'replace_section') {
-    newBodyLines = op.text.trim() === '' ? [] : op.text.split('\n')
+    newBodyLines = String.isEmpty(op.text.trim()) ? [] : op.text.split('\n')
   } else {
     const trimmedBody = trimTrailingBlankLines(trimLeadingBlankLines(bodyLines))
     newBodyLines = Array.isArrayNonEmpty(trimmedBody)

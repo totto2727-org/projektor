@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import {
@@ -49,28 +49,33 @@ const postIssue = async function postIssue(
 // ---------------------------------------------------------------------------
 
 describe('covers PROJ-91: user-scoped token — member workspace', () => {
-  let slug: string
-  let userId: string
-  let userToken: string
-  let projectId: string
+  type TestData = Readonly<{
+    projectId: string
+    slug: string
+    userId: string
+    userToken: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
-    slug = ws.slug
+    const slug = ws.slug
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
-    userId = user.id
+    const userId = user.id
     await seedMember(ws.id, userId, 'member')
-    userToken = await seedUserToken(userId)
-    projectId = (await seedProject(ws.id)).id
+    const userToken = await seedUserToken(userId)
+    const projectId = (await seedProject(ws.id)).id
     await seedGroupGrant(ws.id, userId, projectId)
-  })
+    return { projectId, slug, userId, userToken }
+  }
 
   test('can read issues in a workspace the user is a member of', async () => {
+    const { slug, userToken } = await seedTestData()
     const res = await getIssues(userToken, slug)
     expect(res.status).toBe(200)
   })
 
   test('can write (create issue) in a workspace the user is a member of', async () => {
+    const { projectId, slug, userToken } = await seedTestData()
     const res = await postIssue(userToken, slug, projectId, 'user-token write test')
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
@@ -78,6 +83,7 @@ describe('covers PROJ-91: user-scoped token — member workspace', () => {
   })
 
   test('works across multiple workspaces the user belongs to', async () => {
+    const { userId, userToken } = await seedTestData()
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(ws2.id, userId, 'viewer')
 

@@ -1736,15 +1736,8 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
 })
 
 describe('issues KV cache', () => {
-  let token: string
-  let slug: string
-  let projectId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, projectId } = await seedProjectFixture())
-  })
-
   test('getIssue: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
+    const { projectId, slug, token } = await seedProjectFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: {
@@ -1796,6 +1789,7 @@ describe('issues KV cache', () => {
   })
 
   test('updateIssue invalidates the cache so next getIssue re-fetches from D1', async () => {
+    const { projectId, slug, token } = await seedProjectFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: {
@@ -1845,6 +1839,7 @@ describe('issues KV cache', () => {
    * getIssue, so they never got any cache benefit before this fix.
    */
   test('getIssue by ref: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
+    const { projectId, slug, token } = await seedProjectFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: {

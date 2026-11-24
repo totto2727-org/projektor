@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { String } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 import m0050 from '#migrations/0050_wiki_slug_slash_backfill.sql?raw'
@@ -19,7 +20,7 @@ const splitStatements = function splitStatements(sql: string): string[] {
     .replace(/--[^\n]*/g, '')
     .split(';')
     .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0)
+    .filter((statement) => String.isNonEmpty(statement))
 }
 
 const runMigration0050 = async function runMigration0050(): Promise<void> {
@@ -41,17 +42,21 @@ const insertPage = async function insertPage(workspaceId: string, userId: string
 }
 
 describe('0050 wiki slug slash backfill', () => {
-  let workspaceId: string
-  let userId: string
+  type TestData = Readonly<{
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const ws = await seedWorkspace()
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
-    workspaceId = ws.id
-    userId = user.id
-  })
+    const workspaceId = ws.id
+    const userId = user.id
+    return { userId, workspaceId }
+  }
 
   test('rewrites a simple slashy slug with no collision and leaves a redirect', async () => {
+    const { userId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
     const pageId = await insertPage(workspaceId, userId, 'docs/setup', now)
 
@@ -67,6 +72,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('disambiguates two slashy slugs that rewrite to the same candidate with an id suffix', async () => {
+    const { userId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
     const firstId = await insertPage(workspaceId, userId, 'a/b/c', now)
     const secondId = await insertPage(workspaceId, userId, 'a-b/c', now + 1)
@@ -82,6 +88,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('suffixes a slashy slug whose rewritten candidate collides with a pre-existing non-slashy page', async () => {
+    const { userId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
     await insertPage(workspaceId, userId, 'docs-faq', now)
     const slashyId = await insertPage(workspaceId, userId, 'docs/faq', now + 1)
@@ -95,6 +102,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('upserts a pre-existing wiki_redirects row instead of aborting the migration on collision', async () => {
+    const { userId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
     const otherPageId = await insertPage(workspaceId, userId, 'unrelated', now - 2000)
     await env.DB.prepare(
@@ -114,6 +122,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('truncates an oversized rewritten candidate before appending the id suffix, staying under 200 chars', async () => {
+    const { userId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
     const candidate = `${'b'.repeat(120)}-${'c'.repeat(120)}` // 241 chars
     const slashy = `${'b'.repeat(120)}/${'c'.repeat(120)}` // Same length, collides once rewritten

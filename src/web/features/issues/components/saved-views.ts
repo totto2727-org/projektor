@@ -89,7 +89,7 @@ export const parseSavedViews = function parseSavedViews(raw: string | null): Sav
       return
     }
     const name = (v as { name?: unknown }).name
-    if (!Predicate.isString(name) || name.length === 0) {
+    if (!Predicate.isString(name) || String.isEmpty(name)) {
       return
     }
     out.push({

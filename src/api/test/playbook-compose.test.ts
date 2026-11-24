@@ -194,21 +194,25 @@ describe('compose_playbook', () => {
 
 // PROJ-633: REST parity for compose_playbook
 describe('handles POST /api/playbooks/:name/compose', () => {
-  let token: string
-  let slug: string
-  let epicNumber: number
+  type TestData = Readonly<{
+    epicNumber: number
+    slug: string
+    token: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
-    token = fixture.token
-    slug = fixture.slug
+    const token = fixture.token
+    const slug = fixture.slug
     const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?')
       .bind(fixture.issueId)
       .first<{ number: number }>()
-    epicNumber = row!.number
-  })
+    const epicNumber = row!.number
+    return { epicNumber, slug, token }
+  }
 
   test('returns 200 for epic-goal with a valid params body', async () => {
+    const { epicNumber, slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal/compose', {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -224,6 +228,7 @@ describe('handles POST /api/playbooks/:name/compose', () => {
   })
 
   test("returns a 4xx via the service's validation for a bad body", async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal/compose', {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },

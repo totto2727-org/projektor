@@ -799,18 +799,22 @@ describe('files API', () => {
  * REST-only (AGENTS.md exception).
  */
 describe('files MCP tools', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-  })
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    const workspaceId = fixture.workspace.id
+    return { slug, token, workspaceId }
+  }
 
   test('create_link_attachment + list_attachments + get_attachment + delete_attachment round-trip', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const headers = authHeaders(token, slug)
     const entityId = crypto.randomUUID()
 
@@ -852,6 +856,7 @@ describe('files MCP tools', () => {
   })
 
   test('get_attachment returns a not_found tool error for an unknown id', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -863,6 +868,7 @@ describe('files MCP tools', () => {
   })
 
   test('create_link_attachment rejects a wiki_ref for a non-existent page', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -882,6 +888,7 @@ describe('files MCP tools', () => {
   })
 
   test('delete_attachment via MCP also removes the underlying R2 object for uploaded files', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const form = new FormData()
     form.append('file', new File(['mcp delete test'], 'mcp.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
@@ -902,6 +909,7 @@ describe('files MCP tools', () => {
   })
 
   test('list_attachments scopes by workspace — another workspace sees no rows for the same entityId', async () => {
+    await seedTestData()
     const other = await seedFixture()
     const result = await mcpToolResult<unknown[]>(
       other.workspace.id,
@@ -913,6 +921,7 @@ describe('files MCP tools', () => {
   })
 
   test('create_link_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+    await seedTestData()
     const { workspace, viewer } = await seedWorkspaceRoles()
     const res = await mcpCall(
       workspace.id,
@@ -933,6 +942,7 @@ describe('files MCP tools', () => {
   })
 
   test('delete_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+    await seedTestData()
     const { workspace, owner, viewer } = await seedWorkspaceRoles()
     const created = await mcpToolResult<{ id: string }>(
       workspace.id,

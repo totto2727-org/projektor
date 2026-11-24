@@ -1629,7 +1629,7 @@ const useNewCommentForm = function useNewCommentForm(
   const newCommentRevision = useRef(0)
   const [postingComment, setPostingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
-  useUnsavedUnloadGuard(newComment.trim().length > 0)
+  useUnsavedUnloadGuard(String.isNonEmpty(newComment.trim()))
   const key = draftKey(workspaceSlug, `${currentUserId ?? '-'}:${issueId}`, 'comment')
 
   /*

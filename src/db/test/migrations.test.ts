@@ -132,7 +132,7 @@ describe('schema constraints', () => {
         .replace(/--[^\n]*/g, '')
         .split(';')
         .map((statement) => statement.trim())
-        .filter((statement) => statement.length > 0)
+        .filter((statement) => String.isNonEmpty(statement))
     for (const file of preSlugFiles) {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8')
       Iterable.forEach(splitStatements(sql), (stmt) => {
