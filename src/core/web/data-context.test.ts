@@ -69,7 +69,7 @@ describe('frontend application data authorization', () => {
   test('authorizes workspace wiki rows with null project and project entities against the visible catalog', () => {
     const wiki = { projectId: null, title: 'Workspace page' }
     expect(authorizeDataEntity(scope, 'wa', wiki)).toBe(wiki)
-    expect(authorizeDataEntity(scope, 'wa', { projectId: 'pa' })).toEqual({ projectId: 'pa' })
+    expect(authorizeDataEntity(scope, 'wa', { projectId: 'pa' })).toStrictEqual({ projectId: 'pa' })
     expect(() => authorizeDataEntity(scope, 'wa', { projectId: 'hidden' })).toThrow(
       'Selected project is not accessible.',
     )

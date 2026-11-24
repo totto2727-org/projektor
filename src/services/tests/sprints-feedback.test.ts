@@ -79,7 +79,7 @@ describe('sprint and feedback database read models', () => {
   test('retains raw feedback list rows, descending order and combined filters', async () => {
     const rows = await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toStrictEqual(['f5', 'f4', 'f3', 'f2', 'f1'])
-    expect(rows[4]).toEqual({
+    expect({ ...rows[4] }).toStrictEqual({
       app_version: '1',
       body: 'Comment',
       created_at: 10,
@@ -103,7 +103,8 @@ describe('sprint and feedback database read models', () => {
 
   test('retains source/version aggregate counts, null groups and SQL average semantics', async () => {
     const rows = await runTestEffect(readFeedbackSummary(db, 'wa', { projectId: 'pa' }))
-    expect(rows).toEqual([
+    const columnValues = rows.map((row) => Object.fromEntries(Object.entries(row)))
+    expect(columnValues).toStrictEqual([
       {
         app_version: '2',
         five_star_avg: 3,
@@ -147,7 +148,7 @@ describe('sprint and feedback database read models', () => {
   test('retains raw source metadata and revoked rows without producing API previews', async () => {
     const rows = await runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toStrictEqual(['sa2', 'sa'])
-    expect(rows[0]).toEqual({
+    expect({ ...rows[0] }).toStrictEqual({
       allowed_origins: null,
       created_at: 20,
       description: null,

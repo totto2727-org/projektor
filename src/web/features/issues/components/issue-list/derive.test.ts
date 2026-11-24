@@ -79,7 +79,7 @@ describe('deriveStatusOptions', () => {
         status_category: 'done',
       }),
     ]
-    expect(deriveStatusOptions(issues, [])).toEqual([
+    expect(deriveStatusOptions(issues, [])).toStrictEqual([
       { category: 'todo', color: null, id: 's1', key: 'todo', name: 'To Do' },
       { category: 'done', color: null, id: 's2', key: 'done', name: 'Done' },
     ])
@@ -100,14 +100,14 @@ describe('deriveProjectOptions', () => {
       makeIssue({ project_key: 'A', project_name: 'Alpha' }),
       makeIssue({ project_key: 'B', project_name: 'Beta' }),
     ]
-    expect(deriveProjectOptions(issues)).toEqual([
+    expect(deriveProjectOptions(issues)).toStrictEqual([
       { key: 'A', name: 'Alpha' },
       { key: 'B', name: 'Beta' },
     ])
   })
 
   test('falls back to the key as the name when project_name is missing', () => {
-    expect(deriveProjectOptions([makeIssue({ project_key: 'A', project_name: null })])).toEqual([
+    expect(deriveProjectOptions([makeIssue({ project_key: 'A', project_name: null })])).toStrictEqual([
       { key: 'A', name: 'A' },
     ])
   })
@@ -126,14 +126,14 @@ describe('deriveTypeOptions', () => {
       makeIssue({ type_key: 'bug', type_name: 'Bug' }),
       makeIssue({ type_key: 'task', type_name: 'Task' }),
     ]
-    expect(deriveTypeOptions(issues)).toEqual([
+    expect(deriveTypeOptions(issues)).toStrictEqual([
       ['bug', 'Bug'],
       ['task', 'Task'],
     ])
   })
 
   test('falls back to the key as the name when type_name is missing', () => {
-    expect(deriveTypeOptions([makeIssue({ type_key: 'bug', type_name: null })])).toEqual([['bug', 'bug']])
+    expect(deriveTypeOptions([makeIssue({ type_key: 'bug', type_name: null })])).toStrictEqual([['bug', 'bug']])
   })
 
   test('skips issues with no type_key', () => {

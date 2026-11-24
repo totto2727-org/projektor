@@ -37,7 +37,7 @@ describe('computeFiltersPopoverPosition (PROJ-588)', () => {
   test('opens below the trigger and clamps maxHeight to the space available', () => {
     window.innerHeight = 500
     // 500 - 224 - 4 - 8 = 264px below.
-    expect(computeFiltersPopoverPosition(rectAt(200))).toEqual({
+    expect(computeFiltersPopoverPosition(rectAt(200))).toStrictEqual({
       left: 10,
       maxHeight: 264,
       top: 228,

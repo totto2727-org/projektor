@@ -105,7 +105,7 @@ test('offers cross-project review navigation that cannot inherit project, assign
   const link = screen.getByRole('link', { name: '全プロジェクトのレビュー' })
   const url = new URL(link.getAttribute('href') ?? '', 'https://frontend.test')
   expect(url.pathname).toBe('/issues')
-  expect(Array.from(url.searchParams.entries())).toEqual([
+  expect(Array.from(url.searchParams.entries())).toStrictEqual([
     ['workspace', 'team space'],
     ['review', 'in_review'],
     ['view', 'list'],

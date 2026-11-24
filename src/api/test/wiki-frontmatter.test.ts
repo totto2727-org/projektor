@@ -9,7 +9,7 @@ import {
 
 describe('parseWikiFrontmatter (PROJ-488)', () => {
   test('returns empty meta for content with no frontmatter block', () => {
-    expect(parseWikiFrontmatter('# Just a heading\n\nbody text')).toEqual({
+    expect(parseWikiFrontmatter('# Just a heading\n\nbody text')).toStrictEqual({
       isTemplate: false,
       owners: [],
       status: null,
@@ -40,7 +40,7 @@ describe('parseWikiFrontmatter (PROJ-488)', () => {
       'body',
     ].join('\n')
 
-    expect(parseWikiFrontmatter(content)).toEqual({
+    expect(parseWikiFrontmatter(content)).toStrictEqual({
       isTemplate: true,
       owners: ['alice'],
       status: 'current',

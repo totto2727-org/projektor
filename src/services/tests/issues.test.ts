@@ -164,7 +164,7 @@ describe('issue and related pure data queries', () => {
   })
 
   test('preserves comments keys, link direction and empty workspace-scoped reads', async () => {
-    await expect(runTestEffect(listComments(db, 'wa', 'i1'))).resolves.toEqual([
+    await expect(runTestEffect(listComments(db, 'wa', 'i1'))).resolves.toStrictEqual([
       {
         author_email: 'u@example.com',
         author_id: 'u',
@@ -176,7 +176,7 @@ describe('issue and related pure data queries', () => {
       },
     ])
     await expect(runTestEffect(listComments(db, 'wb', 'i1'))).resolves.toStrictEqual([])
-    await expect(runTestEffect(listLinksForIssue(db, 'wa', 'i2'))).resolves.toEqual([
+    await expect(runTestEffect(listLinksForIssue(db, 'wa', 'i2'))).resolves.toStrictEqual([
       {
         createdAt: 1,
         createdById: 'u',
@@ -197,7 +197,8 @@ describe('issue and related pure data queries', () => {
     const rows = await runTestEffect(
       issues.searchIssues(db, 'wa', { query: 'needle', limit: 20 }, { sql: 'i.project_id = ?', params: ['pa'] }),
     )
-    expect(rows).toEqual([
+    const columnValues = rows.map((row) => Object.fromEntries(Object.entries(row)))
+    expect(columnValues).toStrictEqual([
       {
         id: 'i1',
         number: 1,
@@ -219,7 +220,7 @@ describe('issue and related pure data queries', () => {
     sqlite.exec(`INSERT INTO task_types(id,workspace_id,key,name,position,is_default) VALUES ('t','wa','bug','Bug',0,1);
       INSERT INTO task_statuses(id,workspace_id,key,name,category,position,is_default,is_review_step) VALUES ('s','wa','review','Review','in_progress',0,1,1);
       INSERT INTO custom_field_definitions(id,workspace_id,key,label,type,options,created_at) VALUES ('choice','wa','choice','Choice','select','["A","B"]',2);`)
-    await expect(runTestEffect(listTaskTypes(db, 'wa'))).resolves.toEqual([
+    await expect(runTestEffect(listTaskTypes(db, 'wa'))).resolves.toStrictEqual([
       {
         color: null,
         icon: null,
@@ -231,7 +232,7 @@ describe('issue and related pure data queries', () => {
         workspace_id: 'wa',
       },
     ])
-    await expect(runTestEffect(listTaskStatuses(db, 'wa'))).resolves.toEqual([
+    await expect(runTestEffect(listTaskStatuses(db, 'wa'))).resolves.toStrictEqual([
       {
         category: 'in_progress',
         color: null,

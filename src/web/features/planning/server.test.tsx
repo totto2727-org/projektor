@@ -240,7 +240,7 @@ describe('planning SSR named shared queries on real migrated D1', () => {
 
   test('keeps the six-week weekly default and date normalization', () => {
     const now = new Date('2026-10-04T12:00:00Z')
-    expect(defaultRange(now)).toEqual({
+    expect(defaultRange(now)).toStrictEqual({
       granularity: 'week',
       since: '2026-08-24',
       until: '2026-10-04',

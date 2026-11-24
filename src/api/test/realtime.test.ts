@@ -253,7 +253,7 @@ describe('realtime WebSockets (Opt-In)', () => {
     const otherType = socket(attachmentFor('member', { filters: { projects: [projectId], eventTypes: ['comment.*'] } }))
     const { hub } = hubFor([matching, otherProject, otherType])
     const broadcast = event()
-    await expect(hub.broadcast(broadcast)).resolves.toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(broadcast)).resolves.toStrictEqual({ recipientCount: 1 })
     expect(matching.send).toHaveBeenCalledWith(JSON.stringify(broadcast))
     expect(otherProject.send).not.toHaveBeenCalled()
     expect(otherType.send).not.toHaveBeenCalled()
@@ -264,7 +264,7 @@ describe('realtime WebSockets (Opt-In)', () => {
     const forbidden = socket(attachmentFor('viewer'))
     const admin = socket(attachmentFor('owner'))
     const { hub } = hubFor([allowed, forbidden, admin])
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 2 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 2 })
     expect(allowed.send).toHaveBeenCalledOnce()
     expect(forbidden.send).not.toHaveBeenCalled()
     expect(admin.send).toHaveBeenCalledOnce()
@@ -273,7 +273,7 @@ describe('realtime WebSockets (Opt-In)', () => {
   test('does not trust a cached project list or client filter over current grants', async () => {
     const ws = socket(attachmentFor('viewer', { visibleProjectIds: [projectId], filters: { projects: [projectId] } }))
     const { hub } = hubFor([ws])
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 0 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
     expect(ws.deserializeAttachment().visibleProjectIds).toEqual([otherProjectId])
     expect(ws.send).not.toHaveBeenCalled()
   })
@@ -282,9 +282,11 @@ describe('realtime WebSockets (Opt-In)', () => {
     const member = socket(attachmentFor())
     const admin = socket(attachmentFor('owner'))
     const { hub } = hubFor([member, admin])
-    await expect(hub.broadcast(event({ type: 'workspace.announcement', projectId: undefined }))).resolves.toEqual({
-      recipientCount: 1,
-    })
+    await expect(hub.broadcast(event({ type: 'workspace.announcement', projectId: undefined }))).resolves.toStrictEqual(
+      {
+        recipientCount: 1,
+      },
+    )
     expect(member.send).not.toHaveBeenCalled()
     expect(admin.send).toHaveBeenCalledOnce()
   })
@@ -292,14 +294,14 @@ describe('realtime WebSockets (Opt-In)', () => {
   test('denies a removed admin without sending a pong or a later workspace broadcast', async () => {
     const ws = socket(attachmentFor('owner'))
     const { hub } = hubFor([ws])
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(roles.workspace.id, roles.owner.user.id)
       .run()
     await hub.webSocketMessage(ws as unknown as WebSocket, JSON.stringify({ action: 'ping' }))
     expect(ws.send).not.toHaveBeenCalled()
-    await expect(hub.broadcast(event({ type: 'workspace.event', projectId: undefined }))).resolves.toEqual({
+    await expect(hub.broadcast(event({ type: 'workspace.event', projectId: undefined }))).resolves.toStrictEqual({
       recipientCount: 0,
     })
     expect(ws.send).not.toHaveBeenCalled()
@@ -308,14 +310,14 @@ describe('realtime WebSockets (Opt-In)', () => {
   test('drops a revoked grant on a passive socket immediately without a ping or stale-snapshot delay', async () => {
     const ws = socket(attachmentFor('member', { snapshotAt: currentEpochSeconds() }))
     const { hub } = hubFor([ws])
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare(
       'DELETE FROM group_project_grants WHERE project_id = ? AND group_id IN (SELECT group_id FROM user_group_members WHERE user_id = ?)',
     )
       .bind(projectId, roles.member.user.id)
       .run()
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 0 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
     expect(ws.deserializeAttachment().visibleProjectIds).toStrictEqual([])
     expect(ws.send).not.toHaveBeenCalled()
   })
@@ -323,24 +325,24 @@ describe('realtime WebSockets (Opt-In)', () => {
   test('denies passive broadcasts immediately after token revocation', async () => {
     const ws = socket(attachmentFor('owner', { snapshotAt: currentEpochSeconds() }))
     const { hub } = hubFor([ws])
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare('DELETE FROM api_tokens WHERE token_hash = ?')
       .bind(await hashToken(roles.owner.token))
       .run()
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 0 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
     expect(ws.send).not.toHaveBeenCalled()
   })
 
   test('drops cached elevated access immediately after an owner is demoted', async () => {
     const ws = socket(attachmentFor('owner', { visibleProjectIds: [projectId, otherProjectId] }))
     const { hub } = hubFor([ws])
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare('UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?')
       .bind('member', roles.workspace.id, roles.owner.user.id)
       .run()
-    await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 0 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
     expect(ws.deserializeAttachment()).toMatchObject({ role: 'member', visibleProjectIds: [] })
     expect(ws.send).not.toHaveBeenCalled()
   })

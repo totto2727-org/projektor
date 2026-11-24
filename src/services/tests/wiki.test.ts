@@ -190,7 +190,7 @@ describe('pure wiki reads', () => {
     await expect(apiWiki.listWikiPages(ctx, {})).resolves.toEqual(
       rows.map((row) => ({ ...row, url: `/wiki/${row.slug}` })),
     )
-    await expect(apiWiki.listWikiTemplates(ctx, {})).resolves.toEqual([
+    await expect(apiWiki.listWikiTemplates(ctx, {})).resolves.toStrictEqual([
       {
         id: 'template',
         project_id: null,
@@ -262,7 +262,7 @@ describe('pure wiki reads', () => {
     await expect(apiWiki.getWikiRevision(ctx, 'root', 'rf')).rejects.toMatchObject({
       message: 'Revision not found',
     })
-    await expect(apiWiki.getWikiRevisionDiff(ctx, 'root', 'r1', { against: 'r2' })).resolves.toEqual({
+    await expect(apiWiki.getWikiRevisionDiff(ctx, 'root', 'r1', { against: 'r2' })).resolves.toStrictEqual({
       diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Before\n+After',
       from: 'r1',
       to: 'r2',

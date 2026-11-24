@@ -3,7 +3,8 @@ import type { SQL, SQLWrapper } from 'drizzle-orm'
 import { Iterable, Array, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
-import { MILLISECONDS_PER_SECOND, currentEpochSeconds } from '#contracts/time.ts'
+import { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
+import { MILLISECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_WEEK, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -15,19 +16,6 @@ export interface FlowMetricsRange {
   since?: number
   until?: number
   granularity: 'day' | 'week'
-}
-
-const mondayAtOrBefore = function mondayAtOrBefore(t: number): number {
-  const dayIndex = Math.floor(t / DAY)
-  const daysSinceMonday = ((dayIndex % 7) + 7 - 4) % 7
-  return (dayIndex - daysSinceMonday) * DAY
-}
-
-const flowMetricsDefaultStarts = function flowMetricsDefaultStarts(now: number): {
-  bucketSince: number
-  wipSince: number
-} {
-  return { bucketSince: mondayAtOrBefore(now) - 5 * 7 * DAY, wipSince: now - 30 * DAY }
 }
 
 export interface Distribution {
@@ -59,18 +47,16 @@ type FlowIssueRow = {
   typeKey: string | null
 }
 
-const DAY = 86_400
-
 const dateLabel = function dateLabel(t: number): string {
   return new Date(t * MILLISECONDS_PER_SECOND).toISOString().slice(0, 10)
 }
 
 const bucketSizeFor = function bucketSizeFor(granularity: 'day' | 'week'): number {
-  return granularity === 'day' ? DAY : 7 * DAY
+  return granularity === 'day' ? SECONDS_PER_DAY : SECONDS_PER_WEEK
 }
 
 const firstBucketFor = function firstBucketFor(since: number, granularity: 'day' | 'week'): number {
-  return granularity === 'day' ? since - (since % DAY) : mondayAtOrBefore(since)
+  return granularity === 'day' ? since - (since % SECONDS_PER_DAY) : mondayAtOrBefore(since)
 }
 
 /*
@@ -165,7 +151,7 @@ const buildWipOverTime = function buildWipOverTime(
   const buckets: { date: string; count: number }[] = []
   let idx = 0
   let running = 0
-  for (let t = since - (since % DAY); t <= until; t += DAY) {
+  for (let t = since - (since % SECONDS_PER_DAY); t <= until; t += SECONDS_PER_DAY) {
     while (idx < events.length && events[idx][0] <= t) {
       running += events[idx][1]
       idx++
@@ -736,7 +722,7 @@ const readFlowMetrics = async function readFlowMetrics(
    *   they're counted (fetchWindowCounts) rather than loaded.
    */
   const createdUntil = until ?? now
-  const doneBefore = Predicate.isNullish(since) ? undefined : Math.min(since, since - (since % DAY))
+  const doneBefore = Predicate.isNullish(since) ? undefined : Math.min(since, since - (since % SECONDS_PER_DAY))
   const windowPredicate = and(
     lte(schema.issues.createdAt, createdUntil),
     Predicate.isNullish(doneBefore)

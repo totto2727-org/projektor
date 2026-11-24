@@ -62,7 +62,7 @@ describe('issue attachment review target storage and authorization', () => {
     const testFixture = fixture()
     await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
     for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
-      await expect(testFixture.set('a', status)).resolves.toEqual({ ok: true })
+      await expect(testFixture.set('a', status)).resolves.toStrictEqual({ ok: true })
       await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
         reviewStatus: status,
       })

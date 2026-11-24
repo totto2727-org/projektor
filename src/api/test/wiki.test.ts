@@ -3792,7 +3792,7 @@ describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
         id: string
         slug: string
       }>()
-      expect(results).toEqual([
+      expect(results).toStrictEqual([
         { id: 'p1', slug: 'operations' },
         { id: 'p2', slug: 'operations-p2' },
         { id: 'p3', slug: 'operations-p3' },
@@ -4301,7 +4301,7 @@ describe('computeFreshness (PROJ-489)', () => {
   })
 
   test("returns 'unverified' when verify_interval is set but verified_at is null", () => {
-    expect(computeFreshness({ verifiedAt: null, verifyInterval: 30, status: null, now: 1_000_000 })).toEqual({
+    expect(computeFreshness({ verifiedAt: null, verifyInterval: 30, status: null, now: 1_000_000 })).toStrictEqual({
       staleSince: null,
       state: 'unverified',
     })
@@ -4310,7 +4310,7 @@ describe('computeFreshness (PROJ-489)', () => {
   test("returns 'fresh' when verify_interval hasn't elapsed since verified_at", () => {
     const now = 1_000_000
     const verifiedAt = now - 10 * 86_400 // 10 days ago
-    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toEqual({
+    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toStrictEqual({
       staleSince: null,
       state: 'fresh',
     })
@@ -4327,16 +4327,18 @@ describe('computeFreshness (PROJ-489)', () => {
   })
 
   test('treats an explicit status: stale as stale regardless of verify_interval', () => {
-    expect(computeFreshness({ verifiedAt: null, verifyInterval: null, status: 'stale', now: 1_000_000 })).toEqual({
-      staleSince: null,
-      state: 'stale',
-    })
+    expect(computeFreshness({ verifiedAt: null, verifyInterval: null, status: 'stale', now: 1_000_000 })).toStrictEqual(
+      {
+        staleSince: null,
+        state: 'stale',
+      },
+    )
   })
 
   test("treats an explicit status: deprecated as stale even when verify_interval hasn't elapsed yet", () => {
     const now = 1_000_000
     const verifiedAt = now - 1 * 86_400 // Verified yesterday
-    expect(computeFreshness({ verifiedAt, verifyInterval: 365, status: 'deprecated', now })).toEqual({
+    expect(computeFreshness({ verifiedAt, verifyInterval: 365, status: 'deprecated', now })).toStrictEqual({
       staleSince: null,
       state: 'stale',
     })
@@ -4350,7 +4352,7 @@ describe('computeFreshness (PROJ-489)', () => {
         status: 'current',
         now: 1_000_000,
       }),
-    ).toEqual({ staleSince: null, state: 'fresh' })
+    ).toStrictEqual({ staleSince: null, state: 'fresh' })
   })
 })
 

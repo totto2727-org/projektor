@@ -1173,7 +1173,7 @@ describe('issues API', () => {
     // 4 API requests (seed + 4 patches), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Flows through' })
     const id = issue.id
-    await expect(flowTimestampsOf(id)).resolves.toEqual({ claimed_at: null, done_at: null, ready_at: null })
+    await expect(flowTimestampsOf(id)).resolves.toStrictEqual({ claimed_at: null, done_at: null, ready_at: null })
 
     await patch(id, { status: 'todo' })
     const afterReady = await flowTimestampsOf(id)
@@ -1227,7 +1227,7 @@ describe('issues API', () => {
     const id = issue.id
 
     await patch(id, { status: 'in_progress' })
-    await expect(reviewFieldsOf(id)).resolves.toEqual({ in_review_at: null, review_bounce_count: 0 })
+    await expect(reviewFieldsOf(id)).resolves.toStrictEqual({ in_review_at: null, review_bounce_count: 0 })
 
     await patch(id, { status: 'in_review' })
     const afterReview = await reviewFieldsOf(id)

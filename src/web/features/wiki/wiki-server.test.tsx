@@ -145,7 +145,7 @@ describe('wiki direct request-owned queries', () => {
       revisionId: 'rev-new',
     })
     expect(initial.draft).toMatchObject({ content: 'Personal body', title: 'My draft' })
-    expect(initial.attachments).toEqual([
+    expect(initial.attachments).toStrictEqual([
       { contentType: 'text/plain', createdAt: 1, filename: 'guide.txt', id: 'attachment', size: 4 },
     ])
     expect(initial.tree.find((node) => node.id === 'page')?.children.map((node) => node.id)).toEqual(['child'])

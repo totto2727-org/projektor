@@ -14,7 +14,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
       '## Verification',
       '`pnpm test widget`',
     ].join('\n')
-    expect(checkDefinitionOfReady(body)).toEqual({ missing: [], ready: true })
+    expect(checkDefinitionOfReady(body)).toStrictEqual({ missing: [], ready: true })
   })
 
   test('accepts an inline file path as the scope signal', () => {
@@ -27,7 +27,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
       '## Verification',
       '`pnpm test widget`',
     ].join('\n')
-    expect(checkDefinitionOfReady(body)).toEqual({ missing: [], ready: true })
+    expect(checkDefinitionOfReady(body)).toStrictEqual({ missing: [], ready: true })
   })
 
   test('flags a heading with no content as missing', () => {
@@ -38,14 +38,14 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
   })
 
   test('flags everything missing for an empty body', () => {
-    expect(checkDefinitionOfReady('')).toEqual({
+    expect(checkDefinitionOfReady('')).toStrictEqual({
       missing: ['acceptance criteria', 'scope/files'],
       ready: false,
     })
   })
 
   test('flags a body with only a title as not ready', () => {
-    expect(checkDefinitionOfReady('Just fix the thing, you know what I mean.')).toEqual({
+    expect(checkDefinitionOfReady('Just fix the thing, you know what I mean.')).toStrictEqual({
       missing: ['acceptance criteria', 'scope/files'],
       ready: false,
     })
@@ -82,7 +82,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
 
   test('recognises colon-prefixed labels (PROJ-291)', () => {
     const body = ['Acceptance criteria: does the thing', 'Scope: `src/x.ts`', 'Verification: `pnpm test`'].join('\n')
-    expect(checkDefinitionOfReady(body)).toEqual({ missing: [], ready: true })
+    expect(checkDefinitionOfReady(body)).toStrictEqual({ missing: [], ready: true })
   })
 
   test('recognises a bold label with the colon inside and content on the same line (PROJ-738)', () => {
@@ -91,7 +91,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
       '**Scope / files:** `src/x.ts`',
       '**Verification:** `pnpm test`; manual check too',
     ].join('\n')
-    expect(checkDefinitionOfReady(body)).toEqual({ missing: [], ready: true })
+    expect(checkDefinitionOfReady(body)).toStrictEqual({ missing: [], ready: true })
   })
 
   const readyBase = 'Scope: `src/x.ts`\n\n'
@@ -106,7 +106,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
     ['lowercase colon', 'acceptance criteria: thing'],
     ['bold lowercase inline', '**acceptance criteria:** thing'],
   ])('recognises an Acceptance criteria label written as: %s (PROJ-738 DoR rework)', (_name, acLine) => {
-    expect(checkDefinitionOfReady(`${acLine}\n\n${readyBase}`)).toEqual({
+    expect(checkDefinitionOfReady(`${acLine}\n\n${readyBase}`)).toStrictEqual({
       missing: [],
       ready: true,
     })

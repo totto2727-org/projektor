@@ -1,32 +1,10 @@
 import { Predicate } from 'effect'
 import { z } from 'zod'
 
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { flowMetricsDefaultStarts } from '#contracts/flow-metrics-range.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 
-const DAY = 86_400
-
-/*
- * Unix epoch day 0 (1970-01-01) was a Thursday; align to the preceding Monday so
- * week boundaries read as conventional (ISO) weeks rather than landing on Thursdays.
- */
-export const mondayAtOrBefore = function mondayAtOrBefore(t: number): number {
-  const dayIndex = Math.floor(t / DAY)
-  const daysSinceMonday = ((dayIndex % 7) + 7 - 4) % 7 // Day 0 (Thu) is 4 days after Monday
-  return (dayIndex - daysSinceMonday) * DAY
-}
-
-/*
- * The lower bounds services/flow-metrics.ts uses when `since` is omitted. They live here
- * so the span validation below checks the window the service will actually compute,
- * not a guess at it: bucket series default to the current ISO week plus the preceding
- * 5 weeks, and wipOverTime (always day-sampled) to the last 30 days.
- */
-export const flowMetricsDefaultStarts = function flowMetricsDefaultStarts(now: number): {
-  bucketSince: number
-  wipSince: number
-} {
-  return { bucketSince: mondayAtOrBefore(now) - 5 * 7 * DAY, wipSince: now - 30 * DAY }
-}
+export { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
 
 /*
  * PROJ-866: an unbounded since/until (e.g. since=0 with day granularity) generated
@@ -36,8 +14,11 @@ export const flowMetricsDefaultStarts = function flowMetricsDefaultStarts(now: n
  * what a caller passes. `since`/`until` stay individually optional; a missing bound is
  * filled with the service's real default (above, or "now" for `until`) for the check.
  */
-const MAX_DAY_WINDOW_SECONDS = 366 * DAY
-const MAX_WEEK_WINDOW_SECONDS = 5 * 365 * DAY
+const MAX_DAILY_WINDOW_DAYS = 366
+const MAX_WEEKLY_WINDOW_YEARS = 5
+const DAYS_PER_COMMON_YEAR = 365
+const MAX_DAY_WINDOW_SECONDS = MAX_DAILY_WINDOW_DAYS * SECONDS_PER_DAY
+const MAX_WEEK_WINDOW_SECONDS = MAX_WEEKLY_WINDOW_YEARS * DAYS_PER_COMMON_YEAR * SECONDS_PER_DAY
 
 export const GetFlowMetricsSchema = z
   .object({

@@ -148,7 +148,7 @@ describe('shared metrics migrated SQLite reads', () => {
     const partial = await runTestEffect(
       getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY + 60, until: DAY + 70, granularity: 'week' }, now),
     )
-    expect(partial.throughputOverTime).toEqual([{ bucketStart: '1969-12-29', count: 1 }])
+    expect(partial.throughputOverTime).toStrictEqual([{ bucketStart: '1969-12-29', count: 1 }])
     expect(partial.arrivalVsCompletionOverTime[0]).toMatchObject({
       completed: 1,
       created: 0,
@@ -157,9 +157,9 @@ describe('shared metrics migrated SQLite reads', () => {
     const foreign = await runTestEffect(
       getFlowMetrics(db, 'wa', { projectId: 'pb', since: DAY, until: now, granularity: 'day' }, now),
     )
-    expect(foreign.leadTime).toEqual({ avg: null, count: 0, p50: null, p90: null })
+    expect(foreign.leadTime).toStrictEqual({ avg: null, count: 0, p50: null, p90: null })
     expect(foreign.agingWip).toStrictEqual([])
-    expect(foreign.factoryHealth).toEqual({
+    expect(foreign.factoryHealth).toStrictEqual({
       abandonedClaims: 0,
       gateRejections: 0,
       leaseExpiries: 0,
@@ -179,7 +179,7 @@ describe('shared metrics migrated SQLite reads', () => {
     insert.run('foreign-claim', 'wb', 'foreign', 'foreign.ts', DAY, null)
     insert.run('other-claim', 'wa', 'other-project', 'other.ts', DAY, null)
     const result = await runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pa', since: DAY, until: now }, now))
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       entries: [
         { claimCount: 3, distinctIssueCount: 2, isLeaf: false, path: 'src', segment: 'src' },
         { claimCount: 1, distinctIssueCount: 1, isLeaf: false, path: 'docs', segment: 'docs' },
@@ -192,7 +192,7 @@ describe('shared metrics migrated SQLite reads', () => {
     const nested = await runTestEffect(
       getCodeHeatmap(db, 'wa', { projectId: 'pa', since: DAY, until: now, prefix: 'src' }, now),
     )
-    expect(nested).toEqual({
+    expect(nested).toStrictEqual({
       entries: [
         { claimCount: 1, distinctIssueCount: 1, isLeaf: true, path: 'src/a.ts', segment: 'a.ts' },
         {
@@ -219,7 +219,7 @@ describe('shared metrics migrated SQLite reads', () => {
     insert.run('cf', 'wb', 'foreign.ts', 'foreign', 'foreign', DAY)
     insert.run('cp', 'wa', 'other.ts', 'other-project', 'done', DAY)
     const result = await runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pa', mode: 'contention' }, now))
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       entries: [
         {
           conflictCount: 3,
@@ -235,7 +235,7 @@ describe('shared metrics migrated SQLite reads', () => {
     })
     await expect(
       runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pb', mode: 'contention' }, now)),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       entries: [],
       mode: 'contention',
       prefix: '',

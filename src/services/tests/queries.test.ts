@@ -122,7 +122,7 @@ describe('project/workspace pure queries', () => {
         bindings: ['p1'],
       }),
     )
-    expect(rows).toEqual([
+    expect(rows.map((row) => Object.fromEntries(Object.entries(row)))).toStrictEqual([
       {
         archived_at: null,
         backlog_issue_count: 1,
@@ -152,7 +152,7 @@ describe('project/workspace pure queries', () => {
   })
 
   test('loads workspace/membership relations without authorizing roles or selecting an implicit tenant', async () => {
-    await expect(runTestEffect(listWorkspaces(db, 'u2'))).resolves.toEqual([
+    await expect(runTestEffect(listWorkspaces(db, 'u2'))).resolves.toStrictEqual([
       { createdAt: 10, id: 'wa', name: 'Alpha workspace', role: 'viewer', slug: 'alpha' },
       { createdAt: 20, id: 'wb', name: 'Beta workspace', role: 'member', slug: 'beta' },
     ])

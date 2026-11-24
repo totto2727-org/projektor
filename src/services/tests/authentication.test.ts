@@ -149,7 +149,7 @@ describe('shared browser authentication without API transport or signing secrets
   )
 
   test('verifies signed claims directly through the shared verifier', async () => {
-    await expect(verifyJwtPayload(await token(), [key], audience, issuer)).resolves.toEqual({
+    await expect(verifyJwtPayload(await token(), [key], audience, issuer)).resolves.toStrictEqual({
       email: 'person@example.test',
     })
     await expect(verifyJwtPayload(await token({}, otherPair), [key], audience, issuer)).resolves.toBeNull()

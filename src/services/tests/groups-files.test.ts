@@ -93,7 +93,7 @@ describe('groups and attachment pure retrieval', () => {
 
   test('includes zero-group workspace members without leaking memberships from another tenant', async () => {
     sqlite.exec("DELETE FROM user_group_members WHERE group_id = 'g1' AND user_id = 'u2'")
-    await expect(runTestEffect(listMemberGroups(db, 'wa'))).resolves.toEqual([
+    await expect(runTestEffect(listMemberGroups(db, 'wa'))).resolves.toStrictEqual([
       { groups: [{ id: 'g1', name: 'Zeta' }], userId: 'u1' },
       { groups: [], userId: 'u2' },
     ])
@@ -102,7 +102,7 @@ describe('groups and attachment pure retrieval', () => {
   test('maps file/link/wiki metadata, orders by creation and filters entity type/id/workspace', async () => {
     const rows = await runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'same' }))
     expect(rows.map((row) => row.id)).toStrictEqual(['a2', 'a3', 'a6', 'a1'])
-    expect(rows[0]).toEqual({
+    expect(rows[0]).toStrictEqual({
       contentType: '',
       createdAt: 10,
       filename: '',
@@ -115,7 +115,7 @@ describe('groups and attachment pure retrieval', () => {
     })
     expect(rows[1].wikiPage).toBeNull()
     expect(rows[2].wikiPage).toBeNull()
-    expect(rows[3]).toEqual({
+    expect(rows[3]).toStrictEqual({
       contentType: 'image/png',
       createdAt: 30,
       filename: 'photo.png',

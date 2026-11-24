@@ -186,7 +186,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('A', null))
     const publication = await beginWikiDraftPublish(ctx, 'guide', snapshot('A', saved.revision))
     const b = await saveWikiDraft(ctx, 'guide', snapshot('B', publication.revision))
-    await expect(finishWikiDraftPublish(ctx, 'page', publication.revision)).resolves.toEqual({
+    await expect(finishWikiDraftPublish(ctx, 'page', publication.revision)).resolves.toStrictEqual({
       draftRevision: null,
       ok: true,
     })

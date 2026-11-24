@@ -8,23 +8,25 @@ describe('parseWikiLinkTargets (PROJ-483)', () => {
   })
 
   test('parses a bare wikilink as a title target', () => {
-    expect(parseWikiLinkTargets('see [[Onboarding Guide]] for details')).toEqual([
+    expect(parseWikiLinkTargets('see [[Onboarding Guide]] for details')).toStrictEqual([
       { kind: 'title', title: 'Onboarding Guide' },
     ])
   })
 
   test('parses a piped wikilink using only the title, ignoring the display label', () => {
-    expect(parseWikiLinkTargets('see [[Onboarding Guide|start here]]')).toEqual([
+    expect(parseWikiLinkTargets('see [[Onboarding Guide|start here]]')).toStrictEqual([
       { kind: 'title', title: 'Onboarding Guide' },
     ])
   })
 
   test('parses a same-workspace path-rooted markdown link as a slug target', () => {
-    expect(parseWikiLinkTargets('[docs](/wiki/onboarding-guide)')).toEqual([{ kind: 'slug', slug: 'onboarding-guide' }])
+    expect(parseWikiLinkTargets('[docs](/wiki/onboarding-guide)')).toStrictEqual([
+      { kind: 'slug', slug: 'onboarding-guide' },
+    ])
   })
 
   test('parses a same-workspace query-string markdown link as a slug target', () => {
-    expect(parseWikiLinkTargets('[docs](/wiki?slug=onboarding-guide)')).toEqual([
+    expect(parseWikiLinkTargets('[docs](/wiki?slug=onboarding-guide)')).toStrictEqual([
       { kind: 'slug', slug: 'onboarding-guide' },
     ])
   })
@@ -42,7 +44,9 @@ describe('parseWikiLinkTargets (PROJ-483)', () => {
   })
 
   test('decodes a percent-escaped slug in the query-param form', () => {
-    expect(parseWikiLinkTargets('[docs](/wiki?slug=caf%C3%A9-notes)')).toEqual([{ kind: 'slug', slug: 'café-notes' }])
+    expect(parseWikiLinkTargets('[docs](/wiki?slug=caf%C3%A9-notes)')).toStrictEqual([
+      { kind: 'slug', slug: 'café-notes' },
+    ])
   })
 
   test('ignores a markdown link with a malformed percent-escape instead of throwing', () => {
@@ -51,7 +55,7 @@ describe('parseWikiLinkTargets (PROJ-483)', () => {
 
   test('collects multiple targets across a mix of wikilinks and markdown links', () => {
     const content = '[[Page A]] and [[Page B|alt]] plus [link](/wiki/page-c)'
-    expect(parseWikiLinkTargets(content)).toEqual([
+    expect(parseWikiLinkTargets(content)).toStrictEqual([
       { kind: 'title', title: 'Page A' },
       { kind: 'title', title: 'Page B' },
       { kind: 'slug', slug: 'page-c' },
