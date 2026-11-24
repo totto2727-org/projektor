@@ -216,7 +216,7 @@ describe('wiki semantic ServerFn contracts', () => {
   )
 
   test("does not grant an archived project's page or revision to an ungranted member", async () => {
-    const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', archived: true })
+    const test = await fixture({ archived: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     for (const operation of [getWikiPage, getWikiDraft, getWikiRevisionDiff]) {
       await expect(
         test.run(operation, { workspaceSlug: 'team', slug: 'guide', revisionId: 'revision' }),
@@ -344,7 +344,7 @@ describe('wiki semantic ServerFn contracts', () => {
   })
 
   test('re-authorizes the actual entity project rather than trusting a page selector', async () => {
-    const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
+    const test = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     for (const operation of [getWikiPage, getWikiDraft, duplicateWikiPage]) {
       await expect(test.run(operation, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
         ok: false,
@@ -555,7 +555,7 @@ describe('wiki semantic ServerFn contracts', () => {
   })
 
   test('enforces actual mutation project permissions and workspace selectors', async () => {
-    const hidden = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
+    const hidden = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     await expect(
       hidden.run(saveWikiPage, {
         expectedDraftRevision: null,
@@ -604,7 +604,7 @@ describe('wiki semantic ServerFn contracts', () => {
     })
     expect(remove).toHaveBeenCalledWith('objects/mine')
     expect(test.sqlite.prepare('SELECT id FROM attachments').all()).toEqual([{ id: 'foreign' }])
-    const hidden = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
+    const hidden = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     hidden.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('hidden','workspace','objects/hidden','hidden.txt','text/plain',4,'wiki_page','00000000-0000-4000-8000-000000000001','user',1)",
     )

@@ -1,4 +1,7 @@
 import { String, Array, Iterable, Predicate } from 'effect'
+
+import { canonicalUtcDayMilliseconds, LAST_SECOND_OF_DAY, MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
+
 export interface FilterQueryFilters {
   filterStatuses: string[]
   filterPriorities: string[]
@@ -19,15 +22,8 @@ interface KeyedById {
 
 // Date filters use UTC calendar days consistently during SSR and in the browser.
 const dateInputToTs = function dateInputToTs(dateStr: string, endOfDay: boolean): number {
-  const timestamp = Date.parse(`${dateStr}T00:00:00Z`)
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/u.test(dateStr) ||
-    !Number.isFinite(timestamp) ||
-    new Date(timestamp).toISOString().slice(0, 10) !== dateStr
-  ) {
-    return Number.NaN
-  }
-  return timestamp / 1000 + (endOfDay ? 86_399 : 0)
+  const startOfDay = canonicalUtcDayMilliseconds(dateStr) / MILLISECONDS_PER_SECOND
+  return endOfDay ? startOfDay + LAST_SECOND_OF_DAY : startOfDay
 }
 
 const applyEpicParams = function applyEpicParams(

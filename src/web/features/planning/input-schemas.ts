@@ -1,5 +1,12 @@
 import { Schema } from 'effect'
 
+import {
+  canonicalUtcDayMilliseconds,
+  MILLISECONDS_PER_DAY,
+  MILLISECONDS_PER_SECOND,
+  SECONDS_PER_MINUTE,
+  utcMidnightMilliseconds,
+} from '#contracts/time.ts'
 import { MAX_METRICS_DAYS } from '#contracts/web-limits.ts'
 
 export const SprintListModeSchema = Schema.Literals(['all', 'planned', 'active', 'completed'])
@@ -15,15 +22,7 @@ export const PlanningScopeFields = {
   projectId: required('Project'),
 }
 const date = Schema.String.check(
-  Schema.makeFilter((value) => {
-    const timestamp = Date.parse(`${value}T00:00:00Z`)
-    return (
-      (/^\d{4}-\d{2}-\d{2}$/u.test(value) &&
-        Number.isFinite(timestamp) &&
-        new Date(timestamp).toISOString().slice(0, 10) === value) ||
-      'Enter a valid date.'
-    )
-  }),
+  Schema.makeFilter((value) => Number.isFinite(canonicalUtcDayMilliseconds(value)) || 'Enter a valid date.'),
 )
 const optionalDate = Schema.Union([Schema.Literal(''), date])
 export const SprintDraftFields = {
@@ -108,7 +107,8 @@ export const MetricsWindowSchema = Schema.Struct({
   ),
   Schema.makeFilter(
     (value) =>
-      (Date.parse(value.until) - Date.parse(value.since)) / 86_400_000 < MAX_METRICS_DAYS || {
+      (utcMidnightMilliseconds(value.until) - utcMidnightMilliseconds(value.since)) / MILLISECONDS_PER_DAY <
+        MAX_METRICS_DAYS || {
         path: ['until'],
         issue: `Choose a range of at most ${MAX_METRICS_DAYS} days.`,
       },
@@ -124,5 +124,5 @@ export const calendarOffset = function calendarOffset(value: string): number {
   return new Date(year, month - 1, day).getTimezoneOffset()
 }
 export const calendarTimestamp = function calendarTimestamp(value: string, offset: number): number | null {
-  return value ? Date.parse(`${value}T00:00:00Z`) / 1000 + offset * 60 : null
+  return value ? utcMidnightMilliseconds(value) / MILLISECONDS_PER_SECOND + offset * SECONDS_PER_MINUTE : null
 }

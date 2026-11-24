@@ -320,7 +320,7 @@ describe('only a signed-in human reaches the consent screen', () => {
   test('401s an anonymous request', async () => {
     const { challenge } = await pkce()
     const { clientId } = await seedOAuthClient()
-    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge }), {
+    const res = await fetchNativeApi(authorizeUrl({ challenge, clientId }), {
       headers: browserHeaders(),
     })
 
@@ -356,7 +356,7 @@ describe('only a signed-in human reaches the consent screen', () => {
     try {
       const { challenge } = await pkce()
       const { clientId } = await seedOAuthClient()
-      const res = await fetchNativeApi(authorizeUrl({ clientId, challenge }), {
+      const res = await fetchNativeApi(authorizeUrl({ challenge, clientId }), {
         headers: browserHeaders(),
       })
 
@@ -374,7 +374,7 @@ describe('the authorization request must name a workspace the user belongs to', 
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge }), {
+    const res = await fetchNativeApi(authorizeUrl({ challenge, clientId }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
       redirect: 'manual',
     })
@@ -654,7 +654,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
   })
 
   test('grants only the scopes that were asked for', async () => {
-    const { tokens } = await connect({ email, workspaceId, scope: 'projektor:read' })
+    const { tokens } = await connect({ email, scope: 'projektor:read', workspaceId })
 
     expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(200)
 
@@ -809,7 +809,7 @@ describe("the token endpoint's failure modes", () => {
     const { verifier, challenge } = await pkce()
     const resource = `${HOST}/mcp/${workspaceId}`
 
-    const consentPage = await fetchNativeApi(authorizeUrl({ clientId, resource, challenge }), {
+    const consentPage = await fetchNativeApi(authorizeUrl({ challenge, clientId, resource }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
     })
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
@@ -866,7 +866,7 @@ describe("the token endpoint's failure modes", () => {
     const { challenge } = await pkce()
     const resource = `${HOST}/mcp/${workspaceId}`
 
-    const consentPage = await fetchNativeApi(authorizeUrl({ clientId, resource, challenge }), {
+    const consentPage = await fetchNativeApi(authorizeUrl({ challenge, clientId, resource }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
     })
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
@@ -1213,7 +1213,7 @@ describe('hardening the consent screen itself', () => {
      * An error page carries no consent form, so widening its policy would grant
      * reach that nothing on the page needs.
      */
-    const res = await fetchNativeApi(authorizeUrl({ clientId: 'nope', challenge: 'x' }), {
+    const res = await fetchNativeApi(authorizeUrl({ challenge: 'x', clientId: 'nope' }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
     })
     const csp = res.headers.get('Content-Security-Policy') ?? ''

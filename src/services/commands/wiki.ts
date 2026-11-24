@@ -1366,7 +1366,7 @@ const finalizeWikiPageUpdate = async function finalizeWikiPageUpdate(
     entityType: 'wiki_page',
     entityId: page.id,
     action: 'updated',
-    diff: buildWikiPageUpdateDiff({ title, content }),
+    diff: buildWikiPageUpdateDiff({ content, title }),
   })
 
   const isTemplate = meta?.isTemplate ?? page.isTemplate

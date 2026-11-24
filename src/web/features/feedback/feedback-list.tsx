@@ -93,7 +93,7 @@ const FeedbackContext = function FeedbackContext({
 }) {
   const context = parseContext(row.sourceUrl)
   if (!context) {
-    return null
+    return undefined
   }
   return (
     <div className='mt-1'>

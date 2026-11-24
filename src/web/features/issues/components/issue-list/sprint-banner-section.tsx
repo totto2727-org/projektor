@@ -49,7 +49,7 @@ const SprintProgress = function SprintProgress({ issues }: { issues: Issue[] }) 
   const doneCount = issues.filter((issue) => issue.status_category === 'done').length
   const totalCount = issues.length
   if (totalCount === 0) {
-    return null
+    return undefined
   }
   const pct = Math.round((doneCount / totalCount) * 100)
   return (

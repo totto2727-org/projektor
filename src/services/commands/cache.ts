@@ -1,3 +1,5 @@
+import { currentEpochMilliseconds } from '#contracts/time.ts'
+
 export const get = async function get<T>(kv: KVNamespace, key: string): Promise<T | null> {
   try {
     return await kv.get<T>(key, { type: 'json' })
@@ -34,10 +36,10 @@ export const createLocalCache = function createLocalCache<T>(ttlMs: number): Loc
   return {
     get(key) {
       const hit = store.get(key)
-      return hit && hit.expiresAt > Date.now() ? hit.value : undefined
+      return hit && hit.expiresAt > currentEpochMilliseconds() ? hit.value : undefined
     },
     set(key, value) {
-      store.set(key, { value, expiresAt: Date.now() + ttlMs })
+      store.set(key, { value, expiresAt: currentEpochMilliseconds() + ttlMs })
     },
     invalidate(key) {
       store.delete(key)

@@ -97,7 +97,7 @@ const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }) {
 
 const CustomFieldsSection = function CustomFieldsSection({ fields }: { fields: SharedIssue['customFields'] }) {
   if (Array.isReadonlyArrayEmpty(fields)) {
-    return null
+    return undefined
   }
   return (
     <div className='border-t border-border pt-4'>

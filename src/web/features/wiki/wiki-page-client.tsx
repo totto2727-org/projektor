@@ -309,7 +309,7 @@ const WIKI_FRESHNESS_BADGE_STYLE: Record<string, { bg: string; color: string; la
 function WikiFreshnessBadge({ state }: { state: WikiFreshness['state'] }) {
   const style = WIKI_FRESHNESS_BADGE_STYLE[state]
   if (!style) {
-    return null
+    return undefined
   }
   return (
     <span
@@ -327,7 +327,7 @@ const WIKI_TAG_CHIP_CLASS =
 
 function TagChips({ tags }: { tags: string[] | undefined | null }) {
   if (!globalThis.Array.isArray(tags) || Array.isArrayEmpty(tags)) {
-    return null
+    return undefined
   }
   return (
     <span className='inline-flex flex-wrap align-middle'>
@@ -426,7 +426,7 @@ function WikiMetadataCard({
     Boolean(page.verified_at)
   const hasVerificationSignal = Boolean(page.verify_interval) || Boolean(page.status)
   if (!hasMetadata && !hasVerificationSignal) {
-    return null
+    return undefined
   }
 
   return (
@@ -662,7 +662,7 @@ function SearchResultMetaLine({ r }: { r: SearchResult }) {
   const isStale = r.freshness && r.freshness.state !== 'fresh'
   const show = r.type || r.status || (r.tags?.length ?? 0) > 0 || isStale
   if (!show) {
-    return null
+    return undefined
   }
   return (
     <span className='block mt-[0.15rem]'>
@@ -1196,7 +1196,7 @@ function PageBreadcrumbs({
   onNavigate: (slug: string) => void
 }) {
   if (breadcrumbs.length <= 1) {
-    return null
+    return undefined
   }
   return (
     <nav
@@ -1777,7 +1777,7 @@ function RevisionsHistory({
   editing: boolean
 }) {
   if (Array.isArrayEmpty(revisions)) {
-    return null
+    return undefined
   }
   return (
     <div className='mt-8'>
@@ -1895,7 +1895,7 @@ function AttachmentUploadForm({ uploadError, onCancel }: { uploadError: string |
     nativeForm.requestSubmit()
   }
   if (!seed.page) {
-    return null
+    return undefined
   }
   return (
     <AttachmentUpload
@@ -2324,7 +2324,7 @@ function WikiMainContent(
     )
   }
   if (!props.page) {
-    return null
+    return undefined
   }
   return <PageArticle {...props.articleProps} page={props.page} />
 }
@@ -4495,7 +4495,7 @@ const UNDO_TOAST_TIMEOUT_MS = 8000
  */
 function UndoToastView({ toast, onDismiss }: { toast: UndoToast | null; onDismiss: () => void }) {
   if (!toast) {
-    return null
+    return undefined
   }
   return <UndoToastBar key={toast.id} toast={toast} onDismiss={onDismiss} />
 }

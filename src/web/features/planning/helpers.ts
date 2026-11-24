@@ -1,5 +1,6 @@
 import { String, Predicate } from 'effect'
 
+import { LAST_SECOND_OF_DAY, MILLISECONDS_PER_SECOND, utcMidnightMilliseconds } from '#contracts/time.ts'
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
 import type { RangeState, SprintIssue } from './types.ts'
@@ -52,10 +53,10 @@ export const defaultRange = function defaultRange(now = new Date()): RangeState 
   }
 }
 export const dateEpochStart = function dateEpochStart(date: string): number {
-  return Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000)
+  return Math.floor(utcMidnightMilliseconds(date) / MILLISECONDS_PER_SECOND)
 }
 export const dateEpochEnd = function dateEpochEnd(date: string): number {
-  return dateEpochStart(date) + 86_399
+  return dateEpochStart(date) + LAST_SECOND_OF_DAY
 }
 export const rangeFromUrl = function rangeFromUrl(url: URL, now = new Date()): RangeState {
   const fallback = defaultRange(now)

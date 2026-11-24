@@ -82,10 +82,10 @@ export const issueDataFixture = function issueDataFixture() {
     createdAt: 2,
   })
   insertIssue({
+    createdAt: 3,
     id: 'hidden-issue',
     projectId: 'hidden-project',
     title: 'Hidden secret',
-    createdAt: 3,
   })
   insertIssue({
     id: 'other-issue',

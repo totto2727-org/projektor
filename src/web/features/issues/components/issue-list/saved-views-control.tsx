@@ -21,7 +21,7 @@ type Saved = ReturnType<typeof useSavedViews>
 const ViewsMenu = function ViewsMenu({ saved }: { saved: Saved }) {
   const { savedViews, activeViewName, applyView, deleteView } = saved
   if (Array.isArrayEmpty(savedViews)) {
-    return null
+    return undefined
   }
 
   return (

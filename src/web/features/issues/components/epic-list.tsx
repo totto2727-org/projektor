@@ -430,7 +430,7 @@ function CreateEpicModal({
   submitCreate,
 }: CreateEpicModalProps) {
   if (!showCreate) {
-    return null
+    return undefined
   }
   return (
     <Dialog open={showCreate} onClose={() => setShowCreate(false)} ariaLabel='Create new epic' className={MODAL_CLASS}>
