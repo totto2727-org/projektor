@@ -182,12 +182,12 @@ describe('code heatmap (PROJ-332)', () => {
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'get_code_heatmap',
           arguments: { projectId, since: now - 3600, until: now },
+          name: 'get_code_heatmap',
         },
       }),
       headers: authHeaders(token, slug),

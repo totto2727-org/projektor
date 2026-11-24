@@ -145,7 +145,7 @@ describe('flow metrics (PROJ-252)', () => {
         id: 1,
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'get_flow_metrics', arguments: { projectId } },
+        params: { arguments: { projectId }, name: 'get_flow_metrics' },
       }),
       headers: authHeaders(token, slug),
       method: 'POST',

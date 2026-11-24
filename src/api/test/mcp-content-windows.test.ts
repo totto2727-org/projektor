@@ -74,10 +74,10 @@ describe('covers PROJ-892: MCP tools', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name, arguments: args },
+        params: { arguments: args, name },
       }),
     })
     return await res.json()

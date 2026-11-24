@@ -279,12 +279,12 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'update_issue',
           arguments: { id: issue.id, status: 'done', agentSessionId, completionReport: report },
+          name: 'update_issue',
         },
       }),
       headers: authHeaders(token, slug),

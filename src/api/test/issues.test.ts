@@ -49,7 +49,7 @@ const callMcpTool = async function callMcpTool(
   const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params }),
+    body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/call', params }),
   })
   return res.json()
 }
@@ -1983,10 +1983,10 @@ describe('get_prioritized_issues MCP tool', () => {
   const callPrioritized = async function callPrioritized(args: Record<string, unknown> = {}) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'get_prioritized_issues', arguments: args },
+        params: { arguments: args, name: 'get_prioritized_issues' },
       }),
       headers: authHeaders(token, slug),
       method: 'POST',

@@ -24,10 +24,10 @@ describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${testFixture.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'add_comment', arguments: { issueId: testFixture.issueId, body: 'hi' } },
+        params: { arguments: { issueId: testFixture.issueId, body: 'hi' }, name: 'add_comment' },
       }),
     })
     expect(res.status).toBe(200)

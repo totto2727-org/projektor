@@ -37,10 +37,10 @@ describe('compose_playbook', () => {
   const compose = async function compose(params: Record<string, unknown>): Promise<Response> {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'compose_playbook', arguments: { name: 'epic-goal', params } },
+        params: { arguments: { name: 'epic-goal', params }, name: 'compose_playbook' },
       }),
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -174,12 +174,12 @@ describe('compose_playbook', () => {
   test('errors on an unknown playbook name, naming valid options', async () => {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'compose_playbook',
           arguments: { name: 'does-not-exist', params: { epicRef: `PROJ-${epicNumber}` } },
+          name: 'compose_playbook',
         },
       }),
       headers: authHeaders(token, slug),

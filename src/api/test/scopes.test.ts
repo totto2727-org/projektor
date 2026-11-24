@@ -105,16 +105,8 @@ describe('covers PROJ-17: scope helpers', () => {
 // ---------------------------------------------------------------------------
 
 describe('covers PROJ-17: REST scope enforcement', () => {
-  let slug: string
-  let projectId: string
-  let userId: string
-  let workspaceId: string
-
-  beforeEach(async () => {
-    ;({ slug, workspaceId, userId, projectId } = await seedScopeFixture())
-  })
-
   test('read-only token can GET but not POST', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
     const headers = authHeaders(token, slug)
 
@@ -131,6 +123,7 @@ describe('covers PROJ-17: REST scope enforcement', () => {
   })
 
   test('write token can POST', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['write'] })
     const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'written by write token' }),
@@ -141,6 +134,7 @@ describe('covers PROJ-17: REST scope enforcement', () => {
   })
 
   test('wildcard token can both read and write', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['*'] })
     const headers = authHeaders(token, slug)
 
@@ -155,6 +149,7 @@ describe('covers PROJ-17: REST scope enforcement', () => {
   })
 
   test('read token is blocked from DELETE', async () => {
+    const { slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
     const res = await fetchNativeApi(`http://localhost/api/issues/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
@@ -178,10 +173,10 @@ const mcpCall = async function mcpCall(
     method: 'POST',
     headers,
     body: JSON.stringify({
-      jsonrpc: '2.0',
       id: 1,
+      jsonrpc: '2.0',
       method: 'tools/call',
-      params: { name, arguments: args },
+      params: { arguments: args, name },
     }),
   })
   return res.json()
@@ -192,16 +187,8 @@ const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc i
 }
 
 describe('covers PROJ-17: MCP scope enforcement', () => {
-  let slug: string
-  let projectId: string
-  let userId: string
-  let workspaceId: string
-
-  beforeEach(async () => {
-    ;({ slug, workspaceId, userId, projectId } = await seedScopeFixture())
-  })
-
   test('read token: read tool works, write tool is blocked', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
     const headers = authHeaders(token, slug)
 
@@ -217,6 +204,7 @@ describe('covers PROJ-17: MCP scope enforcement', () => {
   })
 
   test('write token: write tool works', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['write'] })
     const created = await mcpCall(
       workspaceId,

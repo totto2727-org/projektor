@@ -204,10 +204,10 @@ describe('covers PROJ-891: MCP tools', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name, arguments: args },
+        params: { arguments: args, name },
       }),
     })
     const bodyShape = Schema.Struct({
@@ -276,15 +276,15 @@ describe('covers PROJ-891: MCP tools', () => {
         method: 'POST',
         headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          jsonrpc: '2.0',
           id: 1,
+          jsonrpc: '2.0',
           method: 'tools/call',
           params: {
-            name: 'list_issues',
             arguments: {
               limit: 60,
               ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { cursor } : {}),
             },
+            name: 'list_issues',
           },
         }),
       })

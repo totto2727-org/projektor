@@ -46,12 +46,12 @@ const mcpUpdate = async function mcpUpdate(
     method: 'POST',
     headers: authHeaders(fixture.token, fixture.slug),
     body: JSON.stringify({
-      jsonrpc: '2.0',
       id: 1,
+      jsonrpc: '2.0',
       method: 'tools/call',
       params: {
-        name: 'set_attachment_review_status',
         arguments: { issueId: fixture.issueId, attachmentId, status },
+        name: 'set_attachment_review_status',
       },
     }),
   })

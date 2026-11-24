@@ -74,7 +74,7 @@ describe('workflow spec', () => {
         id: 1,
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'get_workflow', arguments: {} },
+        params: { arguments: {}, name: 'get_workflow' },
       }),
       headers: authHeaders(token, slug),
       method: 'POST',

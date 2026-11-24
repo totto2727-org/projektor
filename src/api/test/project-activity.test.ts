@@ -23,10 +23,10 @@ const mcpCall = async function mcpCall<T>(
     method: 'POST',
     headers,
     body: JSON.stringify({
-      jsonrpc: '2.0',
       id: 1,
+      jsonrpc: '2.0',
       method: 'tools/call',
-      params: { name: toolName, arguments: args },
+      params: { arguments: args, name: toolName },
     }),
   })
   return res.json()

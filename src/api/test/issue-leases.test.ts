@@ -185,10 +185,10 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'get_prioritized_issues', arguments: args },
+        params: { arguments: args, name: 'get_prioritized_issues' },
       }),
     })
     const jsonShape = Schema.Struct({
@@ -396,7 +396,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
         id: 1,
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'update_project', arguments: { id: projectId, agentWipLimit: 1 } },
+        params: { arguments: { id: projectId, agentWipLimit: 1 }, name: 'update_project' },
       }),
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -413,8 +413,8 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
         jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'create_project',
           arguments: { name: 'MCP WIP Project', key: 'MCPWIP', agentWipLimit: 1 },
+          name: 'create_project',
         },
       }),
       headers: authHeaders(token, slug),
@@ -556,10 +556,10 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
   const mcpLeases = async function mcpLeases(args: Record<string, unknown>) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'list_issue_leases', arguments: args },
+        params: { arguments: args, name: 'list_issue_leases' },
       }),
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -763,10 +763,10 @@ describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-ad
     const mcpLeases = async function mcpLeases(args: Record<string, unknown>): Promise<{ items: unknown[] }> {
       const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         body: JSON.stringify({
-          jsonrpc: '2.0',
           id: 1,
+          jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'list_issue_leases', arguments: args },
+          params: { arguments: args, name: 'list_issue_leases' },
         }),
         headers: authHeaders(token, slug),
         method: 'POST',

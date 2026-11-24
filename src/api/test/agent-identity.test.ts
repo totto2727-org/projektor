@@ -44,10 +44,10 @@ describe('covers PROJ-894: stateless agent identity', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name, arguments: args },
+        params: { arguments: args, name },
       }),
     })
     const body = (await res.json()) as RpcBody

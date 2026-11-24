@@ -308,10 +308,10 @@ describe('covers KV caching', () => {
 
       const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         body: JSON.stringify({
-          jsonrpc: '2.0',
           id: 1,
+          jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'update_issue', arguments: { id: issue.id, title: 'After' } },
+          params: { arguments: { id: issue.id, title: 'After' }, name: 'update_issue' },
         }),
         headers: authHeaders(token, slug),
         method: 'POST',

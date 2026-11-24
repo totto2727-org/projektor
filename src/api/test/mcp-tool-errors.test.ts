@@ -106,7 +106,7 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
         id: 1,
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'create_project', arguments: { name: 'Nope', key: 'NOPE' } },
+        params: { arguments: { name: 'Nope', key: 'NOPE' }, name: 'create_project' },
       }),
     })
     const body = (await res.json()) as Rpc

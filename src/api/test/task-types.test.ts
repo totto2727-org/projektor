@@ -237,17 +237,8 @@ describe('task Types API', () => {
 })
 
 describe('task Types — issue integration', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userId: string
-  let projectId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
-  })
-
   test('handles POST /api/issues uses workspace default type when no typeId given', async () => {
+    const { projectId, slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task' })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -267,6 +258,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles POST /api/issues with typeId sets the type', async () => {
+    const { projectId, slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -285,6 +277,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles POST /api/issues rejects typeId from another workspace', async () => {
+    const { projectId, slug, token } = await seedProjectFixture({ role: 'owner' })
     const other = await seedFixture({ role: 'owner' })
     const { id: foreignTypeId } = await seedTaskType(other.workspace.id, {
       key: 'epic',
@@ -300,6 +293,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles PATCH /api/issues/:id updates typeId', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No type' })
 
@@ -318,6 +312,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles PATCH /api/issues/:id clears typeId with null', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -342,6 +337,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles GET /api/issues?typeId= filters by type', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -361,6 +357,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles GET /api/issues returns type_key and type_name in list', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Typed issue', typeId })
 
@@ -376,6 +373,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles GET /api/issues/:id returns type_key and type_name', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -388,6 +386,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles POST /api/issues has null type_key when no types exist', async () => {
+    const { projectId, slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Typeless issue' }),
       headers: authHeaders(token, slug),

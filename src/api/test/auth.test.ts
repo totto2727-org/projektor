@@ -842,7 +842,7 @@ describe('covers PROJ-274: read-scoped token is denied write on every request', 
         id: 1,
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'create_project', arguments: { name: 'Blocked', key: 'BLK' } },
+        params: { arguments: { name: 'Blocked', key: 'BLK' }, name: 'create_project' },
       }),
     })
     const bodyShape = Schema.Struct({
@@ -1224,10 +1224,10 @@ describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes
       method: 'POST',
       headers,
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name, arguments: args },
+        params: { arguments: args, name },
       }),
     })
     return res.json() as Promise<{
@@ -1323,7 +1323,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
         id: 3,
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'no_such_tool', arguments: {} },
+        params: { arguments: {}, name: 'no_such_tool' },
       }),
     })
     const body = await readNativeJson(

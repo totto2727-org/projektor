@@ -78,10 +78,10 @@ describe('file Claims API', () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: method, arguments: args },
+        params: { arguments: args, name: method },
       }),
     })
   }
