@@ -38,7 +38,6 @@ import {
   duplicateWikiPage,
   getWikiDraftState,
   getWikiPage,
-  getWikiRevisionDiff,
   moveWikiPage,
   restoreTrashedWikiPage,
   restoreWikiRevision,
@@ -51,7 +50,26 @@ import { AttachmentFields, CreateFields, EditFields, FilterFields, MoveFields, S
 import { LazyMarkdownEditor as MarkdownEditor } from './lazy-markdown-editor.tsx'
 import { navigateFeature } from './navigation.ts'
 import { stripFrontmatter } from './render-markdown.ts'
+import { RevisionsHistory } from './revisions-history.tsx'
+import type { WikiRevision } from './revisions-history.tsx'
 
+/*
+ * PROJ-804: pure and exported so it's unit-testable without mounting WikiPage. Turns
+ * heading text into a URL-safe id and de-duplicates within one pass over the page's
+ * headings — repeated text (two "Overview" headings) gets `-1`, `-2`, … suffixes
+ * instead of two headings sharing an id (which broke the second TOC entry's link and
+ * its React/Preact list key). A heading whose text produces an empty slug (e.g. all
+ * punctuation, or a script `[^a-z0-9]` strips entirely) falls back to `section-N`
+ * (1-based, N = that heading's position) rather than `id=""`.
+ *
+ * Uniqueness is checked against every id handed out so far, not a per-base counter:
+ * ["Overview", "Overview", "Overview 1"] must not give `overview-1` twice, so a suffix
+ * is only taken once it's actually free. An id the author wrote (`<h2 id="install">`,
+ * which DOMPurify keeps) is reserved up front and left as-is — links elsewhere point
+ * at it — and generated ids steer around it. Only a *repeated* authored id is
+ * re-suffixed, since two elements can't share it either. Because kept ids are left
+ * alone, running this again over headings it already labelled is a no-op.
+ */
 export { assignHeadingIds } from './headings.ts'
 
 interface ProjectOption {
@@ -468,31 +486,6 @@ interface TocItem {
   level: number
   text: string
   id: string
-}
-
-/*
- * PROJ-804: pure and exported so it's unit-testable without mounting WikiPage. Turns
- * heading text into a URL-safe id and de-duplicates within one pass over the page's
- * headings — repeated text (two "Overview" headings) gets `-1`, `-2`, … suffixes
- * instead of two headings sharing an id (which broke the second TOC entry's link and
- * its React/Preact list key). A heading whose text produces an empty slug (e.g. all
- * punctuation, or a script `[^a-z0-9]` strips entirely) falls back to `section-N`
- * (1-based, N = that heading's position) rather than `id=""`.
- *
- * Uniqueness is checked against every id handed out so far, not a per-base counter:
- * ["Overview", "Overview", "Overview 1"] must not give `overview-1` twice, so a suffix
- * is only taken once it's actually free. An id the author wrote (`<h2 id="install">`,
- * which DOMPurify keeps) is reserved up front and left as-is — links elsewhere point
- * at it — and generated ids steer around it. Only a *repeated* authored id is
- * re-suffixed, since two elements can't share it either. Because kept ids are left
- * alone, running this again over headings it already labelled is a no-op.
- */
-interface WikiRevision {
-  id: string
-  author_id: string | null
-  author_name: string | null
-  created_at: number
-  summary: string | null
 }
 
 // PROJ-807: state for the "page moved to trash" toast shown after a delete, with an
@@ -1640,170 +1633,6 @@ function DraftRestoreBanner({
           Discard
         </Button>
       </div>
-    </div>
-  )
-}
-
-/*
- * PROJ-492 (R10): renders the server's unified diff text (--- base / +++ current, @@
- * hunks, +/- lines) with per-line coloring. An empty diff means the two sides are
- * identical (services/wiki.ts#buildUnifiedDiff returns "" in that case).
- */
-function RevisionDiffView({ diff }: { diff: string }): JSX.Element {
-  if (String.isEmpty(diff)) {
-    return <p className='mt-2 mb-1 text-[0.75rem] text-text-muted italic'>No changes.</p>
-  }
-  const occurrences = new Map<string, number>()
-  return (
-    <pre
-      className={
-        'mt-2 mb-1 p-2 bg-surface border border-border rounded-md text-[0.75rem] ' +
-        'overflow-x-auto leading-snug whitespace-pre-wrap'
-      }
-    >
-      {diff.split('\n').map((line) => {
-        const occurrence = occurrences.get(line) ?? 0
-        occurrences.set(line, occurrence + 1)
-        const cls = line.startsWith('+') ? 'text-green-600' : line.startsWith('-') ? 'text-red-600' : 'text-text-muted'
-        return (
-          <div key={`${line}:${occurrence}`} className={cls}>
-            {String.isNonEmpty(line) ? line : ' '}
-          </div>
-        )
-      })}
-    </pre>
-  )
-}
-
-/*
- * PROJ-808: restoring while the page is being edited raced the edit's own save against
- * the restore's PUT — both build their request off the revision the user started from,
- * so whichever lands second gets a 409 against a revision it created itself. Simplest
- * correct fix: disable Restore during editing rather than trying to reconcile the two.
- */
-const RESTORE_DISABLED_WHILE_EDITING_REASON = 'Finish or cancel editing before restoring a previous revision'
-
-function RevisionRow({
-  revision,
-  workspaceSlug,
-  pageSlug,
-  onRestore,
-  restoring,
-  editing,
-}: {
-  revision: WikiRevision
-  workspaceSlug: string | undefined
-  pageSlug: string
-  onRestore: (revision: WikiRevision) => void
-  restoring: boolean
-  editing: boolean
-}): JSX.Element {
-  const [diffOpen, setDiffOpen] = useState(false)
-  const [diff, setDiff] = useState<string>()
-  const [diffError, setDiffError] = useState<string>()
-  const [diffLoading, setDiffLoading] = useState(false)
-
-  async function toggleDiff(): Promise<void> {
-    if (diffOpen) {
-      setDiffOpen(false)
-      return
-    }
-    setDiffOpen(true)
-    if (Predicate.isNotNullish(diff) || diffLoading) {
-      return
-    }
-    setDiffLoading(true)
-    setDiffError(undefined)
-    try {
-      const result = unwrapResult(
-        await Effect.runPromise(query(getWikiRevisionDiff)({ workspaceSlug, slug: pageSlug, revisionId: revision.id })),
-      )
-      setDiff(result.diff)
-    } catch (caughtError) {
-      setDiffError(globalThis.String(caughtError))
-    }
-    setDiffLoading(false)
-  }
-
-  return (
-    <li className='py-[0.375rem] border-b border-border text-[0.8rem] text-text-muted'>
-      <div className='flex items-center flex-wrap gap-2'>
-        <span>
-          <strong className='text-text-base'>{revision.author_name ?? 'Unknown'}</strong>
-          {' — '}
-          {formatTimestamp(revision.created_at)}
-        </span>
-        <Button variant='outline' size='sm' onClick={toggleDiff} className='text-text-muted py-0 px-2'>
-          {diffOpen ? 'Hide diff' : 'Diff vs current'}
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => onRestore(revision)}
-          disabled={restoring || editing}
-          title={editing ? RESTORE_DISABLED_WHILE_EDITING_REASON : undefined}
-          className='text-text-muted py-0 px-2'
-        >
-          {restoring ? 'Restoring…' : 'Restore'}
-        </Button>
-      </div>
-      {revision.summary && <p className='mt-1 mb-0 italic'>{revision.summary}</p>}
-      {diffOpen &&
-        (diffLoading ? (
-          <p className='mt-2 mb-1 text-[0.75rem]'>Loading diff…</p>
-        ) : Predicate.isNotNullish(diffError) && String.isNonEmpty(diffError) ? (
-          <p role='alert' className='mt-2 mb-1 text-[0.75rem] text-danger-text'>
-            {diffError}
-          </p>
-        ) : (
-          <RevisionDiffView diff={diff ?? ''} />
-        ))}
-    </li>
-  )
-}
-
-function RevisionsHistory({
-  revisions,
-  showHistory,
-  onToggle,
-  workspaceSlug,
-  pageSlug,
-  onRestore,
-  restoringId,
-  editing,
-}: {
-  revisions: WikiRevision[]
-  showHistory: boolean
-  onToggle: () => void
-  workspaceSlug: string | undefined
-  pageSlug: string
-  onRestore: (revision: WikiRevision) => void
-  restoringId: string | undefined
-  editing: boolean
-}): undefined | JSX.Element {
-  if (Array.isArrayEmpty(revisions)) {
-    return undefined
-  }
-  return (
-    <div className='mt-8'>
-      <Button variant='outline' size='sm' onClick={onToggle} className='text-text-muted'>
-        {showHistory ? '▲ Hide history' : '▼ History'} ({revisions.length})
-      </Button>
-      {showHistory && (
-        <ul className='mt-3 list-none p-0'>
-          {revisions.map((revision) => (
-            <RevisionRow
-              key={revision.id}
-              revision={revision}
-              workspaceSlug={workspaceSlug}
-              pageSlug={pageSlug}
-              onRestore={onRestore}
-              restoring={restoringId === revision.id}
-              editing={editing}
-            />
-          ))}
-        </ul>
-      )}
     </div>
   )
 }
