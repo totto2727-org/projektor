@@ -16,8 +16,8 @@ Do not recreate workspace packages, a separate infra project, Turbo, Biome or Le
 
 Use the Nix default shell and Vite+.
 `vp install --frozen-lockfile` installs dependencies.
-`.node-version` pins Node.js 24.11.0 for Vite+ managed Node mode (`vp env on node`).
-In system-first mode, the Nix shell's Node.js takes precedence. Use `vp env exec --node 24.11.0 node --version` to verify the pinned runtime explicitly.
+`.node-version` pins Node.js for Vite+ managed Node mode (`vp env on node`).
+In system-first mode, the Nix shell's Node.js takes precedence. Use `vp env exec --node "$(cat .node-version)" node --version` to verify the pinned runtime explicitly.
 `packageManager` pins pnpm independently; `package.json` has no `engines` constraints.
 `vp run ci` runs formatting, typed lint and every configured test project, including the native Workers API regressions.
 `vp run test:workers` selects the native API regression project through the supported `@cloudflare/vitest-plugin`, which supports Vite+'s Vitest 5.
