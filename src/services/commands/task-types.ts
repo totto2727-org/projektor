@@ -194,7 +194,7 @@ export const buildDefaultTaskTypeStatements = function buildDefaultTaskTypeState
     { key: 'bug', name: 'Bug', position: 4, isDefault: 0 },
   ]
   const orm = drizzle(db, { schema })
-  return defaults.map((t) =>
+  return defaults.map((taskType) =>
     prepareQuery(
       db,
       orm
@@ -202,12 +202,12 @@ export const buildDefaultTaskTypeStatements = function buildDefaultTaskTypeState
         .values({
           id: crypto.randomUUID(),
           workspaceId,
-          key: t.key,
-          name: t.name,
+          key: taskType.key,
+          name: taskType.name,
           color: null,
           icon: null,
-          position: t.position,
-          isDefault: t.isDefault,
+          position: taskType.position,
+          isDefault: taskType.isDefault,
         })
         .onConflictDoNothing()
         .toSQL(),

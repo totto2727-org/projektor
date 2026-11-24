@@ -51,7 +51,7 @@ const fillEpicGoalDirective = function fillEpicGoalDirective(params: {
       : `**Live data:** the epic has no open child tickets yet — file some before looping; ` +
         `project agent WIP limit is ${params.wipLimit}.`
 
-  return [...clauses, liveData].map((c) => `> ${c}`).join('\n>\n')
+  return [...clauses, liveData].map((clause) => `> ${clause}`).join('\n>\n')
 }
 
 export const composePlaybook = async function composePlaybook(

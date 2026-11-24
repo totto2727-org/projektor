@@ -47,7 +47,7 @@ const parseEmailSet = function parseEmailSet(raw?: string): Set<string> {
   return new Set(
     (raw ?? '')
       .split(',')
-      .map((e) => e.trim().toLowerCase())
+      .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
   )
 }
@@ -60,11 +60,11 @@ const resolveAutoJoinRole = function resolveAutoJoinRole(raw?: string): Role | n
    * a fresh public instance from silently granting every admitted user read access to
    * the default workspace.
    */
-  const v = (raw ?? 'none').trim().toLowerCase()
-  if (v === 'none') {
+  const choice = (raw ?? 'none').trim().toLowerCase()
+  if (choice === 'none') {
     return null
   }
-  return (VALID_ROLES as Readonly<string[]>).includes(v) ? (v as Role) : 'viewer'
+  return (VALID_ROLES as Readonly<string[]>).includes(choice) ? (choice as Role) : 'viewer'
 }
 
 /**
@@ -74,13 +74,13 @@ const resolveAutoJoinRole = function resolveAutoJoinRole(raw?: string): Role | n
  * Invalid entries are skipped; a malformed value yields an empty map (so the
  * default-workspace behaviour applies, never a crash).
  */
-const parseDomainMapValue = function parseDomainMapValue(v: unknown): { slug: string; role: Role } | null {
-  if (!v || typeof v !== 'object') {
+const parseDomainMapValue = function parseDomainMapValue(value: unknown): { slug: string; role: Role } | null {
+  if (!value || typeof value !== 'object') {
     return null
   }
-  const slug = Predicate.isString((v as { slug?: unknown }).slug) ? (v as { slug: string }).slug.trim() : ''
-  const roleRaw = Predicate.isString((v as { role?: unknown }).role)
-    ? (v as { role: string }).role.trim().toLowerCase()
+  const slug = Predicate.isString((value as { slug?: unknown }).slug) ? (value as { slug: string }).slug.trim() : ''
+  const roleRaw = Predicate.isString((value as { role?: unknown }).role)
+    ? (value as { role: string }).role.trim().toLowerCase()
     : 'member'
   const role = (VALID_ROLES as Readonly<string[]>).includes(roleRaw) ? (roleRaw as Role) : 'member'
   if (!slug) {
@@ -106,11 +106,11 @@ const parseDomainMap = function parseDomainMap(raw?: string): Map<string, { slug
   if (!obj || typeof obj !== 'object') {
     return map
   }
-  Iterable.forEach(Object.entries(obj as Record<string, unknown>), ([domain, v]) => {
-    const entry = parseDomainMapValue(v)
-    const d = domain.trim().toLowerCase()
-    if (entry && d) {
-      map.set(d, entry)
+  Iterable.forEach(Object.entries(obj as Record<string, unknown>), ([domain, mapping]) => {
+    const entry = parseDomainMapValue(mapping)
+    const normalizedDomain = domain.trim().toLowerCase()
+    if (entry && normalizedDomain) {
+      map.set(normalizedDomain, entry)
     }
   })
   return map

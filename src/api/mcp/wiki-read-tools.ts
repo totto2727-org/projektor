@@ -2,6 +2,7 @@ import { Predicate } from 'effect'
 
 import * as wikiService from '#api/services/wiki.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -138,7 +139,7 @@ export const wikiReadTools: MCPTool[] = [
           content: w.text,
           totalChars: w.totalChars,
           contentTruncated: true,
-          ...(w.next ? { next: w.next } : {}),
+          ...(isNonEmptyText(w.next) ? { next: w.next } : {}),
         }
       }
       const w = windowText(full, { cursor, max })
@@ -147,8 +148,8 @@ export const wikiReadTools: MCPTool[] = [
         outline,
         content: w.text,
         totalChars: w.totalChars,
-        ...(w.next || Predicate.isNotNullish(cursor) ? { contentTruncated: true } : {}),
-        ...(w.next ? { next: w.next } : {}),
+        ...(isNonEmptyText(w.next) || Predicate.isNotNullish(cursor) ? { contentTruncated: true } : {}),
+        ...(isNonEmptyText(w.next) ? { next: w.next } : {}),
       }
     },
     inputSchema: requiredObjectInputSchema(['slug'], {

@@ -709,11 +709,11 @@ const LinkForm = function LinkForm({
   onCancel,
 }: {
   linkFormType: string
-  setLinkFormType: (v: string) => void
+  setLinkFormType: (linkType: string) => void
   linkFormRef: string
-  setLinkFormRef: (v: string) => void
+  setLinkFormRef: (issueRef: string) => void
   linkFormError: string | null
-  setLinkFormError: (v: string | null) => void
+  setLinkFormError: (error: string | null) => void
   addingLink: boolean
   onAdd: () => void
   onCancel: () => void
@@ -785,7 +785,7 @@ export const RelationsSection = function RelationsSection({
       label: LINK_TYPE_LABELS[type],
       items: links.filter((link) => link.type === type),
     }))
-    .filter((g) => Array.isArrayNonEmpty(g.items))
+    .filter((linkGroup) => Array.isArrayNonEmpty(linkGroup.items))
 
   async function addLink(): Promise<void> {
     const ref = normalizeIssueRef(linkFormRef)
@@ -1211,9 +1211,9 @@ const UrlLinkForm = function UrlLinkForm({
   onCancel,
 }: {
   urlValue: string
-  setUrlValue: (v: string) => void
+  setUrlValue: (url: string) => void
   labelValue: string
-  setLabelValue: (v: string) => void
+  setLabelValue: (label: string) => void
   linkError: string | null
   setLinkError: (error: string | null) => void
   linking: boolean
@@ -1510,7 +1510,7 @@ const CommentItem = function CommentItem({
   canModify: boolean
   onStartEdit: () => void
   onCancelEdit: () => void
-  onChangeBody: (v: string) => void
+  onChangeBody: (body: string) => void
   onSave: () => void
   onDelete: () => void
 }): JSX.Element {

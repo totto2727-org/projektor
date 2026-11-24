@@ -3,6 +3,8 @@
 import { Array } from 'effect'
 import type { JSX } from 'react'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapEntry, CodeHeatmapResponse, HeatmapMode } from './types.ts'
 
@@ -83,7 +85,7 @@ export const CodeHeatmap = function CodeHeatmap({
 }): JSX.Element {
   const countField = mode === 'contention' ? 'distinctRejectedIssueCount' : 'distinctIssueCount'
   const maxCount = data ? Math.max(1, ...data.entries.map((entry) => entry[countField] ?? 0)) : 1
-  const segments = data?.prefix ? data.prefix.split('/') : []
+  const segments = isNonEmptyText(data?.prefix) ? data.prefix.split('/') : []
   return (
     <div className='mb-8'>
       <SectionHeading

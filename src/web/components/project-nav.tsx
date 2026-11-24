@@ -4,6 +4,7 @@ import { Array } from 'effect'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 import { scopedHref } from '@/urls.ts'
 
@@ -122,7 +123,7 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
         : TABS.map((tab) => ({
             ...tab,
             href: scopedHref(
-              tab.path === '/projects/view' && project.slug
+              tab.path === '/projects/view' && isNonEmptyText(project.slug)
                 ? `/projects/view/${encodeURIComponent(project.slug)}`
                 : tab.path,
               scope,
@@ -142,7 +143,7 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
   const overflow = tabs.slice(count)
   const activeOverflow = overflow.some((tab) => isTabActive(tab.path, pathname))
   const overviewHref = scopedHref(
-    project.slug ? `/projects/view/${encodeURIComponent(project.slug)}` : '/projects/view',
+    isNonEmptyText(project.slug) ? `/projects/view/${encodeURIComponent(project.slug)}` : '/projects/view',
     scope,
   )
   return (

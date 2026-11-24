@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { Iterable, Predicate } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -54,7 +55,7 @@ export const listCustomFieldDefs = function listCustomFieldDefs(
       .orderBy(asc(schema.customFieldDefinitions.createdAt))
     return rows.map((row) => ({
       ...row,
-      options: row.options ? (JSON.parse(row.options) as string[]) : null,
+      options: isNonEmptyText(row.options) ? (JSON.parse(row.options) as string[]) : null,
     }))
   })
 }

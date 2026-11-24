@@ -58,7 +58,7 @@ export const CreatePageSchema = z
      */
     templateSlug: z.string().nonempty().max(MAX_SLUG_LENGTH).optional(),
   })
-  .refine((d) => Predicate.isNullish(d.content) || Predicate.isNullish(d.templateSlug), {
+  .refine((draft) => Predicate.isNullish(draft.content) || Predicate.isNullish(draft.templateSlug), {
     message: 'content and templateSlug cannot both be provided',
     path: ['templateSlug'],
   })
@@ -87,11 +87,11 @@ export const UpdatePageSchema = z
     summary: z.string().max(MAX_REVISION_SUMMARY_LENGTH).optional(),
   })
   .refine(
-    (d) =>
-      Predicate.isNotNullish(d.title) ||
-      Predicate.isNotNullish(d.content) ||
-      d.parentId !== undefined ||
-      Predicate.isNotNullish(d.slug),
+    (draft) =>
+      Predicate.isNotNullish(draft.title) ||
+      Predicate.isNotNullish(draft.content) ||
+      draft.parentId !== undefined ||
+      Predicate.isNotNullish(draft.slug),
     {
       message: 'At least one of title, content, parentId, or slug must be provided',
     },
@@ -145,14 +145,14 @@ export type WikiFrontmatterInput = z.infer<typeof WikiFrontmatterSchema>
  * PROJ-488: comma-separated (`?tags=a,b`) over REST query strings, or a plain array
  * when called via MCP (JSON body) — both normalize to the same string[].
  */
-const TagsFilterSchema = z.preprocess((v) => {
-  if (Predicate.isString(v)) {
-    return v
+const TagsFilterSchema = z.preprocess((input) => {
+  if (Predicate.isString(input)) {
+    return input
       .split(',')
-      .map((t) => t.trim())
+      .map((tag) => tag.trim())
       .filter(Boolean)
   }
-  return v
+  return input
 }, z.array(z.string()).max(MAX_TAG_COUNT).optional())
 
 // PROJ-513: freeform, matching WikiFrontmatterSchema.type — any string filters, since
@@ -294,7 +294,7 @@ export const WikiFrontmatterPatchValuesSchema = z
     template: z.boolean().nullable().optional(),
   })
   .strict()
-  .refine((v) => Array.isArrayNonEmpty(Object.keys(v)), {
+  .refine((patch) => Array.isArrayNonEmpty(Object.keys(patch)), {
     message: 'values must include at least one frontmatter key',
   })
 
@@ -365,7 +365,7 @@ export const MarkWikiNotificationsReadInputSchema = z
     ids: z.array(z.string()).max(MAX_MARK_READ_IDS).optional(),
     all: z.boolean().optional().default(false),
   })
-  .refine((d) => d.all || (Predicate.isNotNullish(d.ids) && Array.isArrayNonEmpty(d.ids)), {
+  .refine((input) => input.all || (Predicate.isNotNullish(input.ids) && Array.isArrayNonEmpty(input.ids)), {
     message: 'Either `all: true` or a non-empty `ids` array must be provided',
   })
 

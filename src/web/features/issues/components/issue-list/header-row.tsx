@@ -65,23 +65,23 @@ export function HeaderRow({
         {!isSearchActive && (
           <fieldset aria-label='View mode' className='flex border border-border rounded-md overflow-hidden m-0 p-0'>
             <legend className='hidden'>View mode</legend>
-            {(['list', 'board', 'backlog'] as const).map((v) => (
+            {(['list', 'board', 'backlog'] as const).map((mode) => (
               <button
                 type='button'
-                key={v}
-                aria-pressed={view === v}
+                key={mode}
+                aria-pressed={view === mode}
                 onClick={() => {
-                  setView(v)
+                  setView(mode)
                 }}
                 className='border-none py-1 px-3 cursor-pointer text-[0.8rem] capitalize transition-colors duration-100'
                 style={{
-                  borderRight: v !== 'backlog' ? '1px solid var(--border)' : 'none',
-                  background: view === v ? 'var(--accent)' : 'var(--bg)',
-                  color: view === v ? 'var(--on-accent)' : 'var(--text-muted)',
-                  fontWeight: view === v ? 600 : 400,
+                  borderRight: mode !== 'backlog' ? '1px solid var(--border)' : 'none',
+                  background: view === mode ? 'var(--accent)' : 'var(--bg)',
+                  color: view === mode ? 'var(--on-accent)' : 'var(--text-muted)',
+                  fontWeight: view === mode ? 600 : 400,
                 }}
               >
-                {v}
+                {mode}
               </button>
             ))}
           </fieldset>

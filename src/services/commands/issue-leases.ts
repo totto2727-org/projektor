@@ -66,7 +66,7 @@ const liveLeaseHoldersForProject = async function liveLeaseHoldersForProject(
         gt(schema.agentSessions.lastHeartbeatAt, cutoff),
       ),
     )
-  return live.map((l) => l.issueId)
+  return live.map((lease) => lease.issueId)
 }
 
 // The claiming session must itself be live — a dead agent can't hold a lease.

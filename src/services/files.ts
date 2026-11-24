@@ -1,6 +1,7 @@
 import { Iterable, Schema } from 'effect'
 import type { Effect } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { ReviewTargetSchema } from '#contracts/review-targets.ts'
 import type { ReviewStatus, ReviewTarget } from '#contracts/review-targets.ts'
 
@@ -61,7 +62,7 @@ const toMetadata = function toMetadata(row: AttachmentRow): AttachmentMetadata {
     createdAt: row.created_at,
     reviewStatus: row.review_status,
     wikiPage:
-      row.kind === 'wiki_ref' && row.wiki_page_id
+      row.kind === 'wiki_ref' && isNonEmptyText(row.wiki_page_id)
         ? {
             id: row.wiki_page_id,
             title: row.wiki_page_title,

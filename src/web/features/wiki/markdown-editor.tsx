@@ -415,9 +415,9 @@ function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) 
       wrapSelection(viewRef.current, '_', '_')
     }
   }
-  const heading = function heading(n: 1 | 2 | 3): void {
+  const heading = function heading(level: 1 | 2 | 3): void {
     if (viewRef.current) {
-      prefixLines(viewRef.current, `${'#'.repeat(n)} `)
+      prefixLines(viewRef.current, `${'#'.repeat(level)} `)
     }
   }
   const link = function link(): void {

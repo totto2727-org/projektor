@@ -11,6 +11,7 @@ import {
   updateIssue,
 } from '#api/services/issues.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -173,14 +174,14 @@ export const issuesTools: MCPTool[] = [
       }
       // PROJ-892: a long body is windowed; \`next\` continues it.
       const w = windowText(shaped.body, { cursor, max: ISSUE_BODY_MAX_CHARS })
-      if (!w.next && Predicate.isNullish(cursor)) {
+      if (!isNonEmptyText(w.next) && Predicate.isNullish(cursor)) {
         return shaped
       }
       return {
         ...shaped,
         body: w.text,
         bodyTotalChars: w.totalChars,
-        ...(w.next ? { bodyTruncated: true, next: w.next } : {}),
+        ...(isNonEmptyText(w.next) ? { bodyTruncated: true, next: w.next } : {}),
       }
     },
   },

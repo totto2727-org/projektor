@@ -1,6 +1,8 @@
 import type { OAuthProvider } from '@cloudflare/workers-oauth-provider'
 import { String, Predicate } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 export const OAUTH_PURGE_STATE_KEY = 'cron:oauth-purge:continuation:v1'
 const PAGE_SIZE = 200
 const KV_CALL_BUDGET = 800
@@ -60,7 +62,7 @@ export const purgeOAuthPage = async function purgeOAuthPage(
     const page = await env.OAUTH_KV.list<Metadata>({
       ...options,
       limit: PAGE_SIZE,
-      ...(previous.cursor ? { cursor: previous.cursor } : {}),
+      ...(isNonEmptyText(previous.cursor) ? { cursor: previous.cursor } : {}),
     })
     scanned = page.list_complete ? { complete: true } : { complete: false, cursor: page.cursor }
     // This adapter exposes exactly the selected page, not the entire namespace.
@@ -93,7 +95,7 @@ export const purgeOAuthPage = async function purgeOAuthPage(
   if (!scanned) {
     throw new Error('OAuth purge did not scan its selected page')
   }
-  if (!scanned.complete && !scanned.cursor) {
+  if (!scanned.complete && !isNonEmptyText(scanned.cursor)) {
     throw new Error('OAuth purge returned no continuation cursor')
   }
   const next: Continuation = scanned.complete

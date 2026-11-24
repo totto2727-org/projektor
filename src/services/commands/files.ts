@@ -135,18 +135,18 @@ const ALLOWED_UPLOAD_TYPES = new Set([
   'application/json',
 ])
 
-const toDto = function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
+const toDto = function toDto(row: attachmentData.AttachmentMetadata): AttachmentDto {
   return {
-    id: r.id,
-    kind: r.kind,
-    filename: r.filename,
-    contentType: r.contentType,
-    size: r.size,
-    url: r.url,
-    createdAt: r.createdAt,
-    reviewStatus: r.reviewStatus,
-    wikiPage: r.wikiPage
-      ? { id: r.wikiPage.id, title: r.wikiPage.title, url: wikiPagePath(r.wikiPage.slug ?? '') }
+    id: row.id,
+    kind: row.kind,
+    filename: row.filename,
+    contentType: row.contentType,
+    size: row.size,
+    url: row.url,
+    createdAt: row.createdAt,
+    reviewStatus: row.reviewStatus,
+    wikiPage: row.wikiPage
+      ? { id: row.wikiPage.id, title: row.wikiPage.title, url: wikiPagePath(row.wikiPage.slug ?? '') }
       : null,
   }
 }
@@ -263,8 +263,8 @@ export const createLinkAttachment = async function createLinkAttachment(
 const DEFAULT_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024 // 1 GiB per workspace
 
 export const storageQuotaBytes = function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {
-  const n = Number(env.STORAGE_QUOTA_BYTES)
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_STORAGE_QUOTA_BYTES
+  const quota = Number(env.STORAGE_QUOTA_BYTES)
+  return Number.isFinite(quota) && quota > 0 ? quota : DEFAULT_STORAGE_QUOTA_BYTES
 }
 
 const workspaceStorageUsageBytes = async function workspaceStorageUsageBytes(ctx: ServiceCtx): Promise<number> {

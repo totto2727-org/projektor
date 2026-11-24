@@ -1561,7 +1561,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
    * The issue is gone once the batch commits. Bound each storage request, and
    * continue other chunks if one fails so a large issue does not strand every object.
    */
-  const r2Keys = fileAttachments.map((attachment) => attachment.r2Key).filter((k): k is string => Boolean(k))
+  const r2Keys = fileAttachments.map((attachment) => attachment.r2Key).filter((key): key is string => Boolean(key))
   for (let offset = 0; offset < r2Keys.length; offset += 1000) {
     const keys = r2Keys.slice(offset, offset + 1000)
     try {
@@ -1612,8 +1612,8 @@ const parsePrioritizedFilters = function parsePrioritizedFilters(raw: unknown): 
    * services coerce), so parse like BooleanQueryParam / z.coerce rather than comparing
    * with === true / !== false, which read the string "false" as true.
    */
-  const flag = (v: unknown, fallback: boolean): boolean => {
-    const parsed = BooleanQueryParam.safeParse(v)
+  const flag = (value: unknown, fallback: boolean): boolean => {
+    const parsed = BooleanQueryParam.safeParse(value)
     return parsed.success ? parsed.data : fallback
   }
   const rawLimit = Predicate.isString(input.limit) ? Number(input.limit) : input.limit
@@ -1763,30 +1763,30 @@ const queryPrioritized = async function queryPrioritized(
   return results ?? []
 }
 
-const toPrioritizedIssue = function toPrioritizedIssue(r: PrioritizedRow) {
+const toPrioritizedIssue = function toPrioritizedIssue(row: PrioritizedRow) {
   const issue = {
-    id: r.id,
-    title: r.title,
-    status: r.status,
-    priority: r.priority,
-    project_id: r.project_id,
-    number: r.number,
-    status_id: r.status_id,
-    status_category: r.status_category,
-    _score: r.score,
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    priority: row.priority,
+    project_id: row.project_id,
+    number: row.number,
+    status_id: row.status_id,
+    status_category: row.status_category,
+    _score: row.score,
     _score_breakdown: {
-      centrality: r.centrality,
-      priority: r.priority_score,
-      story_points: r.story_points,
+      centrality: row.centrality,
+      priority: row.priority_score,
+      story_points: row.story_points,
     },
   }
-  if (r.dor_ready === 1) {
+  if (row.dor_ready === 1) {
     return issue
   }
   return {
     ...issue,
     needsGrooming: true as const,
-    missingCriteria: JSON.parse(r.dor_missing ?? '[]') as string[],
+    missingCriteria: JSON.parse(row.dor_missing ?? '[]') as string[],
   }
 }
 

@@ -3,6 +3,7 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import { apiReply } from '#api/services/reply.ts'
 import { ApiRealtimeSnapshot } from '#contracts/api-public.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
@@ -216,7 +217,7 @@ export class WorkspaceHub {
          * as "deny" for non-admins (fail-closed).
          */
         if (!isWorkspaceAdmin(attachment.role)) {
-          if (!event.projectId) {
+          if (!isNonEmptyText(event.projectId)) {
             continue
           }
           const visible = new Set(attachment.visibleProjectIds)
@@ -231,7 +232,7 @@ export class WorkspaceHub {
          * Apply the client-requested project filter (already intersected with
          * visibility at subscribe time, but re-checking is cheap and robust).
          */
-        if (filters?.projects && Array.isArrayNonEmpty(filters.projects) && event.projectId) {
+        if (filters?.projects && Array.isArrayNonEmpty(filters.projects) && isNonEmptyText(event.projectId)) {
           if (!filters.projects.includes(event.projectId)) {
             continue
           }

@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 
 import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import type { CoreRpcShape } from '#core/contract.ts'
 import type { BrowserCommand } from '#core/web/command-contract.ts'
 import { browserRequest } from '@/core.ts'
@@ -37,7 +38,7 @@ export const runBrowserCommand = function runBrowserCommand<A, E, R>(
       proof: {
         request: browserRequest(services.request),
         workspaceSlug: context.workspaceSlug ?? workspace.slug,
-        ...(context.projectId ? { projectId: context.projectId } : {}),
+        ...(isNonEmptyText(context.projectId) ? { projectId: context.projectId } : {}),
       },
       core: services.core,
     })

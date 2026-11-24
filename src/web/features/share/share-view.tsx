@@ -4,6 +4,7 @@ import { Array } from 'effect'
 import { Fragment } from 'react'
 import type { JSX } from 'react'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import { MarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
@@ -86,7 +87,7 @@ const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }): JSX
         {issue.project_name && (
           <span className='text-xs text-text-muted'>
             {issue.project_name}
-            {issue.project_key ? ` (${issue.project_key})` : ''}
+            {isNonEmptyText(issue.project_key) ? ` (${issue.project_key})` : ''}
           </span>
         )}
       </div>
@@ -145,7 +146,7 @@ export function ShareView({
       <IssueHeader issue={issue} />
 
       {/* Body */}
-      {issue.body ? (
+      {isNonEmptyText(issue.body) ? (
         <MarkdownPreview content={issue.body} initial={renderedBody} className='mb-6' />
       ) : (
         <p className='text-text-muted italic mb-6'>No description.</p>

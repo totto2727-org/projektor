@@ -47,21 +47,21 @@ export const viewsStorageKey = function viewsStorageKey(project: string): string
 const normalizeFilters = function normalizeFilters(
   raw: Partial<SavedViewFilters> | null | undefined,
 ): SavedViewFilters {
-  const r = raw ?? {}
-  const strings = (v: unknown): string[] =>
-    Array.isArray(v) ? v.filter((s): s is string => Predicate.isString(s)) : []
-  const str = (v: unknown): string => (Predicate.isString(v) ? v : '')
+  const filters = raw ?? {}
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => Predicate.isString(item)) : []
+  const str = (value: unknown): string => (Predicate.isString(value) ? value : '')
   return {
-    statuses: strings(r.statuses),
-    priorities: strings(r.priorities),
-    project: str(r.project),
-    type: str(r.type),
-    epicId: str(r.epicId),
-    sprintId: str(r.sprintId),
-    hideEpics: r.hideEpics === true,
-    dateField: str(r.dateField),
-    dateFrom: str(r.dateFrom),
-    dateTo: str(r.dateTo),
+    statuses: strings(filters.statuses),
+    priorities: strings(filters.priorities),
+    project: str(filters.project),
+    type: str(filters.type),
+    epicId: str(filters.epicId),
+    sprintId: str(filters.sprintId),
+    hideEpics: filters.hideEpics === true,
+    dateField: str(filters.dateField),
+    dateFrom: str(filters.dateFrom),
+    dateTo: str(filters.dateTo),
   }
 }
 
@@ -84,17 +84,17 @@ export const parseSavedViews = function parseSavedViews(raw: string | null): Sav
     return []
   }
   const out: SavedView[] = []
-  Iterable.forEach(data, (v) => {
-    if (typeof v !== 'object' || v === null) {
+  Iterable.forEach(data, (candidate) => {
+    if (typeof candidate !== 'object' || candidate === null) {
       return
     }
-    const name = (v as { name?: unknown }).name
+    const name = (candidate as { name?: unknown }).name
     if (!Predicate.isString(name) || String.isEmpty(name)) {
       return
     }
     out.push({
       name,
-      filters: normalizeFilters((v as { filters?: Partial<SavedViewFilters> }).filters),
+      filters: normalizeFilters((candidate as { filters?: Partial<SavedViewFilters> }).filters),
     })
   })
   return out
@@ -110,8 +110,8 @@ export const removeView = function removeView(views: Readonly<SavedView[]>, name
 }
 
 /** Order-insensitive equality for the two list-valued filters. */
-const sameSet = function sameSet(a: Readonly<string[]>, b: Readonly<string[]>): boolean {
-  return JSON.stringify([...a].toSorted()) === JSON.stringify([...b].toSorted())
+const sameSet = function sameSet(left: Readonly<string[]>, right: Readonly<string[]>): boolean {
+  return JSON.stringify([...left].toSorted()) === JSON.stringify([...right].toSorted())
 }
 
 /** True when two filter sets are equivalent (drives the active-view indicator). */

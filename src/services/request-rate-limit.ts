@@ -1,3 +1,4 @@
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
 import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import type { Env } from '#types'
@@ -28,7 +29,9 @@ export const checkRateLimit = async function checkRateLimit(
 ): Promise<{ retryAfter: number } | undefined> {
   const windowSecs = parseInt(env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
   const testNow =
-    env.ENVIRONMENT !== 'production' && env.RATE_LIMIT_TEST_NOW_MS ? Number(env.RATE_LIMIT_TEST_NOW_MS) : NaN
+    env.ENVIRONMENT !== 'production' && isNonEmptyText(env.RATE_LIMIT_TEST_NOW_MS)
+      ? Number(env.RATE_LIMIT_TEST_NOW_MS)
+      : NaN
   const nowMs = Number.isFinite(testNow) ? testNow : currentEpochMilliseconds()
   const now = Math.floor(nowMs / MILLISECONDS_PER_SECOND)
 

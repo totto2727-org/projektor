@@ -79,7 +79,7 @@ const parseSubmitFeedbackBody = function parseSubmitFeedbackBody(rawBody: unknow
 const insertFeedbackRow = async function insertFeedbackRow(
   db: D1Database,
   source: SubmitSourceRow,
-  d: ReturnType<typeof parseSubmitFeedbackBody>,
+  input: ReturnType<typeof parseSubmitFeedbackBody>,
 ): Promise<string> {
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
@@ -95,12 +95,12 @@ const insertFeedbackRow = async function insertFeedbackRow(
       source.id,
       source.workspace_id,
       source.project_id,
-      d.rating ?? null,
-      d.ratingScale ?? null,
-      d.body ?? null,
-      d.submitterLabel ?? null,
-      d.sourceUrl ?? null,
-      d.appVersion ?? null,
+      input.rating ?? null,
+      input.ratingScale ?? null,
+      input.body ?? null,
+      input.submitterLabel ?? null,
+      input.sourceUrl ?? null,
+      input.appVersion ?? null,
       now,
     )
     .run()
@@ -128,8 +128,8 @@ export const submitFeedback = async function submitFeedback(
 ): Promise<{ id: string; corsAllowOrigin: string | null }> {
   const tokenHash = await hashFeedbackToken(token)
   const source = await resolveFeedbackSource(db, tokenHash)
-  const d = parseSubmitFeedbackBody(rawBody)
-  const id = await insertFeedbackRow(db, source, d)
+  const input = parseSubmitFeedbackBody(rawBody)
+  const id = await insertFeedbackRow(db, source, input)
   const corsAllowOrigin = resolveCorsAllowOrigin(source, requestOrigin)
   return { id, corsAllowOrigin }
 }
@@ -369,7 +369,7 @@ export const bulkConvertToIssue = async function bulkConvertToIssue(
   const byId = new Map(rows.map((row) => [row.id, row]))
   const orderedRows = feedbackIds
     .map((id) => byId.get(id))
-    .filter((r): r is BulkConvertFeedbackRow => Predicate.isNotNullish(r))
+    .filter((row): row is BulkConvertFeedbackRow => Predicate.isNotNullish(row))
   const body = orderedRows
     .map((fb, index) => {
       const footer =

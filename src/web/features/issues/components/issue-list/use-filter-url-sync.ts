@@ -8,12 +8,14 @@ import { navigateIssues } from '@/features/issues/utils/navigation.ts'
 
 import type { DateField } from './filters-popover.tsx'
 
-export const parseListParam = function parseListParam(v: string | null): string[] {
-  return Predicate.isNotNullish(v) && String.isNonEmpty(v) ? v.split(',').filter(Boolean) : []
+export const parseListParam = function parseListParam(listParameter: string | null): string[] {
+  return Predicate.isNotNullish(listParameter) && String.isNonEmpty(listParameter)
+    ? listParameter.split(',').filter(Boolean)
+    : []
 }
 
-export const parseDateField = function parseDateField(v: string | null): DateField {
-  return v === 'completed' || v === 'updated' ? v : ''
+export const parseDateField = function parseDateField(dateField: string | null): DateField {
+  return dateField === 'completed' || dateField === 'updated' ? dateField : ''
 }
 
 interface UrlSyncState {

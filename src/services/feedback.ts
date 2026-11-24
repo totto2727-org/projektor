@@ -1,5 +1,7 @@
 import type { Effect } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
 
@@ -63,7 +65,7 @@ export const listFeedback = function listFeedback(
       clauses.push('f.status = ?')
       binds.push(opts.status)
     }
-    if (opts.sourceId) {
+    if (isNonEmptyText(opts.sourceId)) {
       clauses.push('f.source_id = ?')
       binds.push(opts.sourceId)
     }

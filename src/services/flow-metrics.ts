@@ -30,8 +30,9 @@ const summarize = function summarize(durations: Readonly<number[]>): Distributio
     return { count: 0, avg: null, p50: null, p90: null }
   }
   const sorted = [...durations].toSorted((left, right) => left - right)
-  const avg = sorted.reduce((sum, d) => sum + d, 0) / sorted.length
-  const percentile = (p: number): number => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
+  const avg = sorted.reduce((sum, duration) => sum + duration, 0) / sorted.length
+  const percentile = (fraction: number): number =>
+    sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))]
   return { count: sorted.length, avg, p50: percentile(0.5), p90: percentile(0.9) }
 }
 
@@ -47,8 +48,8 @@ type FlowIssueRow = {
   typeKey: string | null
 }
 
-const dateLabel = function dateLabel(t: number): string {
-  return new Date(t * MILLISECONDS_PER_SECOND).toISOString().slice(0, 10)
+const dateLabel = function dateLabel(timestamp: number): string {
+  return new Date(timestamp * MILLISECONDS_PER_SECOND).toISOString().slice(0, 10)
 }
 
 const bucketSizeFor = function bucketSizeFor(granularity: 'day' | 'week'): number {
@@ -71,8 +72,8 @@ const buildBucketStarts = function buildBucketStarts(
 ): number[] {
   const bucketSize = bucketSizeFor(granularity)
   const starts: number[] = []
-  for (let t = firstBucketFor(since, granularity); t <= until; t += bucketSize) {
-    starts.push(t)
+  for (let bucketStart = firstBucketFor(since, granularity); bucketStart <= until; bucketStart += bucketSize) {
+    starts.push(bucketStart)
   }
   return starts
 }
@@ -109,17 +110,17 @@ const groupBySortedRanges = function groupBySortedRanges<T>(
   const sorted = [...items].toSorted((left, right) => time(left) - time(right))
   const groups: T[][] = ranges.map(() => [])
   let idx = 0
-  for (let r = 0; r < ranges.length; r++) {
-    const { start, end } = ranges[r]
+  for (let rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+    const { start, end } = ranges[rangeIndex]
     while (idx < sorted.length && time(sorted[idx]) < start) {
       idx++
     }
-    let j = idx
-    while (j < sorted.length && time(sorted[j]) < end) {
-      groups[r].push(sorted[j])
-      j++
+    let itemIndex = idx
+    while (itemIndex < sorted.length && time(sorted[itemIndex]) < end) {
+      groups[rangeIndex].push(sorted[itemIndex])
+      itemIndex++
     }
-    idx = j
+    idx = itemIndex
   }
   return groups
 }
@@ -151,12 +152,12 @@ const buildWipOverTime = function buildWipOverTime(
   const buckets: { date: string; count: number }[] = []
   let idx = 0
   let running = 0
-  for (let t = since - (since % SECONDS_PER_DAY); t <= until; t += SECONDS_PER_DAY) {
-    while (idx < events.length && events[idx][0] <= t) {
+  for (let dayStart = since - (since % SECONDS_PER_DAY); dayStart <= until; dayStart += SECONDS_PER_DAY) {
+    while (idx < events.length && events[idx][0] <= dayStart) {
       running += events[idx][1]
       idx++
     }
-    buckets.push({ date: dateLabel(t), count: running })
+    buckets.push({ date: dateLabel(dayStart), count: running })
   }
   return buckets
 }
@@ -173,7 +174,7 @@ const buildThroughputOverTime = function buildThroughputOverTime(
   const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
     Predicate.isNotNullish(issue.doneAt),
   )
-  const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
+  const groups = groupBySortedRanges(completed, (issue) => issue.doneAt, ranges)
   return starts.map((bucketStart, idx) => ({ bucketStart: dateLabel(bucketStart), count: groups[idx].length }))
 }
 
@@ -196,10 +197,10 @@ const buildBugShareOverTime = function buildBugShareOverTime(
   const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
     Predicate.isNotNullish(issue.doneAt),
   )
-  const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
+  const groups = groupBySortedRanges(completed, (issue) => issue.doneAt, ranges)
   return starts.map((bucketStart, idx) => {
     const group = groups[idx]
-    const bugCount = group.filter((i) => i.typeKey === 'bug').length
+    const bugCount = group.filter((issue) => issue.typeKey === 'bug').length
     return {
       bucketStart: dateLabel(bucketStart),
       total: group.length,
@@ -226,10 +227,10 @@ const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
     (issue): issue is FlowIssueRow & { doneAt: number; inReviewAt: number } =>
       Predicate.isNotNullish(issue.doneAt) && Predicate.isNotNullish(issue.inReviewAt),
   )
-  const groups = groupBySortedRanges(reviewed, (i) => i.doneAt, ranges)
+  const groups = groupBySortedRanges(reviewed, (issue) => issue.doneAt, ranges)
   return starts.map((bucketStart, idx) => ({
     bucketStart: dateLabel(bucketStart),
-    p50: summarize(groups[idx].map((i) => i.doneAt - i.inReviewAt)).p50,
+    p50: summarize(groups[idx].map((issue) => issue.doneAt - issue.inReviewAt)).p50,
   }))
 }
 
@@ -247,11 +248,11 @@ const buildArrivalVsCompletion = function buildArrivalVsCompletion(
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
-  const createdGroups = groupBySortedRanges(issues, (i) => i.createdAt, ranges)
+  const createdGroups = groupBySortedRanges(issues, (issue) => issue.createdAt, ranges)
   const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
     Predicate.isNotNullish(issue.doneAt),
   )
-  const completedGroups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
+  const completedGroups = groupBySortedRanges(completed, (issue) => issue.doneAt, ranges)
   return starts.map((bucketStart, idx) => {
     const created = createdGroups[idx].length
     const done = completedGroups[idx].length
@@ -299,22 +300,22 @@ const buildCfdEvents = function buildCfdEvents(
   Iterable.forEach(issues, (issue): void => {
     const thresholds = [
       ...new Set(
-        [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((t): t is number =>
-          Predicate.isNotNullish(t),
+        [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((timestamp): timestamp is number =>
+          Predicate.isNotNullish(timestamp),
         ),
       ),
     ].toSorted((left, right) => left - right)
     let prevBand: CfdBand = 'excluded'
-    Iterable.forEach(thresholds, (t) => {
-      const band = classifyCfdBand(issue, t)
+    Iterable.forEach(thresholds, (threshold) => {
+      const band = classifyCfdBand(issue, threshold)
       if (band === prevBand) {
         return
       }
       if (prevBand !== 'excluded') {
-        events.push({ time: t, band: prevBand, delta: -1 })
+        events.push({ time: threshold, band: prevBand, delta: -1 })
       }
       if (band !== 'excluded') {
-        events.push({ time: t, band, delta: 1 })
+        events.push({ time: threshold, band, delta: 1 })
       }
       prevBand = band
     })
@@ -729,9 +730,9 @@ const readFlowMetrics = async function readFlowMetrics(
       ? undefined
       : or(isNull(schema.issues.doneAt), gte(schema.issues.doneAt, doneBefore)),
   )
-  const inSqlWindow = (i: FlowIssueRow): boolean =>
-    i.createdAt <= createdUntil &&
-    (Predicate.isNullish(doneBefore) || Predicate.isNullish(i.doneAt) || i.doneAt >= doneBefore)
+  const inSqlWindow = (issue: FlowIssueRow): boolean =>
+    issue.createdAt <= createdUntil &&
+    (Predicate.isNullish(doneBefore) || Predicate.isNullish(issue.doneAt) || issue.doneAt >= doneBefore)
   const projectScope = and(eq(schema.issues.workspaceId, workspaceId), eq(schema.issues.projectId, projectId))
 
   const loaded = await orm

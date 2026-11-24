@@ -16,18 +16,18 @@ import type { useSavedViews } from './use-saved-views.ts'
 interface FilterSelectsProps {
   uniqueProjects: { key: string; name: string }[]
   filterProject: string
-  setFilterProject: (v: string) => void
+  setFilterProject: (project: string) => void
   setFilterSprintId: Dispatch<SetStateAction<string>>
   sprints: { id: string; name: string; status: string }[]
   filterSprintId: string
   uniqueTypes: [string, string][]
   filterType: string
-  setFilterType: (v: string) => void
+  setFilterType: (type: string) => void
   epics: Issue[]
   filterEpicId: string
-  setFilterEpicId: (v: string) => void
+  setFilterEpicId: (epicId: string) => void
   hideEpics: boolean
-  setHideEpics: (v: boolean) => void
+  setHideEpics: (hide: boolean) => void
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.

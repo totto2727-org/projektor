@@ -2,6 +2,7 @@
 import { Array } from 'effect'
 import type { JSX } from 'react'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { Select } from '@/components/ui/select.tsx'
 import { categoryColor } from '@/features/issues/components/board-utils.ts'
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
@@ -59,7 +60,7 @@ export const PrioritySelect = function PrioritySelect({
   busy: boolean
   onChange: (value: string) => void
 }): JSX.Element {
-  const ref = issue.project_key ? `${issue.project_key}-${issue.number}` : issue.number
+  const ref = isNonEmptyText(issue.project_key) ? `${issue.project_key}-${issue.number}` : issue.number
   return (
     <Select
       ariaLabel={`Change priority for issue ${ref}`}

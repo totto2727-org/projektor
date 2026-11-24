@@ -7,6 +7,7 @@ import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/tes
 import { Iterable, Predicate } from 'effect'
 
 import { HTTP_FORBIDDEN, HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 interface BrowserAudit {
@@ -1379,13 +1380,13 @@ test('all final page routes and aliases render real populated HTML with and with
       for (const route of cases) {
         const response = await reader.goto(route.path)
         expect(response?.status(), route.id).toBe(HTTP_OK)
-        if (route.heading) {
+        if (isNonEmptyText(route.heading)) {
           await expect(reader.getByRole('heading', { exact: true, level: 1, name: route.heading })).toBeVisible()
         }
-        if (route.text) {
+        if (isNonEmptyText(route.text)) {
           await expect(reader.getByText(route.text, { exact: true })).toBeVisible()
         }
-        if (route.body) {
+        if (isNonEmptyText(route.body)) {
           await expect(reader.locator('body')).toContainText(route.body)
         }
         await checkpoint(reader, testInfo, `${javaScriptEnabled ? 'js-on' : 'js-off'}-${route.id}`)

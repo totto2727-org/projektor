@@ -1,5 +1,6 @@
 import { Iterable, Predicate, Effect } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { handleApiBinaryRequest } from '#core/api/files.ts'
 import { makeApiRateLimitHandlers } from '#core/api/rate-limit.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -72,7 +73,7 @@ export const inMemoryR2 = function inMemoryR2(): R2Bucket {
     customMetadata: {},
     storageClass: 'Standard' as const,
     writeHttpMetadata: (headers: Headers) => {
-      if (value.httpMetadata.contentType) {
+      if (isNonEmptyText(value.httpMetadata.contentType)) {
         headers.set('content-type', value.httpMetadata.contentType)
       }
     },

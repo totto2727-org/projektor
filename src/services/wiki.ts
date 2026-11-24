@@ -2,6 +2,7 @@ import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { Array, Iterable, Predicate } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -73,7 +74,7 @@ const scopeConditions = function scopeConditions(workspaceId: string, opts: Wiki
     eq(schema.wikiPages.workspaceId, workspaceId),
     trash ? isNotNull(schema.wikiPages.deletedAt) : isNull(schema.wikiPages.deletedAt),
   ]
-  if (opts.projectId) {
+  if (isNonEmptyText(opts.projectId)) {
     const scope =
       opts.includeWorkspacePages === true
         ? or(eq(schema.wikiPages.projectId, opts.projectId), isNull(schema.wikiPages.projectId))
@@ -91,13 +92,13 @@ const scopeConditions = function scopeConditions(workspaceId: string, opts: Wiki
 export const listWikiPages = function listWikiPages(db: D1Database, workspaceId: string, opts: WikiListOptions = {}) {
   return queryEffect('listWikiPages', () => {
     const conditions = scopeConditions(workspaceId, opts)
-    if (opts.parentId) {
+    if (isNonEmptyText(opts.parentId)) {
       conditions.push(eq(schema.wikiPages.parentId, opts.parentId))
     }
-    if (opts.type) {
+    if (isNonEmptyText(opts.type)) {
       conditions.push(eq(schema.wikiPages.type, opts.type))
     }
-    if (opts.status) {
+    if (isNonEmptyText(opts.status)) {
       conditions.push(eq(schema.wikiPages.status, opts.status))
     }
     if (opts.tags?.length) {
@@ -338,7 +339,7 @@ export const searchWiki = function searchWiki(
 		 FROM wiki_fts JOIN wiki_pages p ON p.id = wiki_fts.page_id
 		 WHERE wiki_fts MATCH ? AND wiki_fts.workspace_id = ? AND p.workspace_id = ? AND p.is_template = 0 AND p.deleted_at IS NULL`
     const params: unknown[] = [ftsQuery, workspaceId, workspaceId]
-    if (opts.projectId) {
+    if (isNonEmptyText(opts.projectId)) {
       q +=
         opts.includeWorkspacePages === true
           ? ' AND (p.project_id = ? OR p.project_id IS NULL)'
@@ -353,11 +354,11 @@ export const searchWiki = function searchWiki(
       q += ' AND p.updated_at >= ?'
       params.push(opts.updatedSince)
     }
-    if (opts.type) {
+    if (isNonEmptyText(opts.type)) {
       q += ' AND p.type = ?'
       params.push(opts.type)
     }
-    if (opts.status) {
+    if (isNonEmptyText(opts.status)) {
       q += ' AND p.status = ?'
       params.push(opts.status)
     }

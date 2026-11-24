@@ -5,6 +5,7 @@ import { String, Array, Predicate, Schema } from 'effect'
 import { useOptimistic, useState, useTransition } from 'react'
 import type { JSX, Dispatch, SetStateAction } from 'react'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Select } from '@/components/ui/select.tsx'
@@ -134,7 +135,7 @@ const FeedbackRowActions = function FeedbackRowActions({
           Mark reviewed
         </Button>
       )}
-      {row.linkedIssueId ? (
+      {isNonEmptyText(row.linkedIssueId) ? (
         <span className='text-[0.8rem] text-text-muted'>Linked</span>
       ) : (
         <Button type='button' variant='outline' size='sm' onClick={() => onConvert(row.id)}>

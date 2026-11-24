@@ -1,6 +1,7 @@
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 import { Iterable, Predicate } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { relyingPartyHost } from '#contracts/oauth-consent.ts'
 import type { ConsentWorkspace } from '#contracts/oauth-consent.ts'
 
@@ -29,7 +30,7 @@ export const lookupConsentWorkspace = async function lookupConsentWorkspace(
     FROM workspaces w LEFT JOIN workspace_members m ON m.workspace_id = w.id AND m.user_id = ? WHERE w.id = ?`)
     .bind(userId, workspaceId)
     .first<{ id: string; name: string; slug: string; role: string | null }>()
-  if (!row?.role) {
+  if (!isNonEmptyText(row?.role)) {
     return null
   }
   return { id: row.id, name: row.name, slug: row.slug, role: row.role }
@@ -73,7 +74,7 @@ export const listConnectorGrants = async function listConnectorGrants(
         expiresAt: grant.expiresAt,
       })
     })
-    if (!result.cursor) {
+    if (!isNonEmptyText(result.cursor)) {
       break
     }
     cursor = result.cursor

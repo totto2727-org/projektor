@@ -1,6 +1,8 @@
 import { String, Predicate } from 'effect'
 import sanitizeHtml from 'sanitize-html'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 export interface Heading {
   level: number
   text: string
@@ -59,7 +61,9 @@ export const decorateHeadings = function decorateHeadings(html: string): { html:
   const headings = matches.map((match) => ({
     level: Number(match[1]),
     text: textOf(match[3]),
-    id: /\bid="([^"]*)"/.exec(match[2])?.[1] ? textOf(/\bid="([^"]*)"/.exec(match[2])?.[1] ?? '') : undefined,
+    id: isNonEmptyText(/\bid="([^"]*)"/.exec(match[2])?.[1])
+      ? textOf(/\bid="([^"]*)"/.exec(match[2])?.[1] ?? '')
+      : undefined,
   }))
   const ids = assignHeadingIds(headings)
   const toc = headings.map((heading, index) => ({ ...heading, id: ids[index] }))

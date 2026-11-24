@@ -118,7 +118,7 @@ const groupClaimsByNextSegment = function groupClaimsByNextSegment(
   prefix: string,
 ): CodeHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
-  const groups = groupItemsByNextSegment(claims, prefix, prefixWithSlash, (c) => c.issueId)
+  const groups = groupItemsByNextSegment(claims, prefix, prefixWithSlash, (claim) => claim.issueId)
 
   return [...groups.entries()]
     .map(([path, group]) => ({
@@ -136,7 +136,7 @@ const groupConflictsByNextSegment = function groupConflictsByNextSegment(
   prefix: string,
 ): ContentionHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
-  const groups = groupItemsByNextSegment(conflicts, prefix, prefixWithSlash, (c) => c.rejectedIssueId)
+  const groups = groupItemsByNextSegment(conflicts, prefix, prefixWithSlash, (conflict) => conflict.rejectedIssueId)
 
   return [...groups.entries()]
     .map(([path, group]) => ({
@@ -203,7 +203,7 @@ const readCodeHeatmap = async function readCodeHeatmap(
        * here it's the distinct count of *rejected* issues, i.e. issues whose claim
        * attempt lost.
        */
-      totalDistinctIssues: new Set(conflicts.map((c) => c.rejectedIssueId)).size,
+      totalDistinctIssues: new Set(conflicts.map((conflict) => conflict.rejectedIssueId)).size,
       entries,
     }
   }

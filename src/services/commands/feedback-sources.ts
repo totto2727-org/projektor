@@ -9,6 +9,7 @@ import {
   RotateFeedbackSourceSchema,
   UpdateFeedbackSourceSchema,
 } from '#contracts/inputs/feedback.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import * as feedbackQueries from '#services/feedback.ts'
@@ -151,7 +152,7 @@ export const listFeedbackSources = async function listFeedbackSources(
     name: result.name,
     description: result.description,
     isActive: result.is_active === 1,
-    allowedOrigins: result.allowed_origins ? (JSON.parse(result.allowed_origins) as string[]) : null,
+    allowedOrigins: isNonEmptyText(result.allowed_origins) ? (JSON.parse(result.allowed_origins) as string[]) : null,
     tokenPreview: `${result.token_hash.slice(0, 12)}…`,
     createdAt: result.created_at,
     revokedAt: result.revoked_at,
@@ -186,7 +187,7 @@ export const getFeedbackSource = async function getFeedbackSource(
     name: row.name,
     description: row.description,
     isActive: row.is_active === 1,
-    allowedOrigins: row.allowed_origins ? (JSON.parse(row.allowed_origins) as string[]) : null,
+    allowedOrigins: isNonEmptyText(row.allowed_origins) ? (JSON.parse(row.allowed_origins) as string[]) : null,
     tokenPreview: `${row.token_hash.slice(0, 12)}…`,
     createdAt: row.created_at,
     revokedAt: row.revoked_at,

@@ -2,6 +2,7 @@ import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { String, Predicate, Array } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
@@ -17,7 +18,7 @@ import type { ServiceCtx } from './types.ts'
 const LIVE_TTL_SECONDS = 120
 
 export const agentSessionCredential = function agentSessionCredential(ctx: ServiceCtx): string | undefined {
-  if (ctx.auth?.credentialId) {
+  if (isNonEmptyText(ctx.auth?.credentialId)) {
     return ctx.auth.credentialId
   }
   if (ctx.auth?.kind === 'human' && (ctx.auth.method === 'access' || ctx.auth.method === 'dev')) {
@@ -57,7 +58,7 @@ export const assertAgentSessionAccess = async function assertAgentSessionAccess(
       throw new ForbiddenError('Agent session belongs to another credential')
     }
   }
-  if (session.issueId) {
+  if (isNonEmptyText(session.issueId)) {
     await assertIssueAccess(ctx, session.issueId, 'edit')
   }
 }

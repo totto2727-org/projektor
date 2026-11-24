@@ -1,6 +1,7 @@
 import { Effect, Schema } from 'effect'
 import type { CSSProperties } from 'react'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { WorkspaceBrand } from '#contracts/web-brand.ts'
 import { makeCoreClient } from '#core/client.ts'
 
@@ -57,7 +58,9 @@ export const loadBrand = function loadBrand(
       const name = override.displayName ?? brand.name
       return {
         name,
-        mark: override.displayName ? (Array.from(name.trim())[0]?.toUpperCase() ?? brand.mark) : brand.mark,
+        mark: isNonEmptyText(override.displayName)
+          ? (Array.from(name.trim())[0]?.toUpperCase() ?? brand.mark)
+          : brand.mark,
         accent: override.accent ?? brand.accent,
         onAccent: override.onAccent ?? brand.onAccent,
         logoUrl: override.logoUrl ?? brand.logoUrl,
@@ -70,11 +73,11 @@ export const loadBrand = function loadBrand(
 /** Emit preferences before paint without a client-side, cross-workspace brand cache. */
 export const brandStyles = function brandStyles(brand: BrandConfig): CSSProperties {
   const styles: CSSProperties & Record<string, string> = {}
-  if (brand.accent) {
+  if (isNonEmptyText(brand.accent)) {
     styles['--light-accent'] = brand.accent
     styles['--dark-accent'] = brand.accent
   }
-  if (brand.onAccent) {
+  if (isNonEmptyText(brand.onAccent)) {
     styles['--light-on-accent'] = brand.onAccent
     styles['--dark-on-accent'] = brand.onAccent
   }

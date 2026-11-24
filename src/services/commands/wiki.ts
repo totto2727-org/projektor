@@ -932,8 +932,8 @@ const staleWriteGuard = function staleWriteGuard(ctx: ServiceCtx, page: GuardedP
 
 class StaleWikiWriteError extends Error {}
 
-const isStaleWriteError = function isStaleWriteError(e: unknown): boolean {
-  return e instanceof Error && /malformed JSON|__projektor_stale_wiki_write__/i.test(e.message)
+const isStaleWriteError = function isStaleWriteError(error: unknown): boolean {
+  return error instanceof Error && /malformed JSON|__projektor_stale_wiki_write__/i.test(error.message)
 }
 
 const batchGuarded = async function batchGuarded(
@@ -1611,17 +1611,17 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
       headings.push({ level: match[1].length, heading: match[2].trim(), startLine: idx })
     }
   })
-  return headings.map((h, index) => ({
-    heading: h.heading,
-    level: h.level,
-    startLine: h.startLine,
+  return headings.map((heading, index) => ({
+    heading: heading.heading,
+    level: heading.level,
+    startLine: heading.startLine,
     endLine: index + 1 < headings.length ? headings[index + 1].startLine : lines.length,
   }))
 }
 
 const findSections = function findSections(sections: Readonly<HeadingSection[]>, heading: string): HeadingSection[] {
   const target = heading.trim()
-  return sections.filter((s) => s.heading === target)
+  return sections.filter((section) => section.heading === target)
 }
 
 const extractSectionText = function extractSectionText(content: string, section: HeadingSection): string {
@@ -1740,7 +1740,7 @@ const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
   const currentMatches = findSections(currentSections, heading)
   if (Array.isArrayEmpty(currentMatches)) {
     throw new NotFoundError(`Heading '${heading}' not found`, {
-      currentHeadings: currentSections.map((s) => s.heading),
+      currentHeadings: currentSections.map((section) => section.heading),
     })
   }
   /*
@@ -2081,8 +2081,8 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
       .bind(parentId, parentId, workspaceId, 'Templates', '', ''),
   )
 
-  Iterable.forEach(DEFAULT_WIKI_TEMPLATES, (t) => {
-    const content = `---\ntype: ${t.type}\nstatus: draft\ntemplate: true\n---\n${t.body}`
+  Iterable.forEach(DEFAULT_WIKI_TEMPLATES, (template) => {
+    const content = `---\ntype: ${template.type}\nstatus: draft\ntemplate: true\n---\n${template.body}`
     statements.push(
       prepareQuery(
         db,
@@ -2093,16 +2093,16 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
             searchRowid: newSearchRowid(), // PROJ-816
             workspaceId,
             projectId: null,
-            slug: t.slug,
-            title: t.title,
-            titleFold: foldWikiTitle(t.title),
+            slug: template.slug,
+            title: template.title,
+            titleFold: foldWikiTitle(template.title),
             content,
             parentId,
             createdById: userId,
             updatedById: userId,
             createdAt: now,
             updatedAt: now,
-            type: t.type,
+            type: template.type,
             status: 'draft',
             isTemplate: true,
           })
@@ -2545,7 +2545,9 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
   await healTitleFolds(ctx) // PROJ-818
   await ctx.db.batch([
     buildResolveIncomingLinksStatement(ctx, { id: page.id, title: page.title, slug: page.slug }),
-    ...descendantRows.map((d) => buildResolveIncomingLinksStatement(ctx, { id: d.id, title: d.title, slug: d.slug })),
+    ...descendantRows.map((descendant) =>
+      buildResolveIncomingLinksStatement(ctx, { id: descendant.id, title: descendant.title, slug: descendant.slug }),
+    ),
   ])
 
   /*

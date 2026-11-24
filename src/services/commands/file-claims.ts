@@ -74,8 +74,8 @@ const liveCutoff = (): number => currentEpochSeconds() - SESSION_TTL_SECONDS
 export const DEFAULT_FILE_CLAIM_TTL_SECONDS = SECONDS_PER_DAY
 
 export const parseFileClaimTtlSeconds = function parseFileClaimTtlSeconds(raw: string | undefined): number {
-  const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_FILE_CLAIM_TTL_SECONDS
+  const duration = Number(raw)
+  return Number.isFinite(duration) && duration > 0 ? duration : DEFAULT_FILE_CLAIM_TTL_SECONDS
 }
 
 /*
@@ -334,7 +334,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
   // Every path in this request that's still (genuinely) held once stale claims are excluded.
   const contended = paths
     .map((path) => ({ path, existing: claimsByPath.get(path) }))
-    .filter((p): p is { path: string; existing: ActiveClaim } => Boolean(p.existing))
+    .filter((pathClaim): pathClaim is { path: string; existing: ActiveClaim } => Boolean(pathClaim.existing))
 
   if (force !== true && Array.isArrayNonEmpty(contended)) {
     /*
@@ -505,7 +505,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
     }
   }
 
-  const releaseIds = toRelease.map((r) => r.id)
+  const releaseIds = toRelease.map((claim) => claim.id)
   const releaseStatements = buildReleaseByIdsStatements(ctx, orm, releaseIds, now, 'released')
   const releasedIds = releasedIdsFrom(await ctx.db.batch(releaseStatements))
 
@@ -515,12 +515,12 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
    * Only rows this batch actually released count: one released by a concurrent request
    * between the read and the batch is someone else's release.
    */
-  const releasedRows = toRelease.filter((r) => releasedIds.has(r.id))
+  const releasedRows = toRelease.filter((row) => releasedIds.has(row.id))
   if (Array.isArrayEmpty(releasedRows)) {
     return { released: [], count: 0 }
   }
-  const released = releasedRows.map(({ projectId: _projectId, ...r }) => ({
-    ...r,
+  const released = releasedRows.map(({ projectId: _projectId, ...columns }) => ({
+    ...columns,
     releasedAt: now,
     releaseReason: 'released',
   }))

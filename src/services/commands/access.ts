@@ -390,8 +390,8 @@ export const usersWithProjectReadAccess = async function usersWithProjectReadAcc
       .innerJoin(schema.userGroupMembers, eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId))
       .where(and(eq(schema.groupProjectGrants.projectId, projectId), inArray(schema.userGroupMembers.userId, chunk))),
   )
-  Iterable.forEach(granted, (g) => {
-    allowed.add(g.userId)
+  Iterable.forEach(granted, (grant) => {
+    allowed.add(grant.userId)
   })
   return allowed
 }

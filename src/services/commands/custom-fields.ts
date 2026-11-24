@@ -292,7 +292,7 @@ export const validateCustomFields = async function validateCustomFields(
     .from(schema.customFieldDefinitions)
     .where(eq(schema.customFieldDefinitions.workspaceId, workspaceId))
 
-  const defsByKey = new Map(defs.map((d) => [d.key, d]))
+  const defsByKey = new Map(defs.map((definition) => [definition.key, definition]))
   const writes: { fieldId: string; value: string }[] = []
 
   Iterable.forEach(Object.entries(customFields), ([key, rawValue]) => {

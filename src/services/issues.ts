@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { String, Iterable, Predicate, Effect } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { drizzle, schema } from '#db'
 
@@ -108,10 +109,10 @@ export interface IssuePage {
 export const getIssue = function getIssue(db: D1Database, workspaceId: string, options: { id?: string; ref?: string }) {
   return queryEffect('getIssue', async () => {
     const match = options.ref?.match(ISSUE_REF_PATTERN)
-    if (!options.id && !match) {
+    if (!isNonEmptyText(options.id) && !match) {
       return null
     }
-    const predicate = options.id
+    const predicate = isNonEmptyText(options.id)
       ? eq(schema.issues.id, options.id)
       : and(eq(schema.projects.key, match![1]), eq(schema.issues.number, Number(match![2])))
     return (
@@ -178,7 +179,7 @@ const listConditions = function listConditions(
   if (options.status) {
     conditions.push(eq(schema.issues.status, options.status))
   }
-  if (options.statusId) {
+  if (isNonEmptyText(options.statusId)) {
     conditions.push(eq(schema.issues.statusId, options.statusId))
   }
   const statusIds = options.statusIds
@@ -192,7 +193,7 @@ const listConditions = function listConditions(
   if (statusIds?.length) {
     conditions.push(sql`${schema.issues.statusId} IN (SELECT value FROM json_each(${JSON.stringify(statusIds)}))`)
   }
-  if (options.category) {
+  if (isNonEmptyText(options.category)) {
     conditions.push(eq(schema.issues.statusCategory, options.category))
   }
   if (Predicate.isNotNullish(options.needsAudit)) {
@@ -208,19 +209,19 @@ const listConditions = function listConditions(
   if (priorities?.length) {
     conditions.push(sql`${schema.issues.priority} IN (SELECT value FROM json_each(${JSON.stringify(priorities)}))`)
   }
-  if (options.projectId) {
+  if (isNonEmptyText(options.projectId)) {
     conditions.push(eq(schema.issues.projectId, options.projectId))
   }
-  if (options.assignee) {
+  if (isNonEmptyText(options.assignee)) {
     conditions.push(eq(schema.issues.assigneeId, options.assignee))
   }
-  if (options.parentId) {
+  if (isNonEmptyText(options.parentId)) {
     conditions.push(eq(schema.issues.parentId, options.parentId))
   }
   if (options.noParent === true) {
     conditions.push(isNull(schema.issues.parentId))
   }
-  if (options.typeId) {
+  if (isNonEmptyText(options.typeId)) {
     conditions.push(eq(schema.issues.typeId, options.typeId))
   }
   const excluded = options.excludeTypeIds
@@ -235,7 +236,7 @@ const listConditions = function listConditions(
       )!,
     )
   }
-  if (options.sprintId) {
+  if (isNonEmptyText(options.sprintId)) {
     conditions.push(eq(schema.issues.sprintId, options.sprintId))
   }
   if (options.completedAfter) {
@@ -281,7 +282,7 @@ export const getChildRollups = function getChildRollups(
     )
     const grouped: Record<string, { status: string; count: number }[]> = {}
     Iterable.forEach(rows, (row) => {
-      if (row.parent_id) {
+      if (isNonEmptyText(row.parent_id)) {
         ;(grouped[row.parent_id] ??= []).push(row)
       }
     })
@@ -423,7 +424,7 @@ export const getIssuesBatch = function getIssuesBatch(
     const missing: string[] = []
     const seen = new Set<string>()
     Iterable.forEach(selection.order, (entry) => {
-      const row = entry.id ? rowsById.get(entry.id) : undefined
+      const row = isNonEmptyText(entry.id) ? rowsById.get(entry.id) : undefined
       if (!row) {
         if (!missing.includes(entry.requested)) {
           missing.push(entry.requested)
@@ -478,7 +479,7 @@ export const searchIssues = function searchIssues(
     }
     let statement = `SELECT i.id, i.number, i.title, i.status, i.priority, p.id as project_id, p.key as project_key, p.name as project_name FROM issues_fts JOIN issues i ON i.id = issues_fts.issue_id LEFT JOIN projects p ON p.id = i.project_id WHERE issues_fts MATCH ? AND issues_fts.workspace_id = ?`
     const params: unknown[] = [query, workspaceId]
-    if (options.projectId) {
+    if (isNonEmptyText(options.projectId)) {
       statement += ' AND i.project_id = ?'
       params.push(options.projectId)
     }

@@ -171,7 +171,7 @@ const generateUniqueSlug = async function generateUniqueSlug(
 ): Promise<string> {
   const base = slugify(name)
   let candidate = base
-  for (let n = 2; ; n++) {
+  for (let suffix = 2; ; suffix++) {
     const existing = await orm
       .select({ id: schema.projects.id })
       .from(schema.projects)
@@ -180,7 +180,7 @@ const generateUniqueSlug = async function generateUniqueSlug(
     if (!existing) {
       return candidate
     }
-    candidate = `${base}-${n}`
+    candidate = `${base}-${suffix}`
   }
 }
 

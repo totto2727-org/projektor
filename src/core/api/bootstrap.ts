@@ -2,6 +2,7 @@ import { seedDefaultCustomFields } from '#commands/custom-fields.ts'
 import { seedDefaultTaskStatuses } from '#commands/task-statuses.ts'
 import { seedDefaultTaskTypes } from '#commands/task-types.ts'
 import { HTTP_FORBIDDEN, HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { coreFailure } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -16,7 +17,7 @@ export const bootstrapDevelopment = async function bootstrapDevelopment(
   if (env.ENVIRONMENT !== 'development') {
     throw coreFailure(HTTP_FORBIDDEN, 'Not available in production')
   }
-  if (!env.BOOTSTRAP_SECRET) {
+  if (!isNonEmptyText(env.BOOTSTRAP_SECRET)) {
     throw coreFailure(HTTP_FORBIDDEN, 'Not available')
   }
   if (provided !== env.BOOTSTRAP_SECRET) {

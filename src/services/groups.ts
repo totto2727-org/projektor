@@ -1,6 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm'
 import { Iterable, Predicate } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -106,7 +107,7 @@ export const listMemberGroups = function listMemberGroups(db: D1Database, worksp
       if (!byUser.has(row.userId)) {
         byUser.set(row.userId, [])
       }
-      if (row.groupId && row.groupName) {
+      if (isNonEmptyText(row.groupId) && isNonEmptyText(row.groupName)) {
         byUser.get(row.userId)?.push({ id: row.groupId, name: row.groupName })
       }
     })

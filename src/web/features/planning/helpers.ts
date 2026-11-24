@@ -1,5 +1,6 @@
 import { String, Predicate } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import {
   SECONDS_PER_DAY,
   SECONDS_PER_HOUR,
@@ -41,7 +42,7 @@ export const getStoryPoints = function getStoryPoints(issue: SprintIssue): numbe
 }
 export const issueHref = function issueHref(issue: SprintIssue, workspaceSlug: string): string {
   const query = new URLSearchParams({ id: issue.id, workspace: workspaceSlug })
-  if (!issue.project_key) {
+  if (!isNonEmptyText(issue.project_key)) {
     return `/issues/view?${query}`
   }
   const slug = issue.title

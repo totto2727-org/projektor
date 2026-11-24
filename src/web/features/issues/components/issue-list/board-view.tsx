@@ -3,6 +3,7 @@ import { String, Predicate, Array } from 'effect'
 import { useState } from 'react'
 import type { JSX } from 'react'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import {
   assigneeInitials,
   BOARD_COLUMNS,
@@ -60,7 +61,7 @@ const BoardCard = function BoardCard({
         }}
       >
         <div className='font-mono text-[0.72rem] text-text-muted mb-1'>
-          {issue.project_key ? `${issue.project_key}-${issue.number}` : `#${issue.number}`}
+          {isNonEmptyText(issue.project_key) ? `${issue.project_key}-${issue.number}` : `#${issue.number}`}
         </div>
         <div className='text-sm font-medium text-text-base leading-[1.35] mb-2'>{issue.title}</div>
         <div className='flex justify-between items-center gap-2'>

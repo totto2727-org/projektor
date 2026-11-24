@@ -1,6 +1,7 @@
 import { Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { loadMigrations } from '#db/test/helpers.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
@@ -82,7 +83,7 @@ const fixture = async function fixture(
       ('00000000-0000-4000-8000-000000000001','workspace','guide','Guide','Body','user','user',1,1),('foreign-page','foreign-workspace','guide','Foreign Guide','Secret','user','user',1,1);
     INSERT INTO wiki_revisions (id,page_id,content,author_id,created_at) VALUES ('revision','00000000-0000-4000-8000-000000000001','Body','user',1),('foreign-revision','foreign-page','Secret','user',1);
   `)
-  if (options.pageProject) {
+  if (isNonEmptyText(options.pageProject)) {
     database.sqlite
       .prepare("UPDATE wiki_pages SET project_id = ? WHERE id = '00000000-0000-4000-8000-000000000001'")
       .run(options.pageProject)
@@ -93,7 +94,10 @@ const fixture = async function fixture(
   if (options.role) {
     database.sqlite.prepare("UPDATE workspace_members SET role = ? WHERE user_id = 'user'").run(options.role)
   }
-  if (options.granted === true || (options.pageProject && options.archived !== true && options.inaccessible !== true)) {
+  if (
+    options.granted === true ||
+    (isNonEmptyText(options.pageProject) && options.archived !== true && options.inaccessible !== true)
+  ) {
     database.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('group','workspace','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('group','user','user',1);

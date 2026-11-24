@@ -51,10 +51,10 @@ export function LazyMarkdownEditor(props: MarkdownEditorModule.Props): JSX.Eleme
   useEffect(() => {
     let cancelled = false
     loadMarkdownEditor()
-      .then((m) => {
+      .then((selectedModule) => {
         // Wrapped in a thunk: a bare component would be read as a state updater.
         if (!cancelled) {
-          setEditor(() => m.MarkdownEditor)
+          setEditor(() => selectedModule.MarkdownEditor)
         }
       })
       .catch((err) => {

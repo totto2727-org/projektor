@@ -33,8 +33,8 @@ import { buildDefaultTaskTypeStatements } from './task-types.ts'
 import type { ServiceCtx } from './types.ts'
 import { buildDefaultWikiTemplateStatements } from './wiki.ts'
 
-const sha256hex = async function sha256hex(s: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
+const sha256hex = async function sha256hex(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
   return Array.from(new Uint8Array(buf))
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
@@ -226,7 +226,7 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
   const token =
     'pk_' +
     Array.from(tokenBytes)
-      .map((b) => b.toString(16).padStart(2, '0'))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
       .join('')
   const hash = await sha256hex(token)
 

@@ -158,7 +158,7 @@ const resolveTitleTargets = async function resolveTitleTargets(
   if (Array.isReadonlyArrayEmpty(titles)) {
     return byLower
   }
-  const lowered = [...new Set(titles.map((t) => foldWikiTitle(t)))]
+  const lowered = [...new Set(titles.map((title) => foldWikiTitle(title)))]
   const wanted = new Set(lowered)
   const cols = {
     id: schema.wikiPages.id,
@@ -192,7 +192,7 @@ const resolveTitleTargets = async function resolveTitleTargets(
         isNull(schema.wikiPages.deletedAt),
       ),
     )
-  const candidates = [...rows, ...unhealed.filter((r) => wanted.has(foldWikiTitle(r.title)))].toSorted(
+  const candidates = [...rows, ...unhealed.filter((row) => wanted.has(foldWikiTitle(row.title)))].toSorted(
     (left, right) => left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
   )
   /*
@@ -259,7 +259,7 @@ const resolveSlugTargets = async function resolveSlugTargets(
     return bySlug
   }
 
-  const targetIds = [...new Set(redirects.map((r) => r.pageId))]
+  const targetIds = [...new Set(redirects.map((redirect) => redirect.pageId))]
   const targets = await inChunks(targetIds, (chunk) =>
     orm
       .select({ id: schema.wikiPages.id, title: schema.wikiPages.title })
@@ -277,11 +277,11 @@ const resolveSlugTargets = async function resolveSlugTargets(
         ),
       ),
   )
-  const pageById = new Map(targets.map((t) => [t.id, t]))
-  Iterable.forEach(redirects, (r) => {
-    const page = pageById.get(r.pageId)
-    if (page && !bySlug.has(r.oldSlug)) {
-      bySlug.set(r.oldSlug, page)
+  const pageById = new Map(targets.map((target) => [target.id, target]))
+  Iterable.forEach(redirects, (redirect) => {
+    const page = pageById.get(redirect.pageId)
+    if (page && !bySlug.has(redirect.oldSlug)) {
+      bySlug.set(redirect.oldSlug, page)
     }
   })
   return bySlug
@@ -294,11 +294,15 @@ interface ResolvedLink {
   targetKind: 'title' | 'slug'
 }
 
-const isTitleTarget = function isTitleTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kind: 'title' }> {
-  return t.kind === 'title'
+const isTitleTarget = function isTitleTarget(
+  target: ParsedLinkTarget,
+): target is Extract<ParsedLinkTarget, { kind: 'title' }> {
+  return target.kind === 'title'
 }
-const isSlugTarget = function isSlugTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kind: 'slug' }> {
-  return t.kind === 'slug'
+const isSlugTarget = function isSlugTarget(
+  target: ParsedLinkTarget,
+): target is Extract<ParsedLinkTarget, { kind: 'slug' }> {
+  return target.kind === 'slug'
 }
 
 /*
@@ -318,26 +322,26 @@ const resolveTargetsFromMaps = function resolveTargetsFromMaps(
    * same target multiple times only gets one wiki_links row.
    */
   const resolved = new Map<string, ResolvedLink>()
-  Iterable.forEach(targets, (t) => {
-    if (isTitleTarget(t)) {
-      const targetPageId = titleMatches.get(foldWikiTitle(t.title)) ?? null
-      const key = targetPageId ?? `title:${foldWikiTitle(t.title)}`
+  Iterable.forEach(targets, (target) => {
+    if (isTitleTarget(target)) {
+      const targetPageId = titleMatches.get(foldWikiTitle(target.title)) ?? null
+      const key = targetPageId ?? `title:${foldWikiTitle(target.title)}`
       if (!resolved.has(key)) {
         resolved.set(key, {
           targetPageId,
-          targetTitle: t.title,
-          targetText: t.title,
+          targetTitle: target.title,
+          targetText: target.title,
           targetKind: 'title',
         })
       }
-    } else if (isSlugTarget(t)) {
-      const page = slugMatches.get(t.slug)
-      const key = page?.id ?? `slug:${t.slug.toLowerCase()}`
+    } else if (isSlugTarget(target)) {
+      const page = slugMatches.get(target.slug)
+      const key = page?.id ?? `slug:${target.slug.toLowerCase()}`
       if (!resolved.has(key)) {
         resolved.set(key, {
           targetPageId: page?.id ?? null,
-          targetTitle: page?.title ?? t.slug,
-          targetText: t.slug,
+          targetTitle: page?.title ?? target.slug,
+          targetText: target.slug,
           targetKind: 'slug',
         })
       }
@@ -355,12 +359,12 @@ const resolveLinkTargets = async function resolveLinkTargets(
     resolveTitleTargets(
       orm,
       workspaceId,
-      targets.filter(isTitleTarget).map((t) => t.title),
+      targets.filter(isTitleTarget).map((target) => target.title),
     ),
     resolveSlugTargets(
       orm,
       workspaceId,
-      targets.filter(isSlugTarget).map((t) => t.slug),
+      targets.filter(isSlugTarget).map((target) => target.slug),
     ),
   ])
   return resolveTargetsFromMaps(targets, titleMatches, slugMatches)
@@ -383,12 +387,12 @@ const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
     resolveTitleTargets(
       orm,
       workspaceId,
-      allTargets.filter(isTitleTarget).map((t) => t.title),
+      allTargets.filter(isTitleTarget).map((target) => target.title),
     ),
     resolveSlugTargets(
       orm,
       workspaceId,
-      allTargets.filter(isSlugTarget).map((t) => t.slug),
+      allTargets.filter(isSlugTarget).map((target) => target.slug),
     ),
   ])
   const byPage = new Map<string, ResolvedLink[]>()
@@ -439,15 +443,15 @@ function buildLinkWriteStatements(
   resolved: Readonly<ResolvedLink[]>,
 ): D1PreparedStatement[] {
   const now = currentEpochSeconds()
-  const rows = resolved.map((r) => ({
+  const rows = resolved.map((link) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
     sourcePageId,
-    targetPageId: r.targetPageId,
-    targetTitle: r.targetTitle,
-    targetFold: foldWikiTitle(r.targetTitle),
-    targetText: r.targetText,
-    targetKind: r.targetKind,
+    targetPageId: link.targetPageId,
+    targetTitle: link.targetTitle,
+    targetFold: foldWikiTitle(link.targetTitle),
+    targetText: link.targetText,
+    targetKind: link.targetKind,
     createdAt: now,
   }))
 
@@ -459,16 +463,16 @@ function buildLinkWriteStatements(
   for (let index = 0; index < rows.length; index += LINK_INSERT_CHUNK_SIZE) {
     const chunk = rows.slice(index, index + LINK_INSERT_CHUNK_SIZE)
     const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
-    const params = chunk.flatMap((r) => [
-      r.id,
-      r.workspaceId,
-      r.sourcePageId,
-      r.targetPageId,
-      r.targetTitle,
-      r.targetFold,
-      r.targetText,
-      r.targetKind,
-      r.createdAt,
+    const params = chunk.flatMap((row) => [
+      row.id,
+      row.workspaceId,
+      row.sourcePageId,
+      row.targetPageId,
+      row.targetTitle,
+      row.targetFold,
+      row.targetText,
+      row.targetKind,
+      row.createdAt,
     ])
     statements.push(
       ctx.db
@@ -592,8 +596,8 @@ export const backfillWikiLinks = async function backfillWikiLinks(
   const resolvedByPage = await resolveLinkTargetsForPages(orm, ctx.workspaceId, parsedPages)
 
   const statements: D1PreparedStatement[] = []
-  Iterable.forEach(parsedPages, (p) => {
-    statements.push(...buildLinkWriteStatements(ctx, p.id, resolvedByPage.get(p.id) ?? []))
+  Iterable.forEach(parsedPages, (page) => {
+    statements.push(...buildLinkWriteStatements(ctx, page.id, resolvedByPage.get(page.id) ?? []))
   })
   /*
    * One batch for the whole chunk — each individual statement already respects D1's
@@ -746,7 +750,7 @@ export const repointIncomingLinks = async function repointIncomingLinks(
   pageIds: string[],
 ): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
-    const placeholders = chunk.map((_, index) => `?${index + 2}`).join(',')
+    const placeholders = chunk.map((_page, index) => `?${index + 2}`).join(',')
     await ctx.db
       .prepare(
         `UPDATE wiki_links SET target_page_id = (${repointSubquery('?1')})
@@ -873,13 +877,13 @@ export const backlinksForResolvedPage = async function backlinksForResolvedPage(
   )
   const visible = rows.filter((row) => Predicate.isNullish(row.projectId) || visibleSourceIds.has(row.pageId))
 
-  return visible.map((r) => ({
-    linkId: r.linkId,
-    pageId: r.pageId,
-    slug: r.slug,
-    title: r.title,
-    url: wikiPagePath(r.slug),
-    snippet: extractSnippet(r.content, r.targetTitle),
+  return visible.map((row) => ({
+    linkId: row.linkId,
+    pageId: row.pageId,
+    slug: row.slug,
+    title: row.title,
+    url: wikiPagePath(row.slug),
+    snippet: extractSnippet(row.content, row.targetTitle),
   }))
 }
 
@@ -892,7 +896,9 @@ async function visibleSourcePageIds(
     return []
   }
   const uniqueProjectIds = [
-    ...new Set(rows.map((row) => row.projectId).filter((p): p is string => Predicate.isNotNullish(p))),
+    ...new Set(
+      rows.map((row) => row.projectId).filter((projectId): projectId is string => Predicate.isNotNullish(projectId)),
+    ),
   ]
   const grantedProjectIds = new Set<string>()
   for (const projectId of uniqueProjectIds) {
@@ -990,12 +996,12 @@ export const listBrokenWikiLinks = async function listBrokenWikiLinks(
 
   // For a hidden target, show the link as written, never the hidden page's own title
   // (a slug link's target_title is the resolved page's title).
-  return rows.map(({ targetText, hidden, ...r }) => ({
-    ...r,
+  return rows.map(({ targetText, hidden, ...columns }) => ({
+    ...columns,
     /*
      * A legacy resolved row has no target_text, and its target_title may be the hidden
      * page's own title — show nothing rather than leak it.
      */
-    targetTitle: hidden ? (targetText ?? '') : r.targetTitle,
+    targetTitle: hidden ? (targetText ?? '') : columns.targetTitle,
   }))
 }

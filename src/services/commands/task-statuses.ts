@@ -257,7 +257,7 @@ export const buildDefaultTaskStatusStatements = function buildDefaultTaskStatusS
     },
   ]
   const orm = drizzle(db, { schema })
-  return defaults.map((s) =>
+  return defaults.map((selectedStatus) =>
     prepareQuery(
       db,
       orm
@@ -265,13 +265,13 @@ export const buildDefaultTaskStatusStatements = function buildDefaultTaskStatusS
         .values({
           id: crypto.randomUUID(),
           workspaceId,
-          key: s.key,
-          name: s.name,
-          category: s.category as 'todo' | 'in_progress' | 'done' | 'cancelled',
+          key: selectedStatus.key,
+          name: selectedStatus.name,
+          category: selectedStatus.category as 'todo' | 'in_progress' | 'done' | 'cancelled',
           color: null,
-          position: s.position,
-          isDefault: s.isDefault,
-          isReviewStep: s.isReviewStep,
+          position: selectedStatus.position,
+          isDefault: selectedStatus.isDefault,
+          isReviewStep: selectedStatus.isReviewStep,
         })
         .onConflictDoNothing()
         .toSQL(),
@@ -311,9 +311,9 @@ export const resolveStatus = async function resolveStatus(
     category: string | null
     isReviewStep: number
   }
-  const fromRow = (r: Row): { isReviewStep: boolean; id: string; key: string; category: string | null } => ({
-    ...r,
-    isReviewStep: r.isReviewStep === 1,
+  const fromRow = (row: Row): { isReviewStep: boolean; id: string; key: string; category: string | null } => ({
+    ...row,
+    isReviewStep: row.isReviewStep === 1,
   })
   // No task_statuses row backs the key: only the built-in "in_review" is a review step.
   const fromKey = (key: string): { id: null; key: string; category: null; isReviewStep: boolean } => ({

@@ -91,15 +91,15 @@ const sortIndicator = function sortIndicator(
 interface EpicListHeaderProps {
   derivedStatuses: TaskStatus[]
   filterStatuses: string[]
-  setFilterStatuses: (v: string[] | ((prev: string[]) => string[])) => void
+  setFilterStatuses: (statuses: string[] | ((prev: string[]) => string[])) => void
   filterPriorities: string[]
-  setFilterPriorities: (v: string[] | ((prev: string[]) => string[])) => void
+  setFilterPriorities: (priorities: string[] | ((prev: string[]) => string[])) => void
   filterDateField: DateField
-  setFilterDateField: (v: DateField | ((prev: DateField) => DateField)) => void
+  setFilterDateField: (field: DateField | ((prev: DateField) => DateField)) => void
   filterDateFrom: string
-  setFilterDateFrom: (v: string | ((prev: string) => string)) => void
+  setFilterDateFrom: (date: string | ((prev: string) => string)) => void
   filterDateTo: string
-  setFilterDateTo: (v: string | ((prev: string) => string)) => void
+  setFilterDateTo: (date: string | ((prev: string) => string)) => void
   epicTypeId: string | null
   onOpenCreate: () => void
 }
@@ -407,13 +407,13 @@ function EpicRow({ ep, rollup }: EpicRowProps): JSX.Element {
 
 interface CreateEpicModalProps {
   showCreate: boolean
-  setShowCreate: (v: boolean) => void
+  setShowCreate: (show: boolean) => void
   createTitle: string
-  setCreateTitle: (v: string) => void
+  setCreateTitle: (title: string) => void
   createProjectId: string
-  setCreateProjectId: (v: string) => void
+  setCreateProjectId: (projectId: string) => void
   createPriority: string
-  setCreatePriority: (v: string) => void
+  setCreatePriority: (priority: string) => void
   submitting: boolean
   createError: string | null
   projects: Readonly<ProjectMeta[]>

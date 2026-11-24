@@ -32,7 +32,7 @@ const fetchActivityRows = async function fetchActivityRows(
    * queries per event category and merge/sort in JS.
    */
   const sinceFilter = (col: string): string => (Predicate.isNotNullish(since) ? `AND ${col} >= ?` : '')
-  const s = Predicate.isNotNullish(since) ? [since] : []
+  const sinceParams = Predicate.isNotNullish(since) ? [since] : []
 
   const [issues, comments, statusChanges, wikiPages, sprints] = await Promise.all([
     // issue_created
@@ -46,7 +46,7 @@ const fetchActivityRows = async function fetchActivityRows(
 				 WHERE i.project_id = ? AND i.workspace_id = ? ${sinceFilter('i.created_at')}
 				 ORDER BY i.created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
     // issue_commented
@@ -62,7 +62,7 @@ const fetchActivityRows = async function fetchActivityRows(
 				 WHERE i.project_id = ? AND i.workspace_id = ? ${sinceFilter('ic.created_at')}
 				 ORDER BY ic.created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
     // issue_status_changed (via activity log)
@@ -87,7 +87,7 @@ const fetchActivityRows = async function fetchActivityRows(
 				   ${sinceFilter('a.created_at')}
 				 ORDER BY a.created_at DESC LIMIT ?`,
       )
-      .bind(ctx.workspaceId, projectId, ...s, limit)
+      .bind(ctx.workspaceId, projectId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
     // wiki_page_created + wiki_page_edited (2-term UNION, well under D1 limit)
@@ -107,7 +107,7 @@ const fetchActivityRows = async function fetchActivityRows(
 				   AND wp.updated_at != wp.created_at ${sinceFilter('wp.updated_at')}
 				 ORDER BY created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
     // sprint_started + sprint_completed (2-term UNION)
@@ -131,7 +131,7 @@ const fetchActivityRows = async function fetchActivityRows(
 				   ${sinceFilter('s.updated_at')}
 				 ORDER BY created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
   ])
 

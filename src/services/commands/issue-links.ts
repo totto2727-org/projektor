@@ -49,8 +49,8 @@ const canonicalize = function canonicalize(
   }
   const type = inputType as StoredLinkType
   if (type === 'relates_to' || type === 'duplicates') {
-    const [a, b] = source < target ? [source, target] : [target, source]
-    return { source: a, target: b, type }
+    const [firstId, secondId] = source < target ? [source, target] : [target, source]
+    return { source: firstId, target: secondId, type }
   }
   return { source, target, type }
 }

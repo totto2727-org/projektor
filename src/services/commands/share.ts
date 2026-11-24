@@ -1,5 +1,6 @@
 import { String, Predicate } from 'effect'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 
 import { assertProjectAccess, usersWithProjectReadAccess } from './access.ts'
@@ -45,7 +46,7 @@ export const createShareToken = async function createShareToken(
   const now = currentEpochSeconds()
 
   const bytes = crypto.getRandomValues(new Uint8Array(16))
-  const token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
   const expiresAt = now + SHARE_LINK_LIFETIME_DAYS * SECONDS_PER_DAY
 
   // share_tokens.id stores sha256(token), never the raw token — see PROJ-239
@@ -165,7 +166,7 @@ export const getSharedIssue = async function getSharedIssue(
     .all<{ key: string; label: string; type: string; value: string }>()
 
   const brandDto = await getWorkspaceBrandForShare(db, row.workspace_id, row.workspace_slug)
-  const brand = brandDto.logoUrl ? { ...brandDto, logoUrl: `/api/share/${token}/logo` } : brandDto
+  const brand = isNonEmptyText(brandDto.logoUrl) ? { ...brandDto, logoUrl: `/api/share/${token}/logo` } : brandDto
   const { workspace_id: _workspaceId, workspace_slug: _workspaceSlug, ...rest } = row
 
   return { ...rest, customFields: cfRows.results ?? [], brand }

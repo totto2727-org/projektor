@@ -93,16 +93,18 @@ const PriorityPills = function PriorityPills({
 }): JSX.Element {
   return (
     <div className='flex flex-wrap gap-1'>
-      {(['urgent', 'high', 'medium', 'low'] as const).map((p) => {
-        const active = filterPriorities.includes(p)
-        const col = PILL_COLORS[p]
+      {(['urgent', 'high', 'medium', 'low'] as const).map((priority) => {
+        const active = filterPriorities.includes(priority)
+        const col = PILL_COLORS[priority]
         return (
           <button
             type='button'
-            key={p}
+            key={priority}
             aria-pressed={active}
             onClick={() => {
-              setFilterPriorities((prev) => (active ? prev.filter((k) => k !== p) : [...prev, p]))
+              setFilterPriorities((prev) =>
+                active ? prev.filter((selectedPriority) => selectedPriority !== priority) : [...prev, priority],
+              )
             }}
             className='py-1 px-[0.625rem] rounded-full cursor-pointer text-[0.8rem] capitalize'
             style={{
@@ -112,7 +114,7 @@ const PriorityPills = function PriorityPills({
               fontWeight: active ? 600 : 400,
             }}
           >
-            {p}
+            {priority}
           </button>
         )
       })}

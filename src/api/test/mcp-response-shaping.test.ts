@@ -2,6 +2,7 @@ import { Schema, String, Predicate, Iterable } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '#api/mcp/serialize.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 /*
  * PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
  * one `{items, next}` pagination shape, and a hard per-result size cap.
@@ -308,7 +309,7 @@ describe('covers PROJ-891: MCP tools', () => {
       Iterable.forEach(page.items, (item) => {
         seen.add(item.ref)
       })
-      if (!page.next) {
+      if (!isNonEmptyText(page.next)) {
         break
       }
       cursor = page.next

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { ConflictError, NotFoundError, ServiceError, ValidationError } from '#contracts/errors.ts'
 import type { ZodFlattenOutput } from '#contracts/errors.ts'
 import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 const ValidationIssues = z.object({
   formErrors: z.array(z.string()),
@@ -292,7 +293,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
       return toolErrorResult({
         code: 'forbidden',
         message: err.message,
-        hint: ctx.role
+        hint: isNonEmptyText(ctx.role)
           ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
           : 'Your role does not allow this; members write, admins and owners manage.',
       })
@@ -336,7 +337,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
       return toolErrorResult({
         code: 'forbidden',
         message: err.message,
-        hint: ctx.role
+        hint: isNonEmptyText(ctx.role)
           ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
           : 'Your role does not allow this; members write, admins and owners manage.',
       })

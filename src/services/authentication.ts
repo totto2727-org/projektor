@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { ensureUserProvisioned } from '#commands/provisioning.ts'
 import { HTTP_MULTIPLE_CHOICES, HTTP_OK, HTTP_SERVICE_UNAVAILABLE, HTTP_UNAUTHORIZED } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import {
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_HOUR,
@@ -90,7 +91,7 @@ export async function authenticateAccessJwt(jwt: string, env: BrowserAuthEnviron
 }
 
 export async function authenticateDevelopment(env: BrowserAuthEnvironment): Promise<BrowserPrincipal | null> {
-  if (env.ENVIRONMENT !== 'development' || !env.DEV_USER_EMAIL) {
+  if (env.ENVIRONMENT !== 'development' || !isNonEmptyText(env.DEV_USER_EMAIL)) {
     return null
   }
   const user = await upsertUserByEmail(env.DEV_USER_EMAIL, env.DB)
@@ -146,7 +147,7 @@ export async function verifyJwtPayload(
   }
   let sig: Uint8Array<ArrayBuffer>
   try {
-    sig = Uint8Array.from(base64urlDecode(parts[2]), (c) => c.charCodeAt(0))
+    sig = Uint8Array.from(base64urlDecode(parts[2]), (character) => character.charCodeAt(0))
   } catch {
     return null
   }
