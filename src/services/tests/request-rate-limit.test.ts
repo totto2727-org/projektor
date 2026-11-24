@@ -35,7 +35,9 @@ const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   const counters = new Map<string, { count: number; slot: number }>()
-  const increment = vi.fn(async (key: string, windowSecs: number, nowSecs: number) => {
+  const increment = vi.fn<
+    (key: string, windowSecs: number, nowSecs: number) => Promise<{ count: number; slot: number }>
+  >(async (key: string, windowSecs: number, nowSecs: number) => {
     const slot = Math.floor(nowSecs / windowSecs) * windowSecs
     const previous = counters.get(key)
     const counter = { count: previous?.slot === slot ? previous.count + 1 : 1, slot }
@@ -43,7 +45,7 @@ const fixture = function fixture() {
     return counter
   })
   // Bounded native namespace double, exposing only the RPC used by the kernel.
-  const idFromName = vi.fn((key: string) => key)
+  const idFromName = vi.fn<(key: string) => string>((key: string) => key)
   const namespace = {
     idFromName,
     get: (key: string) => ({ increment: (windowSecs: number, nowSecs: number) => increment(key, windowSecs, nowSecs) }),

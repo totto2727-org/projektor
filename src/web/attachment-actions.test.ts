@@ -9,11 +9,13 @@ const { uploadAttachment, uploadInlineImage } = await import('./attachment-actio
 const fileFixture = function fileFixture(origin = 'https://front.example', quotaBytes?: string) {
   const objects = new Map<string, ArrayBuffer>()
   // A bounded R2 double, with the real migrated database and command authorization.
-  const put = vi.fn(async (key: string, body: ReadableStream<Uint8Array>) => {
-    objects.set(key, await new Response(body).arrayBuffer())
-    return null
-  })
-  const remove = vi.fn(async (key: string) => {
+  const put = vi.fn<(key: string, body: ReadableStream<Uint8Array>) => Promise<null>>(
+    async (key: string, body: ReadableStream<Uint8Array>) => {
+      objects.set(key, await new Response(body).arrayBuffer())
+      return null
+    },
+  )
+  const remove = vi.fn<(key: string) => Promise<void>>(async (key: string) => {
     objects.delete(key)
   })
   const r2 = { put, delete: remove } as unknown as R2Bucket

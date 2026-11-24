@@ -212,6 +212,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('buckets throughput weekly and excludes issues outside the window', async () => {
+    expect.hasAssertions()
     const thisWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'This week' })
     const lastWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Last week' })
     const outsideWindowIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Too old' })
@@ -289,6 +290,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('aligns weekly bucketStart labels to Monday', async () => {
+    expect.hasAssertions()
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${currentEpochSeconds() - 4 * 7 * 86_400}`,
       { headers: authHeaders(token, slug) },
@@ -501,6 +503,7 @@ describe('flow metrics (PROJ-252)', () => {
 
   // PROJ-329: cumulative flow diagram + time-in-state breakdown.
   test('buckets CFD bands correctly for seeded transitions, never negative, done monotonic', async () => {
+    expect.hasAssertions()
     const DAY = 86_400
     const WEEK = 7 * DAY
     const now = currentEpochSeconds()
@@ -618,6 +621,7 @@ describe('flow metrics (PROJ-252)', () => {
 
   // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
   test('buckets arrival vs completion, reporting net = created - completed', async () => {
+    expect.hasAssertions()
     const WEEK = 7 * 86_400
     const now = currentEpochSeconds()
     const since = now - 2 * WEEK
@@ -702,6 +706,7 @@ describe('flow metrics (PROJ-252)', () => {
 
   // PROJ-331: throughput by task type — bug-share % trend, untyped grouped in (not dropped).
   test('computes bug share per bucket, counting untyped issues toward total but not bugCount', async () => {
+    expect.hasAssertions()
     const DAY = 86_400
     const now = currentEpochSeconds()
     const bugType = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })

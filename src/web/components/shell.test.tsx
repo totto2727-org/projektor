@@ -163,7 +163,7 @@ describe('generated Base UI Shell', () => {
     expect(logoutForm.getAttribute('method')).toBe('post')
     expect(new FormData(refreshForm).get('redirect_url')).toBe('/settings/groups?workspace=team')
     expect(new FormData(logoutForm).get('action')).toBe('logout')
-    const submit = vi.fn((event: Event) => event.preventDefault())
+    const submit = vi.fn<(event: Event) => void>((event: Event) => event.preventDefault())
     refreshForm.addEventListener('submit', submit)
     fireEvent.click(refresh)
     expect(submit).toHaveBeenCalledOnce()

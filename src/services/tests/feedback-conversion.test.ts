@@ -80,10 +80,10 @@ const fixture = function fixture(concurrentBatches = 1) {
       }
     },
   })
-  const fetch = vi.fn(async () => new Response())
+  const fetch = vi.fn<() => Promise<Response>>(async () => new Response())
   const ctx: ServiceCtx = {
     db,
-    kv: { get: vi.fn(async () => null), put: vi.fn(), delete: vi.fn() } as unknown as KVNamespace,
+    kv: { get: vi.fn<() => Promise<null>>(async () => null), put: vi.fn(), delete: vi.fn() } as unknown as KVNamespace,
     r2: {} as R2Bucket,
     workspaceId: 'w',
     userId: 'u',

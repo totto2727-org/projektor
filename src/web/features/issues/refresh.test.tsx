@@ -60,6 +60,7 @@ function detailData(): IssueDetailInitialData {
 }
 describe('canonical issues SSR refresh', () => {
   test('updates loaded rows and lookups without mount fetching or losing an unsaved create form', async () => {
+    expect.hasAssertions()
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
     const route = { pathname: '/issues', search: '?workspace=workspace' }
@@ -104,6 +105,7 @@ describe('canonical issues SSR refresh', () => {
   })
 
   test('updates authoritative description and comments while preserving unsaved title editing', async () => {
+    expect.hasAssertions()
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
     sessionStorage.clear()
@@ -143,6 +145,7 @@ describe('canonical issues SSR refresh', () => {
   })
 
   test('renders canonical refreshed epics after creation without any browser primary query', async () => {
+    expect.hasAssertions()
     const initialData: EpicsInitialData = {
       page: {
         items: [issue({ type_key: 'epic', type_id: 'epic-type' })],
@@ -196,6 +199,7 @@ describe('canonical issues SSR refresh', () => {
   })
 
   test('submits canonical search and cursor GET navigation with all authorized selectors and no primary query', async () => {
+    expect.hasAssertions()
     const route = {
       pathname: '/issues',
       search: '?workspace=workspace&projectId=project-a&status=todo&cursor=previous&tag=one&tag=one&tag=two',
@@ -244,7 +248,7 @@ describe('canonical issues SSR refresh', () => {
   test('scopes named views per user and workspace, applying only on explicit interaction', async () => {
     sessionStorage.clear()
     localStorage.clear()
-    const onApply = vi.fn()
+    const onApply = vi.fn<(filters: SavedViewFilters) => void>()
     const filters: SavedViewFilters = {
       statuses: ['todo'],
       priorities: [],
@@ -298,6 +302,7 @@ describe('canonical issues SSR refresh', () => {
   })
 
   test('applies bulk status changes through scoped mutations and refreshes canonical results', async () => {
+    expect.hasAssertions()
     vi.mocked(updateIssue).mockResolvedValue({ ok: true, value: { ok: true } })
     const selected = issue()
     render(

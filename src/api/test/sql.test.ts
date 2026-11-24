@@ -48,6 +48,7 @@ describe('inChunks', () => {
   })
 
   test("splits a 250-item array into 3 chunks, each at or under D1's 100 bound-parameter cap", async () => {
+    expect.hasAssertions()
     const items = Array.from({ length: 250 }, (_value, index) => index)
     const chunkSizes: number[] = []
     const result = await inChunks(items, async (chunk) => {
@@ -65,6 +66,7 @@ describe('inChunks', () => {
   })
 
   test('chunks exactly at a 100-item boundary into more than one call', async () => {
+    expect.hasAssertions()
     const items = Array.from({ length: 100 }, (_value, index) => index)
     const chunkSizes: number[] = []
     await inChunks(items, async (chunk) => {

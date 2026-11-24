@@ -148,6 +148,7 @@ describe('covers PROJ-859: prioritization parity with the in-memory algorithm', 
     { includeNotReady: true, includeBacklog: true },
     { includeNotReady: false, includeBacklog: false },
   ])('matches for 220 issues (%o)', async (opts) => {
+    expect.hasAssertions()
     const { ctx } = await seedWorkspaceWithIssues(220)
     const expected = await reference(ctx, opts.includeBacklog)
     const limit = 25

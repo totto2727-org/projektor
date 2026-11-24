@@ -296,6 +296,7 @@ describe('agents API', () => {
     })
 
     test('is all-or-nothing: a lease conflict leaves no session, lease, or claim behind', async () => {
+      expect.hasAssertions()
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contended' })
       const first = await startWork({ issue: issue.id, name: 'worker-1' })
       expect(first.status).toBe(201)

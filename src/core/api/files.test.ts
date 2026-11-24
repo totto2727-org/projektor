@@ -24,15 +24,17 @@ const fixture = function fixture() {
   `)
   const cancel = vi.fn()
   const bytes = new Uint8Array([0, 255, 128, 7])
-  const get = vi.fn(async () => ({
-    body: new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(bytes)
-      },
-      cancel,
+  const get = vi.fn<() => Promise<{ body: ReadableStream<Uint8Array>; httpMetadata: { contentType: string } }>>(
+    async () => ({
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes)
+        },
+        cancel,
+      }),
+      httpMetadata: { contentType: 'image/png' },
     }),
-    httpMetadata: { contentType: 'image/png' },
-  }))
+  )
   const env = { DB: database.db, KV: {}, R2: { get }, ENVIRONMENT: 'production' } as unknown as CoreEnvironment
   const actor: CoreActor = {
     requestUrl: 'https://api.test/api/workspaces/workspace/brand/logo',

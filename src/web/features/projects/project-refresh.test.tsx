@@ -83,6 +83,7 @@ describe('project server-prop refresh', () => {
   })
 
   test('renders only canonical props after a successful create', async () => {
+    expect.hasAssertions()
     vi.mocked(createProject).mockResolvedValue({
       ok: true,
       value: { id: 'project-2', name: 'Created optimistically', key: 'NEW', slug: 'created' },
@@ -122,6 +123,7 @@ describe('project server-prop refresh', () => {
   })
 
   test('bounds the native workspace selector without losing explicit second-workspace submission', async () => {
+    expect.hasAssertions()
     const memberships = [
       { id: 'workspace-1', name: 'Projektor', slug: 'projektor', role: 'owner' as const },
       {
@@ -156,6 +158,7 @@ describe('project server-prop refresh', () => {
   })
 
   test('adopts refreshed overview props without erasing an active description draft', () => {
+    expect.hasAssertions()
     const view = render(
       withRuntime(
         <ProjectLanding

@@ -37,6 +37,7 @@ test.each([
 ] as const)(
   'makes %s a native server navigation that clears pagination and preserves normal query scope',
   (label, review) => {
+    expect.hasAssertions()
     render(<IssueReviewNavigation route={route} workspaceSlug={workspace.slug} project={project} />)
     const link = screen.getByRole('link', { name: label })
     const next = new URL(link.getAttribute('href') ?? '', 'https://frontend.test')
@@ -115,6 +116,7 @@ test('offers cross-project review navigation that cannot inherit project, assign
 })
 
 test('labels the workspace-wide scope prominently and puts reviewing first among the review filters', () => {
+  expect.hasAssertions()
   render(
     <IssueReviewNavigation
       route={{ pathname: '/issues', search: '?workspace=workspace' }}

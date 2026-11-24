@@ -52,6 +52,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
   }
 
   test('full view drops nulls, empty arrays, false defaults and internal ids; parses labels; adds ref/type', () => {
+    expect.hasAssertions()
     const out = shapeIssue(raw, {})
     expect(out.ref).toBe('PROJ-7')
     expect(out.type).toBe('bug')

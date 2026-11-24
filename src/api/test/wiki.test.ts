@@ -336,6 +336,7 @@ describe('wiki API', () => {
    * exercised in the "Wiki freshness model (PROJ-489)" describe block below.)
    */
   test('handles GET /api/wiki/search returns freshness: null for a page with no verification signal', async () => {
+    expect.hasAssertions()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'wrangler', title: 'Freshness Placeholder Page' }),
       headers: authHeaders(token, slug),

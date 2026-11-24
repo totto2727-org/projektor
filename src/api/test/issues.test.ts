@@ -1779,6 +1779,7 @@ describe('issues MCP — typeId', () => {
 
 describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
   test('advertises all ListIssuesSchema optional filter keys in its inputSchema', async () => {
+    expect.hasAssertions()
     const { slug, token, workspaceId } = await seedOwnerMcpFixture()
     const res = await fetchNativeApi(
       `http://localhost/mcp/${workspaceId}`,
@@ -2127,6 +2128,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('returns non-empty array with _score fields when open issues exist', async () => {
+    expect.hasAssertions()
     const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'High prio' })
     await seedIssue(workspaceId, projectId, userId, { priority: 'low', title: 'Low prio' })

@@ -718,6 +718,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
   })
 
   test('traces concrete file I/O wrappers to metadata operations without creating binary MCP contracts', () => {
+    expect.hasAssertions()
     expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].toSorted()).toStrictEqual([
       'assertEntityWritable',
       'assertUploadAllowed',
@@ -790,6 +791,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     })
 
     test('classifies every tool into exactly one group', () => {
+      expect.hasAssertions()
       const byTool = new Map<string, string[]>()
       Iterable.forEach(TOOL_DOMAINS, (domain): void => {
         for (const tool of domain.tools) {

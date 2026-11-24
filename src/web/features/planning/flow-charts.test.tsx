@@ -207,6 +207,7 @@ describe('flow chart public data and primitive semantics', () => {
   })
 
   test('preserves empty and untracked messages instead of plotting synthetic values', () => {
+    expect.hasAssertions()
     render(
       <>
         <ThroughputChart data={[]} />

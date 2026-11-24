@@ -72,7 +72,7 @@ const dropOnInProgress = function dropOnInProgress(dataTransfer: ReturnType<type
 
 describe('covers BoardView — mobile viewport', () => {
   test('blocks drag-and-drop status changes below 640px', () => {
-    const changeStatus = vi.fn()
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     setViewportWidth(MOBILE_WIDTH)
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
 
@@ -83,7 +83,7 @@ describe('covers BoardView — mobile viewport', () => {
   })
 
   test('allows drag-and-drop status changes at desktop widths', () => {
-    const changeStatus = vi.fn()
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     setViewportWidth(1024)
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
 
@@ -98,7 +98,7 @@ describe('covers BoardView — mobile viewport', () => {
     // tests above can't tell whether the drop handler's own width guard does
     // anything. Seed dataTransfer at desktop width, then drop at mobile width
     // to isolate that guard.
-    const changeStatus = vi.fn()
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     setViewportWidth(1024)
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
 
@@ -113,13 +113,13 @@ describe('covers BoardView — mobile viewport', () => {
 
 describe('covers BoardView — mobile status menu (PROJ-416)', () => {
   test('renders a tap-to-open status menu on each card', () => {
-    const changeStatus = vi.fn()
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
     expect(screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' })).toBeTruthy()
   })
 
   test('changes status when a different option is chosen from the menu', async () => {
-    const changeStatus = vi.fn()
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' }))
@@ -137,7 +137,7 @@ describe('covers BoardView — mobile status menu (PROJ-416)', () => {
      * descendants in an <a>) and would risk taps on the menu also triggering
      * navigation. The status menu must be a sibling of the <a>, not a child.
      */
-    const changeStatus = vi.fn()
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
 
     const link = screen.getByText('Move me').closest('a') as HTMLElement

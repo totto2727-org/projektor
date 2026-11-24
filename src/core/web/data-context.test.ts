@@ -47,6 +47,7 @@ describe('frontend application data authorization', () => {
   })
 
   test('hides inaccessible project existence and enforces matching workspace catalog membership', () => {
+    expect.hasAssertions()
     expect(requireDataProject(scope, 'pa', 'wa')).toBe(project)
     Iterable.forEach(
       [
@@ -80,6 +81,7 @@ describe('frontend application data authorization', () => {
   })
 
   test('keeps role/grant predicate policy in the web app with owner/admin bypass only', () => {
+    expect.hasAssertions()
     expect(visibleProjectPredicate(scope, 'wa', schema.issues.projectId)).toBeDefined()
     Iterable.forEach(['owner', 'admin'] as const, (role) => {
       expect(

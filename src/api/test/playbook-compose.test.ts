@@ -49,6 +49,7 @@ describe('compose_playbook', () => {
   }
 
   test('composes with defaults (bounded, opus, cadence 2), well-formed blockquote, and embeds live data', async () => {
+    expect.hasAssertions()
     await seedIssue(workspaceId, projectId, userId, { parentId: epicId, title: 'Child 1' })
     await seedIssue(workspaceId, projectId, userId, {
       parentId: epicId,

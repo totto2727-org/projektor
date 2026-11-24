@@ -64,7 +64,7 @@ describe('feedback hydrated original controls', () => {
       ok: true,
       value: { id: 'source', token: 'new-token' },
     })
-    const view = render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
+    const view = render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn<() => void>()} />)
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'New source' } })
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Notes' } })
     const form = screen.getByRole('dialog', { name: 'New feedback source' }).querySelector('form')
@@ -79,7 +79,7 @@ describe('feedback hydrated original controls', () => {
     expect(data.get('projectId')).toBe('project')
     expect(data.get('name')).toBe('New source')
     expect(data.get('description')).toBe('Notes')
-    view.rerender(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
+    view.rerender(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn<() => void>()} />)
     expect(screen.getByText('new-token')).toBeTruthy()
   })
 
@@ -112,7 +112,7 @@ describe('feedback hydrated original controls', () => {
   })
 
   test('validates source configuration through TanStack before sending a semantic create action', async () => {
-    render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
+    render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn<() => void>()} />)
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'New source' } })
     fireEvent.change(screen.getByLabelText('Allowed origins (one per line, optional)'), {
       target: { value: 'a'.repeat(2001) },

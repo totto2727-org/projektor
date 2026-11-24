@@ -35,7 +35,7 @@ describe('web same-binding binary transport', () => {
   test('retains original request cancellation on the native binding request', async () => {
     const abort = new AbortController()
     const incoming = new Request('https://front.test/api/files/a', { signal: abort.signal })
-    const fetch = vi.fn(async (request: Request) => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async (request: Request) => {
       abort.abort('disconnected')
       expect(request.signal.aborted).toBe(true)
       return new Response()

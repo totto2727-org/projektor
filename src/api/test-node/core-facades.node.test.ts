@@ -131,6 +131,7 @@ describe('covers API facade reply boundary', () => {
   })
 
   test('dispatches a concrete issue operation with the current actor and workspace only', async () => {
+    expect.hasAssertions()
     const actor = { requestUrl: 'https://example.test/api/workspaces/team/issues/issue', method: 'GET' }
     const publicIssue = {
       id: 'issue',

@@ -25,10 +25,10 @@ const socket = function socket(initial: SocketAttachment) {
   let attachment = initial
   const ws = {
     send: vi.fn<(message: string) => void>(),
-    serializeAttachment: vi.fn((next: SocketAttachment) => {
+    serializeAttachment: vi.fn<(next: SocketAttachment) => void>((next: SocketAttachment) => {
       attachment = next
     }),
-    deserializeAttachment: vi.fn(() => attachment),
+    deserializeAttachment: vi.fn<() => SocketAttachment>(() => attachment),
     close: vi.fn(),
   }
   return ws

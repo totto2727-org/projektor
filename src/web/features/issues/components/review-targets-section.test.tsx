@@ -237,6 +237,7 @@ test('puts in-review targets first with deterministic ties and gives access link
 })
 
 test('renders a textual and colored no-review-needed indicator for mixed fixing and changes-requested targets', () => {
+  expect.hasAssertions()
   render(
     <ReviewTargetsSection
       {...props}
@@ -321,6 +322,7 @@ test.each(['file', 'url'] as const)(
 )
 
 test('distinguishes reviewing rows from fixing and changes-requested rows in the same target list', () => {
+  expect.hasAssertions()
   render(
     <ReviewTargetsSection
       {...props}

@@ -125,6 +125,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   })
 
   test('unknown domain slug returns 400 naming valid domains, never a silent full catalog', async () => {
+    expect.hasAssertions()
     const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'tools/list', {}, headers, '?domains=not-a-domain')
     expect(res.status).toBe(400)

@@ -33,15 +33,19 @@ const fixture = function fixture() {
   `)
   const objects = new Map<string, ArrayBuffer>()
   // Deliberately bounded storage double: only the R2 operations used by file commands.
-  const put = vi.fn(async (key: string, body: ReadableStream<Uint8Array>) => {
-    objects.set(key, await new Response(body).arrayBuffer())
-    return null
-  })
-  const get = vi.fn(async (key: string) => {
-    const body = objects.get(key)
-    return body ? { arrayBuffer: async () => body } : null
-  })
-  const remove = vi.fn(async (key: string) => {
+  const put = vi.fn<(key: string, body: ReadableStream<Uint8Array>) => Promise<null>>(
+    async (key: string, body: ReadableStream<Uint8Array>) => {
+      objects.set(key, await new Response(body).arrayBuffer())
+      return null
+    },
+  )
+  const get = vi.fn<(key: string) => Promise<{ arrayBuffer: () => Promise<ArrayBuffer> } | null>>(
+    async (key: string) => {
+      const body = objects.get(key)
+      return body ? { arrayBuffer: async () => body } : null
+    },
+  )
+  const remove = vi.fn<(key: string) => Promise<void>>(async (key: string) => {
     objects.delete(key)
   })
   const ctx: ServiceCtx = {
@@ -275,6 +279,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
   })
 
   test('uses finite positive configured quota or the unchanged default', () => {
+    expect.hasAssertions()
     Iterable.forEach([undefined, '', '0', '-1', 'invalid', 'Infinity'], (value) => {
       expect(storageQuotaBytes({ STORAGE_QUOTA_BYTES: value })).toBe(1024 * 1024 * 1024)
     })

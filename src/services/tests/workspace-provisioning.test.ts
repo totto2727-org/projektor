@@ -66,6 +66,7 @@ describe('atomic workspace provisioning', () => {
   })
 
   test('rolls back every earlier seed when a late wiki template fails and permits retry', async () => {
+    expect.hasAssertions()
     const testFixture = fixture()
     testFixture.sqlite.exec(`CREATE TRIGGER fail_template BEFORE INSERT ON wiki_pages WHEN NEW.is_template=1
       BEGIN SELECT RAISE(ABORT,'template failure'); END;`)

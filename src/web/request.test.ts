@@ -62,6 +62,7 @@ describe('request-scoped native services', () => {
   })
 
   test('keeps request-local cache key classes out of native browserScope arguments', async () => {
+    expect.hasAssertions()
     const database = fixture()
     const env = testEnvironment(database.db, 'first@example.test')
     const original = env.CORE.browserScope

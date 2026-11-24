@@ -731,6 +731,7 @@ describe('covers MCP endpoint', () => {
   })
 
   test('get_prioritized_issues returns issues with _score and _score_breakdown', async () => {
+    expect.hasAssertions()
     const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
     await seedIssue(workspaceId, projectId, user.id, { priority: 'high', title: 'Issue A' })

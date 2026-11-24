@@ -114,7 +114,8 @@ describe('generated UI compatibility adapters', () => {
   })
 
   test('delegates controlled dialog close requests to Base UI', async () => {
-    const onClose = vi.fn()
+    expect.hasAssertions()
+    const onClose = vi.fn<() => void>()
     const { rerender } = render(
       <Dialog open={false} onClose={onClose} title='Edit issue'>
         <Input aria-label='Issue title' />
@@ -137,7 +138,8 @@ describe('generated UI compatibility adapters', () => {
   })
 
   test('maps old Select options to controlled string callbacks', async () => {
-    const onChange = vi.fn()
+    expect.hasAssertions()
+    const onChange = vi.fn<(value: string) => void>()
     const options = [
       { value: '', label: 'None' },
       { value: 'todo', label: 'To do' },

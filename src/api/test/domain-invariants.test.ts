@@ -45,7 +45,7 @@ describe('native D1 domain invariants', () => {
       })
       await env.DB.batch(statements)
     }
-    const remove = vi.fn(async (_keys: string[]) => {})
+    const remove = vi.fn<(_keys: string[]) => Promise<void>>(async (_keys: string[]) => {})
     remove.mockRejectedValueOnce(new Error('storage outage'))
     testFixture.ctx.r2 = { delete: remove } as unknown as R2Bucket
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})

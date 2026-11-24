@@ -64,6 +64,7 @@ const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=w
 
 describe('complete direct D1 issues SSR loaders', () => {
   test('requires an explicit nullable review status in API and Web attachment replies', () => {
+    expect.hasAssertions()
     const attachment = {
       id: 'file',
       kind: 'file' as const,
@@ -91,6 +92,7 @@ describe('complete direct D1 issues SSR loaders', () => {
   })
 
   test('requires review target arrays in issue and search replies, including empty selections', () => {
+    expect.hasAssertions()
     const value = issue()
     const result = { ...value, status: 'todo' }
     expect(Schema.is(IssueSchema)(value)).toBe(true)

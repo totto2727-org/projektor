@@ -35,7 +35,7 @@ const fixture = function fixture() {
   `)
   const cancel = vi.fn()
   const bytes = new Uint8Array([0, 255, 128, 7])
-  const get = vi.fn(async () => ({
+  const get = vi.fn<() => Promise<{ body: ReadableStream<Uint8Array> }>>(async () => ({
     body: new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(bytes)
@@ -43,7 +43,7 @@ const fixture = function fixture() {
       cancel,
     }),
   }))
-  const head = vi.fn(async () => ({ size: bytes.length }))
+  const head = vi.fn<() => Promise<{ size: number }>>(async () => ({ size: bytes.length }))
   const env = { DB: database.db, KV: {}, R2: { get, head }, ENVIRONMENT: 'production' } as unknown as CoreEnvironment
   const actor: CoreActor = {
     requestUrl: 'https://api.test/mcp/w',

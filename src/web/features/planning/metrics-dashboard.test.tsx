@@ -72,6 +72,7 @@ beforeEach(() => {
 
 describe('full original metrics surfaces', () => {
   test('uses the shared Effect Standard Schema to block reversed native GET ranges', async () => {
+    expect.hasAssertions()
     const nativeSubmit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {})
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-10-05' } })
@@ -82,6 +83,7 @@ describe('full original metrics surfaces', () => {
   })
 
   test('renders all seven real Recharts surfaces, distribution tiles, help controls, and factory signals without mount loads', async () => {
+    expect.hasAssertions()
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     expect(screen.getAllByTestId(/^flow-chart-/u)).toHaveLength(7)
     expect(document.querySelectorAll('svg.recharts-surface')).toHaveLength(7)

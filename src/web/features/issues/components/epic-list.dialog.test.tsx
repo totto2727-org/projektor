@@ -25,6 +25,7 @@ const project = {
 afterEach(cleanup)
 
 test('opens epic creation with an interactive priority portal and restores focus on Escape', async () => {
+  expect.hasAssertions()
   render(
     <EpicList
       workspaceSlug='workspace'

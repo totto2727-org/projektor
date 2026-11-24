@@ -63,6 +63,7 @@ const fakeCloudflare = function fakeCloudflare(responses: Readonly<Record<string
 }
 
 test('plans adoption of the existing D1 without SQL and reconciles without recreating it', async () => {
+  expect.hasAssertions()
   const { id, name } = storage.database
   const database = { uuid: id, name, read_replication: { mode: 'disabled' } }
   const { run, calls } = fakeCloudflare({
@@ -97,6 +98,7 @@ test('plans adoption of the existing D1 without SQL and reconciles without recre
 })
 
 test.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact title', async ({ id, title }) => {
+  expect.hasAssertions()
   const path = 'storage/kv/namespaces'
   const namespaces = [storage.cache, storage.oauth]
   const { run, calls } = fakeCloudflare({
@@ -127,6 +129,7 @@ test.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact t
 })
 
 test('reconciles an existing private R2 bucket with matching settings without writes', async () => {
+  expect.hasAssertions()
   const { name } = storage.files
   const path = `r2/buckets/${name}`
   const rule = {

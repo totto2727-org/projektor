@@ -431,6 +431,7 @@ describe('wiki server prop adoption', () => {
   })
 
   test('uses one named ServerFn attachment file field and the shared backend File schema', async () => {
+    expect.hasAssertions()
     const { container } = render(<WikiPageClient initial={{ ...seed(), mode: 'read' }} />)
     fireEvent.click(screen.getByRole('button', { name: /Attach file/u }))
     const form = container.querySelector<HTMLInputElement>('input[type="hidden"][name="entityId"][value="page"]')?.form
@@ -462,6 +463,7 @@ describe('wiki server prop adoption', () => {
   })
 
   test('inserts inline image metadata through the named ServerFn without replacing the unsaved draft', async () => {
+    expect.hasAssertions()
     vi.mocked(uploadInlineImage).mockResolvedValue({
       ok: true,
       value: { id: 'inline-file', filename: 'inline.png', contentType: 'image/png', size: 5 },

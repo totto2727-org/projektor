@@ -35,7 +35,10 @@ const fixture = async function fixture() {
   const waitUntil = vi.fn<(promise: Promise<unknown>) => void>()
   const env = {
     DB: database.db,
-    KV: { get: vi.fn(async () => null), put: vi.fn(async () => undefined) },
+    KV: {
+      get: vi.fn<() => Promise<null>>(async () => null),
+      put: vi.fn<() => Promise<undefined>>(async () => undefined),
+    },
     R2: {},
     ENVIRONMENT: 'production',
     CF_ACCESS_TEAM_DOMAIN: '',

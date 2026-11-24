@@ -23,6 +23,7 @@ test.each([
   { description: 'adopts Wrangler history and fills the 0068 gap', unknown: false },
   { description: 'rejects an unknown Wrangler filename without writing', unknown: true },
 ])('$description', async ({ unknown }) => {
+  expect.hasAssertions()
   using db = new DatabaseSync(':memory:')
   db.exec(`
     CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL);

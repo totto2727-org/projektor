@@ -55,7 +55,7 @@ describe('covers SavedViewsControl — generated menu', () => {
 
   test('applies a view on selection and updates the trigger label', async () => {
     seedViews(['Sprint board', 'My bugs'])
-    const onApply = vi.fn()
+    const onApply = vi.fn<(filters: SavedViewFilters) => void>()
     render(<Harness onApply={onApply} />)
 
     await waitFor(() => screen.getByRole('button', { name: 'Saved views' }))
@@ -68,7 +68,7 @@ describe('covers SavedViewsControl — generated menu', () => {
 
   test('deletes a view via its trailing action without applying it', async () => {
     seedViews(['Sprint board', 'My bugs'])
-    const onApply = vi.fn()
+    const onApply = vi.fn<(filters: SavedViewFilters) => void>()
     render(<Harness onApply={onApply} />)
 
     await waitFor(() => screen.getByRole('button', { name: 'Saved views' }))
@@ -85,7 +85,7 @@ describe('covers SavedViewsControl — generated menu', () => {
 
   test('deletes a view through the standard keyboard menu action without applying it', async () => {
     seedViews(['Sprint board', 'My bugs'])
-    const onApply = vi.fn()
+    const onApply = vi.fn<(filters: SavedViewFilters) => void>()
     render(<Harness onApply={onApply} />)
 
     await waitFor(() => screen.getByRole('button', { name: 'Saved views' }))

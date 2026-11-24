@@ -26,6 +26,7 @@ const workers = ['Api', 'Core', 'Frontend']
 test.each(['all Workers update', 'Core is unchanged', 'migration fails'] as const)(
   'gates Worker updates on database reconciliation when %s',
   async (scenario) => {
+    expect.hasAssertions()
     const events: string[] = []
     const state = inMemoryState()
     const providers = Layer.merge(

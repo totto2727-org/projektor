@@ -12,11 +12,12 @@ vi.mock('../../components/markdown/markdown-preview.tsx', () => ({
 afterEach(cleanup)
 
 test('retains the editor and selection while using the latest committed change and image callbacks', async () => {
-  const originalChange = vi.fn()
-  const currentChange = vi.fn()
-  const originalUpload = vi.fn(async () => '/old.png')
+  expect.hasAssertions()
+  const originalChange = vi.fn<(value: string) => void>()
+  const currentChange = vi.fn<(value: string) => void>()
+  const originalUpload = vi.fn<() => Promise<string>>(async () => '/old.png')
   const upload = Promise.withResolvers<string | null>()
-  const currentUpload = vi.fn(() => upload.promise)
+  const currentUpload = vi.fn<() => Promise<string | null>>(() => upload.promise)
   const { rerender } = render(<MarkdownEditor value='Draft' onChange={originalChange} onImageFile={originalUpload} />)
   const textbox = screen.getByRole('textbox', { name: 'Markdown editor' })
   const view = EditorView.findFromDOM(textbox)
