@@ -23,16 +23,16 @@ export function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): P
 }
 
 /** HTTP response shaping stays at the API boundary, policy and storage do not. */
-export async function rateLimitMiddleware(c: Context<HonoEnv>, next: Next): Promise<Response | undefined> {
+export async function rateLimitMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<Response | undefined> {
   let limited: typeof RateLimitResult.Type = null
   try {
     limited = await Effect.runPromise(
       decodeCoreReply(
         RateLimitResult,
-        makeCoreClient(c.env.CORE).apiCheckRateLimit({
-          authorization: c.req.header('Authorization'),
-          ip: c.req.header('CF-Connecting-IP'),
-          testPolicy: rateLimitTestPolicy(c.env),
+        makeCoreClient(httpContext.env.CORE).apiCheckRateLimit({
+          authorization: httpContext.req.header('Authorization'),
+          ip: httpContext.req.header('CF-Connecting-IP'),
+          testPolicy: rateLimitTestPolicy(httpContext.env),
         }),
       ),
     )
@@ -41,8 +41,8 @@ export async function rateLimitMiddleware(c: Context<HonoEnv>, next: Next): Prom
     console.error('Core rate-limit service unavailable, failing open')
   }
   if (limited) {
-    c.header('Retry-After', String(limited.retryAfter))
-    return c.json({ error: 'Too Many Requests' }, 429)
+    httpContext.header('Retry-After', String(limited.retryAfter))
+    return httpContext.json({ error: 'Too Many Requests' }, 429)
   }
   await next()
   return undefined

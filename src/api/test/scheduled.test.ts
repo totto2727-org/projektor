@@ -267,15 +267,15 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   test('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
     const creator = await seedUser(`cron-purge-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const workspaceIds: string[] = []
-    for (let i = 0; i < 50; i++) {
-      const ws = await seedWorkspace(`cron-purge-ws-${i}-${crypto.randomUUID().slice(0, 6)}`)
+    for (let index = 0; index < 50; index++) {
+      const ws = await seedWorkspace(`cron-purge-ws-${index}-${crypto.randomUUID().slice(0, 6)}`)
       workspaceIds.push(ws.id)
     }
 
     const pageIds: string[] = []
     const workspaceIdByPageId = new Map<string, string>()
-    for (let i = 0; i < 300; i++) {
-      const workspaceId = workspaceIds[i % workspaceIds.length]
+    for (let index = 0; index < 300; index++) {
+      const workspaceId = workspaceIds[index % workspaceIds.length]
       const id = crypto.randomUUID()
       workspaceIdByPageId.set(id, workspaceId)
       await env.DB.prepare(
@@ -288,8 +288,8 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         .bind(
           id,
           workspaceId,
-          `expired-page-${i}`,
-          `Expired Page ${i}`,
+          `expired-page-${index}`,
+          `Expired Page ${index}`,
           creator.id,
           creator.id,
           EXPIRED_AT,
@@ -301,8 +301,8 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
       pageIds.push(id)
     }
 
-    for (let i = 0; i < 100; i++) {
-      const pageId = pageIds[i * 3] // spread across ~1/3 of the pages
+    for (let index = 0; index < 100; index++) {
+      const pageId = pageIds[index * 3] // spread across ~1/3 of the pages
       const workspaceId = workspaceIdByPageId.get(pageId)
       if (!workspaceId) {
         throw new Error(`no workspace recorded for page ${pageId}`)
@@ -313,7 +313,15 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
 				    linked_wiki_page_id, entity_type, entity_id, created_by_id, created_at)
 				 VALUES (?, ?, 'file', ?, ?, 'text/plain', 3, NULL, NULL, 'wiki_page', ?, ?, ?)`,
       )
-        .bind(crypto.randomUUID(), workspaceId, `cron-purge-file-${i}`, `file-${i}.txt`, pageId, creator.id, EXPIRED_AT)
+        .bind(
+          crypto.randomUUID(),
+          workspaceId,
+          `cron-purge-file-${index}`,
+          `file-${index}.txt`,
+          pageId,
+          creator.id,
+          EXPIRED_AT,
+        )
         .run()
     }
 
@@ -367,7 +375,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     const ws = await seedWorkspace(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 6)}`)
 
     const pageIds: string[] = []
-    for (let i = 0; i < 500; i++) {
+    for (let index = 0; index < 500; index++) {
       const id = crypto.randomUUID()
       await env.DB.prepare(
         `INSERT INTO wiki_pages
@@ -379,13 +387,13 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         .bind(
           id,
           ws.id,
-          `one-ws-expired-page-${i}`,
-          `One WS Expired Page ${i}`,
+          `one-ws-expired-page-${index}`,
+          `One WS Expired Page ${index}`,
           creator.id,
           creator.id,
           EXPIRED_AT,
           EXPIRED_AT,
-          EXPIRED_AT - i, // stagger deleted_at so ORDER BY is deterministic
+          EXPIRED_AT - index, // stagger deleted_at so ORDER BY is deterministic
           crypto.randomUUID(),
         )
         .run()

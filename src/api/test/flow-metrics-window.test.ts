@@ -246,17 +246,17 @@ describe('PROJ-866: D1 query bound at scale', () => {
       return id
     }
     const longAgo = since - 20 * WEEK
-    for (let i = 0; i < 1000; i++) {
-      insertIssue(i + 1, longAgo, longAgo + 100, longAgo + 200)
+    for (let index = 0; index < 1000; index++) {
+      insertIssue(index + 1, longAgo, longAgo + 100, longAgo + 200)
     }
-    for (let i = 0; i < IN_WINDOW; i++) {
-      const claimedAt = since + 60 * i
-      const id = insertIssue(1001 + i, since - 86_400, claimedAt, claimedAt + 1000)
+    for (let index = 0; index < IN_WINDOW; index++) {
+      const claimedAt = since + 60 * index
+      const id = insertIssue(1001 + index, since - 86_400, claimedAt, claimedAt + 1000)
       /*
        * A human comment on every 10th issue, and a lease covering half the cycle time
        * on every 4th — so the joined lookups are exercised, not just counted.
        */
-      if (i % 10 === 0) {
+      if (index % 10 === 0) {
         statements.push(
           env.DB.prepare(
             `INSERT INTO issue_comments (id, issue_id, author_id, body, created_at, updated_at, author_kind)
@@ -264,7 +264,7 @@ describe('PROJ-866: D1 query bound at scale', () => {
           ).bind(crypto.randomUUID(), id, userId, claimedAt, claimedAt),
         )
       }
-      if (i % 4 === 0) {
+      if (index % 4 === 0) {
         statements.push(
           env.DB.prepare(
             `INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)

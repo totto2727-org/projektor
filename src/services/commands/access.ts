@@ -37,7 +37,7 @@ const PROJECT_ROLE_RANK: Record<'viewer' | 'member' | 'admin', number> = {
 }
 
 const strongestGrant = function strongestGrant(
-  roles: readonly ('viewer' | 'member' | 'admin')[],
+  roles: Readonly<('viewer' | 'member' | 'admin')[]>,
 ): 'viewer' | 'member' | 'admin' {
   return roles.reduce((best, r) => (PROJECT_ROLE_RANK[r] > PROJECT_ROLE_RANK[best] ? r : best))
 }
@@ -352,7 +352,7 @@ export async function usersWithProjectReadAccess(
   // PROJ-794) can call this without a caller identity.
   ctx: Pick<ServiceCtx, 'db' | 'workspaceId'>,
   projectId: string | null,
-  userIds: readonly string[],
+  userIds: Readonly<string[]>,
 ): Promise<Set<string>> {
   if (userIds.length === 0) {
     return new Set()

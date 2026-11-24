@@ -285,7 +285,7 @@ const PAGES_OF_PROJECT = 'SELECT id FROM wiki_pages WHERE project_id = ?1 AND wo
  * PROJ-819: explicit cleanup for deleteProject, children before parents. Mirrors
  * deleteIssue's per-issue list (PROJ-922) and the wiki purge's per-page list.
  */
-const PROJECT_CLEANUP_SQL: readonly string[] = [
+const PROJECT_CLEANUP_SQL: Readonly<string[]> = [
   // Issue dependents.
   `DELETE FROM issues_fts WHERE workspace_id = ?2 AND issue_id IN (${ISSUES_OF_PROJECT})`,
   `DELETE FROM issue_comments WHERE issue_id IN (${ISSUES_OF_PROJECT})`,
@@ -383,9 +383,9 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
     ),
   )
 
-  for (let i = 0; i < r2Keys.length; i += 1000) {
+  for (let index = 0; index < r2Keys.length; index += 1000) {
     try {
-      await ctx.r2.delete(r2Keys.slice(i, i + 1000))
+      await ctx.r2.delete(r2Keys.slice(index, index + 1000))
     } catch (err) {
       console.error('deleteProject: R2 cleanup failed', { id, err: String(err) })
     }

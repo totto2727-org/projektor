@@ -43,14 +43,14 @@ const CELL_CLASS =
   'px-3 py-[0.625rem] border-b border-border align-middle group-hover:bg-surface [tr:last-child_&]:border-b-0'
 const MODAL_CLASS = 'bg-bg border border-border rounded-lg p-6 w-full sm:max-w-[480px] overscroll-contain'
 
-function defaultCreateProjectId(projectId: string | null, projects: readonly ProjectMeta[]): string {
+function defaultCreateProjectId(projectId: string | null, projects: Readonly<ProjectMeta[]>): string {
   if (projectId) {
     return projects.find((p) => p.id === projectId)?.id ?? projects[0]?.id ?? ''
   }
   return projects[0]?.id ?? ''
 }
 
-function computeDerivedStatuses(epics: readonly Issue[]): TaskStatus[] {
+function computeDerivedStatuses(epics: Readonly<Issue[]>): TaskStatus[] {
   const derived: TaskStatus[] = []
   const seen = new Set<string>()
   for (const ep of epics) {
@@ -117,7 +117,7 @@ function EpicListHeader(props: EpicListHeaderProps) {
   )
 }
 
-function useCreateEpicForm(projectId: string | null, projects: readonly ProjectMeta[], epicTypeId: string | null) {
+function useCreateEpicForm(projectId: string | null, projects: Readonly<ProjectMeta[]>, epicTypeId: string | null) {
   const [showCreate, setShowCreate] = useState(false)
   const createForm = useIssueForm(
     { createTitle: '', createProjectId: '', createPriority: 'medium' },
@@ -395,7 +395,7 @@ interface CreateEpicModalProps {
   setCreatePriority: (v: string) => void
   submitting: boolean
   createError: string | null
-  projects: readonly ProjectMeta[]
+  projects: Readonly<ProjectMeta[]>
   createValid: boolean
   workspaceSlug?: string
   epicTypeId: string | null
@@ -450,7 +450,7 @@ function CreateEpicModal({
             maxLength={500}
             type='text'
             value={createTitle}
-            onInput={(e) => setCreateTitle((e.target as HTMLInputElement).value)}
+            onInput={(event) => setCreateTitle((event.target as HTMLInputElement).value)}
             placeholder='Epic title'
             required
           />

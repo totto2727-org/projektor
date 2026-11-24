@@ -14,40 +14,40 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.query('projectId')
+router.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.query('projectId')
   try {
-    return c.json(await listCustomFieldDefs(ctx, projectId))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listCustomFieldDefs(ctx, projectId))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/', async (c) => {
-  const ctx = ctxFromHono(c)
+router.post('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await createCustomFieldDef(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await createCustomFieldDef(ctx, await jsonBody(httpContext)), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+router.patch('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await updateCustomFieldDef(ctx, c.req.param('id'), await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateCustomFieldDef(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+router.delete('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await deleteCustomFieldDef(ctx, c.req.param('id')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await deleteCustomFieldDef(ctx, httpContext.req.param('id')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

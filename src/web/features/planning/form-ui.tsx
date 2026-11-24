@@ -16,7 +16,7 @@ function messages(value: unknown): string[] {
   return []
 }
 /** Display Standard Schema issues without inventing a second validation layer. */
-export function FormErrors({ errors, children }: { errors: readonly unknown[]; children?: ReactNode }) {
+export function FormErrors({ errors, children }: { errors: Readonly<unknown[]>; children?: ReactNode }) {
   const text = [...new Set(errors.flatMap(messages))]
   return text.length ? (
     <div role='alert' className='text-danger-text text-[0.8rem] mb-3'>

@@ -44,7 +44,7 @@ export interface Issue {
   updated_at: number
   created_at: number
   customFields?: CustomFieldValue[]
-  reviewTargets: readonly ReviewTarget[]
+  reviewTargets: Readonly<ReviewTarget[]>
 }
 
 export type SortKey = 'number' | 'priority' | 'updated' | 'status' | 'assignee' | 'created_at' | 'title'
@@ -97,7 +97,7 @@ export function assigneeInitials(name: string): string {
  * For 'todo': prefers the first non-backlog status; falls back to any todo status.
  * For other categories: returns the first status in that category.
  */
-export function getFirstStatusForCategory(statuses: readonly TaskStatus[], category: string): TaskStatus | undefined {
+export function getFirstStatusForCategory(statuses: Readonly<TaskStatus[]>, category: string): TaskStatus | undefined {
   if (category === 'todo') {
     return (
       statuses.find((s) => s.category === 'todo' && s.key !== 'backlog') ?? statuses.find((s) => s.category === 'todo')
@@ -110,20 +110,20 @@ export function getFirstStatusForCategory(statuses: readonly TaskStatus[], categ
  * Returns issues to display in a board column.
  * Todo column excludes backlog issues (those belong to the Backlog view).
  */
-export function getBoardColumnIssues(issues: readonly Issue[], category: string): Issue[] {
+export function getBoardColumnIssues(issues: Readonly<Issue[]>, category: string): Issue[] {
   return issues.filter((i) => i.status_category === category && (category !== 'todo' || i.status_key !== 'backlog'))
 }
 
 /** Returns issues for the Backlog view: todo category with backlog key. */
-export function getBacklogIssues(issues: readonly Issue[]): Issue[] {
+export function getBacklogIssues(issues: Readonly<Issue[]>): Issue[] {
   return issues.filter((i) => i.status_category === 'todo' && i.status_key === 'backlog')
 }
 
 /** Applies multi-predicate filtering to an issue list (all predicates are AND-ed). */
 export function filterIssues(
-  issues: readonly Issue[],
-  filterStatuses: readonly string[],
-  filterPriorities: readonly string[],
+  issues: Readonly<Issue[]>,
+  filterStatuses: Readonly<string[]>,
+  filterPriorities: Readonly<string[]>,
   filterProject: string,
   filterType: string,
 ): Issue[] {
@@ -153,10 +153,10 @@ const SORT_COMPARATORS: Record<SortKey, (a: Issue, b: Issue) => number> = {
 }
 
 /** Sorts a copy of an issue list by the given SortKey. */
-export function sortIssues(issues: readonly Issue[], sortBy: SortKey, sortDir: 'asc' | 'desc'): Issue[] {
+export function sortIssues(issues: Readonly<Issue[]>, sortBy: SortKey, sortDir: 'asc' | 'desc'): Issue[] {
   const compare = SORT_COMPARATORS[sortBy]
-  return [...issues].sort((a, b) => {
-    const diff = compare ? compare(a, b) : 0
+  return [...issues].sort((left, right) => {
+    const diff = compare ? compare(left, right) : 0
     return sortDir === 'asc' ? diff : -diff
   })
 }

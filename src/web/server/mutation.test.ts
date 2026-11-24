@@ -25,7 +25,7 @@ describe('native browser mutation origin policy', () => {
     ['cross-site fetch metadata', 'POST', { origin: 'https://front.example.test', 'sec-fetch-site': 'cross-site' }],
     ['read method GET', 'GET', { origin: 'https://front.example.test' }],
     ['read method HEAD', 'HEAD', { origin: 'https://front.example.test' }],
-  ] satisfies readonly (readonly [string, string, HeadersInit])[])('rejects %s', async (_label, method, headers) => {
+  ] satisfies Readonly<Readonly<[string, string, HeadersInit]>[]>)('rejects %s', async (_label, method, headers) => {
     const request = new Request(url, { method, headers })
     expect(() => assertSameOriginMutation(request)).toThrow('A same-origin mutation request is required.')
     await expect(Effect.runPromise(checkSameOriginMutation(request))).rejects.toMatchObject({

@@ -170,7 +170,7 @@ export default function CreateIssueModal(props: CreateIssueModalProps) {
                 name='title'
                 maxLength={500}
                 value={createTitle}
-                onInput={(e) => setCreateTitle((e.target as HTMLInputElement).value)}
+                onInput={(event) => setCreateTitle((event.target as HTMLInputElement).value)}
                 placeholder='Issue title'
                 required
                 className={[

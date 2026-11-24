@@ -74,8 +74,8 @@ export type ScopeSelection =
 export interface RequestScope {
   readonly user: AuthUser
   readonly auth?: AuthInfo
-  readonly workspaces: readonly WorkspaceMembership[]
-  readonly projects: readonly ProjectSummary[]
+  readonly workspaces: Readonly<WorkspaceMembership[]>
+  readonly projects: Readonly<ProjectSummary[]>
   readonly selection: ScopeSelection
 }
 
@@ -146,7 +146,7 @@ export function matchesProject(project: ProjectSummary, hint: string): boolean {
 }
 
 export function selectedWorkspace(
-  workspaces: readonly WorkspaceMembership[],
+  workspaces: Readonly<WorkspaceMembership[]>,
   hint: string | undefined,
 ): WorkspaceMembership | undefined {
   if (!hint) {
@@ -162,7 +162,7 @@ export function selectedWorkspace(
 /** Pure selection policy, independent of browser state and framework lifecycle. */
 export function resolveScope(
   session: AuthSession,
-  projects: readonly ProjectSummary[],
+  projects: Readonly<ProjectSummary[]>,
   url: URL,
   options: ScopeOptions = {},
 ): RequestScope {

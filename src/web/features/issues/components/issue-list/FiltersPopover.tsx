@@ -48,7 +48,7 @@ function StatusPills({
   filterStatuses,
   setFilterStatuses,
 }: {
-  derivedStatuses: readonly TaskStatus[]
+  derivedStatuses: Readonly<TaskStatus[]>
   filterStatuses: string[]
   setFilterStatuses: Dispatch<SetStateAction<string[]>>
 }) {
@@ -136,7 +136,7 @@ function DateRangeFilter({
       <select
         aria-label='Date filter field'
         value={filterDateField}
-        onChange={(e) => setFilterDateField((e.target as HTMLSelectElement).value as DateField)}
+        onChange={(event) => setFilterDateField((event.target as HTMLSelectElement).value as DateField)}
         className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base cursor-pointer'
       >
         <option value=''>No date filter</option>
@@ -151,7 +151,7 @@ function DateRangeFilter({
               type='date'
               aria-label='From date'
               value={filterDateFrom}
-              onInput={(e) => setFilterDateFrom((e.target as HTMLInputElement).value)}
+              onInput={(event) => setFilterDateFrom((event.target as HTMLInputElement).value)}
               className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
             />
           </label>
@@ -161,7 +161,7 @@ function DateRangeFilter({
               type='date'
               aria-label='To date'
               value={filterDateTo}
-              onInput={(e) => setFilterDateTo((e.target as HTMLInputElement).value)}
+              onInput={(event) => setFilterDateTo((event.target as HTMLInputElement).value)}
               className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
             />
           </label>
@@ -172,7 +172,7 @@ function DateRangeFilter({
 }
 
 interface FiltersPopoverProps {
-  derivedStatuses: readonly TaskStatus[]
+  derivedStatuses: Readonly<TaskStatus[]>
   filterStatuses: string[]
   setFilterStatuses: Dispatch<SetStateAction<string[]>>
   filterPriorities: string[]
@@ -319,8 +319,8 @@ export default function FiltersPopover({
     if (!showFiltersPopover) {
       return
     }
-    function onPointer(e: MouseEvent) {
-      const target = e.target as Node
+    function onPointer(event: MouseEvent) {
+      const target = event.target as Node
       if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
         setShowFiltersPopover(false)
       }

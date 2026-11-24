@@ -176,11 +176,11 @@ const resolveModule = function resolveModule(
 
 const violations = function violations(
   graph: ReadonlyMap<string, ModuleInfo>,
-  entrypoints: readonly string[],
+  entrypoints: Readonly<string[]>,
 ): string[] {
   const failures: string[] = []
   const visited = new Set<string>()
-  const walk = (path: string, chain: readonly string[]): void => {
+  const walk = (path: string, chain: Readonly<string[]>): void => {
     if (visited.has(path)) {
       return
     }

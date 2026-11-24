@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import { isCoreEnvironment } from './environment.ts'
 
 const fixture = function fixture() {
-  const binding = (methods: readonly string[]) => Object.fromEntries(methods.map((key) => [key, () => undefined]))
+  const binding = (methods: Readonly<string[]>) => Object.fromEntries(methods.map((key) => [key, () => undefined]))
   return {
     DB: binding(['prepare', 'batch', 'exec', 'withSession', 'dump']),
     KV: binding(['get', 'put', 'delete', 'list', 'getWithMetadata']),

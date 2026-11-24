@@ -217,7 +217,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
 
   test('GET requests write nothing to D1', async () => {
     const fixture = await seedFixture()
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
@@ -230,7 +230,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
   test('still enforces the token limit (API max 5) from the Durable Object counter', async () => {
     const fixture = await seedFixture()
     const statuses: number[] = []
-    for (let i = 0; i < API_LIMIT + 1; i++) {
+    for (let index = 0; index < API_LIMIT + 1; index++) {
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
@@ -248,7 +248,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     try {
       const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`
       let res: Response | undefined
-      for (let i = 0; i < AUTH_LIMIT + 1; i++) {
+      for (let index = 0; index < AUTH_LIMIT + 1; index++) {
         res = await fetchNativeApi(ENDPOINT, { headers: { 'CF-Connecting-IP': ip } })
       }
       expect(res?.status).toBe(429)

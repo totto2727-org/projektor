@@ -81,9 +81,9 @@ const normalizeFrontmatterRecord = function normalizeFrontmatterRecord(raw: obje
   if ('verified_at' in normalized) {
     try {
       normalized.verified_at = normalizeVerifiedAt(normalized.verified_at)
-    } catch (e) {
+    } catch (caughtError) {
       throw new ValidationError({
-        formErrors: [e instanceof Error ? e.message : String(e)],
+        formErrors: [caughtError instanceof Error ? caughtError.message : String(caughtError)],
         fieldErrors: {},
       })
     }

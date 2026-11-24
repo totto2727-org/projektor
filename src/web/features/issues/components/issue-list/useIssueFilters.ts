@@ -26,7 +26,7 @@ const readInitialFilters = function readInitialFilters(search: string, projectKe
 export function useIssueFilters(
   search: string = '',
   projectKey: string = '',
-  projects: readonly { key: string; id: string }[] = [],
+  projects: Readonly<{ key: string; id: string }[]> = [],
 ) {
   // Server route DTOs seed filters deterministically for SSR and first hydration.
   // Only explicit field edits trigger canonical navigation.

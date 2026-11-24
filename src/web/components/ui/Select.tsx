@@ -17,7 +17,7 @@ export interface SelectOption {
 }
 export interface SelectProps {
   value: string
-  options: readonly SelectOption[]
+  options: Readonly<SelectOption[]>
   onChange: (value: string) => void
   ariaLabel: string
   disabled?: boolean

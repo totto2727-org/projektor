@@ -56,8 +56,8 @@ export function useCreateIssueModal({ workspaceSlug, filterProject, projects }: 
     if (!showCreateModal) {
       return
     }
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         setShowCreateModal(false)
       }
     }

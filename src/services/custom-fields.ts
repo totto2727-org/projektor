@@ -13,10 +13,10 @@ export interface CustomFieldValue {
 }
 
 /** Leave room for workspace and other fixed predicates beneath D1's 100 bind cap. */
-export async function inChunks<I, O>(items: readonly I[], op: (chunk: I[]) => Promise<O[]>): Promise<O[]> {
+export async function inChunks<I, O>(items: Readonly<I[]>, op: (chunk: I[]) => Promise<O[]>): Promise<O[]> {
   const rows: O[] = []
-  for (let i = 0; i < items.length; i += 90) {
-    rows.push(...(await op(items.slice(i, i + 90))))
+  for (let index = 0; index < items.length; index += 90) {
+    rows.push(...(await op(items.slice(index, index + 90))))
   }
   return rows
 }
@@ -50,7 +50,7 @@ export function listCustomFieldDefs(db: D1Database, workspaceId: string, project
   })
 }
 
-export function batchLoadCustomFields(db: D1Database, workspaceId: string, issueIds: readonly string[]) {
+export function batchLoadCustomFields(db: D1Database, workspaceId: string, issueIds: Readonly<string[]>) {
   return queryEffect('batchLoadCustomFields', async () => {
     const orm = drizzle(db, { schema })
     const rows = await inChunks(issueIds, (chunk) =>

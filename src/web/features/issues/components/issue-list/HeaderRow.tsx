@@ -12,7 +12,7 @@ function countLabel(view: ViewMode, filtered: Issue[], totalIssues: number | nul
   return `${listCount} issue${listCount !== 1 ? 's' : ''}${suffix}`
 }
 
-function searchCountLabel(results: readonly SearchResult[], query: string): string {
+function searchCountLabel(results: Readonly<SearchResult[]>, query: string): string {
   return `${results.length} result${results.length !== 1 ? 's' : ''} for «${query.trim()}»`
 }
 

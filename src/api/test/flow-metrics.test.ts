@@ -550,8 +550,8 @@ describe('Flow metrics (PROJ-252)', () => {
     }
 
     // Done is cumulative — never decreases bucket over bucket.
-    for (let i = 1; i < metrics.cfdOverTime.length; i++) {
-      expect(metrics.cfdOverTime[i].done).toBeGreaterThanOrEqual(metrics.cfdOverTime[i - 1].done)
+    for (let index = 1; index < metrics.cfdOverTime.length; index++) {
+      expect(metrics.cfdOverTime[index].done).toBeGreaterThanOrEqual(metrics.cfdOverTime[index - 1].done)
     }
 
     /*

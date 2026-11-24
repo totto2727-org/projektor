@@ -150,7 +150,7 @@ export async function healTitleFolds(ctx: ServiceCtx): Promise<number> {
 const resolveTitleTargets = async function resolveTitleTargets(
   orm: Orm,
   workspaceId: string,
-  titles: readonly string[],
+  titles: Readonly<string[]>,
 ): Promise<Map<string, string>> {
   const byLower = new Map<string, string>()
   if (titles.length === 0) {
@@ -191,7 +191,7 @@ const resolveTitleTargets = async function resolveTitleTargets(
       ),
     )
   const candidates = [...rows, ...unhealed.filter((r) => wanted.has(foldWikiTitle(r.title)))].sort(
-    (a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    (left, right) => left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
   )
   /*
    * Duplicate titles: the oldest page wins (created_at, then id) — the same order the
@@ -214,7 +214,7 @@ const resolveTitleTargets = async function resolveTitleTargets(
 const resolveSlugTargets = async function resolveSlugTargets(
   orm: Orm,
   workspaceId: string,
-  slugs: readonly string[],
+  slugs: Readonly<string[]>,
 ): Promise<Map<string, { id: string; title: string }>> {
   const bySlug = new Map<string, { id: string; title: string }>()
   const unique = [...new Set(slugs)]
@@ -307,7 +307,7 @@ const isSlugTarget = function isSlugTarget(t: ParsedLinkTarget): t is Extract<Pa
  * pair per page.
  */
 const resolveTargetsFromMaps = function resolveTargetsFromMaps(
-  targets: readonly ParsedLinkTarget[],
+  targets: Readonly<ParsedLinkTarget[]>,
   titleMatches: ReadonlyMap<string, string>,
   slugMatches: ReadonlyMap<string, { id: string; title: string }>,
 ): ResolvedLink[] {
@@ -347,7 +347,7 @@ const resolveTargetsFromMaps = function resolveTargetsFromMaps(
 const resolveLinkTargets = async function resolveLinkTargets(
   orm: Orm,
   workspaceId: string,
-  targets: readonly ParsedLinkTarget[],
+  targets: Readonly<ParsedLinkTarget[]>,
 ): Promise<ResolvedLink[]> {
   const [titleMatches, slugMatches] = await Promise.all([
     resolveTitleTargets(
@@ -374,7 +374,7 @@ const resolveLinkTargets = async function resolveLinkTargets(
 const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
   orm: Orm,
   workspaceId: string,
-  pages: readonly { id: string; targets: readonly ParsedLinkTarget[] }[],
+  pages: Readonly<{ id: string; targets: Readonly<ParsedLinkTarget[]> }[]>,
 ): Promise<Map<string, ResolvedLink[]>> {
   const allTargets = pages.flatMap((p) => p.targets)
   const [titleMatches, slugMatches] = await Promise.all([
@@ -434,7 +434,7 @@ export async function buildWikiLinksReindexStatements(
 function buildLinkWriteStatements(
   ctx: ServiceCtx,
   sourcePageId: string,
-  resolved: readonly ResolvedLink[],
+  resolved: Readonly<ResolvedLink[]>,
 ): D1PreparedStatement[] {
   const now = Math.floor(Date.now() / 1000)
   const rows = resolved.map((r) => ({
@@ -454,8 +454,8 @@ function buildLinkWriteStatements(
       .prepare('DELETE FROM wiki_links WHERE source_page_id = ? AND workspace_id = ?')
       .bind(sourcePageId, ctx.workspaceId),
   ]
-  for (let i = 0; i < rows.length; i += LINK_INSERT_CHUNK_SIZE) {
-    const chunk = rows.slice(i, i + LINK_INSERT_CHUNK_SIZE)
+  for (let index = 0; index < rows.length; index += LINK_INSERT_CHUNK_SIZE) {
+    const chunk = rows.slice(index, index + LINK_INSERT_CHUNK_SIZE)
     const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
     const params = chunk.flatMap((r) => [
       r.id,
@@ -869,7 +869,7 @@ export async function backlinksForResolvedPage(
 // Resolves which of `rows` (all project-scoped) the caller has an effective grant on.
 async function visibleSourcePageIds(
   ctx: ServiceCtx,
-  rows: readonly { pageId: string; projectId: string | null }[],
+  rows: Readonly<{ pageId: string; projectId: string | null }[]>,
 ): Promise<string[]> {
   if (rows.length === 0) {
     return []

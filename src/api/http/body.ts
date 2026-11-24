@@ -13,9 +13,9 @@ import { ValidationError } from '../../contracts/errors.ts'
 // Same `any` as c.req.json() so call sites that spread the body keep compiling; every
 // consumer validates it with the service's Zod schema.
 // biome-ignore lint/suspicious/noExplicitAny: mirrors c.req.json(); validated downstream
-export async function jsonBody(c: Context<HonoEnv>): Promise<any> {
+export async function jsonBody(httpContext: Context<HonoEnv>): Promise<any> {
   try {
-    return await c.req.json()
+    return await httpContext.req.json()
   } catch {
     throw new ValidationError({ formErrors: ['Request body must be valid JSON'], fieldErrors: {} })
   }

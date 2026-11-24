@@ -23,17 +23,17 @@ import { getWikiPage } from '../services/wiki.ts'
  * that already exists.
  */
 const resolveWikiWorkspaceContext = async function resolveWikiWorkspaceContext(
-  c: Context<HonoEnv>,
+  httpContext: Context<HonoEnv>,
 ): Promise<{ id: string; name: string; slug: string; role: string } | null> {
-  const headerSlug = c.req.header('X-Workspace-Slug')
-  const routingEnabled = subdomainRoutingEnabled(c.env.WORKSPACE_SUBDOMAIN_ROUTING)
-  const subdomainSlug = routingEnabled ? c.req.header('host')?.split('.')[0] : undefined
-  const slug = headerSlug ?? subdomainSlug ?? c.env.DEFAULT_WORKSPACE_SLUG
+  const headerSlug = httpContext.req.header('X-Workspace-Slug')
+  const routingEnabled = subdomainRoutingEnabled(httpContext.env.WORKSPACE_SUBDOMAIN_ROUTING)
+  const subdomainSlug = routingEnabled ? httpContext.req.header('host')?.split('.')[0] : undefined
+  const slug = headerSlug ?? subdomainSlug ?? httpContext.env.DEFAULT_WORKSPACE_SLUG
   if (!slug) {
     return null
   }
 
-  const user = c.get('user') as { id: string } | undefined
+  const user = httpContext.get('user') as { id: string } | undefined
   if (!user) {
     return null
   }
@@ -42,7 +42,10 @@ const resolveWikiWorkspaceContext = async function resolveWikiWorkspaceContext(
     return await Effect.runPromise(
       decodeCoreReply(
         ApiWorkspace,
-        makeCoreClient(c.env.CORE).apiResolveWorkspace(c.get('coreActor'), { kind: 'slug', value: slug }),
+        makeCoreClient(httpContext.env.CORE).apiResolveWorkspace(httpContext.get('coreActor'), {
+          kind: 'slug',
+          value: slug,
+        }),
       ),
     )
   } catch {

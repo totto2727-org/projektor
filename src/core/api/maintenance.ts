@@ -47,7 +47,7 @@ const deleteExpiredInChunks = async function deleteExpiredInChunks(
   db: D1Database,
   table: string,
   whereSql: string,
-  params: readonly unknown[],
+  params: Readonly<unknown[]>,
 ) {
   let totalDeleted = 0
   for (let index = 0; index < RETENTION_MAX_CHUNKS_PER_CATEGORY; index++) {

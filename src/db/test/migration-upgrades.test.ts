@@ -22,7 +22,7 @@ const seedWorkspace = function seedWorkspace(db: DatabaseSync) {
   // No owner membership: historical template seeds must not create unrelated pages.
 }
 
-const seedWiki = function seedWiki(db: DatabaseSync, slugs: readonly string[]) {
+const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>) {
   const insert = db.prepare(`INSERT INTO wiki_pages
     (id,workspace_id,slug,title,content,created_by_id,updated_by_id,created_at,updated_at)
     VALUES (?,?,?,?,'searchneedle','u','u',?,?)`)

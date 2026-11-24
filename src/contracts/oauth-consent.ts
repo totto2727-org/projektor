@@ -38,7 +38,7 @@ export function workspaceIdFromResource(resource: string | string[] | undefined)
 }
 
 /** An omitted scope requests all supported scopes. Unsupported extras are discarded. */
-export function grantedScopes(requested: readonly string[]): string[] {
+export function grantedScopes(requested: Readonly<string[]>): string[] {
   if (requested.length === 0) {
     return [...OAUTH_SCOPES_SUPPORTED]
   }
@@ -68,7 +68,7 @@ export function relyingPartyHost(clientId: string): string {
     return clientId
   }
 }
-export function isLoopbackOnlyClient(redirectUris: readonly string[]): boolean {
+export function isLoopbackOnlyClient(redirectUris: Readonly<string[]>): boolean {
   if (redirectUris.length === 0) {
     return false
   }

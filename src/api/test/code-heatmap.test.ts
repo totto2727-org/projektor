@@ -24,7 +24,7 @@ const expectHeatmapOk = async function expectHeatmapOk(res: Response): Promise<C
 }
 
 const expectAppsGroup = function expectAppsGroup<E extends { path: string; isLeaf: boolean }>(
-  entries: readonly E[],
+  entries: Readonly<E[]>,
 ): E {
   const apps = entries.find((e) => e.path === 'apps')
   expect(apps).toBeDefined()

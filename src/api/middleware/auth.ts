@@ -19,10 +19,10 @@ export function isPublicViewer(user: Readonly<{ email: string }>): boolean {
   return user.email === 'public-viewer@projektor.local'
 }
 
-export function requireInteractiveHuman(c: Context<HonoEnv>, message: string): Response | null {
-  const auth = c.get('auth')
+export function requireInteractiveHuman(httpContext: Context<HonoEnv>, message: string): Response | null {
+  const auth = httpContext.get('auth')
   if (auth?.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
-    return c.json({ error: message }, 403)
+    return httpContext.json({ error: message }, 403)
   }
   return null
 }
@@ -36,13 +36,14 @@ const accessCookie = function accessCookie(cookie: string): string | undefined {
 }
 
 /** Only provider-created execution props, never public request headers, become OAuth proof. */
-const requestActor = function requestActor(c: Context<HonoEnv>): CoreActor {
-  const authorization = c.req.header('Authorization')
+const requestActor = function requestActor(httpContext: Context<HonoEnv>): CoreActor {
+  const authorization = httpContext.req.header('Authorization')
   const bearer = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
-  const accessJwt = c.req.header('Cf-Access-Jwt-Assertion') ?? accessCookie(c.req.header('cookie') ?? '')
-  const props: unknown = c.executionCtx.props
+  const accessJwt =
+    httpContext.req.header('Cf-Access-Jwt-Assertion') ?? accessCookie(httpContext.req.header('cookie') ?? '')
+  const props: unknown = httpContext.executionCtx.props
   const verified = Schema.decodeUnknownOption(VerifiedApiOauthGrant)(props)
-  const actor: CoreActor = { requestUrl: c.req.url, method: c.req.method }
+  const actor: CoreActor = { requestUrl: httpContext.req.url, method: httpContext.req.method }
   return {
     ...actor,
     ...(accessJwt !== undefined ? { accessJwt } : {}),
@@ -51,38 +52,38 @@ const requestActor = function requestActor(c: Context<HonoEnv>): CoreActor {
   }
 }
 
-const authFailureLimited = async function authFailureLimited(c: Context<HonoEnv>): Promise<boolean> {
+const authFailureLimited = async function authFailureLimited(httpContext: Context<HonoEnv>): Promise<boolean> {
   try {
     const count = await bumpRateCounter(
-      c.env,
-      `authfail:${c.req.header('CF-Connecting-IP') ?? '127.0.0.1'}`,
-      parseInt(c.env.RATE_LIMIT_WINDOW_SECS ?? '60', 10),
+      httpContext.env,
+      `authfail:${httpContext.req.header('CF-Connecting-IP') ?? '127.0.0.1'}`,
+      parseInt(httpContext.env.RATE_LIMIT_WINDOW_SECS ?? '60', 10),
     )
-    return count > parseInt(c.env.RATE_LIMIT_AUTH_FAIL_MAX ?? '50', 10)
+    return count > parseInt(httpContext.env.RATE_LIMIT_AUTH_FAIL_MAX ?? '50', 10)
   } catch {
     return false
   }
 }
 
-export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
-  const actor = requestActor(c)
+export async function authMiddleware(httpContext: Context<HonoEnv>, next: Next) {
+  const actor = requestActor(httpContext)
   try {
     const principal = await Effect.runPromise(
-      decodeCoreReply(ApiPrincipal, makeCoreClient(c.env.CORE).apiAuthenticate(actor)),
+      decodeCoreReply(ApiPrincipal, makeCoreClient(httpContext.env.CORE).apiAuthenticate(actor)),
     )
     const scopes = principal.tokenScopes
-    if (scopes !== undefined && !c.req.path.startsWith('/mcp/')) {
-      const required = capabilityForMethod(c.req.method)
+    if (scopes !== undefined && !httpContext.req.path.startsWith('/mcp/')) {
+      const required = capabilityForMethod(httpContext.req.method)
       if (!tokenAllows(scopes, required)) {
-        return c.json({ error: `Token lacks '${required}' scope` }, 403)
+        return httpContext.json({ error: `Token lacks '${required}' scope` }, 403)
       }
     }
-    c.set('coreActor', actor)
-    c.set('user', principal.user)
-    c.set('tokenWorkspaceId', principal.tokenWorkspaceId)
-    c.set('tokenScopes', scopes === undefined ? undefined : [...scopes])
-    c.set('authKind', principal.auth.kind)
-    c.set('auth', {
+    httpContext.set('coreActor', actor)
+    httpContext.set('user', principal.user)
+    httpContext.set('tokenWorkspaceId', principal.tokenWorkspaceId)
+    httpContext.set('tokenScopes', scopes === undefined ? undefined : [...scopes])
+    httpContext.set('authKind', principal.auth.kind)
+    httpContext.set('auth', {
       ...principal.auth,
       scopes: principal.auth.scopes === undefined ? undefined : [...principal.auth.scopes],
     })
@@ -93,14 +94,14 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
     }
     let status = error.status
     let message = error.message
-    if (status === 401 && actor.bearer !== undefined && (await authFailureLimited(c))) {
+    if (status === 401 && actor.bearer !== undefined && (await authFailureLimited(httpContext))) {
       status = 429
       message = 'Too Many Requests'
     }
     const response = Response.json({ error: message }, { status })
-    const workspaceId = mcpWorkspaceIdFromPath(c.req.path)
+    const workspaceId = mcpWorkspaceIdFromPath(httpContext.req.path)
     if (status === 401 && workspaceId) {
-      response.headers.set('WWW-Authenticate', unauthorizedChallenge(c.req.url, workspaceId))
+      response.headers.set('WWW-Authenticate', unauthorizedChallenge(httpContext.req.url, workspaceId))
     }
     return response
   }

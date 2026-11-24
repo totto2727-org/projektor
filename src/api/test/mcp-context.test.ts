@@ -49,7 +49,7 @@ describe('PROJ-889: MCP mutations broadcast like REST', () => {
 describe('PROJ-889: auth middleware records method + credential', () => {
   const app = new Hono<HonoEnv>()
   app.use('*', authMiddleware)
-  app.get('/whoami', (c) => c.json(c.get('auth')))
+  app.get('/whoami', (httpContext) => httpContext.json(httpContext.get('auth')))
 
   const whoami = async function whoami(headers: Record<string, string> = {}): Promise<AuthInfo> {
     const res = await app.request('/whoami', { headers }, env, {

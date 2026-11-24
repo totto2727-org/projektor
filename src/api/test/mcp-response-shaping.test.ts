@@ -207,10 +207,10 @@ describe('PROJ-891: MCP tools', () => {
   }
 
   test('list_issues: summary view, {items,next} pagination, and cursor continuation', async () => {
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       await seedIssue(f.workspaceId, f.projectId, f.userId, {
-        title: `Item ${i}`,
-        createdAt: 1000 + i,
+        title: `Item ${index}`,
+        createdAt: 1000 + index,
       })
     }
     const first = await tool<{ items: Record<string, unknown>[]; next?: string }>('list_issues', {
@@ -245,10 +245,10 @@ describe('PROJ-891: MCP tools', () => {
 
   test('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
     const pad = 'y'.repeat(400)
-    for (let i = 0; i < 60; i++) {
+    for (let index = 0; index < 60; index++) {
       await seedIssue(f.workspaceId, f.projectId, f.userId, {
-        title: `${pad} ${i}`,
-        createdAt: 2000 + i,
+        title: `${pad} ${index}`,
+        createdAt: 2000 + index,
       })
     }
     const seen = new Set<string>()
@@ -336,8 +336,8 @@ describe('PROJ-891: MCP tools', () => {
 
   test('list_comments is never cut: every comment is returned', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Chatty' })
-    for (let i = 0; i < 30; i++) {
-      await tool('add_comment', { issueId: issue.id, body: `${i} ${'c'.repeat(1000)}` })
+    for (let index = 0; index < 30; index++) {
+      await tool('add_comment', { issueId: issue.id, body: `${index} ${'c'.repeat(1000)}` })
     }
     const res = await tool<{ items: unknown[]; truncated?: boolean }>('list_comments', {
       issueId: issue.id,

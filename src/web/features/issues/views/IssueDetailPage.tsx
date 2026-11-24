@@ -5,14 +5,14 @@ import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } 
 import { SelectionRequired } from './shared.tsx'
 export interface IssueDetailInitialData {
   readonly issue: Issue
-  readonly comments: readonly Comment[]
-  readonly links: readonly IssueLink[]
-  readonly attachments: readonly Attachment[]
-  readonly statuses: readonly Status[]
-  readonly taskTypes: readonly TaskType[]
-  readonly members: readonly Member[]
+  readonly comments: Readonly<Comment[]>
+  readonly links: Readonly<IssueLink[]>
+  readonly attachments: Readonly<Attachment[]>
+  readonly statuses: Readonly<Status[]>
+  readonly taskTypes: Readonly<TaskType[]>
+  readonly members: Readonly<Member[]>
   readonly parent: Issue | null
-  readonly children: readonly Issue[]
+  readonly children: Readonly<Issue[]>
   readonly currentUserId: string
   readonly reviewTargetsFocused?: boolean
 }

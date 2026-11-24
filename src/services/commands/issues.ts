@@ -383,7 +383,7 @@ const buildInsertIssueStatement = function buildInsertIssueStatement(
     // PROJ-921: set when the issue is created straight into a ready status.
     readyAt: number | null
     now: number
-    feedbackIds?: readonly string[]
+    feedbackIds?: Readonly<string[]>
   }>,
 ): D1PreparedStatement {
   /*
@@ -535,7 +535,7 @@ export async function createIssue(ctx: ServiceCtx, raw: unknown) {
 export async function createIssueFromFeedback(
   ctx: ServiceCtx,
   input: Readonly<{ projectId: string; title: string; body: string; priority: 'medium' }>,
-  feedbackIds: readonly string[],
+  feedbackIds: Readonly<string[]>,
 ) {
   if (!feedbackIds.length || feedbackIds.length > 500 || new Set(feedbackIds).size !== feedbackIds.length) {
     throw new ValidationError({ formErrors: ['Invalid feedback selection'], fieldErrors: {} })
@@ -544,7 +544,7 @@ export async function createIssueFromFeedback(
   return createIssueInternal(ctx, { projectId, title, body, priority }, feedbackIds)
 }
 
-async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: readonly string[]) {
+async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: Readonly<string[]>) {
   const result = CreateIssueSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -1646,7 +1646,7 @@ const DOR_HEAL_BATCH = 200
 const DOR_HEAL_MAX_BATCHES = 5
 
 const healDefinitionOfReady = async function healDefinitionOfReady(ctx: ServiceCtx): Promise<void> {
-  for (let i = 0; i < DOR_HEAL_MAX_BATCHES; i++) {
+  for (let index = 0; index < DOR_HEAL_MAX_BATCHES; index++) {
     const { results } = await ctx.db
       .prepare('SELECT id, body FROM issues WHERE workspace_id = ? AND dor_ready IS NULL LIMIT ?')
       .bind(ctx.workspaceId, DOR_HEAL_BATCH)

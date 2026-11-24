@@ -11,30 +11,37 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-router.get('/', async (c) => {
+router.get('/', async (httpContext) => {
   try {
-    return c.json(await listPlaybooks({ core: makeCoreClient(c.env.CORE), actor: c.get('coreActor') }))
-  } catch (error) {
-    return serviceErrToResponse(c, error)
-  }
-})
-
-router.post('/:name/compose', async (c) => {
-  const ctx = ctxFromHono(c)
-  try {
-    return c.json(await composePlaybook(ctx, { name: c.req.param('name'), params: await jsonBody(c) }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
-  }
-})
-
-router.get('/:name', async (c) => {
-  try {
-    return c.json(
-      await getPlaybook({ core: makeCoreClient(c.env.CORE), actor: c.get('coreActor') }, c.req.param('name')),
+    return httpContext.json(
+      await listPlaybooks({ core: makeCoreClient(httpContext.env.CORE), actor: httpContext.get('coreActor') }),
     )
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+  } catch (error) {
+    return serviceErrToResponse(httpContext, error)
+  }
+})
+
+router.post('/:name/compose', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  try {
+    return httpContext.json(
+      await composePlaybook(ctx, { name: httpContext.req.param('name'), params: await jsonBody(httpContext) }),
+    )
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
+  }
+})
+
+router.get('/:name', async (httpContext) => {
+  try {
+    return httpContext.json(
+      await getPlaybook(
+        { core: makeCoreClient(httpContext.env.CORE), actor: httpContext.get('coreActor') },
+        httpContext.req.param('name'),
+      ),
+    )
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

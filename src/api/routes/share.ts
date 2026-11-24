@@ -12,25 +12,25 @@ import { ctxFromHono } from '../services/types.ts'
 // Authenticated router — POST/DELETE /api/issues/:id/share
 const authedRouter = new Hono<HonoEnv>()
 
-authedRouter.post('/:id/share', async (c) => {
-  const ctx = ctxFromHono(c)
-  const issueId = c.req.param('id')
+authedRouter.post('/:id/share', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const issueId = httpContext.req.param('id')
   try {
     const result = await createShareToken(ctx, issueId)
-    return c.json(result, 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(result, 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-authedRouter.delete('/:id/share', async (c) => {
-  const ctx = ctxFromHono(c)
-  const issueId = c.req.param('id')
+authedRouter.delete('/:id/share', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const issueId = httpContext.req.param('id')
   try {
     await revokeShareToken(ctx, issueId)
-    return c.json({ ok: true })
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json({ ok: true })
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
@@ -39,19 +39,19 @@ export { authedRouter as shareIssuesRouter }
 // Unauthenticated router — GET /api/share/:token
 const publicRouter = new Hono<HonoEnv>()
 
-publicRouter.get('/:token', async (c) => {
-  const token = c.req.param('token')
+publicRouter.get('/:token', async (httpContext) => {
+  const token = httpContext.req.param('token')
   try {
-    const issue = await apiReply(ApiSharedIssue, makeCoreClient(c.env.CORE).apiGetSharedIssue(token))
-    return c.json(issue)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    const issue = await apiReply(ApiSharedIssue, makeCoreClient(httpContext.env.CORE).apiGetSharedIssue(token))
+    return httpContext.json(issue)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-publicRouter.get('/:token/logo', async (c) => {
-  const token = c.req.param('token')
-  return c.env.CORE.fetch(new Request(`https://core.internal/share-logo/${encodeURIComponent(token)}`))
+publicRouter.get('/:token/logo', async (httpContext) => {
+  const token = httpContext.req.param('token')
+  return httpContext.env.CORE.fetch(new Request(`https://core.internal/share-logo/${encodeURIComponent(token)}`))
 })
 
 export { publicRouter as sharePublicRouter }

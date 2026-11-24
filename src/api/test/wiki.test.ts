@@ -465,11 +465,11 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki/search supports limit/offset pagination', async () => {
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
-        body: JSON.stringify({ title: `Paginated Page ${i}`, content: 'shared-search-term' }),
+        body: JSON.stringify({ title: `Paginated Page ${index}`, content: 'shared-search-term' }),
       })
     }
     const page1 = await fetchNativeApi('http://localhost/api/wiki/search?q=shared-search-term&limit=2', {
@@ -495,12 +495,12 @@ describe('Wiki API', () => {
      * slug-collision 409s; the rate_limit reset avoids tripping the 5-req/window cap
      * (RATE_LIMIT_API_MAX) across the create + fetch calls below.
      */
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({
-          title: `Tie Rank Page ${i}`,
+          title: `Tie Rank Page ${index}`,
           content: 'tie-rank-search-term',
         }),
       })
@@ -838,8 +838,8 @@ describe('Wiki API', () => {
   test('POST /api/wiki rejects when max nesting depth (5) is exceeded', async () => {
     let parentId: string | null = null
     // Create 5 levels deep (root → L1 → L2 → L3 → L4 → L5)
-    for (let i = 0; i < 5; i++) {
-      const body: Record<string, unknown> = { title: `Level ${i}`, content: '' }
+    for (let index = 0; index < 5; index++) {
+      const body: Record<string, unknown> = { title: `Level ${index}`, content: '' }
       if (parentId) {
         body.parentId = parentId
       }
@@ -871,8 +871,8 @@ describe('Wiki API', () => {
     // Build a 4-level chain: L0 -> L1 -> L2 -> L3 (L3 sits at depth 3).
     let chainParentId: string | null = null
     let l3Id = ''
-    for (let i = 0; i < 4; i++) {
-      const body: Record<string, unknown> = { title: `Chain ${i}`, content: '' }
+    for (let index = 0; index < 4; index++) {
+      const body: Record<string, unknown> = { title: `Chain ${index}`, content: '' }
       if (chainParentId) {
         body.parentId = chainParentId
       }
@@ -4095,8 +4095,8 @@ describe('Wiki write atomicity (PROJ-511)', () => {
         body: JSON.stringify({ title: 'Atomicity Race Page', content: 'see [[Race Target Beta]]' }),
       }),
     ])
-    const statuses = [resA.status, resB.status].sort((a, b) =>
-      String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0,
+    const statuses = [resA.status, resB.status].sort((left, right) =>
+      String(left) < String(right) ? -1 : String(left) > String(right) ? 1 : 0,
     )
     expect(statuses).toEqual([201, 409])
 
@@ -5753,7 +5753,8 @@ describe('Wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     type TreeNode = { id: string; children: TreeNode[] }
-    const flatten = (nodes: readonly TreeNode[]): string[] => nodes.flatMap((n) => [n.id, ...flatten(n.children ?? [])])
+    const flatten = (nodes: Readonly<TreeNode[]>): string[] =>
+      nodes.flatMap((n) => [n.id, ...flatten(n.children ?? [])])
     expect(flatten((await treeRes.json()) as TreeNode[])).not.toContain(page.id)
 
     const searchRes = await req('http://localhost/api/wiki/search?q=trash-list-searchterm', {

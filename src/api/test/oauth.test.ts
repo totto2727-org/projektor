@@ -298,7 +298,7 @@ describe('dynamic client registration', () => {
   })
 
   test('rate limits anonymous registrations independently of token requests', async () => {
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       expect((await registerClient()).status).toBe(201)
     }
     expect((await registerClient()).status).toBe(429)
@@ -889,7 +889,7 @@ describe('the token endpoint is rate-limited', () => {
      */
     const ip = '192.0.2.44'
     const body = { grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       expect((await exchange(body, ip)).status).not.toBe(429)
     }
     expect((await exchange(body, ip)).status).toBe(429)
@@ -951,7 +951,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
 
     env.RATE_LIMIT_TEST_NOW_MS = String(Date.now())
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
-    for (let i = 0; i < API_LIMIT; i++) {
+    for (let index = 0; index < API_LIMIT; index++) {
       expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
     }
 

@@ -12,7 +12,7 @@ function scoped(overrides: Partial<ScopedIssue> = {}): ScopedIssue {
   return { ...issue(), workspaceSlug: workspace.slug, ...overrides }
 }
 
-function show(issues: readonly ScopedIssue[]) {
+function show(issues: Readonly<ScopedIssue[]>) {
   return render(<MyIssues initialData={{ issues, memberships: [workspace] }} />)
 }
 

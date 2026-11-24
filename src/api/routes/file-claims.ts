@@ -9,31 +9,31 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
-  const { issueId, path, projectId, includeStale } = c.req.query()
+router.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const { issueId, path, projectId, includeStale } = httpContext.req.query()
   try {
-    return c.json(await listFileClaims(ctx, { issueId, path, projectId, includeStale }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listFileClaims(ctx, { issueId, path, projectId, includeStale }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/', async (c) => {
-  const ctx = ctxFromHono(c)
+router.post('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await claimFiles(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await claimFiles(ctx, await jsonBody(httpContext)), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/release', async (c) => {
-  const ctx = ctxFromHono(c)
+router.post('/release', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await releaseFiles(ctx, await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await releaseFiles(ctx, await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

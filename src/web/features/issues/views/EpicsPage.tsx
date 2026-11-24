@@ -5,10 +5,10 @@ import type { IssuePage, Status, TaskType } from '../types.ts'
 import { SelectionRequired } from './shared.tsx'
 export interface EpicsInitialData {
   readonly page: IssuePage
-  readonly statuses: readonly Status[]
-  readonly taskTypes: readonly TaskType[]
+  readonly statuses: Readonly<Status[]>
+  readonly taskTypes: Readonly<TaskType[]>
   readonly project: ProjectSummary
-  readonly projects: readonly ProjectSummary[]
+  readonly projects: Readonly<ProjectSummary[]>
   readonly search: string
 }
 export function EpicsPage({

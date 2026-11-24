@@ -264,7 +264,7 @@ export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
 // PROJ-923: ?1 = workspace id. Children before parents.
 const WS_PAGES = 'SELECT id FROM wiki_pages WHERE workspace_id = ?1'
 const WS_GROUPS = 'SELECT id FROM user_groups WHERE workspace_id = ?1'
-const WORKSPACE_CLEANUP_SQL: readonly string[] = [
+const WORKSPACE_CLEANUP_SQL: Readonly<string[]> = [
   'DELETE FROM wiki_fts WHERE workspace_id = ?1',
   'DELETE FROM issues_fts WHERE workspace_id = ?1',
   'DELETE FROM share_tokens WHERE workspace_id = ?1',
@@ -359,9 +359,9 @@ export async function deleteWorkspace(
       .all<{ k: string }>()
   ).results.map((r) => r.k)
   await ctx.db.batch(WORKSPACE_CLEANUP_SQL.map((sql) => ctx.db.prepare(sql).bind(ctx.workspaceId)))
-  for (let i = 0; i < r2Keys.length; i += 1000) {
+  for (let index = 0; index < r2Keys.length; index += 1000) {
     try {
-      await ctx.r2.delete(r2Keys.slice(i, i + 1000))
+      await ctx.r2.delete(r2Keys.slice(index, index + 1000))
     } catch (err) {
       console.error('deleteWorkspace: R2 cleanup failed', { err: String(err) })
     }
@@ -502,9 +502,9 @@ export async function uploadWorkspaceLogo(
 
   try {
     await writeBrand(ctx, { ...current, logoR2Key: r2Key })
-  } catch (e) {
+  } catch (caughtError) {
     await ctx.r2.delete(r2Key)
-    throw e
+    throw caughtError
   }
   if (current.logoR2Key) {
     try {

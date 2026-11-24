@@ -9,12 +9,12 @@ export interface IssuesInitialData {
   readonly currentUserId: string
   readonly view: import('../components/issue-list/types-view').ViewMode
   readonly page: IssuePage
-  readonly statuses: readonly Status[]
-  readonly taskTypes: readonly TaskType[]
+  readonly statuses: Readonly<Status[]>
+  readonly taskTypes: Readonly<TaskType[]>
   readonly project: ProjectSummary | null
-  readonly projects: readonly ProjectSummary[]
-  readonly epics: readonly Issue[]
-  readonly sprints: readonly { id: string; name: string; status: string }[]
+  readonly projects: Readonly<ProjectSummary[]>
+  readonly epics: Readonly<Issue[]>
+  readonly sprints: Readonly<{ id: string; name: string; status: string }[]>
   readonly sprintDetail: SprintDetail | null
   readonly search: import('../components/issue-list/useIssueSearch').IssueSearchSeed
 }

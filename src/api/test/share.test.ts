@@ -137,7 +137,7 @@ describe('Share tokens', () => {
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
       expect(res.status).toBe(200)
     }

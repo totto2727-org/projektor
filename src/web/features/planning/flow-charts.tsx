@@ -102,7 +102,7 @@ function DateTooltip({ config, formatValue }: { config?: ChartConfig; formatValu
   )
 }
 const throughputConfig = { count: { label: 'Issues completed', color: accent } } satisfies ChartConfig
-export function ThroughputChart({ data }: { data: readonly FlowMetrics['throughputOverTime'][number][] }) {
+export function ThroughputChart({ data }: { data: Readonly<FlowMetrics['throughputOverTime'][number][]> }) {
   if (!data.length || data.every((point) => point.count === 0)) {
     return <EmptyChartState message='No completed issues yet' />
   }
@@ -130,7 +130,7 @@ const cfdConfig = {
   inReview: { label: 'In review', color: sequential.inReview },
   done: { label: 'Done', color: sequential.done },
 } satisfies ChartConfig
-export function CfdChart({ data }: { data: readonly FlowMetrics['cfdOverTime'][number][] }) {
+export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][number][]> }) {
   if (!data.length || data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === 0)) {
     return <EmptyChartState message='No issues in this window yet' />
   }
@@ -146,8 +146,9 @@ export function CfdChart({ data }: { data: readonly FlowMetrics['cfdOverTime'][n
           content={({ payload }) => (
             <ChartLegendContent
               payload={payload?.toSorted(
-                (a, b) =>
-                  Object.keys(cfdConfig).indexOf(String(a.dataKey)) - Object.keys(cfdConfig).indexOf(String(b.dataKey)),
+                (left, right) =>
+                  Object.keys(cfdConfig).indexOf(String(left.dataKey)) -
+                  Object.keys(cfdConfig).indexOf(String(right.dataKey)),
               )}
               className='flex-wrap gap-x-3 gap-y-1 text-[10px]'
             />
@@ -347,7 +348,7 @@ export function AgingWipScatter({
           ...point,
           x: (point.status === 'in_progress' ? 0 : 1) + (hashJitter(point.id) - 0.5) * 0.5,
         }))
-        .sort((a, b) => a.x - b.x),
+        .sort((left, right) => left.x - right.x),
     [data],
   )
   const maxAge = Math.max(0, ...data.map((point) => point.ageSeconds), p50 ?? 0, p90 ?? 0)

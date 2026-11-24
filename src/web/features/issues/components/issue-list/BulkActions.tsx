@@ -34,8 +34,8 @@ export function IssueBulkProvider({
   workspaceSlug,
 }: {
   children: ReactNode
-  issues: readonly Issue[]
-  statuses: readonly TaskStatus[]
+  issues: Readonly<Issue[]>
+  statuses: Readonly<TaskStatus[]>
   workspaceSlug: string
 }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())

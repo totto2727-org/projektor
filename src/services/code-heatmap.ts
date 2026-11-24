@@ -71,7 +71,7 @@ type SegmentGroup = { ids: Set<string>; count: number; isLeaf: boolean }
  * how they extract the distinct id to count per group.
  */
 const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { path: string }>(
-  items: readonly T[],
+  items: Readonly<T[]>,
   prefix: string,
   prefixWithSlash: string,
   getId: (item: T) => string,
@@ -108,7 +108,7 @@ const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { pat
 }
 
 const groupClaimsByNextSegment = function groupClaimsByNextSegment(
-  claims: readonly { path: string; issueId: string }[],
+  claims: Readonly<{ path: string; issueId: string }[]>,
   prefix: string,
 ): CodeHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
@@ -122,11 +122,11 @@ const groupClaimsByNextSegment = function groupClaimsByNextSegment(
       distinctIssueCount: group.ids.size,
       claimCount: group.count,
     }))
-    .sort((a, b) => b.distinctIssueCount - a.distinctIssueCount || a.path.localeCompare(b.path))
+    .sort((left, right) => right.distinctIssueCount - left.distinctIssueCount || left.path.localeCompare(right.path))
 }
 
 const groupConflictsByNextSegment = function groupConflictsByNextSegment(
-  conflicts: readonly { path: string; rejectedIssueId: string }[],
+  conflicts: Readonly<{ path: string; rejectedIssueId: string }[]>,
   prefix: string,
 ): ContentionHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
@@ -140,7 +140,10 @@ const groupConflictsByNextSegment = function groupConflictsByNextSegment(
       distinctRejectedIssueCount: group.ids.size,
       conflictCount: group.count,
     }))
-    .sort((a, b) => b.distinctRejectedIssueCount - a.distinctRejectedIssueCount || a.path.localeCompare(b.path))
+    .sort(
+      (left, right) =>
+        right.distinctRejectedIssueCount - left.distinctRejectedIssueCount || left.path.localeCompare(right.path),
+    )
 }
 
 const readCodeHeatmap = async function readCodeHeatmap(

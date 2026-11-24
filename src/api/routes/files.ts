@@ -14,54 +14,64 @@ import { ctxFromHono } from '../services/types.ts'
 const router = new Hono<HonoEnv>()
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 const ReviewStatusBodySchema = SetAttachmentReviewStatusSchema.omit({ attachmentId: true })
-router.get('/', async (c) => {
+router.get('/', async (httpContext) => {
   try {
-    return c.json(
-      await filesService.listAttachments(ctxFromHono(c), {
-        entityType: c.req.query('entityType'),
-        entityId: c.req.query('entityId'),
+    return httpContext.json(
+      await filesService.listAttachments(ctxFromHono(httpContext), {
+        entityType: httpContext.req.query('entityType'),
+        entityId: httpContext.req.query('entityId'),
       }),
     )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
-router.post('/links', async (c) => {
+router.post('/links', async (httpContext) => {
   try {
-    return c.json(await filesService.createLinkAttachment(ctxFromHono(c), await jsonBody(c).catch(() => null)), 201)
+    return httpContext.json(
+      await filesService.createLinkAttachment(ctxFromHono(httpContext), await jsonBody(httpContext).catch(() => null)),
+      201,
+    )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
-router.post('/', async (c) => {
-  const response = await coreFileRequest(c, '/files', c.req.raw.body, c.req.header('Content-Type'))
+router.post('/', async (httpContext) => {
+  const response = await coreFileRequest(
+    httpContext,
+    '/files',
+    httpContext.req.raw.body,
+    httpContext.req.header('Content-Type'),
+  )
   return new Response(response.body, { status: response.ok ? 201 : response.status, headers: response.headers })
 })
-router.patch('/:id/review-status', async (c) => {
+router.patch('/:id/review-status', async (httpContext) => {
   try {
-    const parsed = ReviewStatusBodySchema.safeParse(await jsonBody(c))
+    const parsed = ReviewStatusBodySchema.safeParse(await jsonBody(httpContext))
     if (!parsed.success) {
       throw new ValidationError(flattenError(parsed.error))
     }
-    return c.json(
-      await filesService.setAttachmentReviewStatus(ctxFromHono(c), {
+    return httpContext.json(
+      await filesService.setAttachmentReviewStatus(ctxFromHono(httpContext), {
         ...parsed.data,
-        attachmentId: c.req.param('id'),
+        attachmentId: httpContext.req.param('id'),
       }),
     )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
-router.get('/:id/metadata', async (c) => {
+router.get('/:id/metadata', async (httpContext) => {
   try {
-    return c.json(await filesService.getAttachment(ctxFromHono(c), { id: c.req.param('id') }))
+    return httpContext.json(
+      await filesService.getAttachment(ctxFromHono(httpContext), { id: httpContext.req.param('id') }),
+    )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
-router.get('/:id', async (c) => {
-  const response = await coreFileRequest(c, `/files/${encodeURIComponent(c.req.param('id'))}`)
+router.get('/:id', async (httpContext) => {
+  const response = await coreFileRequest(httpContext, `/files/${encodeURIComponent(httpContext.req.param('id'))}`)
   if (!response.ok) {
     return response
   }
@@ -82,12 +92,12 @@ router.get('/:id', async (c) => {
     },
   })
 })
-router.delete('/:id', async (c) => {
+router.delete('/:id', async (httpContext) => {
   try {
-    await filesService.deleteAttachment(ctxFromHono(c), { id: c.req.param('id') })
+    await filesService.deleteAttachment(ctxFromHono(httpContext), { id: httpContext.req.param('id') })
     return new Response(null, { status: 204 })
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 export { router as filesRouter }

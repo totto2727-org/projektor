@@ -9,39 +9,39 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
+router.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await listTaskStatuses(ctx))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listTaskStatuses(ctx))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/', async (c) => {
-  const ctx = ctxFromHono(c)
+router.post('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await createTaskStatus(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await createTaskStatus(ctx, await jsonBody(httpContext)), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+router.patch('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await updateTaskStatus(ctx, c.req.param('id'), await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateTaskStatus(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+router.delete('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await deleteTaskStatus(ctx, c.req.param('id')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await deleteTaskStatus(ctx, httpContext.req.param('id')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

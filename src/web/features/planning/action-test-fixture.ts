@@ -9,7 +9,7 @@ import { createTestDatabase } from '../../test/database.ts'
 
 type InputSchema = Schema.Constraint & Schema.Decoder<unknown>
 interface Definition {
-  input: InputSchema | readonly InputSchema[]
+  input: InputSchema | Readonly<InputSchema[]>
   handler: (...input: unknown[]) => Effect.Effect<unknown, unknown, RequestServices>
 }
 const definitions = vi.hoisted(() => new WeakMap<object, Definition>())

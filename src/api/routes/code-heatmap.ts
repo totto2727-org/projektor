@@ -8,24 +8,24 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-router.get('/:id/code-heatmap', async (c) => {
-  const ctx = ctxFromHono(c)
+router.get('/:id/code-heatmap', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    const since = c.req.query('since')
-    const until = c.req.query('until')
-    const prefix = c.req.query('prefix')
-    const mode = c.req.query('mode')
-    return c.json(
+    const since = httpContext.req.query('since')
+    const until = httpContext.req.query('until')
+    const prefix = httpContext.req.query('prefix')
+    const mode = httpContext.req.query('mode')
+    return httpContext.json(
       await getCodeHeatmap(ctx, {
-        projectId: c.req.param('id'),
+        projectId: httpContext.req.param('id'),
         since: since ? Number(since) : undefined,
         until: until ? Number(until) : undefined,
         prefix,
         mode,
       }),
     )
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

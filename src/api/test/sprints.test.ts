@@ -271,8 +271,8 @@ describe('Sprints API', () => {
       const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
       const issueIds: string[] = []
-      for (let i = 0; i < 500; i++) {
-        const issue = await seedIssue(workspaceId, projectId, userId, { title: `Bulk ${i}` })
+      for (let index = 0; index < 500; index++) {
+        const issue = await seedIssue(workspaceId, projectId, userId, { title: `Bulk ${index}` })
         issueIds.push(issue.id)
       }
 

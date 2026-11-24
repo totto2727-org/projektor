@@ -24,7 +24,7 @@ import type { HonoEnv } from '#types'
  */
 const CACHE_CONTROL = 'private, no-cache'
 
-export async function etagMiddleware(c: Context<HonoEnv>, next: Next): Promise<void> {
+export async function etagMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<void> {
   await next()
 
   /*
@@ -32,23 +32,23 @@ export async function etagMiddleware(c: Context<HonoEnv>, next: Next): Promise<v
    * unauthorised request never reaches here. This guard is the second lock: a 304 must
    * never stand in for a 401/403/404.
    */
-  if (c.req.method !== 'GET' || c.res.status !== 200) {
+  if (httpContext.req.method !== 'GET' || httpContext.res.status !== 200) {
     return
   }
 
-  const body = await c.res.clone().arrayBuffer()
+  const body = await httpContext.res.clone().arrayBuffer()
   const etag = `"${await sha256Prefix(body)}"`
 
-  if (ifNoneMatchMatches(c.req.header('If-None-Match'), etag)) {
-    c.res = new Response(null, {
+  if (ifNoneMatchMatches(httpContext.req.header('If-None-Match'), etag)) {
+    httpContext.res = new Response(null, {
       status: 304,
       headers: { ETag: etag, 'Cache-Control': CACHE_CONTROL },
     })
     return
   }
 
-  c.res.headers.set('ETag', etag)
-  c.res.headers.set('Cache-Control', CACHE_CONTROL)
+  httpContext.res.headers.set('ETag', etag)
+  httpContext.res.headers.set('Cache-Control', CACHE_CONTROL)
 }
 
 function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {

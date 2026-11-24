@@ -260,8 +260,8 @@ export function TitleSection({
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { title: editTitle.trim() } }))
       setEditingTitle(false)
-    } catch (e) {
-      setSaveTitleError(`Save failed: ${String(e)}`)
+    } catch (caughtError) {
+      setSaveTitleError(`Save failed: ${String(caughtError)}`)
     }
     setSavingTitle(false)
   }
@@ -277,12 +277,12 @@ export function TitleSection({
         <input
           type='text'
           value={editTitle}
-          onInput={(e) => setEditTitle((e.target as HTMLInputElement).value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+          onInput={(event) => setEditTitle((event.target as HTMLInputElement).value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
               void saveTitle()
             }
-            if (e.key === 'Escape') {
+            if (event.key === 'Escape') {
               cancelEditTitle()
             }
           }}
@@ -309,8 +309,8 @@ export function TitleSection({
       <h1
         className='m-0 text-2xl font-bold text-text-base leading-tight cursor-pointer'
         onClick={startEditTitle}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
             startEditTitle()
           }
         }}
@@ -413,8 +413,8 @@ function useBodyEditor(
         return
       }
       setAwaitingBody({ body: submittedBody, revision })
-    } catch (e) {
-      setSaveBodyError(`Save failed: ${String(e)}`)
+    } catch (caughtError) {
+      setSaveBodyError(`Save failed: ${String(caughtError)}`)
       setSavingBody(false)
     }
   }
@@ -680,15 +680,15 @@ function LinkForm({
       <input
         type='text'
         value={linkFormRef}
-        onInput={(e) => {
-          setLinkFormRef((e.target as HTMLInputElement).value)
+        onInput={(event) => {
+          setLinkFormRef((event.target as HTMLInputElement).value)
           setLinkFormError(null)
         }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
             onAdd()
           }
-          if (e.key === 'Escape') {
+          if (event.key === 'Escape') {
             onCancel()
           }
         }}
@@ -768,8 +768,8 @@ export function RelationsSection({
       unwrapResult(await addIssueLink({ workspaceSlug, issueId, targetIssueId: resolved.id, type }))
       setLinkFormRef('')
       setLinkFormOpen(false)
-    } catch (e) {
-      setLinkFormError(String(e))
+    } catch (caughtError) {
+      setLinkFormError(String(caughtError))
     }
     setAddingLink(false)
   }
@@ -1085,12 +1085,12 @@ function WikiPageLinkForm({
       <input
         type='text'
         value={query}
-        onInput={(e) => {
-          setQuery((e.target as HTMLInputElement).value)
+        onInput={(event) => {
+          setQuery((event.target as HTMLInputElement).value)
           setLinkError(null)
         }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
             onCancel()
           }
         }}
@@ -1164,15 +1164,15 @@ function UrlLinkForm({
       <input
         type='url'
         value={urlValue}
-        onInput={(e) => {
-          setUrlValue((e.target as HTMLInputElement).value)
+        onInput={(event) => {
+          setUrlValue((event.target as HTMLInputElement).value)
           setLinkError(null)
         }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
             onAdd()
           }
-          if (e.key === 'Escape') {
+          if (event.key === 'Escape') {
             onCancel()
           }
         }}
@@ -1186,12 +1186,12 @@ function UrlLinkForm({
       <input
         type='text'
         value={labelValue}
-        onInput={(e) => setLabelValue((e.target as HTMLInputElement).value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+        onInput={(event) => setLabelValue((event.target as HTMLInputElement).value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
             onAdd()
           }
-          if (e.key === 'Escape') {
+          if (event.key === 'Escape') {
             onCancel()
           }
         }}
@@ -1244,8 +1244,8 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
       unwrapResult(await addAttachmentLink({ workspaceSlug, issueId, link: { kind: 'wiki_ref', wikiPageId } }))
       reset()
       onDone()
-    } catch (e) {
-      setLinkError(String(e))
+    } catch (caughtError) {
+      setLinkError(String(caughtError))
     }
     setLinking(false)
   }
@@ -1267,8 +1267,8 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
       )
       reset()
       onDone()
-    } catch (e) {
-      setLinkError(String(e))
+    } catch (caughtError) {
+      setLinkError(String(caughtError))
     }
     setLinking(false)
   }
@@ -1303,8 +1303,8 @@ function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) 
     setDeleteError(null)
     try {
       unwrapResult(await deleteIssueAttachment({ workspaceSlug, issueId, attachmentId }))
-    } catch (e) {
-      setDeleteError(`Couldn't delete attachment: ${String(e)}`)
+    } catch (caughtError) {
+      setDeleteError(`Couldn't delete attachment: ${String(caughtError)}`)
       return
     }
   }
@@ -1470,7 +1470,7 @@ function CommentItem({
           )}
           <textarea
             value={editBody}
-            onInput={(e) => onChangeBody((e.target as HTMLTextAreaElement).value)}
+            onInput={(event) => onChangeBody((event.target as HTMLTextAreaElement).value)}
             rows={4}
             className='w-full px-3 py-2 border border-border rounded text-sm resize-y box-border mb-2 bg-bg text-text-base'
           />
@@ -1532,8 +1532,8 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
       if (commentRevision.current === revision) {
         setEditingCommentId(null)
       }
-    } catch (e) {
-      setEditCommentError(`Save failed: ${String(e)}`)
+    } catch (caughtError) {
+      setEditCommentError(`Save failed: ${String(caughtError)}`)
     }
     setSavingComment(false)
   }
@@ -1585,8 +1585,8 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
     saveDraft(key, value)
   }
 
-  async function submitComment(e: import('react').FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  async function submitComment(event: import('react').FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     const revision = newCommentRevision.current
     const submittedBody = newComment.trim()
     if (!(await commentForm.validate())) {
@@ -1601,8 +1601,8 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
         clearDraft(key)
         setNewComment('')
       }
-    } catch (e) {
-      setCommentError(`Failed to post comment: ${String(e)}`)
+    } catch (caughtError) {
+      setCommentError(`Failed to post comment: ${String(caughtError)}`)
     }
     setPostingComment(false)
   }
@@ -1674,7 +1674,7 @@ export function CommentsSection({
         )}
         <textarea
           value={newComment}
-          onInput={(e) => setNewComment((e.target as HTMLTextAreaElement).value)}
+          onInput={(event) => setNewComment((event.target as HTMLTextAreaElement).value)}
           placeholder='Add a comment…'
           rows={4}
           // text-base (16px) on phones: below 16px iOS Safari zooms the viewport
@@ -1815,12 +1815,12 @@ function PointsField({
         <input
           type='number'
           value={pointsValue}
-          onInput={(e) => setPointsValue((e.target as HTMLInputElement).value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+          onInput={(event) => setPointsValue((event.target as HTMLInputElement).value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
               void savePoints()
             }
-            if (e.key === 'Escape') {
+            if (event.key === 'Escape') {
               setEditingPoints(false)
             }
           }}

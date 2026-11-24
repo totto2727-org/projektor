@@ -311,7 +311,7 @@ export default class NativeFixtureCore extends FixtureCore {
     }
   }
 
-  async fixtureD1Batch(statements: readonly FixtureStatement[]): Promise<D1Result[]> {
+  async fixtureD1Batch(statements: Readonly<FixtureStatement[]>): Promise<D1Result[]> {
     return this.env.DB.batch(statements.map(({ sql, params }) => this.env.DB.prepare(sql).bind(...params)))
   }
 

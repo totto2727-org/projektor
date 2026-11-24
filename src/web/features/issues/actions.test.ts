@@ -47,8 +47,8 @@ vi.mock('@effront/core/workers', async () => {
   }
 })
 interface Definition {
-  readonly input: Schema.Decoder<unknown> | readonly Schema.Decoder<unknown>[]
-  readonly handler: (...input: readonly unknown[]) => Effect.Effect<unknown, unknown, RequestServices>
+  readonly input: Schema.Decoder<unknown> | Readonly<Schema.Decoder<unknown>[]>
+  readonly handler: (...input: Readonly<unknown[]>) => Effect.Effect<unknown, unknown, RequestServices>
 }
 const fixture = function fixture(options: { origin?: string } = {}) {
   const database = issueDataFixture()
@@ -60,7 +60,7 @@ const fixture = function fixture(options: { origin?: string } = {}) {
     const definition = (action as { definition: Definition }).definition
     const multiple = Array.isArray(definition.input)
     const inputSchema = multiple
-      ? Schema.Tuple(definition.input as readonly Schema.Decoder<unknown>[])
+      ? Schema.Tuple(definition.input as Readonly<Schema.Decoder<unknown>[]>)
       : (definition.input as Schema.Decoder<unknown>)
     const decoded = await Effect.runPromise(Schema.decodeUnknownEffect(inputSchema)(input))
     const request = new Request('https://front.test/_effront/query', {
@@ -73,7 +73,7 @@ const fixture = function fixture(options: { origin?: string } = {}) {
       makeRequestServices(request, testEnvironment(database.db, 'user@example.test', { KV: kv, R2: r2 })),
     )
     return Effect.runPromise(
-      definition.handler(...(multiple ? (decoded as readonly unknown[]) : [decoded])).pipe(
+      definition.handler(...(multiple ? (decoded as Readonly<unknown[]>) : [decoded])).pipe(
         Effect.provideService(RequestServices, {
           ...services,
           invalidate: services.invalidate.pipe(Effect.tap(() => Effect.sync(invalidated))),

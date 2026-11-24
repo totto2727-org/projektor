@@ -332,9 +332,9 @@ describe('Custom Fields — resolved on read', () => {
       type: 'number',
     })
 
-    for (let i = 1; i <= 3; i++) {
-      const issue = await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
-      await seedCustomFieldValue(issue.id, fieldId, String(i * 3))
+    for (let index = 1; index <= 3; index++) {
+      const issue = await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
+      await seedCustomFieldValue(issue.id, fieldId, String(index * 3))
     }
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -604,18 +604,18 @@ describe('PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
 
     const COUNT = 95 // > CHUNK_SIZE (90), so ids span two queries
     const issueIds: string[] = []
-    for (let i = 0; i < COUNT; i++) {
+    for (let index = 0; index < COUNT; index++) {
       const issue = await seedIssue(ws.workspace.id, proj.id, ws.user.id)
-      await seedCustomFieldValue(issue.id, def.id, String(i))
+      await seedCustomFieldValue(issue.id, def.id, String(index))
       issueIds.push(issue.id)
     }
 
     const loaded = await batchLoadCustomFields(env.DB, ws.workspace.id, issueIds)
 
     expect(Object.keys(loaded)).toHaveLength(COUNT)
-    for (let i = 0; i < COUNT; i++) {
-      expect(loaded[issueIds[i]]).toHaveLength(1)
-      expect(loaded[issueIds[i]][0].value).toBe(String(i))
+    for (let index = 0; index < COUNT; index++) {
+      expect(loaded[issueIds[index]]).toHaveLength(1)
+      expect(loaded[issueIds[index]][0].value).toBe(String(index))
     }
   }, 15_000) // seeds 95 issues sequentially; coverage instrumentation pushes this past the 5s default
 })

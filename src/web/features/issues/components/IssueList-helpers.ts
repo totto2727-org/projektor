@@ -33,7 +33,7 @@ const applyEpicParams = function applyEpicParams(
   qs: URLSearchParams,
   filterEpicId: string,
   hideEpics: boolean,
-  taskTypes: readonly KeyedById[],
+  taskTypes: Readonly<KeyedById[]>,
 ): void {
   if (filterEpicId && filterEpicId !== 'none') {
     qs.set('parentId', filterEpicId)
@@ -79,7 +79,7 @@ export function applyDateRangeParams(
 // (everything except limit/cursor, which the callers set).
 export function buildFilterQueryParams(
   filters: FilterQueryFilters,
-  projects: readonly KeyedById[],
+  projects: Readonly<KeyedById[]>,
   taskTypes: KeyedById[],
 ): URLSearchParams {
   const {
@@ -138,7 +138,7 @@ const URL_SYNC_KEYS = [
   ['dateField', (f: UrlSyncFilters) => f.filterDateField || null],
   ['dateFrom', (f: UrlSyncFilters) => f.filterDateFrom || null],
   ['dateTo', (f: UrlSyncFilters) => f.filterDateTo || null],
-] as const satisfies readonly [string, (f: UrlSyncFilters) => string | null][]
+] as const satisfies Readonly<[string, (f: UrlSyncFilters) => string | null][]>
 
 // Build canonical filter navigation while retaining unrelated scoped query parameters.
 // Effront owns navigation through ordinary anchors, not a parallel history router.

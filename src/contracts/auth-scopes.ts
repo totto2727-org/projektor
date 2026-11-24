@@ -18,7 +18,7 @@ export type Capability = 'read' | 'write'
  * - "write" implies "read" (you can read what you can write).
  * - Unknown/legacy scope strings grant nothing (fail-closed).
  */
-export function tokenAllows(scopes: readonly string[], required: Capability): boolean {
+export function tokenAllows(scopes: Readonly<string[]>, required: Capability): boolean {
   if (scopes.includes('*')) {
     return true
   }

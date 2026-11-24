@@ -76,7 +76,7 @@ export async function listConnectorGrants(
     }
     cursor = result.cursor
   }
-  return grants.sort((a, b) => b.grantedAt - a.grantedAt)
+  return grants.sort((left, right) => right.grantedAt - left.grantedAt)
 }
 
 /** The provider enforces user ownership. This lookup additionally prevents cross-workspace revocation. */

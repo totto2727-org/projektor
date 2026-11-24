@@ -53,7 +53,9 @@ export async function nativeCoreWorker(runnerName: string) {
         return { type, path, contents: await readFile(path) }
       }),
   )
-  modules.sort((a, b) => Number(b.path.endsWith('/core.worker.js')) - Number(a.path.endsWith('/core.worker.js')))
+  modules.sort(
+    (left, right) => Number(right.path.endsWith('/core.worker.js')) - Number(left.path.endsWith('/core.worker.js')),
+  )
   if (!modules[0]?.path.endsWith('/core.worker.js')) {
     throw new Error('The official native Core artifact is missing.')
   }

@@ -7,7 +7,7 @@ export interface Heading {
 }
 
 /** Original Wiki heading-id allocation, including authored-id reservation. */
-export function assignHeadingIds(headings: readonly { text: string; id?: string | null }[]): string[] {
+export function assignHeadingIds(headings: Readonly<{ text: string; id?: string | null }[]>): string[] {
   const used = new Set<string>()
   const result: (string | null)[] = headings.map((heading) => {
     const authored = heading.id?.trim()

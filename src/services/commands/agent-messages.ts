@@ -68,7 +68,7 @@ const MESSAGE_INSERT_CHUNK_SIZE = 10
 export function buildPostMessageStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
-  messages: readonly Readonly<{ scope: string; agentId?: string; body: string }>[],
+  messages: Readonly<Readonly<{ scope: string; agentId?: string; body: string }>[]>,
 ): D1PreparedStatement[] {
   if (messages.length === 0) {
     return []
@@ -83,8 +83,8 @@ export function buildPostMessageStatements(
     createdAt: now,
   }))
   const statements: D1PreparedStatement[] = []
-  for (let i = 0; i < rows.length; i += MESSAGE_INSERT_CHUNK_SIZE) {
-    const chunk = rows.slice(i, i + MESSAGE_INSERT_CHUNK_SIZE)
+  for (let index = 0; index < rows.length; index += MESSAGE_INSERT_CHUNK_SIZE) {
+    const chunk = rows.slice(index, index + MESSAGE_INSERT_CHUNK_SIZE)
     statements.push(toD1Statement(ctx, orm.insert(schema.agentMessages).values(chunk).toSQL()))
   }
   return statements

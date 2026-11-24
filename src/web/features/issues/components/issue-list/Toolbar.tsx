@@ -109,7 +109,7 @@ function FilterSelects({
           <input
             type='checkbox'
             checked={hideEpics}
-            onChange={(e) => setHideEpics((e.target as HTMLInputElement).checked)}
+            onChange={(event) => setHideEpics((event.target as HTMLInputElement).checked)}
           />
           Hide epics
         </label>
@@ -166,7 +166,7 @@ interface ToolbarProps extends FilterSelectsProps {
   searchInputRef: RefObject<HTMLInputElement | null>
   searchRoute: IssuesRoute
 
-  derivedStatuses: readonly TaskStatus[]
+  derivedStatuses: Readonly<TaskStatus[]>
   filterStatuses: string[]
   setFilterStatuses: Dispatch<SetStateAction<string[]>>
   filterPriorities: string[]

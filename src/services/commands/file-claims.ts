@@ -177,10 +177,10 @@ const toD1Statement = function toD1Statement(
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-const chunk = function chunk<T>(items: readonly T[], size: number): T[][] {
+const chunk = function chunk<T>(items: Readonly<T[]>, size: number): T[][] {
   const out: T[][] = []
-  for (let i = 0; i < items.length; i += size) {
-    out.push(items.slice(i, i + size) as T[])
+  for (let index = 0; index < items.length; index += size) {
+    out.push(items.slice(index, index + size) as T[])
   }
   return out
 }
@@ -195,7 +195,7 @@ const chunk = function chunk<T>(items: readonly T[], size: number): T[][] {
 const buildReleaseByIdsStatements = function buildReleaseByIdsStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
-  ids: readonly string[],
+  ids: Readonly<string[]>,
   now: number,
   reason: string,
 ): D1PreparedStatement[] {
@@ -218,7 +218,7 @@ const buildReleaseByIdsStatements = function buildReleaseByIdsStatements(
   )
 }
 
-const releasedIdsFrom = function releasedIdsFrom(results: readonly D1Result[]): Set<string> {
+const releasedIdsFrom = function releasedIdsFrom(results: Readonly<D1Result[]>): Set<string> {
   return new Set(results.flatMap((r) => (r.results as { id: string }[]).map((row) => row.id)))
 }
 
@@ -233,15 +233,15 @@ const MESSAGE_BODY_MAX = PostMessageSchema.shape.body.maxLength ?? 5000
  * Quoted, comma-separated paths, cut short with "…and N more" so the result (plus the
  * caller's `overhead` characters of surrounding text) fits within MESSAGE_BODY_MAX.
  */
-const formatPathList = function formatPathList(paths: readonly string[], overhead: number): string {
+const formatPathList = function formatPathList(paths: Readonly<string[]>, overhead: number): string {
   const max = MESSAGE_BODY_MAX - overhead
   let out = ''
-  for (let i = 0; i < paths.length; i++) {
-    const next = out ? `${out}, "${paths[i]}"` : `"${paths[i]}"`
-    const remaining = paths.length - i - 1
+  for (let index = 0; index < paths.length; index++) {
+    const next = out ? `${out}, "${paths[index]}"` : `"${paths[index]}"`
+    const remaining = paths.length - index - 1
     const tail = remaining > 0 ? `, …and ${remaining} more` : ''
     if (next.length + tail.length > max) {
-      return `${out}${out ? ', ' : ''}…and ${paths.length - i} more`
+      return `${out}${out ? ', ' : ''}…and ${paths.length - index} more`
     }
     out = next
   }
@@ -251,7 +251,7 @@ const formatPathList = function formatPathList(paths: readonly string[], overhea
 const buildConflictInsertStatements = function buildConflictInsertStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
-  rows: readonly (typeof schema.claimConflicts.$inferInsert)[],
+  rows: Readonly<(typeof schema.claimConflicts.$inferInsert)[]>,
 ): D1PreparedStatement[] {
   return chunk(rows, CONFLICT_INSERT_CHUNK_SIZE).map((rowChunk) =>
     toD1Statement(ctx, orm.insert(schema.claimConflicts).values(rowChunk).toSQL()),
@@ -261,7 +261,7 @@ const buildConflictInsertStatements = function buildConflictInsertStatements(
 const buildClaimInsertStatements = function buildClaimInsertStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
-  rows: readonly (typeof schema.issueFileClaims.$inferInsert)[],
+  rows: Readonly<(typeof schema.issueFileClaims.$inferInsert)[]>,
 ): D1PreparedStatement[] {
   return chunk(rows, CLAIM_INSERT_CHUNK_SIZE).map((rowChunk) =>
     toD1Statement(ctx, orm.insert(schema.issueFileClaims).values(rowChunk).toSQL()),

@@ -18,10 +18,10 @@ export interface MarkdownHeading {
 }
 export interface RenderedMarkdown {
   readonly html: string
-  readonly toc: readonly MarkdownHeading[]
+  readonly toc: Readonly<MarkdownHeading[]>
 }
 export interface MarkdownOptions {
-  readonly pages?: readonly { title: string; slug: string }[]
+  readonly pages?: Readonly<{ title: string; slug: string }[]>
   readonly workspaceSlug?: string
   readonly projectId?: string
 }

@@ -145,7 +145,7 @@ export function ReviewTargetsSection({
   issueHref,
   focused = false,
 }: {
-  attachments: readonly Attachment[]
+  attachments: Readonly<Attachment[]>
   workspaceSlug: string
   issueId: string
   issueHref: string
@@ -163,7 +163,7 @@ export function ReviewTargetsSection({
   const reviewUrl = new URL(issueHref, 'https://frontend.invalid')
   reviewUrl.searchParams.set('tab', 'review-targets')
   const reviewHref = `${reviewUrl.pathname}${reviewUrl.search}${reviewUrl.hash}`
-  const rows = (items: readonly Attachment[], label: string) => (
+  const rows = (items: Readonly<Attachment[]>, label: string) => (
     <ul aria-label={label} className='list-none p-0 m-0 flex flex-col gap-2'>
       {items.map((attachment) => (
         <ReviewTargetRow key={attachment.id} attachment={attachment} workspaceSlug={workspaceSlug} issueId={issueId} />

@@ -367,7 +367,7 @@ const domainOperations = function domainOperations(
     }
     if (path.startsWith(`${COMMANDS}/`)) {
       keys.add(`${basename(path)}:${name}`)
-      if (!(FILE_IO_WRAPPERS as readonly string[]).includes(name)) {
+      if (!(FILE_IO_WRAPPERS as Readonly<string[]>).includes(name)) {
         return
       }
     } else if (

@@ -18,7 +18,7 @@ export interface SharedIssue {
   assignee_name: string | null
   created_at: number
   expires_at: number
-  customFields: readonly { key: string; label: string; type: string; value: string }[]
+  customFields: Readonly<{ key: string; label: string; type: string; value: string }[]>
   brand: WorkspaceBrandDto
 }
 

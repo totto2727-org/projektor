@@ -6,7 +6,7 @@ import { updateIssue } from '../../actions.ts'
 import type { TaskStatus } from '../board-utils.ts'
 
 /** Mutation proxies refresh canonical SSR rows, never rewrite a browser-owned row copy. */
-export function useIssueMutations(workspaceSlug: string | undefined, statuses: readonly TaskStatus[]) {
+export function useIssueMutations(workspaceSlug: string | undefined, statuses: Readonly<TaskStatus[]>) {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [updatingPriorityId, setUpdatingPriorityId] = useState<string | null>(null)
   const [updateError, setUpdateError] = useState<string | null>(null)

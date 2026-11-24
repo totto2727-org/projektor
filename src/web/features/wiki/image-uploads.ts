@@ -34,7 +34,7 @@ export const imageUploads = ViewPlugin.fromClass(ImageUploads)
 
 export async function insertUploadedImages(
   view: EditorView,
-  files: readonly File[],
+  files: Readonly<File[]>,
   position: number,
   upload: (file: File) => Promise<string | null>,
 ): Promise<void> {

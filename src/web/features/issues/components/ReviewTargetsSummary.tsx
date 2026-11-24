@@ -7,7 +7,7 @@ interface ReviewableIssue {
   title: string
   project_key: string | null
   workspaceSlug?: string
-  reviewTargets: readonly ReviewTarget[]
+  reviewTargets: Readonly<ReviewTarget[]>
 }
 
 const STATUS_LABELS = {

@@ -744,8 +744,8 @@ describe('MCP endpoint', () => {
 
   test('get_prioritized_issues respects limit parameter', async () => {
     const { user } = await seedFixture()
-    for (let i = 0; i < 5; i++) {
-      await seedIssue(workspaceId, projectId, user.id, { title: `Issue ${i}` })
+    for (let index = 0; index < 5; index++) {
+      await seedIssue(workspaceId, projectId, user.id, { title: `Issue ${index}` })
     }
 
     const res = (await mcpCall<{ content: { text: string }[] }>(

@@ -36,7 +36,7 @@ export async function seedRateLimitCounter(key: string, count: number, windowSec
   }
   const stub = ns.get(ns.idFromName(rateLimiterObjectName(env, key)))
   const nowSecs = Math.floor(Date.now() / 1000)
-  for (let i = 0; i < count; i++) {
+  for (let index = 0; index < count; index++) {
     await stub.increment(windowSecs, nowSecs)
   }
 }

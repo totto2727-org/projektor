@@ -7,7 +7,7 @@
  * the test — see AGENTS.md "Deletes never rely on FK cascades".
  */
 
-export type FkCleanupEntry = { cleanedBy: readonly string[] } | { guarded: string }
+export type FkCleanupEntry = { cleanedBy: Readonly<string[]> } | { guarded: string }
 
 export const FK_CLEANUP_ALLOWLIST: Record<string, FkCleanupEntry> = {
   'activity -> users (SET NULL)': {

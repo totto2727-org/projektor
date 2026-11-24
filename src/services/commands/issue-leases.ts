@@ -246,15 +246,15 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
       )
       .bind(id, ctx.workspaceId, issueId, agentId, now, ctx.workspaceId, projectId, cutoff, cap)
       .run()
-  } catch (e) {
+  } catch (caughtError) {
     /*
      * Lost a genuine race: another claim inserted the active lease for THIS
      * issue first and the partial UNIQUE index rejected ours.
      */
-    if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) {
+    if (caughtError instanceof Error && /UNIQUE constraint failed/i.test(caughtError.message)) {
       throw new ConflictError('Issue was just leased by another agent')
     }
-    throw e
+    throw caughtError
   }
 
   // No row inserted and no UNIQUE violation ⇒ the WIP-cap guard subquery held.

@@ -59,8 +59,8 @@ export function ProjectList({
   memberships,
   showArchived = false,
 }: {
-  initialProjects: readonly ProjectSummary[]
-  memberships: readonly Membership[]
+  initialProjects: Readonly<ProjectSummary[]>
+  memberships: Readonly<Membership[]>
   showArchived?: boolean
 }) {
   const runtime = useRuntime()

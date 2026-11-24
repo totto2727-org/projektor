@@ -16,8 +16,8 @@ export interface SourceSummary {
 interface Props {
   workspaceSlug: string
   projectId: string
-  initialSources: readonly FeedbackSource[]
-  initialSummaries: readonly SourceSummary[]
+  initialSources: Readonly<FeedbackSource[]>
+  initialSummaries: Readonly<SourceSummary[]>
 }
 
 function formatDate(ts: number): string {

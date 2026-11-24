@@ -40,7 +40,7 @@ interface UrlSyncState {
 export function useFilterUrlSync(
   state: UrlSyncState,
   search: string,
-  projects: readonly { key: string; id: string }[] = [],
+  projects: Readonly<{ key: string; id: string }[]> = [],
 ) {
   const {
     filterStatuses,

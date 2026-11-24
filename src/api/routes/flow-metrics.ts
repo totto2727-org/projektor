@@ -8,22 +8,22 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-router.get('/:id/flow-metrics', async (c) => {
-  const ctx = ctxFromHono(c)
+router.get('/:id/flow-metrics', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    const since = c.req.query('since')
-    const until = c.req.query('until')
-    const granularity = c.req.query('granularity')
-    return c.json(
+    const since = httpContext.req.query('since')
+    const until = httpContext.req.query('until')
+    const granularity = httpContext.req.query('granularity')
+    return httpContext.json(
       await getFlowMetrics(ctx, {
-        projectId: c.req.param('id'),
+        projectId: httpContext.req.param('id'),
         since: since ? Number(since) : undefined,
         until: until ? Number(until) : undefined,
         granularity,
       }),
     )
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

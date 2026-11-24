@@ -276,7 +276,7 @@ export async function notifyWikiWatchers(
  */
 const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
   E extends { userId: string; pageId: string },
->(ctx: ServiceCtx, orm: Orm, entries: readonly E[]): Promise<E[]> {
+>(ctx: ServiceCtx, orm: Orm, entries: Readonly<E[]>): Promise<E[]> {
   const pageIds = [...new Set(entries.map((e) => e.pageId))]
   // Trashed pages are included on purpose: "deleted" notifications are sent for them.
   const pages = await inChunks(pageIds, (chunk) =>
@@ -313,13 +313,15 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
 async function insertNotifications(
   ctx: ServiceCtx,
   orm: Orm,
-  entries: readonly {
-    userId: string
-    pageId: string
-    slug: string
-    title: string
-    action: 'created' | 'updated' | 'deleted'
-  }[],
+  entries: Readonly<
+    {
+      userId: string
+      pageId: string
+      slug: string
+      title: string
+      action: 'created' | 'updated' | 'deleted'
+    }[]
+  >,
 ): Promise<void> {
   if (entries.length === 0) {
     return
@@ -349,8 +351,8 @@ async function insertNotifications(
    * multi-column inserts — same rationale as wiki-links.ts's LINK_INSERT_CHUNK_SIZE).
    */
   const NOTIFICATION_INSERT_CHUNK_SIZE = 8
-  for (let i = 0; i < values.length; i += NOTIFICATION_INSERT_CHUNK_SIZE) {
-    await orm.insert(schema.wikiNotifications).values(values.slice(i, i + NOTIFICATION_INSERT_CHUNK_SIZE))
+  for (let index = 0; index < values.length; index += NOTIFICATION_INSERT_CHUNK_SIZE) {
+    await orm.insert(schema.wikiNotifications).values(values.slice(index, index + NOTIFICATION_INSERT_CHUNK_SIZE))
   }
 }
 
@@ -367,7 +369,7 @@ async function insertNotifications(
  */
 export async function notifyCascadeDescendantWatchers(
   ctx: ServiceCtx,
-  descendants: readonly { id: string; slug: string; title: string; isTemplate: boolean }[],
+  descendants: Readonly<{ id: string; slug: string; title: string; isTemplate: boolean }[]>,
   action: 'created' | 'updated' | 'deleted' = 'deleted',
 ): Promise<void> {
   const pages = descendants.filter((p) => !p.isTemplate)
@@ -754,9 +756,9 @@ const watchedPageIds = async function watchedPageIds(
  * changes inside a single second, and the alternative is a poll that can never advance.)
  */
 const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends { createdAt: number }>(
-  rows: readonly T[],
+  rows: Readonly<T[]>,
   limit: number,
-): readonly T[] {
+): Readonly<T[]> {
   if (rows.length !== limit || rows.length === 0) {
     return rows
   }

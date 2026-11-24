@@ -63,12 +63,12 @@ function SaveViewControl({ saved }: { saved: Saved }) {
       <input
         type='text'
         value={saveViewName}
-        onInput={(e) => setSaveViewName((e.target as HTMLInputElement).value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+        onInput={(event) => setSaveViewName((event.target as HTMLInputElement).value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
             void doSaveView()
           }
-          if (e.key === 'Escape') {
+          if (event.key === 'Escape') {
             setSaveViewName('')
             setShowSaveInput(false)
           }

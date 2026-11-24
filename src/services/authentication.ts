@@ -97,7 +97,7 @@ const JwtPayloadSchema = z.object({
 })
 type JwtHeader = z.infer<typeof JwtHeaderSchema>
 type JwtPayload = z.infer<typeof JwtPayloadSchema>
-function decodeJwtFields(parts: readonly string[]): { header: JwtHeader; payload: JwtPayload } | null {
+function decodeJwtFields(parts: Readonly<string[]>): { header: JwtHeader; payload: JwtPayload } | null {
   try {
     const header = JwtHeaderSchema.safeParse(JSON.parse(base64urlDecode(parts[0])))
     const payload = JwtPayloadSchema.safeParse(JSON.parse(base64urlDecode(parts[1])))

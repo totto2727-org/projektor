@@ -240,7 +240,7 @@ const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((o) => o.valu
  * doesn't produce a second, visually-indistinguishable entry alongside the well-known
  * lowercase `runbook`.
  */
-function buildTypeFilterOptions(discoveredTypes: readonly string[]): SelectOption[] {
+function buildTypeFilterOptions(discoveredTypes: Readonly<string[]>): SelectOption[] {
   const seen = new Set(Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
   const extras: string[] = []
   for (const t of discoveredTypes) {
@@ -254,7 +254,7 @@ function buildTypeFilterOptions(discoveredTypes: readonly string[]): SelectOptio
     seen.add(key)
     extras.push(t)
   }
-  extras.sort((a, b) => a.localeCompare(b))
+  extras.sort((left, right) => left.localeCompare(right))
   return [...WIKI_TYPE_FILTER_OPTIONS, ...extras.map((t) => ({ value: t, label: t }))]
 }
 
@@ -543,7 +543,7 @@ function formatBytes(bytes: number): string {
  * PROJ-514: walks the tree already fetched by useWikiTree to discover distinct `type`
  * values for the sidebar filter dropdown, instead of issuing a second unfiltered fetch.
  */
-function collectTreeTypes(nodes: readonly TreeNode[]): string[] {
+function collectTreeTypes(nodes: Readonly<TreeNode[]>): string[] {
   const types: string[] = []
   for (const node of nodes) {
     if (node.type) {
@@ -554,7 +554,7 @@ function collectTreeTypes(nodes: readonly TreeNode[]): string[] {
   return types
 }
 
-function flattenTree(nodes: readonly TreeNode[], parentId: string | null = null): Record<string, FlatEntry> {
+function flattenTree(nodes: Readonly<TreeNode[]>, parentId: string | null = null): Record<string, FlatEntry> {
   const map: Record<string, FlatEntry> = {}
   for (const node of nodes) {
     map[node.id] = { id: node.id, slug: node.slug, title: node.title, parentId }
@@ -884,7 +884,7 @@ function WikiFilterBar({
         name='tags'
         maxLength={2549}
         value={filterTags}
-        onChange={(e) => onFilterTagsChange((e.target as HTMLInputElement).value)}
+        onChange={(event) => onFilterTagsChange((event.target as HTMLInputElement).value)}
         placeholder='Filter by tags (comma-separated)…'
         className='w-full px-3 py-[0.375rem] border border-border rounded text-sm bg-bg text-text-base box-border'
         aria-label='Filter wiki pages by tags'
@@ -992,7 +992,7 @@ function WikiSidebar({
           name='q'
           maxLength={2000}
           value={searchQuery}
-          onChange={(e) => onSearchQueryChange((e.target as HTMLInputElement).value)}
+          onChange={(event) => onSearchQueryChange((event.target as HTMLInputElement).value)}
           placeholder='Search pages…'
           className='w-full px-3 py-[0.375rem] mb-3 border border-border rounded text-sm bg-bg text-text-base box-border'
           aria-label='Search wiki pages'
@@ -1027,7 +1027,7 @@ function WikiSidebar({
       <details
         className='mt-3 pt-3 border-t border-border'
         open={staleOpen}
-        onToggle={(e) => onToggleStale(e.currentTarget.open)}
+        onToggle={(event) => onToggleStale(event.currentTarget.open)}
       >
         <summary className='cursor-pointer text-[0.8rem] text-text-muted select-none'>Needs verification</summary>
         <div className='pt-2'>
@@ -1093,7 +1093,7 @@ function CreatePageForm({
           id='create-title'
           type='text'
           value={title}
-          onChange={(e) => onTitleChange((e.target as HTMLInputElement).value)}
+          onChange={(event) => onTitleChange((event.target as HTMLInputElement).value)}
           placeholder='Page title'
           className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border text-base'
         />
@@ -1106,7 +1106,7 @@ function CreatePageForm({
           id='create-slug'
           type='text'
           value={slug}
-          onChange={(e) => onSlugChange((e.target as HTMLInputElement).value)}
+          onChange={(event) => onSlugChange((event.target as HTMLInputElement).value)}
           placeholder='auto-derived-from-title'
           className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border font-mono'
         />
@@ -1336,27 +1336,27 @@ function PageActionOverflowMenu({
       return
     }
     menuItems()[0]?.focus()
-    function onPointerDown(e: MouseEvent) {
-      if (!(e.target instanceof Node) || !isInside(e.target)) {
+    function onPointerDown(event: MouseEvent) {
+      if (!(event.target instanceof Node) || !isInside(event.target)) {
         setOpen(false)
       }
     }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' || e.key === 'Tab') {
-        e.preventDefault()
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' || event.key === 'Tab') {
+        event.preventDefault()
         closeToTrigger()
         return
       }
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
         return
       }
       const items = menuItems()
       if (items.length === 0) {
         return
       }
-      e.preventDefault()
+      event.preventDefault()
       const currentIndex = items.indexOf(document.activeElement as HTMLElement)
-      const delta = e.key === 'ArrowDown' ? 1 : -1
+      const delta = event.key === 'ArrowDown' ? 1 : -1
       const nextIndex = (currentIndex + delta + items.length) % items.length
       items[nextIndex]?.focus()
     }
@@ -1482,7 +1482,7 @@ function PageHeader({
           id='wiki-title'
           type='text'
           value={editTitle}
-          onChange={(e) => onEditTitleChange((e.target as HTMLInputElement).value)}
+          onChange={(event) => onEditTitleChange((event.target as HTMLInputElement).value)}
           aria-label='Page title'
           className='flex-1 px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border text-2xl font-bold'
         />
@@ -1656,8 +1656,8 @@ function RevisionRow({
         await Effect.runPromise(query(getWikiRevisionDiff)({ workspaceSlug, slug: pageSlug, revisionId: revision.id })),
       )
       setDiff(result.diff)
-    } catch (e) {
-      setDiffError(String(e))
+    } catch (caughtError) {
+      setDiffError(String(caughtError))
     }
     setDiffLoading(false)
   }
@@ -2299,7 +2299,7 @@ function useWikiStalePages(_workspaceSlug: string | undefined, _projectId: strin
 function useWikiFilters(
   _workspaceSlug: string | undefined,
   _projectId: string | undefined,
-  pageTree: readonly TreeNode[],
+  pageTree: Readonly<TreeNode[]>,
 ) {
   const seed = useWikiSeed()
   const filterForm = useForm({
@@ -2435,7 +2435,7 @@ function excerptOf(content: string, maxLength = 200): string {
  * Only local unsaved previews need a bounded asynchronous client render. */
 function useRenderedPageMarkdown(
   content: string | undefined,
-  wikiPages: readonly { title: string; slug: string }[],
+  wikiPages: Readonly<{ title: string; slug: string }[]>,
 ): RenderedMarkdown {
   const seed = useWikiSeed()
   return useMarkdownPreview(
@@ -2522,7 +2522,7 @@ function findInContent(container: HTMLElement, id: string): HTMLElement | null {
 }
 
 function useHashScroll(
-  toc: readonly TocItem[],
+  toc: Readonly<TocItem[]>,
   contentRef: RefObject<HTMLDivElement | null>,
   pageSlug: string | undefined,
 ) {
@@ -2938,10 +2938,10 @@ function useUnsavedChangesGuard(editing: boolean, page: WikiPageData | null, edi
     if (!dirty) {
       return
     }
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
       // Legacy browsers only show the prompt when returnValue is set.
-      e.returnValue = ''
+      event.returnValue = ''
     }
     const onNavigate = (event: NavigateEvent) => {
       const destination = new URL(event.destination.url)
@@ -3282,12 +3282,12 @@ function useWikiEditing(
             // Keep the prior publication precondition if the refreshed page cannot be read.
           }
         }
-      } catch (e) {
+      } catch (caughtError) {
         if (sessionRef.current !== session) {
           return
         }
-        setSaveError(wikiSaveErrorMessage(e))
-        setConflict(isWikiSaveConflict(e))
+        setSaveError(wikiSaveErrorMessage(caughtError))
+        setConflict(isWikiSaveConflict(caughtError))
         setDraftStatus('failed')
       }
     })().finally(() => {
@@ -3324,8 +3324,8 @@ function useWikiEditing(
        * predates revisionId", which falls back to last-write-wins.
        */
       await saveWithBase(base === undefined ? null : base)
-    } catch (e) {
-      setSaveError(wikiSaveErrorMessage(e))
+    } catch (caughtError) {
+      setSaveError(wikiSaveErrorMessage(caughtError))
     }
   }
 
@@ -3398,11 +3398,11 @@ function useWikiRestore(
           baseRevisionId: latestRevisionId ?? null,
         }),
       )
-    } catch (e) {
-      if (isWikiSaveConflict(e)) {
+    } catch (caughtError) {
+      if (isWikiSaveConflict(caughtError)) {
         alert('This page was changed by someone else since you loaded it. Reload the page before restoring.')
       } else {
-        alert(`Restore failed: ${String(e)}`)
+        alert(`Restore failed: ${String(caughtError)}`)
       }
     }
     setRestoringId(null)
@@ -3449,8 +3449,8 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
     try {
       unwrapResult(await moveWikiPage({ workspaceSlug, slug: page.slug, parentId: moveTargetId || null }))
       setMoving(false)
-    } catch (e) {
-      setMoveError(`Move failed: ${String(e)}`)
+    } catch (caughtError) {
+      setMoveError(`Move failed: ${String(caughtError)}`)
     }
     setMoveSaving(false)
   }
@@ -3484,8 +3484,8 @@ function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | n
     setVerifyError(null)
     try {
       unwrapResult(await verifyWikiPage({ workspaceSlug, slug: page.slug }))
-    } catch (e) {
-      setVerifyError(`Verify failed: ${String(e)}`)
+    } catch (caughtError) {
+      setVerifyError(`Verify failed: ${String(caughtError)}`)
     }
     setVerifying(false)
   }
@@ -3593,8 +3593,8 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
       setCreating(false)
       setCreateSaving(false)
       return created.slug
-    } catch (e) {
-      setCreateError(`Create failed: ${String(e)}`)
+    } catch (caughtError) {
+      setCreateError(`Create failed: ${String(caughtError)}`)
     }
     setCreateSaving(false)
     return undefined
@@ -3692,8 +3692,8 @@ function createWikiActions(
           navigateTo(restoredSlug || deletedPage.slug)
         },
       })
-    } catch (e) {
-      alert(`Delete failed: ${String(e)}`)
+    } catch (caughtError) {
+      alert(`Delete failed: ${String(caughtError)}`)
     }
   }
 
@@ -3855,8 +3855,8 @@ function useWikiSidebarDrawer() {
     if (!open) {
       return
     }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
         close()
       }
     }
@@ -3904,8 +3904,8 @@ function useWikiSidebarDrawer() {
     if (!open) {
       return
     }
-    function onTrapTab(e: KeyboardEvent) {
-      if (e.key !== 'Tab') {
+    function onTrapTab(event: KeyboardEvent) {
+      if (event.key !== 'Tab') {
         return
       }
       if (!window.matchMedia(WIKI_MOBILE_QUERY).matches) {
@@ -3923,11 +3923,11 @@ function useWikiSidebarDrawer() {
       }
       const first = focusables[0]
       const last = focusables[focusables.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
         last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
         first.focus()
       }
     }
@@ -4063,10 +4063,10 @@ function deriveWikiPageState(
    * PROJ-860: passed in (memoised on [pageMap]) rather than recomputed here, so its
    * identity stays stable across renders this function runs on but pageMap doesn't change.
    */
-  wikiPages: readonly FlatEntry[],
+  wikiPages: Readonly<FlatEntry[]>,
   editState: ReturnType<typeof useWikiEditing>,
   createForm: ReturnType<typeof useCreatePageForm>,
-  toc: readonly TocItem[],
+  toc: Readonly<TocItem[]>,
 ) {
   const latestRevision = pageData.revisions[0] ?? null
   // Breadcrumbs for current page (PROJ-114)
@@ -4447,8 +4447,8 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
     let result: string
     try {
       result = await current.undo()
-    } catch (e) {
-      setUndoError(`Undo failed: ${String(e)}`)
+    } catch (caughtError) {
+      setUndoError(`Undo failed: ${String(caughtError)}`)
       setUndoing(false)
       return
     }
@@ -4470,9 +4470,9 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocusWithin(true)}
-      onBlur={(e) => {
-        const next = e.relatedTarget
-        if (!(next instanceof Node) || !e.currentTarget.contains(next)) {
+      onBlur={(event) => {
+        const next = event.relatedTarget
+        if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
           setFocusWithin(false)
         }
       }}

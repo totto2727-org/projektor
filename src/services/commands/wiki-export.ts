@@ -206,7 +206,7 @@ const ensureFrontmatter = function ensureFrontmatter(page: ExportedPage): string
  */
 const collectAttachments = async function collectAttachments(
   ctx: ServiceCtx,
-  pages: readonly ExportedPage[],
+  pages: Readonly<ExportedPage[]>,
 ): Promise<{ pageSlug: string; filename: string; r2Key: string; size: number }[]> {
   if (pages.length === 0) {
     return []

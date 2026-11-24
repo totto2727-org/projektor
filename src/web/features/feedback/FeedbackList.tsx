@@ -36,7 +36,7 @@ interface Props {
   workspaceSlug?: string
   projectId: string
   sourceId: string
-  initialRows: readonly Feedback[]
+  initialRows: Readonly<Feedback[]>
   initialStatus?: string
 }
 
@@ -257,7 +257,7 @@ function useFeedbackActions(
   projectId: string,
   setError: (e: string | null) => void,
   setSelected: (s: Set<string>) => void,
-  addOptimistic: (change: { ids: readonly string[]; status: string }) => void,
+  addOptimistic: (change: { ids: Readonly<string[]>; status: string }) => void,
   startTransition: (action: () => Promise<void>) => void,
 ) {
   function convert(id: string) {
@@ -360,7 +360,7 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId, initi
   const [pending, startTransition] = useTransition()
   const [optimisticRows, addOptimistic] = useOptimistic(
     initialRows,
-    (current, change: { ids: readonly string[]; status: string }) => {
+    (current, change: { ids: Readonly<string[]>; status: string }) => {
       const ids = new Set(change.ids)
       return current.map((row) => (ids.has(row.id) ? { ...row, status: change.status } : row))
     },

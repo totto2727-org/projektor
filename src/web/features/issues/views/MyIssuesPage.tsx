@@ -4,8 +4,8 @@ import MyIssues from '../components/MyIssues.tsx'
 import type { Issue } from '../types.ts'
 export type ScopedIssue = Issue & { readonly workspaceSlug: string }
 export interface MyIssuesInitialData {
-  readonly issues: readonly ScopedIssue[]
-  readonly memberships: readonly WorkspaceMembership[]
+  readonly issues: Readonly<ScopedIssue[]>
+  readonly memberships: Readonly<WorkspaceMembership[]>
 }
 export function MyIssuesPage({ initialData }: { scope: RequestScope; initialData: MyIssuesInitialData }) {
   return (

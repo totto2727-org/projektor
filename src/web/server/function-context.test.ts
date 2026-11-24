@@ -44,7 +44,7 @@ afterEach(() => {
 const fixture = function fixture(
   path = '/_effront/query',
   auth: AuthSession = session,
-  catalog: readonly ProjectSummary[] = [project],
+  catalog: Readonly<ProjectSummary[]> = [project],
 ) {
   resetAuthCachesForTests()
   const database = createTestDatabase()
@@ -154,7 +154,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
   test.each([
     [{ requireWorkspace: true }, 'Select a workspace for this operation.'],
     [{ requireProject: true }, 'Select a project for this operation.'],
-  ] satisfies readonly (readonly [FunctionOptions, string])[])(
+  ] satisfies Readonly<Readonly<[FunctionOptions, string]>[]>)(
     'rejects missing explicit selectors even with a unique catalog: %o',
     async (options, message) => {
       const { run } = fixture('/_effront/query', {
@@ -169,7 +169,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     },
   )
 
-  test.each([{ workspaceSlug: '' }, { projectId: '' }] satisfies readonly FunctionSelector[])(
+  test.each([{ workspaceSlug: '' }, { projectId: '' }] satisfies Readonly<FunctionSelector[]>)(
     'rejects malformed semantic selection: %o',
     async (selector) => {
       const { run, database } = fixture()

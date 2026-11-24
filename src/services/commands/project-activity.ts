@@ -157,6 +157,6 @@ export async function listProjectActivity(ctx: ServiceCtx, input: unknown): Prom
   }
 
   const all = await fetchActivityRows(ctx, projectId, since, limit)
-  all.sort((a, b) => b.created_at - a.created_at)
+  all.sort((left, right) => right.created_at - left.created_at)
   return all.slice(0, limit)
 }

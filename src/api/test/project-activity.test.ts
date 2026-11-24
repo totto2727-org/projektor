@@ -292,8 +292,8 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('respects the limit parameter', async () => {
-    for (let i = 0; i < 5; i++) {
-      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
+    for (let index = 0; index < 5; index++) {
+      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
 
     const res = (await mcpCall<McpContent>(
@@ -434,8 +434,8 @@ describe('GET /api/projects/:id/activity (PROJ-245)', () => {
   })
 
   test('respects the limit query param', async () => {
-    for (let i = 0; i < 5; i++) {
-      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
+    for (let index = 0; index < 5; index++) {
+      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity?limit=2`, {

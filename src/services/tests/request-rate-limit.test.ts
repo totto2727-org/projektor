@@ -70,7 +70,7 @@ const fixture = function fixture() {
 const request = (headers: HeadersInit = {}) => new Request('https://example.test/api/issues', { headers })
 
 const consume = async function consume(count: number, req: Request, env: RequestRateLimitEnv) {
-  for (let i = 0; i < count; i++) {
+  for (let index = 0; index < count; index++) {
     expect(await checkRateLimit(req, env)).toBeUndefined()
   }
 }
@@ -194,7 +194,7 @@ describe('shared request rate-limit policy', () => {
     f.apiEnv.RATE_LIMIT_AUTH_MAX = '1'
     const app = new Hono<HonoEnv>()
     app.use('*', rateLimitMiddleware)
-    app.get('*', (c) => c.json({ ok: true }))
+    app.get('*', (httpContext) => httpContext.json({ ok: true }))
     expect((await app.request(request(), undefined, f.apiEnv)).status).toBe(200)
     expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 55 })
     const denied = await app.request(request(), undefined, f.apiEnv)
@@ -240,7 +240,7 @@ describe('shared request rate-limit policy', () => {
     }
     const app = new Hono<HonoEnv>()
     app.use('*', rateLimitMiddleware)
-    app.get('*', (c) => c.json({ ok: true }))
+    app.get('*', (httpContext) => httpContext.json({ ok: true }))
     const response = await app.request(request(), undefined, env)
     expect(response.status).toBe(200)
     expect(JSON.stringify(log.mock.calls)).not.toContain('private-driver-detail')

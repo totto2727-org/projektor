@@ -28,49 +28,49 @@ const router = new Hono<HonoEnv>()
 
 // GET / and POST / are handled inline in index.ts (no workspace context yet at that point)
 
-router.get('/:slug', async (c) => {
-  const ctx = ctxFromHono(c)
-  const workspace = c.get('workspace') as { id: string; name: string; slug: string }
+router.get('/:slug', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const workspace = httpContext.get('workspace') as { id: string; name: string; slug: string }
   try {
-    return c.json(await getWorkspaceWithMembers(ctx, workspace))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await getWorkspaceWithMembers(ctx, workspace))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:slug', async (c) => {
-  const ctx = ctxFromHono(c)
+router.patch('/:slug', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await updateWorkspace(ctx, await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateWorkspace(ctx, await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:slug/members', async (c) => {
-  const ctx = ctxFromHono(c)
+router.post('/:slug/members', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await inviteMember(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await inviteMember(ctx, await jsonBody(httpContext)), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:slug/members/:userId', async (c) => {
-  const ctx = ctxFromHono(c)
+router.delete('/:slug/members/:userId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await removeMember(ctx, c.req.param('userId')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await removeMember(ctx, httpContext.req.param('userId')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:slug/members/:userId', async (c) => {
-  const ctx = ctxFromHono(c)
+router.patch('/:slug/members/:userId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await updateMemberRole(ctx, c.req.param('userId'), await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateMemberRole(ctx, httpContext.req.param('userId'), await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
@@ -86,38 +86,38 @@ router.patch('/:slug/members/:userId', async (c) => {
 const WORKSPACE_TOKEN_HUMAN_ONLY =
   'Workspace tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.'
 
-router.post('/:slug/tokens', async (c) => {
-  const denied = requireInteractiveHuman(c, WORKSPACE_TOKEN_HUMAN_ONLY)
+router.post('/:slug/tokens', async (httpContext) => {
+  const denied = requireInteractiveHuman(httpContext, WORKSPACE_TOKEN_HUMAN_ONLY)
   if (denied) {
     return denied
   }
-  const ctx = ctxFromHono(c)
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await createToken(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await createToken(ctx, await jsonBody(httpContext)), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.get('/:slug/tokens', async (c) => {
-  const ctx = ctxFromHono(c)
+router.get('/:slug/tokens', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await listTokens(ctx))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listTokens(ctx))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:slug/tokens/:tokenId', async (c) => {
-  const denied = requireInteractiveHuman(c, WORKSPACE_TOKEN_HUMAN_ONLY)
+router.delete('/:slug/tokens/:tokenId', async (httpContext) => {
+  const denied = requireInteractiveHuman(httpContext, WORKSPACE_TOKEN_HUMAN_ONLY)
   if (denied) {
     return denied
   }
-  const ctx = ctxFromHono(c)
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await revokeToken(ctx, c.req.param('tokenId')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await revokeToken(ctx, httpContext.req.param('tokenId')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
@@ -138,63 +138,65 @@ const connectorsDenied = function connectorsDenied(c: Parameters<typeof ctxFromH
   )
 }
 
-router.get('/:slug/connectors', async (c) => {
-  const denied = connectorsDenied(c)
+router.get('/:slug/connectors', async (httpContext) => {
+  const denied = connectorsDenied(httpContext)
   if (denied) {
     return denied
   }
-  const ctx = ctxFromHono(c)
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await listConnectorGrants(ctx))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listConnectorGrants(ctx))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:slug/connectors/:grantId', async (c) => {
-  const denied = connectorsDenied(c)
+router.delete('/:slug/connectors/:grantId', async (httpContext) => {
+  const denied = connectorsDenied(httpContext)
   if (denied) {
     return denied
   }
-  const ctx = ctxFromHono(c)
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await revokeConnectorGrant(ctx, c.req.param('grantId')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await revokeConnectorGrant(ctx, httpContext.req.param('grantId')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:slug', async (c) => {
-  const ctx = ctxFromHono(c)
+router.delete('/:slug', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await deleteWorkspace(ctx, c.req.param('slug'), c.env.DEFAULT_WORKSPACE_SLUG ?? 'projektor'))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(
+      await deleteWorkspace(ctx, httpContext.req.param('slug'), httpContext.env.DEFAULT_WORKSPACE_SLUG ?? 'projektor'),
+    )
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.get('/:slug/brand', async (c) => {
-  const ctx = ctxFromHono(c)
-  const workspace = c.get('workspace') as { slug: string }
+router.get('/:slug/brand', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const workspace = httpContext.get('workspace') as { slug: string }
   try {
-    return c.json(await getWorkspaceBrand(ctx, workspace.slug))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await getWorkspaceBrand(ctx, workspace.slug))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:slug/brand', async (c) => {
-  const ctx = ctxFromHono(c)
-  const workspace = c.get('workspace') as { slug: string }
+router.patch('/:slug/brand', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const workspace = httpContext.get('workspace') as { slug: string }
   try {
-    return c.json(await updateWorkspaceBrand(ctx, workspace.slug, await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateWorkspaceBrand(ctx, workspace.slug, await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:slug/brand/logo', (c) =>
-  coreFileRequest(c, '/workspace-logo', c.req.raw.body, c.req.header('Content-Type')),
+router.post('/:slug/brand/logo', (httpContext) =>
+  coreFileRequest(httpContext, '/workspace-logo', httpContext.req.raw.body, httpContext.req.header('Content-Type')),
 )
 
 router.delete('/:slug/brand/logo', async (c) => {
@@ -202,21 +204,21 @@ router.delete('/:slug/brand/logo', async (c) => {
   try {
     await deleteWorkspaceLogo(ctx)
     return new Response(null, { status: 204 })
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+  } catch (caughtError) {
+    return serviceErrToResponse(c, caughtError)
   }
 })
 
 router.get('/:slug/brand/logo', (c) => coreFileRequest(c, '/workspace-logo'))
 
-router.get('/:slug/mcp-info', async (c) => {
-  const ctx = ctxFromHono(c)
-  const workspace = c.get('workspace') as { id: string; name: string; slug: string }
-  const origin = new URL(c.req.url).origin
+router.get('/:slug/mcp-info', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const workspace = httpContext.get('workspace') as { id: string; name: string; slug: string }
+  const origin = new URL(httpContext.req.url).origin
   try {
-    return c.json(await getWorkspaceMcpInfo(ctx, workspace, origin))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await getWorkspaceMcpInfo(ctx, workspace, origin))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

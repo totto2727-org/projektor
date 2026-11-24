@@ -53,8 +53,8 @@ const project = (description: string): Project => ({
   updatedAt: 1,
 })
 
-const emptyIssues: readonly RecentIssue[] = []
-const emptyWiki: readonly RecentWikiPage[] = []
+const emptyIssues: Readonly<RecentIssue[]> = []
+const emptyWiki: Readonly<RecentWikiPage[]> = []
 const emptyFlow: FlowMetrics = { throughputOverTime: [], cfdOverTime: [] }
 
 function withRuntime(node: React.ReactNode) {

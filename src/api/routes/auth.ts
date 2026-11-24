@@ -15,28 +15,31 @@ const isSafeRedirectPath = function isSafeRedirectPath(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//')
 }
 
-router.get('/login', (c) => {
-  const requested = c.req.query('redirect_url') ?? '/'
-  return c.redirect(isSafeRedirectPath(requested) ? requested : '/', 302)
+router.get('/login', (httpContext) => {
+  const requested = httpContext.req.query('redirect_url') ?? '/'
+  return httpContext.redirect(isSafeRedirectPath(requested) ? requested : '/', 302)
 })
 
-router.get('/me', authMiddleware, async (c) => {
+router.get('/me', authMiddleware, async (httpContext) => {
   try {
-    return c.json(
+    return httpContext.json(
       await Effect.runPromise(
-        decodeCoreReply(ApiUserBootstrap, makeCoreClient(c.env.CORE).apiUserBootstrap(c.get('coreActor'))),
+        decodeCoreReply(
+          ApiUserBootstrap,
+          makeCoreClient(httpContext.env.CORE).apiUserBootstrap(httpContext.get('coreActor')),
+        ),
       ),
     )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 
 const HUMAN_SESSION_REQUIRED =
   'Personal access tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.'
 
-router.post('/tokens', authMiddleware, async (c) => {
-  const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
+router.post('/tokens', authMiddleware, async (httpContext) => {
+  const denied = requireInteractiveHuman(httpContext, HUMAN_SESSION_REQUIRED)
   if (denied) {
     return denied
   }
@@ -44,31 +47,37 @@ router.post('/tokens', authMiddleware, async (c) => {
     const result = await Effect.runPromise(
       decodeCoreReply(
         Schema.Struct({ token: Schema.String }),
-        makeCoreClient(c.env.CORE).apiCreateUserToken(c.get('coreActor'), await jsonBody(c)),
+        makeCoreClient(httpContext.env.CORE).apiCreateUserToken(
+          httpContext.get('coreActor'),
+          await jsonBody(httpContext),
+        ),
       ),
     )
-    return c.json(result, 201)
+    return httpContext.json(result, 201)
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 
-router.delete('/tokens/:id', authMiddleware, async (c) => {
-  const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
+router.delete('/tokens/:id', authMiddleware, async (httpContext) => {
+  const denied = requireInteractiveHuman(httpContext, HUMAN_SESSION_REQUIRED)
   if (denied) {
     return denied
   }
   try {
-    return c.json(
+    return httpContext.json(
       await Effect.runPromise(
         decodeCoreReply(
           Schema.Struct({ ok: Schema.Boolean }),
-          makeCoreClient(c.env.CORE).apiDeleteUserToken(c.get('coreActor'), c.req.param('id') ?? ''),
+          makeCoreClient(httpContext.env.CORE).apiDeleteUserToken(
+            httpContext.get('coreActor'),
+            httpContext.req.param('id') ?? '',
+          ),
         ),
       ),
     )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 

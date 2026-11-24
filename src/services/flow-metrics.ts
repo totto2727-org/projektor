@@ -32,11 +32,11 @@ export interface Distribution {
   p90: number | null
 }
 
-const summarize = function summarize(durations: readonly number[]): Distribution {
+const summarize = function summarize(durations: Readonly<number[]>): Distribution {
   if (durations.length === 0) {
     return { count: 0, avg: null, p50: null, p90: null }
   }
-  const sorted = [...durations].sort((a, b) => a - b)
+  const sorted = [...durations].sort((left, right) => left - right)
   const avg = sorted.reduce((sum, d) => sum + d, 0) / sorted.length
   const percentile = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
   return { count: sorted.length, avg, p50: percentile(0.5), p90: percentile(0.9) }
@@ -92,7 +92,7 @@ const buildBucketStarts = function buildBucketStarts(
  * cycleTime's inWindow semantics exactly).
  */
 const bucketRanges = function bucketRanges(
-  starts: readonly number[],
+  starts: Readonly<number[]>,
   bucketSize: number,
   since: number,
   until: number,
@@ -111,11 +111,11 @@ const bucketRanges = function bucketRanges(
  * since consecutive buckets are contiguous and since/until only clamp the two edges).
  */
 const groupBySortedRanges = function groupBySortedRanges<T>(
-  items: readonly T[],
+  items: Readonly<T[]>,
   time: (item: T) => number,
-  ranges: readonly { start: number; end: number }[],
+  ranges: Readonly<{ start: number; end: number }[]>,
 ): T[][] {
-  const sorted = [...items].sort((a, b) => time(a) - time(b))
+  const sorted = [...items].sort((left, right) => time(left) - time(right))
   const groups: T[][] = ranges.map(() => [])
   let idx = 0
   for (let r = 0; r < ranges.length; r++) {
@@ -134,7 +134,7 @@ const groupBySortedRanges = function groupBySortedRanges<T>(
 }
 
 const buildWipOverTime = function buildWipOverTime(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   since: number,
   until: number,
 ): { date: string; count: number }[] {
@@ -155,7 +155,7 @@ const buildWipOverTime = function buildWipOverTime(
       events.push([i.doneAt, -1])
     }
   }
-  events.sort((a, b) => a[0] - b[0])
+  events.sort((left, right) => left[0] - right[0])
 
   const buckets: { date: string; count: number }[] = []
   let idx = 0
@@ -171,7 +171,7 @@ const buildWipOverTime = function buildWipOverTime(
 }
 
 const buildThroughputOverTime = function buildThroughputOverTime(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   since: number,
   until: number,
   granularity: 'day' | 'week',
@@ -192,7 +192,7 @@ const buildThroughputOverTime = function buildThroughputOverTime(
  * nothing, so an empty bucket reads as "no data" rather than "zero defects".
  */
 const buildBugShareOverTime = function buildBugShareOverTime(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   since: number,
   until: number,
   granularity: 'day' | 'week',
@@ -219,7 +219,7 @@ const buildBugShareOverTime = function buildBugShareOverTime(
  * showing the bucket's p50 rather than a count — the "trend" the ticket asks for.
  */
 const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   since: number,
   until: number,
   granularity: 'day' | 'week',
@@ -243,7 +243,7 @@ const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
  * backlog growing or burning?" at a glance.
  */
 const buildArrivalVsCompletion = function buildArrivalVsCompletion(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   since: number,
   until: number,
   granularity: 'day' | 'week',
@@ -295,7 +295,7 @@ const classifyCfdBand = function classifyCfdBand(issue: FlowIssueRow, sampleAt: 
  * created <= claimed <= in_review <= done order.
  */
 const buildCfdEvents = function buildCfdEvents(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
 ): { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] {
   const events: { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] = []
   for (const issue of issues) {
@@ -303,7 +303,7 @@ const buildCfdEvents = function buildCfdEvents(
       ...new Set(
         [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((t): t is number => t !== null),
       ),
-    ].sort((a, b) => a - b)
+    ].sort((left, right) => left - right)
     let prevBand: CfdBand = 'excluded'
     for (const t of thresholds) {
       const band = classifyCfdBand(issue, t)
@@ -319,7 +319,7 @@ const buildCfdEvents = function buildCfdEvents(
       prevBand = band
     }
   }
-  events.sort((a, b) => a.time - b.time)
+  events.sort((left, right) => left.time - right.time)
   return events
 }
 
@@ -341,7 +341,7 @@ const buildCfdEvents = function buildCfdEvents(
  * classifyCfdBand per bucket would have produced.
  */
 const buildCfdOverTime = function buildCfdOverTime(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   since: number,
   until: number,
   granularity: 'day' | 'week',
@@ -436,7 +436,7 @@ const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
 }
 
 const computeCoreDistributions = function computeCoreDistributions(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   inWindow: (t: number) => boolean,
 ): {
   leadTimes: number[]
@@ -470,7 +470,7 @@ const computeCoreDistributions = function computeCoreDistributions(
  * out of review. The primary "how much human attention did this take" signal.
  */
 const computeHumanInterventions = function computeHumanInterventions(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   humanCommentCounts: Map<string, number>,
   inWindow: (t: number) => boolean,
 ): number[] {
@@ -484,7 +484,7 @@ const computeHumanInterventions = function computeHumanInterventions(
  * to [0, 1] — sequential re-leases can sum close to the full cycle but shouldn't exceed it.
  */
 const computeAutonomyRatios = function computeAutonomyRatios(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   leaseHeldSeconds: Map<string, number>,
   inWindow: (t: number) => boolean,
 ): number[] {
@@ -510,7 +510,7 @@ const computeAutonomyRatios = function computeAutonomyRatios(
  * same reason as autonomyRatio (sequential re-leases can sum close to the full lead time).
  */
 const computeFlowEfficiencies = function computeFlowEfficiencies(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   leaseHeldSeconds: Map<string, number>,
   inWindow: (t: number) => boolean,
 ): number[] {
@@ -536,7 +536,7 @@ const computeFlowEfficiencies = function computeFlowEfficiencies(
  * investigating before they finish and pollute the cycle-time percentiles.
  */
 const buildAgingWip = function buildAgingWip(
-  issues: readonly FlowIssueRow[],
+  issues: Readonly<FlowIssueRow[]>,
   now: number,
 ): { id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }[] {
   return issues

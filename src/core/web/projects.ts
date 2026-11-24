@@ -100,7 +100,9 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
                     visibility: visibleProjectPredicate(scope, workspaceId, sql`wiki_pages.project_id`),
                   }).pipe(
                     Effect.map((pages) =>
-                      [...pages].sort((a, b) => b.updated_at - a.updated_at || b.id.localeCompare(a.id)).slice(0, 5),
+                      [...pages]
+                        .sort((left, right) => right.updated_at - left.updated_at || right.id.localeCompare(left.id))
+                        .slice(0, 5),
                     ),
                   ),
                   getFlowMetrics(env.DB, workspaceId, { projectId, ...sixWeekRange(), granularity: 'week' }),

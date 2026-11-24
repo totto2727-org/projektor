@@ -41,8 +41,8 @@ const PUBLIC_HEADERS = {
   'Access-Control-Allow-Origin': '*',
 }
 
-const originOf = function originOf(c: { req: { url: string } }): string {
-  return new URL(c.req.url).origin
+const originOf = function originOf(httpContext: { req: { url: string } }): string {
+  return new URL(httpContext.req.url).origin
 }
 
 /*
@@ -61,15 +61,15 @@ const originOf = function originOf(c: { req: { url: string } }): string {
  * from the request URL. An id that does not resolve fails later, at the MCP request
  * itself, behind authentication where it belongs.
  */
-router.get('/oauth-protected-resource/mcp/:workspaceId', (c) => {
-  const origin = originOf(c)
+router.get('/oauth-protected-resource/mcp/:workspaceId', (httpContext) => {
+  const origin = originOf(httpContext)
   /*
    * Re-encode rather than interpolating the raw segment: this value lands in a URL
    * that clients compare byte-for-byte against the one the user entered.
    */
-  const workspaceId = encodeURIComponent(c.req.param('workspaceId'))
+  const workspaceId = encodeURIComponent(httpContext.req.param('workspaceId'))
 
-  return c.json(
+  return httpContext.json(
     {
       resource: `${origin}/mcp/${workspaceId}`,
       authorization_servers: [origin],
@@ -91,10 +91,10 @@ router.get('/oauth-protected-resource/mcp/:workspaceId', (c) => {
  * makes this document's own location (/.well-known/oauth-authorization-server, no
  * path suffix) the correct one per RFC 8414 §3.
  */
-router.get('/oauth-authorization-server', (c) => {
-  const origin = originOf(c)
+router.get('/oauth-authorization-server', (httpContext) => {
+  const origin = originOf(httpContext)
 
-  return c.json(
+  return httpContext.json(
     {
       issuer: origin,
       authorization_endpoint: `${origin}${AUTHORIZE_ENDPOINT}`,
@@ -157,7 +157,7 @@ router.get('/oauth-authorization-server', (c) => {
  * has an ASSETS binding — there, the catch-all already 404s. The regression test
  * asserts the *content type* rather than the status for exactly that reason.
  */
-const discoveryNotFound = (c: Context<HonoEnv>) => c.json({ error: 'Not Found' }, 404)
+const discoveryNotFound = (httpContext: Context<HonoEnv>) => httpContext.json({ error: 'Not Found' }, 404)
 
 router.all('/oauth-protected-resource', discoveryNotFound)
 router.all('/oauth-protected-resource/*', discoveryNotFound)

@@ -42,12 +42,12 @@ function BoardCard({
         href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
         className='block no-underline'
         draggable={true}
-        onDragStart={(e: import('react').DragEvent<HTMLElement>) => {
+        onDragStart={(event: import('react').DragEvent<HTMLElement>) => {
           if (window.innerWidth < 640) {
-            e.preventDefault()
+            event.preventDefault()
             return
           }
-          e.dataTransfer?.setData('text/plain', issue.id)
+          event.dataTransfer?.setData('text/plain', issue.id)
           setDragIssueId(issue.id)
         }}
         onDragEnd={() => setDragIssueId(null)}
@@ -117,18 +117,18 @@ export default function BoardView({
             key={col.category}
             aria-label={`${col.label} column`}
             className='shrink-0 w-[270px] max-sm:w-full'
-            onDragOver={(e: import('react').DragEvent<HTMLElement>) => {
-              e.preventDefault()
+            onDragOver={(event: import('react').DragEvent<HTMLElement>) => {
+              event.preventDefault()
               setDragOverColumn(col.category)
             }}
-            onDragLeave={(e: import('react').DragEvent<HTMLElement>) => {
-              if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+            onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
+              if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) {
                 setDragOverColumn(null)
               }
             }}
-            onDrop={(e: import('react').DragEvent<HTMLElement>) => {
-              e.preventDefault()
-              const issueId = e.dataTransfer?.getData('text/plain')
+            onDrop={(event: import('react').DragEvent<HTMLElement>) => {
+              event.preventDefault()
+              const issueId = event.dataTransfer?.getData('text/plain')
               if (issueId && dropStatusId && window.innerWidth >= 640) {
                 changeStatus(issueId, dropStatusId)
               }

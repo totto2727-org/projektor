@@ -62,7 +62,7 @@ export function isWebEnvironment(value: unknown): value is Env {
     'BRAND_ACCENT',
     'BRAND_ON_ACCENT',
     'BRAND_LOGO_URL',
-  ] satisfies readonly (keyof Env)[]
+  ] satisfies Readonly<(keyof Env)[]>
   return strings.every((key) => Reflect.get(value, key) === undefined || typeof Reflect.get(value, key) === 'string')
 }
 

@@ -42,7 +42,7 @@ export interface ChildRollup {
   done: number
   remaining: number
 }
-export function computeChildRollup(rows: readonly { status: string; count: number }[]): ChildRollup {
+export function computeChildRollup(rows: Readonly<{ status: string; count: number }[]>): ChildRollup {
   const byStatus: Record<string, number> = {}
   let total = 0
   for (const row of rows) {
@@ -259,7 +259,7 @@ const listConditions = function listConditions(
   }
   return conditions
 }
-export function getChildRollups(db: D1Database, workspaceId: string, parentIds: readonly string[]) {
+export function getChildRollups(db: D1Database, workspaceId: string, parentIds: Readonly<string[]>) {
   return queryEffect('getChildRollups', async () => {
     const orm = drizzle(db, { schema })
     const rows = await inChunks(parentIds, (chunk) =>
@@ -333,8 +333,8 @@ export function listIssues(db: D1Database, workspaceId: string, options: IssueLi
   })
 }
 export interface IssueBatchOptions {
-  refs?: readonly string[]
-  ids?: readonly string[]
+  refs?: Readonly<string[]>
+  ids?: Readonly<string[]>
   includeBody?: boolean
 }
 export function getIssuesBatch(db: D1Database, workspaceId: string, options: IssueBatchOptions, visibility?: SQL) {

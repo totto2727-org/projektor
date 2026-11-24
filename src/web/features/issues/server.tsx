@@ -59,7 +59,7 @@ function selectedProject(scope: RequestScope) {
 export function filteredIssueQuery(
   url: URL,
   projects: RequestScope['projects'],
-  taskTypes: readonly { id: string; key: string }[],
+  taskTypes: Readonly<{ id: string; key: string }[]>,
   project: ReturnType<typeof selectedProject>,
 ): URLSearchParams {
   const p = url.searchParams

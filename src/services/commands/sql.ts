@@ -42,13 +42,13 @@ const CHUNK_SIZE = D1_BOUND_PARAM_LIMIT - 10
  * bound-parameter cap, concatenating the rows each chunk returns. For mutations that
  * return nothing, have `op` return an empty array.
  */
-export async function inChunks<I, O>(items: readonly I[], op: (chunk: I[]) => Promise<O[]>): Promise<O[]> {
+export async function inChunks<I, O>(items: Readonly<I[]>, op: (chunk: I[]) => Promise<O[]>): Promise<O[]> {
   if (items.length === 0) {
     return []
   }
   const out: O[] = []
-  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-    out.push(...(await op(items.slice(i, i + CHUNK_SIZE) as I[])))
+  for (let index = 0; index < items.length; index += CHUNK_SIZE) {
+    out.push(...(await op(items.slice(index, index + CHUNK_SIZE) as I[])))
   }
   return out
 }

@@ -35,8 +35,8 @@ publicRouter.use('*', logger())
  * preflight), so reflect the requesting Origin; the POST response is what actually
  * enforces the per-source allow-list.
  */
-publicRouter.options('/submit', (c) => {
-  const origin = c.req.header('Origin')
+publicRouter.options('/submit', (httpContext) => {
+  const origin = httpContext.req.header('Origin')
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
@@ -45,11 +45,11 @@ publicRouter.options('/submit', (c) => {
   if (origin) {
     headers['Access-Control-Allow-Origin'] = origin
   }
-  return c.body(null, 204, headers)
+  return httpContext.body(null, 204, headers)
 })
 
 const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
-  c: Context<HonoEnv>,
+  httpContext: Context<HonoEnv>,
   token: string,
 ): Promise<Response | null> {
   /*
@@ -58,10 +58,10 @@ const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
    * route runs outside the global rateLimitMiddleware chain (mounted before it),
    * and anonymous feedback traffic must not share a budget with authenticated callers.
    */
-  const windowSecs = parseInt(c.env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
-  const tokenLimit = parseInt(c.env.RATE_LIMIT_FEEDBACK_MAX ?? '30', 10)
-  const ipLimit = parseInt(c.env.RATE_LIMIT_FEEDBACK_IP_MAX ?? '100', 10)
-  const ip = c.req.header('CF-Connecting-IP') ?? '127.0.0.1'
+  const windowSecs = parseInt(httpContext.env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
+  const tokenLimit = parseInt(httpContext.env.RATE_LIMIT_FEEDBACK_MAX ?? '30', 10)
+  const ipLimit = parseInt(httpContext.env.RATE_LIMIT_FEEDBACK_IP_MAX ?? '100', 10)
+  const ip = httpContext.req.header('CF-Connecting-IP') ?? '127.0.0.1'
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
   // PROJ-867: both counters in parallel; a limiter outage fails open rather than 500ing.
@@ -69,15 +69,15 @@ const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
   let ipCount: number
   try {
     ;[tokenCount, ipCount] = await Promise.all([
-      bumpRateCounter(c.env, `feedback:${tokenHash}`, windowSecs),
-      bumpRateCounter(c.env, `feedback-ip:${ip}`, windowSecs),
+      bumpRateCounter(httpContext.env, `feedback:${tokenHash}`, windowSecs),
+      bumpRateCounter(httpContext.env, `feedback-ip:${ip}`, windowSecs),
     ])
   } catch (err) {
     console.error('feedback rate-limit counter unavailable, failing open', { err: String(err) })
     return null
   }
   if (tokenCount > tokenLimit || ipCount > ipLimit) {
-    return c.json({ error: 'Too Many Requests' }, 429)
+    return httpContext.json({ error: 'Too Many Requests' }, 429)
   }
   return null
 }
@@ -90,7 +90,10 @@ const parseFeedbackBody = async function parseFeedbackBody(c: Context<HonoEnv>):
   }
 }
 
-const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(c: Context<HonoEnv>, e: unknown): Response {
+const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
+  httpContext: Context<HonoEnv>,
+  e: unknown,
+): Response {
   /*
    * Endpoint-specific mapping: an unknown/revoked source is an invalid
    * credential (401), an inactive source is a paused resource (403), a bad
@@ -98,42 +101,42 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(c: Cont
    */
   if (e instanceof CorePublicError) {
     if (e.kind === 'validation') {
-      return c.json({ error: e.details }, 400)
+      return httpContext.json({ error: e.details }, 400)
     }
     if (e.status === 403 || e.status === 404) {
-      return c.json({ error: e.message }, e.status === 404 ? 401 : 403)
+      return httpContext.json({ error: e.message }, e.status === 404 ? 401 : 403)
     }
-    return serviceErrToResponse(c, e)
+    return serviceErrToResponse(httpContext, e)
   }
   throw e
 }
 
-publicRouter.post('/submit', async (c) => {
-  const auth = c.req.header('Authorization')
+publicRouter.post('/submit', async (httpContext) => {
+  const auth = httpContext.req.header('Authorization')
   if (!auth?.startsWith('Bearer ')) {
-    return c.json({ error: 'Unauthorized' }, 401)
+    return httpContext.json({ error: 'Unauthorized' }, 401)
   }
   const token = auth.slice(7)
-  const origin = c.req.header('Origin') ?? null
+  const origin = httpContext.req.header('Origin') ?? null
 
-  const rateLimited = await checkFeedbackRateLimit(c, token)
+  const rateLimited = await checkFeedbackRateLimit(httpContext, token)
   if (rateLimited) {
     return rateLimited
   }
 
-  const rawBody = await parseFeedbackBody(c)
+  const rawBody = await parseFeedbackBody(httpContext)
 
   try {
     const { id, corsAllowOrigin } = await apiReply(
       ApiSubmittedFeedback,
-      makeCoreClient(c.env.CORE).apiSubmitFeedback(token, rawBody, origin),
+      makeCoreClient(httpContext.env.CORE).apiSubmitFeedback(token, rawBody, origin),
     )
     if (corsAllowOrigin) {
-      c.header('Access-Control-Allow-Origin', corsAllowOrigin)
+      httpContext.header('Access-Control-Allow-Origin', corsAllowOrigin)
     }
-    return c.json({ id }, 201)
-  } catch (e) {
-    return submitFeedbackErrorResponse(c, e)
+    return httpContext.json({ id }, 201)
+  } catch (caughtError) {
+    return submitFeedbackErrorResponse(httpContext, caughtError)
   }
 })
 
@@ -141,70 +144,70 @@ export { publicRouter as feedbackPublicRouter }
 
 const authedRouter = new Hono<HonoEnv>()
 
-authedRouter.get('/:id/feedback', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const status = c.req.query('status')
-  const sourceId = c.req.query('sourceId')
+authedRouter.get('/:id/feedback', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const status = httpContext.req.query('status')
+  const sourceId = httpContext.req.query('sourceId')
   try {
-    return c.json(await listFeedback(ctx, { projectId, status, sourceId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listFeedback(ctx, { projectId, status, sourceId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-authedRouter.get('/:id/feedback/summary', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
+authedRouter.get('/:id/feedback/summary', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
   try {
-    return c.json(await getFeedbackSummary(ctx, { projectId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await getFeedbackSummary(ctx, { projectId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-authedRouter.patch('/:id/feedback/:feedbackId', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const feedbackId = c.req.param('feedbackId')
-  const raw = await jsonBody(c)
+authedRouter.patch('/:id/feedback/:feedbackId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const feedbackId = httpContext.req.param('feedbackId')
+  const raw = await jsonBody(httpContext)
   try {
-    return c.json(await updateFeedbackStatus(ctx, { ...raw, projectId, feedbackId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateFeedbackStatus(ctx, { ...raw, projectId, feedbackId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-authedRouter.post('/:id/feedback/bulk-mark-reviewed', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const raw = await jsonBody(c)
+authedRouter.post('/:id/feedback/bulk-mark-reviewed', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const raw = await jsonBody(httpContext)
   try {
-    return c.json(await bulkMarkReviewed(ctx, { ...raw, projectId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await bulkMarkReviewed(ctx, { ...raw, projectId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-authedRouter.post('/:id/feedback/bulk-convert-to-issue', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const raw = await jsonBody(c)
+authedRouter.post('/:id/feedback/bulk-convert-to-issue', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const raw = await jsonBody(httpContext)
   try {
-    return c.json(await bulkConvertToIssue(ctx, { ...raw, projectId }), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await bulkConvertToIssue(ctx, { ...raw, projectId }), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-authedRouter.post('/:id/feedback/:feedbackId/convert-to-issue', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const feedbackId = c.req.param('feedbackId')
+authedRouter.post('/:id/feedback/:feedbackId/convert-to-issue', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const feedbackId = httpContext.req.param('feedbackId')
   try {
-    return c.json(await convertFeedbackToIssue(ctx, { projectId, feedbackId }), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await convertFeedbackToIssue(ctx, { projectId, feedbackId }), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

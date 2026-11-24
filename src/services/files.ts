@@ -9,7 +9,7 @@ import type { DataQueryError } from './errors.ts'
 /** Trusted app-authored predicates, never request input. Aliases: a attachment, w linked page. */
 export interface AttachmentVisibility {
   sql: string
-  params: readonly unknown[]
+  params: Readonly<unknown[]>
 }
 export interface AttachmentQueryOptions {
   ownerVisibility?: AttachmentVisibility | null
@@ -123,7 +123,7 @@ export function findAttachment(
 export function listIssueReviewTargets(
   db: D1Database,
   workspaceId: string,
-  issueIds: readonly string[],
+  issueIds: Readonly<string[]>,
 ): Effect.Effect<Map<string, ReviewTarget[]>, DataQueryError> {
   return queryEffect('listIssueReviewTargets', async () => {
     const targets = new Map<string, ReviewTarget[]>()

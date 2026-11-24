@@ -34,8 +34,8 @@ export function ProjectLanding({
   canEdit,
 }: {
   initialProject: Project
-  initialIssues: readonly RecentIssue[]
-  initialWiki: readonly RecentWikiPage[]
+  initialIssues: Readonly<RecentIssue[]>
+  initialWiki: Readonly<RecentWikiPage[]>
   initialFlow: FlowMetrics | null
   workspaceSlug: string
   canEdit: boolean

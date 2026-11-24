@@ -8,19 +8,24 @@ import { getWorkflow } from '../services/workflow.ts'
 
 const router = new Hono<HonoEnv>()
 
-router.get('/', async (c) => {
+router.get('/', async (httpContext) => {
   try {
     /*
      * Normally a single string; a repeated `?ifVersion=` is passed through as an
      * array so the service's Zod schema rejects it as an invalid type (400), the
      * same as MCP's `ifVersion` failing to type-check as a string.
      */
-    const ifVersionValues = c.req.queries('ifVersion')
+    const ifVersionValues = httpContext.req.queries('ifVersion')
     const ifVersion =
       ifVersionValues === undefined ? undefined : ifVersionValues.length === 1 ? ifVersionValues[0] : ifVersionValues
-    return c.json(await getWorkflow({ core: makeCoreClient(c.env.CORE), actor: c.get('coreActor') }, { ifVersion }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(
+      await getWorkflow(
+        { core: makeCoreClient(httpContext.env.CORE), actor: httpContext.get('coreActor') },
+        { ifVersion },
+      ),
+    )
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

@@ -81,8 +81,8 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
     return true
   }
 
-  for (let i = idx + 1; i < lines.length; i++) {
-    const line = lines[i].trim()
+  for (let index = idx + 1; index < lines.length; index++) {
+    const line = lines[index].trim()
     if (line === '') {
       continue
     }

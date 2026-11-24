@@ -11,13 +11,13 @@ const router = new Hono<HonoEnv>()
 // PROJ-932: workspace-wide REST parity for MCP's list_issue_leases. GET /api/issues/:id/leases
 // (routes/issues.ts) stays as the single-issue view; this is the equivalent of
 // /api/file-claims and /api/agents for leases.
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
-  const { issueId, agentId, projectId, includeStale } = c.req.query()
+router.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const { issueId, agentId, projectId, includeStale } = httpContext.req.query()
   try {
-    return c.json(await listIssueLeases(ctx, { issueId, agentId, projectId, includeStale }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listIssueLeases(ctx, { issueId, agentId, projectId, includeStale }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

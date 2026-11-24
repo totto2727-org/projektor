@@ -11,7 +11,7 @@ export type CoreEnvironment = Omit<CoreEnv, 'JWT_SECRET' | 'ASSETS'> & {
 
 export type CoreEnvironmentSource = Effect.Effect<CoreEnvironment, never, WorkerEnvironment | WorkerExecutionContext>
 
-const hasMethods = function hasMethods(value: unknown, methods: readonly string[]): boolean {
+const hasMethods = function hasMethods(value: unknown, methods: Readonly<string[]>): boolean {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -75,7 +75,7 @@ export function isCoreEnvironment(value: unknown): value is CoreEnvironment {
     'AGENT_SESSION_RETENTION_DAYS',
     'ACTIVITY_RETENTION_DAYS',
     'FILE_CLAIM_TTL_SECONDS',
-  ] satisfies readonly (keyof CoreEnvironment)[]
+  ] satisfies Readonly<(keyof CoreEnvironment)[]>
   if (!optionalStrings.every((key) => get(key) === undefined || typeof get(key) === 'string')) {
     return false
   }

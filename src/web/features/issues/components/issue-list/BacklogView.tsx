@@ -16,7 +16,7 @@ import {
   statusBadge,
 } from './issue-render-helpers.tsx'
 
-function applyBacklogOrder(issues: readonly Issue[], backlogOrder: string[]): readonly Issue[] {
+function applyBacklogOrder(issues: Readonly<Issue[]>, backlogOrder: string[]): Readonly<Issue[]> {
   if (backlogOrder.length === 0) {
     return issues
   }
@@ -160,7 +160,7 @@ function BacklogMobileCards({
   updatingPriorityId,
   changePriority,
 }: {
-  issues: readonly Issue[]
+  issues: Readonly<Issue[]>
   updatingPriorityId: string | null
   changePriority: (issueId: string, priority: string) => void
 }) {
@@ -234,14 +234,14 @@ export default function BacklogView({
     setBacklogDragId(issueId)
   }
 
-  function onBacklogDragOver(e: import('react').DragEvent<HTMLElement>, issueId: string) {
-    e.preventDefault()
+  function onBacklogDragOver(event: import('react').DragEvent<HTMLElement>, issueId: string) {
+    event.preventDefault()
     setBacklogDragOverId(issueId)
   }
 
-  function onBacklogDrop(e: import('react').DragEvent<HTMLElement>, targetId: string) {
-    e.preventDefault()
-    const draggedId = e.dataTransfer?.getData('text/plain')
+  function onBacklogDrop(event: import('react').DragEvent<HTMLElement>, targetId: string) {
+    event.preventDefault()
+    const draggedId = event.dataTransfer?.getData('text/plain')
     if (!draggedId || draggedId === targetId) {
       setBacklogDragId(null)
       setBacklogDragOverId(null)
@@ -267,8 +267,8 @@ export default function BacklogView({
         <table className='w-full border-collapse text-[0.9rem]'>
           <BacklogTableHead sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
           <tbody
-            onDragLeave={(e: import('react').DragEvent<HTMLElement>) => {
-              if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+            onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
+              if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) {
                 setBacklogDragOverId(null)
               }
             }}

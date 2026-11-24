@@ -23,11 +23,11 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
   const now = Math.floor(Date.now() / 1000)
   const ids: string[] = []
   const stmts: D1PreparedStatement[] = []
-  for (let i = 0; i < n; i++) {
+  for (let index = 0; index < n; index++) {
     const id = crypto.randomUUID()
     ids.push(id)
     // A deterministic spread: every 7th closed, every 5th in backlog, ~60% ready.
-    const status = i % 7 === 0 ? 'done' : i % 5 === 0 ? 'backlog' : 'todo'
+    const status = index % 7 === 0 ? 'done' : index % 5 === 0 ? 'backlog' : 'todo'
     stmts.push(
       env.DB.prepare(
         `INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, priority,
@@ -37,11 +37,11 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
         id,
         workspace.id,
         project.id,
-        i + 1,
-        `Issue ${i}`,
-        i % 5 < 3 ? READY_BODY : NOT_READY_BODY,
+        index + 1,
+        `Issue ${index}`,
+        index % 5 < 3 ? READY_BODY : NOT_READY_BODY,
         status,
-        PRIORITIES[(i * 3) % 5],
+        PRIORITIES[(index * 3) % 5],
         user.id,
         now,
         now,
@@ -65,12 +65,12 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
 			 VALUES (?, ?, NULL, 'story_points', 'Story points', 'number', ?)`,
     ).bind(fieldId, workspace.id, now),
   )
-  for (let i = 0; i < n; i += 4) {
+  for (let index = 0; index < n; index += 4) {
     stmts.push(
       env.DB.prepare('INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)').bind(
-        ids[i],
+        ids[index],
         fieldId,
-        String((i % 8) + 1),
+        String((index % 8) + 1),
       ),
     )
   }
@@ -132,7 +132,7 @@ const reference = async function reference(ctx: ServiceCtx, includeBacklog: bool
         0.2 * (1 / (storyPoints[o.id] ?? 1))
       return { id: o.id, score, ready: checkDefinitionOfReady(o.body).ready }
     })
-    .sort((a, b) => b.score - a.score)
+    .sort((left, right) => right.score - left.score)
 }
 
 describe('PROJ-859: prioritization parity with the in-memory algorithm', () => {

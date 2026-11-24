@@ -25,21 +25,21 @@ describe('PROJ-858: batched slug link resolution on save', () => {
 
     // 80 pages linked by their current slug.
     const direct: string[] = []
-    for (let i = 0; i < 80; i++) {
+    for (let index = 0; index < 80; index++) {
       const id = crypto.randomUUID()
       direct.push(id)
-      await insertPage(id, `direct-${i}`, `Direct ${i}`)
+      await insertPage(id, `direct-${index}`, `Direct ${index}`)
     }
     // 40 pages linked by an old slug (redirect) — 5 of them trashed, so unresolved.
     const redirected: string[] = []
-    for (let i = 0; i < 40; i++) {
+    for (let index = 0; index < 40; index++) {
       const id = crypto.randomUUID()
       redirected.push(id)
-      await insertPage(id, `renamed-${i}`, `Renamed ${i}`, i < 5 ? now : null)
+      await insertPage(id, `renamed-${index}`, `Renamed ${index}`, index < 5 ? now : null)
       await env.DB.prepare(
         'INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)',
       )
-        .bind(crypto.randomUUID(), workspace.id, `old-${i}`, id, now)
+        .bind(crypto.randomUUID(), workspace.id, `old-${index}`, id, now)
         .run()
     }
 

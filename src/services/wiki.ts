@@ -16,7 +16,7 @@ export interface WikiListOptions extends WikiScopeOptions {
   parentId?: string
   type?: string
   status?: string
-  tags?: readonly string[]
+  tags?: Readonly<string[]>
   includeTemplates?: boolean
 }
 export interface WikiPageOptions extends WikiScopeOptions {
@@ -27,10 +27,10 @@ export interface WikiSearchOptions extends Omit<WikiPageOptions, 'visibility'> {
   updatedSince?: number
   type?: string
   status?: string
-  tags?: readonly string[]
+  tags?: Readonly<string[]>
   now: number
   /** Trusted app-authored fragment using alias p. Never accept request SQL. */
-  visibilitySql?: { sql: string; params: readonly unknown[] }
+  visibilitySql?: { sql: string; params: Readonly<unknown[]> }
 }
 
 export interface WikiSearchResult {
@@ -374,22 +374,23 @@ export function getWikiDraft(db: D1Database, workspaceId: string, pageId: string
 const MAX_DIFF_CELLS = 1_000_000
 type DiffOp = { type: 'equal' | 'add' | 'remove'; line: string }
 
-const buildLcsTable = function buildLcsTable(oldLines: readonly string[], newLines: readonly string[]): number[][] {
+const buildLcsTable = function buildLcsTable(oldLines: Readonly<string[]>, newLines: Readonly<string[]>): number[][] {
   const n = oldLines.length
   const m = newLines.length
   const dp: number[][] = Array.from({ length: n + 1 }, () => Array.from({ length: m + 1 }, () => 0))
-  for (let i = n - 1; i >= 0; i--) {
+  for (let index = n - 1; index >= 0; index--) {
     for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = oldLines[i] === newLines[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+      dp[index][j] =
+        oldLines[index] === newLines[j] ? dp[index + 1][j + 1] + 1 : Math.max(dp[index + 1][j], dp[index][j + 1])
     }
   }
   return dp
 }
 
 const traceLcsDiffOps = function traceLcsDiffOps(
-  oldLines: readonly string[],
-  newLines: readonly string[],
-  dp: readonly number[][],
+  oldLines: Readonly<string[]>,
+  newLines: Readonly<string[]>,
+  dp: Readonly<number[][]>,
 ): DiffOp[] {
   const n = oldLines.length
   const m = newLines.length
@@ -420,7 +421,7 @@ const traceLcsDiffOps = function traceLcsDiffOps(
   return ops
 }
 
-const computeLineDiff = function computeLineDiff(oldLines: readonly string[], newLines: readonly string[]): DiffOp[] {
+const computeLineDiff = function computeLineDiff(oldLines: Readonly<string[]>, newLines: Readonly<string[]>): DiffOp[] {
   if (oldLines.length * newLines.length > MAX_DIFF_CELLS) {
     return [
       ...oldLines.map((line): DiffOp => ({ type: 'remove', line })),

@@ -327,16 +327,16 @@ const CUSTOM_FIELD_UPSERT_CHUNK_SIZE = 30 // 3 cols/row
 export function buildCustomFieldUpsertStatements(
   db: D1Database,
   issueId: string,
-  writes: readonly { fieldId: string; value: string }[],
+  writes: Readonly<{ fieldId: string; value: string }[]>,
 ): D1PreparedStatement[] {
   if (writes.length === 0) {
     return []
   }
   const orm = drizzle(db, { schema })
   const statements: D1PreparedStatement[] = []
-  for (let i = 0; i < writes.length; i += CUSTOM_FIELD_UPSERT_CHUNK_SIZE) {
+  for (let index = 0; index < writes.length; index += CUSTOM_FIELD_UPSERT_CHUNK_SIZE) {
     const rowChunk = writes
-      .slice(i, i + CUSTOM_FIELD_UPSERT_CHUNK_SIZE)
+      .slice(index, index + CUSTOM_FIELD_UPSERT_CHUNK_SIZE)
       .map(({ fieldId, value }) => ({ issueId, fieldId, value }))
     const query = orm
       .insert(schema.customFieldValues)

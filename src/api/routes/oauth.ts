@@ -135,13 +135,13 @@ const CONSENT_HEADERS = {
 } as const
 
 const consentHtml = function consentHtml(
-  c: Context<HonoEnv>,
+  httpContext: Context<HonoEnv>,
   title: string,
   body: string,
   status: 200 | 400 | 403 | 500 = 200,
   redirectUri?: string,
 ) {
-  return c.html(page(title, body), status, {
+  return httpContext.html(page(title, body), status, {
     ...CONSENT_HEADERS,
     'Content-Security-Policy': consentCsp(redirectUri),
   })
@@ -179,9 +179,9 @@ const NO_SIGNING_KEY =
  * URI has been checked, and redirecting is not merely safe but required: a client left
  * waiting on a callback that never arrives shows the user a hung tab, not an error.
  */
-const authorizationFailure = function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
+const authorizationFailure = function authorizationFailure(httpContext: Context<HonoEnv>, err: AuthorizationError) {
   if (!err.redirectUri) {
-    return errorPage(c, 400, 'Invalid authorization request', err.description)
+    return errorPage(httpContext, 400, 'Invalid authorization request', err.description)
   }
   const url = new URL(err.redirectUri)
   url.searchParams.set('error', err.code)
@@ -196,7 +196,7 @@ const authorizationFailure = function authorizationFailure(c: Context<HonoEnv>, 
   if (err.issuer) {
     url.searchParams.set('iss', err.issuer)
   }
-  return c.redirect(url.toString(), 302)
+  return httpContext.redirect(url.toString(), 302)
 }
 
 /**
@@ -229,15 +229,15 @@ const NO_CONSENTER =
   'You are not signed in as a person who can authorize this. Sign in to projektor first; ' +
   'anonymous read-only visitors and API tokens cannot connect an application.'
 
-oauthRouter.get('/authorize', async (c) => {
-  const user = consentingUser(c)
+oauthRouter.get('/authorize', async (httpContext) => {
+  const user = consentingUser(httpContext)
   if (!user) {
-    return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
+    return errorPage(httpContext, 403, 'Sign-in required', NO_CONSENTER)
   }
 
-  const signingKey = consentSigningKey(c)
+  const signingKey = consentSigningKey(httpContext)
   if (!signingKey) {
-    return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
+    return errorPage(httpContext, 500, 'Not configured', NO_SIGNING_KEY)
   }
 
   // parseAuthRequest is also the client and redirect-URI validator: it resolves the
@@ -246,12 +246,12 @@ oauthRouter.get('/authorize', async (c) => {
   // therefore trust authRequest.redirectUri.
   let authRequest: AuthRequest
   try {
-    authRequest = await helpers(c).parseAuthRequest(c.req.raw)
+    authRequest = await helpers(httpContext).parseAuthRequest(httpContext.req.raw)
   } catch (err) {
     if (err instanceof AuthorizationError) {
-      return authorizationFailure(c, err)
+      return authorizationFailure(httpContext, err)
     }
-    return errorPage(c, 400, 'Unknown application', `The application could not be verified: ${String(err)}`)
+    return errorPage(httpContext, 400, 'Unknown application', `The application could not be verified: ${String(err)}`)
   }
 
   let consent: ReturnType<typeof parseConsentRequest>
@@ -262,7 +262,7 @@ oauthRouter.get('/authorize', async (c) => {
       throw err
     }
     return authorizationFailure(
-      c,
+      httpContext,
       new AuthorizationError(err.code, {
         description: err.reason,
         redirectUri: authRequest.redirectUri,
@@ -273,19 +273,24 @@ oauthRouter.get('/authorize', async (c) => {
   }
 
   // Read back for display only — parseAuthRequest already validated it.
-  const client = await helpers(c).lookupClient(authRequest.clientId)
+  const client = await helpers(httpContext).lookupClient(authRequest.clientId)
   if (!client) {
-    return errorPage(c, 400, 'Unknown application', 'This application is not registered with projektor.')
+    return errorPage(httpContext, 400, 'Unknown application', 'This application is not registered with projektor.')
   }
 
-  const workspace = await consentWorkspace(c, consent.workspaceId)
+  const workspace = await consentWorkspace(httpContext, consent.workspaceId)
   if (!workspace) {
     /*
      * Rendered locally, not redirected: whether this user is a member of that
      * workspace is not the client's business, and an `access_denied` bounce would
      * tell it. The human is the one who needs to know, and they are right here.
      */
-    return errorPage(c, 403, 'Workspace unavailable', 'That workspace does not exist, or you are not a member of it.')
+    return errorPage(
+      httpContext,
+      403,
+      'Workspace unavailable',
+      'That workspace does not exist, or you are not a member of it.',
+    )
   }
 
   const token = await signConsentToken(
@@ -310,7 +315,7 @@ oauthRouter.get('/authorize', async (c) => {
     : ''
 
   return consentHtml(
-    c,
+    httpContext,
     'Connect an application',
     `<h1>Connect ${escapeHtml(name)}?</h1>
        <p><strong>${escapeHtml(name)}</strong> is asking to access the
@@ -337,22 +342,22 @@ oauthRouter.get('/authorize', async (c) => {
   )
 })
 
-oauthRouter.post('/authorize', async (c) => {
-  const user = consentingUser(c)
+oauthRouter.post('/authorize', async (httpContext) => {
+  const user = consentingUser(httpContext)
   if (!user) {
-    return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
+    return errorPage(httpContext, 403, 'Sign-in required', NO_CONSENTER)
   }
 
-  const signingKey = consentSigningKey(c)
+  const signingKey = consentSigningKey(httpContext)
   if (!signingKey) {
-    return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
+    return errorPage(httpContext, 500, 'Not configured', NO_SIGNING_KEY)
   }
 
-  const form = await c.req.parseBody()
+  const form = await httpContext.req.parseBody()
   const submitted = typeof form.consent_token === 'string' ? form.consent_token : ''
   const payload = await verifyConsentToken(submitted, user.id, signingKey)
   if (!payload) {
-    return errorPage(c, 400, 'This request has expired', 'Start the connection again from the application.')
+    return errorPage(httpContext, 400, 'This request has expired', 'Start the connection again from the application.')
   }
 
   if (form.decision !== 'approve') {
@@ -363,7 +368,7 @@ oauthRouter.post('/authorize', async (c) => {
      * leaving it waiting on a callback that will never arrive.
      */
     return authorizationFailure(
-      c,
+      httpContext,
       new AuthorizationError('access_denied', {
         description: 'The user declined the request',
         redirectUri: payload.authRequest.redirectUri,
@@ -373,12 +378,17 @@ oauthRouter.post('/authorize', async (c) => {
     )
   }
 
-  const workspace = await consentWorkspace(c, payload.workspaceId)
+  const workspace = await consentWorkspace(httpContext, payload.workspaceId)
   if (!workspace) {
-    return errorPage(c, 403, 'Workspace unavailable', 'That workspace does not exist, or you are not a member of it.')
+    return errorPage(
+      httpContext,
+      403,
+      'Workspace unavailable',
+      'That workspace does not exist, or you are not a member of it.',
+    )
   }
 
-  const { redirectTo } = await helpers(c).completeAuthorization({
+  const { redirectTo } = await helpers(httpContext).completeAuthorization({
     request: payload.authRequest,
     userId: user.id,
     metadata: { workspaceId: payload.workspaceId, consentedAt: Math.floor(Date.now() / 1000) },
@@ -403,5 +413,5 @@ oauthRouter.post('/authorize', async (c) => {
     revokeExistingGrants: false,
   })
 
-  return c.redirect(redirectTo, 302)
+  return httpContext.redirect(redirectTo, 302)
 })

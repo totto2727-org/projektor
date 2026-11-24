@@ -55,7 +55,7 @@ const CHIP =
 const H2 = 'text-[1.05rem] font-bold text-text-base m-0 mb-3'
 const adminRole = (role: string) => role === 'owner' || role === 'admin'
 type Tab = 'groups' | 'members'
-export function nextTabId(tabs: readonly Tab[], active: Tab, key: string): Tab | null {
+export function nextTabId(tabs: Readonly<Tab[]>, active: Tab, key: string): Tab | null {
   const index = tabs.indexOf(active)
   if (key === 'ArrowRight') {
     return tabs[(index + 1) % tabs.length]

@@ -303,10 +303,10 @@ describe('complete direct D1 issues SSR loaders', () => {
 
   test('pages through each authenticated membership for MyIssues without imposing the selected project', async () => {
     const data = fixture()
-    for (let i = 0; i < 103; i++) {
+    for (let index = 0; index < 103; index++) {
       data.insertIssue({
-        id: `my-${String(i).padStart(3, '0')}`,
-        number: i + 2,
+        id: `my-${String(index).padStart(3, '0')}`,
+        number: index + 2,
         assigneeId: scope.user.id,
         createdAt: 5,
       })
@@ -334,8 +334,8 @@ describe('complete direct D1 issues SSR loaders', () => {
 
   test('rejects oversized board aggregates but keeps the ordinary list paginated', async () => {
     const data = fixture()
-    for (let i = 0; i < 1000; i++) {
-      data.insertIssue({ id: `budget-${i}`, number: 100 + i })
+    for (let index = 0; index < 1000; index++) {
+      data.insertIssue({ id: `budget-${index}`, number: 100 + index })
     }
     await expect(
       data.run(
@@ -402,10 +402,10 @@ describe('complete direct D1 issues SSR loaders', () => {
 
   test('loads complete board sets and performs project-scoped real FTS search', async () => {
     const data = fixture()
-    for (let i = 0; i < 102; i++) {
+    for (let index = 0; index < 102; index++) {
       data.insertIssue({
-        id: `board-${String(i).padStart(3, '0')}`,
-        number: i + 2,
+        id: `board-${String(index).padStart(3, '0')}`,
+        number: index + 2,
         title: 'needle',
         createdAt: 5,
       })

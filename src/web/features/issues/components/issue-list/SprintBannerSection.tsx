@@ -122,7 +122,7 @@ function SprintEditFields({
           <input
             type='text'
             value={sprintEditName}
-            onInput={(e) => setSprintEditName((e.target as HTMLInputElement).value)}
+            onInput={(event) => setSprintEditName((event.target as HTMLInputElement).value)}
             required
             maxLength={255}
             className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
@@ -134,8 +134,8 @@ function SprintEditFields({
           Status
           <select
             value={sprintEditStatus}
-            onChange={(e) =>
-              setSprintEditStatus((e.target as HTMLSelectElement).value as 'planned' | 'active' | 'completed')
+            onChange={(event) =>
+              setSprintEditStatus((event.target as HTMLSelectElement).value as 'planned' | 'active' | 'completed')
             }
             className={`cursor-pointer ${SPRINT_EDIT_INPUT_CLASS}`}
           >
@@ -151,7 +151,7 @@ function SprintEditFields({
           <input
             type='date'
             value={sprintEditStart}
-            onInput={(e) => setSprintEditStart((e.target as HTMLInputElement).value)}
+            onInput={(event) => setSprintEditStart((event.target as HTMLInputElement).value)}
             className={SPRINT_EDIT_INPUT_CLASS}
           />
         </label>
@@ -162,7 +162,7 @@ function SprintEditFields({
           <input
             type='date'
             value={sprintEditEnd}
-            onInput={(e) => setSprintEditEnd((e.target as HTMLInputElement).value)}
+            onInput={(event) => setSprintEditEnd((event.target as HTMLInputElement).value)}
             className={SPRINT_EDIT_INPUT_CLASS}
           />
         </label>
@@ -211,7 +211,7 @@ function SprintEditForm({
             <input
               type='text'
               value={sprintEditGoal}
-              onInput={(e) => setSprintEditGoal((e.target as HTMLInputElement).value)}
+              onInput={(event) => setSprintEditGoal((event.target as HTMLInputElement).value)}
               maxLength={2000}
               placeholder='What do you want to achieve this sprint?'
               className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
@@ -340,8 +340,8 @@ export default function SprintBannerSection({
     setSprintEditing(true)
   }
 
-  async function saveSprintEdit(e: import('react').FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  async function saveSprintEdit(event: import('react').FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     if (!sprintDetail) {
       return
     }

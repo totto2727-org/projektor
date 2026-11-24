@@ -62,7 +62,7 @@ const resolveAutoJoinRole = function resolveAutoJoinRole(raw?: string): Role | n
   if (v === 'none') {
     return null
   }
-  return (VALID_ROLES as readonly string[]).includes(v) ? (v as Role) : 'viewer'
+  return (VALID_ROLES as Readonly<string[]>).includes(v) ? (v as Role) : 'viewer'
 }
 
 /**
@@ -79,7 +79,7 @@ const parseDomainMapValue = function parseDomainMapValue(v: unknown): { slug: st
   const slug = typeof (v as { slug?: unknown }).slug === 'string' ? (v as { slug: string }).slug.trim() : ''
   const roleRaw =
     typeof (v as { role?: unknown }).role === 'string' ? (v as { role: string }).role.trim().toLowerCase() : 'member'
-  const role = (VALID_ROLES as readonly string[]).includes(roleRaw) ? (roleRaw as Role) : 'member'
+  const role = (VALID_ROLES as Readonly<string[]>).includes(roleRaw) ? (roleRaw as Role) : 'member'
   if (!slug) {
     return null
   }
@@ -192,13 +192,13 @@ const provisionAdmin = async function provisionAdmin(
   if (!rows.some((r) => r.slug === slug)) {
     try {
       await createWorkspace(env.DB, user.id, { name, slug })
-    } catch (e) {
+    } catch (caughtError) {
       /*
        * Lost a race with another admin's concurrent login — they created it, so we are
        * not its owner and the join above never saw it. Ensure membership explicitly.
        */
-      if (!(e instanceof ConflictError)) {
-        throw e
+      if (!(caughtError instanceof ConflictError)) {
+        throw caughtError
       }
     }
     const created = await orm

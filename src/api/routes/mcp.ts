@@ -112,33 +112,33 @@ const isPlainObject = function isPlainObject(v: unknown): v is Record<string, un
  * bump — tracked separately, not attempted here. See PROJ-452 and
  * docs/superpowers/specs/2026-07-29-mcp-2026-07-28-update-plan.md.
  */
-router.post('/:workspaceId', async (c) => {
-  const workspace = c.get('workspace') as { id: string }
+router.post('/:workspaceId', async (httpContext) => {
+  const workspace = httpContext.get('workspace') as { id: string }
   /*
    * PROJ-877: malformed JSON is a JSON-RPC parse error (-32700), and a body that
    * isn't a request object is an invalid request (-32600) — neither is a 500.
    */
   let raw: unknown
   try {
-    raw = await c.req.json()
+    raw = await httpContext.req.json()
   } catch {
-    return c.json(jsonRpcError(null, -32_700, 'Parse error'), 400)
+    return httpContext.json(jsonRpcError(null, -32_700, 'Parse error'), 400)
   }
   if (!isPlainObject(raw) || typeof raw.method !== 'string') {
     const id = isPlainObject(raw) ? (raw.id ?? null) : null
-    return c.json(jsonRpcError(id, -32_600, 'Invalid Request'), 400)
+    return httpContext.json(jsonRpcError(id, -32_600, 'Invalid Request'), 400)
   }
   const body = raw as { jsonrpc: '2.0'; id: unknown; method: string; params?: unknown }
 
   if (body.jsonrpc !== '2.0') {
-    return c.json(jsonRpcError(body.id, -32_600, 'Invalid Request'), 400)
+    return httpContext.json(jsonRpcError(body.id, -32_600, 'Invalid Request'), 400)
   }
 
   /*
    * PROJ-889: the same full ServiceCtx as REST (waitUntil, realtime hub, auth method +
    * credential), so MCP mutations broadcast and nothing needs an `as ServiceCtx` cast.
    */
-  const ctx = ctxFromHono(c)
+  const ctx = ctxFromHono(httpContext)
 
   switch (body.method) {
     case 'initialize':
@@ -148,7 +148,7 @@ router.post('/:workspaceId', async (c) => {
        * `_meta` era, which has no `initialize` method at all. Claiming it here
        * while still running the legacy handshake would be spec-incoherent.
        */
-      return c.json(
+      return httpContext.json(
         jsonRpcResult(body.id, {
           protocolVersion: '2025-11-25',
           capabilities: { tools: {}, prompts: {} },
@@ -163,7 +163,7 @@ router.post('/:workspaceId', async (c) => {
       )
 
     case 'tools/list': {
-      const domainsParam = c.req.query('domains')
+      const domainsParam = httpContext.req.query('domains')
       let tools = getAllTools(workspace.id)
       if (domainsParam !== undefined) {
         const requested = dedupe(
@@ -175,7 +175,7 @@ router.post('/:workspaceId', async (c) => {
         if (requested.length > 0) {
           const invalid = requested.filter((slug) => !TOOL_DOMAIN_SLUGS.includes(slug))
           if (invalid.length > 0) {
-            return c.json(
+            return httpContext.json(
               jsonRpcError(
                 body.id,
                 -32_602,
@@ -188,7 +188,7 @@ router.post('/:workspaceId', async (c) => {
           tools = tools.filter((t) => allowed.has(t.name))
         }
       }
-      return c.json(
+      return httpContext.json(
         jsonRpcResult(body.id, {
           tools: tools.map((t) => ({
             name: t.name,
@@ -214,16 +214,16 @@ router.post('/:workspaceId', async (c) => {
        * destructures undefined into a 500.
        */
       if (!isPlainObject(body.params) || typeof body.params.name !== 'string') {
-        return c.json(jsonRpcError(body.id, -32_602, 'Invalid params: `name` is required'))
+        return httpContext.json(jsonRpcError(body.id, -32_602, 'Invalid params: `name` is required'))
       }
       const name = body.params.name
       const args = body.params.arguments ?? {}
       if (!isPlainObject(args)) {
-        return c.json(jsonRpcError(body.id, -32_602, 'Invalid params: `arguments` must be an object'))
+        return httpContext.json(jsonRpcError(body.id, -32_602, 'Invalid params: `arguments` must be an object'))
       }
       const tool = getAllTools(workspace.id).find((t) => t.name === name)
       if (!tool) {
-        return c.json(jsonRpcError(body.id, -32601, `Tool not found: ${name}`))
+        return httpContext.json(jsonRpcError(body.id, -32601, `Tool not found: ${name}`))
       }
       /*
        * PROJ-877/920: required presence AND types/enums/lengths against the tool's
@@ -246,7 +246,7 @@ router.post('/:workspaceId', async (c) => {
           }),
         )
         // biome-ignore lint/style/noNonNullAssertion: a ValidationError always maps
-        return c.json(jsonRpcResult(body.id, toolError!))
+        return httpContext.json(jsonRpcResult(body.id, toolError!))
       }
 
       /*
@@ -254,17 +254,17 @@ router.post('/:workspaceId', async (c) => {
        * auth came from Cloudflare Access / dev bypass — those are role-governed,
        * not scope-restricted, so the check is skipped for them.
        */
-      const scopes = c.get('tokenScopes')
+      const scopes = httpContext.get('tokenScopes')
       if (scopes) {
         const required = capabilityForMcpTool(name)
         if (!tokenAllows(scopes, required)) {
-          return insufficientScope(c, workspace.id, body.id, required)
+          return insufficientScope(httpContext, workspace.id, body.id, required)
         }
       }
 
       try {
         const result = await tool.handler(args, ctx)
-        return c.json(
+        return httpContext.json(
           jsonRpcResult(body.id, {
             /*
              * PROJ-931: minified — pretty-printing roughly doubled token cost
@@ -281,15 +281,15 @@ router.post('/:workspaceId', async (c) => {
          */
         const toolError = toToolError(err, { toolName: name, role: ctx.role })
         if (toolError) {
-          return c.json(jsonRpcResult(body.id, toolError))
+          return httpContext.json(jsonRpcResult(body.id, toolError))
         }
         const { code, message, data } = toMcpError(err, crypto.randomUUID())
-        return c.json(jsonRpcError(body.id, code, message, data))
+        return httpContext.json(jsonRpcError(body.id, code, message, data))
       }
     }
 
     case 'prompts/list':
-      return c.json(jsonRpcResult(body.id, { prompts: listPrompts() }))
+      return httpContext.json(jsonRpcResult(body.id, { prompts: listPrompts() }))
 
     case 'prompts/get': {
       const { name, arguments: promptArgs } = (body.params ?? {}) as {
@@ -301,25 +301,25 @@ router.post('/:workspaceId', async (c) => {
        * PROJ-600: prompts/get delegates to compose_playbook under the hood, so it's
        * gated by the same scope as calling that tool directly.
        */
-      const scopes = c.get('tokenScopes')
+      const scopes = httpContext.get('tokenScopes')
       if (scopes) {
         const required = capabilityForMcpTool('compose_playbook')
         if (!tokenAllows(scopes, required)) {
-          return insufficientScope(c, workspace.id, body.id, required)
+          return insufficientScope(httpContext, workspace.id, body.id, required)
         }
       }
 
       try {
         const result = await getPrompt(ctx, name, promptArgs ?? {})
-        return c.json(jsonRpcResult(body.id, result))
+        return httpContext.json(jsonRpcResult(body.id, result))
       } catch (err) {
         const { code, message, data } = toMcpError(err, crypto.randomUUID())
-        return c.json(jsonRpcError(body.id, code, message, data))
+        return httpContext.json(jsonRpcError(body.id, code, message, data))
       }
     }
 
     default:
-      return c.json(jsonRpcError(body.id, -32_601, 'Method not found'))
+      return httpContext.json(jsonRpcError(body.id, -32_601, 'Method not found'))
   }
 })
 
@@ -332,9 +332,9 @@ router.post('/:workspaceId', async (c) => {
  * (the existing `pk_` token fleet) still get the same structured -32003 they did
  * before; only the transport-level status and the header are new.
  */
-function insufficientScope(c: Context<HonoEnv>, workspaceId: string, id: unknown, required: Capability) {
-  c.header('WWW-Authenticate', insufficientScopeChallenge(c.req.url, workspaceId))
-  return c.json(jsonRpcError(id, -32_003, `Token lacks '${required}' scope`), 403)
+function insufficientScope(httpContext: Context<HonoEnv>, workspaceId: string, id: unknown, required: Capability) {
+  httpContext.header('WWW-Authenticate', insufficientScopeChallenge(httpContext.req.url, workspaceId))
+  return httpContext.json(jsonRpcError(id, -32_003, `Token lacks '${required}' scope`), 403)
 }
 
 function dedupe(values: string[]): string[] {

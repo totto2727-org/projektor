@@ -70,7 +70,7 @@ function NewSourceForm({
           id='fs-name'
           name='name'
           value={name}
-          onChange={(e) => setName((e.target as HTMLInputElement).value)}
+          onChange={(event) => setName((event.target as HTMLInputElement).value)}
           required
           maxLength={100}
         />
@@ -86,7 +86,7 @@ function NewSourceForm({
           id='fs-desc'
           name='description'
           value={description}
-          onChange={(e) => setDescription((e.target as HTMLInputElement).value)}
+          onChange={(event) => setDescription((event.target as HTMLInputElement).value)}
           maxLength={500}
         />
       </div>
@@ -102,7 +102,7 @@ function NewSourceForm({
           name='origins'
           rows={2}
           value={origins}
-          onChange={(e) => setOrigins((e.target as HTMLTextAreaElement).value)}
+          onChange={(event) => setOrigins((event.target as HTMLTextAreaElement).value)}
         />
       </div>
       <div className='flex gap-2'>

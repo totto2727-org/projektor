@@ -48,7 +48,7 @@ export const DESTRUCTIVE: MCPToolAnnotations = WRITE({ destructive: true })
  * truth so the annotations test can assert every tool's `destructiveHint`
  * against this exact set.
  */
-export const DESTRUCTIVE_TOOLS: readonly string[] = [
+export const DESTRUCTIVE_TOOLS: Readonly<string[]> = [
   // delete_*
   'delete_comment',
   'delete_custom_field_def',

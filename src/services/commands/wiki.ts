@@ -681,14 +681,14 @@ const resolveTemplateContent = async function resolveTemplateContent(
   let template: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>
   try {
     template = await resolvePageByIdOrSlug(ctx.db, templateSlug, ctx.workspaceId)
-  } catch (e) {
-    if (e instanceof NotFoundError) {
+  } catch (caughtError) {
+    if (caughtError instanceof NotFoundError) {
       throw new ValidationError({
         formErrors: [`templateSlug '${templateSlug}' does not resolve to an existing page`],
         fieldErrors: {},
       })
     }
-    throw e
+    throw caughtError
   }
   await assertWikiPageVisible(ctx, template.projectId)
   const meta = parseWikiFrontmatter(template.content)
@@ -775,16 +775,16 @@ const buildCreateWikiPageInsertStatement = function buildCreateWikiPageInsertSta
  */
 const writeCreateWikiPageBatch = async function writeCreateWikiPageBatch(
   ctx: ServiceCtx,
-  statements: readonly D1PreparedStatement[],
+  statements: Readonly<D1PreparedStatement[]>,
   slug: string,
 ): Promise<void> {
   try {
     await ctx.db.batch(statements as D1PreparedStatement[])
-  } catch (e) {
-    if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) {
+  } catch (caughtError) {
+    if (caughtError instanceof Error && /UNIQUE constraint failed/i.test(caughtError.message)) {
       throw new ConflictError(`Slug '${slug}' is already in use`)
     }
-    throw e
+    throw caughtError
   }
 }
 
@@ -941,15 +941,15 @@ const isStaleWriteError = function isStaleWriteError(e: unknown): boolean {
 const batchGuarded = async function batchGuarded(
   ctx: ServiceCtx,
   page: GuardedPage,
-  statements: readonly D1PreparedStatement[],
+  statements: Readonly<D1PreparedStatement[]>,
 ): Promise<void> {
   try {
     await ctx.db.batch([staleWriteGuard(ctx, page), ...statements])
-  } catch (e) {
-    if (isStaleWriteError(e)) {
+  } catch (caughtError) {
+    if (isStaleWriteError(caughtError)) {
       throw new StaleWikiWriteError()
     }
-    throw e
+    throw caughtError
   }
 }
 
@@ -1073,7 +1073,7 @@ function buildFtsInsertStatements(
   id: string,
   title: string,
   content: string,
-  tags: readonly string[],
+  tags: Readonly<string[]>,
 ): D1PreparedStatement[] {
   /*
    * PROJ-488: tags is space-joined — wiki_fts's default unicode61 tokenizer splits on
@@ -1318,20 +1318,20 @@ const buildUpdateWikiPageReindexStatements = async function buildUpdateWikiPageR
 const writeUpdateWikiPageBatch = async function writeUpdateWikiPageBatch(
   ctx: ServiceCtx,
   page: GuardedPage,
-  statements: readonly D1PreparedStatement[],
+  statements: Readonly<D1PreparedStatement[]>,
   isRename: boolean,
   slug: string | undefined,
 ): Promise<void> {
   try {
     await batchGuarded(ctx, page, statements)
-  } catch (e) {
-    if (e instanceof StaleWikiWriteError) {
+  } catch (caughtError) {
+    if (caughtError instanceof StaleWikiWriteError) {
       throw await staleConflict(ctx, page.id)
     }
-    if (isRename && e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) {
+    if (isRename && caughtError instanceof Error && /UNIQUE constraint failed/i.test(caughtError.message)) {
       throw new ConflictError(`Slug '${slug}' is already in use`)
     }
-    throw e
+    throw caughtError
   }
 }
 
@@ -1623,7 +1623,7 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
   }))
 }
 
-const findSections = function findSections(sections: readonly HeadingSection[], heading: string): HeadingSection[] {
+const findSections = function findSections(sections: Readonly<HeadingSection[]>, heading: string): HeadingSection[] {
   const target = heading.trim()
   return sections.filter((s) => s.heading === target)
 }
@@ -1632,7 +1632,7 @@ const extractSectionText = function extractSectionText(content: string, section:
   return content.split('\n').slice(section.startLine, section.endLine).join('\n')
 }
 
-const trimTrailingBlankLines = function trimTrailingBlankLines(lines: readonly string[]): string[] {
+const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
   while (out.length > 0 && out[out.length - 1].trim() === '') {
     out.pop()
@@ -1640,7 +1640,7 @@ const trimTrailingBlankLines = function trimTrailingBlankLines(lines: readonly s
   return out
 }
 
-const trimLeadingBlankLines = function trimLeadingBlankLines(lines: readonly string[]): string[] {
+const trimLeadingBlankLines = function trimLeadingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
   while (out.length > 0 && out[0].trim() === '') {
     out.shift()
@@ -1734,7 +1734,7 @@ const applySectionOp = function applySectionOp(
  * consistency and because a revision snapshot is still created either way.
  */
 const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
-  currentSections: readonly HeadingSection[],
+  currentSections: Readonly<HeadingSection[]>,
   heading: string,
 ): HeadingSection {
   const currentMatches = findSections(currentSections, heading)
@@ -1827,9 +1827,9 @@ export async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: un
     const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
     try {
       return await patchWikiPageOnce(ctx, page, data)
-    } catch (e) {
-      if (!(e instanceof StaleWikiWriteError)) {
-        throw e
+    } catch (caughtError) {
+      if (!(caughtError instanceof StaleWikiWriteError)) {
+        throw caughtError
       }
       if (!retryable || attempt + 1 >= PATCH_RETRIES) {
         throw await staleConflict(ctx, page.id)
@@ -2222,8 +2222,8 @@ const deleteWikiPageAttachments = async function deleteWikiPageAttachments(
       ),
     )
   const r2Keys = fileAttachments.map((a) => a.r2Key).filter((key): key is string => Boolean(key))
-  for (let i = 0; i < r2Keys.length; i += R2_DELETE_BATCH_SIZE) {
-    await ctx.r2.delete(r2Keys.slice(i, i + R2_DELETE_BATCH_SIZE))
+  for (let index = 0; index < r2Keys.length; index += R2_DELETE_BATCH_SIZE) {
+    await ctx.r2.delete(r2Keys.slice(index, index + R2_DELETE_BATCH_SIZE))
   }
 
   await orm

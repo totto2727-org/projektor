@@ -92,9 +92,9 @@ const formErrorOf = async function formErrorOf(p: Promise<unknown>): Promise<str
 const seedChain = async function seedChain(f: Fixture, length: number): Promise<string[]> {
   const ids: string[] = []
   let parentId: string | undefined
-  for (let i = 0; i < length; i++) {
+  for (let index = 0; index < length; index++) {
     const { id } = await seedIssue(f.workspaceId, f.projectId, f.userId, {
-      title: `L${i}`,
+      title: `L${index}`,
       parentId,
     })
     ids.push(id)

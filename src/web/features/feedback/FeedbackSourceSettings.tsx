@@ -112,8 +112,8 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
         }),
       )
       onChanged?.()
-    } catch (e) {
-      setError(String(e))
+    } catch (caughtError) {
+      setError(String(caughtError))
     }
   }
 
@@ -129,10 +129,10 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
       setRotating(false)
       setNewToken(result.token)
       onChanged?.()
-    } catch (e) {
+    } catch (caughtError) {
       rotationInFlight.current = false
       setRotationBusy(false)
-      setError(String(e))
+      setError(String(caughtError))
       return
     }
     rotationInFlight.current = false
@@ -146,8 +146,8 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
     try {
       unwrapResult(await revokeFeedbackSource({ workspaceSlug, projectId, sourceId: source.id }))
       onChanged?.()
-    } catch (e) {
-      setError(String(e))
+    } catch (caughtError) {
+      setError(String(caughtError))
     }
   }
 

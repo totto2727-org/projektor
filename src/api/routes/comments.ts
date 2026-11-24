@@ -15,47 +15,47 @@ const router = new Hono<HonoEnv>()
  * resolve one before asking (PROJ-438). Writes stay UUID-only — they're never on a
  * first-paint path, so there's nothing to gain for the extra surface.
  */
-router.get('/:issueId/comments', async (c) => {
-  const ctx = ctxFromHono(c)
+router.get('/:issueId/comments', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    const issueId = await resolveIssueIdParam(ctx, c.req.param('issueId'))
-    return c.json(await listComments(ctx, { issueId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    const issueId = await resolveIssueIdParam(ctx, httpContext.req.param('issueId'))
+    return httpContext.json(await listComments(ctx, { issueId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:issueId/comments', async (c) => {
-  const ctx = ctxFromHono(c)
-  const issueId = c.req.param('issueId')
-  const raw = await jsonBody(c)
+router.post('/:issueId/comments', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const issueId = httpContext.req.param('issueId')
+  const raw = await jsonBody(httpContext)
   try {
-    return c.json(await addComment(ctx, { issueId, ...raw }), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await addComment(ctx, { issueId, ...raw }), 201)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:issueId/comments/:id', async (c) => {
-  const ctx = ctxFromHono(c)
-  const issueId = c.req.param('issueId')
-  const commentId = c.req.param('id')
-  const raw = await jsonBody(c)
+router.patch('/:issueId/comments/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const issueId = httpContext.req.param('issueId')
+  const commentId = httpContext.req.param('id')
+  const raw = await jsonBody(httpContext)
   try {
-    return c.json(await updateComment(ctx, { issueId, commentId, ...raw }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateComment(ctx, { issueId, commentId, ...raw }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:issueId/comments/:id', async (c) => {
-  const ctx = ctxFromHono(c)
-  const issueId = c.req.param('issueId')
-  const commentId = c.req.param('id')
+router.delete('/:issueId/comments/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const issueId = httpContext.req.param('issueId')
+  const commentId = httpContext.req.param('id')
   try {
-    return c.json(await deleteComment(ctx, { issueId, commentId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await deleteComment(ctx, { issueId, commentId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 

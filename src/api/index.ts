@@ -58,12 +58,12 @@ import { workflowRouter } from './routes/workflow.ts'
 import { workspacesRouter } from './routes/workspaces.ts'
 
 const app = new Hono<HonoEnv>()
-app.onError((error, c) => {
+app.onError((error, httpContext) => {
   if (error instanceof CorePublicError || error instanceof ServiceError) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
-  console.error('unhandled error', { method: c.req.method, path: c.req.path, error })
-  return c.json({ error: 'Internal Server Error' }, 500)
+  console.error('unhandled error', { method: httpContext.req.method, path: httpContext.req.path, error })
+  return httpContext.json({ error: 'Internal Server Error' }, 500)
 })
 
 // Anonymous ingestion owns its source-specific CORS, before the global allowlist.
@@ -82,8 +82,8 @@ app.use(
     allowHeaders: ['Authorization', 'Content-Type', 'Cf-Access-Jwt-Assertion', 'X-Workspace-Slug'],
   }),
 )
-app.get('/health', (c) => c.json({ ok: true }))
-app.get('/api/health', (c) => c.json({ ok: true }))
+app.get('/health', (httpContext) => httpContext.json({ ok: true }))
+app.get('/api/health', (httpContext) => httpContext.json({ ok: true }))
 app.route('/api/config', configRouter)
 app.use('/api/*', rateLimitMiddleware)
 app.use('/mcp/*', rateLimitMiddleware)
@@ -93,55 +93,64 @@ app.use('/oauth/*', rateLimitMiddleware)
 app.use('/oauth/*', authMiddleware)
 app.route('/oauth', oauthRouter)
 
-app.get('/bootstrap', async (c) => {
+app.get('/bootstrap', async (httpContext) => {
   try {
     const result = await Effect.runPromise(
       decodeCoreReply(
         ApiDevelopmentBootstrap,
-        makeCoreClient(c.env.CORE).apiBootstrap(
-          c.req.header('X-Bootstrap-Secret') ?? c.req.query('setup_secret'),
-          c.req.url,
+        makeCoreClient(httpContext.env.CORE).apiBootstrap(
+          httpContext.req.header('X-Bootstrap-Secret') ?? httpContext.req.query('setup_secret'),
+          httpContext.req.url,
         ),
       ),
     )
-    return c.json(result)
+    return httpContext.json(result)
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 app.route('/api/share', sharePublicRouter)
 app.route('/auth', authRouter)
-app.get('/api/workspaces', authMiddleware, async (c) => {
+app.get('/api/workspaces', authMiddleware, async (httpContext) => {
   const result = await Effect.runPromise(
-    decodeCoreReply(ApiResults.apiListWorkspaces, makeCoreClient(c.env.CORE).apiListWorkspaces(c.get('coreActor'))),
+    decodeCoreReply(
+      ApiResults.apiListWorkspaces,
+      makeCoreClient(httpContext.env.CORE).apiListWorkspaces(httpContext.get('coreActor')),
+    ),
   )
-  return c.json(result)
+  return httpContext.json(result)
 })
-app.post('/api/workspaces', authMiddleware, async (c) => {
+app.post('/api/workspaces', authMiddleware, async (httpContext) => {
   try {
     const result = await Effect.runPromise(
       decodeCoreReply(
         ApiResults.apiCreateWorkspace,
-        makeCoreClient(c.env.CORE).apiCreateWorkspace(c.get('coreActor'), await jsonBody(c)),
+        makeCoreClient(httpContext.env.CORE).apiCreateWorkspace(
+          httpContext.get('coreActor'),
+          await jsonBody(httpContext),
+        ),
       ),
     )
-    return c.json(result, 201)
+    return httpContext.json(result, 201)
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 app.use('/api/workspaces/:slug/*', authMiddleware, workspaceMiddleware)
-app.get('/api/projects', authMiddleware, etagMiddleware, async (c) => {
+app.get('/api/projects', authMiddleware, etagMiddleware, async (httpContext) => {
   try {
     const result = await Effect.runPromise(
       decodeCoreReply(
         ApiResults.apiListProjects,
-        makeCoreClient(c.env.CORE).apiListProjects(c.get('coreActor'), c.req.query('includeArchived') === 'true'),
+        makeCoreClient(httpContext.env.CORE).apiListProjects(
+          httpContext.get('coreActor'),
+          httpContext.req.query('includeArchived') === 'true',
+        ),
       ),
     )
-    return c.json(result)
+    return httpContext.json(result)
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 app.use('/api/projects/*', authMiddleware, workspaceMiddleware)
@@ -149,9 +158,9 @@ app.use('/api/issues/*', authMiddleware, workspaceMiddleware)
 app.use('/api/issue-links/*', authMiddleware, workspaceMiddleware)
 app.use('/api/wiki/*', authMiddleware, workspaceMiddleware)
 app.use('/mcp/*', authMiddleware, workspaceMiddleware)
-const allowFilesQueryWorkspaceFallback = async (c: Context<HonoEnv>, next: Next) => {
-  if (c.req.method === 'GET') {
-    c.set('allowQueryWorkspaceFallback', true)
+const allowFilesQueryWorkspaceFallback = async (httpContext: Context<HonoEnv>, next: Next) => {
+  if (httpContext.req.method === 'GET') {
+    httpContext.set('allowQueryWorkspaceFallback', true)
   }
   await next()
 }
@@ -200,24 +209,24 @@ app.route('/api/workflow', workflowRouter)
 app.route('/api/playbooks', playbooksRouter)
 app.route('/api', realtimeRouter)
 
-app.get('/wiki', async (c) => {
-  const assets = c.env.ASSETS
+app.get('/wiki', async (httpContext) => {
+  const assets = httpContext.env.ASSETS
   if (!assets) {
-    return c.notFound()
+    return httpContext.notFound()
   }
-  const slug = c.req.query('slug')
-  const shell = () => assets.fetch(new Request(new URL('/wiki/index.html', c.req.url)))
+  const slug = httpContext.req.query('slug')
+  const shell = () => assets.fetch(new Request(new URL('/wiki/index.html', httpContext.req.url)))
   if (!slug) {
     return shell()
   }
-  const page = await resolveWikiPageForSsr(c, slug)
-  return page ? c.redirect(page.url, 301) : shell()
+  const page = await resolveWikiPageForSsr(httpContext, slug)
+  return page ? httpContext.redirect(page.url, 301) : shell()
 })
-app.get('*', async (c) => {
-  if (!c.env.ASSETS) {
-    return c.notFound()
+app.get('*', async (httpContext) => {
+  if (!httpContext.env.ASSETS) {
+    return httpContext.notFound()
   }
-  const { pathname } = new URL(c.req.url)
+  const { pathname } = new URL(httpContext.req.url)
   const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/.exec(pathname)
   const fallbackPath = /^\/projects\/[^/]+\/issues\/\d+\//.test(pathname)
     ? '/issues/view/index.html'
@@ -230,12 +239,12 @@ app.get('*', async (c) => {
           : wikiSlugMatch
             ? '/wiki/view/index.html'
             : '/index.html'
-  const response = await c.env.ASSETS.fetch(new Request(new URL(fallbackPath, c.req.url)))
+  const response = await httpContext.env.ASSETS.fetch(new Request(new URL(fallbackPath, httpContext.req.url)))
   if (wikiSlugMatch) {
     const slug = safeDecodeURIComponent(wikiSlugMatch[1])
-    const page = slug ? await resolveWikiPageForSsr(c, slug) : null
+    const page = slug ? await resolveWikiPageForSsr(httpContext, slug) : null
     if (page) {
-      return injectWikiMetadata(response, page, new URL(pathname, c.req.url).toString())
+      return injectWikiMetadata(response, page, new URL(pathname, httpContext.req.url).toString())
     }
   }
   return response

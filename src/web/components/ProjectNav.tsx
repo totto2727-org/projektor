@@ -38,7 +38,7 @@ function isTabActive(path: string, pathname: string): boolean {
 function tabClass(active: boolean): string {
   return `${TAB_BASE_CLASS} ${active ? 'text-accent bg-bg border-border font-semibold' : 'text-text-muted border-transparent hover:text-text-base hover:bg-surface'}`
 }
-function visibleCount(width: number, tabs: readonly number[]): number {
+function visibleCount(width: number, tabs: Readonly<number[]>): number {
   const total = tabs.reduce((sum, item) => sum + item, 0) + TAB_GAP_PX * Math.max(tabs.length - 1, 0)
   if (total <= width) {
     return tabs.length

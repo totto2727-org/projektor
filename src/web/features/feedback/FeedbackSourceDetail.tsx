@@ -15,8 +15,8 @@ export interface FeedbackDetailProps {
   workspaceSlug: string
   projectId: string
   initialSource: FeedbackSource
-  initialSources: readonly FeedbackSource[]
-  initialRows: readonly Feedback[]
+  initialSources: Readonly<FeedbackSource[]>
+  initialRows: Readonly<Feedback[]>
   initialSummary: SourceSummary | null
   initialStatus?: string
   initialTab?: TabId
@@ -49,7 +49,7 @@ function FeedbackSourceHeader({
   workspaceSlug,
 }: {
   source: FeedbackSource
-  sources: readonly FeedbackSource[]
+  sources: Readonly<FeedbackSource[]>
   projectId: string
   workspaceSlug: string
 }) {
@@ -90,7 +90,7 @@ function FeedbackTabPanels({
   workspaceSlug?: string
   projectId: string
   source: FeedbackSource
-  initialRows: readonly Feedback[]
+  initialRows: Readonly<Feedback[]>
   initialSummary: SourceSummary | null
   initialStatus?: string
 }) {
@@ -186,23 +186,23 @@ export default function FeedbackSourceDetail({
     tabRefs.current[id]?.focus()
   }
 
-  function onTabKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+  function onTabKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     const focused = TABS.find((id) => tabRefs.current[id] === document.activeElement) ?? tab
     const idx = TABS.indexOf(focused)
     let nextId: TabId | null = null
-    if (e.key === 'ArrowRight') {
+    if (event.key === 'ArrowRight') {
       nextId = TABS[(idx + 1) % TABS.length]
-    } else if (e.key === 'ArrowLeft') {
+    } else if (event.key === 'ArrowLeft') {
       nextId = TABS[(idx - 1 + TABS.length) % TABS.length]
-    } else if (e.key === 'Home') {
+    } else if (event.key === 'Home') {
       nextId = TABS[0]
-    } else if (e.key === 'End') {
+    } else if (event.key === 'End') {
       nextId = TABS[TABS.length - 1]
     }
     if (!nextId) {
       return
     }
-    e.preventDefault()
+    event.preventDefault()
     focusTab(nextId)
     navigateFeature(hrefForTab(nextId))
   }

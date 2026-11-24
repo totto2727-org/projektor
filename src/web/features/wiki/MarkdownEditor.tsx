@@ -117,16 +117,16 @@ function prefixLines(view: EditorView, prefix: string): boolean {
  * click, which land outside the button's own box; a genuine click on the button never
  * does. Keyboard activation reports detail 0 (and 0,0 coords) and must still pass.
  */
-function isDirectPointerActivation(e: React.MouseEvent): boolean {
-  if (e.detail === 0) {
+function isDirectPointerActivation(event: React.MouseEvent): boolean {
+  if (event.detail === 0) {
     return true
   }
-  const target = e.currentTarget as HTMLElement | null
+  const target = event.currentTarget as HTMLElement | null
   if (!target) {
     return false
   }
   const r = target.getBoundingClientRect()
-  return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+  return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom
 }
 
 function direct(run: () => void): (e: React.MouseEvent) => void {

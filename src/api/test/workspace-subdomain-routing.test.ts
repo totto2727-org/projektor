@@ -116,7 +116,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
        */
       const app = new Hono<HonoEnv>()
       app.use('*', authMiddleware, workspaceMiddleware)
-      app.get('/api/task-types', (c) => c.json({ unexpected: true }))
+      app.get('/api/task-types', (httpContext) => httpContext.json({ unexpected: true }))
       const executionContext = createExecutionContext()
       const direct = await app.request('http://localhost/api/task-types', { headers }, env, executionContext)
       await waitOnExecutionContext(executionContext)
