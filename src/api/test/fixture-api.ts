@@ -95,11 +95,13 @@ export const resetCoreObservations = async function resetCoreObservations(): Pro
 
 export const createCoreFixtureSession = async function createCoreFixtureSession(
   settings: Readonly<Record<string, string | null>>,
-) {
+): ReturnType<typeof originalCore.fixtureSession> {
   return originalCore.fixtureSession({ ...settingsSnapshot, ...settings })
 }
 
-export const getCoreObservations = async function getCoreObservations(epoch = nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '') {
+export const getCoreObservations = async function getCoreObservations(
+  epoch = nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '',
+): ReturnType<typeof originalCore.fixtureObservations> {
   return originalCore.fixtureObservations(epoch)
 }
 

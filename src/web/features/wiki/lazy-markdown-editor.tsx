@@ -3,11 +3,11 @@
 import type { JSX, ComponentType } from 'react'
 import { useEffect, useState } from 'react'
 
-import type { Props } from './markdown-editor.tsx'
+import type * as MarkdownEditorModule from './markdown-editor.tsx'
 
 // React Compiler does not yet lower dynamic imports inside components or effects.
 // This module loader is still called lazily by the mount effect below.
-const loadMarkdownEditor = () => import('./markdown-editor.tsx')
+const loadMarkdownEditor = (): Promise<typeof MarkdownEditorModule> => import('./markdown-editor.tsx')
 
 // Keep the native input usable while the enhanced editor loads.
 // Once editing starts, retain that control until this editor unmounts.
@@ -17,7 +17,7 @@ const EditorFallback = function EditorFallback({
   minHeight,
   ariaLabel = 'Markdown editor',
   onFocus,
-}: Props & { onFocus: () => void }): JSX.Element {
+}: MarkdownEditorModule.Props & { onFocus: () => void }): JSX.Element {
   return (
     <div className='flex flex-col border border-border rounded overflow-hidden bg-bg normal-case font-normal'>
       <div
@@ -43,8 +43,8 @@ const EditorFallback = function EditorFallback({
   )
 }
 
-export default function LazyMarkdownEditor(props: Props): JSX.Element {
-  const [Editor, setEditor] = useState<ComponentType<Props> | null>(null)
+export default function LazyMarkdownEditor(props: MarkdownEditorModule.Props): JSX.Element {
+  const [Editor, setEditor] = useState<ComponentType<MarkdownEditorModule.Props> | null>(null)
   const [fallbackInteracted, setFallbackInteracted] = useState(false)
 
   useEffect(() => {

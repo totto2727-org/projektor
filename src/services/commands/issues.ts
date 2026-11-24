@@ -534,7 +534,7 @@ const resolveCreateIssueDeps = async function resolveCreateIssueDeps(ctx: Servic
   return { resolvedTypeId, resolvedStatusId, resolvedStatusKey, resolvedStatusCategory, cfWrites }
 }
 
-export async function createIssue(ctx: ServiceCtx, raw: unknown) {
+export async function createIssue(ctx: ServiceCtx, raw: unknown): ReturnType<typeof createIssueInternal> {
   return createIssueInternal(ctx, raw)
 }
 

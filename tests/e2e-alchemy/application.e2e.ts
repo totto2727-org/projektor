@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { readdir, writeFile } from 'node:fs/promises'
 
 import { expect, test } from '@playwright/test'
-import type { APIRequestContext, Page, TestInfo } from '@playwright/test'
+import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test'
 import { Iterable, Predicate } from 'effect'
 
 import { HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
@@ -371,8 +371,10 @@ test('issue review targets persist optional selection and four statuses across f
   await expect(page.getByRole('heading', { exact: true, name: title })).toBeVisible()
   const issueUrl = page.url()
   const targets = page.getByRole('region', { exact: true, name: 'レビュー対象' })
-  const selected = (name: string) => targets.getByRole('checkbox', { exact: true, name: `${name}をレビュー対象にする` })
-  const status = (name: string) => targets.getByRole('combobox', { exact: true, name: `${name}のレビューステータス` })
+  const selected = (name: string): Locator =>
+    targets.getByRole('checkbox', { exact: true, name: `${name}をレビュー対象にする` })
+  const status = (name: string): Locator =>
+    targets.getByRole('combobox', { exact: true, name: `${name}のレビューステータス` })
   for (const name of [filename, urlLabel, ordinaryLabel]) {
     await expect(selected(name)).not.toBeChecked()
     await expect(status(name)).toHaveCount(0)
@@ -637,7 +639,7 @@ test('workspace review spans projects and unassigned issues with native filtered
     }
     issues.push({ id: issue.id, number: issue.number, title, targetLabel, review: fixture.review, project })
   }
-  const visibleTitles = () =>
+  const visibleTitles = (): Locator =>
     page.getByRole('link', { name: new RegExp(`^Cross review ${suffix} `) }).filter({ visible: true })
   const assertReviewResults = async (review: string): Promise<void> => {
     const expected = issues.filter((issue) =>

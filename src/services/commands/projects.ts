@@ -7,7 +7,7 @@ import { CreateProjectSchema, UpdateProjectSchema } from '#contracts/inputs/proj
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
-import type { ProjectSummary } from '#services/projects.ts'
+import type { Project, ProjectSummary } from '#services/projects.ts'
 
 import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import { recordActivity } from './activity.ts'
@@ -121,7 +121,7 @@ export const resolveVisibleProjectIdParam = async function resolveVisibleProject
   return row.id
 }
 
-export const getProject = async function getProject(ctx: ServiceCtx, id: string) {
+export const getProject = async function getProject(ctx: ServiceCtx, id: string): Promise<Project> {
   const project = await Effect.runPromise(data.findProjectById(ctx.db, ctx.workspaceId, id))
   if (!project) {
     throw new NotFoundError('Project not found')
@@ -138,7 +138,7 @@ export const getProject = async function getProject(ctx: ServiceCtx, id: string)
  * PROJ-376: pretty project URLs (/projects/view/<slug>) resolve here instead of
  * the UUID route. Same visibility rules as getProject.
  */
-export const getProjectBySlug = async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
+export const getProjectBySlug = async function getProjectBySlug(ctx: ServiceCtx, slug: string): Promise<Project> {
   const project = await Effect.runPromise(data.findProjectBySlug(ctx.db, ctx.workspaceId, slug))
   if (!project) {
     throw new NotFoundError('Project not found')

@@ -11,6 +11,9 @@ import { expect, test } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
 
+type SQLiteRows = ReturnType<ReturnType<DatabaseSync['prepare']>['all']>
+type SQLiteColumn = SQLiteRows[number][string]
+
 const directory = new URL('./migrations/', import.meta.url)
 const pending = '0068_wiki_draft_heads.sql'
 const alreadyApplied = '0069_attachment_review_status.sql'
@@ -48,15 +51,16 @@ test.each([
     VALUES ('attachment', 'workspace', 'fixture-key', 'notes.txt', 'text/plain', 7, 'issue', 'issue', 'fixture', 123, 'file', 'in_review');
   `)
 
-  const originals = () => db.prepare('SELECT id, name, applied_at FROM d1_migrations ORDER BY id').all()
-  const ledger = () => db.prepare('SELECT id, name, hash, applied_at FROM __alchemy_migrations ORDER BY id').all()
-  const users = () => db.prepare('SELECT * FROM users ORDER BY id').all()
-  const attachments = () => db.prepare('SELECT * FROM attachments ORDER BY id').all()
+  const originals = (): SQLiteRows => db.prepare('SELECT id, name, applied_at FROM d1_migrations ORDER BY id').all()
+  const ledger = (): SQLiteRows =>
+    db.prepare('SELECT id, name, hash, applied_at FROM __alchemy_migrations ORDER BY id').all()
+  const users = (): SQLiteRows => db.prepare('SELECT * FROM users ORDER BY id').all()
+  const attachments = (): SQLiteRows => db.prepare('SELECT * FROM attachments ORDER BY id').all()
   const checkIntegrity = (): void => {
     expect(db.prepare('PRAGMA integrity_check').all()).toEqual([{ integrity_check: 'ok' }])
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   }
-  const draftHeads = () =>
+  const draftHeads = (): SQLiteColumn[] =>
     db
       .prepare('PRAGMA table_info(wiki_draft_heads)')
       .all()

@@ -1,6 +1,10 @@
 import { Array } from 'effect'
 import { z } from 'zod'
 
+const MAX_NAME_LENGTH = 255
+const MAX_GOAL_LENGTH = 2000
+const MAX_MOVE_ISSUES = 500
+
 const SprintStatusEnum = z.enum(['planned', 'active', 'completed'])
 
 export const ListSprintsSchema = z.object({
@@ -9,16 +13,16 @@ export const ListSprintsSchema = z.object({
 
 export const CreateSprintSchema = z.object({
   projectId: z.uuid(),
-  name: z.string().nonempty().max(255),
-  goal: z.string().max(2000).optional(),
+  name: z.string().nonempty().max(MAX_NAME_LENGTH),
+  goal: z.string().max(MAX_GOAL_LENGTH).optional(),
   startDate: z.number().int().optional(),
   endDate: z.number().int().optional(),
 })
 
 export const UpdateSprintSchema = z
   .object({
-    name: z.string().nonempty().max(255).optional(),
-    goal: z.string().max(2000).nullable().optional(),
+    name: z.string().nonempty().max(MAX_NAME_LENGTH).optional(),
+    goal: z.string().max(MAX_GOAL_LENGTH).nullable().optional(),
     status: SprintStatusEnum.optional(),
     startDate: z.number().int().nullable().optional(),
     endDate: z.number().int().nullable().optional(),
@@ -26,6 +30,6 @@ export const UpdateSprintSchema = z
   .refine((obj) => Array.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
 
 export const MoveIssuesToSprintSchema = z.object({
-  issueIds: z.array(z.uuid()).nonempty().max(500),
+  issueIds: z.array(z.uuid()).nonempty().max(MAX_MOVE_ISSUES),
   sprintId: z.uuid(),
 })

@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 import { REVIEW_STATUSES } from '#contracts/review-targets.ts'
 
+const MAX_LINK_LABEL_LENGTH = 200
+
 export const EntityTypeSchema = z.enum(['issue', 'wiki_page'])
 
 export const ListAttachmentsSchema = z.object({
@@ -21,7 +23,7 @@ export const CreateLinkAttachmentSchema = z.discriminatedUnion('kind', [
     entityType: EntityTypeSchema,
     entityId: z.string().nonempty(),
     url: z.url(),
-    label: z.string().trim().max(200).optional(),
+    label: z.string().trim().max(MAX_LINK_LABEL_LENGTH).optional(),
   }),
 ])
 

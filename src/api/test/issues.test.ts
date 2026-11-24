@@ -1474,7 +1474,7 @@ describe('issues MCP — typeId', () => {
     ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
   })
 
-  const mcpCall = async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -1678,7 +1678,7 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
     ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
   })
 
-  const mcpCall = async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2248,7 +2248,7 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
     }))
   })
 
-  const mcpCall = async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2297,7 +2297,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     projectKey = row!.key
   })
 
-  const mcpCall = async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2498,7 +2498,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
   })
 
-  const mcpCall = async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2647,7 +2647,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     }))
   })
 
-  const mcpCall = async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
 

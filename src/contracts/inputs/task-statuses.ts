@@ -1,20 +1,24 @@
 import { Array } from 'effect'
 import { z } from 'zod'
 
+const MAX_KEY_LENGTH = 50
+const MAX_NAME_LENGTH = 100
+const MAX_COLOR_LENGTH = 50
+
 const CategoryEnum = z.enum(['todo', 'in_progress', 'done', 'cancelled'])
 
 export const CreateTaskStatusSchema = z.object({
   key: z
     .string()
     .nonempty()
-    .max(50)
+    .max(MAX_KEY_LENGTH)
     .regex(
       /^[a-z][a-z0-9_]*$/,
       'Key must start with a letter and contain only lowercase letters, digits, or underscores',
     ),
-  name: z.string().nonempty().max(100),
+  name: z.string().nonempty().max(MAX_NAME_LENGTH),
   category: CategoryEnum,
-  color: z.string().max(50).optional(),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
   position: z.number().int().nonnegative().optional(),
   isDefault: z.boolean().optional(),
   /*
@@ -26,9 +30,9 @@ export const CreateTaskStatusSchema = z.object({
 
 export const UpdateTaskStatusSchema = z
   .object({
-    name: z.string().nonempty().max(100).optional(),
+    name: z.string().nonempty().max(MAX_NAME_LENGTH).optional(),
     category: CategoryEnum.optional(),
-    color: z.string().max(50).nullable().optional(),
+    color: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
     position: z.number().int().nonnegative().optional(),
     isDefault: z.boolean().optional(),
     isReviewStep: z.boolean().optional(),

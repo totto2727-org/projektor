@@ -2,10 +2,13 @@ import { z } from 'zod'
 
 import { BooleanQueryParam } from './common.ts'
 
+const MAX_PATH_LENGTH = 400
+const MAX_CLAIM_PATHS = 100
+
 export const ClaimFilesSchema = z.object({
   issueId: z.uuid(),
   agentId: z.uuid().optional(),
-  paths: z.array(z.string().nonempty().max(400)).nonempty().max(100),
+  paths: z.array(z.string().nonempty().max(MAX_PATH_LENGTH)).nonempty().max(MAX_CLAIM_PATHS),
   force: z.boolean().optional(),
 })
 

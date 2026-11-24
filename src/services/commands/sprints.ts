@@ -12,6 +12,7 @@ import {
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as sprintQueries from '#services/sprints.ts'
+import type { Sprint } from '#services/sprints.ts'
 
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
 import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
@@ -50,7 +51,7 @@ const requireSprintProjectWrite = async function requireSprintProjectWrite(
   }
 }
 
-export const listSprints = async function listSprints(ctx: ServiceCtx, raw: unknown) {
+export const listSprints = async function listSprints(ctx: ServiceCtx, raw: unknown): Promise<{ items: Sprint[] }> {
   const result = ListSprintsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -67,7 +68,7 @@ export const listSprints = async function listSprints(ctx: ServiceCtx, raw: unkn
   return { items }
 }
 
-export const getSprint = async function getSprint(ctx: ServiceCtx, id: string) {
+export const getSprint = async function getSprint(ctx: ServiceCtx, id: string): Promise<Sprint> {
   const sprint = await Effect.runPromise(sprintQueries.findSprintById(ctx.db, ctx.workspaceId, id))
 
   if (!sprint) {

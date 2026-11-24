@@ -7,7 +7,7 @@ import { ApiDevelopmentBootstrap, ApiPrincipal } from '#contracts/api-auth.ts'
 import { ApiResults } from '#contracts/api-results.ts'
 import { HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
-import type { CoreActor } from '#core/authorization.ts'
+import type { CoreActor, CorePrincipal } from '#core/authorization.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -137,7 +137,11 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
   }
 }
 
-async function resolveUser(actor: CoreActor, env: CoreEnvironment, capability: 'read' | 'write') {
+async function resolveUser(
+  actor: CoreActor,
+  env: CoreEnvironment,
+  capability: 'read' | 'write',
+): Promise<CorePrincipal> {
   const principal = await resolveCorePrincipal(actor, env)
   requireCoreCapability(principal, capability)
   return principal

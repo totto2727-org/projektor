@@ -76,7 +76,7 @@ const fixture = function fixture() {
     role: 'owner',
     kv: { delete: async () => {} },
   } as unknown as ServiceCtx
-  const state = () => readWikiDraftState(db, 'w', 'page', 'u')
+  const state = (): ReturnType<typeof readWikiDraftState> => readWikiDraftState(db, 'w', 'page', 'u')
   return { sqlite, ctx, state }
 }
 const snapshot = (content: string, expectedDraftRevision: string | null) => ({

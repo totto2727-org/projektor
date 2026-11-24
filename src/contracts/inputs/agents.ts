@@ -3,9 +3,13 @@ import { z } from 'zod'
 import { BooleanQueryParam, StatusEnum } from './common.ts'
 import { CompletionReportSchema } from './issues.ts'
 
+const MAX_AGENT_NAME_LENGTH = 200
+const MAX_PATH_LENGTH = 400
+const MAX_START_WORK_PATHS = 100
+
 export const RegisterAgentSchema = z.object({
   issueId: z.uuid().optional(),
-  name: z.string().nonempty().max(200),
+  name: z.string().nonempty().max(MAX_AGENT_NAME_LENGTH),
   /*
    * PROJ-336: deprecated — accepted for MCP client compatibility but ignored by
    * the service (see services/agents.ts). It was the original spoofable
@@ -42,8 +46,8 @@ export const ListActiveAgentsSchema = z.object({
 export const StartWorkSchema = z
   .object({
     issue: z.uuid(),
-    paths: z.array(z.string().nonempty().max(400)).max(100).optional(),
-    name: z.string().nonempty().max(200),
+    paths: z.array(z.string().nonempty().max(MAX_PATH_LENGTH)).max(MAX_START_WORK_PATHS).optional(),
+    name: z.string().nonempty().max(MAX_AGENT_NAME_LENGTH),
   })
   .strict()
 
