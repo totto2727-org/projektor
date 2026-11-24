@@ -6,7 +6,7 @@ import { resetAuthCachesForTests } from '#services/authentication.ts'
 
 import { getRouteParams, isWebEnvironment, makeRequestServices, RequestServices } from './request.ts'
 import type { PreparedView } from './request.ts'
-import { ApiError } from './server/index.ts'
+import { ApiError } from './server/server-context.ts'
 import { testEnvironment } from './server/test/resources.ts'
 import { createTestDatabase } from './test/database.ts'
 

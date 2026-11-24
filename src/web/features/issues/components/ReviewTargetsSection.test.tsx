@@ -17,10 +17,11 @@ vi.mock('./IssueDetailParts', () => ({
   TitleSection: ({ issue }: { issue: { title: string } }) => <h1>{issue.title}</h1>,
 }))
 
-import type { ReviewStatus } from '../../../../contracts/review-targets.ts'
-import { setAttachmentReviewStatus } from '../actions.ts'
-import type { Attachment } from '../types.ts'
-import type { IssueDetailInitialData } from '../views/IssueDetailPage.tsx'
+import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
+import type { Attachment } from '@/features/issues/types.ts'
+import type { IssueDetailInitialData } from '@/features/issues/views/IssueDetailPage.tsx'
+
 import IssueDetail from './IssueDetail.tsx'
 import { ReviewTargetsSection } from './ReviewTargetsSection.tsx'
 

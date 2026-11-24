@@ -7,7 +7,8 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '../contracts/errors.ts'
+} from '#contracts/errors.ts'
+
 import { coreFailure } from './contract.ts'
 
 const jsonDetails = function jsonDetails(input: unknown): Schema.JsonObject | undefined {

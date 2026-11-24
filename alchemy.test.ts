@@ -301,7 +301,7 @@ describe('source-owned private Core deployment', () => {
     const { api, frontend } = await register(false)
     expect(api.Props).toMatchObject({
       name: 'projektor',
-      main: './src/api/index.ts',
+      main: './src/api/worker.ts',
       domain: { name: 'projektor-api.totto2727.dev', previews: false },
       workersDev: { enabled: false, previewsEnabled: false },
       compatibility: {

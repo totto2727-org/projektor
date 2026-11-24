@@ -5,7 +5,7 @@ export const deployment = {
   accountId: '5643a837ef66765e7881c0831a36ebed',
   api: {
     name: 'projektor',
-    main: './src/api/index.ts',
+    main: './src/api/worker.ts',
     hostname: 'projektor-api.totto2727.dev',
     origin: apiOrigin,
     compatibility: {

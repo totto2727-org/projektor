@@ -1,9 +1,10 @@
 'use client'
 
-import { formatIssueRef } from '../lib/issue-ref.ts'
-import { statusDisplayName } from '../lib/status.ts'
-import { issueUrl } from '../utils/issue-url.ts'
-import type { MyIssuesInitialData, ScopedIssue } from '../views/MyIssuesPage.tsx'
+import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
+import { statusDisplayName } from '@/features/issues/lib/status.ts'
+import { issueUrl } from '@/features/issues/utils/issue-url.ts'
+import type { MyIssuesInitialData, ScopedIssue } from '@/features/issues/views/MyIssuesPage.tsx'
+
 import { categoryColor } from './board-utils.ts'
 import type { Issue } from './board-utils.ts'
 import { ReviewTargetsSummary } from './ReviewTargetsSummary.tsx'

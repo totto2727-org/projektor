@@ -1,4 +1,5 @@
-import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } from '../core/web/scope.ts'
+import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } from '#core/web/scope.ts'
+
 import { ApiError, ScopeError } from './errors.ts'
 
 export function requireBrowserDataRequest(request: Request): void {

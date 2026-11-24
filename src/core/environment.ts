@@ -1,7 +1,7 @@
 import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import { Effect } from 'effect'
 
-import type { CoreEnv } from '../types/env.ts'
+import type { CoreEnv } from '#types/env.ts'
 
 /** Persistent resources belong to Core. OAuth signing stays in the API adapter. */
 export type CoreEnvironment = Omit<CoreEnv, 'JWT_SECRET' | 'ASSETS'> & {

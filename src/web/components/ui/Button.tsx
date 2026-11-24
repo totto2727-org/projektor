@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 
-import { Button as PrimitiveButton, buttonVariants } from '../generated/button.tsx'
+import { Button as PrimitiveButton, buttonVariants } from '@/components/generated/button.tsx'
 
 type CommonProps = {
   variant?: 'primary' | 'outline' | 'danger'

@@ -2,15 +2,15 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
-import { drizzle, schema } from '#db'
-import * as groupData from '#services/groups.ts'
-
 import {
   AddGroupMemberSchema,
   CreateGroupSchema,
   SetGroupGrantSchema,
   UpdateGroupSchema,
-} from '../../contracts/inputs/groups.ts'
+} from '#contracts/inputs/groups.ts'
+import { drizzle, schema } from '#db'
+import * as groupData from '#services/groups.ts'
+
 import { isWorkspaceAdmin } from './access.ts'
 import { recordActivity } from './activity.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'

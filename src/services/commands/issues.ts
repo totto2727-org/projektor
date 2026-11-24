@@ -2,11 +2,8 @@ import { and, eq, or } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { z } from 'zod'
 
-import { drizzle, schema } from '#db'
-import * as issueQueries from '#services/issues.ts'
-
-import { AddCommentSchema } from '../../contracts/inputs/comments.ts'
-import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common.ts'
+import { AddCommentSchema } from '#contracts/inputs/comments.ts'
+import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
 import {
   CreateIssueSchema,
   GetIssueSchema,
@@ -14,8 +11,11 @@ import {
   ListIssuesSchema,
   SearchIssuesInputSchema,
   UpdateIssueSchema,
-} from '../../contracts/inputs/issues.ts'
-import { issuePath } from '../../contracts/urls.ts'
+} from '#contracts/inputs/issues.ts'
+import { issuePath } from '#contracts/urls.ts'
+import { drizzle, schema } from '#db'
+import * as issueQueries from '#services/issues.ts'
+
 import {
   canWriteProject,
   effectiveProjectRole,

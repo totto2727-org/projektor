@@ -1,4 +1,4 @@
-import { ValidationError } from '../../contracts/errors.ts'
+import { ValidationError } from '#contracts/errors.ts'
 
 /*
  * PROJ-892: windowed reads of long text (wiki pages, issue bodies) so one call never

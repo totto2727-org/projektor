@@ -5,11 +5,12 @@ import { Schema } from 'effect'
 import { useOptimistic, useState, useTransition } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
-import { unwrapResult } from '../../client/functions.ts'
-import { Button } from '../../components/ui/Button.tsx'
-import Select from '../../components/ui/Select.tsx'
-import { formatTimestampDate } from '../timestamp.ts'
-import { navigateFeature } from '../wiki/navigation.ts'
+import { unwrapResult } from '@/client/functions.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import Select from '@/components/ui/Select.tsx'
+import { formatTimestampDate } from '@/features/timestamp.ts'
+import { navigateFeature } from '@/features/wiki/navigation.ts'
+
 import {
   convertFeedbackToIssue,
   convertSelectedFeedbackToIssue,

@@ -1,9 +1,9 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { ApiError } from '#contracts/errors.ts'
 import { schema } from '#db'
 
-import { ApiError } from '../../contracts/errors.ts'
 import {
   authorizeDataEntity,
   dataError,

@@ -1,4 +1,5 @@
-import { createProject, deleteProject, getProject, listProjects, updateProject } from '../services/projects.ts'
+import { createProject, deleteProject, getProject, listProjects, updateProject } from '#api/services/projects.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

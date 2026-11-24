@@ -1,6 +1,7 @@
 import { Effect, Schema } from 'effect'
 
-import { CORE_ACTOR_HEADER } from '../core/contract.ts'
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
+
 import { RequestServices } from './request.ts'
 import { ApiError } from './server/errors.ts'
 

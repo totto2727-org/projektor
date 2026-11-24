@@ -1,7 +1,8 @@
 'use client'
-import type { RequestScope } from '../../../server/request-context.ts'
-import IssueDetail from '../components/IssueDetail.tsx'
-import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } from '../types.ts'
+import IssueDetail from '@/features/issues/components/IssueDetail.tsx'
+import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } from '@/features/issues/types.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { SelectionRequired } from './shared.tsx'
 export interface IssueDetailInitialData {
   readonly issue: Issue

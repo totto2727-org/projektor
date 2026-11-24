@@ -1,8 +1,7 @@
 import type { Context } from 'hono'
 
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { HonoEnv } from '#types'
-
-import { CORE_ACTOR_HEADER } from '../../core/contract.ts'
 
 /** Native binding fetch is reserved for streaming file endpoints. */
 export function coreFileRequest(

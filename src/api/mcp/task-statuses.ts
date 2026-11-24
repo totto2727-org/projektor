@@ -1,5 +1,6 @@
-import { ValidationError } from '../../contracts/errors.ts'
-import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '../services/task-statuses.ts'
+import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '#api/services/task-statuses.ts'
+import { ValidationError } from '#contracts/errors.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

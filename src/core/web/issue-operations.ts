@@ -1,13 +1,8 @@
 import { Effect, Schema } from 'effect'
 
-import { findSprintById, listSprints } from '#services/sprints.ts'
-import { listTaskStatuses } from '#services/task-statuses.ts'
-import { listTaskTypes } from '#services/task-types.ts'
-import { listWorkspaceMembers } from '#services/workspaces.ts'
-
-import { ScopeError } from '../../contracts/errors.ts'
-import type { ReviewFilter } from '../../contracts/review-targets.ts'
-import { SearchResultsSchema, WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions.ts'
+import { ScopeError } from '#contracts/errors.ts'
+import type { ReviewFilter } from '#contracts/review-targets.ts'
+import { SearchResultsSchema, WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import {
   AttachmentsSchema,
   CommentsSchema,
@@ -19,10 +14,15 @@ import {
   TaskTypesSchema,
   normalizeStatuses,
   normalizeTaskTypes,
-} from '../../contracts/web-schemas/issues.ts'
-import { SprintSchema } from '../../contracts/web-schemas/planning.ts'
-import { coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
+} from '#contracts/web-schemas/issues.ts'
+import { SprintSchema } from '#contracts/web-schemas/planning.ts'
+import { coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { findSprintById, listSprints } from '#services/sprints.ts'
+import { listTaskStatuses } from '#services/task-statuses.ts'
+import { listTaskTypes } from '#services/task-types.ts'
+import { listWorkspaceMembers } from '#services/workspaces.ts'
+
 import { loadBrowserScope, publicWebFailure } from './authentication.ts'
 import { authorizeDataEntity, requireDataWorkspace } from './data-context.ts'
 import * as data from './issue-data.ts'

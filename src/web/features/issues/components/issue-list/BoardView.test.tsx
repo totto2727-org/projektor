@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import '../../test/browser.ts'
+import '@/features/issues/test/browser.ts'
 /*
  * BoardView — mobile viewport tests (PROJ-417).
  *
@@ -11,8 +11,9 @@ import '../../test/browser.ts'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { MOBILE_WIDTH, setViewportWidth } from '../../test/viewport.ts'
-import type { Issue, TaskStatus } from '../board-utils.ts'
+import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import { MOBILE_WIDTH, setViewportWidth } from '@/features/issues/test/viewport.ts'
+
 import BoardView from './BoardView.tsx'
 
 const TODO_ISSUE: Issue = {

@@ -1,15 +1,15 @@
 import { Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
+import { ApiUserBootstrap } from '#contracts/api-auth.ts'
+import { ApiConsentWorkspace, ApiRealtimeSnapshot } from '#contracts/api-public.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+import type { CoreActor } from '#core/authorization.ts'
+import { decodeCoreReply } from '#core/client.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { ApiUserBootstrap } from '../../contracts/api-auth.ts'
-import { ApiConsentWorkspace, ApiRealtimeSnapshot } from '../../contracts/api-public.ts'
-import { ApiResults } from '../../contracts/api-results.ts'
-import { createTestDatabase } from '../../web/test/database.ts'
-import type { CoreActor } from '../authorization.ts'
-import { decodeCoreReply } from '../client.ts'
-import type { CoreEnvironment } from '../environment.ts'
 import { makeApiIdentityHandlers } from './identity-operations.ts'
 import { makeApiPublicHandlers } from './public-operations.ts'
 

@@ -1,7 +1,8 @@
 import { Effect } from 'effect'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { CORE_ACTOR_HEADER } from '../core/contract.ts'
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
+
 import { transferCoreBinary } from './core-binary.ts'
 import { makeRequestServices, RequestServices } from './request.ts'
 

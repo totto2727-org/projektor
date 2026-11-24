@@ -2,16 +2,16 @@ import { and, eq, inArray, ne } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { z } from 'zod'
 
-import { drizzle, schema } from '#db'
-import * as sprintQueries from '#services/sprints.ts'
-
-import { IdSchema } from '../../contracts/inputs/common.ts'
+import { IdSchema } from '#contracts/inputs/common.ts'
 import {
   CreateSprintSchema,
   ListSprintsSchema,
   MoveIssuesToSprintSchema,
   UpdateSprintSchema,
-} from '../../contracts/inputs/sprints.ts'
+} from '#contracts/inputs/sprints.ts'
+import { drizzle, schema } from '#db'
+import * as sprintQueries from '#services/sprints.ts'
+
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
 import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'

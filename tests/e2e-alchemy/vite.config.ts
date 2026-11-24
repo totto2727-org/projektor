@@ -3,8 +3,9 @@ import { fileURLToPath } from 'node:url'
 import cloudflare from '@alchemy.run/cloudflare-runtime/vite'
 import { defineConfig } from 'vite-plus'
 
-import applicationConfig from '../../vite.config'
-import { deployment } from '../../worker-graph.ts'
+import applicationConfig from '#vite-config'
+import { deployment } from '#worker-graph'
+
 import { applicationTextBindings, foreignRateLimiterBinding } from './api-host.ts'
 import { inlineCoreBinding } from './inline-api.ts'
 import { makePreviewContext } from './runtime-context.ts'

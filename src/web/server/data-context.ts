@@ -5,4 +5,4 @@ export {
   requireBrowserDataRequest,
   requireDataProject,
   requireDataWorkspace,
-} from '../../contracts/web-data.ts'
+} from '#contracts/web-data.ts'

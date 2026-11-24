@@ -1,12 +1,13 @@
 'use client'
 import type { Dispatch, SetStateAction } from 'react'
 
-import { Button } from '../../../../components/ui/Button.tsx'
-import { Dialog } from '../../../../components/ui/Dialog.tsx'
-import Select from '../../../../components/ui/Select.tsx'
-import { PRIORITY_OPTIONS } from '../../utils/issue-utils.ts'
-import type { TaskStatus } from '../board-utils.ts'
-import MarkdownEditor from '../LazyMarkdownEditor.tsx'
+import { Button } from '@/components/ui/Button.tsx'
+import { Dialog } from '@/components/ui/Dialog.tsx'
+import Select from '@/components/ui/Select.tsx'
+import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
+import MarkdownEditor from '@/features/issues/components/LazyMarkdownEditor.tsx'
+import { PRIORITY_OPTIONS } from '@/features/issues/utils/issue-utils.ts'
+
 import type { ProjectMeta } from './types.ts'
 
 /*

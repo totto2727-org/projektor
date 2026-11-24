@@ -1,7 +1,8 @@
 'use client'
-import type { ProjectSummary, RequestScope } from '../../../server/request-context.ts'
-import EpicList from '../components/EpicList.tsx'
-import type { IssuePage, Status, TaskType } from '../types.ts'
+import EpicList from '@/features/issues/components/EpicList.tsx'
+import type { IssuePage, Status, TaskType } from '@/features/issues/types.ts'
+import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
+
 import { SelectionRequired } from './shared.tsx'
 export interface EpicsInitialData {
   readonly page: IssuePage

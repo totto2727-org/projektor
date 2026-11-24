@@ -3,11 +3,9 @@ import type { SQLInputValue } from 'node:sqlite'
 
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { migratedDb } from '#db/test/helpers.ts'
-
-import { ConflictError, NotFoundError } from '../commands/errors.ts'
-import { deleteProject } from '../commands/projects.ts'
-import type { ServiceCtx } from '../commands/types.ts'
+import { ConflictError, NotFoundError } from '#commands/errors.ts'
+import { deleteProject } from '#commands/projects.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 import {
   beginWikiDraftPublish,
   discardWikiDraft,
@@ -15,8 +13,9 @@ import {
   readWikiDraftState,
   saveWikiDraft,
   deleteWikiDraftsForPages,
-} from '../commands/wiki-drafts.ts'
-import { deleteWorkspace } from '../commands/workspaces.ts'
+} from '#commands/wiki-drafts.ts'
+import { deleteWorkspace } from '#commands/workspaces.ts'
+import { migratedDb } from '#db/test/helpers.ts'
 
 const databases: ReturnType<typeof migratedDb>[] = []
 afterEach(() => {

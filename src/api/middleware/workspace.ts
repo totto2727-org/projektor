@@ -3,9 +3,8 @@ import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
 
+import { ApiWorkspace } from '#contracts/api-auth.ts'
 import type { HonoEnv } from '#types'
-
-import { ApiWorkspace } from '../../contracts/api-auth.ts'
 
 export function subdomainRoutingEnabled(value: string | undefined): boolean {
   return ['true', '1', 'yes'].includes(value?.trim().toLowerCase() ?? '')

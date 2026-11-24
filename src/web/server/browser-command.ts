@@ -1,9 +1,10 @@
 import { Effect } from 'effect'
 
-import type { CoreRpcShape } from '../../core/contract.ts'
-import type { BrowserCommand } from '../../core/web/command-contract.ts'
-import { browserRequest } from '../core.ts'
-import { RequestServices } from '../request.ts'
+import type { CoreRpcShape } from '#core/contract.ts'
+import type { BrowserCommand } from '#core/web/command-contract.ts'
+import { browserRequest } from '@/core.ts'
+import { RequestServices } from '@/request.ts'
+
 import { requireDataWorkspace } from './data-context.ts'
 import { ApiError, ScopeError } from './errors.ts'
 import type { FunctionContext } from './function-context.ts'

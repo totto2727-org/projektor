@@ -1,7 +1,8 @@
 import { Effect, Schema } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
 
-import type { WebRequest } from '../core/web/scope.ts'
+import type { WebRequest } from '#core/web/scope.ts'
+
 import { ApiError, ScopeError } from './server/errors.ts'
 
 export function browserRequest(request: Request): WebRequest {

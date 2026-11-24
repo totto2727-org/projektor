@@ -4,10 +4,9 @@ import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { migratedDb } from '#db/test/helpers.ts'
-
-import { DataQueryError } from '../errors.ts'
-import { findAttachment, listAttachments } from '../files.ts'
-import { findGroup, listGroupGrants, listGroupMembers, listGroups, listMemberGroups } from '../groups.ts'
+import { DataQueryError } from '#services/errors.ts'
+import { findAttachment, listAttachments } from '#services/files.ts'
+import { findGroup, listGroupGrants, listGroupMembers, listGroups, listMemberGroups } from '#services/groups.ts'
 
 /** Executes the actual Drizzle/raw SQL over the complete migrated SQLite schema. */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {

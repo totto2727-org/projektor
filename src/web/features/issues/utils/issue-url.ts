@@ -1,4 +1,4 @@
-import { slugify } from '../lib/slugify.ts'
+import { slugify } from '@/features/issues/lib/slugify.ts'
 /** Issue identity crosses route boundaries with explicit authorized workspace scope. */
 export function issueUrl(
   projectSlug: string | null | undefined,

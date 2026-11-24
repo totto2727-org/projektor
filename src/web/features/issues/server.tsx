@@ -1,13 +1,14 @@
 import { Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
-import { ReviewFilterSchema } from '../../../contracts/review-targets.ts'
-import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits.ts'
-import { renderMarkdownDocument } from '../../components/markdown/render.ts'
-import { RequestServices } from '../../request.ts'
-import { requireDataProject, requireDataWorkspace } from '../../server/data-context.ts'
-import { ApiError, ScopeError } from '../../server/errors.ts'
-import type { RequestScope } from '../../server/request-context.ts'
+import { ReviewFilterSchema } from '#contracts/review-targets.ts'
+import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
+import { renderMarkdownDocument } from '@/components/markdown/render.ts'
+import { RequestServices } from '@/request.ts'
+import { requireDataProject, requireDataWorkspace } from '@/server/data-context.ts'
+import { ApiError, ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { buildFilterQueryParams } from './components/IssueList-helpers.ts'
 import {
   checked,

@@ -2,7 +2,7 @@ import { Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand.ts'
-import type { RequestScope } from './server/index.ts'
+import type { RequestScope } from './server/server-context.ts'
 import { testEnvironment } from './server/test/resources.ts'
 import { createTestDatabase } from './test/database.ts'
 

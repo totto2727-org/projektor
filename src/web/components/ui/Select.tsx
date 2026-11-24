@@ -8,7 +8,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from '../generated/select.tsx'
+} from '@/components/generated/select.tsx'
 
 export interface SelectOption {
   value: string

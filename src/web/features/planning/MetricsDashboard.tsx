@@ -5,8 +5,9 @@ import { Schema } from 'effect'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { Button } from '../../components/ui/Button.tsx'
-import { Select } from '../../components/ui/Select.tsx'
+import { Button } from '@/components/ui/Button.tsx'
+import { Select } from '@/components/ui/Select.tsx'
+
 import { CodeHeatmap } from './CodeHeatmap.tsx'
 import {
   AgingWipScatter,

@@ -1,10 +1,11 @@
 import { Effect, Schema } from 'effect'
 
-import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits.ts'
-import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context.ts'
-import { ApiError, ScopeError } from '../../server/errors.ts'
-import type { RequestScope } from '../../server/request-context.ts'
-import { readDataIssuePage, readSprints } from '../issues/data.ts'
+import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
+import { readDataIssuePage, readSprints } from '@/features/issues/data.ts'
+import { dataError, requireDataProject, requireDataWorkspace } from '@/server/data-context.ts'
+import { ApiError, ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { readFlowMetrics, readCodeHeatmap } from './data.ts'
 import { dateEpochEnd, dateEpochStart, rangeFromUrl } from './helpers.ts'
 import { MetricsWindowSchema, SprintListModeSchema } from './input-schemas.ts'

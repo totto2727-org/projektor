@@ -1,12 +1,12 @@
 import { Effect, Schema } from 'effect'
 
 import { getUserWorkspaces } from '#commands/user-tokens.ts'
+import { ApiError, ScopeError } from '#contracts/errors.ts'
+import { coreFailure } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import { authenticateBrowser, BrowserAuthenticationError } from '#services/authentication.ts'
 import { listProjectSummaries } from '#services/projects.ts'
 
-import { ApiError, ScopeError } from '../../contracts/errors.ts'
-import { coreFailure } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
 import {
   decodeAuthSession,
   decodeProjectCatalog,

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
-import { Popover } from '../../components/ui/Popover.tsx'
+import { Popover } from '@/components/ui/Popover.tsx'
+
 import { METRIC_DEFINITIONS } from './metric-definitions.ts'
 import type { MetricId } from './metric-definitions.ts'
 

@@ -1,4 +1,5 @@
-import { listProjectActivity } from '../services/project-activity.ts'
+import { listProjectActivity } from '#api/services/project-activity.ts'
+
 import { READ } from './annotations.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'

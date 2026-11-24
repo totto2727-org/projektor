@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 
-import { Dialog as PrimitiveDialog, DialogContent, DialogTitle } from '../generated/dialog.tsx'
+import { Dialog as PrimitiveDialog, DialogContent, DialogTitle } from '@/components/generated/dialog.tsx'
 
 export interface DialogProps {
   open: boolean

@@ -1,7 +1,8 @@
 import { Effect, Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { MetricsQuerySchema } from '../../../../core/web/planning.ts'
+import { MetricsQuerySchema } from '#core/web/planning.ts'
+
 import { applyDateRangeParams } from './IssueList-helpers.ts'
 
 // Both initial SSR and client pagination use this exact calendar conversion.

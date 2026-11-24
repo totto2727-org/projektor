@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { submitFeedback } from '../examples/feedback-widget-submit.ts'
+import { submitFeedback } from '#api/examples/feedback-widget-submit.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

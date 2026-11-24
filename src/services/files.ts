@@ -1,8 +1,9 @@
 import { Schema } from 'effect'
 import type { Effect } from 'effect'
 
-import { ReviewTargetSchema } from '../contracts/review-targets.ts'
-import type { ReviewStatus, ReviewTarget } from '../contracts/review-targets.ts'
+import { ReviewTargetSchema } from '#contracts/review-targets.ts'
+import type { ReviewStatus, ReviewTarget } from '#contracts/review-targets.ts'
+
 import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
 

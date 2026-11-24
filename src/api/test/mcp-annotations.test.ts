@@ -5,9 +5,10 @@
  */
 import { describe, expect, test } from 'vite-plus/test'
 
-import { capabilityForMcpTool } from '../auth/scopes.ts'
-import { DESTRUCTIVE_TOOLS } from '../mcp/annotations.ts'
-import { coreMCPTools } from '../routes/mcp.ts'
+import { capabilityForMcpTool } from '#api/auth/scopes.ts'
+import { DESTRUCTIVE_TOOLS } from '#api/mcp/annotations.ts'
+import { coreMCPTools } from '#api/routes/mcp.ts'
+
 import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

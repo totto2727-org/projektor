@@ -1,8 +1,6 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import { flattenError } from 'zod'
 
-import { drizzle, schema } from '#db'
-
 import {
   EndAgentSchema,
   FinishWorkSchema,
@@ -10,7 +8,9 @@ import {
   ListActiveAgentsSchema,
   RegisterAgentSchema,
   StartWorkSchema,
-} from '../../contracts/inputs/agents.ts'
+} from '#contracts/inputs/agents.ts'
+import { drizzle, schema } from '#db'
+
 import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
 import { agentSessionCredential, assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
 import { postMessage } from './agent-messages.ts'

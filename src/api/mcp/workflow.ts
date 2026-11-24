@@ -1,4 +1,5 @@
-import { getWorkflow } from '../services/workflow.ts'
+import { getWorkflow } from '#api/services/workflow.ts'
+
 import { READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

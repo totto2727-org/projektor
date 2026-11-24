@@ -1,8 +1,7 @@
 import { env as nativeEnv } from 'cloudflare:workers'
 
+import type NativeFixtureCore from '#tests/native-workers/core.worker.ts'
 import type { Env } from '#types'
-
-import type NativeFixtureCore from '../../../tests/native-workers/core.worker'
 
 type FixtureOperations = Pick<
   NativeFixtureCore,

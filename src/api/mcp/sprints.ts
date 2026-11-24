@@ -1,4 +1,3 @@
-import { ValidationError } from '../../contracts/errors.ts'
 import {
   completeSprint,
   createSprint,
@@ -7,7 +6,9 @@ import {
   listSprints,
   moveIssuesToSprint,
   updateSprint,
-} from '../services/sprints.ts'
+} from '#api/services/sprints.ts'
+import { ValidationError } from '#contracts/errors.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

@@ -1,6 +1,7 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-import { REVIEW_STATUSES } from '../../contracts/review-targets.ts'
+import { REVIEW_STATUSES } from '#contracts/review-targets.ts'
+
 import { users, workspaces } from './core.ts'
 import { wikiPages } from './wiki.ts'
 

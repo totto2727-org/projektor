@@ -5,11 +5,11 @@ import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Wo
 import { WorkerEntrypoint } from 'cloudflare:workers'
 import { Effect, Exit } from 'effect'
 
-import { isCoreEnvironment } from '../../src/core/environment.ts'
-import type { CoreEnvironment, CoreEnvironmentSource } from '../../src/core/environment.ts'
-import { makeCoreHandlersWithEnvironment } from '../../src/core/worker.ts'
-import { resetAuthCachesForTests } from '../../src/services/authentication.ts'
-import { Core as CoreIdentity } from '../../src/workers/identities.ts'
+import { isCoreEnvironment } from '#core/environment.ts'
+import type { CoreEnvironment, CoreEnvironmentSource } from '#core/environment.ts'
+import { makeCoreHandlersWithEnvironment } from '#core/worker.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { Core as CoreIdentity } from '#worker-identities'
 
 // Test-only composition uses the same named domain handlers and official bridge.
 // Loopback props must be resolved during invocation, not from the SDK's shared build.

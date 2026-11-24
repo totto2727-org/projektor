@@ -8,7 +8,7 @@ import { EFFRONT } from './effront.ts'
 import { getRouteParams, RequestServices } from './request.ts'
 import type { Env, PageFailure, PreparedView, RouteParams } from './request.ts'
 import { ScopeSelection } from './selection.tsx'
-import type { RequestScope, ScopeOptions } from './server/index.ts'
+import type { RequestScope, ScopeOptions } from './server/server-context.ts'
 
 export type RouteRenderer = (
   scope: RequestScope,

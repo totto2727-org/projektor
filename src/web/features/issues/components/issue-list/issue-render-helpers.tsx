@@ -1,10 +1,10 @@
 'use client'
-import Select from '../../../../components/ui/Select.tsx'
-import { formatIssueRef } from '../../lib/issue-ref.ts'
-import { statusDisplayName } from '../../lib/status.ts'
-import { PRIORITY_OPTIONS } from '../../utils/issue-utils.ts'
-import { categoryColor } from '../board-utils.ts'
-import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
+import Select from '@/components/ui/Select.tsx'
+import { categoryColor } from '@/features/issues/components/board-utils.ts'
+import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
+import { statusDisplayName } from '@/features/issues/lib/status.ts'
+import { PRIORITY_OPTIONS } from '@/features/issues/utils/issue-utils.ts'
 
 export function getStoryPoints(issue: Issue): string | null {
   const field = (issue.customFields ?? []).find((f) => f.key === 'story_points')

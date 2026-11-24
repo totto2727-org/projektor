@@ -1,11 +1,10 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { OAUTH_SCOPES_SUPPORTED } from '../auth/scopes.ts'
+import { OAUTH_SCOPES_SUPPORTED } from '#api/auth/scopes.ts'
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../oauth/provider.ts'
+import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '#api/oauth/provider.ts'
+import type { HonoEnv } from '#types'
 
 /*
  * PROJ-655: the two public OAuth discovery documents, mounted under /.well-known.
@@ -15,7 +14,7 @@ import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../oa
  * flow. RFC 8414 authorization server metadata is what the PRM points at.
  *
  * Both are unauthenticated by design and are mounted ahead of authMiddleware /
- * workspaceMiddleware in index.ts. Deployment note: they only reach the Worker in a
+ * workspaceMiddleware in worker.ts. Deployment note: they only reach the Worker in a
  * release deploy because `/.well-known/*` is in `run_worker_first` (PROJ-650) — the
  * static-asset handler would otherwise answer with the SPA fallback.
  */
@@ -30,7 +29,7 @@ const router = new Hono<HonoEnv>()
 const CACHE_CONTROL = 'public, max-age=3600'
 
 /*
- * The global cors() in index.ts is an allowlist that denies by default, which is
+ * The global cors() in worker.ts is an allowlist that denies by default, which is
  * right for the credentialed API but wrong for these two documents: RFC 9728
  * expects the metadata endpoint to be reachable from a browser, and a browser-based
  * MCP client on any origin must be able to read them. They carry no credentials and
@@ -146,7 +145,7 @@ router.get('/oauth-authorization-server', (httpContext) => {
  *
  * But "not served" has to be made explicit. PROJ-650 put `/.well-known/*` in
  * `run_worker_first`, so in a real deploy every path under it now reaches the Worker,
- * and an unmatched one falls through to the SPA catch-all at the bottom of index.ts —
+ * and an unmatched one falls through to the SPA catch-all at the bottom of worker.ts —
  * which answers `200 text/html` with the app shell. For a client expecting discovery
  * JSON that is strictly worse than a clean 404: it is a success status carrying an
  * HTML page. Scoped to the `oauth-*` namespace on purpose, so unrelated well-known

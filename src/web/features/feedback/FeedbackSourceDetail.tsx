@@ -2,8 +2,9 @@
 
 import { useRef } from 'react'
 
-import Select from '../../components/ui/Select.tsx'
-import { navigateFeature } from '../wiki/navigation.ts'
+import Select from '@/components/ui/Select.tsx'
+import { navigateFeature } from '@/features/wiki/navigation.ts'
+
 import type { Feedback } from './FeedbackList.tsx'
 import FeedbackList from './FeedbackList.tsx'
 import type { SourceSummary } from './FeedbackSourceGrid.tsx'

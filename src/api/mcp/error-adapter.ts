@@ -1,8 +1,8 @@
 import { CorePublicError } from 'projektor/core-client'
 import { z } from 'zod'
 
-import { ConflictError, NotFoundError, ServiceError, ValidationError } from '../../contracts/errors.ts'
-import type { ZodFlattenOutput } from '../../contracts/errors.ts'
+import { ConflictError, NotFoundError, ServiceError, ValidationError } from '#contracts/errors.ts'
+import type { ZodFlattenOutput } from '#contracts/errors.ts'
 
 const ValidationIssues = z.object({
   formErrors: z.array(z.string()),

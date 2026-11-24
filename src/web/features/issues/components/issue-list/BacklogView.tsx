@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 
-import { formatIssueRef } from '../../lib/issue-ref.ts'
-import { issueUrl } from '../../utils/issue-url.ts'
-import { getBacklogIssues } from '../board-utils.ts'
-import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
+import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import { ReviewTargetsSummary } from '@/features/issues/components/ReviewTargetsSummary.tsx'
+import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
+import { issueUrl } from '@/features/issues/utils/issue-url.ts'
+
 import { IssueSelectionControl } from './BulkActions.tsx'
 import {
   getStoryPoints,

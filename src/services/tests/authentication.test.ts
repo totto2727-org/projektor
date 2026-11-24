@@ -4,21 +4,20 @@ import { Effect } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { authMiddleware } from '#api/middleware/auth.ts'
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
-import type { ApiEnv, HonoEnv } from '#types'
-
-import { authMiddleware } from '../../api/middleware/auth.ts'
-import { makeApiIdentityHandlers } from '../../core/api/identity-operations.ts'
-import type { CoreEnvironment } from '../../core/environment.ts'
-import { createTestResources } from '../../web/server/test/resources.ts'
-import { createTestDatabase } from '../../web/test/database.ts'
+import { makeApiIdentityHandlers } from '#core/api/identity-operations.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import {
   authenticateBrowser,
   BrowserAuthenticationError,
   resetAuthCachesForTests,
   verifyJwtPayload,
-} from '../authentication.ts'
-import type { BrowserAuthEnvironment } from '../authentication.ts'
+} from '#services/authentication.ts'
+import type { BrowserAuthEnvironment } from '#services/authentication.ts'
+import type { ApiEnv, HonoEnv } from '#types'
+import { createTestResources } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const issuer = 'https://team.example.test'
 const audience = 'browser-audience'

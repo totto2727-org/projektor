@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { wikiRouter } from '#api/routes/wiki.ts'
 import { RESERVED_WIKI_SLUGS } from '#commands/wiki.ts'
+import m0060 from '#migrations/0060_wiki_reserved_slug_rename.sql?raw'
 
-import m0060 from '../../../migrations/0060_wiki_reserved_slug_rename.sql?raw'
-import { wikiRouter } from '../routes/wiki.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

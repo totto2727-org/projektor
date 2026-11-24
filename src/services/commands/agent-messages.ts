@@ -1,9 +1,9 @@
 import { and, asc, eq, gt, sql } from 'drizzle-orm'
 import { flattenError } from 'zod'
 
+import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
 import { drizzle, schema } from '#db'
 
-import { ListMessagesSchema, PostMessageSchema } from '../../contracts/inputs/agent-messages.ts'
 import { assertIssueAccess } from './access.ts'
 import { assertAgentSessionAccess } from './agent-identity.ts'
 import { ForbiddenError, ValidationError } from './errors.ts'

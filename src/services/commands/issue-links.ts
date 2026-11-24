@@ -2,11 +2,11 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { z } from 'zod'
 
+import { CreateIssueLinkSchema, DeleteIssueLinkSchema, ListIssueLinksSchema } from '#contracts/inputs/issues.ts'
+import type { LinkTypeStoredEnum } from '#contracts/inputs/issues.ts'
 import { drizzle, schema } from '#db'
 import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
 
-import { CreateIssueLinkSchema, DeleteIssueLinkSchema, ListIssueLinksSchema } from '../../contracts/inputs/issues.ts'
-import type { LinkTypeStoredEnum } from '../../contracts/inputs/issues.ts'
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import * as cache from './cache.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'

@@ -1,6 +1,7 @@
 import { flattenError } from 'zod'
 
-import { CreateUserTokenSchema } from '../../contracts/inputs/user-tokens.ts'
+import { CreateUserTokenSchema } from '#contracts/inputs/user-tokens.ts'
+
 import { ForbiddenError, ValidationError } from './errors.ts'
 
 /*

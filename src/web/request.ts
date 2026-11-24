@@ -4,11 +4,11 @@ import { HttpRouter } from 'effect/http'
 import { makeCoreClient } from 'projektor/core-client'
 import type { ReactNode } from 'react'
 
+import type { CoreRpcShape } from '#core/contract.ts'
 import type { Env as ApiEnvironment } from '#types'
 
-import type { CoreRpcShape } from '../core/contract.ts'
-import { loadRequestScope } from './server/index.ts'
-import type { ApiError, RequestScope, ScopeError, ScopeOptions } from './server/index.ts'
+import { loadRequestScope } from './server/server-context.ts'
+import type { ApiError, RequestScope, ScopeError, ScopeOptions } from './server/server-context.ts'
 
 export interface Env extends Pick<
   ApiEnvironment,

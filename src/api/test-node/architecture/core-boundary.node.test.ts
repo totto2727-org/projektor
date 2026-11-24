@@ -9,7 +9,7 @@ import { z } from 'zod'
 
 const ROOT = resolve(import.meta.dirname, '../../../..')
 const SOURCE = join(ROOT, 'src')
-const ENTRYPOINTS = ['src/api/index.ts', 'src/web/worker.ts', 'src/web/entry.effront.tsx']
+const ENTRYPOINTS = ['src/api/worker.ts', 'src/web/worker.ts', 'src/web/entry.effront.tsx']
 const packageDefinition = z
   .object({
     name: z.string(),

@@ -1,10 +1,11 @@
 import { Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { CommandOkSchema } from '../../core/web/command-contract.ts'
-import { coreResult } from '../core.ts'
-import { issueDataFixture } from '../features/issues/test/data-fixture.ts'
-import { makeRequestServices, RequestServices } from '../request.ts'
+import { CommandOkSchema } from '#core/web/command-contract.ts'
+import { coreResult } from '@/core.ts'
+import { issueDataFixture } from '@/features/issues/test/data-fixture.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+
 import { runBrowserCommand as runCommand } from './browser-command.ts'
 import { resolveFunctionContext } from './function-context.ts'
 import { testEnvironment } from './test/resources.ts'

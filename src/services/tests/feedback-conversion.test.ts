@@ -3,8 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
 import { createIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
-
-import { createTestDatabase } from '../../web/test/database.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {

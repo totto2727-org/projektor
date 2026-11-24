@@ -4,10 +4,9 @@ import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { migratedDb } from '#db/test/helpers.ts'
-
-import { getCodeHeatmap } from '../code-heatmap.ts'
-import { DataQueryError } from '../errors.ts'
-import { getFlowMetrics } from '../flow-metrics.ts'
+import { getCodeHeatmap } from '#services/code-heatmap.ts'
+import { DataQueryError } from '#services/errors.ts'
+import { getFlowMetrics } from '#services/flow-metrics.ts'
 
 const DAY = 86_400
 const now = 3 * DAY

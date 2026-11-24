@@ -18,14 +18,15 @@
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { TOOL_DOMAINS } from '../mcp/catalog.ts'
-import { coreMCPTools } from '../routes/mcp.ts'
+import { TOOL_DOMAINS } from '#api/mcp/catalog.ts'
+import { coreMCPTools } from '#api/routes/mcp.ts'
 
 const SRC = join(import.meta.dirname, '..')
 const COMMANDS = join(SRC, '..', 'services', 'commands')
@@ -83,7 +84,7 @@ const REST_ONLY: Record<string, string> = {
   'feedback.ts:bulkConvertToIssue': 'human triage action (PROJ-634)',
   'feedback.ts:getFeedbackSummary': 'human triage dashboard (PROJ-634)',
   /*
-   * Bootstrap seeds — called by GET /bootstrap in index.ts to populate a new workspace's
+   * Bootstrap seeds — called by GET /bootstrap in worker.ts to populate a new workspace's
    * defaults. Not operations a client invokes; they only run as part of provisioning.
    */
   'custom-fields.ts:seedDefaultCustomFields': 'bootstrap seed for a new workspace',
@@ -195,8 +196,8 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
       continue
     }
     const specifier = declaration.moduleSpecifier.text
-    const target = specifier.startsWith('#commands/')
-      ? join(COMMANDS, specifier.slice('#commands/'.length))
+    const target = specifier.startsWith('#')
+      ? fileURLToPath(import.meta.resolve(specifier))
       : specifier.startsWith('.')
         ? join(path, '..', `${specifier.replace(/\.ts$/, '')}.ts`)
         : undefined
@@ -547,7 +548,7 @@ const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string
 }
 
 const fileWrapperCalls = fileIoCalls(readFileSync(join(COMMANDS, 'files.ts'), 'utf8'))
-const restOperations = serviceOperationsUsedIn(join(SRC, 'routes'), join(SRC, 'index.ts'))
+const restOperations = serviceOperationsUsedIn(join(SRC, 'routes'), join(SRC, 'worker.ts'))
 const mcpOperations = serviceOperationsUsedIn(join(SRC, 'mcp'))
 const toolOperations = new Map<string, Set<string>>()
 for (const path of expandToFiles(join(SRC, 'mcp'))) {
@@ -670,12 +671,12 @@ describe('MCP surface parity (PROJ-623)', () => {
     expect(catalogToolNames.length).toBeGreaterThan(100)
   })
 
-  test('sees the REST surface registered in index.ts, not just routes/', () => {
+  test('sees the REST surface registered in worker.ts, not just routes/', () => {
     /*
      * PROJ-638: listProjectsAcrossWorkspaces is wired only by GET /api/projects in
-     * index.ts. When the scan covered routes/ alone it read as unwired, so the
+     * worker.ts. When the scan covered routes/ alone it read as unwired, so the
      * internal-by-construction rule swallowed it and two MCP_ONLY entries wrongly
-     * claimed no REST equivalent existed. Naming a specific index.ts-only identifier
+     * claimed no REST equivalent existed. Naming a specific worker.ts-only identifier
      * makes that regression fail here rather than resurface as a false parity gap.
      */
     expect(restIdentifiers.has('listProjectsAcrossWorkspaces')).toBe(true)

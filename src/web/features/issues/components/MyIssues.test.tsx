@@ -2,8 +2,9 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { issue, workspace } from '../test/fixtures.ts'
-import type { ScopedIssue } from '../views/MyIssuesPage.tsx'
+import { issue, workspace } from '@/features/issues/test/fixtures.ts'
+import type { ScopedIssue } from '@/features/issues/views/MyIssuesPage.tsx'
+
 import MyIssues from './MyIssues.tsx'
 
 afterEach(cleanup)

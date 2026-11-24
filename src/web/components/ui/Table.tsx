@@ -7,7 +7,7 @@ import {
   TableRow as PrimitiveTableRow,
   TableHead as PrimitiveTableHead,
   TableCell as PrimitiveTableCell,
-} from '../generated/table.tsx'
+} from '@/components/generated/table.tsx'
 
 export interface TableProps {
   class?: string

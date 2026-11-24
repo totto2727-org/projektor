@@ -7,9 +7,9 @@ import * as issues from '#commands/issues.ts'
 import { createShareToken } from '#commands/share.ts'
 import * as sprints from '#commands/sprints.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 
-import { coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
 import {
   CommandIdSchema,
   CommandOkSchema,

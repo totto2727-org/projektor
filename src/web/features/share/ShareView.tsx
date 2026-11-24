@@ -2,9 +2,10 @@
 
 import { Fragment } from 'react'
 
-import { MarkdownPreview } from '../../components/markdown/MarkdownPreview.tsx'
-import type { RenderedMarkdown } from '../../components/markdown/render.ts'
-import { Badge } from '../../components/ui/Badge.tsx'
+import { MarkdownPreview } from '@/components/markdown/MarkdownPreview.tsx'
+import type { RenderedMarkdown } from '@/components/markdown/render.ts'
+import { Badge } from '@/components/ui/Badge.tsx'
+
 import type { WorkspaceBrandDto } from './brand.ts'
 
 export interface SharedIssue {

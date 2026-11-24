@@ -2,10 +2,10 @@ import type { D1Database } from '@cloudflare/workers-types'
 import { sql } from 'drizzle-orm'
 import type { Column, SQL } from 'drizzle-orm'
 
+import { ApiError } from '#contracts/errors.ts'
+import { requireDataWorkspace } from '#contracts/web-data.ts'
 import type { ProjectSummaryVisibility } from '#services'
 
-import { ApiError } from '../../contracts/errors.ts'
-import { requireDataWorkspace } from '../../contracts/web-data.ts'
 import type { RequestScope } from './scope.ts'
 
 export {
@@ -15,7 +15,7 @@ export {
   requireBrowserDataRequest,
   requireDataProject,
   requireDataWorkspace,
-} from '../../contracts/web-data.ts'
+} from '#contracts/web-data.ts'
 
 export function projectSummaryVisibility(userId: string): ProjectSummaryVisibility {
   return {

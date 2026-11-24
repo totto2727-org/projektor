@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { ListIssuesSchema } from '../../contracts/inputs/issues.ts'
-import { issuesTools } from '../mcp/issues.ts'
+import { issuesTools } from '#api/mcp/issues.ts'
+import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,

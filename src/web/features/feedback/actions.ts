@@ -2,11 +2,12 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront.ts'
-import { RequestServices } from '../../request.ts'
-import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
-import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context.ts'
-import { checkSameOriginMutation } from '../../server/mutation.ts'
+import { EFFRONT } from '@/effront.ts'
+import { RequestServices } from '@/request.ts'
+import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
+import { FunctionSelectorSchema, resolveFunctionContext } from '@/server/function-context.ts'
+import { checkSameOriginMutation } from '@/server/mutation.ts'
+
 import { feedbackCommands, sourceCommands } from './data.ts'
 import { SourceFields } from './schemas.ts'
 

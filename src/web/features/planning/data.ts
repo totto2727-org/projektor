@@ -1,11 +1,12 @@
 import { Effect, Schema } from 'effect'
 
-import { CommandIdSchema, CommandOkSchema } from '../../../core/web/command-contract.ts'
-import type { MetricsQuery } from '../../../core/web/planning.ts'
-import { browserRequest, coreResult } from '../../core.ts'
-import { RequestServices } from '../../request.ts'
-import type { BrowserCommandClient } from '../../server/browser-command.ts'
-import { sprints } from '../issues/commands.ts'
+import { CommandIdSchema, CommandOkSchema } from '#core/web/command-contract.ts'
+import type { MetricsQuery } from '#core/web/planning.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+import { sprints } from '@/features/issues/commands.ts'
+import { RequestServices } from '@/request.ts'
+import type { BrowserCommandClient } from '@/server/browser-command.ts'
+
 import { HeatmapSchema, MetricsSchema } from './schemas.ts'
 
 export const sprintCommands = {

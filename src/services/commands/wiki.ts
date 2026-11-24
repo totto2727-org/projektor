@@ -2,10 +2,7 @@ import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
-import { drizzle, schema } from '#db'
-import * as wikiData from '#services/wiki.ts'
-
-import { IdSchema } from '../../contracts/inputs/common.ts'
+import { IdSchema } from '#contracts/inputs/common.ts'
 import {
   CreatePageSchema,
   DeleteWikiPageOptionsSchema,
@@ -19,9 +16,12 @@ import {
   UpdatePageSchema,
   WikiRevisionDiffInputSchema,
   WikiTreeInputSchema,
-} from '../../contracts/inputs/wiki.ts'
-import type { PatchWikiPageInput } from '../../contracts/inputs/wiki.ts'
-import { wikiPagePath } from '../../contracts/urls.ts'
+} from '#contracts/inputs/wiki.ts'
+import type { PatchWikiPageInput } from '#contracts/inputs/wiki.ts'
+import { wikiPagePath } from '#contracts/urls.ts'
+import { drizzle, schema } from '#db'
+import * as wikiData from '#services/wiki.ts'
+
 import {
   assertProjectAccess,
   effectiveProjectRole,
@@ -145,7 +145,7 @@ export const RESERVED_WIKI_SLUGS: ReadonlySet<string> = new Set([
 /*
  * PROJ-496 (R14): 30-day trash retention — purgeExpiredWikiPages permanently removes a
  * page (and its R2 attachments) once it's been soft-deleted for at least this long.
- * PROJ-865: exported so index.ts's cron can find which workspaces have expired trash
+ * PROJ-865: exported so worker.ts's cron can find which workspaces have expired trash
  * with the same cutoff, without duplicating the constant.
  */
 export const WIKI_TRASH_RETENTION_SECONDS = 30 * 24 * 60 * 60
@@ -2627,12 +2627,12 @@ export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
  * pointing at a page in this batch. Owner/admin only, same as backfill_wiki_links —
  * this is a maintenance action over the whole workspace, not scoped to a single
  * project's grants. Also reachable via a daily Workers Cron Trigger (see the
- * `scheduled` handler in index.ts, which iterates every workspace) in addition to the
+ * `scheduled` handler in worker.ts, which iterates every workspace) in addition to the
  * manual REST/MCP call.
  * PROJ-865: default per-invocation page cap. A workspace with thousands of expired pages
  * would otherwise run this whole function (attachments, FTS, revisions, links, redirects —
  * roughly a dozen D1/R2 calls per page once chunked) unbounded in one cron tick; ~200 pages
- * keeps a single call's cost predictable and lets the cron's KV cursor (index.ts) revisit
+ * keeps a single call's cost predictable and lets the cron's KV cursor (worker.ts) revisit
  * the same workspace on the next run for the remainder instead of moving on and starving it.
  */
 export const WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT = 200

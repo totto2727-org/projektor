@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { Field as PrimitiveField, FieldLabel, FieldDescription, FieldError } from '../generated/field.tsx'
+import { Field as PrimitiveField, FieldLabel, FieldDescription, FieldError } from '@/components/generated/field.tsx'
 
 export interface FieldProps {
   label: ReactNode

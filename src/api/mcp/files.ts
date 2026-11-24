@@ -1,11 +1,12 @@
-import { REVIEW_STATUSES } from '../../contracts/review-targets.ts'
 import {
   createLinkAttachment,
   deleteAttachment,
   getAttachment,
   listAttachments,
   setAttachmentReviewStatus,
-} from '../services/files.ts'
+} from '#api/services/files.ts'
+import { REVIEW_STATUSES } from '#contracts/review-targets.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

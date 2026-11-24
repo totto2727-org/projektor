@@ -1,13 +1,13 @@
 import { Effect } from 'effect'
 
-import { handleApiBinaryRequest } from '../../../core/api/files.ts'
-import { makeApiRateLimitHandlers } from '../../../core/api/rate-limit.ts'
-import type { CoreEnvironment } from '../../../core/environment.ts'
-import { handleCoreFileRequest } from '../../../core/files.ts'
-import { makeWebCoreHandlers } from '../../../core/web/operations.ts'
-import type { WebCoreRpcShape } from '../../../core/web/operations.ts'
-import type { WebRequest, ScopeOptions } from '../../../core/web/scope.ts'
-import type { Env } from '../../request.ts'
+import { handleApiBinaryRequest } from '#core/api/files.ts'
+import { makeApiRateLimitHandlers } from '#core/api/rate-limit.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { handleCoreFileRequest } from '#core/files.ts'
+import { makeWebCoreHandlers } from '#core/web/operations.ts'
+import type { WebCoreRpcShape } from '#core/web/operations.ts'
+import type { WebRequest, ScopeOptions } from '#core/web/scope.ts'
+import type { Env } from '@/request.ts'
 export type TestEnvironment = CoreEnvironment &
   Omit<Env, 'CORE'> & {
     CORE: Env['CORE'] & {

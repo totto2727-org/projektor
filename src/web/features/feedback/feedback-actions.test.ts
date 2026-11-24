@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { actionFixture, formData, planningIds } from '../planning/action-test-fixture.ts'
+import { actionFixture, formData, planningIds } from '@/features/planning/action-test-fixture.ts'
 
 const actions = await import('./actions.ts')
 const scope = { workspaceSlug: 'alpha', projectId: planningIds.project }

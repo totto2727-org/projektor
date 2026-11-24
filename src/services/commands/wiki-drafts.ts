@@ -1,6 +1,11 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { flattenError } from 'zod'
 
+import {
+  SaveWikiDraftInputSchema,
+  VersionedWikiDraftInputSchema,
+  WikiDraftRevisionInputSchema,
+} from '#contracts/inputs/wiki.ts'
 /*
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
  * autosave so an in-progress edit survives a device switch.
@@ -12,11 +17,6 @@ import { flattenError } from 'zod'
  */
 import { drizzle, schema } from '#db'
 
-import {
-  SaveWikiDraftInputSchema,
-  VersionedWikiDraftInputSchema,
-  WikiDraftRevisionInputSchema,
-} from '../../contracts/inputs/wiki.ts'
 import { assertProjectAccess } from './access.ts'
 import { ConflictError, NotFoundError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'

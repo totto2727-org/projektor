@@ -2,10 +2,10 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
+import { GetFlowMetricsSchema } from '#contracts/inputs/flow-metrics.ts'
 import { drizzle, schema } from '#db'
 import { getFlowMetrics as queryFlowMetrics } from '#services/flow-metrics.ts'
 
-import { GetFlowMetricsSchema } from '../../contracts/inputs/flow-metrics.ts'
 import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'

@@ -1,5 +1,5 @@
-import { renderMarkdownDocument } from '../../components/markdown/render.ts'
-import type { MarkdownOptions } from '../../components/markdown/render.ts'
+import { renderMarkdownDocument } from '@/components/markdown/render.ts'
+import type { MarkdownOptions } from '@/components/markdown/render.ts'
 
 /** Untrusted dynamic Markdown uses the same async Comark pipeline on server and client. */
 export async function renderMd(markdown: string): Promise<string> {

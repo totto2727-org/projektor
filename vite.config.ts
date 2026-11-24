@@ -170,6 +170,7 @@ export default defineConfig({
       },
       {
         extends: false,
+        resolve: { tsconfigPaths: true },
         test: {
           name: 'node',
           environment: 'node',

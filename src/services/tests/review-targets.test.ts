@@ -5,9 +5,8 @@ import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors
 import { setAttachmentReviewStatus } from '#commands/files.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
-
-import { createTestDatabase } from '../../web/test/database.ts'
-import { findAttachment, listIssueReviewTargets } from '../files.ts'
+import { findAttachment, listIssueReviewTargets } from '#services/files.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {

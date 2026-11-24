@@ -5,13 +5,13 @@ import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { visibleProjectPredicate } from '#core/web/data-context.ts'
 import { schema } from '#db'
 import { listProjects } from '#services'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
 import type { BrowserAuthEnvironment } from '#services/authentication.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { visibleProjectPredicate } from '../../core/web/data-context.ts'
-import { createTestDatabase } from '../test/database.ts'
 import {
   decodeAuthSession,
   decodeProjectCatalog,

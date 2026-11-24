@@ -3,7 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { Effect } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { uploadInlineImage } from '../../attachment-actions.ts'
+import { uploadInlineImage } from '@/attachment-actions.ts'
+
 import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions.ts'
 import { navigateFeature } from './navigation.ts'
 import { WikiPageClient } from './WikiPageClient.tsx'

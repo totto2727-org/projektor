@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
 import { migratedDb } from '#db/test/helpers.ts'
-
 import {
   DataQueryError,
   findProjectById,
@@ -20,7 +19,7 @@ import {
   listWorkspaces,
   listWorkspaceTokenMetadata,
   readWorkspaceBrand,
-} from '../index.ts'
+} from '#services'
 
 /** Read-only D1 transport over the real migrated schema. Not a Worker emulator. */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {

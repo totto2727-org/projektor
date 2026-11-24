@@ -1,7 +1,7 @@
 import { Effect, Schema, Stream } from 'effect'
 import { HttpServerRequest, HttpServerResponse, UrlParams } from 'effect/http'
 
-import { ApiError, checkSameOriginMutation } from './server/index.ts'
+import { ApiError, checkSameOriginMutation } from './server/server-context.ts'
 
 const SessionForm = Schema.Struct({
   action: Schema.Literals(['login', 'logout']),

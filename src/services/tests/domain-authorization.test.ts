@@ -9,8 +9,7 @@ import { updateTaskStatus } from '#commands/task-statuses.ts'
 import { updateTaskType } from '#commands/task-types.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { markWikiNotificationsRead } from '#commands/wiki-watchers.ts'
-
-import { createTestDatabase } from '../../web/test/database.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {

@@ -2,12 +2,11 @@ import { Effect, Schema } from 'effect'
 import { Hono } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { authMiddleware, requireInteractiveHuman } from '#api/middleware/auth.ts'
+import { ApiUserBootstrap } from '#contracts/api-auth.ts'
 import type { HonoEnv } from '#types'
-
-import { ApiUserBootstrap } from '../../contracts/api-auth.ts'
-import { jsonBody } from '../http/body.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
-import { authMiddleware, requireInteractiveHuman } from '../middleware/auth.ts'
 
 const router = new Hono<HonoEnv>()
 

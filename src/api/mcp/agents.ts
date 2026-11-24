@@ -1,5 +1,13 @@
-import { ValidationError } from '../../contracts/errors.ts'
-import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '../services/agents.ts'
+import {
+  endAgent,
+  finishWork,
+  heartbeatAgent,
+  listActiveAgents,
+  registerAgent,
+  startWork,
+} from '#api/services/agents.ts'
+import { ValidationError } from '#contracts/errors.ts'
+
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

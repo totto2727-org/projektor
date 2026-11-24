@@ -3,13 +3,13 @@ import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
 
+import { unauthorizedChallenge } from '#api/auth/challenge.ts'
+import { ApiPrincipal, VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
+import type { ApiUser } from '#contracts/api-auth.ts'
+import { capabilityForMethod, tokenAllows } from '#contracts/auth-scopes.ts'
+import type { CoreActor } from '#core/authorization.ts'
 import type { HonoEnv } from '#types'
 
-import { ApiPrincipal, VerifiedApiOauthGrant } from '../../contracts/api-auth.ts'
-import type { ApiUser } from '../../contracts/api-auth.ts'
-import { capabilityForMethod, tokenAllows } from '../../contracts/auth-scopes.ts'
-import type { CoreActor } from '../../core/authorization.ts'
-import { unauthorizedChallenge } from '../auth/challenge.ts'
 import { bumpRateCounter } from './rate-limit.ts'
 import { mcpWorkspaceIdFromPath } from './workspace.ts'
 

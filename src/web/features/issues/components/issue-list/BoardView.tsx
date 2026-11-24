@@ -1,16 +1,17 @@
 'use client'
 import { useState } from 'react'
 
-import { issueUrl } from '../../utils/issue-url.ts'
 import {
   assigneeInitials,
   BOARD_COLUMNS,
   categoryColor,
   getBoardColumnIssues,
   getFirstStatusForCategory,
-} from '../board-utils.ts'
-import type { Issue, TaskStatus } from '../board-utils.ts'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+} from '@/features/issues/components/board-utils.ts'
+import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import { ReviewTargetsSummary } from '@/features/issues/components/ReviewTargetsSummary.tsx'
+import { issueUrl } from '@/features/issues/utils/issue-url.ts'
+
 import { IssueSelectionControl } from './BulkActions.tsx'
 import { getStoryPoints, priorityBadge, StatusSelect, spBadge } from './issue-render-helpers.tsx'
 

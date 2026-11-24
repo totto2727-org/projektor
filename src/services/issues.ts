@@ -2,9 +2,9 @@ import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { Effect } from 'effect'
 
+import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { drizzle, schema } from '#db'
 
-import type { ReviewFilter } from '../contracts/review-targets.ts'
 import { batchLoadCustomFields, inChunks } from './custom-fields.ts'
 import type { CustomFieldValue } from './custom-fields.ts'
 import { queryEffect } from './errors.ts'

@@ -2,13 +2,12 @@ import { Effect } from 'effect'
 import type { Context } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
+import { authMiddleware } from '#api/middleware/auth.ts'
+import { subdomainRoutingEnabled } from '#api/middleware/workspace.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { getWikiPage } from '#api/services/wiki.ts'
+import { ApiWorkspace } from '#contracts/api-auth.ts'
 import type { HonoEnv } from '#types'
-
-import { ApiWorkspace } from '../../contracts/api-auth.ts'
-import { authMiddleware } from '../middleware/auth.ts'
-import { subdomainRoutingEnabled } from '../middleware/workspace.ts'
-import { ctxFromHono } from '../services/types.ts'
-import { getWikiPage } from '../services/wiki.ts'
 
 /*
  * PROJ-487 fix-up: server-side redirect + metadata injection for the /wiki catch-all

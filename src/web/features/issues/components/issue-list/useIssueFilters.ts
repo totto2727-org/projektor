@@ -2,9 +2,10 @@
 import { Schema } from 'effect'
 import { useState } from 'react'
 
-import { Text, useIssueForm } from '../../forms.ts'
-import type { SortKey } from '../board-utils.ts'
-import type { SavedViewFilters } from '../saved-views.ts'
+import type { SortKey } from '@/features/issues/components/board-utils.ts'
+import type { SavedViewFilters } from '@/features/issues/components/saved-views.ts'
+import { Text, useIssueForm } from '@/features/issues/forms.ts'
+
 import { parseDateField, parseListParam, useFilterUrlSync } from './useFilterUrlSync.ts'
 
 const readInitialFilters = function readInitialFilters(search: string, projectKey: string) {

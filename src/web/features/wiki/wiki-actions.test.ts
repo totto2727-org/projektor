@@ -2,10 +2,10 @@ import { Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { loadMigrations } from '#db/test/helpers.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import { createTestResources, testEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { makeRequestServices, RequestServices } from '../../request.ts'
-import { createTestResources, testEnvironment } from '../../server/test/resources.ts'
-import { createTestDatabase } from '../../test/database.ts'
 import {
   createWikiPage,
   deleteWikiAttachment,

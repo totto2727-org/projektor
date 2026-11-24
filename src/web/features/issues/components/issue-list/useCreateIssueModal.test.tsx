@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import '../../test/browser.ts'
+import '@/features/issues/test/browser.ts'
 // Native ActionState keeps typed server failures in the open form without discarding its TanStack draft.
 // Unexpected browser transport failures belong to the root React error boundary.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { createIssue } from '../../actions.ts'
+import { createIssue } from '@/features/issues/actions.ts'
+
 import CreateIssueModal from './CreateIssueModal.tsx'
 import { useCreateIssueModal } from './useCreateIssueModal.ts'
 

@@ -2,15 +2,16 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront.ts'
-import { RequestServices } from '../../request.ts'
-import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
-import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context.ts'
-import { ScopeError } from '../../server/errors.ts'
-import { resolveFunctionContext } from '../../server/function-context.ts'
-import { checkSameOriginMutation } from '../../server/mutation.ts'
-import type { RequestScope } from '../../server/request-context.ts'
-import { readDataIssue, readSprint } from '../issues/data.ts'
+import { EFFRONT } from '@/effront.ts'
+import { readDataIssue, readSprint } from '@/features/issues/data.ts'
+import { RequestServices } from '@/request.ts'
+import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
+import { dataError, requireDataProject, requireDataWorkspace } from '@/server/data-context.ts'
+import { ScopeError } from '@/server/errors.ts'
+import { resolveFunctionContext } from '@/server/function-context.ts'
+import { checkSameOriginMutation } from '@/server/mutation.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { sprintCommands } from './data.ts'
 import {
   CreateSprintInputSchema,

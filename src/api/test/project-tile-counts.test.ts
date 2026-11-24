@@ -6,8 +6,8 @@
 import { describe, expect, test } from 'vite-plus/test'
 
 import { listProjectsAcrossWorkspaces } from '#commands/projects.ts'
+import m0066 from '#migrations/0066_repair_status_category.sql?raw'
 
-import m0066 from '../../../migrations/0066_repair_status_category.sql?raw'
 import { env } from './fixture-api.ts'
 import {
   authHeaders,

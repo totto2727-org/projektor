@@ -1,11 +1,8 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { ISSUE_REF_PATTERN } from '../../contracts/issue-ref.ts'
-import { jsonBody } from '../http/body.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
-import { claimIssue, listIssueLeases, releaseIssue } from '../services/issue-leases.ts'
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { claimIssue, listIssueLeases, releaseIssue } from '#api/services/issue-leases.ts'
 import {
   createIssue,
   deleteIssue,
@@ -15,8 +12,10 @@ import {
   listIssues,
   searchIssues,
   updateIssue,
-} from '../services/issues.ts'
-import { ctxFromHono } from '../services/types.ts'
+} from '#api/services/issues.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
+import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
 

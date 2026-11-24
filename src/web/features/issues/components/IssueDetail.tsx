@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 
-import { FunctionError, unwrapResult } from '../../../client/functions.ts'
-import { updateIssue } from '../actions.ts'
-import { formatIssueRef } from '../lib/issue-ref.ts'
-import { issueUrl } from '../utils/issue-url.ts'
-import type { IssueDetailInitialData } from '../views/IssueDetailPage.tsx'
+import { FunctionError, unwrapResult } from '@/client/functions.ts'
+import { updateIssue } from '@/features/issues/actions.ts'
+import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
+import { issueUrl } from '@/features/issues/utils/issue-url.ts'
+import type { IssueDetailInitialData } from '@/features/issues/views/IssueDetailPage.tsx'
+
 import type { Attachment, Comment, IssueData, IssueLink, Member, TaskStatus, TaskType } from './issue-detail-helpers.ts'
 import {
   AttachmentsSection,

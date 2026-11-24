@@ -3,8 +3,9 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import type { ReviewTarget } from '../../../../contracts/review-targets.ts'
-import { issue } from '../test/fixtures.ts'
+import type { ReviewTarget } from '#contracts/review-targets.ts'
+import { issue } from '@/features/issues/test/fixtures.ts'
+
 import { ReviewTargetsSummary } from './ReviewTargetsSummary.tsx'
 
 afterEach(cleanup)

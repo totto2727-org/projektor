@@ -1,6 +1,13 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
 import { flattenError } from 'zod'
 
+import {
+  ListWikiChangesInputSchema,
+  ListWikiNotificationsInputSchema,
+  MarkWikiNotificationsReadInputSchema,
+  WatchWikiPageInputSchema,
+} from '#contracts/inputs/wiki.ts'
+import { wikiPagePath } from '#contracts/urls.ts'
 /*
  * PROJ-493 (R11): watch/unwatch per page or subtree, a per-user notification list, and
  * list_wiki_changes — cheap delta polling for agents.
@@ -12,13 +19,6 @@ import { flattenError } from 'zod'
  */
 import { drizzle, schema } from '#db'
 
-import {
-  ListWikiChangesInputSchema,
-  ListWikiNotificationsInputSchema,
-  MarkWikiNotificationsReadInputSchema,
-  WatchWikiPageInputSchema,
-} from '../../contracts/inputs/wiki.ts'
-import { wikiPagePath } from '../../contracts/urls.ts'
 import { assertProjectAccess, hasProjectAccess, usersWithProjectReadAccess } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'

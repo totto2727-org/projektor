@@ -2,8 +2,9 @@ import { RemovalPolicy } from 'alchemy'
 import * as Cloudflare from 'alchemy/Cloudflare'
 import { Effect } from 'effect'
 
-import { DeploymentEnvironment } from '../worker-environment.ts'
-import { deployment } from '../worker-graph.ts'
+import { DeploymentEnvironment } from '#worker-environment'
+import { deployment } from '#worker-graph'
+
 import { Core } from './core.ts'
 
 // The configured native entrypoint exports HTTP handlers and the existing Durable Object classes.

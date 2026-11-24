@@ -2,8 +2,7 @@ import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { seedDefaultCustomFields } from '#commands/custom-fields.ts'
 import { createWorkspace } from '#commands/workspaces.ts'
-
-import { createTestDatabase } from '../../web/test/database.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {

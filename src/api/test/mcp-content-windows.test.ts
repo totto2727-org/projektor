@@ -4,7 +4,8 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { outlineOf, sectionOf, windowText } from '../mcp/windowing.ts'
+import { outlineOf, sectionOf, windowText } from '#api/mcp/windowing.ts'
+
 import { env } from './fixture-api.ts'
 import { seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

@@ -1,5 +1,6 @@
 'use client'
-import type { IssuesInitialData, IssuesRoute } from '../../views/IssuesPage.tsx'
+import type { IssuesInitialData, IssuesRoute } from '@/features/issues/views/IssuesPage.tsx'
+
 import { useIssueLookups } from './useIssueLookups.ts'
 import { useIssueMutations } from './useIssueMutations.ts'
 

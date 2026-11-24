@@ -3,8 +3,9 @@ import { adopt } from 'alchemy/AdoptPolicy'
 import * as Cloudflare from 'alchemy/Cloudflare'
 import { Effect } from 'effect'
 
-import { DeploymentEnvironment, DeploymentLayer, rateLimiterReference } from '../worker-environment.ts'
-import { deployment } from '../worker-graph.ts'
+import { DeploymentEnvironment, DeploymentLayer, rateLimiterReference } from '#worker-environment'
+import { deployment } from '#worker-graph'
+
 import { Core } from './core.ts'
 
 class FrontendIdentity extends Cloudflare.Worker<FrontendIdentity>()(
@@ -21,7 +22,7 @@ class FrontendIdentity extends Cloudflare.Worker<FrontendIdentity>()(
       vite: { rootDir: '.', viteEnvironments: { entry: 'rsc', children: ['ssr'] } },
     }
   }),
-  Effect.promise(() => import('../src/web/worker.ts')).pipe(Effect.flatMap(({ makeWebWorker }) => makeWebWorker())),
+  Effect.promise(() => import('@/worker.ts')).pipe(Effect.flatMap(({ makeWebWorker }) => makeWebWorker())),
 ) {}
 
 export const Frontend = FrontendIdentity.pipe(adopt(true), RemovalPolicy.retain())

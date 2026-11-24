@@ -8,9 +8,8 @@ import type { ServiceCtx } from '#commands/types.ts'
 import * as apiWiki from '#commands/wiki.ts'
 import { schema } from '#db'
 import { migratedDb } from '#db/test/helpers.ts'
-
-import { DataQueryError } from '../errors.ts'
-import * as wiki from '../wiki.ts'
+import { DataQueryError } from '#services/errors.ts'
+import * as wiki from '#services/wiki.ts'
 
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
   const prepare = function prepare(query: string, bindings: SQLInputValue[] = []) {

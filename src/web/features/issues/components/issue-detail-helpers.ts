@@ -1,6 +1,7 @@
 'use client'
-import type { ReviewStatus } from '../../../../contracts/review-targets.ts'
-import type { RenderedMarkdown } from '../../../components/markdown/render.ts'
+import type { ReviewStatus } from '#contracts/review-targets.ts'
+import type { RenderedMarkdown } from '@/components/markdown/render.ts'
+
 import type { CustomFieldValue, TaskStatus } from './board-utils.ts'
 
 export type { CustomFieldValue, TaskStatus }

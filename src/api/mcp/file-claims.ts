@@ -1,4 +1,5 @@
-import { claimFiles, listFileClaims, releaseFiles } from '../services/file-claims.ts'
+import { claimFiles, listFileClaims, releaseFiles } from '#api/services/file-claims.ts'
+
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

@@ -1,4 +1,5 @@
-import type { CoreActor } from '../core/authorization.ts'
+import type { CoreActor } from '#core/authorization.ts'
+
 import type { AuthInfo } from './plugin.ts'
 
 export interface CoreEnv {
@@ -92,7 +93,7 @@ export interface CoreEnv {
   BRAND_LOGO_URL?: string
   /*
    * PROJ-869: retention windows for the daily cron's cross-table cleanup
-   * (src/api/index.ts's scheduled -> purgeExpiredRetentionData). All optional;
+   * (src/api/worker.ts's scheduled -> purgeExpiredRetentionData). All optional;
    * unset falls back to the documented default in that function.
    */
   WIKI_NOTIFICATION_RETENTION_DAYS?: string // default 90
@@ -142,7 +143,7 @@ export interface Variables {
   // PROJ-889: method + credential behind authKind. Set by every auth strategy.
   auth: AuthInfo
   /*
-   * PROJ-494: opt-in, set by index.ts ahead of workspaceMiddleware for GET requests
+   * PROJ-494: opt-in, set by worker.ts ahead of workspaceMiddleware for GET requests
    * that a browser subresource load (e.g. an <img> tag rendering an inline attachment)
    * can't attach a custom X-Workspace-Slug header to. See middleware/workspace.ts.
    */

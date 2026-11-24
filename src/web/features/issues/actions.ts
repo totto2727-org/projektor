@@ -1,15 +1,16 @@
 'use server'
 import { Effect, Schema } from 'effect'
 
-import { ReviewStatusSchema } from '../../../contracts/review-targets.ts'
-import { EFFRONT } from '../../effront.ts'
-import { RequestServices } from '../../request.ts'
-import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
-import { requireDataWorkspace } from '../../server/data-context.ts'
-import { ApiError, ScopeError } from '../../server/errors.ts'
-import { resolveFunctionContext } from '../../server/function-context.ts'
-import type { FunctionContext } from '../../server/function-context.ts'
-import { checkSameOriginMutation } from '../../server/mutation.ts'
+import { ReviewStatusSchema } from '#contracts/review-targets.ts'
+import { EFFRONT } from '@/effront.ts'
+import { RequestServices } from '@/request.ts'
+import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
+import { requireDataWorkspace } from '@/server/data-context.ts'
+import { ApiError, ScopeError } from '@/server/errors.ts'
+import { resolveFunctionContext } from '@/server/function-context.ts'
+import type { FunctionContext } from '@/server/function-context.ts'
+import { checkSameOriginMutation } from '@/server/mutation.ts'
+
 import {
   CreateIssueSchema,
   IssueIdentitySchema,

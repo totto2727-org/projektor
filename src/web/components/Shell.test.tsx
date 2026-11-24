@@ -4,9 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import pkg from '../../../package.json'
-import { project as fixtureProject } from '../features/issues/test/fixtures.ts'
-import type { RequestScope } from '../server/request-context.ts'
+import pkg from '#package-metadata'
+import { project as fixtureProject } from '@/features/issues/test/fixtures.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { Shell } from './Shell.tsx'
 
 const workspace = { id: 'workspace-1', slug: 'team', name: 'Team', role: 'owner' } as const

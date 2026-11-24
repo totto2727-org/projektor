@@ -1,4 +1,4 @@
-import { formatTimestampDate } from '../../timestamp.ts'
+import { formatTimestampDate } from '@/features/timestamp.ts'
 
 /*
  * PROJ-875: one conversion pair between <input type="date"> strings ("YYYY-MM-DD") and

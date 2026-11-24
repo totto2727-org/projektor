@@ -5,7 +5,7 @@ import { BooleanQueryParam } from './common.ts'
 /*
  * PROJ-517: no "/" — path-based wiki routing (PROJ-487) assumes single-segment
  * slugs everywhere except this schema; forbidding "/" here keeps it that way rather
- * than making every matcher (index.ts, WikiPage.tsx, wiki-links.ts) multi-segment.
+ * than making every matcher (worker.ts, WikiPage.tsx, wiki-links.ts) multi-segment.
  */
 export const SlugSchema = z
   .string()

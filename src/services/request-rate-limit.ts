@@ -1,8 +1,7 @@
+import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
 import type { Env } from '#types'
 
-import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit.ts'
-
-export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit.ts'
+export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
 
 /** Native counter bindings and request policy only, with no application auth secrets. */
 export type RequestRateLimitEnv = Pick<

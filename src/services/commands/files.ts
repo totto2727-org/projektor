@@ -1,8 +1,6 @@
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
-import * as attachmentData from '#services/files.ts'
-
 import {
   CreateLinkAttachmentSchema,
   DeleteAttachmentSchema,
@@ -10,9 +8,11 @@ import {
   ListAttachmentsSchema,
   RecordFileUploadSchema,
   SetAttachmentReviewStatusSchema,
-} from '../../contracts/inputs/files.ts'
-import type { ReviewStatus } from '../../contracts/review-targets.ts'
-import { wikiPagePath } from '../../contracts/urls.ts'
+} from '#contracts/inputs/files.ts'
+import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { wikiPagePath } from '#contracts/urls.ts'
+import * as attachmentData from '#services/files.ts'
+
 import { assertIssueAccess, canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access.ts'
 import {
   ForbiddenError,

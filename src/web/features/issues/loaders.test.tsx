@@ -2,11 +2,12 @@ import { Effect, Schema } from 'effect'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { ApiResults } from '../../../contracts/api-results.ts'
-import { SearchResultsSchema } from '../../../contracts/web-schemas/issue-actions.ts'
-import { AttachmentSchema, IssueSchema, normalizeAttachments } from '../../../contracts/web-schemas/issues.ts'
-import { ApiError, ScopeError } from '../../server/errors.ts'
-import type { RequestScope } from '../../server/request-context.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+import { SearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
+import { AttachmentSchema, IssueSchema, normalizeAttachments } from '#contracts/web-schemas/issues.ts'
+import { ApiError, ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { readDataIssuePage, searchDataIssues } from './data.ts'
 import {
   filteredIssueQuery,

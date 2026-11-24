@@ -2,7 +2,8 @@
 
 import { Effect, Schema } from 'effect'
 
-import { RateLimitResult, rateLimitTestPolicy } from '../contracts/request-rate-limit.ts'
+import { RateLimitResult, rateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
+
 import { UploadAttachmentInputSchema, UploadedAttachmentSchema } from './attachments.ts'
 import type { UploadAttachmentInput, UploadedAttachment } from './attachments.ts'
 import { transferCoreBinary } from './core-binary.ts'

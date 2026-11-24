@@ -1,10 +1,10 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-import type { ReviewStatus } from '../../../../contracts/review-targets.ts'
-import { FunctionError, unwrapResult } from '../../../client/functions.ts'
-import { setAttachmentReviewStatus } from '../actions.ts'
-import type { Attachment } from '../types.ts'
+import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { FunctionError, unwrapResult } from '@/client/functions.ts'
+import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
+import type { Attachment } from '@/features/issues/types.ts'
 
 const STATUS_OPTIONS = [
   { value: 'fixing', label: '修正中', color: 'text-text-muted bg-surface' },

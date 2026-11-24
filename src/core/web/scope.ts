@@ -1,8 +1,7 @@
 import { Schema } from 'effect'
 
+import { ScopeError } from '#contracts/errors.ts'
 import type { AuthInfo } from '#types'
-
-import { ScopeError } from '../../contracts/errors.ts'
 
 export const WebRequestSchema = Schema.Struct({
   url: Schema.String,

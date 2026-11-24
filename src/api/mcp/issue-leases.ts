@@ -1,4 +1,5 @@
-import { claimIssue, listIssueLeases, releaseIssue } from '../services/issue-leases.ts'
+import { claimIssue, listIssueLeases, releaseIssue } from '#api/services/issue-leases.ts'
+
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

@@ -1,8 +1,9 @@
 import { Schema } from 'effect'
 
-import { ReviewFilterSchema } from '../../../../contracts/review-targets.ts'
-import type { ReviewFilter } from '../../../../contracts/review-targets.ts'
-import type { ProjectSummary } from '../../../server/request-context.ts'
+import { ReviewFilterSchema } from '#contracts/review-targets.ts'
+import type { ReviewFilter } from '#contracts/review-targets.ts'
+import type { ProjectSummary } from '@/server/request-context.ts'
+
 import type { IssuesRoute } from './IssuesPage.tsx'
 
 const REVIEW_LINKS = [

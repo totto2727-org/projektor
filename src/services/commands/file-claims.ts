@@ -1,10 +1,10 @@
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { flattenError } from 'zod'
 
+import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
+import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '#contracts/inputs/file-claims.ts'
 import { drizzle, schema } from '#db'
 
-import { PostMessageSchema } from '../../contracts/inputs/agent-messages.ts'
-import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '../../contracts/inputs/file-claims.ts'
 import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access.ts'
 import { assertAgentSessionAccess } from './agent-identity.ts'
 import { buildPostMessageStatements } from './agent-messages.ts'

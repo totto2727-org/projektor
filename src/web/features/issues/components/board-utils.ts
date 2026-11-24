@@ -1,4 +1,4 @@
-import type { ReviewTarget } from '../../../../contracts/review-targets.ts'
+import type { ReviewTarget } from '#contracts/review-targets.ts'
 
 export interface TaskStatus {
   id: string

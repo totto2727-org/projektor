@@ -1,6 +1,7 @@
 import { flattenError } from 'zod'
 
-import { GetWorkflowSchema } from '../../contracts/inputs/workflow.ts'
+import { GetWorkflowSchema } from '#contracts/inputs/workflow.ts'
+
 import { ValidationError } from './errors.ts'
 import { WORKFLOW_SPEC } from './workflow-content.ts'
 

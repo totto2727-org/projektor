@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { LIMITER_TIMEOUT_MS } from '#api/middleware/rate-limit.ts'
 import { bumpRateCounter } from '#services/request-rate-limit.ts'
 import type { Env } from '#types'
 
-import { LIMITER_TIMEOUT_MS } from '../middleware/rate-limit.ts'
 import { configureCore, env, getCoreLimiterCalls } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

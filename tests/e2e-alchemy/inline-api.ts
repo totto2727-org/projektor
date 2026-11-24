@@ -8,7 +8,8 @@ import type * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/Runt
 import type * as WorkerdConfig from '@alchemy.run/cloudflare-runtime/core/workerd/Config'
 import { Effect, Layer } from 'effect'
 
-import { deployment } from '../../worker-graph.ts'
+import { deployment } from '#worker-graph'
+
 import { apiWorkerOptions, coreServiceBinding, coreWorkerOptions, fixtureServices } from './api-host.ts'
 
 const apiStorage = 'projektor-e2e-api-do-storage'

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import '../../test/browser.ts'
+import '@/features/issues/test/browser.ts'
 /*
  * PROJ-566 / CD-294: the Description caption must not *wrap* the markdown editor.
  * A <label> with no `for` binds to its first labelable descendant, which inside
@@ -9,7 +9,8 @@ import '../../test/browser.ts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, test } from 'vite-plus/test'
 
-import type { TaskStatus } from '../board-utils.ts'
+import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
+
 import CreateIssueModal from './CreateIssueModal.tsx'
 import { useCreateIssueModal } from './useCreateIssueModal.ts'
 

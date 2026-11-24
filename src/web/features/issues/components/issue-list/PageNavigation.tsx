@@ -1,5 +1,5 @@
-import { queryFields } from '../../utils/query-fields.ts'
-import type { IssuesRoute } from '../../views/IssuesPage.tsx'
+import { queryFields } from '@/features/issues/utils/query-fields.ts'
+import type { IssuesRoute } from '@/features/issues/views/IssuesPage.tsx'
 
 export interface IssuePagination {
   readonly route: IssuesRoute

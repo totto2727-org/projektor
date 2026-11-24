@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 
-import { unwrapResult } from '../../client/functions.ts'
-import { Button } from '../../components/ui/Button.tsx'
-import { formatTimestampDate } from '../timestamp.ts'
+import { unwrapResult } from '@/client/functions.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import { formatTimestampDate } from '@/features/timestamp.ts'
+
 import { disconnectConnector } from './actions.ts'
 import type { ConnectorGrant } from './types.ts'
 

@@ -2,8 +2,9 @@ import { Effect } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { testEnvironment } from '../../server/test/resources.ts'
-import { createTestDatabase } from '../../test/database.ts'
+import { testEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
+
 import { DEFAULT_BRAND, layerBrand } from './brand.ts'
 import { renderShare as renderShareEffect } from './server.tsx'
 

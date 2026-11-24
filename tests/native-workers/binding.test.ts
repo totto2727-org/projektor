@@ -3,7 +3,8 @@ import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { RateLimitResult } from '../../src/contracts/request-rate-limit.ts'
+import { RateLimitResult } from '#contracts/request-rate-limit.ts'
+
 import type NativeFixtureCore from './core.worker'
 
 interface FixtureBinding {

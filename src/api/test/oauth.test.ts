@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { relyingPartyHost } from '#commands/oauth.ts'
+import { purgeExpiredOAuthData } from '#core/api/maintenance.ts'
 import type { Env } from '#types'
 
-import { purgeExpiredOAuthData } from '../../core/api/maintenance.ts'
 import { env, resetCoreAuthCaches } from './fixture-api.ts'
 import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -620,7 +620,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     const { tokens } = await connect({ email, workspaceId, clientId: client.client_id, redirectUri: ORCA_REDIRECT })
 
     expect(tokens.token_type).toBe('bearer')
-    // `<userId>:<grantId>:<secret>` — the shape index.ts's dispatcher keys on.
+    // `<userId>:<grantId>:<secret>` — the shape worker.ts's dispatcher keys on.
     expect(tokens.access_token.split(':')).toHaveLength(3)
 
     const res = await mcpCall(workspaceId, tokens.access_token, 'list_projects')
@@ -1272,7 +1272,7 @@ describe('existing credentials are untouched by the provider', () => {
     /*
      * The regression this guards: declaring /mcp/ an apiRoute makes the provider
      * answer every request there itself, 401ing anything that is not one of its own
-     * tokens. index.ts only routes OAuth-shaped bearers into it for this reason.
+     * tokens. worker.ts only routes OAuth-shaped bearers into it for this reason.
      */
     const fixture = await seedFixture()
     const res = await mcpCall(fixture.workspace.id, fixture.token, 'list_projects')

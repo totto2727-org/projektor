@@ -4,10 +4,9 @@ import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { migratedDb } from '#db/test/helpers.ts'
-
-import { DataQueryError } from '../errors.ts'
-import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '../feedback.ts'
-import { findSprintById, listSprints } from '../sprints.ts'
+import { DataQueryError } from '#services/errors.ts'
+import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '#services/feedback.ts'
+import { findSprintById, listSprints } from '#services/sprints.ts'
 
 /** Read-only transport over the real migrated schema. */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {

@@ -3,7 +3,7 @@ import { WorkerEntrypoint } from 'cloudflare:workers'
 import migrations from 'virtual:fixture-migrations'
 import entrypoint from 'virtual:production-core-entrypoint'
 
-import type { CoreEnvironment } from '../../src/core/environment.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 
 // Use the configured production module's default export, just like Alchemy's bundler.
 const NativeCore = makeWorkerBridge(WorkerEntrypoint, {

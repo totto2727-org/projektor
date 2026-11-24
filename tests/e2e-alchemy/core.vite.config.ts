@@ -6,7 +6,8 @@ import { readD1Migrations } from '@cloudflare/vitest-plugin'
 import { defineConfig } from 'vite-plus'
 import type { UserConfig } from 'vite-plus'
 
-import { deployment } from '../../worker-graph.ts'
+import { deployment } from '#worker-graph'
+
 import { coreWorkerOptions } from './api-host.ts'
 
 /** Compile official-parser migration records into the acceptance-only Core artifact. */

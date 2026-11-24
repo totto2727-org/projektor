@@ -7,8 +7,7 @@ import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
 import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
-
-import { createTestDatabase } from '../../web/test/database.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {

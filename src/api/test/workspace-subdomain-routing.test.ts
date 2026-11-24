@@ -2,10 +2,10 @@ import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { authMiddleware } from '#api/middleware/auth.ts'
+import { subdomainRoutingEnabled, workspaceMiddleware } from '#api/middleware/workspace.ts'
 import type { HonoEnv } from '#types'
 
-import { authMiddleware } from '../middleware/auth.ts'
-import { subdomainRoutingEnabled, workspaceMiddleware } from '../middleware/workspace.ts'
 import { env } from './fixture-api.ts'
 import { seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -89,7 +89,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
   })
 
   // PROJ-494: the `?workspace=` query-param fallback is opt-in per route (only GET
-  // /api/files*, see index.ts) — everything else must keep requiring the header.
+  // /api/files*, see worker.ts) — everything else must keep requiring the header.
   test("a ?workspace= query param is ignored on routes that didn't opt in", async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi(`http://localhost/api/task-types?workspace=${fixture.workspace.slug}`, {

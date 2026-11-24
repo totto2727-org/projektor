@@ -1,10 +1,11 @@
 'use client'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 
-import { Button } from '../../../../components/ui/Button.tsx'
-import Select from '../../../../components/ui/Select.tsx'
-import type { IssuesRoute } from '../../views/IssuesPage.tsx'
-import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import Select from '@/components/ui/Select.tsx'
+import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import type { IssuesRoute } from '@/features/issues/views/IssuesPage.tsx'
+
 import type { DateField } from './FiltersPopover.tsx'
 import FiltersPopover from './FiltersPopover.tsx'
 import SavedViewsControl from './SavedViewsControl.tsx'

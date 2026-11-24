@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { ReviewTargetSchema } from '../review-targets.ts'
+import { ReviewTargetSchema } from '#contracts/review-targets.ts'
 
 const NonEmpty = Schema.String.check(Schema.isMinLength(1))
 export const SelectorFields = {

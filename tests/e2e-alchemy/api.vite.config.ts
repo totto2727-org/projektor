@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url'
 import cloudflare from '@alchemy.run/cloudflare-runtime/vite'
 import { defineConfig } from 'vite-plus'
 
-import { deployment } from '../../worker-graph.ts'
+import { deployment } from '#worker-graph'
+
 import { apiWorkerOptions } from './api-host.ts'
 
 // Build the unchanged API adapter with the official host. Preview is owned by

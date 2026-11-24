@@ -3,7 +3,7 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
 import type { CSSProperties, ReactNode, Ref } from 'react'
 
-import { Popover as PrimitivePopover } from '../generated/popover.tsx'
+import { Popover as PrimitivePopover } from '@/components/generated/popover.tsx'
 
 /** Compatibility entry point backed by the framework portal, not app portal logic. */
 export function Portal({ into, vnode }: { into: HTMLElement; vnode: ReactNode }) {

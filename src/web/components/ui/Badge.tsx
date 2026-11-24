@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from 'react'
 
-import { Badge as PrimitiveBadge } from '../generated/badge.tsx'
+import { Badge as PrimitiveBadge } from '@/components/generated/badge.tsx'
 
 export interface BadgeProps {
   class?: string

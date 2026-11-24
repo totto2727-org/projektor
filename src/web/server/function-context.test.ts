@@ -2,9 +2,9 @@ import { Cause, Effect, Exit } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { makeRequestServices, RequestServices } from '../request.ts'
-import { createTestDatabase } from '../test/database.ts'
 import { resolveFunctionContext } from './function-context.ts'
 import type { FunctionOptions, FunctionSelector } from './function-context.ts'
 import type { AuthSession, ProjectSummary } from './request-context.ts'

@@ -1,6 +1,7 @@
 import { Effect, Schema } from 'effect'
 
-import { RequestServices } from '../request.ts'
+import { RequestServices } from '@/request.ts'
+
 import { ScopeError } from './errors.ts'
 import type { ApiError } from './errors.ts'
 import type { RequestScope } from './request-context.ts'

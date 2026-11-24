@@ -2,9 +2,16 @@
 import { Schema } from 'effect'
 import { useEffect, useState } from 'react'
 
-import { RequiredText, useIssueForm } from '../../forms.ts'
-import { captureView, filtersMatch, parseSavedViews, removeView, upsertView, viewsStorageKey } from '../saved-views.ts'
-import type { SavedView, SavedViewFilters } from '../saved-views.ts'
+import {
+  captureView,
+  filtersMatch,
+  parseSavedViews,
+  removeView,
+  upsertView,
+  viewsStorageKey,
+} from '@/features/issues/components/saved-views.ts'
+import type { SavedView, SavedViewFilters } from '@/features/issues/components/saved-views.ts'
+import { RequiredText, useIssueForm } from '@/features/issues/forms.ts'
 
 /** Named entity-bearing filters remain per-tab and scoped to the authenticated identity. */
 export function useSavedViews(

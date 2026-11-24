@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 'use client'
 
-import '../../test/browser.ts'
+import '@/features/issues/test/browser.ts'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFiltersPopoverPosition } from './FiltersPopover.tsx'

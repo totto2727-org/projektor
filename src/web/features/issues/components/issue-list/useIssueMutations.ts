@@ -1,9 +1,9 @@
 'use client'
 import { useState } from 'react'
 
-import { unwrapResult } from '../../../../client/functions.ts'
-import { updateIssue } from '../../actions.ts'
-import type { TaskStatus } from '../board-utils.ts'
+import { unwrapResult } from '@/client/functions.ts'
+import { updateIssue } from '@/features/issues/actions.ts'
+import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
 
 /** Mutation proxies refresh canonical SSR rows, never rewrite a browser-owned row copy. */
 export function useIssueMutations(workspaceSlug: string | undefined, statuses: Readonly<TaskStatus[]>) {

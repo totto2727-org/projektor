@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import m0030 from '../../../migrations/0030_backfill_review_timestamp.sql?raw'
+import m0030 from '#migrations/0030_backfill_review_timestamp.sql?raw'
+
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 

@@ -2,12 +2,13 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront.ts'
-import { RequestServices } from '../../request.ts'
-import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
-import { dataError } from '../../server/data-context.ts'
-import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context.ts'
-import { checkSameOriginMutation } from '../../server/mutation.ts'
+import { EFFRONT } from '@/effront.ts'
+import { RequestServices } from '@/request.ts'
+import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
+import { dataError } from '@/server/data-context.ts'
+import { FunctionSelectorSchema, resolveFunctionContext } from '@/server/function-context.ts'
+import { checkSameOriginMutation } from '@/server/mutation.ts'
+
 import {
   deleteStoredAttachment,
   wikiCommands,

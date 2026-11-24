@@ -1,9 +1,7 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import {
   completeSprint,
   createSprint,
@@ -12,8 +10,9 @@ import {
   listSprints,
   moveIssuesToSprint,
   updateSprint,
-} from '../services/sprints.ts'
-import { ctxFromHono } from '../services/types.ts'
+} from '#api/services/sprints.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
 

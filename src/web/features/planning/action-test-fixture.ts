@@ -2,10 +2,10 @@ import { Effect, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { afterEach, vi } from 'vite-plus/test'
 
-import { makeRequestServices, RequestServices } from '../../request.ts'
-import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources.ts'
-import type { TestEnvironment } from '../../server/test/resources.ts'
-import { createTestDatabase } from '../../test/database.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import { inMemoryKV, inMemoryR2, testEnvironment } from '@/server/test/resources.ts'
+import type { TestEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 type InputSchema = Schema.Constraint & Schema.Decoder<unknown>
 interface Definition {

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
-import { validateToolArgs } from '../mcp/validate-args.ts'
+import { validateToolArgs } from '#api/mcp/validate-args.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

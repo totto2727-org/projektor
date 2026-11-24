@@ -80,7 +80,7 @@ describe('RFC 9728 protected resource metadata', () => {
 
 /*
  * PROJ-655: PROJ-650 routed /.well-known/* to the Worker, so an unmatched path under
- * it now reaches index.ts's SPA catch-all, which in a real deploy answers 200 with the
+ * it now reaches worker.ts's SPA catch-all, which in a real deploy answers 200 with the
  * app shell — a success status carrying HTML to a client that asked for discovery JSON.
  *
  * The status alone cannot catch a regression here: the test runtime has no ASSETS

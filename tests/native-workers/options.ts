@@ -4,7 +4,7 @@ import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
-import { deployment } from '../../worker-graph.ts'
+import { deployment } from '#worker-graph'
 
 const execute = promisify(execFile)
 const buildDirectory = fileURLToPath(new URL('./.build/ssr/', import.meta.url))

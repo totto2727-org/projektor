@@ -5,13 +5,14 @@ import { Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
-import { unwrapResult } from '../../client/functions.ts'
-import { Badge } from '../../components/ui/Badge.tsx'
-import { Button } from '../../components/ui/Button.tsx'
-import { EmptyState } from '../../components/ui/EmptyState.tsx'
-import { Input, Textarea } from '../../components/ui/Input.tsx'
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../../components/ui/Table.tsx'
-import { FormErrors } from '../planning/form-ui.tsx'
+import { unwrapResult } from '@/client/functions.ts'
+import { Badge } from '@/components/ui/Badge.tsx'
+import { Button } from '@/components/ui/Button.tsx'
+import { EmptyState } from '@/components/ui/EmptyState.tsx'
+import { Input, Textarea } from '@/components/ui/Input.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table.tsx'
+import { FormErrors } from '@/features/planning/form-ui.tsx'
+
 import {
   addGroupMember,
   createGroup,

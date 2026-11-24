@@ -1,4 +1,4 @@
-import type { RequestScope } from './server/index.ts'
+import type { RequestScope } from './server/server-context.ts'
 
 /** Native GET forms also work without JavaScript and preserve explicit URL scope. */
 export function ScopeSelection({ scope, url }: { scope: RequestScope; url: URL }) {

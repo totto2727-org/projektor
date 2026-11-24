@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import type { Env } from '#types'
-
 import {
   purgeAllWorkspacesExpiredWikiPages,
   purgeExpiredRetentionData,
   runFtsDedupeOnce,
-} from '../../core/api/maintenance.ts'
+} from '#core/api/maintenance.ts'
+import type { Env } from '#types'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -16,7 +16,7 @@ import { resetRateLimits } from './rate-limit-reset.ts'
  * PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
  * one) and every R2/KV call made through a wrapped `env`, so a test can assert on the
  * actual number of subrequests a call made — independent of (and a check on) the
- * production code's own internal budget accounting in index.ts.
+ * production code's own internal budget accounting in worker.ts.
  */
 const countSubrequests = function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
   let used = 0
@@ -90,7 +90,7 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
 /*
  * PROJ-496: the Workers Cron Trigger itself can't be exercised locally (no local cron
  * firing in dev/test), so this calls the exported `purgeAllWorkspacesExpiredWikiPages`
- * helper directly — the same function the `scheduled` handler in index.ts invokes on
+ * helper directly — the same function the `scheduled` handler in worker.ts invokes on
  * its daily fire — with the real test env, mirroring how the REST/MCP purge tests seed
  * and backdate trash.
  */

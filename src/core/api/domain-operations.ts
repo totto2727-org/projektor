@@ -30,13 +30,12 @@ import * as watchers from '#commands/wiki-watchers.ts'
 import * as wiki from '#commands/wiki.ts'
 import * as workflow from '#commands/workflow.ts'
 import * as workspaces from '#commands/workspaces.ts'
-
-import { ApiResults } from '../../contracts/api-results.ts'
-import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization.ts'
-import type { CoreActor } from '../authorization.ts'
-import { coreFailure, coreReply } from '../contract.ts'
-import { publicDomainFailure } from '../domain-errors.ts'
-import type { CoreEnvironment } from '../environment.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
+import type { CoreActor } from '#core/authorization.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 
 /** Closed, named native methods. No caller-supplied operation or capability is accepted. */
 export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
@@ -248,11 +247,11 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
     apiCreateToken: operation('apiCreateToken', 'write', workspaces.createToken, true),
     apiRevokeToken: operation('apiRevokeToken', 'write', workspaces.revokeToken, true),
     apiListConnectorGrants: connectors('apiListConnectorGrants', 'read', async (env, ctx) => {
-      const { oauthApi } = await import('../../contracts/oauth-provider.ts')
+      const { oauthApi } = await import('#contracts/oauth-provider.ts')
       return oauth.listConnectorGrants(oauthApi(env), ctx.userId, ctx.workspaceId)
     }),
     apiRevokeConnectorGrant: connectors('apiRevokeConnectorGrant', 'write', async (env, ctx, grantId: string) => {
-      const { oauthApi } = await import('../../contracts/oauth-provider.ts')
+      const { oauthApi } = await import('#contracts/oauth-provider.ts')
       return oauth.revokeConnectorGrant(oauthApi(env), ctx.userId, ctx.workspaceId, grantId)
     }),
     apiDeleteWorkspace: operation('apiDeleteWorkspace', 'write', workspaces.deleteWorkspace),

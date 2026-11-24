@@ -3,9 +3,9 @@ import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
+import { ExportWikiInputSchema } from '#contracts/inputs/wiki.ts'
 import { drizzle, schema } from '#db'
 
-import { ExportWikiInputSchema } from '../../contracts/inputs/wiki.ts'
 import { assertProjectAccess } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'

@@ -1,4 +1,3 @@
-import { ValidationError } from '../../contracts/errors.ts'
 import {
   createIssue,
   deleteIssue,
@@ -8,7 +7,9 @@ import {
   listIssues,
   searchIssues,
   updateIssue,
-} from '../services/issues.ts'
+} from '#api/services/issues.ts'
+import { ValidationError } from '#contracts/errors.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS_PROPS } from './serialize.ts'
 import type { MCPTool } from './types.ts'

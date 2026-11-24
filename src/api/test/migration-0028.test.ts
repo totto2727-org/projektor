@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import m0028 from '../../../migrations/0028_downgrade_viewer_grants.sql?raw'
+import m0028 from '#migrations/0028_downgrade_viewer_grants.sql?raw'
+
 import { env } from './fixture-api.ts'
 import { seedMember, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 

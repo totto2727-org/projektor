@@ -4,12 +4,9 @@ import { logger } from 'hono/logger'
 import { makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
 
-import type { HonoEnv } from '#types'
-
-import { ApiSubmittedFeedback } from '../../contracts/api-public.ts'
-import { jsonBody } from '../http/body.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
-import { bumpRateCounter } from '../middleware/rate-limit.ts'
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { bumpRateCounter } from '#api/middleware/rate-limit.ts'
 import {
   bulkConvertToIssue,
   bulkMarkReviewed,
@@ -17,15 +14,17 @@ import {
   getFeedbackSummary,
   listFeedback,
   updateFeedbackStatus,
-} from '../services/feedback.ts'
-import { apiReply } from '../services/reply.ts'
-import { ctxFromHono } from '../services/types.ts'
+} from '#api/services/feedback.ts'
+import { apiReply } from '#api/services/reply.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { ApiSubmittedFeedback } from '#contracts/api-public.ts'
+import type { HonoEnv } from '#types'
 
 const publicRouter = new Hono<HonoEnv>()
 
 /*
  * PROJ-378: this router is mounted ahead of the global app.use("*", logger())
- * in index.ts (see Step 6 below), so it needs its own logging or submit
+ * in worker.ts (see Step 6 below), so it needs its own logging or submit
  * requests go unlogged entirely.
  */
 publicRouter.use('*', logger())

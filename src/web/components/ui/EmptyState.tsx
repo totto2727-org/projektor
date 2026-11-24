@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react'
 
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent, EmptyMedia } from '../generated/empty.tsx'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+  EmptyMedia,
+} from '@/components/generated/empty.tsx'
 
 export interface EmptyStateProps {
   title: string

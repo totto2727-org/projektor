@@ -11,9 +11,9 @@ import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { ApiPrincipal } from '#contracts/api-auth.ts'
 import { verifyJwtPayload } from '#services/authentication.ts'
 
-import { ApiPrincipal } from '../../contracts/api-auth.ts'
 import {
   configureCore,
   createCoreFixtureSession,

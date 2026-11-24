@@ -3,10 +3,10 @@
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 
-import { ViewErrorBoundary } from '../components/ViewErrorBoundary.tsx'
-import type { RequestScope } from '../server/request-context.ts'
+import { ViewErrorBoundary } from '@/components/ViewErrorBoundary.tsx'
+import type { RequestScope } from '@/server/request-context.ts'
 
-export { scopedHref } from '../urls.ts'
+export { scopedHref } from '@/urls.ts'
 
 export interface RuntimeContext {
   readonly scope: RequestScope | null

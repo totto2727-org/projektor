@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { Button } from '../../components/ui/Button.tsx'
+import { Button } from '@/components/ui/Button.tsx'
 
 const URL_CODE =
   'flex-1 font-mono text-[0.8rem] px-2 py-[0.375rem] bg-bg border border-border rounded text-text-base break-all'

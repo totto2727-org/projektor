@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import m0062 from '../../../migrations/0062_repair_zero_lead_time.sql?raw'
+import m0062 from '#migrations/0062_repair_zero_lead_time.sql?raw'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

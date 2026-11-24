@@ -2,11 +2,12 @@ import { Effect, Exit } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { CommandOkSchema } from '../../../core/web/command-contract.ts'
-import type { BrowserCommand } from '../../../core/web/command-contract.ts'
-import { makeWebCoreHandlers } from '../../../core/web/operations.ts'
-import { browserRequest } from '../../core.ts'
-import { testEnvironment } from '../../server/test/resources.ts'
+import { CommandOkSchema } from '#core/web/command-contract.ts'
+import type { BrowserCommand } from '#core/web/command-contract.ts'
+import { makeWebCoreHandlers } from '#core/web/operations.ts'
+import { browserRequest } from '@/core.ts'
+import { testEnvironment } from '@/server/test/resources.ts'
+
 import { issueDataFixture } from './test/data-fixture.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []

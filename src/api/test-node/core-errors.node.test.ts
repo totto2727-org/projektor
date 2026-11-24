@@ -1,11 +1,10 @@
 import { Hono } from 'hono'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { toMcpError, toToolError } from '#api/mcp/error-adapter.ts'
+import { coreFailure } from '#core/contract.ts'
 import type { HonoEnv } from '#types'
-
-import { coreFailure } from '../../core/contract.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
-import { toMcpError, toToolError } from '../mcp/error-adapter.ts'
 
 /** Exercise the public adapters with the validated native envelope's error type. */
 describe('Core failures at public protocol boundaries', () => {

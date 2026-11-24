@@ -2,11 +2,10 @@ import { Schema } from 'effect'
 
 import { exportWiki } from '#commands/wiki-export.ts'
 import { getWorkspaceLogoObject, uploadWorkspaceLogo } from '#commands/workspaces.ts'
-
-import { CoreActor, resolveCoreServiceCtx } from '../authorization.ts'
-import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from '../contract.ts'
-import { publicDomainFailure } from '../domain-errors.ts'
-import type { CoreEnvironment } from '../environment.ts'
+import { CoreActor, resolveCoreServiceCtx } from '#core/authorization.ts'
+import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 
 /** Binary branding and wiki exports use fetch. JSON operations remain named RPC. */
 export async function handleApiBinaryRequest(request: Request, env: CoreEnvironment): Promise<Response | undefined> {

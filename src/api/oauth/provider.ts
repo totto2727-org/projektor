@@ -1,18 +1,17 @@
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
 
-import type { ApiEnv } from '#types'
-
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 import {
   AUTHORIZE_ENDPOINT,
   providerOptions,
   REGISTRATION_ENDPOINT,
   TOKEN_ENDPOINT,
-} from '../../contracts/oauth-provider.ts'
+} from '#contracts/oauth-provider.ts'
+import type { ApiEnv } from '#types'
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-export { AUTHORIZE_ENDPOINT, oauthApi, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../../contracts/oauth-provider.ts'
-import { bumpRateCounter } from '../middleware/rate-limit.ts'
+export { AUTHORIZE_ENDPOINT, oauthApi, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '#contracts/oauth-provider.ts'
+import { bumpRateCounter } from '#api/middleware/rate-limit.ts'
 
 /*
  * PROJ-656/657: the OAuth 2.1 token lifecycle, delegated to Cloudflare's provider.
@@ -29,7 +28,7 @@ import { bumpRateCounter } from '../middleware/rate-limit.ts'
  */
 
 /*
- * The library's own access tokens are `<userId>:<grantId>:<secret>`. index.ts routes a
+ * The library's own access tokens are `<userId>:<grantId>:<secret>`. worker.ts routes a
  * request to the provider only when the bearer has that shape, so every other
  * credential projektor accepts — `pk_` API tokens, the Cloudflare Access cookie, the
  * dev bypass, the PUBLIC_READ_ONLY viewer — never enters the provider and keeps

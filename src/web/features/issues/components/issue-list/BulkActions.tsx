@@ -2,11 +2,11 @@
 import { createContext, useContext, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { unwrapResult } from '../../../../client/functions.ts'
-import { Button } from '../../../../components/ui/Button.tsx'
-import Select from '../../../../components/ui/Select.tsx'
-import { updateIssue } from '../../actions.ts'
-import type { Issue, TaskStatus } from '../board-utils.ts'
+import { unwrapResult } from '@/client/functions.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import Select from '@/components/ui/Select.tsx'
+import { updateIssue } from '@/features/issues/actions.ts'
+import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 
 const Selection = createContext<{
   selected: ReadonlySet<string>

@@ -1,7 +1,8 @@
 'use client'
-import { formatIssueRef } from '../../lib/issue-ref.ts'
-import { issueUrl } from '../../utils/issue-url.ts'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+import { ReviewTargetsSummary } from '@/features/issues/components/ReviewTargetsSummary.tsx'
+import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
+import { issueUrl } from '@/features/issues/utils/issue-url.ts'
+
 import type { SearchResult } from './useIssueSearch.ts'
 
 function priorityBadge(r: SearchResult) {

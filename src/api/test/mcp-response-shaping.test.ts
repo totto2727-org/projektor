@@ -4,7 +4,8 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { capPage, shapeIssue, splitShapeOpts, toPage } from '../mcp/serialize.ts'
+import { capPage, shapeIssue, splitShapeOpts, toPage } from '#api/mcp/serialize.ts'
+
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

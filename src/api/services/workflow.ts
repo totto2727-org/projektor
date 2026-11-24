@@ -1,4 +1,5 @@
-import { ApiResults } from '../../contracts/api-results.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+
 import { apiReply } from './reply.ts'
 import type { ApiServiceCtx } from './types.ts'
 

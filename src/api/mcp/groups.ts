@@ -9,7 +9,8 @@ import {
   removeGroupMember,
   setGroupGrant,
   updateGroup,
-} from '../services/groups.ts'
+} from '#api/services/groups.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

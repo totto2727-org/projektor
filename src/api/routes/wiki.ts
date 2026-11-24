@@ -1,14 +1,13 @@
 import { Hono } from 'hono'
 
+import { jsonBody } from '#api/http/body.ts'
+import { coreFileRequest } from '#api/http/core-files.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import * as wikiDraftsService from '#api/services/wiki-drafts.ts'
+import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
+import * as wikiService from '#api/services/wiki.ts'
 import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body.ts'
-import { coreFileRequest } from '../http/core-files.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
-import { ctxFromHono } from '../services/types.ts'
-import * as wikiDraftsService from '../services/wiki-drafts.ts'
-import * as wikiWatchersService from '../services/wiki-watchers.ts'
-import * as wikiService from '../services/wiki.ts'
 
 const router = new Hono<HonoEnv>()
 

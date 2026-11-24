@@ -9,9 +9,8 @@ import {
   UnsupportedMediaTypeError,
   ValidationError,
 } from '#commands/errors.ts'
-
-import { coreReply, coreReplyCodec } from '../contract.ts'
-import { publicDomainFailure } from '../domain-errors.ts'
+import { coreReply, coreReplyCodec } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
 
 const success = Schema.Struct({ ok: Schema.Literal(true) })
 const failure = async function failure(cause: unknown) {

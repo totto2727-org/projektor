@@ -1,7 +1,8 @@
-import api from '../../src/api/index.ts'
+import api from '#api/worker.ts'
+
 import type { FixtureConfiguration } from './core.worker'
 
-export { RateLimiter, WorkspaceHub } from '../../src/api/index.ts'
+export { RateLimiter, WorkspaceHub } from '#api/worker.ts'
 
 type ApiEnvironment = Parameters<typeof api.fetch>[1]
 type FixtureEnvironment = ApiEnvironment & {

@@ -4,10 +4,11 @@ import { useForm, useStore } from '@tanstack/react-form'
 import { Schema } from 'effect'
 import { useActionState, useEffect } from 'react'
 
-import { FormErrors } from '../../components/FormErrors.tsx'
-import { Button } from '../../components/ui/Button.tsx'
-import { Dialog } from '../../components/ui/Dialog.tsx'
-import { Input, Textarea } from '../../components/ui/Input.tsx'
+import { FormErrors } from '@/components/FormErrors.tsx'
+import { Button } from '@/components/ui/Button.tsx'
+import { Dialog } from '@/components/ui/Dialog.tsx'
+import { Input, Textarea } from '@/components/ui/Input.tsx'
+
 import { createFeedbackSource } from './actions.ts'
 import { SourceFields } from './schemas.ts'
 

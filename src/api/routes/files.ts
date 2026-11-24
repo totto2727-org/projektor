@@ -1,15 +1,14 @@
 import { Hono } from 'hono'
 import { flattenError } from 'zod'
 
+import { jsonBody } from '#api/http/body.ts'
+import { coreFileRequest } from '#api/http/core-files.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import * as filesService from '#api/services/files.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { ValidationError } from '#contracts/errors.ts'
+import { SetAttachmentReviewStatusSchema } from '#contracts/inputs/files.ts'
 import type { HonoEnv } from '#types'
-
-import { ValidationError } from '../../contracts/errors.ts'
-import { SetAttachmentReviewStatusSchema } from '../../contracts/inputs/files.ts'
-import { jsonBody } from '../http/body.ts'
-import { coreFileRequest } from '../http/core-files.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
-import * as filesService from '../services/files.ts'
-import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])

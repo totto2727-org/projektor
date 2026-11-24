@@ -1,10 +1,9 @@
 import { seedDefaultCustomFields } from '#commands/custom-fields.ts'
 import { seedDefaultTaskStatuses } from '#commands/task-statuses.ts'
 import { seedDefaultTaskTypes } from '#commands/task-types.ts'
+import { coreFailure } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import { buildMcpAddCommand } from '#types'
-
-import { coreFailure } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
 
 /** Development provisioning stays private and rechecks its secret in Core. */
 export async function bootstrapDevelopment(env: CoreEnvironment, provided: string | undefined, requestUrl: string) {

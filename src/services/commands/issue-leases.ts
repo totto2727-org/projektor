@@ -1,9 +1,9 @@
 import { and, eq, gt, isNull } from 'drizzle-orm'
 import { flattenError } from 'zod'
 
+import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '#contracts/inputs/issue-leases.ts'
 import { drizzle, schema } from '#db'
 
-import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '../../contracts/inputs/issue-leases.ts'
 import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
 import { assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
 import { ConflictError, NotFoundError, ValidationError } from './errors.ts'

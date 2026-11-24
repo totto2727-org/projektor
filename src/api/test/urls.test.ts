@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { safeDecodeURIComponent, wikiPagePath } from '../../contracts/urls.ts'
+import { safeDecodeURIComponent, wikiPagePath } from '#contracts/urls.ts'
 
 // PROJ-512 finding 6: the server-side branch that calls safeDecodeURIComponent
-// (index.ts's SSR fallback) is unreachable in this test env — ASSETS is absent, so
+// (worker.ts's SSR fallback) is unreachable in this test env — ASSETS is absent, so
 // `if (!c.env.ASSETS) return c.notFound()` fires before it (see health.test.ts).
 // Test the pure function directly against a spread of malformed percent-escapes.
 describe('safeDecodeURIComponent', () => {

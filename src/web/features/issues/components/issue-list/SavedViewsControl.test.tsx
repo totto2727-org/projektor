@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 'use client'
 
-import '../../test/browser.ts'
+import '@/features/issues/test/browser.ts'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import type { SavedViewFilters } from '../saved-views.ts'
+import type { SavedViewFilters } from '@/features/issues/components/saved-views.ts'
+
 import SavedViewsControl from './SavedViewsControl.tsx'
 import { useSavedViews } from './useSavedViews.ts'
 

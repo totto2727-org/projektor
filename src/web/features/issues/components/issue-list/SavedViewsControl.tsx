@@ -1,12 +1,13 @@
 'use client'
-import { Button } from '../../../../components/generated/button.tsx'
+import { Button } from '@/components/generated/button.tsx'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from '../../../../components/generated/dropdown-menu.tsx'
+} from '@/components/generated/dropdown-menu.tsx'
+
 import type { useSavedViews } from './useSavedViews.ts'
 
 type Saved = ReturnType<typeof useSavedViews>

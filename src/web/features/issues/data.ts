@@ -1,12 +1,13 @@
 import { Effect, Schema } from 'effect'
 
-import type { ReviewFilter } from '../../../contracts/review-targets.ts'
-import { browserRequest, coreResult } from '../../core.ts'
-import { RequestServices } from '../../request.ts'
-import { dataError } from '../../server/data-context.ts'
-import { ScopeError } from '../../server/errors.ts'
-import type { RequestScope } from '../../server/request-context.ts'
-import { SprintSchema } from '../planning/schemas.ts'
+import type { ReviewFilter } from '#contracts/review-targets.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+import { SprintSchema } from '@/features/planning/schemas.ts'
+import { RequestServices } from '@/request.ts'
+import { dataError } from '@/server/data-context.ts'
+import { ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { SearchResultsSchema, WikiSearchResultsSchema } from './action-schemas.ts'
 import {
   AttachmentsSchema,

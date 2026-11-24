@@ -19,7 +19,8 @@ vi.mock('../../client/functions', () => ({
   },
 }))
 
-import { RuntimeProvider } from '../../client/runtime.tsx'
+import { RuntimeProvider } from '@/client/runtime.tsx'
+
 import { archiveProject, createProject } from './actions.ts'
 import { ProjectLanding } from './ProjectLanding.tsx'
 import { ProjectList } from './ProjectList.tsx'

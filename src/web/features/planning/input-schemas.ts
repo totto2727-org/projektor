@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { MAX_METRICS_DAYS } from '../../../contracts/web-limits.ts'
+import { MAX_METRICS_DAYS } from '#contracts/web-limits.ts'
 
 export const SprintListModeSchema = Schema.Literals(['all', 'planned', 'active', 'completed'])
 export type SprintListMode = typeof SprintListModeSchema.Type

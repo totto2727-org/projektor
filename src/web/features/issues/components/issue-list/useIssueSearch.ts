@@ -2,9 +2,9 @@
 import { Schema } from 'effect'
 import { useEffect, useRef } from 'react'
 
-import type { ReviewTarget } from '../../../../../contracts/review-targets.ts'
-import { Text, useIssueForm } from '../../forms.ts'
-import type { IssuesRoute } from '../../views/IssuesPage.tsx'
+import type { ReviewTarget } from '#contracts/review-targets.ts'
+import { Text, useIssueForm } from '@/features/issues/forms.ts'
+import type { IssuesRoute } from '@/features/issues/views/IssuesPage.tsx'
 export interface SearchResult {
   id: string
   number: number

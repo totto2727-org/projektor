@@ -1,7 +1,7 @@
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 
-import type { CoreEnvironment } from '../environment.ts'
 import { purgeOAuthPage } from './oauth-purge.ts'
 
 const FTS_DEDUPE_ONCE_KV_KEY = 'maint:fts-dedupe-0065'
@@ -116,7 +116,7 @@ export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void>
   try {
     const [{ OAuthProvider }, { providerOptions }] = await Promise.all([
       import('@cloudflare/workers-oauth-provider'),
-      import('../../contracts/oauth-provider.ts'),
+      import('#contracts/oauth-provider.ts'),
     ])
     const oauthProvider = new OAuthProvider(
       providerOptions<Pick<CoreEnvironment, 'OAUTH_KV'>>({

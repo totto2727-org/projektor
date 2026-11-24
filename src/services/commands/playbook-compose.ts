@@ -1,8 +1,8 @@
 import { flattenError } from 'zod'
 
+import { ComposePlaybookSchema } from '#contracts/inputs/playbooks.ts'
 import { drizzle, schema } from '#db'
 
-import { ComposePlaybookSchema } from '../../contracts/inputs/playbooks.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
 import { fetchAgentWipCap } from './issue-leases.ts'
 import { getIssue } from './issues.ts'

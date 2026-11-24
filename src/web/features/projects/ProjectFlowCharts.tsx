@@ -1,6 +1,7 @@
 'use client'
 
-import { CfdChart, ThroughputChart } from '../planning/flow-charts.tsx'
+import { CfdChart, ThroughputChart } from '@/features/planning/flow-charts.tsx'
+
 import type { FlowMetrics } from './schemas.ts'
 
 /** Overview and Metrics share the same chart geometry and raw-count semantics. */

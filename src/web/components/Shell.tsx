@@ -3,9 +3,10 @@
 import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import pkg from '../../../package.json'
-import type { BrandConfig } from '../brand.ts'
-import type { RequestScope } from '../server/request-context.ts'
+import pkg from '#package-metadata'
+import type { BrandConfig } from '@/brand.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { Avatar, AvatarFallback } from './generated/avatar.tsx'
 import { Button } from './generated/button.tsx'
 import {

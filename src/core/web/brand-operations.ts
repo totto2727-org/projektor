@@ -1,10 +1,10 @@
 import { Effect } from 'effect'
 
 import { getWorkspaceBrandForShare } from '#commands/workspaces.ts'
+import { WorkspaceBrand } from '#contracts/web-brand.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 
-import { WorkspaceBrand } from '../../contracts/web-brand.ts'
-import { coreFailure, coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
 import { loadBrowserScope } from './authentication.ts'
 import type { WebRequest } from './scope.ts'
 

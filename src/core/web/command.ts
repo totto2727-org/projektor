@@ -1,13 +1,13 @@
 import { Effect, Schema } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
+import { assertSameOriginMutation } from '#contracts/mutation.ts'
+import { requireDataWorkspace } from '#contracts/web-data.ts'
+import { coreFailure } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import { checkRateLimit } from '#services/request-rate-limit.ts'
 
-import { assertSameOriginMutation } from '../../contracts/mutation.ts'
-import { requireDataWorkspace } from '../../contracts/web-data.ts'
-import { coreFailure } from '../contract.ts'
-import { publicDomainFailure } from '../domain-errors.ts'
-import type { CoreEnvironment } from '../environment.ts'
 import { loadBrowserScope, nativeRequest, publicWebFailure } from './authentication.ts'
 import { BrowserCommandSchema } from './command-contract.ts'
 import type { BrowserCommand } from './command-contract.ts'

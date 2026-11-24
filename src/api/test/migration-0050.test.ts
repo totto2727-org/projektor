@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import m0050 from '../../../migrations/0050_wiki_slug_slash_backfill.sql?raw'
+import m0050 from '#migrations/0050_wiki_slug_slash_backfill.sql?raw'
+
 import { env } from './fixture-api.ts'
 import { seedUser, seedWorkspace } from './helpers.ts'
 

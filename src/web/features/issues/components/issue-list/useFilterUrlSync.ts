@@ -2,8 +2,9 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { useEffect, useRef } from 'react'
 
-import { navigateIssues } from '../../utils/navigation.ts'
-import { buildFilterUrlQueryString } from '../IssueList-helpers.ts'
+import { buildFilterUrlQueryString } from '@/features/issues/components/IssueList-helpers.ts'
+import { navigateIssues } from '@/features/issues/utils/navigation.ts'
+
 import type { DateField } from './FiltersPopover.tsx'
 
 export function parseListParam(v: string | null): string[] {

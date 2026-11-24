@@ -2,9 +2,10 @@
 
 import { useRef, useState } from 'react'
 
-import { unwrapResult } from '../../client/functions.ts'
-import { Button } from '../../components/ui/Button.tsx'
-import { formatTimestampDate } from '../timestamp.ts'
+import { unwrapResult } from '@/client/functions.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import { formatTimestampDate } from '@/features/timestamp.ts'
+
 import { revokeFeedbackSource, rotateFeedbackSourceToken, setFeedbackSourceActive } from './actions.ts'
 
 export interface FeedbackSource {

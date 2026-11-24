@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { ValidationError } from '../../contracts/errors.ts'
+import { ValidationError } from '#contracts/errors.ts'
 
 /*
  * PROJ-891 (builds on PROJ-931): MCP-only response shaping. Applied in the MCP layer, not

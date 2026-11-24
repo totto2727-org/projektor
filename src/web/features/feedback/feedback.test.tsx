@@ -4,11 +4,11 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+import { testEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { makeRequestServices, RequestServices } from '../../request.ts'
-import type { RequestScope } from '../../server/request-context.ts'
-import { testEnvironment } from '../../server/test/resources.ts'
-import { createTestDatabase } from '../../test/database.ts'
 import { renderFeedback, renderFeedbackDetail } from './server.tsx'
 
 vi.mock('./actions', () => ({}))

@@ -5,11 +5,6 @@ import * as groups from '#commands/groups.ts'
 import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import * as workspaces from '#commands/workspaces.ts'
-import { schema } from '#db'
-import * as groupQueries from '#services/groups.ts'
-import { listProjects } from '#services/projects.ts'
-import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces.ts'
-
 import {
   ConnectorsSchema,
   CreatedGroupSchema,
@@ -18,11 +13,16 @@ import {
   SettingsGroupsSchema,
   SettingsOkSchema,
   SettingsTokensSchema,
-} from '../../contracts/web-schemas/settings.ts'
-import { apiOrigin } from '../../deployment.ts'
-import { coreFailure, coreReply } from '../contract.ts'
-import { publicDomainFailure } from '../domain-errors.ts'
-import type { CoreEnvironment } from '../environment.ts'
+} from '#contracts/web-schemas/settings.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { schema } from '#db'
+import { apiOrigin } from '#deployment'
+import * as groupQueries from '#services/groups.ts'
+import { listProjects } from '#services/projects.ts'
+import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces.ts'
+
 import { loadBrowserScope, publicWebFailure } from './authentication.ts'
 import { BrowserCommandSchema } from './command-contract.ts'
 import type { BrowserCommand } from './command-contract.ts'

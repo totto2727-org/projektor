@@ -2,15 +2,15 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
-import { drizzle, schema } from '#db'
-import { listComments as queryComments } from '#services/comments.ts'
-
 import {
   AddCommentSchema,
   DeleteCommentSchema,
   ListCommentsSchema,
   UpdateCommentSchema,
-} from '../../contracts/inputs/comments.ts'
+} from '#contracts/inputs/comments.ts'
+import { drizzle, schema } from '#db'
+import { listComments as queryComments } from '#services/comments.ts'
+
 import { assertProjectAccess } from './access.ts'
 import type { AccessMode } from './access.ts'
 import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'

@@ -1,15 +1,15 @@
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
-import * as feedbackQueries from '#services/feedback.ts'
-
 import {
   BulkFeedbackIdsSchema,
   ConvertFeedbackSchema,
   ListFeedbackSchema,
   SubmitFeedbackSchema,
   UpdateFeedbackSchema,
-} from '../../contracts/inputs/feedback.ts'
+} from '#contracts/inputs/feedback.ts'
+import * as feedbackQueries from '#services/feedback.ts'
+
 import { canWriteProject, requireProjectAccess, requireProjectInWorkspace } from './access.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import { createIssueFromFeedback } from './issues.ts'

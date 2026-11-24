@@ -2,11 +2,11 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { z } from 'zod'
 
+import { IdSchema } from '#contracts/inputs/common.ts'
+import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '#contracts/inputs/task-types.ts'
 import { drizzle, schema } from '#db'
 import { listTaskTypes as queryTypes } from '#services/task-types.ts'
 
-import { IdSchema } from '../../contracts/inputs/common.ts'
-import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '../../contracts/inputs/task-types.ts'
 import * as cache from './cache.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import { prepareQuery } from './sql.ts'

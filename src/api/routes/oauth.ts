@@ -4,20 +4,19 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { makeCoreClient } from 'projektor/core-client'
 
-import type { HonoEnv } from '#types'
-
-import { ApiConsentWorkspace } from '../../contracts/api-public.ts'
+import type { AuthUser } from '#api/middleware/auth.ts'
+import { isPublicViewer } from '#api/middleware/auth.ts'
+import { signConsentToken, verifyConsentToken } from '#api/oauth/consent-token.ts'
+import { apiReply } from '#api/services/reply.ts'
+import { ApiConsentWorkspace } from '#contracts/api-public.ts'
 import {
   describeScope,
   isLoopbackOnlyClient,
   OAuthRequestError,
   parseConsentRequest,
   relyingPartyHost,
-} from '../../contracts/oauth-consent.ts'
-import type { AuthUser } from '../middleware/auth.ts'
-import { isPublicViewer } from '../middleware/auth.ts'
-import { signConsentToken, verifyConsentToken } from '../oauth/consent-token.ts'
-import { apiReply } from '../services/reply.ts'
+} from '#contracts/oauth-consent.ts'
+import type { HonoEnv } from '#types'
 
 /*
  * PROJ-656: the consent screen.

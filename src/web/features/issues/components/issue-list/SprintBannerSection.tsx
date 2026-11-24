@@ -3,13 +3,13 @@ import { Schema } from 'effect'
 import type { Dispatch, SetStateAction } from 'react'
 import { useState } from 'react'
 
-import { unwrapResult } from '../../../../client/functions.ts'
-import { Button } from '../../../../components/ui/Button.tsx'
-import { formatTimestampDate } from '../../../timestamp.ts'
-import { updateSprint } from '../../actions.ts'
-import { RequiredText, Text, useIssueForm } from '../../forms.ts'
-import { dateInputToUnix, unixToDateInput } from '../../utils/date-input.ts'
-import type { Issue } from '../board-utils.ts'
+import { unwrapResult } from '@/client/functions.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import { updateSprint } from '@/features/issues/actions.ts'
+import type { Issue } from '@/features/issues/components/board-utils.ts'
+import { RequiredText, Text, useIssueForm } from '@/features/issues/forms.ts'
+import { dateInputToUnix, unixToDateInput } from '@/features/issues/utils/date-input.ts'
+import { formatTimestampDate } from '@/features/timestamp.ts'
 
 export interface SprintDetail {
   id: string

@@ -2,20 +2,20 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import * as commands from '#commands/projects.ts'
+import {
+  CreatedProjectSchema,
+  ProjectMutationResultSchema,
+  ProjectOverviewSchema,
+  ProjectSummariesSchema,
+} from '#contracts/web-schemas/projects.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import { drizzle, schema } from '#db'
 import { queryEffect } from '#services/errors.ts'
 import { getFlowMetrics } from '#services/flow-metrics.ts'
 import { findProjectById, listProjectSummaries } from '#services/projects.ts'
 import { listWikiPages } from '#services/wiki.ts'
 
-import {
-  CreatedProjectSchema,
-  ProjectMutationResultSchema,
-  ProjectOverviewSchema,
-  ProjectSummariesSchema,
-} from '../../contracts/web-schemas/projects.ts'
-import { coreFailure, coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
 import { loadBrowserScope } from './authentication.ts'
 import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'

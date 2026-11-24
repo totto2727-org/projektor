@@ -1,13 +1,11 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body.ts'
-import { coreFileRequest } from '../http/core-files.ts'
-import { serviceErrToResponse } from '../http/error-adapter.ts'
-import { requireInteractiveHuman } from '../middleware/auth.ts'
-import { listConnectorGrants, revokeConnectorGrant } from '../services/oauth.ts'
-import { ctxFromHono } from '../services/types.ts'
+import { jsonBody } from '#api/http/body.ts'
+import { coreFileRequest } from '#api/http/core-files.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { requireInteractiveHuman } from '#api/middleware/auth.ts'
+import { listConnectorGrants, revokeConnectorGrant } from '#api/services/oauth.ts'
+import { ctxFromHono } from '#api/services/types.ts'
 import {
   createToken,
   deleteWorkspace,
@@ -22,11 +20,12 @@ import {
   updateMemberRole,
   updateWorkspace,
   updateWorkspaceBrand,
-} from '../services/workspaces.ts'
+} from '#api/services/workspaces.ts'
+import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
 
-// GET / and POST / are handled inline in index.ts (no workspace context yet at that point)
+// GET / and POST / are handled inline in worker.ts (no workspace context yet at that point)
 
 router.get('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)

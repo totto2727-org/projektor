@@ -2,6 +2,17 @@ import { sql } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { Effect, Schema } from 'effect'
 
+import { ScopeError } from '#contracts/errors.ts'
+import { ReviewFilterSchema } from '#contracts/review-targets.ts'
+import type { ReviewFilter } from '#contracts/review-targets.ts'
+import { WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
+import {
+  normalizeAttachments,
+  normalizeComments,
+  normalizeIssue,
+  normalizeIssuePage,
+  normalizeLinks,
+} from '#contracts/web-schemas/issues.ts'
 import { schema } from '#db'
 import { listComments } from '#services/comments.ts'
 import { listAttachments, listIssueReviewTargets } from '#services/files.ts'
@@ -10,17 +21,6 @@ import { listLinksForIssue } from '#services/issue-links.ts'
 import * as issueQueries from '#services/issues.ts'
 import { searchWiki } from '#services/wiki.ts'
 
-import { ScopeError } from '../../contracts/errors.ts'
-import { ReviewFilterSchema } from '../../contracts/review-targets.ts'
-import type { ReviewFilter } from '../../contracts/review-targets.ts'
-import { WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions.ts'
-import {
-  normalizeAttachments,
-  normalizeComments,
-  normalizeIssue,
-  normalizeIssuePage,
-  normalizeLinks,
-} from '../../contracts/web-schemas/issues.ts'
 import {
   authorizeDataEntity,
   dataError,

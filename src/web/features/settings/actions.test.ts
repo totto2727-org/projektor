@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 // Only the Node host entrypoint is substituted. Real OAuth helpers and KV operations execute.
 vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }))
 
-import { actionFixture, formData } from '../planning/action-test-fixture.ts'
+import { actionFixture, formData } from '@/features/planning/action-test-fixture.ts'
 
 const actions = await import('./actions.ts')
 type Fixture = ReturnType<typeof actionFixture>

@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { cn } from '../../lib/utils.ts'
+import { cn } from '@/lib/utils.ts'
+
 import { Badge } from './badge.tsx'
 import { Button } from './button.tsx'
 import { Card, CardContent, CardHeader, CardTitle } from './card.tsx'

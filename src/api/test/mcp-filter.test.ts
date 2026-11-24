@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '../mcp/catalog.ts'
+import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '#api/mcp/catalog.ts'
+
 import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

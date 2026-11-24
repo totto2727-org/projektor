@@ -1,9 +1,10 @@
 import { Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import type { ReviewFilter, ReviewStatus } from '../../contracts/review-targets.ts'
-import { issueDataFixture } from '../../web/features/issues/test/data-fixture.ts'
-import { scope, workspace } from '../../web/features/issues/test/fixtures.ts'
+import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
+import { issueDataFixture } from '@/features/issues/test/data-fixture.ts'
+import { scope, workspace } from '@/features/issues/test/fixtures.ts'
+
 import { readDataIssuePage, searchDataIssues } from './issue-data.ts'
 import { CoreReadServices } from './read-services.ts'
 

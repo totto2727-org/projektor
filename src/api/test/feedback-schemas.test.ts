@@ -4,7 +4,7 @@ import {
   CreateFeedbackSourceSchema,
   SubmitFeedbackSchema,
   UpdateFeedbackSourceSchema,
-} from '../../contracts/inputs/feedback.ts'
+} from '#contracts/inputs/feedback.ts'
 
 describe('SubmitFeedbackSchema', () => {
   test('accepts a body-only submission', () => {

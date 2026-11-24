@@ -1,5 +1,6 @@
-import { coreResult } from '../../core.ts'
-import type { BrowserCommandClient } from '../../server/browser-command.ts'
+import { coreResult } from '@/core.ts'
+import type { BrowserCommandClient } from '@/server/browser-command.ts'
+
 import { CreatedGroupSchema, NewTokenSchema, SettingsOkSchema } from './schemas.ts'
 
 export const groupCommands = {

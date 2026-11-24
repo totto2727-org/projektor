@@ -1,4 +1,5 @@
-import { rateLimiterObjectName } from '../middleware/rate-limit.ts'
+import { rateLimiterObjectName } from '#api/middleware/rate-limit.ts'
+
 import { env } from './fixture-api.ts'
 
 /**

@@ -5,9 +5,9 @@
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
+import { authMiddleware } from '#api/middleware/auth.ts'
 import type { AuthInfo, HonoEnv } from '#types'
 
-import { authMiddleware } from '../middleware/auth.ts'
 import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'

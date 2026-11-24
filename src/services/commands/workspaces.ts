@@ -2,12 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
-import type { WorkspaceBrand } from '#db'
-import { drizzle, schema } from '#db'
-import * as data from '#services'
-import { buildMcpAddCommand } from '#types'
-
-import { IdSchema } from '../../contracts/inputs/common.ts'
+import { IdSchema } from '#contracts/inputs/common.ts'
 import {
   CreateTokenSchema,
   CreateWorkspaceSchema,
@@ -15,7 +10,12 @@ import {
   UpdateRoleSchema,
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
-} from '../../contracts/inputs/workspaces.ts'
+} from '#contracts/inputs/workspaces.ts'
+import type { WorkspaceBrand } from '#db'
+import { drizzle, schema } from '#db'
+import * as data from '#services'
+import { buildMcpAddCommand } from '#types'
+
 import { buildDefaultCustomFieldStatements } from './custom-fields.ts'
 import {
   ConflictError,

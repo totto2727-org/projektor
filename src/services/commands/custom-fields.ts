@@ -2,11 +2,11 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
+import { IdSchema } from '#contracts/inputs/common.ts'
+import { CreateCustomFieldDefSchema, UpdateCustomFieldDefSchema } from '#contracts/inputs/custom-fields.ts'
 import { drizzle, schema } from '#db'
 import * as fieldQueries from '#services/custom-fields.ts'
 
-import { IdSchema } from '../../contracts/inputs/common.ts'
-import { CreateCustomFieldDefSchema, UpdateCustomFieldDefSchema } from '../../contracts/inputs/custom-fields.ts'
 import { visibleProjectFilter } from './access.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'

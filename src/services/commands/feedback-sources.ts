@@ -1,8 +1,6 @@
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
-import * as feedbackQueries from '#services/feedback.ts'
-
 import {
   CreateFeedbackSourceSchema,
   GetFeedbackSourceSchema,
@@ -10,7 +8,9 @@ import {
   RevokeFeedbackSourceSchema,
   RotateFeedbackSourceSchema,
   UpdateFeedbackSourceSchema,
-} from '../../contracts/inputs/feedback.ts'
+} from '#contracts/inputs/feedback.ts'
+import * as feedbackQueries from '#services/feedback.ts'
+
 import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import '../../test/browser.ts'
+import '@/features/issues/test/browser.ts'
 /*
  * SearchResultsSection — mobile viewport test (PROJ-412).
  *
@@ -11,7 +11,8 @@ import '../../test/browser.ts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { MOBILE_WIDTH, setViewportWidth } from '../../test/viewport.ts'
+import { MOBILE_WIDTH, setViewportWidth } from '@/features/issues/test/viewport.ts'
+
 import SearchResultsSection from './SearchResultsSection.tsx'
 import type { SearchResult } from './useIssueSearch.ts'
 

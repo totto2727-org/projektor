@@ -2,8 +2,8 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { categoryColor } from '../board-utils.ts'
-import type { TaskStatus } from '../board-utils.ts'
+import { categoryColor } from '@/features/issues/components/board-utils.ts'
+import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
 
 export type DateField = '' | 'completed' | 'updated'
 

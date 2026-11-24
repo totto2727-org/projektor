@@ -13,7 +13,8 @@ vi.mock('../components/IssueList', () => ({
   ),
 }))
 
-import { issue, project, scope, secondProject, workspace } from '../test/fixtures.ts'
+import { issue, project, scope, secondProject, workspace } from '@/features/issues/test/fixtures.ts'
+
 import { IssueReviewNavigation } from './IssueReviewNavigation.tsx'
 import { IssuesPage } from './IssuesPage.tsx'
 import type { IssuesInitialData } from './IssuesPage.tsx'

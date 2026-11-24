@@ -2,10 +2,10 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
+import { GetCodeHeatmapSchema } from '#contracts/inputs/code-heatmap.ts'
 import { drizzle, schema } from '#db'
 import { getCodeHeatmap as queryCodeHeatmap } from '#services/code-heatmap.ts'
 
-import { GetCodeHeatmapSchema } from '../../contracts/inputs/code-heatmap.ts'
 import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'

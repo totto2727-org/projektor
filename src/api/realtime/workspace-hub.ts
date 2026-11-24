@@ -1,11 +1,10 @@
 import { makeCoreClient } from 'projektor/core-client'
 
+import { apiReply } from '#api/services/reply.ts'
+import { ApiRealtimeSnapshot } from '#contracts/api-public.ts'
+import type { CoreActor } from '#core/authorization.ts'
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { ApiEnv, RealtimeEvent, Role } from '#types'
-
-import { ApiRealtimeSnapshot } from '../../contracts/api-public.ts'
-import type { CoreActor } from '../../core/authorization.ts'
-import { CORE_ACTOR_HEADER } from '../../core/contract.ts'
-import { apiReply } from '../services/reply.ts'
 
 export interface SubscriptionFilters {
   projects?: string[]

@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from 'react'
 
-import { Card as PrimitiveCard } from '../generated/card.tsx'
+import { Card as PrimitiveCard } from '@/components/generated/card.tsx'
 
 export type CardProps =
   | ({

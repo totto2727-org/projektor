@@ -1,4 +1,5 @@
-import { listMessages, postMessage } from '../services/agent-messages.ts'
+import { listMessages, postMessage } from '#api/services/agent-messages.ts'
+
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-import type { RequestScope } from '../server/request-context.ts'
-import { scopedHref } from '../urls.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+import { scopedHref } from '@/urls.ts'
 
 export { scopedHref }
 

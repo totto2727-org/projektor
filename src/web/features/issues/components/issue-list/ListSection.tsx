@@ -1,9 +1,10 @@
 'use client'
-import { formatIssueRef } from '../../lib/issue-ref.ts'
-import { issueUrl } from '../../utils/issue-url.ts'
-import { useMediaQuery } from '../../utils/use-media-query.ts'
-import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import { ReviewTargetsSummary } from '@/features/issues/components/ReviewTargetsSummary.tsx'
+import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
+import { issueUrl } from '@/features/issues/utils/issue-url.ts'
+import { useMediaQuery } from '@/features/issues/utils/use-media-query.ts'
+
 import { IssueSelectionControl } from './BulkActions.tsx'
 import {
   getStoryPoints,

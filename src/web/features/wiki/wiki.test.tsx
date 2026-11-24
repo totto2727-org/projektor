@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { renderMarkdownDocument } from '../../components/markdown/render.ts'
+import { renderMarkdownDocument } from '@/components/markdown/render.ts'
+
 import { decorateHeadings } from './headings.ts'
 import { renderMd, renderMdWithWikilinks } from './render-markdown.ts'
 import { WikiPageClient } from './WikiPageClient.tsx'

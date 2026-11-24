@@ -1,8 +1,9 @@
 import { Effect } from 'effect'
 
-import { WikiSeedDataSchema } from '../../contracts/web-schemas/wiki.ts'
-import { coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
+import { WikiSeedDataSchema } from '#contracts/web-schemas/wiki.ts'
+import { coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+
 import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 import { loadWikiData } from './wiki-data.ts'

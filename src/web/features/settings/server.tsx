@@ -1,11 +1,12 @@
 import { Effect, Schema } from 'effect'
 
-import { browserRequest, coreResult } from '../../core.ts'
-import { RequestServices } from '../../request.ts'
-import { runBrowserCommand } from '../../server/browser-command.ts'
-import { requireDataWorkspace } from '../../server/data-context.ts'
-import { ScopeError } from '../../server/errors.ts'
-import type { RequestScope, WorkspaceMembership } from '../../server/request-context.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+import { RequestServices } from '@/request.ts'
+import { runBrowserCommand } from '@/server/browser-command.ts'
+import { requireDataWorkspace } from '@/server/data-context.ts'
+import { ScopeError } from '@/server/errors.ts'
+import type { RequestScope, WorkspaceMembership } from '@/server/request-context.ts'
+
 import { GroupViewSchema } from './input-schemas.ts'
 import { ConnectorsSchema, McpInfoSchema, SettingsGroupsSchema, SettingsTokensSchema } from './schemas.ts'
 import type { ConnectorGrant, Token } from './types.ts'

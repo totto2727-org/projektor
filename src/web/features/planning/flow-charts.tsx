@@ -23,8 +23,9 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
-} from '../../components/generated/chart.tsx'
-import type { ChartConfig } from '../../components/generated/chart.tsx'
+} from '@/components/generated/chart.tsx'
+import type { ChartConfig } from '@/components/generated/chart.tsx'
+
 import { formatDuration, formatPercent } from './helpers.ts'
 import type { FlowMetrics } from './types.ts'
 

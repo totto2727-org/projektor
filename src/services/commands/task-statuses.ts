@@ -2,11 +2,11 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { z } from 'zod'
 
+import { IdSchema } from '#contracts/inputs/common.ts'
+import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '#contracts/inputs/task-statuses.ts'
 import { drizzle, schema } from '#db'
 import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
 
-import { IdSchema } from '../../contracts/inputs/common.ts'
-import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '../../contracts/inputs/task-statuses.ts'
 import * as cache from './cache.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'

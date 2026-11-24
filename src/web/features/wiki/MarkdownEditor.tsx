@@ -6,7 +6,8 @@ import { EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview.tsx'
+import { useMarkdownPreview } from '@/components/markdown/MarkdownPreview.tsx'
+
 import { imageUploads, insertUploadedImages } from './image-uploads.ts'
 
 export interface Props {

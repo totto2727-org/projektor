@@ -1,4 +1,5 @@
-import { getFlowMetrics } from '../services/flow-metrics.ts'
+import { getFlowMetrics } from '#api/services/flow-metrics.ts'
+
 import { READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

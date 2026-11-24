@@ -3,10 +3,8 @@ import { Effect, Schema } from 'effect'
 import * as sources from '#commands/feedback-sources.ts'
 import * as commands from '#commands/feedback.ts'
 import type { ServiceCtx } from '#commands/types.ts'
-import * as queries from '#services/feedback.ts'
-
-import { ScopeError } from '../../contracts/errors.ts'
-import { requireDataProject, requireDataWorkspace } from '../../contracts/web-data.ts'
+import { ScopeError } from '#contracts/errors.ts'
+import { requireDataProject, requireDataWorkspace } from '#contracts/web-data.ts'
 import {
   FeedbackIndexSchema,
   FeedbackDetailSchema,
@@ -14,9 +12,11 @@ import {
   CreatedSource,
   Converted,
   Ok,
-} from '../../contracts/web-schemas/feedback.ts'
-import { coreFailure, coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
+} from '#contracts/web-schemas/feedback.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import * as queries from '#services/feedback.ts'
+
 import { loadBrowserScope, publicWebFailure } from './authentication.ts'
 import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'

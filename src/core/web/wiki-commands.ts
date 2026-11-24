@@ -3,10 +3,8 @@ import { Effect, Schema } from 'effect'
 import type { ServiceCtx } from '#commands/types.ts'
 import * as drafts from '#commands/wiki-drafts.ts'
 import * as wiki from '#commands/wiki.ts'
-import * as data from '#services/wiki.ts'
-
-import { ApiError } from '../../contracts/errors.ts'
-import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '../../contracts/inputs/wiki.ts'
+import { ApiError } from '#contracts/errors.ts'
+import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '#contracts/inputs/wiki.ts'
 import {
   Created,
   Deleted,
@@ -18,9 +16,11 @@ import {
   Restored,
   SavedDraft,
   Verified,
-} from '../../contracts/web-schemas/wiki.ts'
-import { coreFailure, coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
+} from '#contracts/web-schemas/wiki.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import * as data from '#services/wiki.ts'
+
 import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'
 import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy.ts'
@@ -140,7 +140,8 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
   }
 }
 
-import { requireDataWorkspace } from '../../contracts/web-data.ts'
+import { requireDataWorkspace } from '#contracts/web-data.ts'
+
 import { loadBrowserScope, publicWebFailure } from './authentication.ts'
 import { checked } from './issue-data.ts'
 function importScope(env: CoreEnvironment, proof: BrowserCommand) {

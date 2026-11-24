@@ -2,11 +2,11 @@ import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { configureCore, env } from '../../src/api/test/fixture-api.ts'
-import type { ReviewFilter, ReviewStatus } from '../../src/contracts/review-targets.ts'
-import { SearchResultsSchema } from '../../src/contracts/web-schemas/issue-actions.ts'
-import { IssuePageSchema } from '../../src/contracts/web-schemas/issues.ts'
-import type { WebRequest } from '../../src/core/web/scope.ts'
+import { configureCore, env } from '#api/test/fixture-api.ts'
+import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
+import { SearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
+import { IssuePageSchema } from '#contracts/web-schemas/issues.ts'
+import type { WebRequest } from '#core/web/scope.ts'
 
 let request: WebRequest
 let workspaceId: string

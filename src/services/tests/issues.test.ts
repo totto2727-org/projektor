@@ -8,13 +8,12 @@ import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
 import { migratedDb } from '#db/test/helpers.ts'
-
-import { listComments } from '../comments.ts'
-import { batchLoadCustomFields, listCustomFieldDefs } from '../custom-fields.ts'
-import { listLinksForIssue } from '../issue-links.ts'
-import * as issues from '../issues.ts'
-import { listTaskStatuses } from '../task-statuses.ts'
-import { listTaskTypes } from '../task-types.ts'
+import { listComments } from '#services/comments.ts'
+import { batchLoadCustomFields, listCustomFieldDefs } from '#services/custom-fields.ts'
+import { listLinksForIssue } from '#services/issue-links.ts'
+import * as issues from '#services/issues.ts'
+import { listTaskStatuses } from '#services/task-statuses.ts'
+import { listTaskTypes } from '#services/task-types.ts'
 
 /** Maintained read transport fixture over the real migrated schema, with D1's bind cap. */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {

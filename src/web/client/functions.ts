@@ -1,6 +1,6 @@
 'use client'
 
-import type { ActionResult } from '../function-result.ts'
+import type { ActionResult } from '@/function-result.ts'
 
 /** A safe expected domain failure, without exposing an HTTP request interface. */
 export class FunctionError extends Error {

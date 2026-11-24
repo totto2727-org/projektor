@@ -5,7 +5,8 @@ import { isValidElement } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import type { ChartTooltipContent } from '../../components/generated/chart.tsx'
+import type { ChartTooltipContent } from '@/components/generated/chart.tsx'
+
 import {
   AgingWipScatter,
   ArrivalVsCompletionChart,

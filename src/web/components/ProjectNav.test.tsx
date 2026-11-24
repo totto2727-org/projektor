@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import type { RequestScope } from '../server/request-context.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { ProjectNav } from './ProjectNav.tsx'
 
 const workspace = { id: 'workspace-1', slug: 'team', name: 'Team', role: 'owner' } as const

@@ -17,17 +17,18 @@ import {
 } from 'react'
 import type { RefObject } from 'react'
 
-import { uploadInlineImage as uploadEditorImage } from '../../attachment-actions.ts'
-import { FunctionError, unwrapResult } from '../../client/functions.ts'
-import { AttachmentUpload } from '../../components/AttachmentUpload.tsx'
-import { FormErrors } from '../../components/FormErrors.tsx'
-import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview.tsx'
-import type { RenderedMarkdown } from '../../components/markdown/render.ts'
-import { Button } from '../../components/ui/Button.tsx'
-import { Popover } from '../../components/ui/Popover.tsx'
-import Select from '../../components/ui/Select.tsx'
-import type { SelectOption } from '../../components/ui/Select.tsx'
-import { formatTimestamp, formatTimestampDate } from '../timestamp.ts'
+import { uploadInlineImage as uploadEditorImage } from '@/attachment-actions.ts'
+import { FunctionError, unwrapResult } from '@/client/functions.ts'
+import { AttachmentUpload } from '@/components/AttachmentUpload.tsx'
+import { FormErrors } from '@/components/FormErrors.tsx'
+import { useMarkdownPreview } from '@/components/markdown/MarkdownPreview.tsx'
+import type { RenderedMarkdown } from '@/components/markdown/render.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import { Popover } from '@/components/ui/Popover.tsx'
+import Select from '@/components/ui/Select.tsx'
+import type { SelectOption } from '@/components/ui/Select.tsx'
+import { formatTimestamp, formatTimestampDate } from '@/features/timestamp.ts'
+
 import {
   createWikiPage,
   deleteWikiAttachment,

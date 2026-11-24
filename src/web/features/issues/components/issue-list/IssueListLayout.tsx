@@ -1,5 +1,6 @@
 'use client'
-import type { Issue } from '../board-utils.ts'
+import type { Issue } from '@/features/issues/components/board-utils.ts'
+
 import { IssueBulkProvider } from './BulkActions.tsx'
 import CreateIssueModal from './CreateIssueModal.tsx'
 import { deriveStatusOptions } from './derive.ts'

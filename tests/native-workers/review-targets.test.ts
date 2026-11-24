@@ -2,9 +2,9 @@ import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { configureCore, env } from '../../src/api/test/fixture-api.ts'
-import { CommandOkSchema } from '../../src/core/web/command-contract.ts'
-import type { BrowserCommand } from '../../src/core/web/command-contract.ts'
+import { configureCore, env } from '#api/test/fixture-api.ts'
+import { CommandOkSchema } from '#core/web/command-contract.ts'
+import type { BrowserCommand } from '#core/web/command-contract.ts'
 
 let proof: BrowserCommand
 let issueId: string

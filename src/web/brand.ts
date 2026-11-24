@@ -1,11 +1,12 @@
 import { Effect, Schema } from 'effect'
 import type { CSSProperties } from 'react'
 
-import { WorkspaceBrand } from '../contracts/web-brand.ts'
-import { makeCoreClient } from '../core/client.ts'
+import { WorkspaceBrand } from '#contracts/web-brand.ts'
+import { makeCoreClient } from '#core/client.ts'
+
 import { browserRequest, coreResult } from './core.ts'
 import type { Env } from './request.ts'
-import type { RequestScope } from './server/index.ts'
+import type { RequestScope } from './server/server-context.ts'
 
 const DeploymentBrand = Schema.Struct({
   name: Schema.String,

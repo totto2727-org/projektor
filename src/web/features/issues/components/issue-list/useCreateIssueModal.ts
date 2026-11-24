@@ -2,9 +2,10 @@
 import { Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
-import { createIssue } from '../../actions.ts'
-import { BodyText, Priority, RequiredText, Text, TitleText, useIssueForm } from '../../forms.ts'
-import { useUnsavedUnloadGuard } from '../../utils/use-unsaved-unload-guard.ts'
+import { createIssue } from '@/features/issues/actions.ts'
+import { BodyText, Priority, RequiredText, Text, TitleText, useIssueForm } from '@/features/issues/forms.ts'
+import { useUnsavedUnloadGuard } from '@/features/issues/utils/use-unsaved-unload-guard.ts'
+
 import type { ProjectMeta } from './types.ts'
 
 interface Params {

@@ -1,7 +1,8 @@
 'use client'
 import { describe, expect, test } from 'vite-plus/test'
 
-import type { Issue, TaskStatus } from '../board-utils.ts'
+import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
+
 import { deriveProjectDescription, deriveProjectOptions, deriveStatusOptions, deriveTypeOptions } from './derive.ts'
 import type { ProjectMeta } from './types.ts'
 

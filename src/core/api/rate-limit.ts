@@ -1,12 +1,11 @@
 import { Effect, Schema } from 'effect'
 
+import { RateCounterRequest, RateLimitRequest, RateLimitResult } from '#contracts/request-rate-limit.ts'
+import type { RateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
 import { bumpRateCounter, checkRateLimit } from '#services/request-rate-limit.ts'
 import type { RequestRateLimitEnv } from '#services/request-rate-limit.ts'
-
-import { RateCounterRequest, RateLimitRequest, RateLimitResult } from '../../contracts/request-rate-limit.ts'
-import type { RateLimitTestPolicy } from '../../contracts/request-rate-limit.ts'
-import { coreFailure, coreReply } from '../contract.ts'
-import { publicDomainFailure } from '../domain-errors.ts'
 
 const policyEnvironment = function policyEnvironment(
   env: RequestRateLimitEnv,

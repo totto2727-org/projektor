@@ -1,4 +1,5 @@
-import { formatTimestampDate } from '../timestamp.ts'
+import { formatTimestampDate } from '@/features/timestamp.ts'
+
 import type { RangeState, SprintIssue } from './types.ts'
 
 /** Original local-midnight date input contract, including timezone-safe round trips. */

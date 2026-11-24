@@ -2,20 +2,24 @@ import { Effect, Schema } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import type { ApiEnv, HonoEnv } from '#types'
-
 import {
   bumpRateCounter as apiBumpRateCounter,
   LIMITER_TIMEOUT_MS as apiTimeout,
   rateLimiterObjectName as apiObjectName,
   rateLimitMiddleware,
-} from '../../api/middleware/rate-limit.ts'
-import { RateLimitRequest, RateCounterRequest, RateLimitResult } from '../../contracts/request-rate-limit.ts'
-import { makeApiRateLimitHandlers } from '../../core/api/rate-limit.ts'
-import { decodeCoreReply } from '../../core/client.ts'
-import { createTestDatabase } from '../../web/test/database.ts'
-import { bumpRateCounter, checkRateLimit, LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../request-rate-limit.ts'
-import type { RequestRateLimitEnv } from '../request-rate-limit.ts'
+} from '#api/middleware/rate-limit.ts'
+import { RateLimitRequest, RateCounterRequest, RateLimitResult } from '#contracts/request-rate-limit.ts'
+import { makeApiRateLimitHandlers } from '#core/api/rate-limit.ts'
+import { decodeCoreReply } from '#core/client.ts'
+import {
+  bumpRateCounter,
+  checkRateLimit,
+  LIMITER_TIMEOUT_MS,
+  rateLimiterObjectName,
+} from '#services/request-rate-limit.ts'
+import type { RequestRateLimitEnv } from '#services/request-rate-limit.ts'
+import type { ApiEnv, HonoEnv } from '#types'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {

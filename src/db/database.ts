@@ -1,5 +1,5 @@
 export { drizzle } from 'drizzle-orm/d1'
-export * as schema from './schema/index.ts'
+export * as schema from './schema/tables.ts'
 export * from './schema/attachments.ts'
 export * from './schema/core.ts'
 export * from './schema/custom-fields.ts'

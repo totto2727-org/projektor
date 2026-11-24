@@ -2,6 +2,9 @@ import { Schema } from 'effect'
 
 import { provisionPublicViewer } from '#commands/provisioning.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
+import { capabilityForOAuthScope, parseScopes, tokenAllows } from '#contracts/auth-scopes.ts'
+import type { Capability } from '#contracts/auth-scopes.ts'
 import {
   authenticateAccessJwt,
   authenticateDevelopment,
@@ -11,9 +14,6 @@ import {
 import type { AuthUser } from '#services/authentication.ts'
 import type { AuthInfo, Role } from '#types'
 
-import { VerifiedApiOauthGrant } from '../contracts/api-auth.ts'
-import { capabilityForOAuthScope, parseScopes, tokenAllows } from '../contracts/auth-scopes.ts'
-import type { Capability } from '../contracts/auth-scopes.ts'
 import { coreFailure } from './contract.ts'
 import type { CoreEnvironment } from './environment.ts'
 

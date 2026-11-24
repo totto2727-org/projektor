@@ -1,6 +1,7 @@
-import { ValidationError } from '../../contracts/errors.ts'
-import { composePlaybook } from '../services/playbook-compose.ts'
-import { getPlaybook, listPlaybooks } from '../services/playbooks.ts'
+import { composePlaybook } from '#api/services/playbook-compose.ts'
+import { getPlaybook, listPlaybooks } from '#api/services/playbooks.ts'
+import { ValidationError } from '#contracts/errors.ts'
+
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

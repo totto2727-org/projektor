@@ -1,6 +1,13 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { flattenError } from 'zod'
 
+import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '#contracts/inputs/wiki.ts'
+/*
+ * PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
+ * resolveTitleTargets/resolveSlugTargets/backlinksForResolvedPage/listBrokenWikiLinks
+ * below for the `isNull(schema.wikiPages.deletedAt)` filters this adds.
+ */
+import { safeDecodeURIComponent, wikiPagePath } from '#contracts/urls.ts'
 /*
  * PROJ-485: server-side wiki link graph. Parses [[Target]] / [[Target|label]] wikilinks
  * and same-workspace wiki URLs out of a page's content on every write, resolves each to
@@ -15,13 +22,6 @@ import { flattenError } from 'zod'
  */
 import { drizzle, schema } from '#db'
 
-import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '../../contracts/inputs/wiki.ts'
-/*
- * PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
- * resolveTitleTargets/resolveSlugTargets/backlinksForResolvedPage/listBrokenWikiLinks
- * below for the `isNull(schema.wikiPages.deletedAt)` filters this adds.
- */
-import { safeDecodeURIComponent, wikiPagePath } from '../../contracts/urls.ts'
 import { hasProjectAccess, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import { ForbiddenError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'

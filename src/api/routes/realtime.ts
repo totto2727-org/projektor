@@ -1,11 +1,10 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 
+import { authMiddleware } from '#api/middleware/auth.ts'
+import { workspaceMiddleware } from '#api/middleware/workspace.ts'
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { HonoEnv } from '#types'
-
-import { CORE_ACTOR_HEADER } from '../../core/contract.ts'
-import { authMiddleware } from '../middleware/auth.ts'
-import { workspaceMiddleware } from '../middleware/workspace.ts'
 
 const INTERNAL_USER_ID_HEADER = 'X-Internal-User-Id'
 const INTERNAL_WORKSPACE_ID_HEADER = 'X-Internal-Workspace-Id'

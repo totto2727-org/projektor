@@ -1,7 +1,8 @@
 import { Effect } from 'effect'
 
-import { coreReply } from '../contract.ts'
-import type { CoreEnvironment } from '../environment.ts'
+import { coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+
 import { loadBrowserScope } from './authentication.ts'
 import { makeBrandHandlers } from './brand-operations.ts'
 import { makeFeedbackHandlers } from './feedback.ts'

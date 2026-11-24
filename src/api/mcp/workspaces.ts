@@ -1,10 +1,6 @@
 import { flattenError } from 'zod'
 
-import { ApiWorkspace } from '../../contracts/api-auth.ts'
-import { ApiResults } from '../../contracts/api-results.ts'
-import { ValidationError } from '../../contracts/errors.ts'
-import { DeleteWorkspaceInput } from '../../contracts/inputs/workspaces.ts'
-import { apiReply } from '../services/reply.ts'
+import { apiReply } from '#api/services/reply.ts'
 import {
   deleteWorkspace,
   getWorkspaceBrand,
@@ -14,7 +10,12 @@ import {
   updateMemberRole,
   updateWorkspace,
   updateWorkspaceBrand,
-} from '../services/workspaces.ts'
+} from '#api/services/workspaces.ts'
+import { ApiWorkspace } from '#contracts/api-auth.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+import { ValidationError } from '#contracts/errors.ts'
+import { DeleteWorkspaceInput } from '#contracts/inputs/workspaces.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool, PluginContext } from './types.ts'
 

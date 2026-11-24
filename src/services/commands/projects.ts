@@ -2,11 +2,11 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { z } from 'zod'
 
+import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
+import { CreateProjectSchema, UpdateProjectSchema } from '#contracts/inputs/projects.ts'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
 
-import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common.ts'
-import { CreateProjectSchema, UpdateProjectSchema } from '../../contracts/inputs/projects.ts'
 import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import { recordActivity } from './activity.ts'
 import * as cache from './cache.ts'

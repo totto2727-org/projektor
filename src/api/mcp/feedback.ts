@@ -5,8 +5,9 @@ import {
   revokeFeedbackSource,
   rotateFeedbackSourceToken,
   updateFeedbackSource,
-} from '../services/feedback-sources.ts'
-import { convertFeedbackToIssue, listFeedback, updateFeedbackStatus } from '../services/feedback.ts'
+} from '#api/services/feedback-sources.ts'
+import { convertFeedbackToIssue, listFeedback, updateFeedbackStatus } from '#api/services/feedback.ts'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

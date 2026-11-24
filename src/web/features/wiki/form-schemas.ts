@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { UploadFileSchema } from '../../attachments.ts'
+import { UploadFileSchema } from '@/attachments.ts'
 
 const title = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(300))
 const content = Schema.String.check(Schema.isMaxLength(500_000))

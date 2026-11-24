@@ -1,7 +1,8 @@
 'use client'
-import { Button } from '../../../../components/ui/Button.tsx'
-import { getBacklogIssues } from '../board-utils.ts'
-import type { Issue } from '../board-utils.ts'
+import { Button } from '@/components/ui/Button.tsx'
+import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
+import type { Issue } from '@/features/issues/components/board-utils.ts'
+
 import type { ViewMode } from './types-view.ts'
 import type { SearchResult } from './useIssueSearch.ts'
 

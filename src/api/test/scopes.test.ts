@@ -16,7 +16,8 @@ import {
   OAUTH_SCOPES_SUPPORTED,
   parseScopes,
   tokenAllows,
-} from '../auth/scopes.ts'
+} from '#api/auth/scopes.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProject, seedToken, seedUser, seedWorkspace } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'

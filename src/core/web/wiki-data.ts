@@ -4,11 +4,7 @@ import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { Effect, Schema } from 'effect'
 
 import { readWikiDraftState } from '#commands/wiki-drafts.ts'
-import { schema } from '#db'
-import { listAttachments } from '#services/files.ts'
-import * as wikiData from '#services/wiki.ts'
-
-import { ApiError, ScopeError } from '../../contracts/errors.ts'
+import { ApiError, ScopeError } from '#contracts/errors.ts'
 import {
   Attachment,
   DraftState,
@@ -19,9 +15,13 @@ import {
   StalePage,
   Template,
   Tree,
-} from '../../contracts/web-schemas/wiki.ts'
-import type { WikiSeed } from '../../web/features/wiki/WikiPageClient.tsx'
-import type { CoreEnvironment } from '../environment.ts'
+} from '#contracts/web-schemas/wiki.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { schema } from '#db'
+import { listAttachments } from '#services/files.ts'
+import * as wikiData from '#services/wiki.ts'
+import type { WikiSeed } from '@/features/wiki/WikiPageClient.tsx'
+
 import {
   dataError,
   requireDataDatabase,

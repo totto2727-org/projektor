@@ -1,1 +1,1 @@
-export * from '../../contracts/auth-scopes.ts'
+export * from '#contracts/auth-scopes.ts'

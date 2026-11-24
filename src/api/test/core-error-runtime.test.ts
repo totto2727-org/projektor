@@ -3,9 +3,8 @@ import { Hono } from 'hono'
 import { decodeCoreReply } from 'projektor/core-client'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import type { HonoEnv } from '#types'
-
-import { serviceErrToResponse } from '../http/error-adapter.ts'
 
 /** Workers prebundles the native client. Error handling must use that same class identity. */
 describe('native client failure identity at the public HTTP adapter', () => {

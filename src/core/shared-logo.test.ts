@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { createShareToken } from '#commands/share.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { createTestDatabase } from '../web/test/database.ts'
 import type { CoreEnvironment } from './environment.ts'
 import { handleSharedLogoRequest } from './shared-logo.ts'
 

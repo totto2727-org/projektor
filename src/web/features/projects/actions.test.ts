@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { actionFixture, formData } from '../planning/action-test-fixture.ts'
+import { actionFixture, formData } from '@/features/planning/action-test-fixture.ts'
 
 const { createProject, updateDescription, archiveProject } = await import('./actions.ts')
 

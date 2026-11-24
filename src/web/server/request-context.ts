@@ -1,12 +1,13 @@
 import type { Effect } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 
-import { RequestScopeSchema } from '../../core/web/scope.ts'
-import type { RequestScope, ScopeOptions } from '../../core/web/scope.ts'
-import { browserRequest, coreResult } from '../core.ts'
+import { RequestScopeSchema } from '#core/web/scope.ts'
+import type { RequestScope, ScopeOptions } from '#core/web/scope.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+
 import type { ApiError, ScopeError } from './errors.ts'
 
-export * from '../../core/web/scope.ts'
+export * from '#core/web/scope.ts'
 
 export function loadRequestScope(
   _url: URL,

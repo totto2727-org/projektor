@@ -3,15 +3,14 @@ import { Effect, Schema } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { getIssue } from '#api/services/issues.ts'
+import { apiReply } from '#api/services/reply.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+import { makeApiDomainHandlers } from '#core/api/domain-operations.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
-
-import { ApiResults } from '../../contracts/api-results.ts'
-import { makeApiDomainHandlers } from '../../core/api/domain-operations.ts'
-import { coreFailure, coreReply } from '../../core/contract.ts'
-import type { CoreEnvironment } from '../../core/environment.ts'
-import { createTestDatabase } from '../../web/test/database.ts'
-import { getIssue } from '../services/issues.ts'
-import { apiReply } from '../services/reply.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 vi.mock('../../contracts/oauth-provider', () => ({
   oauthApi: () => {

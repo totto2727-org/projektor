@@ -1,8 +1,9 @@
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
 import { describe, expect, test } from 'vite-plus/test'
 
-import { providerOptions } from '../../contracts/oauth-provider.ts'
-import { OAUTH_PURGE_STATE_KEY, purgeOAuthPage } from '../../core/api/oauth-purge.ts'
+import { providerOptions } from '#contracts/oauth-provider.ts'
+import { OAUTH_PURGE_STATE_KEY, purgeOAuthPage } from '#core/api/oauth-purge.ts'
+
 import { env } from './fixture-api.ts'
 
 const memoryNamespace = function memoryNamespace() {

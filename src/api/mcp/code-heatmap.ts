@@ -1,4 +1,5 @@
-import { getCodeHeatmap } from '../services/code-heatmap.ts'
+import { getCodeHeatmap } from '#api/services/code-heatmap.ts'
+
 import { READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

@@ -1,9 +1,10 @@
 import { Effect } from 'effect'
 
-import { browserRequest, coreResult } from '../../core.ts'
-import { RequestServices } from '../../request.ts'
-import { ScopeError } from '../../server/errors.ts'
-import type { RequestScope } from '../../server/request-context.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+import { RequestServices } from '@/request.ts'
+import { ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+
 import { FeedbackDetailClient } from './FeedbackDetailClient.tsx'
 import { FeedbackGridClient } from './FeedbackGridClient.tsx'
 import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas.ts'

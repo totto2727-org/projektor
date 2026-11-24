@@ -2,8 +2,6 @@ import type { Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { CorePublicError } from 'projektor/core-client'
 
-import type { HonoEnv } from '#types'
-
 import {
   ConflictError,
   ForbiddenError,
@@ -11,7 +9,8 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '../../contracts/errors.ts'
+} from '#contracts/errors.ts'
+import type { HonoEnv } from '#types'
 
 export function serviceErrToResponse(httpContext: Context<HonoEnv>, err: unknown) {
   if (err instanceof CorePublicError) {

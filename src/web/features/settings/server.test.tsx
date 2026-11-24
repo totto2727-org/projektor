@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { apiOrigin } from '#deployment'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+import { inMemoryKV, testEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { apiOrigin } from '../../../deployment.ts'
-import { makeRequestServices, RequestServices } from '../../request.ts'
-import type { RequestScope } from '../../server/request-context.ts'
-import { inMemoryKV, testEnvironment } from '../../server/test/resources.ts'
-import { createTestDatabase } from '../../test/database.ts'
 import { ConnectorSchema, GroupDetailSchema, McpInfoSchema, TokenSchema } from './schemas.ts'
 import { renderConnectAgent, renderConnectors, renderGroups, renderTokens } from './server.tsx'
 

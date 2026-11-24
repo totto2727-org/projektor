@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { createTestDatabase } from '../web/test/database.ts'
 import { resolveCorePrincipal, resolveCoreServiceCtx } from './authorization.ts'
 import type { CoreActor } from './authorization.ts'
 import type { CoreEnvironment } from './environment.ts'

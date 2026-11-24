@@ -1,10 +1,11 @@
 import { Effect, Schema } from 'effect'
 
-import { coreResult } from '../../core.ts'
-import { runBrowserCommand } from '../../server/browser-command.ts'
-import type { BrowserCommandClient } from '../../server/browser-command.ts'
-import type { FunctionContext } from '../../server/function-context.ts'
-import { files } from '../issues/commands.ts'
+import { coreResult } from '@/core.ts'
+import { files } from '@/features/issues/commands.ts'
+import { runBrowserCommand } from '@/server/browser-command.ts'
+import type { BrowserCommandClient } from '@/server/browser-command.ts'
+import type { FunctionContext } from '@/server/function-context.ts'
+
 import {
   Created,
   Deleted,

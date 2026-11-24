@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { injectWikiMetadata } from '../lib/wiki-ssr.ts'
+import { injectWikiMetadata } from '#api/lib/wiki-ssr.ts'
 
 const SHELL_HTML = `<!doctype html><html><head><title>Wiki — Projektor</title>
 <meta property="og:title" content="Projektor — project management for humans and agents." />

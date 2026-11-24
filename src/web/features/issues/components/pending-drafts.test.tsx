@@ -26,8 +26,9 @@ vi.mock('../../../components/markdown/MarkdownPreview', () => ({
   MarkdownPreview: ({ content }: { content: string }) => <p>{content}</p>,
 }))
 
-import { addComment, editComment, updateIssue } from '../actions.ts'
-import { draftKey, loadDraft } from '../utils/drafts.ts'
+import { addComment, editComment, updateIssue } from '@/features/issues/actions.ts'
+import { draftKey, loadDraft } from '@/features/issues/utils/drafts.ts'
+
 import type { IssueData } from './issue-detail-helpers.ts'
 import { BodySection, CommentsSection } from './IssueDetailParts.tsx'
 

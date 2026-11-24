@@ -1,7 +1,8 @@
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 
-import { relyingPartyHost } from '../../contracts/oauth-consent.ts'
-import type { ConsentWorkspace } from '../../contracts/oauth-consent.ts'
+import { relyingPartyHost } from '#contracts/oauth-consent.ts'
+import type { ConsentWorkspace } from '#contracts/oauth-consent.ts'
+
 import { NotFoundError } from './errors.ts'
 
 export {
@@ -14,7 +15,7 @@ export {
   workspaceIdFromResource,
   type ConsentRequest,
   type ConsentWorkspace,
-} from '../../contracts/oauth-consent.ts'
+} from '#contracts/oauth-consent.ts'
 
 /** Missing workspaces and missing membership are indistinguishable to the consent screen. */
 export async function lookupConsentWorkspace(

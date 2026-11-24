@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createTestDatabase } from '../web/test/database.ts'
+import { createTestDatabase } from '@/test/database.ts'
+
 import type { CoreActor } from './authorization.ts'
 import { CORE_ACTOR_HEADER } from './contract.ts'
 import type { CoreEnvironment } from './environment.ts'

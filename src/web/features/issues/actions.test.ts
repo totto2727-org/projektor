@@ -1,8 +1,9 @@
 import { Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { makeRequestServices, RequestServices } from '../../request.ts'
-import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import { inMemoryKV, inMemoryR2, testEnvironment } from '@/server/test/resources.ts'
+
 import {
   setAttachmentReviewStatus,
   addComment,

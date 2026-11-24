@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 
-import { formatTimestampDate } from '../timestamp.ts'
+import { formatTimestampDate } from '@/features/timestamp.ts'
+
 import type { FeedbackSource, FeedbackVersionSummary } from './FeedbackSourceSettings.tsx'
 import NewSourceModal from './NewSourceModal.tsx'
 

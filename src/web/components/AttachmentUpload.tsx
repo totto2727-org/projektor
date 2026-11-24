@@ -3,7 +3,7 @@
 import { useActionState } from 'react'
 import type { FormEventHandler, ReactNode } from 'react'
 
-import { uploadAttachment } from '../attachment-actions.ts'
+import { uploadAttachment } from '@/attachment-actions.ts'
 
 export interface AttachmentUploadProps {
   workspaceSlug: string

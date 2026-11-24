@@ -1,5 +1,6 @@
-import { ValidationError } from '../../contracts/errors.ts'
-import { createLink, deleteLink, listLinksForIssue } from '../services/issue-links.ts'
+import { createLink, deleteLink, listLinksForIssue } from '#api/services/issue-links.ts'
+import { ValidationError } from '#contracts/errors.ts'
+
 import { CREATE, DESTRUCTIVE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 

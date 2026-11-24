@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { deriveBrandMark } from '../routes/config.ts'
+import { deriveBrandMark } from '#api/routes/config.ts'
+
 import { fetchNativeApi } from './native-fetch.ts'
 
 describe('GET /api/config/brand', () => {

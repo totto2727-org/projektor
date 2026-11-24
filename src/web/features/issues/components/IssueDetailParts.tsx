@@ -4,11 +4,11 @@ import { Effect, Schema } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { unwrapResult } from '../../../client/functions.ts'
-import { AttachmentUpload } from '../../../components/AttachmentUpload.tsx'
-import { MarkdownPreview } from '../../../components/markdown/MarkdownPreview.tsx'
-import { Button } from '../../../components/ui/Button.tsx'
-import Select from '../../../components/ui/Select.tsx'
+import { unwrapResult } from '@/client/functions.ts'
+import { AttachmentUpload } from '@/components/AttachmentUpload.tsx'
+import { MarkdownPreview } from '@/components/markdown/MarkdownPreview.tsx'
+import { Button } from '@/components/ui/Button.tsx'
+import Select from '@/components/ui/Select.tsx'
 import {
   addAttachmentLink,
   addComment,
@@ -21,14 +21,24 @@ import {
   searchWikiAttachments,
   shareIssue,
   updateIssue,
-} from '../actions.ts'
-import { BodyText, CommentText, IssueReference, PointsText, Text, TitleText, UrlText, useIssueForm } from '../forms.ts'
-import { formatIssueRef, normalizeIssueRef } from '../lib/issue-ref.ts'
-import { parseStoryPoints } from '../lib/story-points.ts'
-import { clearDraft, draftKey, loadDraft, saveDraft } from '../utils/drafts.ts'
-import { issueUrl } from '../utils/issue-url.ts'
-import { PRIORITY_OPTIONS } from '../utils/issue-utils.ts'
-import { useUnsavedUnloadGuard } from '../utils/use-unsaved-unload-guard.ts'
+} from '@/features/issues/actions.ts'
+import {
+  BodyText,
+  CommentText,
+  IssueReference,
+  PointsText,
+  Text,
+  TitleText,
+  UrlText,
+  useIssueForm,
+} from '@/features/issues/forms.ts'
+import { formatIssueRef, normalizeIssueRef } from '@/features/issues/lib/issue-ref.ts'
+import { parseStoryPoints } from '@/features/issues/lib/story-points.ts'
+import { clearDraft, draftKey, loadDraft, saveDraft } from '@/features/issues/utils/drafts.ts'
+import { issueUrl } from '@/features/issues/utils/issue-url.ts'
+import { PRIORITY_OPTIONS } from '@/features/issues/utils/issue-utils.ts'
+import { useUnsavedUnloadGuard } from '@/features/issues/utils/use-unsaved-unload-guard.ts'
+
 import { categoryColor } from './board-utils.ts'
 import type { Attachment, Comment, IssueData, IssueLink, Member, TaskStatus, TaskType } from './issue-detail-helpers.ts'
 import {

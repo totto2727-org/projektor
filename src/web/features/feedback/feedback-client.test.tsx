@@ -2,7 +2,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { navigateFeature } from '../wiki/navigation.ts'
+import { navigateFeature } from '@/features/wiki/navigation.ts'
+
 import {
   createFeedbackSource,
   markFeedbackReviewed,

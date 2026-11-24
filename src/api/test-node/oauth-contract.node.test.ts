@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vite-plus/test'
 
-import { OAUTH_SCOPES_SUPPORTED } from '../../contracts/auth-scopes.ts'
+import { OAUTH_SCOPES_SUPPORTED } from '#contracts/auth-scopes.ts'
 import {
   grantedScopes,
   isLoopbackOnlyClient,
   OAuthRequestError,
   relyingPartyHost,
   workspaceIdFromResource,
-} from '../../contracts/oauth-consent.ts'
+} from '#contracts/oauth-consent.ts'
 
 /** These are protocol contracts. Live provider/consent integration stays in oauth.test.ts. */
 describe('neutral OAuth workspace audience and scope protocol', () => {

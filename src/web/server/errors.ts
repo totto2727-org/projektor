@@ -1,1 +1,1 @@
-export { ApiError, type ApiFailureKind, responseError, ScopeError } from '../../contracts/errors.ts'
+export { ApiError, type ApiFailureKind, responseError, ScopeError } from '#contracts/errors.ts'

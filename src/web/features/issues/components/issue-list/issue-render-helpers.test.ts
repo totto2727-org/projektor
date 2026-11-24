@@ -1,7 +1,8 @@
 'use client'
 import { describe, expect, test } from 'vite-plus/test'
 
-import type { Issue } from '../board-utils.ts'
+import type { Issue } from '@/features/issues/components/board-utils.ts'
+
 import { getStoryPoints } from './issue-render-helpers.tsx'
 
 const makeIssue = function makeIssue(overrides: Partial<Issue> = {}): Issue {

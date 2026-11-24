@@ -1,7 +1,8 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
-import { WikiFrontmatterSchema } from '../../contracts/inputs/wiki.ts'
+import { WikiFrontmatterSchema } from '#contracts/inputs/wiki.ts'
+
 import { ValidationError } from './errors.ts'
 
 /*

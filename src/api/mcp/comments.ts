@@ -1,4 +1,5 @@
-import { addComment, deleteComment, listComments, updateComment } from '../services/comments.ts'
+import { addComment, deleteComment, listComments, updateComment } from '#api/services/comments.ts'
+
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import { toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'

@@ -1,8 +1,9 @@
 'use client'
-import type { ProjectSummary, RequestScope } from '../../../server/request-context.ts'
-import type { SprintDetail } from '../components/issue-list/SprintBannerSection.tsx'
-import IssueList from '../components/IssueList.tsx'
-import type { Issue, IssuePage, Status, TaskType } from '../types.ts'
+import type { SprintDetail } from '@/features/issues/components/issue-list/SprintBannerSection.tsx'
+import IssueList from '@/features/issues/components/IssueList.tsx'
+import type { Issue, IssuePage, Status, TaskType } from '@/features/issues/types.ts'
+import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
+
 import { IssueReviewNavigation } from './IssueReviewNavigation.tsx'
 import { SelectionRequired } from './shared.tsx'
 export interface IssuesInitialData {

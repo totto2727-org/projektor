@@ -1,11 +1,11 @@
 import { and, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
+import { ApiError, ScopeError } from '#contracts/errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 import { listProjects } from '#services/projects.ts'
 import * as wikiData from '#services/wiki.ts'
 
-import { ApiError, ScopeError } from '../../contracts/errors.ts'
-import type { CoreEnvironment } from '../environment.ts'
 import { authorizeDataEntity, dataError, requireDataWorkspace, visibleProjectPredicate } from './data-context.ts'
 import type { RequestScope } from './scope.ts'
 

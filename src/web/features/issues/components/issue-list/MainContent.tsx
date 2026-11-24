@@ -1,5 +1,6 @@
 'use client'
-import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
+import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
+
 import BacklogView from './BacklogView.tsx'
 import BoardView from './BoardView.tsx'
 import ListSection from './ListSection.tsx'
