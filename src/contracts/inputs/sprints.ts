@@ -9,7 +9,7 @@ export const ListSprintsSchema = z.object({
 
 export const CreateSprintSchema = z.object({
   projectId: z.uuid(),
-  name: z.string().min(1).max(255),
+  name: z.string().nonempty().max(255),
   goal: z.string().max(2000).optional(),
   startDate: z.number().int().optional(),
   endDate: z.number().int().optional(),
@@ -17,7 +17,7 @@ export const CreateSprintSchema = z.object({
 
 export const UpdateSprintSchema = z
   .object({
-    name: z.string().min(1).max(255).optional(),
+    name: z.string().nonempty().max(255).optional(),
     goal: z.string().max(2000).nullable().optional(),
     status: SprintStatusEnum.optional(),
     startDate: z.number().int().nullable().optional(),
@@ -26,6 +26,6 @@ export const UpdateSprintSchema = z
   .refine((obj) => Array.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
 
 export const MoveIssuesToSprintSchema = z.object({
-  issueIds: z.array(z.uuid()).min(1).max(500),
+  issueIds: z.array(z.uuid()).nonempty().max(500),
   sprintId: z.uuid(),
 })

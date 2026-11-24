@@ -5,7 +5,7 @@ import { ScopeSchema } from '#contracts/auth-scopes.ts'
 import { RoleEnum } from './common.ts'
 
 export const CreateWorkspaceSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().nonempty().max(100),
   slug: z
     .string()
     .min(2)
@@ -14,7 +14,7 @@ export const CreateWorkspaceSchema = z.object({
 })
 
 export const UpdateWorkspaceSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().nonempty().max(100),
 })
 
 export const InviteMemberSchema = z.object({
@@ -27,8 +27,8 @@ export const UpdateRoleSchema = z.object({
 })
 
 export const CreateTokenSchema = z.object({
-  name: z.string().min(1).max(100),
-  scopes: z.array(ScopeSchema).min(1).default(['read', 'write']),
+  name: z.string().nonempty().max(100),
+  scopes: z.array(ScopeSchema).nonempty().default(['read', 'write']),
   expiresInDays: z.number().int().min(1).max(365).optional(),
 })
 
@@ -40,10 +40,10 @@ const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
 export const UpdateWorkspaceBrandSchema = z
   .object({
-    displayName: z.string().min(1).max(100).nullable().optional(),
+    displayName: z.string().nonempty().max(100).nullable().optional(),
     accent: HexColor.nullable().optional(),
     onAccent: HexColor.nullable().optional(),
-    fontFamily: z.string().min(1).max(100).nullable().optional(),
+    fontFamily: z.string().nonempty().max(100).nullable().optional(),
     fontUrl: z
       .string()
       .url()

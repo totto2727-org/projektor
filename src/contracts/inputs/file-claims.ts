@@ -5,12 +5,12 @@ import { BooleanQueryParam } from './common.ts'
 export const ClaimFilesSchema = z.object({
   issueId: z.uuid(),
   agentId: z.uuid().optional(),
-  paths: z.array(z.string().min(1).max(400)).min(1).max(100),
+  paths: z.array(z.string().nonempty().max(400)).nonempty().max(100),
   force: z.boolean().optional(),
 })
 
 export const ReleaseFilesSchema = z.object({
-  paths: z.array(z.string()).min(1),
+  paths: z.array(z.string()).nonempty(),
   issueId: z.uuid().optional(),
 })
 

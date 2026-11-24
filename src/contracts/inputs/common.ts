@@ -10,7 +10,7 @@ export const PriorityEnum = z.enum(['urgent', 'high', 'medium', 'low', 'none'])
  * otherwise only cast/typeof-check the id. Co-locates a Zod check with the write
  * so no caller can reach the DB with an empty/non-string id. (PROJ-205)
  */
-export const IdSchema = z.string().min(1, 'id is required')
+export const IdSchema = z.string().nonempty('id is required')
 
 /*
  * Task-type and task-status IDs come in two shapes: runtime-created ones use

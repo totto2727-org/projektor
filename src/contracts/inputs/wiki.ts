@@ -3,6 +3,34 @@ import { z } from 'zod'
 
 import { BooleanQueryParam } from './common.ts'
 
+const MAX_SLUG_LENGTH = 200
+const MAX_PAGE_TITLE_LENGTH = 300
+const MAX_PAGE_CONTENT_LENGTH = 500_000
+const MAX_REVISION_SUMMARY_LENGTH = 2000
+const MAX_WIKI_TYPE_LENGTH = 50
+const MAX_TAG_LENGTH = 50
+const MAX_TAG_COUNT = 50
+const MAX_VERIFIER_LENGTH = 200
+const MAX_OWNER_LENGTH = 200
+const MAX_OWNER_COUNT = 50
+const MAX_VERIFY_INTERVAL_DAYS = 3650
+const MAX_PATCH_HEADING_LENGTH = 500
+const MAX_EXPORT_PAGE_IDENTIFIER_LENGTH = 200
+
+const MIN_PAGE_SIZE = 1
+const DEFAULT_OFFSET = 0
+const DEFAULT_SEARCH_PAGE_SIZE = 10
+const MAX_SEARCH_PAGE_SIZE = 50
+const DEFAULT_BACKFILL_PAGE_BUDGET = 200
+const MAX_BACKFILL_PAGE_BUDGET = 500
+const DEFAULT_MAINTENANCE_PAGE_SIZE = 50
+const MAX_MAINTENANCE_PAGE_SIZE = 200
+const DEFAULT_NOTIFICATIONS_PAGE_SIZE = 50
+const MAX_NOTIFICATIONS_PAGE_SIZE = 200
+const MAX_MARK_READ_IDS = 200
+const DEFAULT_CHANGES_PAGE_SIZE = 100
+const MAX_CHANGES_PAGE_SIZE = 500
+
 /*
  * PROJ-517: no "/" — path-based wiki routing (PROJ-487) assumes single-segment
  * slugs everywhere except this schema; forbidding "/" here keeps it that way rather
@@ -10,14 +38,14 @@ import { BooleanQueryParam } from './common.ts'
  */
 export const SlugSchema = z
   .string()
-  .min(1)
-  .max(200)
+  .nonempty()
+  .max(MAX_SLUG_LENGTH)
   .regex(/^[a-z0-9-]+$/)
 
 export const CreatePageSchema = z
   .object({
-    title: z.string().min(1).max(300),
-    content: z.string().max(500_000).optional(),
+    title: z.string().nonempty().max(MAX_PAGE_TITLE_LENGTH),
+    content: z.string().max(MAX_PAGE_CONTENT_LENGTH).optional(),
     parentId: z.uuid().optional(),
     projectId: z.uuid().optional(),
     slug: SlugSchema.optional(),
@@ -28,7 +56,7 @@ export const CreatePageSchema = z
      * blank content. Mutually exclusive with `content`: which one should win is
      * ambiguous, so both together is a validation error, not a silent precedence rule.
      */
-    templateSlug: z.string().min(1).max(200).optional(),
+    templateSlug: z.string().nonempty().max(MAX_SLUG_LENGTH).optional(),
   })
   .refine((d) => Predicate.isNullish(d.content) || Predicate.isNullish(d.templateSlug), {
     message: 'content and templateSlug cannot both be provided',
@@ -37,8 +65,8 @@ export const CreatePageSchema = z
 
 export const UpdatePageSchema = z
   .object({
-    title: z.string().min(1).max(300).optional(),
-    content: z.string().max(500_000).optional(),
+    title: z.string().nonempty().max(MAX_PAGE_TITLE_LENGTH).optional(),
+    content: z.string().max(MAX_PAGE_CONTENT_LENGTH).optional(),
     parentId: z.uuid().nullable().optional(),
     /*
      * PROJ-483: renaming a page's slug leaves a wiki_redirects entry for the old
@@ -56,7 +84,7 @@ export const UpdatePageSchema = z
      * PROJ-484: optional edit message/changelog note, stored on the revision
      * created for this write (only recorded when `content` changes).
      */
-    summary: z.string().max(2000).optional(),
+    summary: z.string().max(MAX_REVISION_SUMMARY_LENGTH).optional(),
   })
   .refine(
     (d) =>
@@ -86,21 +114,21 @@ export const WIKI_WELL_KNOWN_TYPES = ['runbook', 'adr', 'spec', 'note'] as const
 
 export const WikiFrontmatterSchema = z
   .object({
-    type: z.string().min(1).max(50).optional(),
-    tags: z.array(z.string().min(1).max(50)).max(50).optional(),
+    type: z.string().nonempty().max(MAX_WIKI_TYPE_LENGTH).optional(),
+    tags: z.array(z.string().nonempty().max(MAX_TAG_LENGTH)).max(MAX_TAG_COUNT).optional(),
     status: z.enum(['draft', 'current', 'stale', 'deprecated']).optional(),
     /*
      * Normalized to unix seconds by services/wiki-frontmatter.ts before this schema
      * runs (YAML dates parse to JS Date instances; ISO strings are also accepted).
      */
     verified_at: z.number().int().nonnegative().nullable().optional(),
-    verified_by: z.string().min(1).max(200).optional(),
-    owners: z.array(z.string().min(1).max(200)).max(50).optional(),
+    verified_by: z.string().nonempty().max(MAX_VERIFIER_LENGTH).optional(),
+    owners: z.array(z.string().nonempty().max(MAX_OWNER_LENGTH)).max(MAX_OWNER_COUNT).optional(),
     /*
      * Days between required re-verifications (R7/PROJ-489 consumes this; R6 only
      * stores it). Capped at 10 years to catch an obviously-wrong unit (e.g. seconds).
      */
-    verify_interval: z.number().int().positive().max(3650).optional(),
+    verify_interval: z.number().int().positive().max(MAX_VERIFY_INTERVAL_DAYS).optional(),
     /*
      * PROJ-491 (R9): marks this page as a reusable template, conventionally living
      * under a workspace "Templates" page. Denormalized into wiki_pages.is_template
@@ -125,11 +153,11 @@ const TagsFilterSchema = z.preprocess((v) => {
       .filter(Boolean)
   }
   return v
-}, z.array(z.string()).max(50).optional())
+}, z.array(z.string()).max(MAX_TAG_COUNT).optional())
 
 // PROJ-513: freeform, matching WikiFrontmatterSchema.type — any string filters, since
 // `type` isn't a closed set.
-const WikiTypeFilterSchema = z.string().min(1).max(50).optional()
+const WikiTypeFilterSchema = z.string().nonempty().max(MAX_WIKI_TYPE_LENGTH).optional()
 const WikiStatusFilterSchema = z.enum(['draft', 'current', 'stale', 'deprecated']).optional()
 
 const IncludeWorkspacePagesSchema = BooleanQueryParam.optional().default(false)
@@ -158,8 +186,14 @@ export const WikiTreeInputSchema = z.object({
 
 export const SearchWikiInputSchema = z.object({
   query: z.string(),
-  limit: z.coerce.number().int().min(1).max(50).optional().default(10),
-  offset: z.coerce.number().int().min(0).optional().default(0),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(MIN_PAGE_SIZE)
+    .max(MAX_SEARCH_PAGE_SIZE)
+    .optional()
+    .default(DEFAULT_SEARCH_PAGE_SIZE),
+  offset: z.coerce.number().int().nonnegative().optional().default(DEFAULT_OFFSET),
   projectId: z.uuid().optional(),
   // Unix seconds — only pages updated at/after this time are returned.
   updatedSince: z.coerce.number().int().nonnegative().optional(),
@@ -176,7 +210,7 @@ export const SearchWikiInputSchema = z.object({
 // PROJ-492 (R10): `against` is either another revision id or the literal string
 // "current" (default) meaning the page's live content.
 export const WikiRevisionDiffInputSchema = z.object({
-  against: z.string().min(1).optional().default('current'),
+  against: z.string().nonempty().optional().default('current'),
 })
 
 export const DeleteWikiPageOptionsSchema = z.object({
@@ -199,7 +233,7 @@ export const ListBrokenWikiLinksInputSchema = z.object({
  */
 export const BackfillWikiLinksCursorSchema = z.object({
   updatedAt: z.coerce.number().int().nonnegative(),
-  id: z.string().min(1),
+  id: z.string().nonempty(),
 })
 
 /*
@@ -210,7 +244,13 @@ export const BackfillWikiLinksCursorSchema = z.object({
  */
 export const BackfillWikiLinksInputSchema = z.object({
   cursor: BackfillWikiLinksCursorSchema.nullish(),
-  pageBudget: z.coerce.number().int().min(1).max(500).optional().default(200),
+  pageBudget: z.coerce
+    .number()
+    .int()
+    .min(MIN_PAGE_SIZE)
+    .max(MAX_BACKFILL_PAGE_BUDGET)
+    .optional()
+    .default(DEFAULT_BACKFILL_PAGE_BUDGET),
   updatedSince: z.coerce.number().int().nonnegative().optional(),
 })
 
@@ -220,8 +260,14 @@ export const BackfillWikiLinksInputSchema = z.object({
  */
 export const ListStaleWikiPagesInputSchema = z.object({
   projectId: z.uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
-  offset: z.coerce.number().int().min(0).optional().default(0),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(MIN_PAGE_SIZE)
+    .max(MAX_MAINTENANCE_PAGE_SIZE)
+    .optional()
+    .default(DEFAULT_MAINTENANCE_PAGE_SIZE),
+  offset: z.coerce.number().int().nonnegative().optional().default(DEFAULT_OFFSET),
   includeWorkspacePages: IncludeWorkspacePagesSchema,
 })
 
@@ -233,18 +279,18 @@ export const ListStaleWikiPagesInputSchema = z.object({
  */
 const PatchBaseFields = {
   baseRevisionId: z.string().nullable(),
-  summary: z.string().max(2000).optional(),
+  summary: z.string().max(MAX_REVISION_SUMMARY_LENGTH).optional(),
 }
 
 export const WikiFrontmatterPatchValuesSchema = z
   .object({
-    type: z.string().min(1).max(50).nullable().optional(),
-    tags: z.array(z.string().min(1).max(50)).max(50).nullable().optional(),
+    type: z.string().nonempty().max(MAX_WIKI_TYPE_LENGTH).nullable().optional(),
+    tags: z.array(z.string().nonempty().max(MAX_TAG_LENGTH)).max(MAX_TAG_COUNT).nullable().optional(),
     status: z.enum(['draft', 'current', 'stale', 'deprecated']).nullable().optional(),
     verified_at: z.union([z.number(), z.string()]).nullable().optional(),
-    verified_by: z.string().min(1).max(200).nullable().optional(),
-    owners: z.array(z.string().min(1).max(200)).max(50).nullable().optional(),
-    verify_interval: z.number().int().positive().max(3650).nullable().optional(),
+    verified_by: z.string().nonempty().max(MAX_VERIFIER_LENGTH).nullable().optional(),
+    owners: z.array(z.string().nonempty().max(MAX_OWNER_LENGTH)).max(MAX_OWNER_COUNT).nullable().optional(),
+    verify_interval: z.number().int().positive().max(MAX_VERIFY_INTERVAL_DAYS).nullable().optional(),
     template: z.boolean().nullable().optional(),
   })
   .strict()
@@ -257,25 +303,25 @@ export type WikiFrontmatterPatchValues = z.infer<typeof WikiFrontmatterPatchValu
 export const PatchWikiPageInputSchema = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('append_to_section'),
-    heading: z.string().min(1).max(500),
-    text: z.string().min(1).max(500_000),
+    heading: z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH),
+    text: z.string().nonempty().max(MAX_PAGE_CONTENT_LENGTH),
     ...PatchBaseFields,
   }),
   z.object({
     op: z.literal('replace_section'),
-    heading: z.string().min(1).max(500),
-    text: z.string().max(500_000),
+    heading: z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH),
+    text: z.string().max(MAX_PAGE_CONTENT_LENGTH),
     ...PatchBaseFields,
   }),
   z.object({
     op: z.literal('insert_after_heading'),
-    heading: z.string().min(1).max(500),
-    text: z.string().min(1).max(500_000),
+    heading: z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH),
+    text: z.string().nonempty().max(MAX_PAGE_CONTENT_LENGTH),
     ...PatchBaseFields,
   }),
   z.object({
     op: z.literal('append_to_page'),
-    text: z.string().min(1).max(500_000),
+    text: z.string().nonempty().max(MAX_PAGE_CONTENT_LENGTH),
     ...PatchBaseFields,
   }),
   z.object({
@@ -304,13 +350,19 @@ export const WatchWikiPageInputSchema = z.object({
 
 export const ListWikiNotificationsInputSchema = z.object({
   unreadOnly: BooleanQueryParam.optional().default(false),
-  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
-  offset: z.coerce.number().int().min(0).optional().default(0),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(MIN_PAGE_SIZE)
+    .max(MAX_NOTIFICATIONS_PAGE_SIZE)
+    .optional()
+    .default(DEFAULT_NOTIFICATIONS_PAGE_SIZE),
+  offset: z.coerce.number().int().nonnegative().optional().default(DEFAULT_OFFSET),
 })
 
 export const MarkWikiNotificationsReadInputSchema = z
   .object({
-    ids: z.array(z.string()).max(200).optional(),
+    ids: z.array(z.string()).max(MAX_MARK_READ_IDS).optional(),
     all: z.boolean().optional().default(false),
   })
   .refine((d) => d.all || (Predicate.isNotNullish(d.ids) && Array.isArrayNonEmpty(d.ids)), {
@@ -329,7 +381,13 @@ export const MarkWikiNotificationsReadInputSchema = z
  */
 export const ListWikiChangesInputSchema = z.object({
   since: z.coerce.number().int().nonnegative(),
-  limit: z.coerce.number().int().min(1).max(500).optional().default(100),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(MIN_PAGE_SIZE)
+    .max(MAX_CHANGES_PAGE_SIZE)
+    .optional()
+    .default(DEFAULT_CHANGES_PAGE_SIZE),
   projectId: z.uuid().optional(),
   watchedOnly: BooleanQueryParam.optional().default(false),
 })
@@ -342,7 +400,7 @@ export const ListWikiChangesInputSchema = z.object({
  */
 export const ExportWikiInputSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('space'), projectId: z.uuid().optional() }),
-  z.object({ scope: z.literal('subtree'), pageId: z.string().min(1).max(200) }),
+  z.object({ scope: z.literal('subtree'), pageId: z.string().nonempty().max(MAX_EXPORT_PAGE_IDENTIFIER_LENGTH) }),
 ])
 
 /*
@@ -357,8 +415,8 @@ export const ExportWikiInputSchema = z.discriminatedUnion('scope', [
  * explicitly (the WikiPage.tsx client always does).
  */
 export const SaveWikiDraftInputSchema = z.object({
-  title: z.string().min(1).max(300),
-  content: z.string().max(500_000),
+  title: z.string().nonempty().max(MAX_PAGE_TITLE_LENGTH),
+  content: z.string().max(MAX_PAGE_CONTENT_LENGTH),
   baseRevisionId: z.string().nullable().optional(),
   expectedDraftRevision: z.uuid().nullable().optional(),
 })
@@ -370,6 +428,12 @@ export const VersionedWikiDraftInputSchema = SaveWikiDraftInputSchema.required({
 // ListStaleWikiPagesInputSchema.
 export const ListWikiTrashInputSchema = z.object({
   projectId: z.uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
-  offset: z.coerce.number().int().min(0).optional().default(0),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(MIN_PAGE_SIZE)
+    .max(MAX_MAINTENANCE_PAGE_SIZE)
+    .optional()
+    .default(DEFAULT_MAINTENANCE_PAGE_SIZE),
+  offset: z.coerce.number().int().nonnegative().optional().default(DEFAULT_OFFSET),
 })

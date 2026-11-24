@@ -1,10 +1,10 @@
 import { z } from 'zod'
 
 export const CreateProjectSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().nonempty().max(100),
   key: z
     .string()
-    .min(1)
+    .nonempty()
     .max(10)
     /*
      * PROJ-440: no leading digit, so KEY-NUMBER issue refs (ISSUE_REF_PATTERN in

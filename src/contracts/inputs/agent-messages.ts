@@ -7,7 +7,7 @@ const scopeSchema = z.string().refine((v) => v === 'workspace' || /^issue:[0-9a-
 export const PostMessageSchema = z.object({
   scope: scopeSchema,
   agentId: z.uuid().optional(),
-  body: z.string().min(1).max(5000),
+  body: z.string().nonempty().max(5000),
 })
 
 export const ListMessagesSchema = z.object({

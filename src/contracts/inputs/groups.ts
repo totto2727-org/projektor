@@ -4,20 +4,20 @@ import { z } from 'zod'
 export const GrantRoleEnum = z.enum(['viewer', 'member', 'admin'])
 
 export const CreateGroupSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().nonempty().max(100),
   description: z.string().max(500).nullable().optional(),
 })
 
 export const UpdateGroupSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().nonempty().max(100).optional(),
   description: z.string().max(500).nullable().optional(),
 })
 
 export const AddGroupMemberSchema = z.object({
-  userId: z.string().min(1, 'userId is required'),
+  userId: z.string().nonempty('userId is required'),
 })
 
 export const SetGroupGrantSchema = z.object({
-  projectId: z.string().min(1, 'projectId is required'),
+  projectId: z.string().nonempty('projectId is required'),
   role: GrantRoleEnum,
 })

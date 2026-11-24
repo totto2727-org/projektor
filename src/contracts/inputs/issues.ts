@@ -4,16 +4,27 @@ import { z } from 'zod'
 import { BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
 import { CustomFieldFilterSchema } from './custom-fields.ts'
 
+const MAX_TITLE_LENGTH = 500
+const MAX_BODY_LENGTH = 50_000
+const MAX_LABEL_LENGTH = 50
+const MAX_LABEL_COUNT = 20
+const MIN_PAGE_SIZE = 1
+const DEFAULT_LIST_PAGE_SIZE = 30
+const MAX_LIST_PAGE_SIZE = 100
+const DEFAULT_SEARCH_PAGE_SIZE = 20
+const MAX_SEARCH_PAGE_SIZE = 50
+const MAX_BATCH_SIZE = 50
+
 export const CreateIssueSchema = z
   .object({
     projectId: z.string(),
-    title: z.string().min(1).max(500),
-    body: z.string().max(50_000).optional(),
+    title: z.string().nonempty().max(MAX_TITLE_LENGTH),
+    body: z.string().max(MAX_BODY_LENGTH).optional(),
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),
     assigneeId: z.uuid().optional(),
-    labels: z.array(z.string().max(50)).max(20).optional(),
+    labels: z.array(z.string().max(MAX_LABEL_LENGTH)).max(MAX_LABEL_COUNT).optional(),
     parentId: z.string().nullable().optional(),
     typeId: TaxonomyIdSchema.nullable().optional(),
     customFields: z.record(z.string(), z.unknown()).optional(),
@@ -26,8 +37,8 @@ export const CreateIssueSchema = z
  * reuse it rather than duplicating the shape.
  */
 export const CompletionReportSchema = z.object({
-  summary: z.string().min(1),
-  verification: z.string().min(1),
+  summary: z.string().nonempty(),
+  verification: z.string().nonempty(),
   prLink: z
     .string()
     .transform((val) => (z.url().safeParse(val).success ? val : undefined))
@@ -36,13 +47,13 @@ export const CompletionReportSchema = z.object({
 
 export const UpdateIssueSchema = z
   .object({
-    title: z.string().min(1).max(500).optional(),
-    body: z.string().max(50_000).optional(),
+    title: z.string().nonempty().max(MAX_TITLE_LENGTH).optional(),
+    body: z.string().max(MAX_BODY_LENGTH).optional(),
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),
     assigneeId: z.uuid().nullable().optional(),
-    labels: z.array(z.string().max(50)).max(20).optional(),
+    labels: z.array(z.string().max(MAX_LABEL_LENGTH)).max(MAX_LABEL_COUNT).optional(),
     parentId: z.string().nullable().optional(),
     typeId: TaxonomyIdSchema.nullable().optional(),
     customFields: z.record(z.string(), z.unknown()).optional(),
@@ -109,7 +120,7 @@ export const ListIssuesSchema = z
      * format) is still accepted from clients holding a pre-upgrade cursor.
      */
     cursor: IssueListCursorSchema.optional(),
-    limit: z.coerce.number().min(1).max(100).default(30),
+    limit: z.coerce.number().min(MIN_PAGE_SIZE).max(MAX_LIST_PAGE_SIZE).default(DEFAULT_LIST_PAGE_SIZE),
   })
   .strict()
 
@@ -137,15 +148,15 @@ export const GetIssuesBatchSchema = z
   .refine((obj) => (obj.refs?.length ?? 0) + (obj.ids?.length ?? 0) > 0, {
     message: 'Provide refs or ids',
   })
-  .refine((obj) => (obj.refs?.length ?? 0) + (obj.ids?.length ?? 0) <= 50, {
+  .refine((obj) => (obj.refs?.length ?? 0) + (obj.ids?.length ?? 0) <= MAX_BATCH_SIZE, {
     message: 'At most 50 issues per call (refs + ids combined)',
   })
 
 export const SearchIssuesInputSchema = z
   .object({
-    query: z.string().min(1),
+    query: z.string().nonempty(),
     projectId: z.string().optional(),
-    limit: z.number().int().min(1).max(50).optional().default(20),
+    limit: z.number().int().min(MIN_PAGE_SIZE).max(MAX_SEARCH_PAGE_SIZE).optional().default(DEFAULT_SEARCH_PAGE_SIZE),
   })
   .strict()
 

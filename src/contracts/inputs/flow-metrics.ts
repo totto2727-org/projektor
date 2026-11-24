@@ -41,7 +41,7 @@ const MAX_WEEK_WINDOW_SECONDS = 5 * 365 * DAY
 
 export const GetFlowMetricsSchema = z
   .object({
-    projectId: z.string().min(1),
+    projectId: z.string().nonempty(),
     since: z.number().int().nonnegative().optional(),
     until: z.number().int().nonnegative().optional(),
     granularity: z.enum(['day', 'week']).default('week'),

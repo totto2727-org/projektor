@@ -5,7 +5,7 @@ import { CompletionReportSchema } from './issues.ts'
 
 export const RegisterAgentSchema = z.object({
   issueId: z.uuid().optional(),
-  name: z.string().min(1).max(200),
+  name: z.string().nonempty().max(200),
   /*
    * PROJ-336: deprecated — accepted for MCP client compatibility but ignored by
    * the service (see services/agents.ts). It was the original spoofable
@@ -42,8 +42,8 @@ export const ListActiveAgentsSchema = z.object({
 export const StartWorkSchema = z
   .object({
     issue: z.uuid(),
-    paths: z.array(z.string().min(1).max(400)).max(100).optional(),
-    name: z.string().min(1).max(200),
+    paths: z.array(z.string().nonempty().max(400)).max(100).optional(),
+    name: z.string().nonempty().max(200),
   })
   .strict()
 

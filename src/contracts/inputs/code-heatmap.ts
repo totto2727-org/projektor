@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const GetCodeHeatmapSchema = z.object({
-  projectId: z.string().min(1),
+  projectId: z.string().nonempty(),
   since: z.number().int().nonnegative().optional(),
   until: z.number().int().nonnegative().optional(),
   /*
