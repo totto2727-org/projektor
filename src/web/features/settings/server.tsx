@@ -14,11 +14,11 @@ import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from 
 
 const choose = (scope: RequestScope): WorkspaceMembership | null =>
   scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
-const forbidden = (error: { status: number }) => error.status === 403
+const forbidden = (error: { status: number }): boolean => error.status === 403
 function selected(scope: RequestScope) {
   return Effect.try({
-    try: () => requireDataWorkspace(scope),
     catch: (cause) => (cause instanceof ScopeError ? cause : new ScopeError(403, 'Select an accessible workspace.')),
+    try: () => requireDataWorkspace(scope),
   })
 }
 function TokenSettings({

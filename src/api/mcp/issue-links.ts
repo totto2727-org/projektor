@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { createLink, deleteLink, listLinksForIssue } from '#api/services/issue-links.ts'
 import { ValidationError } from '#contracts/errors.ts'
 
@@ -45,7 +47,7 @@ export const issueLinksTools: MCPTool[] = [
     annotations: DESTRUCTIVE,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return deleteLink(ctx, { id })

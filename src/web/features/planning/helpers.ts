@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
 import type { RangeState, SprintIssue } from './types.ts'
@@ -12,14 +14,14 @@ export function dateInputToUnix(value: string): number | null {
   return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / 1000)
 }
 export function unixToDateInput(ts: number | null): string {
-  if (ts === null) {
+  if (Predicate.isNullish(ts)) {
     return ''
   }
   const date = new Date(ts * 1000)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 export function formatUnixDate(ts: number | null): string {
-  return ts === null ? '\u2013' : formatTimestampDate(ts)
+  return Predicate.isNullish(ts) ? '\u2013' : formatTimestampDate(ts)
 }
 export function getStoryPoints(issue: SprintIssue): number {
   const field = issue.customFields.find((entry) => entry.key === 'story_points')
@@ -57,7 +59,7 @@ export function dateEpochEnd(date: string): number {
 }
 export function rangeFromUrl(url: URL, now = new Date()): RangeState {
   const fallback = defaultRange(now)
-  const date = (key: 'since' | 'until') => {
+  const date = (key: 'since' | 'until'): string => {
     const value = url.searchParams.get(key)
     return value && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(dateEpochStart(value)) ? value : fallback[key]
   }
@@ -70,7 +72,7 @@ export function rangeFromUrl(url: URL, now = new Date()): RangeState {
   }
 }
 export function formatDuration(seconds: number | null): string {
-  if (seconds === null) {
+  if (Predicate.isNullish(seconds)) {
     return '\u2013'
   }
   const abs = Math.abs(seconds)
@@ -85,5 +87,6 @@ export function formatDuration(seconds: number | null): string {
   }
   return `${(seconds / 86_400).toFixed(1)}d`
 }
-export const formatPercent = (value: number | null) => (value === null ? '\u2013' : `${Math.round(value * 100)}%`)
-export const formatCount = (value: number | null) => (value === null ? '\u2013' : value.toFixed(1))
+export const formatPercent = (value: number | null): string =>
+  Predicate.isNullish(value) ? '\u2013' : `${Math.round(value * 100)}%`
+export const formatCount = (value: number | null): string => (Predicate.isNullish(value) ? '\u2013' : value.toFixed(1))

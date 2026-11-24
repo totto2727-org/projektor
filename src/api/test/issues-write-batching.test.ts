@@ -13,6 +13,7 @@
  * review transition with completion report 7 -> 4, and the parent walk no longer grows
  * with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
  */
+import { Predicate } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { createIssue, updateIssue } from '#commands/issues.ts'
@@ -40,14 +41,14 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
     new Proxy(stmt, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver)
-        if (typeof value !== 'function') {
+        if (!Predicate.isFunction(value)) {
           return value
         }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
             wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
         }
-        if (typeof prop === 'string' && EXEC_METHODS.has(prop)) {
+        if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
             count++
             return (value as (...a: unknown[]) => unknown).apply(target, args)
@@ -151,7 +152,7 @@ describe('PROJ-870: issue write batching', () => {
       type_id: type.id,
     })
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(created.id).first()
-    expect(fts).toEqual({ title: 'Batched create', body: 'hello body' })
+    expect(fts).toEqual({ body: 'hello body', title: 'Batched create' })
     const cf = await env.DB.prepare(
       `SELECT d.key, v.value FROM custom_field_values v
 			 JOIN custom_field_definitions d ON d.id = v.field_id WHERE v.issue_id = ? ORDER BY d.key`,
@@ -201,7 +202,7 @@ describe('PROJ-870: issue write batching', () => {
     expect(row?.completed_at).not.toBeNull()
     expect(row?.done_at).not.toBeNull()
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(issue.id).all()
-    expect(fts.results).toEqual([{ title: 'After', body: 'new body' }])
+    expect(fts.results).toEqual([{ body: 'new body', title: 'After' }])
     const cf = await env.DB.prepare('SELECT value FROM custom_field_values WHERE issue_id = ?').bind(issue.id).first()
     expect(cf).toEqual({ value: '8' })
   })
@@ -214,7 +215,7 @@ describe('PROJ-870: issue write batching', () => {
     })
     await updateIssue(ctx, created.id, { title: 'Renamed' })
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(created.id).all()
-    expect(fts.results).toEqual([{ title: 'Renamed', body: 'kept body' }])
+    expect(fts.results).toEqual([{ body: 'kept body', title: 'Renamed' }])
   })
 
   test('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async () => {
@@ -272,7 +273,7 @@ describe('PROJ-870 review: completion report comment limit', () => {
     const row = await env.DB.prepare('SELECT status, completion_report_at FROM issues WHERE id = ?')
       .bind(issue.id)
       .first()
-    expect(row).toEqual({ status: 'in_progress', completion_report_at: null })
+    expect(row).toEqual({ completion_report_at: null, status: 'in_progress' })
     const comments = await env.DB.prepare('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?')
       .bind(issue.id)
       .first<{ n: number }>()
@@ -310,9 +311,9 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
 
   test('rejects a parent that already has 5 ancestors, allows 4', async () => {
     const chain = await seedChain(f, 6)
-    expect(
-      await formErrorOf(createIssue(ctx, { projectId: f.projectId, title: 'too deep', parentId: chain[5] })),
-    ).toEqual(['Maximum nesting depth (5) exceeded'])
+    await expect(
+      formErrorOf(createIssue(ctx, { projectId: f.projectId, title: 'too deep', parentId: chain[5] })),
+    ).resolves.toEqual(['Maximum nesting depth (5) exceeded'])
     await expect(createIssue(ctx, { projectId: f.projectId, title: 'ok', parentId: chain[4] })).resolves.toMatchObject({
       number: expect.any(Number),
     })
@@ -322,17 +323,17 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
     // chain[0] is the 5th ancestor of chain[5] — the same step at which the cap fires.
     // The original loop checked the cycle before the cap on each step; so must the CTE.
     const chain = await seedChain(f, 6)
-    expect(await formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).toEqual([
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).resolves.toEqual([
       'Setting this parent would create a cycle',
     ])
   })
 
   test('reports a cycle on a nearer ancestor, and rejects self-parenting', async () => {
     const chain = await seedChain(f, 3)
-    expect(await formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).toEqual([
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).resolves.toEqual([
       'Setting this parent would create a cycle',
     ])
-    expect(await formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[0] }))).toEqual([
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[0] }))).resolves.toEqual([
       'An issue cannot be its own parent',
     ])
   })

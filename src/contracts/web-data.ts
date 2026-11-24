@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } from '#core/web/scope.ts'
 
 import { ApiError, ScopeError } from './errors.ts'
@@ -38,7 +40,8 @@ export function requireDataWorkspace(scope: RequestScope, workspaceId?: string):
 export function requireDataProject(scope: RequestScope, projectId: string, workspaceId?: string): ProjectSummary {
   requireAuthenticatedDataSession(scope)
   const project = scope.projects.find(
-    (candidate) => candidate.id === projectId && (workspaceId === undefined || candidate.workspace_id === workspaceId),
+    (candidate) =>
+      candidate.id === projectId && (Predicate.isNullish(workspaceId) || candidate.workspace_id === workspaceId),
   )
   const membership =
     project &&
@@ -60,7 +63,7 @@ export function authorizeDataEntity<T extends { readonly projectId: string | nul
     throw new ScopeError(404, 'Not found.')
   }
   requireDataWorkspace(scope, workspaceId)
-  if (entity.projectId !== null) {
+  if (Predicate.isNotNullish(entity.projectId)) {
     requireDataProject(scope, entity.projectId, workspaceId)
   }
   return entity

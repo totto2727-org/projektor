@@ -44,7 +44,7 @@ const updatePage = async function updatePage(
   return res.json()
 }
 
-const deletePage = async function deletePage(token: string, wsSlug: string, pageSlug: string) {
+const deletePage = async function deletePage(token: string, wsSlug: string, pageSlug: string): Promise<void> {
   const res = await fetchFresh(`http://localhost/api/wiki/${pageSlug}`, {
     method: 'DELETE',
     headers: authHeaders(token, wsSlug),
@@ -52,7 +52,7 @@ const deletePage = async function deletePage(token: string, wsSlug: string, page
   expect(res.status).toBe(200)
 }
 
-const undeletePage = async function undeletePage(token: string, wsSlug: string, pageId: string) {
+const undeletePage = async function undeletePage(token: string, wsSlug: string, pageId: string): Promise<void> {
   const res = await fetchFresh(`http://localhost/api/wiki/trash/${pageId}/undelete`, {
     method: 'POST',
     headers: authHeaders(token, wsSlug),
@@ -142,7 +142,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     await deletePage(token, workspace.slug, target.slug)
     const broken = await brokenLinks(token, workspace.slug)
     expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === 'Doomed')).toBe(true)
-    expect(await targetOf(linker.id)).toBe(target.id)
+    await expect(targetOf(linker.id)).resolves.toBe(target.id)
 
     await undeletePage(token, workspace.slug, target.id)
     expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(true)
@@ -159,7 +159,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     const lone = await createPage(token, workspace.slug, 'Lonely')
     const linker = await createPage(token, workspace.slug, 'Linker5', '[[Twin]] [[Lonely]]')
     // Oldest page wins a duplicate title.
-    expect(await targetsOf(linker.id)).toEqual([first.id, lone.id].sort())
+    await expect(targetsOf(linker.id)).resolves.toEqual([first.id, lone.id].sort())
 
     for (const p of [first, lone]) {
       await deletePage(token, workspace.slug, p.slug)
@@ -190,8 +190,8 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     const byTitle = await createPage(token, workspace.slug, 'ByTitle', '[[Foo]]')
     await updatePage(token, workspace.slug, target.slug, { title: 'Bar' })
     // The URL link still points at the page; the [[Foo]] title link no longer matches.
-    expect(await targetOf(byUrl.id)).toBe(target.id)
-    expect(await targetOf(byTitle.id)).toBeNull()
+    await expect(targetOf(byUrl.id)).resolves.toBe(target.id)
+    await expect(targetOf(byTitle.id)).resolves.toBeNull()
   })
 })
 

@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { addComment, deleteComment, updateComment } from '#commands/comments.ts'
@@ -52,7 +53,7 @@ const fixture = function fixture() {
                 }
               }
               const value = Reflect.get(prepared, key, preparedReceiver)
-              return typeof value === 'function' ? value.bind(prepared) : value
+              return Predicate.isFunction(value) ? value.bind(prepared) : value
             },
           })
         }
@@ -74,7 +75,7 @@ const fixture = function fixture() {
         }
       }
       const value = Reflect.get(target, property, receiver)
-      return typeof value === 'function' ? value.bind(target) : value
+      return Predicate.isFunction(value) ? value.bind(target) : value
     },
   })
   const ctx: ServiceCtx = {
@@ -93,9 +94,9 @@ describe('current effective grants at shared command boundaries', () => {
     const f = fixture()
     f.sqlite.exec(`UPDATE projects SET archived_at = 1 WHERE id = 'hidden';
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g','hidden','member')`)
-    expect(await listProjects(f.ctx, { includeArchived: 'false' })).toHaveLength(1)
-    expect(await listProjects(f.ctx, { includeArchived: false })).toHaveLength(1)
-    expect(await listProjects(f.ctx, { includeArchived: 'true' })).toHaveLength(2)
+    await expect(listProjects(f.ctx, { includeArchived: 'false' })).resolves.toHaveLength(1)
+    await expect(listProjects(f.ctx, { includeArchived: false })).resolves.toHaveLength(1)
+    await expect(listProjects(f.ctx, { includeArchived: 'true' })).resolves.toHaveLength(2)
     await expect(listProjects(f.ctx, { includeArchived: 'garbage' })).rejects.toMatchObject({ kind: 'validation' })
     await expect(listProjects(f.ctx, null)).rejects.toMatchObject({ kind: 'validation' })
   })
@@ -132,13 +133,15 @@ describe('current effective grants at shared command boundaries', () => {
       INSERT INTO issue_links (id,workspace_id,source_issue_id,target_issue_id,type,created_by_id,created_at)
         VALUES ('link','w','i','secret','blocks','u',1);
     `)
-    expect(await listLinksForIssue(f.ctx, { issueId: 'i' })).toMatchObject([{ linkedIssueTitle: 'Secret title' }])
+    await expect(listLinksForIssue(f.ctx, { issueId: 'i' })).resolves.toMatchObject([
+      { linkedIssueTitle: 'Secret title' },
+    ])
     f.sqlite.exec("DELETE FROM group_project_grants WHERE project_id = 'hidden'")
-    expect(await listLinksForIssue(f.ctx, { issueId: 'i' })).toEqual([])
-    expect(await getIssue(f.ctx, { id: 'i' })).toMatchObject({ links: [] })
+    await expect(listLinksForIssue(f.ctx, { issueId: 'i' })).resolves.toEqual([])
+    await expect(getIssue(f.ctx, { id: 'i' })).resolves.toMatchObject({ links: [] })
     await expect(listLinksForIssue(f.ctx, { issueId: 'secret' })).rejects.toMatchObject({ kind: 'not_found' })
     f.ctx.role = 'admin'
-    expect(await listLinksForIssue(f.ctx, { issueId: 'i' })).toHaveLength(1)
+    await expect(listLinksForIssue(f.ctx, { issueId: 'i' })).resolves.toHaveLength(1)
   })
 
   test('does not expose known feedback-source details to hidden-project or non-admin callers', async () => {
@@ -150,7 +153,7 @@ describe('current effective grants at shared command boundaries', () => {
     f.sqlite.exec("INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g','hidden','member')")
     await expect(getFeedbackSource(f.ctx, { sourceId: 'source' })).rejects.toMatchObject({ kind: 'forbidden' })
     f.ctx.role = 'admin'
-    expect(await getFeedbackSource(f.ctx, { sourceId: 'source' })).toMatchObject({ name: 'Secret source' })
+    await expect(getFeedbackSource(f.ctx, { sourceId: 'source' })).resolves.toMatchObject({ name: 'Secret source' })
     f.ctx.workspaceId = 'other'
     await expect(getFeedbackSource(f.ctx, { sourceId: 'source' })).rejects.toMatchObject({ kind: 'not_found' })
   })

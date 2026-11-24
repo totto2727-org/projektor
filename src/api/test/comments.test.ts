@@ -189,8 +189,8 @@ describe('Comments REST API', () => {
     const comment = await seedComment(issueId, userId)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
 
@@ -288,7 +288,7 @@ describe('PROJ-438 — comments accept an issue ref', () => {
     })
 
     expect(byRef.status).toBe(200)
-    expect(await byRef.json()).toEqual(await byUuid.json())
+    await expect(byRef.json()).resolves.toEqual(await byUuid.json())
   })
 
   /*

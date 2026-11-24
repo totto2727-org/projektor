@@ -1,4 +1,5 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
+import { Predicate } from 'effect'
 
 import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
@@ -15,7 +16,7 @@ export class OAuthRequestError extends Error {
 }
 
 export function workspaceIdFromResource(resource: string | string[] | undefined): string {
-  if (resource === undefined) {
+  if (Predicate.isNullish(resource)) {
     throw new OAuthRequestError('invalid_target', 'A `resource` parameter naming the target workspace is required')
   }
   if (Array.isArray(resource)) {

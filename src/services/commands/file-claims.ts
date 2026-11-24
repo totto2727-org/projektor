@@ -1,4 +1,5 @@
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -54,7 +55,7 @@ const touchAgentHeartbeatIfLive = async function touchAgentHeartbeatIfLive(
  */
 const SESSION_TTL_SECONDS = 120
 
-const liveCutoff = () => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
+const liveCutoff = (): number => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
 
 /*
  * PROJ-928: an agentless claim (agentId null — see loadActiveClaimsByPath) has no
@@ -149,10 +150,9 @@ const loadActiveClaimsByPath = async function loadActiveClaimsByPath(
         // so staleness is judged by claim age instead (PROJ-928): live until
         // FILE_CLAIM_TTL_SECONDS has elapsed since claimedAt, then reclaimable by the
         // next claimer just like a claim whose agent session went stale.
-        live:
-          claim.agentId === null
-            ? claim.claimedAt > agentlessCutoff
-            : sessionStatus === 'active' && (sessionHeartbeat ?? 0) > cutoff,
+        live: Predicate.isNullish(claim.agentId)
+          ? claim.claimedAt > agentlessCutoff
+          : sessionStatus === 'active' && (sessionHeartbeat ?? 0) > cutoff,
       },
     ]),
   )
@@ -406,8 +406,8 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
     )
     const messages: { scope: string; agentId?: string; body: string }[] = []
     for (const [displacedIssueId, displacedIssuePaths] of displacedPaths) {
-      const toHolder = (list: string) => `force-claimed ${list}, overriding issue ${displacedIssueId}`
-      const toDisplaced = (list: string) => `issue ${issueId} force-claimed ${list}, which this issue held`
+      const toHolder = (list: string): string => `force-claimed ${list}, overriding issue ${displacedIssueId}`
+      const toDisplaced = (list: string): string => `issue ${issueId} force-claimed ${list}, which this issue held`
       messages.push({
         scope: `issue:${issueId}`,
         agentId: agentId ?? undefined,
@@ -654,7 +654,7 @@ export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
  * claim immediately rather than leaving it to the next claimant — and it is the one that
  * records `agent_ended` for the health tile, which distinguishes a clean exit from a crash.
  */
-export async function releaseClaimsForAgent(ctx: ServiceCtx, agentId: string) {
+export async function releaseClaimsForAgent(ctx: ServiceCtx, agentId: string): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
 

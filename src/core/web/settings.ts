@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import * as groups from '#commands/groups.ts'
 import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth.ts'
@@ -32,7 +32,7 @@ import { checked } from './issue-data.ts'
 import { webRead } from './issue-operations.ts'
 import type { RequestScope, WebRequest } from './scope.ts'
 
-const admin = (role: string | undefined) => role === 'owner' || role === 'admin'
+const admin = (role: string | undefined): boolean => role === 'owner' || role === 'admin'
 const readContext = function readContext(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
     const input = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(proof).pipe(
@@ -108,7 +108,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           const { scope, workspace } = yield* readContext(env, proof)
           yield* authorizeGrantProject(env, scope, workspace.id, projectId)
           return yield* browserCommand(env, proof, (ctx) =>
-            role === undefined
+            Predicate.isNullish(role)
               ? groups.removeGroupGrant(ctx, groupId, projectId)
               : groups.setGroupGrant(ctx, groupId, { projectId, role }),
           )
@@ -183,17 +183,17 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                 )
               : []
             const grants = yield* Effect.tryPromise({
+              catch: publicDomainFailure,
               try: async () =>
                 listConnectorGrants(
                   (await import('#services/oauth-provider.ts')).oauthApi(env),
                   ctx.userId,
                   ctx.workspaceId,
                 ),
-              catch: publicDomainFailure,
             })
             const info = yield* Effect.tryPromise({
-              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
               catch: publicDomainFailure,
+              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
             }).pipe(Effect.catch(() => Effect.succeed(null)))
             return { tokens, tokensDenied: !admin(ctx.role), grants, connectorsDenied: false, info }
           }).pipe(Effect.mapError(publicWebFailure)),
@@ -207,13 +207,13 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           Effect.gen(function* () {
             const { ctx } = yield* readContext(env, proof)
             return yield* Effect.tryPromise({
+              catch: publicDomainFailure,
               try: async () =>
                 listConnectorGrants(
                   (await import('#services/oauth-provider.ts')).oauthApi(env),
                   ctx.userId,
                   ctx.workspaceId,
                 ),
-              catch: publicDomainFailure,
             })
           }),
         ),
@@ -226,8 +226,8 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           Effect.gen(function* () {
             const { ctx, workspace } = yield* readContext(env, proof)
             return yield* Effect.tryPromise({
-              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
               catch: publicDomainFailure,
+              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
             })
           }),
         ),

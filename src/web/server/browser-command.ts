@@ -26,9 +26,9 @@ export function runBrowserCommand<A, E, R>(
       return yield* new ScopeError(403, 'An interactive browser session is required.')
     }
     const workspace = yield* Effect.try({
-      try: () => requireDataWorkspace(context.scope),
       catch: (cause) =>
         cause instanceof ScopeError ? cause : new ApiError('request', 403, 'Selected workspace is not accessible.'),
+      try: () => requireDataWorkspace(context.scope),
     })
     return yield* operation({
       proof: {

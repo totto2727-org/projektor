@@ -72,7 +72,7 @@ describe('Feedback hydrated original controls', () => {
       throw new Error('Missing native source form')
     }
     fireEvent.submit(form)
-    expect(await screen.findByText('new-token')).toBeTruthy()
+    await expect(screen.findByText('new-token')).resolves.toBeTruthy()
     const [previous, data] = vi.mocked(createFeedbackSource).mock.calls[0]
     expect(previous).toBeNull()
     expect(data.get('workspaceSlug')).toBe('team')
@@ -118,7 +118,7 @@ describe('Feedback hydrated original controls', () => {
       target: { value: 'a'.repeat(2001) },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create source' }))
-    expect(await screen.findByText('Enter at most 50 origins, each at most 2000 characters.')).toBeTruthy()
+    await expect(screen.findByText('Enter at most 50 origins, each at most 2000 characters.')).resolves.toBeTruthy()
     expect(screen.getByRole('button', { name: 'Create source' }).hasAttribute('disabled')).toBe(true)
     expect(createFeedbackSource).not.toHaveBeenCalled()
     expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('New source')

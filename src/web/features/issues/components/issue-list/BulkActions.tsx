@@ -41,7 +41,7 @@ export function IssueBulkProvider({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  function toggle(id: string, checked: boolean) {
+  function toggle(id: string, checked: boolean): void {
     setSelected((current) => {
       const next = new Set(current)
       if (checked) {
@@ -52,7 +52,7 @@ export function IssueBulkProvider({
       return next
     })
   }
-  async function change(changes: { statusId: string } | { priority: string }) {
+  async function change(changes: { statusId: string } | { priority: string }): Promise<void> {
     const ids = [...selected]
     setBusy(true)
     setError(null)

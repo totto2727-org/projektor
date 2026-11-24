@@ -136,9 +136,9 @@ export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCr
     state.fieldMeta.description?.errors,
     state.fieldMeta.origins?.errors,
   ])
-  const setName = (value: string) => form.setFieldValue('name', value)
-  const setDescription = (value: string) => form.setFieldValue('description', value)
-  const setOrigins = (value: string) => form.setFieldValue('origins', value)
+  const setName = (value: string): void => form.setFieldValue('name', value)
+  const setDescription = (value: string): void => form.setFieldValue('description', value)
+  const setOrigins = (value: string): void => form.setFieldValue('origins', value)
   useEffect(() => {
     if (newToken) {
       onCreated?.()

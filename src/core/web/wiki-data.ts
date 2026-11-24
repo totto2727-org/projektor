@@ -45,15 +45,16 @@ export function loadWikiData(
       return yield* new ScopeError(403, 'Select a workspace before opening the wiki.')
     }
     const workspace = yield* Effect.try({
-      try: () => requireDataWorkspace(scope, selected.workspace.id),
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
+      try: () => requireDataWorkspace(scope, selected.workspace.id),
     })
-    const db = yield* Effect.try({ try: () => requireDataDatabase(env.DB), catch: dataError })
+    const db = yield* Effect.try({ catch: dataError, try: () => requireDataDatabase(env.DB) })
     const workspaceSlug = workspace.slug
     const ref = params.slug ?? url.searchParams.get('slug') ?? url.searchParams.get('id') ?? ''
     const projectId =
       selected.kind === 'project' && url.searchParams.get('scope') !== 'workspace' ? selected.project.id : ''
     const visibility = yield* Effect.try({
+      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       try: () => {
         if (projectId) {
           requireDataProject(scope, projectId, workspace.id)
@@ -61,7 +62,6 @@ export function loadWikiData(
         const predicate = visibleProjectPredicate(scope, workspace.id, schema.wikiPages.projectId)
         return predicate ? or(isNull(schema.wikiPages.projectId), predicate) : undefined
       },
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
     const mode =
       /\/wiki\/new\/?$/.test(url.pathname) || url.searchParams.get('createTitle')
@@ -135,6 +135,7 @@ export function loadWikiData(
       .join(' ')
     // Serialize the same app-authored visibility predicate for the shared raw FTS query.
     const rawVisibility = yield* Effect.try({
+      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       try: () => {
         const fragment = (column: SQL) => {
           const predicate = visibleProjectPredicate(scope, workspace.id, column)
@@ -142,7 +143,6 @@ export function loadWikiData(
         }
         return { search: fragment(sql`p.project_id`), linkedWiki: fragment(sql`w.project_id`) }
       },
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
     const data = yield* Effect.all(
       {
@@ -210,8 +210,8 @@ export function loadWikiData(
         draftResult:
           page && scope.user.email !== 'public-viewer@projektor.local'
             ? Effect.tryPromise({
-                try: () => readWikiDraftState(db, workspace.id, page.id, scope.user.id),
                 catch: dataError,
+                try: () => readWikiDraftState(db, workspace.id, page.id, scope.user.id),
               }).pipe(
                 Effect.flatMap(Schema.decodeUnknownEffect(DraftState)),
                 Effect.mapError(dataError),

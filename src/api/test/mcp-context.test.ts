@@ -94,6 +94,6 @@ describe('PROJ-889: auth middleware records method + credential', () => {
   test('the dev bypass → method dev', async () => {
     const { user } = await seedFixture()
     env.DEV_USER_EMAIL = user.email
-    expect(await whoami()).toEqual({ kind: 'human', method: 'dev' })
+    await expect(whoami()).resolves.toEqual({ kind: 'human', method: 'dev' })
   })
 })

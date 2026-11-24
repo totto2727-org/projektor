@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm'
+import { Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 import type { Env } from '#types'
@@ -76,9 +77,10 @@ const parseDomainMapValue = function parseDomainMapValue(v: unknown): { slug: st
   if (!v || typeof v !== 'object') {
     return null
   }
-  const slug = typeof (v as { slug?: unknown }).slug === 'string' ? (v as { slug: string }).slug.trim() : ''
-  const roleRaw =
-    typeof (v as { role?: unknown }).role === 'string' ? (v as { role: string }).role.trim().toLowerCase() : 'member'
+  const slug = Predicate.isString((v as { slug?: unknown }).slug) ? (v as { slug: string }).slug.trim() : ''
+  const roleRaw = Predicate.isString((v as { role?: unknown }).role)
+    ? (v as { role: string }).role.trim().toLowerCase()
+    : 'member'
   const role = (VALID_ROLES as Readonly<string[]>).includes(roleRaw) ? (roleRaw as Role) : 'member'
   if (!slug) {
     return null

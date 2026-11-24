@@ -54,7 +54,7 @@ const ROLE_TAG =
 const CHIP =
   'inline-flex items-center px-2 py-[0.1rem] mr-1 mb-1 rounded-full text-[0.72rem] bg-bg border border-border text-text-base'
 const H2 = 'text-[1.05rem] font-bold text-text-base m-0 mb-3'
-const adminRole = (role: string) => role === 'owner' || role === 'admin'
+const adminRole = (role: string): boolean => role === 'owner' || role === 'admin'
 type Tab = 'groups' | 'members'
 export function nextTabId(tabs: Readonly<Tab[]>, active: Tab, key: string): Tab | null {
   const index = tabs.indexOf(active)
@@ -280,7 +280,7 @@ function GroupDetailEditor({
     (member) => !adminRole(member.role) && !detail.members.some((row) => row.userId === member.id),
   )
   const grantable = projects.filter((project) => !detail.grants.some((row) => row.projectId === project.id))
-  async function removeMember(userId: string) {
+  async function removeMember(userId: string): Promise<void> {
     if (busy) {
       return
     }
@@ -295,7 +295,7 @@ function GroupDetailEditor({
     }
     setBusy(false)
   }
-  async function removeGrant(projectId: string) {
+  async function removeGrant(projectId: string): Promise<void> {
     if (busy) {
       return
     }
@@ -674,7 +674,7 @@ export function GroupManager({
       form.reset()
     }
   }, [createResult, form])
-  async function remove(id: string) {
+  async function remove(id: string): Promise<void> {
     if (busy) {
       return
     }
@@ -692,7 +692,7 @@ export function GroupManager({
     }
     setBusy(false)
   }
-  function onTabKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+  function onTabKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     const next = nextTabId(tabs, activeTab, event.key)
     if (next) {
       event.preventDefault()

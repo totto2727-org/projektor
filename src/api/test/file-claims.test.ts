@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { configureCore, env } from './fixture-api.ts'
@@ -16,7 +17,7 @@ describe('File Claims API', () => {
     ;({ token, slug, workspaceId, userId, projectId, issueId } = await seedIssueFixture())
   })
 
-  const claimFiles = async function claimFiles(body: Record<string, unknown>, t = token, s = slug) {
+  const claimFiles = async function claimFiles(body: Record<string, unknown>, t = token, s = slug): Promise<Response> {
     return fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(t, s),
@@ -24,7 +25,11 @@ describe('File Claims API', () => {
     })
   }
 
-  const releaseFiles = async function releaseFiles(body: Record<string, unknown>, t = token, s = slug) {
+  const releaseFiles = async function releaseFiles(
+    body: Record<string, unknown>,
+    t = token,
+    s = slug,
+  ): Promise<Response> {
     return fetchNativeApi('http://localhost/api/file-claims/release', {
       method: 'POST',
       headers: authHeaders(t, s),
@@ -32,7 +37,11 @@ describe('File Claims API', () => {
     })
   }
 
-  const listFileClaims = async function listFileClaims(params: Record<string, string> = {}, t = token, s = slug) {
+  const listFileClaims = async function listFileClaims(
+    params: Record<string, string> = {},
+    t = token,
+    s = slug,
+  ): Promise<Response> {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/file-claims${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(t, s),
@@ -46,7 +55,7 @@ describe('File Claims API', () => {
     t = token,
     s = slug,
     wsId = workspaceId,
-  ) {
+  ): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
@@ -75,7 +84,7 @@ describe('File Claims API', () => {
     }
     expect(body.created).toHaveLength(2)
     expect(body.overridden).toHaveLength(0)
-    expect(body.created.every((c) => c.releasedAt === null)).toBe(true)
+    expect(body.created.every((c) => Predicate.isNullish(c.releasedAt))).toBe(true)
     const returnedPaths = body.created.map((c) => c.path)
     expect(returnedPaths).toContain('src/foo.ts')
     expect(returnedPaths).toContain('src/bar.ts')
@@ -194,8 +203,8 @@ describe('File Claims API', () => {
 
     // End the agent session — should auto-release claims
     const endRes = await fetchNativeApi(`http://localhost/api/agents/${agent.id}/end`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(endRes.status).toBe(200)
 
@@ -609,7 +618,7 @@ describe('File Claims API', () => {
      * same reclaim path as a claim whose agent session went stale.
      */
     describe('PROJ-928: agentless claim TTL', () => {
-      const backdateClaim = async function backdateClaim(path: string, secondsAgo: number) {
+      const backdateClaim = async function backdateClaim(path: string, secondsAgo: number): Promise<void> {
         const claimedAt = Math.floor(Date.now() / 1000) - secondsAgo
         await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
           .bind(claimedAt, path, workspaceId)
@@ -655,7 +664,7 @@ describe('File Claims API', () => {
    * still working.
    */
   describe('PROJ-928: issue close releases file claims', () => {
-    const patchStatus = async function patchStatus(id: string, status: string) {
+    const patchStatus = async function patchStatus(id: string, status: string): Promise<Response> {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
@@ -852,7 +861,7 @@ describe('PROJ-932: list_file_claims projectId + visibility for a non-admin memb
       .bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, Math.floor(Date.now() / 1000))
       .run()
 
-    const list = async function list(params: Record<string, string>) {
+    const list = async function list(params: Record<string, string>): Promise<Response> {
       const qs = new URLSearchParams(params).toString()
       return fetchNativeApi(`http://localhost/api/file-claims?${qs}`, {
         headers: authHeaders(token, slug),

@@ -128,7 +128,7 @@ test.each([
     } else {
       expect(screen.getByRole('combobox')).toHaveProperty('value', to)
       expect(screen.getByRole('combobox')).toHaveProperty('disabled', false)
-      expect(screen.getAllByText(label).length).toBe(2)
+      expect(screen.getAllByText(label)).toHaveLength(2)
     }
   },
 )
@@ -146,14 +146,14 @@ test.each([
     const first = attachment('first', 'fixing')
     const { rerender } = render(<ReviewTargetsSection {...props} attachments={[first]} />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'in_review' } })
-    const refresh = () =>
+    const refresh = (): void =>
       rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: canonicalStatus }]} />)
     if (refreshTiming === 'before') {
       refresh()
       expect(screen.getByRole('combobox')).toHaveProperty('value', canonicalStatus)
       expect(screen.getByRole('combobox')).toHaveProperty('disabled', true)
       fireEvent.change(screen.getByRole('combobox'), { target: { value: 'done' } })
-      expect(setAttachmentReviewStatus).toHaveBeenCalledTimes(1)
+      expect(setAttachmentReviewStatus).toHaveBeenCalledOnce()
     }
     await act(async () => pending.resolve(success))
     if (refreshTiming === 'after') {

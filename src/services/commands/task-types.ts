@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -14,10 +14,10 @@ import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
-const TASK_TYPES_CACHE_KEY = (workspaceId: string) => `ws-meta:${workspaceId}:task-types`
+const TASK_TYPES_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:task-types`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-const invalidateTaskTypesCache = async function invalidateTaskTypesCache(ctx: ServiceCtx) {
+const invalidateTaskTypesCache = async function invalidateTaskTypesCache(ctx: ServiceCtx): Promise<void> {
   const cacheKey = TASK_TYPES_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
@@ -27,7 +27,7 @@ const buildTaskTypeUpdateSet = function buildTaskTypeUpdateSet(
   data: z.infer<typeof UpdateTaskTypeSchema>,
 ): Record<string, unknown> {
   const setObj: Record<string, unknown> = {}
-  if (data.name !== undefined) {
+  if (Predicate.isNotNullish(data.name)) {
     setObj.name = data.name
   }
   if ('color' in data) {
@@ -36,10 +36,10 @@ const buildTaskTypeUpdateSet = function buildTaskTypeUpdateSet(
   if ('icon' in data) {
     setObj.icon = data.icon ?? null
   }
-  if (data.position !== undefined) {
+  if (Predicate.isNotNullish(data.position)) {
     setObj.position = data.position
   }
-  if (data.isDefault !== undefined) {
+  if (Predicate.isNotNullish(data.isDefault)) {
     setObj.isDefault = data.isDefault ? 1 : 0
   }
   return setObj
@@ -208,6 +208,6 @@ export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: stri
   )
 }
 
-export async function seedDefaultTaskTypes(db: D1Database, workspaceId: string) {
+export async function seedDefaultTaskTypes(db: D1Database, workspaceId: string): Promise<void> {
   await db.batch(buildDefaultTaskTypeStatements(db, workspaceId))
 }

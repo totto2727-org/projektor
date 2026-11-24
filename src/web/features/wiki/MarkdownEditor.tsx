@@ -398,22 +398,22 @@ function useMarkdownEditorView(
 }
 
 function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) {
-  function bold() {
+  function bold(): void {
     if (viewRef.current) {
       wrapSelection(viewRef.current, '**', '**')
     }
   }
-  function italic() {
+  function italic(): void {
     if (viewRef.current) {
       wrapSelection(viewRef.current, '_', '_')
     }
   }
-  function heading(n: 1 | 2 | 3) {
+  function heading(n: 1 | 2 | 3): void {
     if (viewRef.current) {
       prefixLines(viewRef.current, `${'#'.repeat(n)} `)
     }
   }
-  function link() {
+  function link(): void {
     const view = viewRef.current
     if (!view) {
       return
@@ -432,17 +432,17 @@ function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) 
       view.focus()
     }
   }
-  function codeBlock() {
+  function codeBlock(): void {
     if (viewRef.current) {
       wrapSelection(viewRef.current, '```\n', '\n```')
     }
   }
-  function bulletList() {
+  function bulletList(): void {
     if (viewRef.current) {
       prefixLines(viewRef.current, '- ')
     }
   }
-  function numberedList() {
+  function numberedList(): void {
     if (viewRef.current) {
       prefixLines(viewRef.current, '1. ')
     }

@@ -30,7 +30,7 @@ const fillEpicGoalDirective = function fillEpicGoalDirective(params: {
    * epic title or review model containing e.g. "$'" would silently corrupt the
    * directive.
    */
-  const fill = (template: string, placeholder: string, value: string) => template.split(placeholder).join(value)
+  const fill = (template: string, placeholder: string, value: string): string => template.split(placeholder).join(value)
 
   const epicLabel = `${params.epicRef} ("${params.epicTitle}")`
   const clauses = [

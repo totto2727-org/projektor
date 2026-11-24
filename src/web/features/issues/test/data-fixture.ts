@@ -46,7 +46,7 @@ export function issueDataFixture() {
     priority?: string
     completedAt?: number | null
     updatedAt?: number
-  }) {
+  }): void {
     const workspaceId = values.workspaceId ?? workspace.id
     const title = values.title ?? 'Original issue'
     const body = values.body ?? '**Original description**'

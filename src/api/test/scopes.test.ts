@@ -125,7 +125,7 @@ describe('PROJ-17: REST scope enforcement', () => {
       body: JSON.stringify({ projectId, title: 'should be blocked' }),
     })
     expect(postRes.status).toBe(403)
-    expect(await postRes.json()).toMatchObject({ error: expect.stringContaining('write') })
+    await expect(postRes.json()).resolves.toMatchObject({ error: expect.stringContaining('write') })
   })
 
   test('write token can POST', async () => {
@@ -154,8 +154,8 @@ describe('PROJ-17: REST scope enforcement', () => {
   test('read token is blocked from DELETE', async () => {
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
     const res = await fetchNativeApi(`http://localhost/api/issues/${crypto.randomUUID()}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -256,29 +256,29 @@ describe('PROJ-17: POST /auth/tokens', () => {
 
   test('a member can mint a token for their workspace', async () => {
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'mine', workspaceId, scopes: ['read'] }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     })
     expect(res.status).toBe(201)
-    expect(await res.json()).toMatchObject({ token: expect.any(String) })
+    await expect(res.json()).resolves.toMatchObject({ token: expect.any(String) })
   })
 
   test("minting a token for a workspace you don't belong to is forbidden", async () => {
     const other = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'sneaky', workspaceId: other.id, scopes: ['*'] }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
 
   test('rejects invalid scope values', async () => {
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'bad', workspaceId, scopes: ['admin'] }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })

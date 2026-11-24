@@ -1,4 +1,5 @@
 import type { OAuthProvider } from '@cloudflare/workers-oauth-provider'
+import { Predicate } from 'effect'
 
 export const OAUTH_PURGE_STATE_KEY = 'cron:oauth-purge:continuation:v1'
 const PAGE_SIZE = 200
@@ -21,7 +22,7 @@ const continuation = function continuation(value: unknown): Continuation {
   }
   const phase: unknown = Reflect.get(value, 'phase')
   const cursor: unknown = Reflect.get(value, 'cursor')
-  if ((phase !== 'grants' && phase !== 'tokens') || (cursor !== undefined && typeof cursor !== 'string')) {
+  if ((phase !== 'grants' && phase !== 'tokens') || (cursor !== undefined && !Predicate.isString(cursor))) {
     throw new Error('Invalid OAuth purge continuation')
   }
   return cursor ? { phase, cursor } : { phase }
@@ -36,7 +37,7 @@ export async function purgeOAuthPage(env: OAuthEnvironment & { KV: KVNamespace }
   const prefix = previous.phase === 'grants' ? 'grant:' : 'token:'
   let scanned: { complete: boolean; cursor?: string } | undefined
   let calls = 0
-  const spend = () => {
+  const spend = (): void => {
     if (++calls > KV_CALL_BUDGET) {
       throw new Error('OAuth purge KV call budget exhausted')
     }
@@ -66,7 +67,7 @@ export async function purgeOAuthPage(env: OAuthEnvironment & { KV: KVNamespace }
         return list
       }
       const value: unknown = Reflect.get(target, key, receiver)
-      if (typeof value !== 'function') {
+      if (!Predicate.isFunction(value)) {
         return value
       }
       return async (...args: unknown[]) => {

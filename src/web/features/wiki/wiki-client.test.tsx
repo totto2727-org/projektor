@@ -122,12 +122,12 @@ afterEach(() => {
   vi.mocked(discardWikiDraft).mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } })
 })
 describe('Wiki delayed draft lifecycle', () => {
-  async function debounce() {
+  async function debounce(): Promise<void> {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1100)
     })
   }
-  function timers() {
+  function timers(): void {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
   }
 
@@ -176,7 +176,7 @@ describe('Wiki delayed draft lifecycle', () => {
     await debounce()
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'C' } })
     await debounce()
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     await act(async () => {
       pending.resolve({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'A-revision' } })
     })
@@ -196,7 +196,7 @@ describe('Wiki delayed draft lifecycle', () => {
     await act(async () => {
       view.unmount()
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
       expect.objectContaining({ content: 'Keep A', expectedDraftRevision: null }),
     )
@@ -232,7 +232,7 @@ describe('Wiki delayed draft lifecycle', () => {
     expect(saveWikiPage).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'A', expectedDraftRevision: 'A-head' }),
     )
-    expect(saveWikiPage).toHaveBeenCalledTimes(1)
+    expect(saveWikiPage).toHaveBeenCalledOnce()
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Newer B' } })
     await act(async () => {
       publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
@@ -262,7 +262,7 @@ describe('Wiki delayed draft lifecycle', () => {
     await act(async () => {
       publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'Leaving B', expectedDraftRevision: 'published-head' }),
     )
@@ -488,7 +488,7 @@ describe('Wiki server prop adoption', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Paste inline image' }))
     })
-    expect(uploadInlineImage).toHaveBeenCalledTimes(1)
+    expect(uploadInlineImage).toHaveBeenCalledOnce()
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
     expect(saveWikiPage).not.toHaveBeenCalled()
   })
@@ -498,9 +498,9 @@ describe('Wiki server prop adoption', () => {
     fireEvent.change(screen.getByLabelText('Page title'), { target: { value: '' } })
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep my draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(
-      await screen.findByText('Use a title between 1 and 300 characters and content at most 500000 characters.'),
-    ).toBeTruthy()
+    await expect(
+      screen.findByText('Use a title between 1 and 300 characters and content at most 500000 characters.'),
+    ).resolves.toBeTruthy()
     expect(saveWikiPage).not.toHaveBeenCalled()
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
   })
@@ -512,7 +512,7 @@ describe('Wiki server prop adoption', () => {
       target: { value: 'My conflicted body' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByRole('button', { name: 'Overwrite with mine' })).toBeTruthy()
+    await expect(screen.findByRole('button', { name: 'Overwrite with mine' })).resolves.toBeTruthy()
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('My conflicted body')
   })
 
@@ -531,7 +531,7 @@ describe('Wiki server prop adoption', () => {
       destination: { url: new URL('/wiki/other', window.location.href).href },
     })
     navigation.dispatchEvent(leaving)
-    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(confirm).toHaveBeenCalledOnce()
     expect(leaving.defaultPrevented).toBe(true)
   })
 
@@ -564,7 +564,7 @@ describe('Wiki server prop adoption', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1100)
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenCalledWith({
       workspaceSlug: 'team',
       slug: 'guide',
@@ -577,7 +577,7 @@ describe('Wiki server prop adoption', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000)
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Unsaved body')
   })
 })

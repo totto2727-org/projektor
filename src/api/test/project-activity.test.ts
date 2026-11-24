@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -392,7 +393,7 @@ describe('list_project_activity MCP tool', () => {
 
     for (const event of events) {
       for (const val of Object.values(event)) {
-        expect(typeof val === 'object' && val !== null && !Array.isArray(val)).toBe(false)
+        expect(typeof val === 'object' && Predicate.isNotNullish(val) && !Array.isArray(val)).toBe(false)
       }
     }
   })

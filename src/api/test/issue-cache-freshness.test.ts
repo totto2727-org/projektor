@@ -26,7 +26,7 @@ type IssueBody = {
 let f: Awaited<ReturnType<typeof seedIssueFixture>>
 let otherId: string
 
-const call = (method: string, path: string, body?: unknown) =>
+const call = (method: string, path: string, body?: unknown): Promise<Response> =>
   fetchNativeApi(`http://localhost${path}`, {
     method,
     headers: authHeaders(f.token, f.slug),

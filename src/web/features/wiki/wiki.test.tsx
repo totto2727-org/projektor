@@ -119,7 +119,7 @@ describe('original Wiki React SSR', () => {
 
   test('preserves named heading entities and does not double-encode authored IDs', () => {
     const { html, toc } = decorateHeadings('<h2 id="custom&amp;id">Copyright &copy; &amp; notes</h2>')
-    expect(toc[0]).toMatchObject({ text: 'Copyright © & notes', id: 'custom&id' })
+    expect(toc[0]).toMatchObject({ id: 'custom&id', text: 'Copyright © & notes' })
     expect(html).toContain('id="custom&amp;id"')
     expect(html).not.toContain('amp;amp')
   })
@@ -128,8 +128,8 @@ describe('original Wiki React SSR', () => {
     const { html, toc } = decorateHeadings('<h2>Overview</h2><h2>Overview</h2><h2 id="overview-1">Custom</h2>')
     expect(new Set(toc.map((item) => item.id)).size).toBe(3)
     expect(html).toContain('id="overview-1"')
-    expect(await renderMdWithWikilinks('[[Guide]] [[Missing]]', [{ title: 'Guide', slug: 'guide' }])).toContain(
-      '/wiki/guide',
-    )
+    await expect(
+      renderMdWithWikilinks('[[Guide]] [[Missing]]', [{ title: 'Guide', slug: 'guide' }]),
+    ).resolves.toContain('/wiki/guide')
   })
 })

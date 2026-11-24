@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
@@ -34,8 +34,8 @@ import type { RequestScope } from './scope.ts'
 /** Keep application policy failures, and redact storage failures before reaching a client. */
 export function checked<A>(read: () => A) {
   return Effect.try({
-    try: read,
     catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
+    try: read,
   })
 }
 const BooleanQuery = Schema.Literals(['true', '1', 'false', '0', ''])
@@ -70,11 +70,11 @@ const IssueListQuerySchema = Schema.fromURLSearchParams(
   }).check(
     Schema.makeFilter(
       (query) =>
-        (query.completedAfter === undefined ||
-          query.completedBefore === undefined ||
+        (Predicate.isNullish(query.completedAfter) ||
+          Predicate.isNullish(query.completedBefore) ||
           query.completedAfter <= query.completedBefore) &&
-        (query.updatedAfter === undefined ||
-          query.updatedBefore === undefined ||
+        (Predicate.isNullish(query.updatedAfter) ||
+          Predicate.isNullish(query.updatedBefore) ||
           query.updatedAfter <= query.updatedBefore),
     ),
   ),
@@ -85,8 +85,8 @@ const listOptions = function listOptions(params: URLSearchParams, scope: Request
     Effect.map(
       ({ cursor, noParent, includeRollups, includeBody, needsAudit, assignee, cfKey, cfValue, cfOp, ...fields }) => {
         const [createdAt, id] = cursor?.split(':') ?? []
-        const boolean = (value: string | undefined) =>
-          value === undefined ? undefined : value === '1' || value === 'true'
+        const boolean = (value: string | undefined): undefined | boolean =>
+          Predicate.isNullish(value) ? undefined : value === '1' || value === 'true'
         return {
           options: {
             ...fields,

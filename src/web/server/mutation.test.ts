@@ -1,5 +1,6 @@
-import { Effect } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
+
+import { runTestEffect } from '#tests/run-effect.ts'
 
 import { assertSameOriginMutation, checkSameOriginMutation } from './mutation.ts'
 
@@ -12,7 +13,7 @@ describe('native browser mutation origin policy', () => {
       headers: { origin: 'https://front.example.test', 'sec-fetch-site': 'same-origin' },
     })
     expect(() => assertSameOriginMutation(request)).not.toThrow()
-    await expect(Effect.runPromise(checkSameOriginMutation(request))).resolves.toBeUndefined()
+    await expect(runTestEffect(checkSameOriginMutation(request))).resolves.toBeUndefined()
   })
 
   test.each([
@@ -28,7 +29,7 @@ describe('native browser mutation origin policy', () => {
   ] satisfies Readonly<Readonly<[string, string, HeadersInit]>[]>)('rejects %s', async (_label, method, headers) => {
     const request = new Request(url, { method, headers })
     expect(() => assertSameOriginMutation(request)).toThrow('A same-origin mutation request is required.')
-    await expect(Effect.runPromise(checkSameOriginMutation(request))).rejects.toMatchObject({
+    await expect(runTestEffect(checkSameOriginMutation(request))).rejects.toMatchObject({
       _tag: 'ApiError',
       kind: 'request',
       status: 403,

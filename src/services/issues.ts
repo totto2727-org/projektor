@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { drizzle, schema } from '#db'
@@ -193,7 +193,7 @@ const listConditions = function listConditions(
   if (options.category) {
     conditions.push(eq(schema.issues.statusCategory, options.category))
   }
-  if (options.needsAudit !== undefined) {
+  if (Predicate.isNotNullish(options.needsAudit)) {
     conditions.push(eq(schema.issues.needsAudit, options.needsAudit))
   }
   if (options.priority) {
@@ -300,7 +300,7 @@ export function listIssues(db: D1Database, workspaceId: string, options: IssueLi
         ? conditions
         : [
             ...conditions,
-            cursor.id === undefined
+            Predicate.isNullish(cursor.id)
               ? sql`${schema.issues.createdAt} < ${cursor.createdAt}`
               : sql`(${schema.issues.createdAt} < ${cursor.createdAt} OR (${schema.issues.createdAt} = ${cursor.createdAt} AND ${schema.issues.id} < ${cursor.id}))`,
           ]

@@ -8,7 +8,7 @@ const URL_CODE =
   'flex-1 font-mono text-[0.8rem] px-2 py-[0.375rem] bg-bg border border-border rounded text-text-base break-all'
 export function ConnectAgentGuide({ workspaceSlug, mcpUrl }: { workspaceSlug: string; mcpUrl: string | null }) {
   const [message, setMessage] = useState<string | null>(null)
-  async function copy() {
+  async function copy(): Promise<void> {
     if (!mcpUrl) {
       return
     }

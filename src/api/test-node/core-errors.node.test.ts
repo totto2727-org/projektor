@@ -21,7 +21,9 @@ describe('Core failures at public protocol boundaries', () => {
     )
     const response = await app.request('/')
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: { formErrors: [], fieldErrors: { title: ['Required'] } } })
+    await expect(response.json()).resolves.toStrictEqual({
+      error: { fieldErrors: { title: ['Required'] }, formErrors: [] },
+    })
   })
 
   test('preserves REST conflict metadata and retry guidance', async () => {
@@ -39,10 +41,10 @@ describe('Core failures at public protocol boundaries', () => {
     const response = await app.request('/')
     expect(response.status).toBe(409)
     expect(response.headers.get('Retry-After')).toBe('3')
-    expect(await response.json()).toEqual({
-      error: 'Page changed',
+    await expect(response.json()).resolves.toStrictEqual({
       currentRevisionId: 'revision-2',
       diff: '-old\n+new',
+      error: 'Page changed',
     })
   })
 

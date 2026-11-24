@@ -18,7 +18,7 @@ const splitStatements = function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0)
 }
 
-const runMigration0028 = async function runMigration0028() {
+const runMigration0028 = async function runMigration0028(): Promise<void> {
   for (const stmt of splitStatements(m0028)) {
     await env.DB.prepare(stmt).run()
   }
@@ -81,13 +81,13 @@ describe('0028 viewer-preserving migration', () => {
   })
 
   test('moves the viewer out of the member group into the read-only group', async () => {
-    expect(await memberCount(ctx.viewersGroupId, ctx.viewer.id)).toBe(1)
-    expect(await memberCount(ctx.memberGroupId, ctx.viewer.id)).toBe(0)
+    await expect(memberCount(ctx.viewersGroupId, ctx.viewer.id)).resolves.toBe(1)
+    await expect(memberCount(ctx.memberGroupId, ctx.viewer.id)).resolves.toBe(0)
   })
 
   test('leaves the member untouched (member group, member grant)', async () => {
-    expect(await memberCount(ctx.memberGroupId, ctx.member.id)).toBe(1)
-    expect(await memberCount(ctx.viewersGroupId, ctx.member.id)).toBe(0)
+    await expect(memberCount(ctx.memberGroupId, ctx.member.id)).resolves.toBe(1)
+    await expect(memberCount(ctx.viewersGroupId, ctx.member.id)).resolves.toBe(0)
     const memberGrants = await env.DB.prepare('SELECT DISTINCT role FROM group_project_grants WHERE group_id = ?')
       .bind(ctx.memberGroupId)
       .all<{ role: string }>()
@@ -96,8 +96,8 @@ describe('0028 viewer-preserving migration', () => {
 
   test('is idempotent — re-running changes nothing', async () => {
     await runMigration0028()
-    expect(await memberCount(ctx.viewersGroupId, ctx.viewer.id)).toBe(1)
-    expect(await memberCount(ctx.memberGroupId, ctx.viewer.id)).toBe(0)
+    await expect(memberCount(ctx.viewersGroupId, ctx.viewer.id)).resolves.toBe(1)
+    await expect(memberCount(ctx.memberGroupId, ctx.viewer.id)).resolves.toBe(0)
     const grants = await env.DB.prepare('SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?')
       .bind(ctx.viewersGroupId)
       .first<{ n: number }>()

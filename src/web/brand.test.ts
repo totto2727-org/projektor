@@ -1,5 +1,6 @@
-import { Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
+
+import { runTestEffect } from '#tests/run-effect.ts'
 
 import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand.ts'
 import type { RequestScope } from './server/server-context.ts'
@@ -50,57 +51,57 @@ describe('server-rendered native brand', () => {
         BRAND_ON_ACCENT: ' ',
         BRAND_LOGO_URL: ' /logo.svg ',
       }),
-    ).toEqual({ name: '🐳 Team', mark: '🐳', accent: '#123456', onAccent: null, logoUrl: '/logo.svg' })
+    ).toEqual({ accent: '#123456', logoUrl: '/logo.svg', mark: '🐳', name: '🐳 Team', onAccent: null })
     expect(deploymentBrand({ BRAND_NAME: 'Deploy', BRAND_MARK: '  xyz ' }).mark).toBe('x')
   })
 
   test('layers only the explicitly resolved workspace over deployment bindings', async () => {
     const { env } = fixture()
-    const brand = await Effect.runPromise(loadBrand(env, scope, request))
+    const brand = await runTestEffect(loadBrand(env, scope, request))
     expect(brand).toEqual({
-      name: 'Beta',
-      mark: 'B',
       accent: '#123456',
-      onAccent: '#ffffff',
       logoUrl: '/api/workspaces/beta/brand/logo',
+      mark: 'B',
+      name: 'Beta',
+      onAccent: '#ffffff',
     })
     expect(brandStyles(brand)).toEqual({
-      '--light-accent': '#123456',
       '--dark-accent': '#123456',
-      '--light-on-accent': '#ffffff',
       '--dark-on-accent': '#ffffff',
+      '--light-accent': '#123456',
+      '--light-on-accent': '#ffffff',
     })
   })
 
   test('does not look up a tenant on global or public pages', async () => {
     const { env, database } = fixture()
     database.sqlite.exec('DROP TABLE workspaces')
-    expect(await Effect.runPromise(loadBrand(env, null))).toEqual(deploymentBrand(env))
-    expect(await Effect.runPromise(loadBrand(env, { ...scope, selection: { kind: 'global' } }))).toEqual(
+    await expect(runTestEffect(loadBrand(env, null))).resolves.toEqual(deploymentBrand(env))
+    await expect(runTestEffect(loadBrand(env, { ...scope, selection: { kind: 'global' } }))).resolves.toEqual(
       deploymentBrand(env),
     )
   })
 
   test('does not apply branding from unverified membership or mismatched workspace slug', async () => {
     const { env } = fixture()
-    expect(await Effect.runPromise(loadBrand(env, { ...scope, workspaces: [] }))).toEqual(deploymentBrand(env))
-    expect(
-      await Effect.runPromise(loadBrand(env, { ...scope, workspaces: [{ ...workspace, slug: 'other' }] })),
-    ).toEqual(deploymentBrand(env))
+    await expect(runTestEffect(loadBrand(env, { ...scope, workspaces: [] }))).resolves.toEqual(deploymentBrand(env))
+    await expect(
+      runTestEffect(loadBrand(env, { ...scope, workspaces: [{ ...workspace, slug: 'other' }] })),
+    ).resolves.toEqual(deploymentBrand(env))
   })
 
   test('keeps cosmetic database failures optional', async () => {
     const { env, database } = fixture()
     database.sqlite.exec('DROP TABLE workspaces')
-    expect(await Effect.runPromise(loadBrand(env, scope, request))).toEqual(deploymentBrand(env))
+    await expect(runTestEffect(loadBrand(env, scope, request))).resolves.toEqual(deploymentBrand(env))
   })
 
   test('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
     const { env, database } = fixture()
-    expect((await Effect.runPromise(loadBrand(env, scope, request))).name).toBe('Beta')
+    expect((await runTestEffect(loadBrand(env, scope, request))).name).toBe('Beta')
     database.sqlite
       .prepare('UPDATE workspaces SET brand = ? WHERE id = ?')
       .run(JSON.stringify({ displayName: 'Changed' }), 'w')
-    expect((await Effect.runPromise(loadBrand(env, scope, request))).name).toBe('Changed')
+    expect((await runTestEffect(loadBrand(env, scope, request))).name).toBe('Changed')
   })
 })

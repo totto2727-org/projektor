@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { env } from './fixture-api.ts'
 
 export type JsonRpcResult<T = unknown> = { jsonrpc: '2.0'; id: unknown; result: T }
@@ -32,7 +34,7 @@ export async function seedUser(email = 'user@example.com') {
   return { id, email }
 }
 
-export async function seedMember(workspaceId: string, userId: string, role = 'member') {
+export async function seedMember(workspaceId: string, userId: string, role = 'member'): Promise<void> {
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare('INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)')
     .bind(workspaceId, userId, role, now)
@@ -286,7 +288,7 @@ export async function seedCustomFieldDef(
   return { id, key: opts.key }
 }
 
-export async function seedCustomFieldValue(issueId: string, fieldId: string, value: string) {
+export async function seedCustomFieldValue(issueId: string, fieldId: string, value: string): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)
      ON CONFLICT(issue_id, field_id) DO UPDATE SET value = excluded.value`,
@@ -431,7 +433,7 @@ export function toolError(response: unknown): ToolErrorBody | undefined {
     return undefined
   }
   const text = result.content?.[0]?.text
-  if (typeof text !== 'string') {
+  if (!Predicate.isString(text)) {
     return undefined
   }
   return (JSON.parse(text) as { error: ToolErrorBody }).error

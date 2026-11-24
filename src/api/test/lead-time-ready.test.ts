@@ -31,7 +31,7 @@ describe('PROJ-921: ready_at and lead time', () => {
     return ((await res.json()) as { id: string }).id
   }
 
-  const patch = async function patch(id: string, status: string) {
+  const patch = async function patch(id: string, status: string): Promise<void> {
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),

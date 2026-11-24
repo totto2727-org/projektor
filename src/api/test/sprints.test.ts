@@ -29,7 +29,7 @@ describe('Sprints API', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
   })
 
-  const createSprint = async function createSprint(body: Record<string, unknown>) {
+  const createSprint = async function createSprint(body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -119,8 +119,8 @@ describe('Sprints API', () => {
     })
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(completeRes.status).toBe(200)
 
@@ -136,8 +136,8 @@ describe('Sprints API', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(completeRes.status).toBe(400)
   })
@@ -147,8 +147,8 @@ describe('Sprints API', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
 
@@ -198,8 +198,8 @@ describe('Sprints API', () => {
     })
 
     await fetchNativeApi(`http://localhost/api/sprints/${sprintId}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
 
     // Issue should still exist but sprint_id should be null
@@ -286,7 +286,7 @@ describe('Sprints API', () => {
       })
       expect(warmRes.status).toBe(200)
       expect(((await warmRes.json()) as { sprint_id: string | null }).sprint_id).toBeNull()
-      expect(await env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).not.toBeNull()
+      await expect(env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).resolves.not.toBeNull()
 
       let kvDeletes = 0
       const origDelete = env.KV.delete.bind(env.KV)
@@ -312,7 +312,7 @@ describe('Sprints API', () => {
        * The cache entry is still there (nothing invalidated it), yet the GET shows the
        * new sprint.
        */
-      expect(await env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).not.toBeNull()
+      await expect(env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).resolves.not.toBeNull()
       const getRes = await fetchNativeApi(`http://localhost/api/issues/${issueIds[0]}`, {
         headers: authHeaders(token, slug),
       })
@@ -401,8 +401,8 @@ describe('Sprints role guards', () => {
     const { roles, id } = await seedMemberSprintWithViewer('Member Sprint')
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(403)
   })
@@ -416,8 +416,8 @@ describe('Sprints role guards', () => {
     })
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
-      method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
+      method: 'POST',
     })
     expect(completeRes.status).toBe(403)
   })

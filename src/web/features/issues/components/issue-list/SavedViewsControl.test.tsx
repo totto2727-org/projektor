@@ -25,7 +25,7 @@ const EMPTY_FILTERS: SavedViewFilters = {
   dateTo: '',
 }
 
-function seedViews(names: string[]) {
+function seedViews(names: string[]): void {
   sessionStorage.setItem(
     'issue-views-user-a:workspace:PROJ',
     JSON.stringify(names.map((name) => ({ name, filters: EMPTY_FILTERS }))),

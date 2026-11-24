@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam } from './common.ts'
@@ -29,7 +30,7 @@ export const CreatePageSchema = z
      */
     templateSlug: z.string().min(1).max(200).optional(),
   })
-  .refine((d) => d.content === undefined || d.templateSlug === undefined, {
+  .refine((d) => Predicate.isNullish(d.content) || Predicate.isNullish(d.templateSlug), {
     message: 'content and templateSlug cannot both be provided',
     path: ['templateSlug'],
   })
@@ -57,9 +58,16 @@ export const UpdatePageSchema = z
      */
     summary: z.string().max(2000).optional(),
   })
-  .refine((d) => d.title !== undefined || d.content !== undefined || d.parentId !== undefined || d.slug !== undefined, {
-    message: 'At least one of title, content, parentId, or slug must be provided',
-  })
+  .refine(
+    (d) =>
+      Predicate.isNotNullish(d.title) ||
+      Predicate.isNotNullish(d.content) ||
+      d.parentId !== undefined ||
+      Predicate.isNotNullish(d.slug),
+    {
+      message: 'At least one of title, content, parentId, or slug must be provided',
+    },
+  )
 
 /*
  * PROJ-488 (R6): the optional YAML frontmatter block parsed out of a page's `content`
@@ -110,7 +118,7 @@ export type WikiFrontmatterInput = z.infer<typeof WikiFrontmatterSchema>
  * when called via MCP (JSON body) — both normalize to the same string[].
  */
 const TagsFilterSchema = z.preprocess((v) => {
-  if (typeof v === 'string') {
+  if (Predicate.isString(v)) {
     return v
       .split(',')
       .map((t) => t.trim())
@@ -305,7 +313,7 @@ export const MarkWikiNotificationsReadInputSchema = z
     ids: z.array(z.string()).max(200).optional(),
     all: z.boolean().optional().default(false),
   })
-  .refine((d) => d.all || (d.ids !== undefined && d.ids.length > 0), {
+  .refine((d) => d.all || (Predicate.isNotNullish(d.ids) && d.ids.length > 0), {
     message: 'Either `all: true` or a non-empty `ids` array must be provided',
   })
 

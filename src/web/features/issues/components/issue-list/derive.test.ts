@@ -80,8 +80,8 @@ describe('deriveStatusOptions', () => {
       }),
     ]
     expect(deriveStatusOptions(issues, [])).toEqual([
-      { id: 's1', key: 'todo', name: 'To Do', category: 'todo', color: null },
-      { id: 's2', key: 'done', name: 'Done', category: 'done', color: null },
+      { category: 'todo', color: null, id: 's1', key: 'todo', name: 'To Do' },
+      { category: 'done', color: null, id: 's2', key: 'done', name: 'Done' },
     ])
   })
 

@@ -96,7 +96,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(
       finishWikiDraftPublish({ ...ctx, role: 'member' }, 'page', publication.revision),
     ).rejects.toBeInstanceOf(NotFoundError)
-    expect(await state()).toMatchObject({ revision: publication.revision, draft: { content: 'A' } })
+    await expect(state()).resolves.toMatchObject({ revision: publication.revision, draft: { content: 'A' } })
   })
 
   test.each(['page', 'project', 'workspace'] as const)(
@@ -136,9 +136,9 @@ describe('durable Wiki draft lifecycle preconditions', () => {
       "INSERT INTO wiki_drafts(id,workspace_id,user_id,page_id,title,content,updated_at) VALUES ('legacy','w','u','page','Legacy','Recover me',1)",
     )
     sqlite.exec(readFileSync(new URL('../../../migrations/0068_wiki_draft_heads.sql', import.meta.url), 'utf8'))
-    expect(await state()).toMatchObject({ revision: null, draft: { content: 'Recover me' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'Recover me' }, revision: null })
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('New', null))
-    expect(await state()).toMatchObject({ revision: saved.revision, draft: { content: 'New' } })
+    await expect(state()).resolves.toMatchObject({ revision: saved.revision, draft: { content: 'New' } })
   })
 
   test('rejects late A after B and rejects stale deletes without changing B', async () => {
@@ -149,7 +149,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(discardWikiDraft(ctx, 'guide', { expectedDraftRevision: a.revision })).rejects.toBeInstanceOf(
       ConflictError,
     )
-    expect(await state()).toMatchObject({ revision: b.revision, draft: { content: 'B' } })
+    await expect(state()).resolves.toMatchObject({ revision: b.revision, draft: { content: 'B' } })
   })
 
   test('retains a tombstone after discard so old requests cannot resurrect the draft', async () => {
@@ -162,9 +162,9 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Old initial request', null))).rejects.toBeInstanceOf(
       ConflictError,
     )
-    expect(await state()).toEqual({ revision: discarded.revision, draft: null })
+    await expect(state()).resolves.toEqual({ revision: discarded.revision, draft: null })
     await saveWikiDraft(ctx, 'guide', snapshot('New intentional edit', discarded.revision))
-    expect(await state()).toMatchObject({ draft: { content: 'New intentional edit' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'New intentional edit' } })
   })
 
   test('invalidates old writers before publication and keeps scratch if publishing fails', async () => {
@@ -174,7 +174,10 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Late autosave', saved.revision))).rejects.toBeInstanceOf(
       ConflictError,
     )
-    expect(await state()).toMatchObject({ revision: publication.revision, draft: { content: 'Recoverable A' } })
+    await expect(state()).resolves.toMatchObject({
+      revision: publication.revision,
+      draft: { content: 'Recoverable A' },
+    })
   })
 
   test('cleans only the reserved publication generation and preserves newer accepted B', async () => {
@@ -182,8 +185,11 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('A', null))
     const publication = await beginWikiDraftPublish(ctx, 'guide', snapshot('A', saved.revision))
     const b = await saveWikiDraft(ctx, 'guide', snapshot('B', publication.revision))
-    expect(await finishWikiDraftPublish(ctx, 'page', publication.revision)).toEqual({ ok: true, draftRevision: null })
-    expect(await state()).toMatchObject({ revision: b.revision, draft: { content: 'B' } })
+    await expect(finishWikiDraftPublish(ctx, 'page', publication.revision)).resolves.toEqual({
+      draftRevision: null,
+      ok: true,
+    })
+    await expect(state()).resolves.toMatchObject({ revision: b.revision, draft: { content: 'B' } })
   })
 
   test('retains a new head after successful publish cleanup and rejects pre-publication requests', async () => {
@@ -192,7 +198,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     const publication = await beginWikiDraftPublish(ctx, 'guide', snapshot('A', saved.revision))
     const completed = await finishWikiDraftPublish(ctx, 'page', publication.revision)
     expect(completed.draftRevision).toEqual(expect.any(String))
-    expect(await state()).toEqual({ revision: completed.draftRevision, draft: null })
+    await expect(state()).resolves.toEqual({ revision: completed.draftRevision, draft: null })
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Late A', saved.revision))).rejects.toBeInstanceOf(ConflictError)
     expect((await state()).draft).toBeNull()
   })
@@ -204,18 +210,18 @@ describe('durable Wiki draft lifecycle preconditions', () => {
       "CREATE TRIGGER reject_draft_update BEFORE UPDATE ON wiki_drafts BEGIN SELECT RAISE(ABORT, 'storage failed'); END",
     )
     await expect(saveWikiDraft(ctx, 'guide', snapshot('B', saved.revision))).rejects.toThrow('storage failed')
-    expect(await state()).toMatchObject({ revision: saved.revision, draft: { content: 'A' } })
+    await expect(state()).resolves.toMatchObject({ revision: saved.revision, draft: { content: 'A' } })
   })
 
   test('advances heads for legacy writes while keeping user scopes independent', async () => {
     const { ctx, state } = fixture()
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('A', null))
     await saveWikiDraft({ ...ctx, userId: 'other' }, 'guide', snapshot('Other user', null))
-    expect(await state()).toMatchObject({ revision: saved.revision, draft: { content: 'A' } })
+    await expect(state()).resolves.toMatchObject({ revision: saved.revision, draft: { content: 'A' } })
     await saveWikiDraft(ctx, 'guide', { title: 'Legacy client', content: 'New legacy snapshot' })
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Stale browser', saved.revision))).rejects.toBeInstanceOf(
       ConflictError,
     )
-    expect(await state()).toMatchObject({ draft: { content: 'New legacy snapshot' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'New legacy snapshot' } })
   })
 })

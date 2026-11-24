@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
@@ -54,7 +55,7 @@ export const UpdateIssueSchema = z
 export const IssueListCursorSchema = z
   .union([z.number().int().nonnegative(), z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/)])
   .transform((v) => {
-    if (typeof v === 'number') {
+    if (Predicate.isNumber(v)) {
       return { createdAt: v } as { createdAt: number; id?: string }
     }
     const [createdAt, id] = v.split(':')

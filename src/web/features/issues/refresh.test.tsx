@@ -160,7 +160,7 @@ describe('canonical issues SSR refresh', () => {
       target: { value: 'Created epic' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create Epic' }))
-    await waitFor(() => expect(createIssue).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(createIssue).toHaveBeenCalledOnce())
     view.rerender(
       <EpicsPage
         scope={{ ...scope, selection: { kind: 'project', workspace, project } }}
@@ -255,7 +255,7 @@ describe('canonical issues SSR refresh', () => {
     })
     expect(hook.result.current.savedViews).toHaveLength(1)
     expect(onApply).not.toHaveBeenCalled()
-    expect(localStorage.length).toBe(0)
+    expect(localStorage).toHaveLength(0)
     expect(sessionStorage.key(0)).toContain('user-a:workspace:')
     act(() => hook.result.current.applyView(hook.result.current.savedViews[0]))
     expect(onApply).toHaveBeenCalledWith(filters)
@@ -299,7 +299,7 @@ describe('canonical issues SSR refresh', () => {
     const option = await screen.findByRole('option', { name: 'Done' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() => expect(updateIssue).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledOnce())
     expect(readIssuePage).not.toHaveBeenCalled()
     expect(updateIssue).toHaveBeenCalledWith(
       expect.objectContaining({

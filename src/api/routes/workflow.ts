@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { Hono } from 'hono'
 import { makeCoreClient } from 'projektor/core-client'
 
@@ -15,8 +16,11 @@ router.get('/', async (httpContext) => {
      * same as MCP's `ifVersion` failing to type-check as a string.
      */
     const ifVersionValues = httpContext.req.queries('ifVersion')
-    const ifVersion =
-      ifVersionValues === undefined ? undefined : ifVersionValues.length === 1 ? ifVersionValues[0] : ifVersionValues
+    const ifVersion = Predicate.isNullish(ifVersionValues)
+      ? undefined
+      : ifVersionValues.length === 1
+        ? ifVersionValues[0]
+        : ifVersionValues
     return httpContext.json(
       await getWorkflow(
         { core: makeCoreClient(httpContext.env.CORE), actor: httpContext.get('coreActor') },

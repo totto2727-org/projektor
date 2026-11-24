@@ -68,39 +68,37 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
       project_id: scope.projectId,
     })
     expect(test.transport).not.toHaveBeenCalled()
-    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.invalidated).toHaveBeenCalledOnce()
   })
 
   test('edits the actual sprint and clears optional dates and goal', async () => {
     const test = fixture()
-    expect(
-      await test.invoke(
-        actions.editSprint,
-        null,
-        formData({ ...draft, sprintId: planningIds.source, goal: '', start: '' }),
-      ),
-    ).toEqual({ ok: true, value: { ok: true } })
+    await expect(
+      test.invoke(actions.editSprint, null, formData({ ...draft, sprintId: planningIds.source, goal: '', start: '' })),
+    ).resolves.toEqual({ ok: true, value: { ok: true } })
     expect(
       test.sqlite.prepare('SELECT name,goal,start_date,end_date FROM sprints WHERE id=?').get(planningIds.source),
-    ).toMatchObject({ name: 'Sprint', goal: null, start_date: null, end_date: null })
+    ).toMatchObject({ end_date: null, goal: null, name: 'Sprint', start_date: null })
     expect(test.transport).not.toHaveBeenCalled()
   })
 
   test.each(['planned', 'active', 'completed'] as const)('changes status to %s after scoped lookup', async (status) => {
     const test = fixture()
-    expect(await test.invoke(actions.setSprintStatus, { ...scope, sprintId: planningIds.source, status })).toEqual({
+    await expect(
+      test.invoke(actions.setSprintStatus, { ...scope, sprintId: planningIds.source, status }),
+    ).resolves.toEqual({
       ok: true,
       value: { ok: true },
     })
     expect(test.sqlite.prepare('SELECT status FROM sprints WHERE id=?').get(planningIds.source)?.status).toBe(status)
     expect(test.transport).not.toHaveBeenCalled()
-    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.invalidated).toHaveBeenCalledOnce()
   })
 
   test('deletes the matching scoped sprint and unassigns its issues', async () => {
     const test = fixture()
     const [id] = seedIssues(test, 1)
-    expect(await test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).toEqual({
+    await expect(test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).resolves.toEqual({
       ok: true,
       value: { ok: true },
     })
@@ -111,32 +109,38 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
 
   test('rejects foreign selectors, workspace rows, project rows, missing rows and cross-origin callers without mutation', async () => {
     const selector = fixture()
-    expect(
-      await selector.invoke(actions.createSprint, null, formData({ ...draft, workspaceSlug: 'beta' })),
-    ).toMatchObject({ ok: false, status: 403 })
+    await expect(
+      selector.invoke(actions.createSprint, null, formData({ ...draft, workspaceSlug: 'beta' })),
+    ).resolves.toMatchObject({ ok: false, status: 403 })
     for (const sprintId of ['foreign-sprint', 'missing', 's1']) {
       const test = fixture()
-      expect(await test.invoke(actions.archiveSprint, { ...scope, sprintId })).toMatchObject({ ok: false, status: 404 })
+      await expect(test.invoke(actions.archiveSprint, { ...scope, sprintId })).resolves.toMatchObject({
+        ok: false,
+        status: 404,
+      })
       expect(test.sqlite.prepare('SELECT id FROM sprints WHERE id=?').get(planningIds.source)).toBeDefined()
       expect(test.transport).not.toHaveBeenCalled()
     }
     const origin = fixture('https://foreign.example')
-    expect(await origin.invoke(actions.createSprint, null, formData(draft))).toMatchObject({ ok: false, status: 403 })
-    expect(origin.invalidated).toHaveBeenCalledTimes(1)
+    await expect(origin.invoke(actions.createSprint, null, formData(draft))).resolves.toMatchObject({
+      ok: false,
+      status: 403,
+    })
+    expect(origin.invalidated).toHaveBeenCalledOnce()
     expect(origin.transport).not.toHaveBeenCalled()
   })
 
   test('checks source, target and issue rows before moving deduplicated issues', async () => {
     const test = fixture()
     const issueIds = seedIssues(test, 8)
-    expect(
-      await test.invoke(actions.moveSprintIssues, {
+    await expect(
+      test.invoke(actions.moveSprintIssues, {
         ...scope,
         sprintId: planningIds.source,
         targetId: planningIds.target,
         issueIds: [...issueIds, issueIds[0]],
       }),
-    ).toEqual({ ok: true, value: { ok: true, count: 8 } })
+    ).resolves.toEqual({ ok: true, value: { count: 8, ok: true } })
     expect(
       test.sqlite.prepare('SELECT count(*) AS count FROM issues WHERE sprint_id=?').get(planningIds.target)?.count,
     ).toBe(8)
@@ -159,14 +163,14 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
       if (scenario === 'completed-target') {
         test.sqlite.prepare("UPDATE sprints SET status='completed' WHERE id=?").run(planningIds.target)
       }
-      expect(
-        await test.invoke(actions.moveSprintIssues, {
+      await expect(
+        test.invoke(actions.moveSprintIssues, {
           ...scope,
           sprintId: planningIds.source,
           targetId: planningIds.target,
           issueIds,
         }),
-      ).toMatchObject({ ok: false, status: 404 })
+      ).resolves.toMatchObject({ ok: false, status: 404 })
       if (scenario !== 'missing') {
         expect(test.sqlite.prepare('SELECT sprint_id FROM issues WHERE id=?').get(issueIds[0])?.sprint_id).toBe(
           scenario === 'stale' ? planningIds.target : planningIds.source,
@@ -179,13 +183,15 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
   test('maps database read failure safely and still invalidates', async () => {
     const test = fixture()
     test.sqlite.exec('DROP TABLE sprints')
-    expect(await test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).toMatchObject({
-      ok: false,
-      status: 500,
-      message: 'An unexpected error occurred.',
-    })
+    await expect(test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).resolves.toMatchObject(
+      {
+        message: 'An unexpected error occurred.',
+        ok: false,
+        status: 500,
+      },
+    )
     expect(test.transport).not.toHaveBeenCalled()
-    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.invalidated).toHaveBeenCalledOnce()
   })
 
   test('enforces real command write authorization for a granted viewer', async () => {
@@ -193,10 +199,12 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
     test.sqlite.exec(
       `UPDATE workspace_members SET role='member' WHERE user_id='u1'; INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Team',1); INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1); INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','${planningIds.project}','viewer');`,
     )
-    expect(await test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).toMatchObject({
-      ok: false,
-      status: 403,
-    })
+    await expect(test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).resolves.toMatchObject(
+      {
+        ok: false,
+        status: 403,
+      },
+    )
     expect(test.sqlite.prepare('SELECT id FROM sprints WHERE id=?').get(planningIds.source)).toBeDefined()
     expect(test.transport).not.toHaveBeenCalled()
   })

@@ -43,7 +43,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     return seeded
   }
 
-  const patch = function patch(id: string, body: Record<string, unknown>) {
+  const patch = function patch(id: string, body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -114,7 +114,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const res = await patch(issue.id, { status: 'in_review', completionReport: report })
     expect(res.status).toBe(200)
-    expect(await completionReportAtOf(issue.id)).toEqual(expect.any(Number))
+    await expect(completionReportAtOf(issue.id)).resolves.toEqual(expect.any(Number))
     expect((await commentBodies(issue.id)).some((b) => b.includes('Did the thing'))).toBe(true)
   })
 
@@ -174,7 +174,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 
     await patch(issue.id, { status: 'done', agentSessionId, completionReport: report })
-    expect(await needsAuditOf(issue.id)).toBe(true)
+    await expect(needsAuditOf(issue.id)).resolves.toBe(true)
   })
 
   test('does not flag an agent-initiated done closure with an externally-checkable link', async () => {
@@ -189,7 +189,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
         verification: 'https://github.com/TAJD/projektor/pull/93 — CI green',
       },
     })
-    expect(await needsAuditOf(issue.id)).toBe(false)
+    await expect(needsAuditOf(issue.id)).resolves.toBe(false)
   })
 
   test('does not flag a human-initiated done closure (no agentSessionId) even with freeform evidence', async () => {
@@ -197,7 +197,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     await seedAgentLease(workspaceId, issue.id, { live: false })
 
     await patch(issue.id, { status: 'done', completionReport: report })
-    expect(await needsAuditOf(issue.id)).toBe(false)
+    await expect(needsAuditOf(issue.id)).resolves.toBe(false)
   })
 
   test('does not flag when the agentSessionId given is not a live session (accepted limitation)', async () => {
@@ -209,7 +209,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
       agentSessionId: crypto.randomUUID(), // never existed — can't resolve to a live session
       completionReport: report,
     })
-    expect(await needsAuditOf(issue.id)).toBe(false)
+    await expect(needsAuditOf(issue.id)).resolves.toBe(false)
   })
 
   test("flags needsAudit even once the agent's lease has been released before closing", async () => {
@@ -226,7 +226,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const res = await patch(issue.id, { status: 'done', agentSessionId, completionReport: report })
     expect(res.status).toBe(200)
-    expect(await needsAuditOf(issue.id)).toBe(true)
+    await expect(needsAuditOf(issue.id)).resolves.toBe(true)
   })
 
   // --- Human path scoped to agent-worked issues (PROJ-289) ---
@@ -284,7 +284,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     const body = (await res.json()) as { result?: unknown; error?: unknown }
     expect(body.error).toBeUndefined()
     expect(body.result).toBeDefined()
-    expect(await needsAuditOf(issue.id)).toBe(true)
+    await expect(needsAuditOf(issue.id)).resolves.toBe(true)
   })
 
   // --- Audit query filter (PROJ-375) ---
@@ -324,7 +324,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const res = await patch(issue.id, { title: 'Renamed', completionReport: report })
     expect(res.status).toBe(200)
-    expect(await completionReportAtOf(issue.id)).toBeNull()
+    await expect(completionReportAtOf(issue.id)).resolves.toBeNull()
     expect((await commentBodies(issue.id)).some((b) => b.includes('Did the thing'))).toBe(false)
   })
 
@@ -345,7 +345,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const res = await patch(issue.id, { title: 'Renamed by agent', agentSessionId: live })
     expect(res.status).toBe(200)
-    expect(await heartbeatOf(live)).toBeGreaterThan(backdated)
+    await expect(heartbeatOf(live)).resolves.toBeGreaterThan(backdated)
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Heartbeat dead' })
     const { agentSessionId: dead } = await seedAgentLease(workspaceId, issue2.id, { live: false })
@@ -353,6 +353,6 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const res2 = await patch(issue2.id, { title: 'Renamed anyway', agentSessionId: dead })
     expect(res2.status).toBe(200)
-    expect(await heartbeatOf(dead)).toBe(deadBefore)
+    await expect(heartbeatOf(dead)).resolves.toBe(deadBefore)
   })
 })

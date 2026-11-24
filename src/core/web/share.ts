@@ -12,7 +12,7 @@ export const makeShareHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, n
       coreReply(
         'webSharedIssue',
         SharedIssue,
-        Effect.tryPromise({ try: () => getSharedIssue(env.DB, token), catch: publicDomainFailure }),
+        Effect.tryPromise({ catch: publicDomainFailure, try: () => getSharedIssue(env.DB, token) }),
       ),
     ),
 })

@@ -14,6 +14,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { FK_CLEANUP_ALLOWLIST } from './fk-cleanup-allowlist.ts'
@@ -96,10 +97,11 @@ describe('PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {
       const child = key.split(' -> ')[0]
       const sources = entry.cleanedBy.map((ref) => ({ ref, src: declarationSource(ref) }))
       for (const { ref, src } of sources) {
-        if (src === null) problems.push(`${key}: ${ref} not found`)
+        if (Predicate.isNullish(src)) problems.push(`${key}: ${ref} not found`)
       }
       const mentions = sources.every(
-        ({ src }) => src !== null && (src.includes(child) || new RegExp(`\\b${camel(child)}\\b`).test(src)),
+        ({ src }) =>
+          Predicate.isNotNullish(src) && (src.includes(child) || new RegExp(`\\b${camel(child)}\\b`).test(src)),
       )
       if (!mentions) {
         problems.push(`${key}: not every one of ${entry.cleanedBy.join(', ')} mentions ${child}`)

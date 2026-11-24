@@ -1,4 +1,5 @@
 'use client'
+import { Predicate } from 'effect'
 
 import type { SourceSummary } from './FeedbackSourceGrid.tsx'
 import type { FeedbackVersionSummary } from './FeedbackSourceSettings.tsx'
@@ -12,10 +13,10 @@ interface Props {
 
 function versionMetric(v: FeedbackVersionSummary): string {
   const parts: string[] = []
-  if (v.thumbsUpPct !== null) {
+  if (Predicate.isNotNullish(v.thumbsUpPct)) {
     parts.push(`👍 ${v.thumbsUpPct}%`)
   }
-  if (v.avgFiveStar !== null) {
+  if (Predicate.isNotNullish(v.avgFiveStar)) {
     parts.push(`${v.avgFiveStar.toFixed(1)}★ avg`)
   }
   if (parts.length === 0) {

@@ -142,7 +142,7 @@ describe('Groups REST', () => {
 
     const rm = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/groups/${gid}/members/${roles.member.user.id}`,
-      { method: 'DELETE', headers: ownerHeaders },
+      { headers: ownerHeaders, method: 'DELETE' },
     )
     expect(rm.status).toBe(200)
   })
@@ -173,8 +173,8 @@ describe('Groups REST', () => {
     expect(detail.grants[0].role).toBe('admin')
 
     const rm = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants/${project.id}`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(rm.status).toBe(200)
   })
@@ -236,8 +236,8 @@ describe('Groups REST', () => {
       body: JSON.stringify({ projectId: project.id, role: 'member' }),
     })
     const del = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(del.status).toBe(200)
     const gone = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {

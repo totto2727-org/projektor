@@ -10,6 +10,8 @@ import * as HttpClient from 'effect/http/HttpClient'
 import * as HttpClientResponse from 'effect/http/HttpClientResponse'
 import { expect, test } from 'vite-plus/test'
 
+import { runTestEffect } from '#tests/run-effect.ts'
+
 import { deployment } from './worker-graph.ts'
 
 const { accountId, storage } = deployment
@@ -36,7 +38,7 @@ const fakeCloudflare = function fakeCloudflare(responses: Readonly<Record<string
       CloudflareEnvironment | Credentials | HttpClient.HttpClient | FileSystem.FileSystem | Path.Path | Stack | Stage
     >,
   ) =>
-    Effect.runPromise(
+    runTestEffect(
       effect.pipe(
         Effect.provide(NodeServices.layer),
         Effect.provideService(Stage, 'production'),

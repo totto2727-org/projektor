@@ -21,7 +21,7 @@ const Workspaces = Schema.Array(Workspace)
 export function makeApiIdentityHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
   const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
     return Effect.flatMap(envSource, (env) =>
-      Effect.tryPromise({ try: () => operation(env), catch: publicDomainFailure }),
+      Effect.tryPromise({ catch: publicDomainFailure, try: () => operation(env) }),
     )
   }
   return {
@@ -140,7 +140,7 @@ async function resolveUser(actor: CoreActor, env: CoreEnvironment, capability: '
   return principal
 }
 
-function requireInteractive(auth: { method: string; kind: string }) {
+function requireInteractive(auth: { method: string; kind: string }): void {
   if (auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
     throw coreFailure(403, 'Personal credentials require a signed-in browser session')
   }

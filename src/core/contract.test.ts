@@ -2,6 +2,8 @@ import { makeRpcStub, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
 import { Cause, Effect, Exit, Schema } from 'effect'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { runTestEffect } from '#tests/run-effect.ts'
+
 import { decodeCoreReply } from './client.ts'
 import { coreFailure, coreReply } from './contract.ts'
 
@@ -10,15 +12,15 @@ const Success = Schema.Struct({ id: Schema.String })
 describe('Core native RPC public boundary', () => {
   test('round trips a validated success through the SDK native envelope', async () => {
     const binding = {
-      load: async () => Effect.runPromise(coreReply('load', Success, Effect.succeed({ id: 'project' }))),
+      load: async () => runTestEffect(coreReply('load', Success, Effect.succeed({ id: 'project' }))),
     }
     const client = makeRpcStub<{ load(): Effect.Effect<string> }>(binding)
-    await expect(Effect.runPromise(decodeCoreReply(Success, client.load()))).resolves.toEqual({ id: 'project' })
+    await expect(runTestEffect(decodeCoreReply(Success, client.load()))).resolves.toEqual({ id: 'project' })
   })
 
   test('returns only explicitly selected public failure fields', async () => {
     const publicError = coreFailure(403, 'Forbidden')
-    const wire = await Effect.runPromise(coreReply('load', Success, Effect.fail(publicError)))
+    const wire = await runTestEffect(coreReply('load', Success, Effect.fail(publicError)))
     expect(JSON.parse(wire)).toEqual({
       _tag: 'Failure',
       failure: {
@@ -27,7 +29,7 @@ describe('Core native RPC public boundary', () => {
         occurrenceId: publicError.occurrenceId,
       },
     })
-    const result = await Effect.runPromise(Effect.flip(decodeCoreReply(Success, Effect.succeed(wire))))
+    const result = await runTestEffect(Effect.flip(decodeCoreReply(Success, Effect.succeed(wire))))
     expect(result.status).toBe(403)
     expect(result.message).toBe('Forbidden')
   })
@@ -44,13 +46,13 @@ describe('Core native RPC public boundary', () => {
             : kind === 'defect'
               ? Effect.die(new Error(secret))
               : Effect.succeed({ id: 42 } as unknown as { id: string })
-        const wire = await Effect.runPromise(coreReply('load', Success, effect))
+        const wire = await runTestEffect(coreReply('load', Success, effect))
         expect(wire).not.toContain(secret)
         const problem = JSON.parse(wire).failure
         expect(problem.status).toBe(500)
         expect(problem.message).toBe('An unexpected error occurred.')
         expect(problem.occurrenceId).toMatch(/^urn:uuid:/)
-        expect(log).toHaveBeenCalledTimes(1)
+        expect(log).toHaveBeenCalledOnce()
       } finally {
         log.mockRestore()
       }
@@ -59,7 +61,7 @@ describe('Core native RPC public boundary', () => {
 
   test('discards secret-bearing malformed peer responses', async () => {
     const secret = 'private-malformed-wire'
-    const result = await Effect.runPromise(Effect.flip(decodeCoreReply(Success, Effect.succeed(secret))))
+    const result = await runTestEffect(Effect.flip(decodeCoreReply(Success, Effect.succeed(secret))))
     expect(result.status).toBe(502)
     expect(JSON.stringify(result)).not.toContain(secret)
   })
@@ -70,19 +72,19 @@ describe('Core native RPC public boundary', () => {
       details: { currentRevisionId: 'revision', diff: 'public diff' },
       retryAfter: 5,
     })
-    const wire = await Effect.runPromise(coreReply('update', Success, Effect.fail(error)))
-    const result = await Effect.runPromise(Effect.flip(decodeCoreReply(Success, Effect.succeed(wire))))
+    const wire = await runTestEffect(coreReply('update', Success, Effect.fail(error)))
+    const result = await runTestEffect(Effect.flip(decodeCoreReply(Success, Effect.succeed(wire))))
     expect(result).toMatchObject({
-      status: 409,
-      kind: 'conflict',
       details: { currentRevisionId: 'revision', diff: 'public diff' },
+      kind: 'conflict',
       retryAfter: 5,
+      status: 409,
     })
   })
 
   test('rejects malformed success payloads without including them in the local failure', async () => {
     const wire = JSON.stringify({ _tag: 'Success', success: { id: { private: 'secret' } } })
-    const result = await Effect.runPromise(Effect.flip(decodeCoreReply(Success, Effect.succeed(wire))))
+    const result = await runTestEffect(Effect.flip(decodeCoreReply(Success, Effect.succeed(wire))))
     expect(result.status).toBe(502)
     expect(JSON.stringify(result)).not.toContain('secret')
   })
@@ -91,10 +93,10 @@ describe('Core native RPC public boundary', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
       const cause = Cause.combine(Cause.fail(coreFailure(403, 'Forbidden')), Cause.die(new Error('private defect')))
-      const wire = await Effect.runPromise(coreReply('load', Success, Effect.failCause(cause)))
+      const wire = await runTestEffect(coreReply('load', Success, Effect.failCause(cause)))
       expect(JSON.parse(wire).failure.status).toBe(500)
       expect(wire).not.toContain('private defect')
-      expect(log).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledOnce()
     } finally {
       log.mockRestore()
     }
@@ -103,12 +105,10 @@ describe('Core native RPC public boundary', () => {
   test('sanitizes a malformed application error instead of leaking an encoder defect', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
-      const wire = await Effect.runPromise(
-        coreReply('load', Success, Effect.fail(coreFailure(999, 'private bad status'))),
-      )
+      const wire = await runTestEffect(coreReply('load', Success, Effect.fail(coreFailure(999, 'private bad status'))))
       expect(JSON.parse(wire).failure.status).toBe(500)
       expect(wire).not.toContain('private bad status')
-      expect(log).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledOnce()
     } finally {
       log.mockRestore()
     }
@@ -122,7 +122,7 @@ describe('Core native RPC public boundary', () => {
       },
     }
     const client = makeRpcStub<{ load(): Effect.Effect<string> }>(binding)
-    const result = await Effect.runPromise(Effect.flip(decodeCoreReply(Success, client.load())))
+    const result = await runTestEffect(Effect.flip(decodeCoreReply(Success, client.load())))
     expect(result.status).toBe(502)
     expect(JSON.stringify(result)).not.toContain(secret)
     expect(result.message).toBe('The Core service is temporarily unavailable.')
@@ -135,7 +135,7 @@ describe('Core native RPC public boundary', () => {
       try {
         const invocation =
           stage === 'transport' ? Effect.fail(new Error('private detail')) : Effect.succeed('invalid wire')
-        const problem = await Effect.runPromise(Effect.flip(decodeCoreReply(Success, invocation)))
+        const problem = await runTestEffect(Effect.flip(decodeCoreReply(Success, invocation)))
         expect(problem).toMatchObject({ status: 502 })
         expect(JSON.stringify(problem)).not.toContain('private detail')
         expect(JSON.stringify(problem)).not.toContain('invalid wire')
@@ -162,10 +162,10 @@ describe('Core native RPC public boundary', () => {
     const invocation = (id: string) =>
       decodeCoreReply(Success, client.load()).pipe(
         Effect.provideService(WorkerEnvironment, {
-          CORE: { load: async () => Effect.runPromise(coreReply('load', Success, Effect.succeed({ id }))) },
+          CORE: { load: async () => runTestEffect(coreReply('load', Success, Effect.succeed({ id }))) },
         }),
       )
-    await expect(Promise.all(['first', 'second'].map((id) => Effect.runPromise(invocation(id))))).resolves.toEqual([
+    await expect(Promise.all(['first', 'second'].map((id) => runTestEffect(invocation(id))))).resolves.toEqual([
       { id: 'first' },
       { id: 'second' },
     ])

@@ -73,7 +73,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
       body: JSON.stringify({ feedbackIds: [id1, id2] }),
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ updated: 2 })
+    await expect(res.json()).resolves.toStrictEqual({ updated: 2 })
 
     const rows = await env.DB.prepare('SELECT status FROM feedback WHERE id IN (?, ?)')
       .bind(id1, id2)
@@ -94,7 +94,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
       body: JSON.stringify({ feedbackIds: [foreignId] }),
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ updated: 0 })
+    await expect(res.json()).resolves.toStrictEqual({ updated: 0 })
 
     const row = await env.DB.prepare('SELECT status FROM feedback WHERE id = ?')
       .bind(foreignId)

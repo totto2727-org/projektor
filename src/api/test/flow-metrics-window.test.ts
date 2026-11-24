@@ -29,7 +29,7 @@ describe('PROJ-866: flow-metrics window validation', () => {
     ;({ token, slug, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  const getFlowMetrics = async function getFlowMetrics(qs: string) {
+  const getFlowMetrics = async function getFlowMetrics(qs: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
       headers: authHeaders(token, slug),
     })
@@ -323,7 +323,7 @@ describe('PROJ-866 review: window defaults and aging WIP', () => {
     ;({ token, slug, workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  const fetchMetrics = async function fetchMetrics(qs: string) {
+  const fetchMetrics = async function fetchMetrics(qs: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
       headers: authHeaders(token, slug),
     })

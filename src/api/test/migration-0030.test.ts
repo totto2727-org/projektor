@@ -19,7 +19,7 @@ const splitStatements = function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0)
 }
 
-const runMigration0030 = async function runMigration0030() {
+const runMigration0030 = async function runMigration0030(): Promise<void> {
   for (const stmt of splitStatements(m0030)) {
     await env.DB.prepare(stmt).run()
   }

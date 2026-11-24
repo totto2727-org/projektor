@@ -28,7 +28,7 @@ const humanHeaders = function humanHeaders(slug: string) {
   return { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' }
 }
 
-const mintAsHuman = function mintAsHuman(email: string, slug: string, body: string) {
+const mintAsHuman = function mintAsHuman(email: string, slug: string, body: string): Promise<Response> {
   return asHuman(email, () =>
     fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       method: 'POST',
@@ -54,7 +54,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     })
     expect(res.status).toBe(403)
     expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/)
-    expect(await tokenRow('sibling')).toBeNull()
+    await expect(tokenRow('sibling')).resolves.toBeNull()
   })
 
   test('a user-scoped PAT cannot mint a workspace token either', async () => {
@@ -66,7 +66,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
       body: JSON.stringify({ name: 'via-pat', scopes: ['read'] }),
     })
     expect(res.status).toBe(403)
-    expect(await tokenRow('via-pat')).toBeNull()
+    await expect(tokenRow('via-pat')).resolves.toBeNull()
   })
 
   test('a human session mints; a pk_ token cannot revoke; the human can', async () => {
@@ -78,20 +78,20 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     expect(token).toMatch(/^pk_/)
 
     const byToken = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(f.token, slug),
+      method: 'DELETE',
     })
     expect(byToken.status).toBe(403)
-    expect(await tokenRow('human-minted')).not.toBeNull()
+    await expect(tokenRow('human-minted')).resolves.not.toBeNull()
 
     const byHuman = await asHuman(f.user.email, () =>
       fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
-        method: 'DELETE',
         headers: humanHeaders(slug),
+        method: 'DELETE',
       }),
     )
     expect(byHuman.status).toBe(200)
-    expect(await tokenRow('human-minted')).toBeNull()
+    await expect(tokenRow('human-minted')).resolves.toBeNull()
   })
 
   test('a human session still gets role checks: a member is refused', async () => {
@@ -102,7 +102,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
       JSON.stringify({ name: 'member-minted', scopes: ['read'] }),
     )
     expect(res.status).toBe(403)
-    expect(await tokenRow('member-minted')).toBeNull()
+    await expect(tokenRow('member-minted')).resolves.toBeNull()
   })
 
   test('malformed JSON from a human session is a 400, not a 500', async () => {

@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { featureDatabase } from '@/features/planning/action-test-fixture.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import type { ApiError, ScopeError } from '@/server/errors.ts'
@@ -29,7 +30,7 @@ const runWithDatabase = function runWithDatabase<T>(
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
   const transport = vi.spyOn(globalThis, 'fetch')
-  const result = Effect.runPromise(
+  const result = runTestEffect(
     Effect.gen(function* () {
       const services = yield* makeRequestServices(new Request(url), testEnvironment(database.db))
       const scope = yield* services.scope()
@@ -89,15 +90,15 @@ describe('project pages read named shared queries against migrated D1', () => {
       throw new Error('Expected project landing')
     }
     expect(node.props.initialProject).toEqual({
-      id: 'p1',
-      workspaceId: 'w1',
-      name: 'Project',
-      key: 'PROJ',
-      slug: 'project',
-      description: 'From actual D1',
       archivedAt: null,
       createdAt: 1,
+      description: 'From actual D1',
+      id: 'p1',
+      key: 'PROJ',
+      name: 'Project',
+      slug: 'project',
       updatedAt: 1,
+      workspaceId: 'w1',
     })
     expect(node.props.initialIssues.map((issue) => issue.id)).toEqual(['i2', 'i1'])
     expect(node.props.initialWiki.map((page) => page.id)).toEqual(['page2', 'page1'])

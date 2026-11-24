@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
 
 const RatingScaleEnum = z.enum(['thumbs', 'five_star'])
@@ -12,15 +13,15 @@ export const SubmitFeedbackSchema = z
     sourceUrl: z.string().max(2000).optional(),
     appVersion: z.string().max(100).optional(),
   })
-  .refine((d) => d.rating !== undefined || d.body !== undefined, {
+  .refine((d) => Predicate.isNotNullish(d.rating) || Predicate.isNotNullish(d.body), {
     message: 'At least one of rating or body must be provided',
   })
-  .refine((d) => (d.rating === undefined) === (d.ratingScale === undefined), {
+  .refine((d) => Predicate.isNullish(d.rating) === Predicate.isNullish(d.ratingScale), {
     message: 'ratingScale is required when rating is present, and forbidden otherwise',
   })
   .refine(
     (d) => {
-      if (d.rating === undefined || d.ratingScale === undefined) {
+      if (Predicate.isNullish(d.rating) || Predicate.isNullish(d.ratingScale)) {
         return true
       }
       if (d.ratingScale === 'thumbs') {
@@ -58,7 +59,7 @@ export const UpdateFeedbackSourceSchema = z
     description: z.string().max(500).nullable().optional(),
     isActive: z.boolean().optional(),
   })
-  .refine((d) => d.name !== undefined || d.description !== undefined || d.isActive !== undefined, {
+  .refine((d) => Predicate.isNotNullish(d.name) || d.description !== undefined || Predicate.isNotNullish(d.isActive), {
     message: 'At least one of name, description, or isActive must be provided',
   })
 

@@ -151,70 +151,80 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(attachmentId).first<{ r2_key: string }>()
     )?.r2_key
     expect(r2Key).toBeTruthy()
-    expect(await env.R2.get(r2Key!)).not.toBeNull()
+    await expect(env.R2.get(r2Key!)).resolves.not.toBeNull()
 
     // Sanity: every dependent row exists before delete.
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issueId)).toBe(1)
-    expect(
-      await tableCount(
+    await expect(tableCount('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issueId)).resolves.toBe(1)
+    await expect(
+      tableCount(
         'SELECT COUNT(*) AS n FROM issue_links WHERE source_issue_id = ? OR target_issue_id = ?',
         issueId,
         issueId,
       ),
-    ).toBe(2)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issueId)).toBe(1)
-    expect(
-      await tableCount(
+    ).resolves.toBe(2)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issueId)).resolves.toBe(
+      1,
+    )
+    await expect(tableCount('SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', issueId)).resolves.toBe(1)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issueId)).resolves.toBe(1)
+    await expect(
+      tableCount(
         'SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? OR holding_issue_id = ?',
         issueId,
         issueId,
       ),
-    ).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM agent_sessions WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id = ?', issueId)).toBe(1)
-    expect(
-      await tableCount("SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", issueId),
-    ).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issues WHERE parent_id = ?', issueId)).toBe(1)
+    ).resolves.toBe(1)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', issueId)).resolves.toBe(1)
+    await expect(
+      tableCount('SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', issueId),
+    ).resolves.toBe(1)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM agent_sessions WHERE issue_id = ?', issueId)).resolves.toBe(1)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id = ?', issueId)).resolves.toBe(1)
+    await expect(
+      tableCount("SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", issueId),
+    ).resolves.toBe(1)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM issues WHERE parent_id = ?', issueId)).resolves.toBe(1)
 
     // --- act ---
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
 
     // --- assert: nothing references the deleted issue any more ---
-    expect(await env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(issueId).first()).toBeNull()
-    expect(await env.DB.prepare('SELECT issue_id FROM issues_fts WHERE issue_id = ?').bind(issueId).first()).toBeNull()
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?', issueId)).toBe(0)
-    expect(
-      await tableCount(
+    await expect(env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(issueId).first()).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT issue_id FROM issues_fts WHERE issue_id = ?').bind(issueId).first(),
+    ).resolves.toBeNull()
+    await expect(tableCount('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issueId)).resolves.toBe(0)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?', issueId)).resolves.toBe(0)
+    await expect(
+      tableCount(
         'SELECT COUNT(*) AS n FROM issue_links WHERE source_issue_id = ? OR target_issue_id = ?',
         issueId,
         issueId,
       ),
-    ).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issueId)).toBe(0)
-    expect(
-      await tableCount(
+    ).resolves.toBe(0)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issueId)).resolves.toBe(
+      0,
+    )
+    await expect(tableCount('SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', issueId)).resolves.toBe(0)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issueId)).resolves.toBe(0)
+    await expect(
+      tableCount(
         'SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? OR holding_issue_id = ?',
         issueId,
         issueId,
       ),
-    ).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', issueId)).toBe(0)
-    expect(
-      await tableCount("SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", issueId),
-    ).toBe(0)
+    ).resolves.toBe(0)
+    await expect(tableCount('SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', issueId)).resolves.toBe(0)
+    await expect(
+      tableCount('SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', issueId),
+    ).resolves.toBe(0)
+    await expect(
+      tableCount("SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", issueId),
+    ).resolves.toBe(0)
 
     // SET NULL rows: the row survives, the reference is cleared.
     const session = await env.DB.prepare('SELECT issue_id FROM agent_sessions WHERE id = ?')
@@ -236,10 +246,12 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
     expect(child?.parent_id).toBeNull()
 
     // R2 object for the attachment is gone too.
-    expect(await env.R2.get(r2Key!)).toBeNull()
+    await expect(env.R2.get(r2Key!)).resolves.toBeNull()
 
     // The unrelated issue and its own row are untouched.
-    expect(await env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(otherIssueId).first()).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(otherIssueId).first(),
+    ).resolves.not.toBeNull()
   })
 })
 
@@ -257,8 +269,8 @@ describe("PROJ-922: deleteIssue refuses another workspace's issue", () => {
     await seedComment(bIssue.id, b.userId, 'keep me')
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${bIssue.id}`, {
-      method: 'DELETE',
       headers: authHeaders(a.token, a.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(404)
     const kept = await env.DB.prepare('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?')

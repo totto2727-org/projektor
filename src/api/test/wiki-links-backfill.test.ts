@@ -19,7 +19,7 @@ const insertPage = async function insertPage(
     updatedAt?: number
     deletedAt?: number | null
   }>,
-) {
+): Promise<string> {
   const id = fields.id ?? crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare(

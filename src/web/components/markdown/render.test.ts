@@ -1,5 +1,6 @@
-import { Effect } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
+
+import { runTestEffect } from '#tests/run-effect.ts'
 
 import { renderMarkdownEffect } from './effect.ts'
 import { renderMarkdownDocument, sanitizeMarkdownHtml } from './render.ts'
@@ -63,7 +64,7 @@ describe('untrusted runtime Comark', () => {
   })
 
   test('provides a lazy domain Effect adapter', async () => {
-    const rendered = await Effect.runPromise(renderMarkdownEffect('**Effect**'))
+    const rendered = await runTestEffect(renderMarkdownEffect('**Effect**'))
     expect(rendered.html).toContain('<strong>Effect</strong>')
   })
 })

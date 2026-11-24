@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 
@@ -44,6 +45,7 @@ import type { HonoEnv } from '#types'
  * skips build-release.sh, so dogfood intentionally reports "dev" here - only versioned
  * release tarballs carry a real version string.
  */
+// oxlint-disable-next-line rules/force-predicate -- Release builds inject this identifier. The development runtime can leave it undeclared.
 const SERVER_VERSION = typeof __PROJEKTOR_VERSION__ === 'string' ? __PROJEKTOR_VERSION__ : 'dev'
 
 /*
@@ -93,7 +95,7 @@ const buildServerInstructions = function buildServerInstructions(workflowVersion
 const router = new Hono<HonoEnv>()
 
 const isPlainObject = function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
+  return typeof v === 'object' && Predicate.isNotNullish(v) && !Array.isArray(v)
 }
 
 /*
@@ -123,7 +125,7 @@ router.post('/:workspaceId', async (httpContext) => {
   } catch {
     return httpContext.json(jsonRpcError(null, -32_700, 'Parse error'), 400)
   }
-  if (!isPlainObject(raw) || typeof raw.method !== 'string') {
+  if (!isPlainObject(raw) || !Predicate.isString(raw.method)) {
     const id = isPlainObject(raw) ? (raw.id ?? null) : null
     return httpContext.json(jsonRpcError(id, -32_600, 'Invalid Request'), 400)
   }
@@ -164,7 +166,7 @@ router.post('/:workspaceId', async (httpContext) => {
     case 'tools/list': {
       const domainsParam = httpContext.req.query('domains')
       let tools = getAllTools(workspace.id)
-      if (domainsParam !== undefined) {
+      if (Predicate.isNotNullish(domainsParam)) {
         const requested = dedupe(
           domainsParam
             .split(',')
@@ -212,7 +214,7 @@ router.post('/:workspaceId', async (httpContext) => {
        * checked against the tool's declared required fields, so a handler never
        * destructures undefined into a 500.
        */
-      if (!isPlainObject(body.params) || typeof body.params.name !== 'string') {
+      if (!isPlainObject(body.params) || !Predicate.isString(body.params.name)) {
         return httpContext.json(jsonRpcError(body.id, -32_602, 'Invalid params: `name` is required'))
       }
       const name = body.params.name

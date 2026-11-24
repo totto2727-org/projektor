@@ -18,6 +18,7 @@
  * doesn't match the declared type is rejected.
  */
 
+import { Predicate } from 'effect'
 type Schema = Record<string, unknown>
 
 export interface ArgIssue {
@@ -39,21 +40,21 @@ const typeOf = function typeOf(v: unknown): string {
 const BOOLEAN_STRINGS = new Set(['true', '1', 'false', '0', ''])
 
 const isNumericString = function isNumericString(v: unknown): boolean {
-  return typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())
+  return Predicate.isString(v) && /^-?\d+(\.\d+)?$/.test(v.trim())
 }
 
 const matchesType = function matchesType(v: unknown, t: string): boolean {
   switch (t) {
     case 'boolean':
-      return typeof v === 'boolean' || BOOLEAN_STRINGS.has(v as string)
+      return Predicate.isBoolean(v) || BOOLEAN_STRINGS.has(v as string)
     case 'string':
     case 'object':
     case 'array':
       return typeOf(v) === t
     case 'number':
-      return (typeof v === 'number' && Number.isFinite(v)) || isNumericString(v)
+      return (Predicate.isNumber(v) && Number.isFinite(v)) || isNumericString(v)
     case 'integer':
-      return (typeof v === 'number' && Number.isInteger(v)) || (isNumericString(v) && Number.isInteger(Number(v)))
+      return (Predicate.isNumber(v) && Number.isInteger(v)) || (isNumericString(v) && Number.isInteger(Number(v)))
     case 'null':
       return v === null
     default:
@@ -68,8 +69,8 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
 
   const declared = schema.type
   const types = Array.isArray(declared)
-    ? declared.filter((t): t is string => typeof t === 'string')
-    : typeof declared === 'string'
+    ? declared.filter((t): t is string => Predicate.isString(t))
+    : Predicate.isString(declared)
       ? [declared]
       : []
   if (types.length > 0 && !types.some((t) => matchesType(value, t))) {
@@ -85,30 +86,30 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     return
   }
 
-  if (typeof value === 'string') {
-    if (typeof schema.minLength === 'number' && value.length < schema.minLength) {
+  if (Predicate.isString(value)) {
+    if (Predicate.isNumber(schema.minLength) && value.length < schema.minLength) {
       issues.push({ path, message: `must be at least ${schema.minLength} characters` })
     }
-    if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) {
+    if (Predicate.isNumber(schema.maxLength) && value.length > schema.maxLength) {
       issues.push({ path, message: `must be at most ${schema.maxLength} characters` })
     }
   }
 
-  if (typeof value === 'number' || isNumericString(value)) {
+  if (Predicate.isNumber(value) || isNumericString(value)) {
     const n = Number(value)
-    if (typeof schema.minimum === 'number' && n < schema.minimum) {
+    if (Predicate.isNumber(schema.minimum) && n < schema.minimum) {
       issues.push({ path, message: `must be >= ${schema.minimum}` })
     }
-    if (typeof schema.maximum === 'number' && n > schema.maximum) {
+    if (Predicate.isNumber(schema.maximum) && n > schema.maximum) {
       issues.push({ path, message: `must be <= ${schema.maximum}` })
     }
   }
 
   if (Array.isArray(value)) {
-    if (typeof schema.minItems === 'number' && value.length < schema.minItems) {
+    if (Predicate.isNumber(schema.minItems) && value.length < schema.minItems) {
       issues.push({ path, message: `must have at least ${schema.minItems} items` })
     }
-    if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) {
+    if (Predicate.isNumber(schema.maxItems) && value.length > schema.maxItems) {
       issues.push({ path, message: `must have at most ${schema.maxItems} items` })
     }
     const items = schema.items
@@ -130,7 +131,7 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   const prefix = path ? `${path}.` : ''
   if (Array.isArray(schema.required)) {
     for (const key of schema.required) {
-      if (typeof key === 'string' && obj[key] === undefined) {
+      if (Predicate.isString(key) && obj[key] === undefined) {
         issues.push({ path: `${prefix}${key}`, message: 'is required' })
       }
     }
@@ -141,7 +142,7 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
     if (v === undefined || !sub || typeof sub !== 'object') {
       continue
     }
-    if (v === null && !required.has(key)) {
+    if (Predicate.isNullish(v) && !required.has(key)) {
       continue
     } // optional field cleared
     validate(v, sub, `${prefix}${key}`, issues)

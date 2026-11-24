@@ -3,6 +3,7 @@ import { HttpRouter, HttpServerResponse } from 'effect/http'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 import { getRouteParams, isWebEnvironment, makeRequestServices, RequestServices } from './request.ts'
 import type { PreparedView } from './request.ts'
@@ -44,7 +45,7 @@ describe('request-scoped native services', () => {
 
   test('reads matched framework parameters without another URL parser', async () => {
     const params = { projectSlug: 'already%decoded', issueNumber: '12' }
-    const result = await Effect.runPromise(
+    const result = await runTestEffect(
       getRouteParams.pipe(
         Effect.provideService(HttpRouter.RouteContext, {
           params,
@@ -57,7 +58,7 @@ describe('request-scoped native services', () => {
       ),
     )
     expect(result).toBe(params)
-    expect(await Effect.runPromise(getRouteParams)).toEqual({})
+    await expect(runTestEffect(getRouteParams)).resolves.toEqual({})
   })
 
   test('keeps request-local cache key classes out of native browserScope arguments', async () => {
@@ -76,16 +77,16 @@ describe('request-scoped native services', () => {
       checked = true
       return original(request, options)
     }
-    const services = await Effect.runPromise(makeRequestServices(incoming(), env))
+    const services = await runTestEffect(makeRequestServices(incoming(), env))
     await expect(
-      Effect.runPromise(services.scope({ workspaceHint: 'alpha', requireWorkspace: true })),
+      runTestEffect(services.scope({ workspaceHint: 'alpha', requireWorkspace: true })),
     ).resolves.toMatchObject({ selection: { kind: 'workspace' } })
     expect(checked).toBe(true)
   })
 
   test('shares concurrent work only inside one verified identity request', async () => {
     const database = fixture()
-    const result = await Effect.runPromise(
+    const result = await runTestEffect(
       Effect.gen(function* () {
         const first = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'first@example.test'))
         const second = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'second@example.test'))
@@ -105,7 +106,7 @@ describe('request-scoped native services', () => {
 
   test('invalidates only request-owned scope state and reloads authoritative database memberships', async () => {
     const database = fixture()
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const env = testEnvironment(database.db, 'first@example.test')
         const services = yield* makeRequestServices(incoming(), env)
@@ -130,7 +131,7 @@ describe('request-scoped native services', () => {
   test('retries failed authentication instead of caching failure permanently', async () => {
     const database = fixture()
     const env = testEnvironment(database.db, 'first@example.test', { ENVIRONMENT: 'production' })
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(incoming(), env)
         const first = yield* services.scope().pipe(Effect.result)
@@ -146,7 +147,7 @@ describe('request-scoped native services', () => {
   test('invalidates prepared views explicitly, including concurrent work', async () => {
     const database = fixture()
     let renders = 0
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(incoming(), testEnvironment(database.db))
         const view: PreparedView = Effect.gen(function* () {
@@ -168,7 +169,7 @@ describe('request-scoped native services', () => {
   test('does not permanently cache a failed pre-stream render', async () => {
     const database = fixture()
     let attempts = 0
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(incoming(), testEnvironment(database.db))
         const view: PreparedView = Effect.suspend(() =>

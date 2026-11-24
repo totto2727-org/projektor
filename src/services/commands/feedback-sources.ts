@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -67,7 +67,7 @@ const requireSource = async function requireSource(
 ): Promise<SourceRow> {
   const clauses = ['id = ?', 'workspace_id = ?']
   const binds: unknown[] = [sourceId, ctx.workspaceId]
-  if (projectId !== undefined) {
+  if (Predicate.isNotNullish(projectId)) {
     clauses.push('project_id = ?')
     binds.push(projectId)
   }
@@ -193,13 +193,13 @@ export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
   if (!isWorkspaceAdmin(ctx.role)) {
     throw new ForbiddenError('Insufficient permissions')
   }
-  if (source.revoked_at !== null) {
+  if (Predicate.isNotNullish(source.revoked_at)) {
     throw new ConflictError('Feedback source is revoked')
   }
 
   const sets: string[] = []
   const binds: unknown[] = []
-  if (name !== undefined) {
+  if (Predicate.isNotNullish(name)) {
     sets.push('name = ?')
     binds.push(name)
   }
@@ -207,7 +207,7 @@ export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
     sets.push('description = ?')
     binds.push(description)
   }
-  if (isActive !== undefined) {
+  if (Predicate.isNotNullish(isActive)) {
     sets.push('is_active = ?')
     binds.push(isActive ? 1 : 0)
   }
@@ -232,7 +232,7 @@ export async function rotateFeedbackSourceToken(ctx: ServiceCtx, input: unknown)
   if (!isWorkspaceAdmin(ctx.role)) {
     throw new ForbiddenError('Insufficient permissions')
   }
-  if (source.revoked_at !== null) {
+  if (Predicate.isNotNullish(source.revoked_at)) {
     throw new ConflictError('Feedback source is revoked')
   }
 

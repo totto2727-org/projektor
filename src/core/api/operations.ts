@@ -23,11 +23,11 @@ export function makeApiCoreHandlers<R>(envSource: Effect.Effect<CoreEnvironment,
         Schema.Null,
         Effect.flatMap(envSource, (env) =>
           Effect.tryPromise({
+            catch: publicDomainFailure,
             try: async () => {
               await runMaintenance(env)
               return null
             },
-            catch: publicDomainFailure,
           }),
         ),
       ),

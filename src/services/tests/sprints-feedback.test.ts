@@ -7,6 +7,7 @@ import { migratedDb } from '#db/test/helpers.ts'
 import { DataQueryError } from '#services/errors.ts'
 import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '#services/feedback.ts'
 import { findSprintById, listSprints } from '#services/sprints.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 /** Read-only transport over the real migrated schema. */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
@@ -55,114 +56,114 @@ describe('sprint and feedback database read models', () => {
   afterEach(() => sqlite.close())
 
   test('retains sprint model columns, creation ordering and explicit workspace/project scope', async () => {
-    const rows = await Effect.runPromise(listSprints(db, 'wa', { projectId: 'pa' }))
+    const rows = await runTestEffect(listSprints(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toEqual(['s1', 's2'])
     expect(rows[0]).toEqual({
-      id: 's1',
-      workspaceId: 'wa',
-      projectId: 'pa',
-      name: 'Earlier',
-      goal: null,
-      status: 'planned',
-      startDate: null,
-      endDate: null,
       createdAt: 10,
+      endDate: null,
+      goal: null,
+      id: 's1',
+      name: 'Earlier',
+      projectId: 'pa',
+      startDate: null,
+      status: 'planned',
       updatedAt: 11,
+      workspaceId: 'wa',
     })
-    expect(await Effect.runPromise(listSprints(db, 'wa', { projectId: 'pb' }))).toEqual([])
-    expect(await Effect.runPromise(findSprintById(db, 'wa', 'sb'))).toBeUndefined()
-    expect(await Effect.runPromise(findSprintById(db, 'wa', 'missing'))).toBeUndefined()
-    expect(await Effect.runPromise(findSprintById(db, 'wa', 's2'))).toEqual(rows[1])
+    await expect(runTestEffect(listSprints(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
+    await expect(runTestEffect(findSprintById(db, 'wa', 'sb'))).resolves.toBeUndefined()
+    await expect(runTestEffect(findSprintById(db, 'wa', 'missing'))).resolves.toBeUndefined()
+    await expect(runTestEffect(findSprintById(db, 'wa', 's2'))).resolves.toEqual(rows[1])
   })
 
   test('retains raw feedback list rows, descending order and combined filters', async () => {
-    const rows = await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pa' }))
+    const rows = await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toEqual(['f5', 'f4', 'f3', 'f2', 'f1'])
     expect(rows[4]).toEqual({
+      app_version: '1',
+      body: 'Comment',
+      created_at: 10,
       id: 'f1',
-      source_id: 'sa',
-      source_name: 'A source',
+      linked_issue_id: null,
       rating: 1,
       rating_scale: 'thumbs',
-      body: 'Comment',
-      submitter_label: null,
+      source_id: 'sa',
+      source_name: 'A source',
       source_url: null,
-      app_version: '1',
       status: 'new',
-      linked_issue_id: null,
-      created_at: 10,
+      submitter_label: null,
     })
     expect(
-      (await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))).map(
+      (await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))).map(
         (row) => row.id,
       ),
     ).toEqual(['f4', 'f1'])
-    expect(await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pb' }))).toEqual([])
+    await expect(runTestEffect(listFeedback(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
   })
 
   test('retains source/version aggregate counts, null groups and SQL average semantics', async () => {
-    const rows = await Effect.runPromise(readFeedbackSummary(db, 'wa', { projectId: 'pa' }))
+    const rows = await runTestEffect(readFeedbackSummary(db, 'wa', { projectId: 'pa' }))
     expect(rows).toEqual([
       {
-        source_id: 'sa2',
-        source_name: 'Second source',
         app_version: '2',
-        total: 1,
-        thumbs_up: 0,
-        thumbs_total: 0,
         five_star_avg: 3,
         five_star_total: 1,
-        with_comment_count: 1,
         last_seen_at: 50,
+        source_id: 'sa2',
+        source_name: 'Second source',
+        thumbs_total: 0,
+        thumbs_up: 0,
+        total: 1,
+        with_comment_count: 1,
       },
       {
-        source_id: 'sa',
-        source_name: 'A source',
         app_version: null,
-        total: 1,
-        thumbs_up: 0,
-        thumbs_total: 0,
         five_star_avg: null,
         five_star_total: 0,
-        with_comment_count: 1,
         last_seen_at: 40,
-      },
-      {
         source_id: 'sa',
         source_name: 'A source',
+        thumbs_total: 0,
+        thumbs_up: 0,
+        total: 1,
+        with_comment_count: 1,
+      },
+      {
         app_version: '1',
-        total: 3,
-        thumbs_up: 1,
-        thumbs_total: 2,
         five_star_avg: 5,
         five_star_total: 1,
-        with_comment_count: 1,
         last_seen_at: 30,
+        source_id: 'sa',
+        source_name: 'A source',
+        thumbs_total: 2,
+        thumbs_up: 1,
+        total: 3,
+        with_comment_count: 1,
       },
     ])
-    expect(await Effect.runPromise(readFeedbackSummary(db, 'wa', { projectId: 'pb' }))).toEqual([])
+    await expect(runTestEffect(readFeedbackSummary(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
   })
 
   test('retains raw source metadata and revoked rows without producing API previews', async () => {
-    const rows = await Effect.runPromise(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
+    const rows = await runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toEqual(['sa2', 'sa'])
     expect(rows[0]).toEqual({
-      id: 'sa2',
-      token_hash: 'hash-a2',
-      name: 'Second source',
-      description: null,
-      is_active: 1,
       allowed_origins: null,
       created_at: 20,
+      description: null,
+      id: 'sa2',
+      is_active: 1,
+      name: 'Second source',
       revoked_at: 25,
+      token_hash: 'hash-a2',
     })
-    expect(await Effect.runPromise(findFeedbackSourceById(db, 'wa', 'sa'))).toEqual({
+    await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'sa'))).resolves.toEqual({
       ...rows[1],
       project_id: 'pa',
     })
-    expect(await Effect.runPromise(findFeedbackSourceById(db, 'wa', 'sb'))).toBeNull()
-    expect(await Effect.runPromise(findFeedbackSourceById(db, 'wa', 'missing'))).toBeNull()
-    expect(await Effect.runPromise(listFeedbackSources(db, 'wa', { projectId: 'pb' }))).toEqual([])
+    await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'sb'))).resolves.toBeNull()
+    await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'missing'))).resolves.toBeNull()
+    await expect(runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
   })
 
   test('defers I/O and reports tagged query errors without app semantics', async () => {
@@ -176,7 +177,7 @@ describe('sprint and feedback database read models', () => {
     } as unknown as D1Database
     const effect = listFeedback(broken, 'wa', { projectId: 'pa' })
     expect(calls).toBe(0)
-    const result = await Effect.runPromise(Effect.flip(effect))
+    const result = await runTestEffect(Effect.flip(effect))
     expect(calls).toBe(1)
     expect(result).toBeInstanceOf(DataQueryError)
     expect(result).toMatchObject({ _tag: 'DataQueryError', operation: 'listFeedback', cause })

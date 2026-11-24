@@ -52,7 +52,7 @@ describe('credential confinement for user-level operations', () => {
       body: JSON.stringify({ slug, name: 'Not authorized' }),
     })
     expect(response.status).toBe(403)
-    expect(await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first()).toBeNull()
+    await expect(env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first()).resolves.toBeNull()
   })
 
   test('bearer credentials cannot list or revoke personal connectors', async () => {

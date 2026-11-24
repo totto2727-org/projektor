@@ -160,7 +160,7 @@ const collect = function collect(): Map<string, FnInfo> {
       const localNames = new Set(locals.map((l) => l.name))
       for (const l of locals) {
         const calls: string[] = []
-        const visit = (n: ts.Node) => {
+        const visit = (n: ts.Node): void => {
           // Any reference counts (call, or passed as a callback / predicate).
           if (ts.isIdentifier(n) && n !== (l.node as ts.FunctionDeclaration).name) {
             const id = n.text

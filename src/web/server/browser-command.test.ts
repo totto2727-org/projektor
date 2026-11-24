@@ -2,6 +2,7 @@ import { Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { CommandOkSchema } from '#core/web/command-contract.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { coreResult } from '@/core.ts'
 import { issueDataFixture } from '@/features/issues/test/data-fixture.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
@@ -25,7 +26,7 @@ const fixture = function fixture() {
     headers: { origin: 'https://front.test' },
   })
   const run = <A, E>(effect: Effect.Effect<A, E, RequestServices>) =>
-    Effect.runPromise(
+    runTestEffect(
       makeRequestServices(request, env).pipe(
         Effect.flatMap((services) => effect.pipe(Effect.provideService(RequestServices, services))),
       ),
@@ -44,8 +45,8 @@ describe('storage-free browser command composition', () => {
     expect(Object.keys(client.proof).sort()).toEqual(['projectId', 'request', 'workspaceSlug'])
     expect(client.proof).toMatchObject({
       projectId: 'project-a',
-      workspaceSlug: 'workspace',
       request: { method: 'POST' },
+      workspaceSlug: 'workspace',
     })
     expect(JSON.stringify(client.proof)).not.toMatch(/userId|role|DB|KV|R2/)
   })

@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
@@ -15,10 +15,10 @@ import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
-const PROJECTS_CACHE_KEY = (workspaceId: string) => `ws-meta:${workspaceId}:projects`
+const PROJECTS_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:projects`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-const invalidateProjectsCache = async function invalidateProjectsCache(ctx: ServiceCtx) {
+const invalidateProjectsCache = async function invalidateProjectsCache(ctx: ServiceCtx): Promise<void> {
   const cacheKey = PROJECTS_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
@@ -107,7 +107,7 @@ export async function resolveVisibleProjectIdParam(ctx: ServiceCtx, param: strin
   if (!row) {
     return crypto.randomUUID()
   }
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, row.id)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, row.id))) {
     return crypto.randomUUID()
   }
   return row.id
@@ -120,7 +120,7 @@ export async function getProject(ctx: ServiceCtx, id: string) {
   }
 
   // PROJ-311: default-deny — a non-admin without a grant 404s (existence hidden).
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, id)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, id))) {
     throw new NotFoundError('Project not found')
   }
   return project
@@ -136,7 +136,7 @@ export async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
     throw new NotFoundError('Project not found')
   }
 
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, project.id)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, project.id))) {
     throw new NotFoundError('Project not found')
   }
   return project
@@ -232,19 +232,19 @@ export async function updateProject(ctx: ServiceCtx, id: string, input: unknown)
   const now = Math.floor(Date.now() / 1000)
 
   const setObj: Record<string, unknown> = {}
-  if (parsed.data.name !== undefined) {
+  if (Predicate.isNotNullish(parsed.data.name)) {
     setObj.name = parsed.data.name
   }
-  if (parsed.data.key !== undefined) {
+  if (Predicate.isNotNullish(parsed.data.key)) {
     setObj.key = parsed.data.key
   }
-  if (parsed.data.description !== undefined) {
+  if (Predicate.isNotNullish(parsed.data.description)) {
     setObj.description = parsed.data.description
   }
   if (parsed.data.agentWipLimit !== undefined) {
     setObj.agentWipLimit = parsed.data.agentWipLimit
   }
-  if (parsed.data.archived !== undefined) {
+  if (Predicate.isNotNullish(parsed.data.archived)) {
     setObj.archivedAt = parsed.data.archived ? now : null
   }
 

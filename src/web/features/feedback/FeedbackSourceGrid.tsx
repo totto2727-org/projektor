@@ -1,5 +1,5 @@
 'use client'
-
+import { Predicate } from 'effect'
 import { useState } from 'react'
 
 import { formatTimestampDate } from '@/features/timestamp.ts'
@@ -26,14 +26,14 @@ function formatDate(ts: number): string {
 }
 
 function statusLabel(s: FeedbackSource): string {
-  if (s.revokedAt !== null) {
+  if (Predicate.isNotNullish(s.revokedAt)) {
     return 'Revoked'
   }
   return s.isActive ? 'Active' : 'Inactive'
 }
 
 function statusClass(s: FeedbackSource): string {
-  if (s.revokedAt !== null) {
+  if (Predicate.isNotNullish(s.revokedAt)) {
     return 'opacity-60'
   }
   return s.isActive ? '' : 'opacity-75'

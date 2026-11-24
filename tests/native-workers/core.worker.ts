@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import { WorkerEntrypoint } from 'cloudflare:workers'
-import { Effect, Exit } from 'effect'
+import { Predicate, Effect, Exit } from 'effect'
 
 import { isCoreEnvironment } from '#core/environment.ts'
 import type { CoreEnvironment, CoreEnvironmentSource } from '#core/environment.ts'
@@ -36,7 +36,7 @@ const nativeFetch = globalThis.fetch
 globalThis.fetch = async (input, init) => {
   const props = fixtureRequest.getStore()
   const settings = configuration(props ?? {})
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const url = Predicate.isString(input) ? input : input instanceof URL ? input.href : input.url
   if (
     url === `https://${settings.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs` &&
     (settings.FIXTURE_JWKS_BODY !== undefined || settings.FIXTURE_JWKS_MODE !== undefined)
@@ -79,7 +79,7 @@ const FixtureCoreLive = CoreIdentity.make(
         new Proxy(handlers, {
           get(target, key, receiver): unknown {
             const method: unknown = Reflect.get(target, key, receiver)
-            if (key === 'fetch' || typeof method !== 'function') {
+            if (key === 'fetch' || !Predicate.isFunction(method)) {
               return method
             }
             return (...args: unknown[]) => {
@@ -152,8 +152,8 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
   const observation = observationFor(props)
   const settings = configuration(props ?? {})
   const rejectDelete = settings.FIXTURE_CACHE_DELETE_MODE === 'reject'
-  const matches = (name: string, prefix: string | undefined) =>
-    prefix !== undefined && (name === prefix || name.startsWith(`${prefix}:`))
+  const matches = (name: string, prefix: string | undefined): boolean =>
+    Predicate.isNotNullish(prefix) && (name === prefix || name.startsWith(`${prefix}:`))
   return {
     ...env,
     KV: new Proxy(env.KV, {
@@ -161,13 +161,13 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
         if (key === 'get') {
           return (...args: unknown[]) => {
             const name = args[0]
-            if (typeof name === 'string') {
+            if (Predicate.isString(name)) {
               observation.authCacheGets.push(name)
               if (matches(name, settings.FIXTURE_AUTH_KV_GET_FAILURE))
                 return Promise.reject(new Error('Fixture auth KV read unavailable'))
             }
             const get: unknown = Reflect.get(target, 'get')
-            if (typeof get !== 'function') throw new Error('Missing native KV get')
+            if (!Predicate.isFunction(get)) throw new Error('Missing native KV get')
             return Reflect.apply(get, target, args)
           }
         }
@@ -187,7 +187,7 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
           }
         }
         const value: unknown = Reflect.get(target, key)
-        return typeof value === 'function' ? value.bind(target) : value
+        return Predicate.isFunction(value) ? value.bind(target) : value
       },
     }),
     WORKSPACE_HUB:
@@ -206,13 +206,13 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
                       return inner.fetch(request)
                     }
                   const value: unknown = Reflect.get(inner, member)
-                  return typeof value === 'function' ? value.bind(inner) : value
+                  return Predicate.isFunction(value) ? value.bind(inner) : value
                 },
               })
             }
           }
           const value: unknown = Reflect.get(target, key)
-          return typeof value === 'function' ? value.bind(target) : value
+          return Predicate.isFunction(value) ? value.bind(target) : value
         },
       }),
   }
@@ -247,7 +247,7 @@ function configuration(props: unknown): Record<string, string | undefined> {
   }
   const result: Record<string, string | undefined> = {}
   for (const [key, value] of Object.entries(props)) {
-    if (value !== null && typeof value !== 'string') {
+    if (value !== null && !Predicate.isString(value)) {
       throw new Error(`Invalid fixture configuration: ${key}`)
     }
     if (key === 'FIXTURE_LIMITER_MODE') {
@@ -289,9 +289,9 @@ export default class NativeFixtureCore extends FixtureCore {
   declare readonly env: CoreEnvironment
   fixtureEnvironment() {
     return {
-      database: typeof this.env.DB.prepare === 'function',
-      cache: typeof this.env.KV.get === 'function',
-      files: typeof this.env.R2.get === 'function',
+      database: Predicate.isFunction(this.env.DB.prepare),
+      cache: Predicate.isFunction(this.env.KV.get),
+      files: Predicate.isFunction(this.env.R2.get),
       devEmail: this.env.DEV_USER_EMAIL ?? null,
       brandName: this.env.BRAND_NAME ?? null,
     }
@@ -305,7 +305,7 @@ export default class NativeFixtureCore extends FixtureCore {
       case 'run':
         return statement.run()
       case 'first':
-        return query.column === undefined ? statement.first() : statement.first(query.column)
+        return Predicate.isNullish(query.column) ? statement.first() : statement.first(query.column)
       case 'raw':
         return query.options?.columnNames ? statement.raw({ columnNames: true }) : statement.raw()
     }
@@ -384,12 +384,12 @@ export default class NativeFixtureCore extends FixtureCore {
 function resolveFixtureEnvironment(props: unknown, env: object) {
   const settings = configuration(props ?? {})
   const mode: unknown =
-    typeof props === 'object' && props !== null && 'FIXTURE_LIMITER_MODE' in props
+    typeof props === 'object' && Predicate.isNotNullish(props) && 'FIXTURE_LIMITER_MODE' in props
       ? props.FIXTURE_LIMITER_MODE
       : undefined
   if (
     mode !== undefined &&
-    mode !== null &&
+    Predicate.isNotNullish(mode) &&
     mode !== 'native' &&
     mode !== 'absent' &&
     mode !== 'reject' &&

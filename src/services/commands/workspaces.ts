@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -469,7 +469,7 @@ export async function updateWorkspaceBrand(
       continue
     }
     const value = parsed.data[key]
-    if (value === null || value === undefined) {
+    if (value === null || Predicate.isNullish(value)) {
       delete next[key]
     } else {
       next[key] = value

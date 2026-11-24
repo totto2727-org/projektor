@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 
@@ -28,7 +28,7 @@ export function transferCoreBinary(
       JSON.stringify({
         requestUrl: services.request.url,
         method: services.request.method,
-        ...(accessJwt !== undefined && accessJwt !== null ? { accessJwt } : {}),
+        ...(Predicate.isNotNullish(accessJwt) && Predicate.isNotNullish(accessJwt) ? { accessJwt } : {}),
       }),
     )
     const response = yield* Effect.tryPromise({

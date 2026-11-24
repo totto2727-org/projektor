@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import {
   completeSprint,
   createSprint,
@@ -41,7 +43,7 @@ export const sprintsTools: MCPTool[] = [
     annotations: READ,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return getSprint(ctx, id)
@@ -84,7 +86,7 @@ export const sprintsTools: MCPTool[] = [
     annotations: IDEMPOTENT_WRITE,
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return updateSprint(ctx, id, fields)
@@ -103,7 +105,7 @@ export const sprintsTools: MCPTool[] = [
     annotations: PLAIN_WRITE,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return completeSprint(ctx, id)
@@ -122,7 +124,7 @@ export const sprintsTools: MCPTool[] = [
     annotations: DESTRUCTIVE,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return deleteSprint(ctx, id)

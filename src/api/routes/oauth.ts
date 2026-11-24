@@ -1,5 +1,6 @@
 import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
+import { Predicate } from 'effect'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { makeCoreClient } from 'projektor/core-client'
@@ -139,14 +140,19 @@ const consentHtml = function consentHtml(
   body: string,
   status: 200 | 400 | 403 | 500 = 200,
   redirectUri?: string,
-) {
+): Response {
   return httpContext.html(page(title, body), status, {
     ...CONSENT_HEADERS,
     'Content-Security-Policy': consentCsp(redirectUri),
   })
 }
 
-const errorPage = function errorPage(c: Context<HonoEnv>, status: 400 | 403 | 500, heading: string, detail: string) {
+const errorPage = function errorPage(
+  c: Context<HonoEnv>,
+  status: 400 | 403 | 500,
+  heading: string,
+  detail: string,
+): Response {
   return consentHtml(c, heading, `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(detail)}</p>`, status)
 }
 
@@ -178,7 +184,10 @@ const NO_SIGNING_KEY =
  * URI has been checked, and redirecting is not merely safe but required: a client left
  * waiting on a callback that never arrives shows the user a hung tab, not an error.
  */
-const authorizationFailure = function authorizationFailure(httpContext: Context<HonoEnv>, err: AuthorizationError) {
+const authorizationFailure = function authorizationFailure(
+  httpContext: Context<HonoEnv>,
+  err: AuthorizationError,
+): Response {
   if (!err.redirectUri) {
     return errorPage(httpContext, 400, 'Invalid authorization request', err.description)
   }
@@ -353,7 +362,7 @@ oauthRouter.post('/authorize', async (httpContext) => {
   }
 
   const form = await httpContext.req.parseBody()
-  const submitted = typeof form.consent_token === 'string' ? form.consent_token : ''
+  const submitted = Predicate.isString(form.consent_token) ? form.consent_token : ''
   const payload = await verifyConsentToken(submitted, user.id, signingKey)
   if (!payload) {
     return errorPage(httpContext, 400, 'This request has expired', 'Start the connection again from the application.')

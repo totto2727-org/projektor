@@ -2,6 +2,7 @@
  * PROJ-858: saving a page resolves its slug links in a fixed number of queries,
  * not 1–3 per link, and produces the same wiki_links rows as before.
  */
+import { Predicate } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -78,13 +79,13 @@ describe('PROJ-858: batched slug link resolution on save', () => {
       .bind(hubId)
       .all<{ target_page_id: string | null; target_title: string }>()
     const resolvedIds = new Set(
-      (rows.results ?? []).map((r) => r.target_page_id).filter((x): x is string => x !== null),
+      (rows.results ?? []).map((r) => r.target_page_id).filter((x): x is string => Predicate.isNotNullish(x)),
     )
-    const unresolved = (rows.results ?? []).filter((r) => r.target_page_id === null)
+    const unresolved = (rows.results ?? []).filter((r) => Predicate.isNullish(r.target_page_id))
 
     expect(resolvedIds).toEqual(new Set([...direct, ...redirected.slice(5)]))
     // 80 missing slugs + 5 redirects whose page is trashed.
     expect(unresolved).toHaveLength(85)
-    expect((rows.results ?? []).length).toBe(80 + 35 + 85)
+    expect(rows.results ?? []).toHaveLength(80 + 35 + 85)
   })
 })

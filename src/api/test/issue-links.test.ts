@@ -27,7 +27,11 @@ describe('Issue Links API', () => {
     issueC = await seedIssue(workspaceId, projectId, userId, { title: 'Issue C' })
   })
 
-  const createLink = async function createLink(sourceIssueId: string, targetIssueId: string, type: string) {
+  const createLink = async function createLink(
+    sourceIssueId: string,
+    targetIssueId: string,
+    type: string,
+  ): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${sourceIssueId}/links`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -126,8 +130,8 @@ describe('Issue Links API', () => {
     const { id: linkId } = (await createRes.json()) as { id: string }
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issueA.id}/links/${linkId}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
 
@@ -137,8 +141,8 @@ describe('Issue Links API', () => {
 
   test('returns 404 when deleting nonexistent link', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueA.id}/links/${crypto.randomUUID()}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(404)
   })
@@ -148,8 +152,8 @@ describe('Issue Links API', () => {
 
     // Delete issueA
     await fetchNativeApi(`http://localhost/api/issues/${issueA.id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
 
     // The link should be gone from issueB's perspective
@@ -237,8 +241,8 @@ describe('Issue Links role guards', () => {
     const { id: linkId } = (await createRes.json()) as { id: string }
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links/${linkId}`, {
-      method: 'DELETE',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(403)
   })
@@ -275,7 +279,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
     })
 
     expect(byRef.status).toBe(200)
-    expect(await byRef.json()).toEqual(await byUuid.json())
+    await expect(byRef.json()).resolves.toEqual(await byUuid.json())
   })
 
   /*
@@ -363,6 +367,6 @@ describe('createLink target-visibility existence oracle', () => {
 
     expect(missingRes.status).toBe(404)
     expect(unwritableRes.status).toBe(404)
-    expect(await missingRes.json()).toEqual(await unwritableRes.json())
+    await expect(missingRes.json()).resolves.toEqual(await unwritableRes.json())
   })
 })

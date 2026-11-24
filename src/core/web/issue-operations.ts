@@ -38,7 +38,7 @@ export function webRead<A, E>(
 ) {
   return Effect.gen(function* () {
     const base = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: projectId ?? '' })
-    const workspace = yield* Effect.try({ try: () => requireDataWorkspace(base, workspaceId), catch: publicWebFailure })
+    const workspace = yield* Effect.try({ catch: publicWebFailure, try: () => requireDataWorkspace(base, workspaceId) })
     const scope: RequestScope = { ...base, selection: { kind: 'workspace', workspace } }
     return yield* operation(scope).pipe(Effect.provideService(CoreReadServices, { db: env.DB }))
   }).pipe(Effect.mapError(publicWebFailure))

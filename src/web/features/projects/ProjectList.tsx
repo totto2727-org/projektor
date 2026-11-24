@@ -23,7 +23,7 @@ type Membership = {
 }
 const badgeClass =
   'font-mono text-[0.7rem] font-medium px-1.5 py-0.5 rounded bg-surface border border-border text-text-muted leading-6'
-const deriveKey = (name: string) =>
+const deriveKey = (name: string): string =>
   name
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '')

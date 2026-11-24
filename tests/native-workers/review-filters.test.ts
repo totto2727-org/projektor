@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Predicate } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
@@ -7,6 +7,7 @@ import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
 import { SearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import { IssuePageSchema } from '#contracts/web-schemas/issues.ts'
 import type { WebRequest } from '#core/web/scope.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 let request: WebRequest
 let workspaceId: string
@@ -119,12 +120,12 @@ beforeEach(async () => {
 })
 
 const page = function page(query: string, workspace = workspaceId) {
-  return Effect.runPromise(
+  return runTestEffect(
     decodeCoreReply(IssuePageSchema, makeCoreClient(Reflect.get(env, 'CORE')).webIssuePage(request, workspace, query)),
   )
 }
 const search = function search(review?: ReviewFilter, projectId?: string, workspace = workspaceId) {
-  return Effect.runPromise(
+  return runTestEffect(
     decodeCoreReply(
       SearchResultsSchema,
       makeCoreClient(Reflect.get(env, 'CORE')).webIssueSearch(request, workspace, 'Needle', projectId, review),
@@ -145,7 +146,7 @@ describe('cross-project review filters through actual named Core bindings', () =
       expect(result.total).toBe(cursor ? null : 35)
       expect(result.items).toHaveLength(7)
       seen.push(...result.items.map((row) => row.id))
-      cursor = typeof result.nextCursor === 'string' ? result.nextCursor : null
+      cursor = Predicate.isString(result.nextCursor) ? result.nextCursor : null
     } while (cursor)
     expect(seen).toEqual(selected.map((row) => row.id).reverse())
   })

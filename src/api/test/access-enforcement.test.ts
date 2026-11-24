@@ -92,7 +92,7 @@ describe('PROJ-311 group-based project access', () => {
      */
     const del = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/groups/${groupId}/members/${roles.member.user.id}`,
-      { method: 'DELETE', headers: authHeaders(roles.owner.token, slug) },
+      { headers: authHeaders(roles.owner.token, slug), method: 'DELETE' },
     )
     expect(del.status).toBe(200)
 

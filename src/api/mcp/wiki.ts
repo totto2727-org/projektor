@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import * as wikiDraftsService from '#api/services/wiki-drafts.ts'
 import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
 import * as wikiService from '#api/services/wiki.ts'
@@ -125,8 +127,8 @@ export const wikiTools: MCPTool[] = [
       }
       const items = (await wikiService.searchWiki(ctx, rest)) as unknown[]
       // A full page means there may be more: the cursor is the next offset.
-      const limit = typeof rest.limit === 'number' ? rest.limit : 10
-      const offset = typeof rest.offset === 'number' ? rest.offset : 0
+      const limit = Predicate.isNumber(rest.limit) ? rest.limit : 10
+      const offset = Predicate.isNumber(rest.offset) ? rest.offset : 0
       const page = toPage(items, items.length >= limit ? offset + limit : null)
       // A cut page resumes at the first dropped result.
       return capPage(page, { cursorOf: (i) => String(offset + i + 1) })
@@ -179,10 +181,10 @@ export const wikiTools: MCPTool[] = [
       const full = page.content ?? ''
       const outline = outlineOf(full)
       const { content: _full, ...rest } = page
-      if (section !== undefined) {
+      if (Predicate.isNotNullish(section)) {
         const body = sectionOf(full, section)
         // A miss is not an error: the outline says what sections exist.
-        if (body === undefined) {
+        if (Predicate.isNullish(body)) {
           return { ...rest, outline, section, sectionFound: false }
         }
         const w = windowText(body, { max, cursor })
@@ -202,7 +204,7 @@ export const wikiTools: MCPTool[] = [
         outline,
         content: w.text,
         totalChars: w.totalChars,
-        ...(w.next || cursor !== undefined ? { contentTruncated: true } : {}),
+        ...(w.next || Predicate.isNotNullish(cursor) ? { contentTruncated: true } : {}),
         ...(w.next ? { next: w.next } : {}),
       }
     },
@@ -317,7 +319,7 @@ export const wikiTools: MCPTool[] = [
           fieldErrors: {},
         })
       }
-      const payload = newSlug !== undefined ? { ...rest, slug: newSlug } : rest
+      const payload = Predicate.isNotNullish(newSlug) ? { ...rest, slug: newSlug } : rest
       return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
     },
   },
@@ -769,7 +771,7 @@ export const wikiTools: MCPTool[] = [
     async handler(input, ctx) {
       const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
       // Null / "" mean "no cursor", not "since the epoch".
-      if (cursor !== undefined && cursor !== null && cursor !== '') {
+      if (cursor !== undefined && Predicate.isNotNullish(cursor) && cursor !== '') {
         rest.since = Number(cursor)
       }
       if (rest.since === undefined || Number.isNaN(rest.since)) {

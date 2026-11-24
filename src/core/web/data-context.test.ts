@@ -113,8 +113,8 @@ describe('frontend application data authorization', () => {
     const error = dataError(new Error('SQL private credentials'))
     expect(error).toMatchObject({
       _tag: 'ApiError',
-      status: 500,
       message: 'Unable to load project data.',
+      status: 500,
     })
     expect(JSON.stringify(error)).not.toContain('SQL private credentials')
     const existing = new ApiError('configuration', 500, 'Unavailable')

@@ -72,14 +72,14 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     await watch(pageId)
 
     await edit(pageId, 'v2')
-    expect(await notificationCount()).toBe(1)
+    await expect(notificationCount()).resolves.toBe(1)
 
     await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id = ? AND project_id = ?')
       .bind(groupId, project.id)
       .run()
 
     await edit(pageId, 'v3')
-    expect(await notificationCount()).toBe(1)
+    await expect(notificationCount()).resolves.toBe(1)
   })
 
   test('stops notifying a watcher removed from the workspace, even for workspace-level pages', async () => {
@@ -87,14 +87,14 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     await watch(pageId)
 
     await edit(pageId, 'v2')
-    expect(await notificationCount()).toBe(1)
+    await expect(notificationCount()).resolves.toBe(1)
 
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, watcherId)
       .run()
 
     await edit(pageId, 'v3')
-    expect(await notificationCount()).toBe(1)
+    await expect(notificationCount()).resolves.toBe(1)
   })
 
   test('still notifies a subtree watcher who keeps access', async () => {
@@ -110,6 +110,6 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
 
     await resetRateLimits()
     await createPage({ title: 'Child', content: 'c', parentId, projectId: project.id })
-    expect(await notificationCount()).toBe(1)
+    await expect(notificationCount()).resolves.toBe(1)
   })
 })

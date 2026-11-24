@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -221,9 +222,9 @@ describe('Workspaces MCP', () => {
   })
 
   describe('PROJ-884: delete_workspace cannot cross tenants', () => {
-    const workspaceExists = async function workspaceExists(id: string) {
+    const workspaceExists = async function workspaceExists(id: string): Promise<boolean> {
       const row = await env.DB.prepare('SELECT id FROM workspaces WHERE id = ?').bind(id).first()
-      return row !== null
+      return Predicate.isNotNullish(row)
     }
 
     test("owner of A cannot delete B (not a member of B) via A's MCP URL", async () => {
@@ -239,8 +240,8 @@ describe('Workspaces MCP', () => {
 
       expect(toolError(res)?.code).toBe('not_found')
       expect(toolError(res)?.message).toMatch(/not found/i)
-      expect(await workspaceExists(victim.id)).toBe(true)
-      expect(await workspaceExists(a.workspace.id)).toBe(true)
+      await expect(workspaceExists(victim.id)).resolves.toBe(true)
+      await expect(workspaceExists(a.workspace.id)).resolves.toBe(true)
     })
 
     test("owner of A and B, using a token confined to A, cannot delete B via A's MCP URL", async () => {
@@ -256,7 +257,7 @@ describe('Workspaces MCP', () => {
       )
 
       expect(toolError(res)?.code).toBe('not_found')
-      expect(await workspaceExists(b.id)).toBe(true)
+      await expect(workspaceExists(b.id)).resolves.toBe(true)
     })
   })
 
@@ -342,8 +343,8 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
 
   test('owner can delete a workspace with no projects → 200 { ok: true }', async () => {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
     const body = (await res.json()) as { ok: boolean }
@@ -358,8 +359,8 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     await seedMember(ws.id, memberUser.id, 'member')
     const memberToken = await seedToken(ws.id, memberUser.id)
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${ws.slug}`, {
-      method: 'DELETE',
       headers: authHeaders(memberToken, ws.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -373,8 +374,8 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     await seedMember(defaultWs.id, ownerUser.id, 'owner')
     const ownerTok = await seedToken(defaultWs.id, ownerUser.id)
     const res = await fetchNativeApi(`http://localhost/api/workspaces/projektor`, {
-      method: 'DELETE',
       headers: authHeaders(ownerTok, 'projektor'),
+      method: 'DELETE',
     })
     expect(res.status).toBe(400)
   })
@@ -382,8 +383,8 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
   test('workspace with projects → 409 ConflictError', async () => {
     await seedProject(workspaceId)
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(409)
   })
@@ -423,10 +424,10 @@ describe('Member removal tombstone (PROJ-436)', () => {
 
     const delRes = await fetchNativeApi(
       `http://localhost/api/workspaces/${fixture.workspace.slug}/members/${memberUser.id}`,
-      { method: 'DELETE', headers: ownerHeaders },
+      { headers: ownerHeaders, method: 'DELETE' },
     )
     expect(delRes.status).toBe(200)
-    expect(await tombstoneRow(fixture.workspace.id, memberUser.id)).not.toBeNull()
+    await expect(tombstoneRow(fixture.workspace.id, memberUser.id)).resolves.not.toBeNull()
 
     const inviteRes = await fetchNativeApi(`http://localhost/api/workspaces/${fixture.workspace.slug}/members`, {
       method: 'POST',
@@ -434,7 +435,7 @@ describe('Member removal tombstone (PROJ-436)', () => {
       body: JSON.stringify({ email: memberUser.email, role: 'member' }),
     })
     expect(inviteRes.status).toBe(201)
-    expect(await tombstoneRow(fixture.workspace.id, memberUser.id)).toBeNull()
+    await expect(tombstoneRow(fixture.workspace.id, memberUser.id)).resolves.toBeNull()
   })
 })
 
@@ -530,13 +531,13 @@ describe('Workspace brand (PROJ-761)', () => {
       headers: memberHeaders,
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({
-      displayName: null,
+    await expect(res.json()).resolves.toStrictEqual({
       accent: null,
-      onAccent: null,
+      displayName: null,
       fontFamily: null,
       fontUrl: null,
       logoUrl: null,
+      onAccent: null,
     })
   })
 
@@ -680,8 +681,8 @@ describe('Workspace brand (PROJ-761)', () => {
     })
 
     const delRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(204)
 
@@ -698,8 +699,8 @@ describe('Workspace brand (PROJ-761)', () => {
 
   test('a member (non admin/owner) gets 403 on logo delete', async () => {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'DELETE',
       headers: memberHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -794,14 +795,14 @@ describe('Workspace brand R2 cleanup (review finding 5)', () => {
       .first<{ brand: string }>()
     const r2Key = (JSON.parse(row?.brand ?? '{}') as { logoR2Key?: string }).logoR2Key
     expect(r2Key).toBeDefined()
-    expect(await env.R2.get(r2Key as string)).not.toBeNull()
+    await expect(env.R2.get(r2Key as string)).resolves.not.toBeNull()
 
     const delRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.workspace.slug}`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
 
-    expect(await env.R2.get(r2Key as string)).toBeNull()
+    await expect(env.R2.get(r2Key as string)).resolves.toBeNull()
   })
 })

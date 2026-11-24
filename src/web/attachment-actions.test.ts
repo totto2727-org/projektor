@@ -81,7 +81,7 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
     'rejects cross-origin writes before authorization or storage (%s)',
     async (kind) => {
       const fixture = fileFixture('https://other.example')
-      expect(await invoke(fixture, kind)).toMatchObject({ ok: false, status: 403 })
+      await expect(invoke(fixture, kind)).resolves.toMatchObject({ ok: false, status: 403 })
       expect(fixture.transport).not.toHaveBeenCalled()
       expect(fixture.put).not.toHaveBeenCalled()
       expect(fixture.invalidated).toHaveBeenCalledOnce()
@@ -90,7 +90,7 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
 
   test.each(['native', 'inline'] as const)('preserves the effective Web 10 MiB cap (%s)', async (kind) => {
     const fixture = fileFixture()
-    expect(await invoke(fixture, kind, file(new Uint8Array(10 * 1024 * 1024 + 1)))).toMatchObject({
+    await expect(invoke(fixture, kind, file(new Uint8Array(10 * 1024 * 1024 + 1)))).resolves.toMatchObject({
       ok: false,
       status: 413,
     })
@@ -100,19 +100,19 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
 
   test.each(['native', 'inline'] as const)('retains shared MIME and configured quota rejection (%s)', async (kind) => {
     const unsupported = fileFixture()
-    expect(await invoke(unsupported, kind, file(undefined, 'application/octet-stream'))).toMatchObject({
+    await expect(invoke(unsupported, kind, file(undefined, 'application/octet-stream'))).resolves.toMatchObject({
       ok: false,
       status: 415,
     })
     const quota = fileFixture('https://front.example', '3')
-    expect(await invoke(quota, kind)).toMatchObject({ ok: false, status: 413 })
+    await expect(invoke(quota, kind)).resolves.toMatchObject({ ok: false, status: 413 })
     expect(unsupported.put).not.toHaveBeenCalled()
     expect(quota.put).not.toHaveBeenCalled()
   })
 
   test.each(['native', 'inline'] as const)('rejects foreign workspace selection before storage (%s)', async (kind) => {
     const fixture = fileFixture()
-    expect(await invoke(fixture, kind, file(), 'beta')).toMatchObject({ ok: false, status: 403 })
+    await expect(invoke(fixture, kind, file(), 'beta')).resolves.toMatchObject({ ok: false, status: 403 })
     expect(fixture.put).not.toHaveBeenCalled()
   })
 

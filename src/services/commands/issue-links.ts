@@ -1,5 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { CreateIssueLinkSchema, DeleteIssueLinkSchema, ListIssueLinksSchema } from '#contracts/inputs/issues.ts'
@@ -26,7 +26,7 @@ const requireIssueProjectWrite = async function requireIssueProjectWrite(
     return
   }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) {
+  if (Predicate.isNullish(role)) {
     throw new NotFoundError(notFoundLabel)
   }
   if (!canWriteProject(role)) {
@@ -196,7 +196,7 @@ export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown) {
       .from(schema.issues)
       .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
       .get()
-    if (!issue || (await effectiveProjectRole(ctx, issue.projectId)) === null) {
+    if (!issue || Predicate.isNullish(await effectiveProjectRole(ctx, issue.projectId))) {
       throw new NotFoundError('Issue not found')
     }
   }

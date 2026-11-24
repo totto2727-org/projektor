@@ -8,7 +8,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 const ownershipFixture = async function ownershipFixture(role: 'owner' | 'admin') {
   const f = await seedIssueFixture({ role })
   const foreignToken = await seedToken(f.workspaceId, f.userId)
-  const send = (path: string, body: unknown, token = f.token, method = 'POST') =>
+  const send = (path: string, body: unknown, token = f.token, method = 'POST'): Promise<Response> =>
     fetchNativeApi(`http://localhost${path}`, {
       method,
       headers: authHeaders(token, f.slug),
@@ -27,7 +27,7 @@ const ownershipFixture = async function ownershipFixture(role: 'owner' | 'admin'
 type OwnershipFixture = Awaited<ReturnType<typeof ownershipFixture>>
 type ActAs = 'heartbeat' | 'message' | 'issue claim' | 'file claim' | 'issue attribution' | 'finish work'
 
-const actAs = function actAs(f: OwnershipFixture, action: ActAs) {
+const actAs = function actAs(f: OwnershipFixture, action: ActAs): Promise<Response> {
   const token = f.foreignToken
   switch (action) {
     case 'heartbeat':
@@ -73,7 +73,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
       const before = await coordinationState(f)
       const response = await actAs(f, action)
       expect(response.status).toBe(403)
-      expect(await coordinationState(f)).toEqual(before)
+      await expect(coordinationState(f)).resolves.toEqual(before)
     },
   )
 
@@ -95,7 +95,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
     )
     expect(response.status).toBe(200)
     expect(toolError(await response.json())).toMatchObject({ code: 'forbidden' })
-    expect(await coordinationState(f)).toEqual(before)
+    await expect(coordinationState(f)).resolves.toEqual(before)
   })
 
   test.each(['lease', 'files', 'session'] as const)(
@@ -112,7 +112,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
         case 'files': {
           const response = await f.send('/api/file-claims/release', { paths: ['src/held.ts'] }, f.foreignToken)
           expect(response.status).toBe(200)
-          expect(await response.json()).toMatchObject({ count: 1 })
+          await expect(response.json()).resolves.toMatchObject({ count: 1 })
           expect((await coordinationState(f)).claims).toEqual([
             expect.objectContaining({ path: 'src/held.ts', released_at: expect.any(Number) }),
           ])
@@ -121,7 +121,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
         case 'session': {
           const response = await f.send(`/api/agents/${f.sessionId}/end`, {}, f.foreignToken)
           expect(response.status).toBe(200)
-          expect(await response.json()).toMatchObject({ id: f.sessionId, status: 'ended' })
+          await expect(response.json()).resolves.toMatchObject({ id: f.sessionId, status: 'ended' })
           const state = await coordinationState(f)
           expect(state.session).toMatchObject({ status: 'ended', ended_at: expect.any(Number) })
           expect(state.lease).toMatchObject({ released_at: expect.any(Number) })

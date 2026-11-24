@@ -1,7 +1,8 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { MetricsQuerySchema } from '#core/web/planning.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 import { applyDateRangeParams } from './IssueList-helpers.ts'
 
@@ -28,17 +29,17 @@ describe('private metrics input budget', () => {
     'rejects invalid or excessive until %s',
     async (until) => {
       await expect(
-        Effect.runPromise(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, until })),
+        runTestEffect(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, until })),
       ).rejects.toBeDefined()
     },
   )
 
   test('accepts exactly 366 inclusive calendar days but rejects reversed ranges', async () => {
     await expect(
-      Effect.runPromise(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, until: 366 * 86_400 - 1 })),
+      runTestEffect(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, until: 366 * 86_400 - 1 })),
     ).resolves.toBeDefined()
     await expect(
-      Effect.runPromise(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, since: 2, until: 1 })),
+      runTestEffect(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, since: 2, until: 1 })),
     ).rejects.toBeDefined()
   })
 })

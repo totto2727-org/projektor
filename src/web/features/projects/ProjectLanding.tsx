@@ -69,7 +69,7 @@ export function ProjectLanding({
     }
   }, [result])
 
-  async function toggleArchived() {
+  async function toggleArchived(): Promise<void> {
     setArchiveBusy(true)
     setRequestError(null)
     const archived = project.archivedAt == null
@@ -83,7 +83,7 @@ export function ProjectLanding({
     setArchiveBusy(false)
   }
 
-  function startEditing() {
+  function startEditing(): void {
     setRequestError(null)
     form.reset({
       workspaceSlug: effectiveSlug,

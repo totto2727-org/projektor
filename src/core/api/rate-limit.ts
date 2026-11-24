@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import { RateCounterRequest, RateLimitRequest, RateLimitResult } from '#contracts/request-rate-limit.ts'
 import type { RateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
@@ -39,10 +39,10 @@ export function makeApiRateLimitHandlers<R>(envSource: Effect.Effect<RequestRate
           return yield* Effect.tryPromise({
             try: async () => {
               const headers = new Headers()
-              if (proof.authorization !== undefined) {
+              if (Predicate.isNotNullish(proof.authorization)) {
                 headers.set('Authorization', proof.authorization)
               }
-              if (proof.ip !== undefined) {
+              if (Predicate.isNotNullish(proof.ip)) {
                 headers.set('CF-Connecting-IP', proof.ip)
               }
               return (await checkRateLimit(new Request('https://core.internal/rate-limit', { headers }), env)) ?? null
@@ -61,8 +61,8 @@ export function makeApiRateLimitHandlers<R>(envSource: Effect.Effect<RequestRate
           )
           const env = policyEnvironment(yield* envSource, proof.testPolicy)
           return yield* Effect.tryPromise({
-            try: () => bumpRateCounter(env, proof.key, proof.windowSecs),
             catch: publicDomainFailure,
+            try: () => bumpRateCounter(env, proof.key, proof.windowSecs),
           })
         }),
       ),

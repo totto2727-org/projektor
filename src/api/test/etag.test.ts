@@ -18,7 +18,12 @@ import { fetchNativeApi } from './native-fetch.ts'
  * 304 can only ever replace a 200 the same caller was already entitled to.
  */
 
-const get = async function get(path: string, token: string, slug: string, ifNoneMatch?: string | null) {
+const get = async function get(
+  path: string,
+  token: string,
+  slug: string,
+  ifNoneMatch?: string | null,
+): Promise<Response> {
   return fetchNativeApi(`http://localhost${path}`, {
     headers: {
       ...authHeaders(token, slug),
@@ -39,7 +44,7 @@ describe('PROJ-439 — ETag / conditional GET', () => {
 
     const second = await get(`/api/issues/${f.issueId}`, f.token, f.slug, etag)
     expect(second.status).toBe(304)
-    expect(await second.text()).toBe('')
+    await expect(second.text()).resolves.toBe('')
     expect(second.headers.get('ETag')).toBe(etag)
     /*
      * Retained on the 304 so the browser keeps revalidating rather than falling back
@@ -98,7 +103,7 @@ describe('PROJ-439 — ETag / conditional GET', () => {
 
     const after = await get(path, f.token, f.slug, etag)
     expect(after.status).toBe(200)
-    expect(await after.json<unknown[]>()).toHaveLength(1)
+    await expect(after.json<unknown[]>()).resolves.toHaveLength(1)
   })
 
   test('creating a task status makes the next conditional GET of the list a 200', async () => {

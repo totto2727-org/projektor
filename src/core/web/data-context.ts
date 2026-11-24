@@ -1,6 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { sql } from 'drizzle-orm'
 import type { Column, SQL } from 'drizzle-orm'
+import { Predicate } from 'effect'
 
 import { ApiError } from '#contracts/errors.ts'
 import { requireDataWorkspace } from '#contracts/web-data.ts'
@@ -28,7 +29,7 @@ export function projectSummaryVisibility(userId: string): ProjectSummaryVisibili
 }
 
 export function requireDataDatabase(db: D1Database): D1Database {
-  if (!db || typeof db.prepare !== 'function') {
+  if (!db || !Predicate.isFunction(db.prepare)) {
     throw new ApiError('configuration', 500, 'The application database is not configured.')
   }
   return db

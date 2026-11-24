@@ -16,12 +16,12 @@ export function assertSameOriginMutation(request: Request): void {
 
 export function checkSameOriginMutation(request: Request): Effect.Effect<void, ApiError> {
   return Effect.try({
-    try: () => assertSameOriginMutation(request),
     catch: (error) => {
       if (error instanceof ApiError) {
         return error
       }
       throw error
     },
+    try: () => assertSameOriginMutation(request),
   })
 }

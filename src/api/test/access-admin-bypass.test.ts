@@ -20,7 +20,12 @@ const search = async function search(token: string, slug: string, q: string) {
 // seedIssue() inserts directly into `issues`, bypassing the FTS index (which is
 // populated by the create-issue service, not a DB trigger); go through the REST
 // route so search can actually find these issues.
-const createIssue = async function createIssue(token: string, slug: string, projectId: string, title: string) {
+const createIssue = async function createIssue(
+  token: string,
+  slug: string,
+  projectId: string,
+  title: string,
+): Promise<void> {
   const res = await fetchNativeApi('http://localhost/api/issues', {
     method: 'POST',
     headers: authHeaders(token, slug),

@@ -11,6 +11,7 @@
  * "active view" indicator. The IssueList island wires these to component state.
  */
 
+import { Predicate } from 'effect'
 export interface SavedViewFilters {
   statuses: string[]
   priorities: string[]
@@ -48,8 +49,8 @@ const normalizeFilters = function normalizeFilters(
 ): SavedViewFilters {
   const r = (raw ?? {}) as Partial<SavedViewFilters>
   const strings = (v: unknown): string[] =>
-    Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []
-  const str = (v: unknown): string => (typeof v === 'string' ? v : '')
+    Array.isArray(v) ? v.filter((s): s is string => Predicate.isString(s)) : []
+  const str = (v: unknown): string => (Predicate.isString(v) ? v : '')
   return {
     statuses: strings(r.statuses),
     priorities: strings(r.priorities),
@@ -88,7 +89,7 @@ export function parseSavedViews(raw: string | null): SavedView[] {
       continue
     }
     const name = (v as { name?: unknown }).name
-    if (typeof name !== 'string' || name.length === 0) {
+    if (!Predicate.isString(name) || name.length === 0) {
       continue
     }
     out.push({

@@ -48,7 +48,7 @@ describe('MCP tools/list domain filtering (PROJ-716)', () => {
       {},
       headers,
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    expect(res.result.tools.length).toBe(TOOL_COUNT)
+    expect(res.result.tools).toHaveLength(TOOL_COUNT)
   })
 
   test("filters to the requested domain's tools only", async () => {
@@ -138,7 +138,7 @@ describe('MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    expect(res.result.tools.length).toBe(TOOL_COUNT)
+    expect(res.result.tools).toHaveLength(TOOL_COUNT)
   })
 
   test('tools/call still serves a tool that was filtered out of the listing', async () => {

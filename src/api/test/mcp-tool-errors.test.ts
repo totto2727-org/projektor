@@ -3,6 +3,7 @@
  * next-step hint, so the model can self-correct. JSON-RPC errors are reserved for protocol
  * faults; scope denials stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651).
  */
+import { Predicate } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -34,7 +35,7 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: typeof body === 'string' ? body : JSON.stringify(body),
+      body: Predicate.isString(body) ? body : JSON.stringify(body),
     })
   }
 

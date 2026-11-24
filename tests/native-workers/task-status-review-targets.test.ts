@@ -39,7 +39,7 @@ const fixture = async function fixture() {
     )
       .bind(...ids)
       .all<{ id: string; review_status: string | null; r2_key: string }>()
-  const patch = (body: unknown) =>
+  const patch = (body: unknown): Promise<Response> =>
     fetchNativeApi(`http://localhost/api/task-statuses/${status.id}`, {
       method: 'PATCH',
       headers: authHeaders(owner.token, owner.slug),
@@ -61,7 +61,9 @@ describe('native custom status category review-target resync', () => {
       const before = await f.attachments()
       const response = await f.patch({ category, isDefault })
       expect(response.status, await response.text()).toBe(200)
-      expect(await env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(f.issue.id).first()).toEqual({
+      await expect(
+        env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(f.issue.id).first(),
+      ).resolves.toEqual({
         status_category: category,
       })
       expect((await f.attachments()).results).toEqual(
@@ -75,9 +77,9 @@ describe('native custom status category review-target resync', () => {
       await env.DB.prepare("UPDATE attachments SET review_status='fixing' WHERE id=?").bind(f.selected).run()
       expect((await f.patch({ category })).status).toBe(200)
       expect((await f.patch({ category: 'todo' })).status).toBe(200)
-      expect(await env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(f.selected).first()).toEqual(
-        { review_status: 'fixing' },
-      )
+      await expect(
+        env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(f.selected).first(),
+      ).resolves.toEqual({ review_status: 'fixing' })
     },
   )
 
@@ -90,13 +92,15 @@ describe('native custom status category review-target resync', () => {
       WHEN OLD.id = '${f.selected}' BEGIN SELECT RAISE(ABORT, 'injected review write failure'); END`).run()
     try {
       expect((await f.patch({ category: 'done', isDefault: true })).status).toBe(500)
-      expect(
-        await env.DB.prepare('SELECT category,is_default FROM task_statuses WHERE id=?').bind(f.status.id).first(),
-      ).toEqual({ category: 'in_progress', is_default: 0 })
-      expect(
-        await env.DB.prepare('SELECT is_default FROM task_statuses WHERE id=?').bind(f.otherStatus.id).first(),
-      ).toEqual({ is_default: 1 })
-      expect(await env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(f.issue.id).first()).toEqual({
+      await expect(
+        env.DB.prepare('SELECT category,is_default FROM task_statuses WHERE id=?').bind(f.status.id).first(),
+      ).resolves.toEqual({ category: 'in_progress', is_default: 0 })
+      await expect(
+        env.DB.prepare('SELECT is_default FROM task_statuses WHERE id=?').bind(f.otherStatus.id).first(),
+      ).resolves.toEqual({ is_default: 1 })
+      await expect(
+        env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(f.issue.id).first(),
+      ).resolves.toEqual({
         status_category: 'in_progress',
       })
       expect((await f.attachments()).results).toEqual(before.results)

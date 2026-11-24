@@ -18,7 +18,7 @@ describe('Agents API', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
   })
 
-  const registerAgent = async function registerAgent(body: Record<string, unknown>) {
+  const registerAgent = async function registerAgent(body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -52,8 +52,8 @@ describe('Agents API', () => {
 
     // Heartbeat should succeed
     const hbRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/heartbeat`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(hbRes.status).toBe(200)
     const updated = (await hbRes.json()) as { lastHeartbeatAt: number }
@@ -79,8 +79,8 @@ describe('Agents API', () => {
     const session = (await res.json()) as { id: string }
 
     const endRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(endRes.status).toBe(200)
     const ended = (await endRes.json()) as { status: string; endedAt: number | null }
@@ -135,15 +135,15 @@ describe('Agents API', () => {
 
     // Heartbeat from Y -> 404
     const hbRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/heartbeat`, {
-      method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
+      method: 'POST',
     })
     expect(hbRes.status).toBe(404)
 
     // End from Y -> 404
     const endRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
-      method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
+      method: 'POST',
     })
     expect(endRes.status).toBe(404)
   })
@@ -160,16 +160,16 @@ describe('Agents API', () => {
 
   test('POST /:id/heartbeat returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/heartbeat`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(404)
   })
 
   test('POST /:id/end returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/end`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(404)
   })
@@ -189,7 +189,7 @@ describe('Agents API', () => {
 
   // PROJ-929: start_work / finish_work replace the 5-call fleet routine.
   describe('PROJ-929: start_work / finish_work', () => {
-    const startWork = function startWork(body: Record<string, unknown>) {
+    const startWork = function startWork(body: Record<string, unknown>): Promise<Response> {
       return fetchNativeApi('http://localhost/api/agents/start-work', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -197,7 +197,7 @@ describe('Agents API', () => {
       })
     }
 
-    const finishWork = function finishWork(body: Record<string, unknown>) {
+    const finishWork = function finishWork(body: Record<string, unknown>): Promise<Response> {
       return fetchNativeApi('http://localhost/api/agents/finish-work', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -495,8 +495,8 @@ describe('Agents API', () => {
       expect(claim.status).toBe(201)
 
       const end = await fetchNativeApi(`http://localhost/api/agents/${agentId}/end`, {
-        method: 'POST',
         headers: authHeaders(token, slug),
+        method: 'POST',
       })
       expect(end.status).toBe(200)
     })
@@ -516,7 +516,7 @@ describe('Agents API', () => {
       return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
     }
 
-    const listAgents = async function listAgents(params: Record<string, string> = {}) {
+    const listAgents = async function listAgents(params: Record<string, string> = {}): Promise<Response> {
       const qs = new URLSearchParams(params).toString()
       return fetchNativeApi(`http://localhost/api/agents${qs ? `?${qs}` : ''}`, {
         headers: authHeaders(token, slug),
@@ -545,8 +545,8 @@ describe('Agents API', () => {
       const res = await registerAgent({ name: 'ended-agent-932' })
       const session = (await res.json()) as { id: string }
       await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
-        method: 'POST',
         headers: authHeaders(token, slug),
+        method: 'POST',
       })
 
       const withoutFlag = await listAgents()

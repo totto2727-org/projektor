@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 
 import { provisionPublicViewer } from '#commands/provisioning.ts'
 import type { ServiceCtx } from '#commands/types.ts'
@@ -35,7 +35,7 @@ export interface CorePrincipal {
 }
 
 export function requireCoreCapability(principal: CorePrincipal, requiredCapability: Capability): void {
-  if (principal.tokenScopes !== undefined && !tokenAllows(principal.tokenScopes, requiredCapability)) {
+  if (Predicate.isNotNullish(principal.tokenScopes) && !tokenAllows(principal.tokenScopes, requiredCapability)) {
     throw coreFailure(403, `Token lacks '${requiredCapability}' scope`)
   }
   if (principal.auth.method === 'public' && requiredCapability !== 'read') {
@@ -67,7 +67,9 @@ export async function resolveCorePrincipal(input: CoreActor, env: CoreEnvironmen
     if (!user || user.email !== grant.email) {
       throw coreFailure(401, 'Unauthorized')
     }
-    const scopes = grant.scopes.map(capabilityForOAuthScope).filter((scope): scope is Capability => scope !== null)
+    const scopes = grant.scopes
+      .map(capabilityForOAuthScope)
+      .filter((scope): scope is Capability => Predicate.isNotNullish(scope))
     const parts = actor.bearer?.split(':')
     const credentialId = grant.credentialId ?? (parts?.length === 3 ? parts[1] : undefined)
     return {
@@ -85,7 +87,7 @@ export async function resolveCorePrincipal(input: CoreActor, env: CoreEnvironmen
     }
   }
 
-  if (actor.accessJwt !== undefined) {
+  if (Predicate.isNotNullish(actor.accessJwt)) {
     try {
       const principal = await authenticateAccessJwt(actor.accessJwt, env)
       return { ...principal, tokenWorkspaceId: undefined, tokenScopes: undefined }
@@ -97,7 +99,7 @@ export async function resolveCorePrincipal(input: CoreActor, env: CoreEnvironmen
     }
   }
 
-  if (actor.bearer !== undefined) {
+  if (Predicate.isNotNullish(actor.bearer)) {
     return authenticateOpaqueToken(actor.bearer, env)
   }
 
@@ -134,10 +136,10 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
       email: string | null
       name: string | null
     }>()
-  if (!row || !row.user_id || !row.email || row.name === null) {
+  if (!row || !row.user_id || !row.email || Predicate.isNullish(row.name)) {
     throw coreFailure(401, 'Unauthorized')
   }
-  if (row.expires_at !== null && row.expires_at < Date.now() / 1000) {
+  if (Predicate.isNotNullish(row.expires_at) && row.expires_at < Date.now() / 1000) {
     throw coreFailure(401, 'Token expired')
   }
   const scopes = parseScopes(row.scopes)

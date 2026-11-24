@@ -81,8 +81,8 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         Effect.gen(function* () {
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
           return yield* Effect.tryPromise({
-            try: () => drafts.readWikiDraftState(env.DB, workspace.id, page.id, scope.user.id),
             catch: (cause) => new ApiError('network', 500, 'Could not read the saved draft.', cause),
+            try: () => drafts.readWikiDraftState(env.DB, workspace.id, page.id, scope.user.id),
           })
         }),
       ),

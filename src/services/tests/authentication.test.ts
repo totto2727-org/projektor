@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -15,6 +15,7 @@ import {
   verifyJwtPayload,
 } from '#services/authentication.ts'
 import type { BrowserAuthEnvironment } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import type { ApiEnv, HonoEnv } from '#types'
 import { createTestResources } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -37,7 +38,11 @@ beforeAll(async () => {
   key = await crypto.subtle.exportKey('jwk', pair.publicKey)
   otherKey = await crypto.subtle.exportKey('jwk', otherPair.publicKey)
 })
-const token = async function token(overrides: Record<string, unknown> = {}, signingPair = pair, algorithm = 'RS256') {
+const token = async function token(
+  overrides: Record<string, unknown> = {},
+  signingPair = pair,
+  algorithm = 'RS256',
+): Promise<string> {
   const header = Buffer.from(JSON.stringify({ alg: algorithm })).toString('base64url')
   const payload = Buffer.from(
     JSON.stringify({
@@ -78,7 +83,7 @@ describe('shared browser authentication without API transport or signing secrets
       KV: {
         get: async (name: string, type?: string) => {
           const value = cache.get(name)
-          return value === undefined ? null : type === 'json' ? JSON.parse(value) : value
+          return Predicate.isNullish(value) ? null : type === 'json' ? JSON.parse(value) : value
         },
         put: async (name: string, value: string) => {
           cache.set(name, value)
@@ -96,7 +101,10 @@ describe('shared browser authentication without API transport or signing secrets
     vi.restoreAllMocks()
     database.close()
   })
-  const api = function api(request: Request, settings: BrowserAuthEnvironment & { PUBLIC_READ_ONLY?: string } = env) {
+  const api = function api(
+    request: Request,
+    settings: BrowserAuthEnvironment & { PUBLIC_READ_ONLY?: string } = env,
+  ): Response | Promise<Response> {
     /*
      * The API sees only a native-style RPC binding. Its method runs the real Core
      * handler and returns the application's wire reply through the public SDK.
@@ -105,7 +113,7 @@ describe('shared browser authentication without API transport or signing secrets
     const handlers = makeApiIdentityHandlers(Effect.succeed(coreEnv))
     const CORE = {
       apiAuthenticate: (...args: Parameters<typeof handlers.apiAuthenticate>) =>
-        Effect.runPromise(handlers.apiAuthenticate(...args)),
+        runTestEffect(handlers.apiAuthenticate(...args)),
     }
     const apiEnv = { CORE } as unknown as ApiEnv
     expect(apiEnv).not.toHaveProperty('DB')
@@ -125,8 +133,8 @@ describe('shared browser authentication without API transport or signing secrets
     async (cookie) => {
       const principal = await authenticateBrowser(browser(await token(), cookie), env)
       expect(principal).toMatchObject({
-        user: { email: 'person@example.test', name: 'person' },
         auth: { kind: 'human', method: 'access' },
+        user: { email: 'person@example.test', name: 'person' },
       })
       expect(
         database.sqlite
@@ -140,21 +148,25 @@ describe('shared browser authentication without API transport or signing secrets
   )
 
   test('verifies signed claims directly through the shared verifier', async () => {
-    expect(await verifyJwtPayload(await token(), [key], audience, issuer)).toEqual({ email: 'person@example.test' })
-    expect(await verifyJwtPayload(await token({}, otherPair), [key], audience, issuer)).toBeNull()
-    expect(await verifyJwtPayload(await token({ aud: ['wrong-audience'] }), [key], audience, issuer)).toBeNull()
+    await expect(verifyJwtPayload(await token(), [key], audience, issuer)).resolves.toEqual({
+      email: 'person@example.test',
+    })
+    await expect(verifyJwtPayload(await token({}, otherPair), [key], audience, issuer)).resolves.toBeNull()
+    await expect(
+      verifyJwtPayload(await token({ aud: ['wrong-audience'] }), [key], audience, issuer),
+    ).resolves.toBeNull()
   })
 
   test('preserves exact API Access success and invalid-token response contracts', async () => {
     const allowed = await api(browser(await token(), true))
     expect(allowed.status).toBe(200)
-    expect(await allowed.json()).toMatchObject({
-      user: { email: 'person@example.test' },
+    await expect(allowed.json()).resolves.toMatchObject({
       auth: { kind: 'human', method: 'access' },
+      user: { email: 'person@example.test' },
     })
     const denied = await api(browser('invalid'))
     expect(denied.status).toBe(401)
-    expect(await denied.json()).toEqual({ error: 'Invalid Access token' })
+    await expect(denied.json()).resolves.toStrictEqual({ error: 'Invalid Access token' })
     expect(denied.headers.get('set-cookie')).toBeNull()
   })
 
@@ -163,7 +175,7 @@ describe('shared browser authentication without API transport or signing secrets
     externalFetch.mockRejectedValue(new Error('offline'))
     const denied = await api(browser(await token()))
     expect(denied.status).toBe(503)
-    expect(await denied.json()).toEqual({ error: 'Authentication temporarily unavailable' })
+    await expect(denied.json()).resolves.toStrictEqual({ error: 'Authentication temporarily unavailable' })
   })
 
   test('keeps the API dev bypass disabled for MCP while preserving its browser strategy', async () => {
@@ -179,13 +191,13 @@ describe('shared browser authentication without API transport or signing secrets
     const settings = { ...env, PUBLIC_READ_ONLY: 'true' }
     const allowed = await api(new Request('https://api.example.test/auth/me'), settings)
     expect(allowed.status).toBe(200)
-    expect(await allowed.json()).toMatchObject({
-      user: { email: 'public-viewer@projektor.local' },
+    await expect(allowed.json()).resolves.toMatchObject({
       auth: { kind: 'human', method: 'public' },
+      user: { email: 'public-viewer@projektor.local' },
     })
     const denied = await api(browser('invalid'), settings)
     expect(denied.status).toBe(401)
-    expect(await denied.json()).toEqual({ error: 'Invalid Access token' })
+    await expect(denied.json()).resolves.toStrictEqual({ error: 'Invalid Access token' })
   })
 
   test.each([
@@ -266,7 +278,7 @@ describe('shared browser authentication without API transport or signing secrets
   test('refreshes a rotated signing key once and verifies against the real replacement', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
     externalFetch.mockResolvedValue(Response.json({ keys: [otherKey] }))
-    expect(await authenticateBrowser(browser(await token({}, otherPair)), env)).toMatchObject({
+    await expect(authenticateBrowser(browser(await token({}, otherPair)), env)).resolves.toMatchObject({
       auth: { kind: 'human', method: 'access' },
     })
     expect(externalFetch).toHaveBeenCalledOnce()
@@ -279,9 +291,9 @@ describe('shared browser authentication without API transport or signing secrets
     await expect(authenticateBrowser(request, env)).rejects.toEqual(new BrowserAuthenticationError(401, 'Unauthorized'))
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 0 })
     env.ENVIRONMENT = 'development'
-    expect(await authenticateBrowser(request, env)).toMatchObject({
-      user: { email: 'dev@example.test' },
+    await expect(authenticateBrowser(request, env)).resolves.toMatchObject({
       auth: { kind: 'human', method: 'dev' },
+      user: { email: 'dev@example.test' },
     })
     expect(externalFetch).not.toHaveBeenCalled()
   })

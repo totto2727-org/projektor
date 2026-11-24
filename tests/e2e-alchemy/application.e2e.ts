@@ -4,6 +4,7 @@ import { readdir, writeFile } from 'node:fs/promises'
 
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page, TestInfo } from '@playwright/test'
+import { Predicate } from 'effect'
 
 type BrowserAudit = {
   pageErrors: string[]
@@ -78,7 +79,7 @@ test.afterEach(async ({ page }, testInfo) => {
   }
 })
 
-const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
+const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, name: string): Promise<void> {
   await page.evaluate(async () => {
     while (document.activeViewTransition) {
       await document.activeViewTransition.finished
@@ -94,7 +95,7 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
   }))
   const viewportWidth = page.viewportSize()?.width
   expect(viewportWidth, 'Acceptance viewport must be explicit').toBeDefined()
-  if (viewportWidth === undefined) {
+  if (Predicate.isNullish(viewportWidth)) {
     throw new Error('Acceptance viewport must be explicit.')
   }
   const layout = await page.evaluate(() => {
@@ -120,17 +121,17 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
       })),
     }
   })
-  if (layout.gap !== null) {
+  if (Predicate.isNotNullish(layout.gap)) {
     expect(layout.gutter, `${name}: page gutter must be positive`).toBeGreaterThan(0)
     expect(layout.gap, `${name}: content must not touch the project navigation border`).toBeCloseTo(layout.gutter!, 1)
   }
-  if (layout.sidebarBorder !== null) {
+  if (Predicate.isNotNullish(layout.sidebarBorder)) {
     expect(layout.sidebarBorder, `${name}: sidebar divider must use the theme border color`).toBe(layout.themeBorder)
   }
   for (const table of layout.tables) {
     expect(table.display, `${name}: Markdown must preserve native table layout`).toBe('table')
     expect(table.wrap, `${name}: wide table cells must not collapse into single-letter columns`).toBe('normal')
-    if (table.rowWidth !== null) {
+    if (Predicate.isNotNullish(table.rowWidth)) {
       expect(table.rowWidth, `${name}: Markdown rows must fill the table`).toBeCloseTo(table.width, 0)
     }
   }
@@ -209,7 +210,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
     { title: 'Completed hidden', status: 'done', priority: 'urgent', project: 0 },
     { title: 'Cancelled hidden', status: 'cancelled', priority: 'urgent', project: 1 },
   ]
-  const create = async (fixture: (typeof fixtures)[number], assigned = true) => {
+  const create = async (fixture: (typeof fixtures)[number], assigned = true): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/issues', {
       headers,
       data: {
@@ -259,7 +260,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   await expect(titles).toHaveText(expected)
 })
 
-const assertShell = async function assertShell(page: Page) {
+const assertShell = async function assertShell(page: Page): Promise<void> {
   await expect(page.locator('main#main-content')).toBeVisible()
   await expect(page.getByRole('link', { name: /skip to (main )?content/i })).toBeAttached()
   await expect(page.getByRole('button', { name: /^Account(?::|$)/ })).toBeVisible()
@@ -612,7 +613,7 @@ test('workspace review spans projects and unassigned issues with native filtered
     expect(created.status(), await created.text()).toBe(201)
     const issue = await created.json()
     const targetLabel = `${fixture.tag} target ${suffix}`
-    if (fixture.review !== null) {
+    if (Predicate.isNotNullish(fixture.review)) {
       const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
         headers,
         data: {
@@ -635,9 +636,9 @@ test('workspace review spans projects and unassigned issues with native filtered
   }
   const visibleTitles = () =>
     page.getByRole('link', { name: new RegExp(`^Cross review ${suffix} `) }).filter({ visible: true })
-  const assertReviewResults = async (review: string) => {
+  const assertReviewResults = async (review: string): Promise<void> => {
     const expected = issues.filter((issue) =>
-      review === 'active' ? issue.review !== null && issue.review !== 'done' : issue.review === review,
+      review === 'active' ? Predicate.isNotNullish(issue.review) && issue.review !== 'done' : issue.review === review,
     )
     await expect(visibleTitles()).toHaveCount(expected.length)
     for (const issue of issues) {
@@ -733,7 +734,7 @@ test('workspace review spans projects and unassigned issues with native filtered
     expect((await cold.goto(page.url()))?.status()).toBe(200)
     for (const issue of issues) {
       const link = cold.getByRole('link', { name: issue.title, exact: true }).filter({ visible: true })
-      if (issue.review !== null && issue.review !== 'done') {
+      if (Predicate.isNotNullish(issue.review) && issue.review !== 'done') {
         await expect(link).toBeVisible()
       } else {
         await expect(link).toHaveCount(0)
@@ -853,7 +854,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     const backdrop = page.locator('.wiki-drawer-overlay-open')
     await trigger.click()
     await expect(drawer).toBeVisible()
-    const assertHeaderLayer = async () => {
+    const assertHeaderLayer = async (): Promise<void> => {
       const layers = await page.evaluate(() => {
         const header = document.querySelector<HTMLElement>('.projektor-topbar')!
         const overlay = document.querySelector<HTMLElement>('.wiki-drawer-overlay-open')!

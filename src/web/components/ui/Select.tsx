@@ -1,5 +1,5 @@
 'use client'
-
+import { Predicate } from 'effect'
 import type { CSSProperties } from 'react'
 
 import {
@@ -51,7 +51,7 @@ export function Select({
         disabled={disabled}
         items={options}
         onValueChange={(nextValue) => {
-          if (nextValue !== null) {
+          if (Predicate.isNotNullish(nextValue)) {
             onChange(nextValue)
           }
         }}

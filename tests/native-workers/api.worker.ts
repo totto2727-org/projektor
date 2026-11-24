@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import api from '#api/worker.ts'
 
 import type { FixtureConfiguration } from './core.worker'
@@ -13,13 +15,13 @@ type FixtureEnvironment = ApiEnvironment & {
 }
 
 const configuration = function configuration(value: string | undefined): FixtureConfiguration {
-  const parsed: unknown = value === undefined ? {} : JSON.parse(value)
+  const parsed: unknown = Predicate.isNullish(value) ? {} : JSON.parse(value)
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Invalid native API fixture policy')
   }
   const settings: Record<string, string | null> = {}
   for (const [key, item] of Object.entries(parsed)) {
-    if (item !== null && typeof item !== 'string') {
+    if (item !== null && !Predicate.isString(item)) {
       throw new Error(`Invalid fixture policy: ${key}`)
     }
     settings[key] = item

@@ -14,6 +14,7 @@ import { listLinksForIssue } from '#services/issue-links.ts'
 import * as issues from '#services/issues.ts'
 import { listTaskStatuses } from '#services/task-statuses.ts'
 import { listTaskTypes } from '#services/task-types.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 /** Maintained read transport fixture over the real migrated schema, with D1's bind cap. */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
@@ -66,66 +67,66 @@ describe('issue and related pure data queries', () => {
   afterEach(() => sqlite.close())
 
   test('preserves exact detail selector keys, raw labels and absent assignee_name', async () => {
-    const row = await Effect.runPromise(issues.getIssue(db, 'wa', { ref: 'A-01' }))
+    const row = await runTestEffect(issues.getIssue(db, 'wa', { ref: 'A-01' }))
     expect(row).toEqual({
-      id: 'i1',
-      workspace_id: 'wa',
-      project_id: 'pa',
-      number: 1,
-      title: 'Needle one',
-      body: 'Body',
-      status: 'todo',
-      priority: 'high',
       assignee_id: 'u',
-      labels: '["x"]',
-      parent_id: null,
-      type_id: null,
-      status_id: null,
-      status_category: null,
-      sprint_id: null,
-      created_by_id: 'u',
       author_kind: null,
-      created_at: 100,
-      updated_at: 101,
+      body: 'Body',
       completed_at: null,
+      created_at: 100,
+      created_by_id: 'u',
+      id: 'i1',
+      labels: '["x"]',
       needs_audit: false,
+      number: 1,
+      parent_id: null,
+      priority: 'high',
+      project_id: 'pa',
       project_key: 'A',
       project_name: 'Project A',
-      type_key: null,
-      type_name: null,
+      sprint_id: null,
+      status: 'todo',
+      status_category: null,
+      status_id: null,
       status_key: null,
       status_name: null,
+      title: 'Needle one',
+      type_id: null,
+      type_key: null,
+      type_name: null,
+      updated_at: 101,
+      workspace_id: 'wa',
     })
-    expect(await Effect.runPromise(issues.getIssue(db, 'wa', { id: 'other' }))).toBeNull()
-    expect(await Effect.runPromise(issues.findIssueIdByRef(db, 'wb', 'A-1'))).toBe('other')
+    await expect(runTestEffect(issues.getIssue(db, 'wa', { id: 'other' }))).resolves.toBeNull()
+    await expect(runTestEffect(issues.findIssueIdByRef(db, 'wb', 'A-1'))).resolves.toBe('other')
   })
 
   test('preserves pagination tie-break, cursor total null, body omission and optional rollups', async () => {
     const visibility = eq(schema.issues.projectId, 'pa')
-    const page = await Effect.runPromise(issues.listIssues(db, 'wa', { limit: 1, includeRollups: true }, visibility))
+    const page = await runTestEffect(issues.listIssues(db, 'wa', { limit: 1, includeRollups: true }, visibility))
     expect(page.total).toBe(2)
     expect(page.items[0].id).toBe('i2')
     expect(page.items[0]).not.toHaveProperty('body')
     expect(page.items[0]).toHaveProperty('assignee_name', null)
-    expect(page.items[0].rollup).toEqual({ total: 0, byStatus: {}, done: 0, remaining: 0 })
-    const next = await Effect.runPromise(
+    expect(page.items[0].rollup).toEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
+    const next = await runTestEffect(
       issues.listIssues(db, 'wa', { limit: 1, cursor: { createdAt: 100, id: 'i2' }, includeBody: true }, visibility),
     )
     expect(next.total).toBeNull()
     expect(next.nextCursor).toBeNull()
     expect(next.items[0]).toMatchObject({
-      id: 'i1',
-      body: 'Body',
       assignee_name: 'User',
+      body: 'Body',
       customFields: [{ key: 'size', label: 'Size', type: 'number', value: '10' }],
+      id: 'i1',
     })
     expect(next.items[0]).not.toHaveProperty('rollup')
-    const bare = await Effect.runPromise(issues.listIssues(db, 'wa', { limit: 30, cursor: { createdAt: 100 } }))
+    const bare = await runTestEffect(issues.listIssues(db, 'wa', { limit: 30, cursor: { createdAt: 100 } }))
     expect(bare.items).toEqual([])
   })
 
   test('applies shared association, status, numeric field and date predicates', async () => {
-    const page = await Effect.runPromise(
+    const page = await runTestEffect(
       issues.listIssues(db, 'wa', {
         limit: 30,
         status: 'todo',
@@ -137,19 +138,19 @@ describe('issue and related pure data queries', () => {
       }),
     )
     expect(page.items.map((r) => r.id)).toEqual(['i1'])
-    expect(await Effect.runPromise(issues.findIssueCustomField(db, 'wa', 'size'))).toEqual({
+    await expect(runTestEffect(issues.findIssueCustomField(db, 'wa', 'size'))).resolves.toEqual({
       id: 'f',
       type: 'number',
     })
-    expect(await Effect.runPromise(issues.findIssueCustomField(db, 'wa', 'missing'))).toBeNull()
-    expect(await Effect.runPromise(issues.getIssueExtras(db, 'wa', 'i1'))).toEqual({
-      rollup: { total: 1, byStatus: { done: 1 }, done: 1, remaining: 0 },
+    await expect(runTestEffect(issues.findIssueCustomField(db, 'wa', 'missing'))).resolves.toBeNull()
+    await expect(runTestEffect(issues.getIssueExtras(db, 'wa', 'i1'))).resolves.toEqual({
       customFields: [{ key: 'size', label: 'Size', type: 'number', value: '10' }],
+      rollup: { byStatus: { done: 1 }, done: 1, remaining: 0, total: 1 },
     })
   })
 
   test('preserves batch ordering, canonical padded refs, dedup and missing literals', async () => {
-    const page = await Effect.runPromise(
+    const page = await runTestEffect(
       issues.getIssuesBatch(
         db,
         'wa',
@@ -163,93 +164,93 @@ describe('issue and related pure data queries', () => {
   })
 
   test('preserves comments keys, link direction and empty workspace-scoped reads', async () => {
-    expect(await Effect.runPromise(listComments(db, 'wa', 'i1'))).toEqual([
+    await expect(runTestEffect(listComments(db, 'wa', 'i1'))).resolves.toEqual([
       {
-        id: 'c',
-        body: 'Comment',
-        created_at: 1,
-        updated_at: 2,
+        author_email: 'u@example.com',
         author_id: 'u',
         author_name: 'User',
-        author_email: 'u@example.com',
+        body: 'Comment',
+        created_at: 1,
+        id: 'c',
+        updated_at: 2,
       },
     ])
-    expect(await Effect.runPromise(listComments(db, 'wb', 'i1'))).toEqual([])
-    expect(await Effect.runPromise(listLinksForIssue(db, 'wa', 'i2'))).toEqual([
+    await expect(runTestEffect(listComments(db, 'wb', 'i1'))).resolves.toEqual([])
+    await expect(runTestEffect(listLinksForIssue(db, 'wa', 'i2'))).resolves.toEqual([
       {
+        createdAt: 1,
+        createdById: 'u',
         id: 'l',
-        type: 'blocked_by',
         linkedIssueId: 'i1',
-        linkedIssueTitle: 'Needle one',
         linkedIssueNumber: 1,
         linkedIssueProjectKey: 'A',
         linkedIssueStatusCategory: '',
-        createdById: 'u',
-        createdAt: 1,
+        linkedIssueTitle: 'Needle one',
+        type: 'blocked_by',
       },
     ])
-    expect(await Effect.runPromise(listLinksForIssue(db, 'wb', 'i2'))).toEqual([])
-    expect(await Effect.runPromise(batchLoadCustomFields(db, 'wa', ['other']))).toEqual({})
+    await expect(runTestEffect(listLinksForIssue(db, 'wb', 'i2'))).resolves.toEqual([])
+    await expect(runTestEffect(batchLoadCustomFields(db, 'wa', ['other']))).resolves.toEqual({})
   })
 
   test('returns the existing search keys and sanitizes FTS operators literally', async () => {
-    const rows = await Effect.runPromise(
+    const rows = await runTestEffect(
       issues.searchIssues(db, 'wa', { query: 'needle', limit: 20 }, { sql: 'i.project_id = ?', params: ['pa'] }),
     )
     expect(rows).toEqual([
       {
         id: 'i1',
         number: 1,
-        title: 'Needle one',
-        status: 'todo',
         priority: 'high',
         project_id: 'pa',
         project_key: 'A',
         project_name: 'Project A',
+        status: 'todo',
+        title: 'Needle one',
       },
     ])
-    expect(await Effect.runPromise(issues.searchIssues(db, 'wa', { query: 'needle OR', limit: 20 }))).toEqual([])
-    expect(await Effect.runPromise(issues.searchIssues(db, 'wa', { query: '***', limit: 20 }))).toEqual([])
+    await expect(runTestEffect(issues.searchIssues(db, 'wa', { query: 'needle OR', limit: 20 }))).resolves.toEqual([])
+    await expect(runTestEffect(issues.searchIssues(db, 'wa', { query: '***', limit: 20 }))).resolves.toEqual([])
   })
 
   test('retains taxonomy aliases and definition option decoding', async () => {
     sqlite.exec(`INSERT INTO task_types(id,workspace_id,key,name,position,is_default) VALUES ('t','wa','bug','Bug',0,1);
       INSERT INTO task_statuses(id,workspace_id,key,name,category,position,is_default,is_review_step) VALUES ('s','wa','review','Review','in_progress',0,1,1);
       INSERT INTO custom_field_definitions(id,workspace_id,key,label,type,options,created_at) VALUES ('choice','wa','choice','Choice','select','["A","B"]',2);`)
-    expect(await Effect.runPromise(listTaskTypes(db, 'wa'))).toEqual([
+    await expect(runTestEffect(listTaskTypes(db, 'wa'))).resolves.toEqual([
       {
-        id: 't',
-        key: 'bug',
-        name: 'Bug',
         color: null,
         icon: null,
+        id: 't',
+        is_default: 1,
+        key: 'bug',
+        name: 'Bug',
         position: 0,
         workspace_id: 'wa',
-        is_default: 1,
       },
     ])
-    expect(await Effect.runPromise(listTaskStatuses(db, 'wa'))).toEqual([
+    await expect(runTestEffect(listTaskStatuses(db, 'wa'))).resolves.toEqual([
       {
-        id: 's',
-        key: 'review',
-        name: 'Review',
         category: 'in_progress',
         color: null,
-        position: 0,
-        workspace_id: 'wa',
+        id: 's',
         is_default: 1,
         is_review_step: 1,
+        key: 'review',
+        name: 'Review',
+        position: 0,
+        workspace_id: 'wa',
       },
     ])
-    const fields = await Effect.runPromise(listCustomFieldDefs(db, 'wa'))
+    const fields = await runTestEffect(listCustomFieldDefs(db, 'wa'))
     expect(fields.find((r) => r.key === 'choice')?.options).toEqual(['A', 'B'])
     expect(fields.map((r) => r.workspaceId)).toEqual(['wa', 'wa'])
   })
 
   test("chunks variable-length field, rollup and link metadata loads below D1's bind cap", async () => {
     const ids = Array.from({ length: 195 }, (_, i) => `missing-${i}`)
-    expect(await Effect.runPromise(batchLoadCustomFields(db, 'wa', [...ids, 'i1']))).toHaveProperty('i1')
-    const rollups = await Effect.runPromise(issues.getChildRollups(db, 'wa', [...ids, 'i1']))
+    await expect(runTestEffect(batchLoadCustomFields(db, 'wa', [...ids, 'i1']))).resolves.toHaveProperty('i1')
+    const rollups = await runTestEffect(issues.getChildRollups(db, 'wa', [...ids, 'i1']))
     expect(Object.keys(rollups)).toHaveLength(196)
     expect(rollups.i1.total).toBe(1)
     const issueInsert = sqlite.prepare(
@@ -262,7 +263,7 @@ describe('issue and related pure data queries', () => {
       issueInsert.run(id, index + 100)
       linkInsert.run(`link-${index}`, id)
     }
-    const links = await Effect.runPromise(listLinksForIssue(db, 'wa', 'i1'))
+    const links = await runTestEffect(listLinksForIssue(db, 'wa', 'i1'))
     expect(links).toHaveLength(196)
     expect(links.filter((link) => link.linkedIssueTitle === 'Linked')).toHaveLength(195)
   })
@@ -272,7 +273,7 @@ describe('issue and related pure data queries', () => {
       "INSERT INTO task_statuses(id,workspace_id,key,name,category,position,is_default,is_review_step) VALUES ('s','wa','todo','Todo','todo',0,1,0); UPDATE issues SET status_id='s' WHERE id='i1';",
     )
     const ids = Array.from({ length: 195 }, (_, index) => `unknown-${index}`)
-    const page = await Effect.runPromise(
+    const page = await runTestEffect(
       issues.listIssues(db, 'wa', {
         limit: 30,
         statusIds: [...ids, 's'].join(','),
@@ -287,7 +288,7 @@ describe('issue and related pure data queries', () => {
   test('is lazy and exposes a typed query error for D1 failures', async () => {
     const missing = {} as D1Database
     const effect = issues.getIssue(missing, 'wa', { id: 'i1' })
-    const result = await Effect.runPromise(Effect.result(effect))
+    const result = await runTestEffect(Effect.result(effect))
     expect(result).toMatchObject({
       _tag: 'Failure',
       failure: { _tag: 'DataQueryError', operation: 'getIssue' },

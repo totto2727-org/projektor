@@ -58,7 +58,7 @@ const makeUploadRequest = function makeUploadRequest(
   slug: string,
   content = 'hello world',
   filename = 'test.txt',
-) {
+): Promise<Response> {
   const form = new FormData()
   form.append('file', new File([content], filename, { type: 'text/plain' }))
   form.append('entityType', 'issue')
@@ -120,7 +120,7 @@ describe('Files API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual([])
+    await expect(res.json()).resolves.toStrictEqual([])
   })
 
   test('POST /api/files uploads and returns file metadata', async () => {
@@ -206,8 +206,8 @@ describe('Files API', () => {
     const { id } = (await uploadRes.json()) as { id: string }
 
     const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(204)
 
@@ -229,7 +229,7 @@ describe('Files API', () => {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(getRes.status).toBe(200)
-    expect(await getRes.text()).toBe('query-param content')
+    await expect(getRes.text()).resolves.toBe('query-param content')
   })
 
   test('GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
@@ -276,8 +276,8 @@ describe('Files API', () => {
     const other = await seedFixture()
 
     const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(404)
   })
@@ -287,7 +287,7 @@ describe('Files API', () => {
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await fetchNativeApi('http://localhost/api/files', { method: 'POST', body: form })
+    const res = await fetchNativeApi('http://localhost/api/files', { body: form, method: 'POST' })
     expect(res.status).toBe(401)
   })
 
@@ -417,7 +417,7 @@ describe('Files API', () => {
   })
 
   describe('POST /api/files/links (wiki_ref and url attachment kinds)', () => {
-    const createWikiPage = async function createWikiPage(headers: Record<string, string>) {
+    const createWikiPage = async function createWikiPage(headers: Record<string, string>): Promise<string> {
       const res = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -442,7 +442,7 @@ describe('Files API', () => {
         }),
       })
       expect(res.status).toBe(201)
-      expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'wiki_ref' })
+      await expect(res.json()).resolves.toMatchObject({ id: expect.any(String), kind: 'wiki_ref' })
 
       const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
@@ -483,7 +483,7 @@ describe('Files API', () => {
         }),
       })
       expect(res.status).toBe(201)
-      expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'url' })
+      await expect(res.json()).resolves.toMatchObject({ id: expect.any(String), kind: 'url' })
 
       const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
@@ -544,8 +544,8 @@ describe('Files API', () => {
       const { id } = (await createRes.json()) as { id: string }
 
       const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
-        method: 'DELETE',
         headers: authHeaders(token, slug),
+        method: 'DELETE',
       })
       expect(delRes.status).toBe(204)
     })
@@ -657,8 +657,8 @@ describe('Files API', () => {
       expect(linkRes.status).toBe(201)
 
       const delRes = await fetchNativeApi(`http://localhost/api/wiki/${wikiPageSlug}`, {
-        method: 'DELETE',
         headers: adminHeaders,
+        method: 'DELETE',
       })
       expect(delRes.status).toBe(200)
 
@@ -694,8 +694,8 @@ describe('Files API', () => {
         .run()
       await resetRateLimits()
       const purgeRes = await fetchNativeApi('http://localhost/api/wiki/purge-trash', {
-        method: 'POST',
         headers: adminHeaders,
+        method: 'POST',
       })
       expect(purgeRes.status).toBe(200)
 
@@ -755,8 +755,8 @@ describe('Files API', () => {
       const { id } = (await uploadRes.json()) as { id: string }
 
       const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
-        method: 'DELETE',
         headers: authHeaders(viewer.token, workspace.slug),
+        method: 'DELETE',
       })
       expect(delRes.status).toBe(403)
     })
@@ -864,11 +864,11 @@ describe('Files MCP tools', () => {
     const { id } = (await uploadRes.json()) as { id: string }
 
     const row = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(id).first<{ r2_key: string }>()
-    expect(await env.R2.get(row?.r2_key ?? '')).not.toBeNull()
+    await expect(env.R2.get(row?.r2_key ?? '')).resolves.not.toBeNull()
 
     await mcpToolResult<{ ok: true }>(workspaceId, 'delete_attachment', { id }, authHeaders(token, slug))
 
-    expect(await env.R2.get(row?.r2_key ?? '')).toBeNull()
+    await expect(env.R2.get(row?.r2_key ?? '')).resolves.toBeNull()
   })
 
   test('list_attachments scopes by workspace — another workspace sees no rows for the same entityId', async () => {
@@ -993,7 +993,7 @@ describe('Attachment project visibility', () => {
      * The filename alone is the leak this closes — "acquisition-terms.pdf" on a ticket
      * you cannot see tells you plenty without the bytes.
      */
-    expect(await res.json()).toEqual([])
+    await expect(res.json()).resolves.toStrictEqual([])
   })
 
   test('404s the metadata read for an attachment on an invisible issue', async () => {
@@ -1013,16 +1013,16 @@ describe('Attachment project visibility', () => {
      * so a status check alone would pass even if authz were bypassed and the object
      * simply absent. This proves the row was never handed over.
      */
-    expect(await res.text()).not.toContain('secret bytes')
+    await expect(res.text()).resolves.not.toContain('secret bytes')
   })
 
   test('404s the delete and leaves the R2 object intact', async () => {
     const res = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}`, {
-      method: 'DELETE',
       headers: asMember(),
+      method: 'DELETE',
     })
     expect(res.status).toBe(404)
-    expect(await env.R2.get(hiddenR2Key)).not.toBeNull()
+    await expect(env.R2.get(hiddenR2Key)).resolves.not.toBeNull()
     const row = await env.DB.prepare('SELECT id FROM attachments WHERE id = ?').bind(hiddenAttachmentId).first()
     expect(row).not.toBeNull()
   })
@@ -1061,7 +1061,7 @@ describe('Attachment project visibility', () => {
     const scoped = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.scoped}`, {
       headers: asMember(),
     })
-    expect(await scoped.json()).toEqual([])
+    await expect(scoped.json()).resolves.toStrictEqual([])
 
     /*
      * A null project_id is a workspace-level page. Filtering these out too would be a
@@ -1070,7 +1070,7 @@ describe('Attachment project visibility', () => {
     const global = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`, {
       headers: asMember(),
     })
-    expect(((await global.json()) as unknown[]).length).toBe(1)
+    expect((await global.json()) as unknown[]).toHaveLength(1)
   })
 
   test('still shows the attachment to a workspace admin', async () => {
@@ -1081,7 +1081,7 @@ describe('Attachment project visibility', () => {
     const list = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
       headers: authHeaders(adminToken, slug),
     })
-    expect(((await list.json()) as unknown[]).length).toBe(1)
+    expect((await list.json()) as unknown[]).toHaveLength(1)
 
     const meta = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
       headers: authHeaders(adminToken, slug),

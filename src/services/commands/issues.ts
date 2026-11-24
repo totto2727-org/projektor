@@ -1,5 +1,5 @@
 import { and, eq, or } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { AddCommentSchema } from '#contracts/inputs/comments.ts'
@@ -103,7 +103,7 @@ const validateParent = async function validateParent(
   if (!parentRow) {
     throw new NotFoundError('Parent issue not found')
   }
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, parentRow.project_id)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, parentRow.project_id))) {
     throw new NotFoundError('Parent issue not found')
   }
 
@@ -221,7 +221,7 @@ const assertIssueProjectVisible = async function assertIssueProjectVisible(
   if (isWorkspaceAdmin(ctx.role)) {
     return
   }
-  if ((await effectiveProjectRole(ctx, projectId)) === null) {
+  if (Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     throw new NotFoundError('Issue not found')
   }
 }
@@ -566,7 +566,7 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
    */
   if (!isWorkspaceAdmin(ctx.role)) {
     const projRole = await effectiveProjectRole(ctx, projectId)
-    if (projRole === null) {
+    if (Predicate.isNullish(projRole)) {
       throw new NotFoundError('Project not found')
     }
     if (!canWriteProject(projRole)) {
@@ -616,13 +616,13 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
       now: nowTs,
       feedbackIds,
     }),
-    buildFtsInsertStatement(ctx, id, title, resolvedBody, feedbackIds !== undefined),
+    buildFtsInsertStatement(ctx, id, title, resolvedBody, Predicate.isNotNullish(feedbackIds)),
     ...buildCustomFieldUpsertStatements(ctx.db, id, cfWrites),
     buildActivityInsertStatement(ctx, orm, {
       entityType: 'issue',
       entityId: id,
       action: 'created',
-      requireExistingIssue: feedbackIds !== undefined,
+      requireExistingIssue: Predicate.isNotNullish(feedbackIds),
     }),
   ]
 
@@ -640,7 +640,7 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
 
   const results = await ctx.db.batch(statements)
   const number = (results[0]?.results as { number: number }[] | undefined)?.[0]?.number
-  if (feedbackIds && number === undefined) {
+  if (feedbackIds && Predicate.isNullish(number)) {
     throw new ConflictError('Feedback already converted or no longer available')
   }
 
@@ -681,23 +681,23 @@ type SetValues = Record<string, any>
 
 const buildSimpleFields = function buildSimpleFields(data: UpdateIssueData): SetValues {
   const setValues: SetValues = {}
-  if (data.title !== undefined) {
+  if (Predicate.isNotNullish(data.title)) {
     setValues.title = data.title
   }
-  if (data.body !== undefined) {
+  if (Predicate.isNotNullish(data.body)) {
     setValues.body = data.body
     // PROJ-859: keep the stored definition-of-ready result in step with the body.
     const [dorReady, dorMissing] = dorColumns(data.body)
     setValues.dorReady = dorReady
     setValues.dorMissing = dorMissing
   }
-  if (data.priority !== undefined) {
+  if (Predicate.isNotNullish(data.priority)) {
     setValues.priority = data.priority
   }
   if ('assigneeId' in data) {
     setValues.assigneeId = data.assigneeId ?? null
   }
-  if (data.labels !== undefined) {
+  if (Predicate.isNotNullish(data.labels)) {
     setValues.labels = data.labels
   }
   if ('parentId' in data) {
@@ -950,7 +950,7 @@ const applyStatusFields = async function applyStatusFields(
    */
   closing: boolean
 }> {
-  if (data.status === undefined && !('statusId' in data)) {
+  if (Predicate.isNullish(data.status) && !('statusId' in data)) {
     return {
       setValues: {},
       reviewOrDoneTransition: false,
@@ -1033,7 +1033,7 @@ const completionReportCommentBody = function completionReportCommentBody(
 ): string {
   const body = formatCompletionReportComment(report)
   const max = AddCommentSchema.shape.body.maxLength
-  if (max !== null && body.length > max) {
+  if (Predicate.isNotNullish(max) && body.length > max) {
     throw new ValidationError({
       formErrors: [],
       fieldErrors: {
@@ -1169,19 +1169,19 @@ const buildFtsReindexStatements = function buildFtsReindexStatements(
  */
 const buildUpdateDiffCore = function buildUpdateDiffCore(data: UpdateIssueData): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
-  if (data.title !== undefined) {
+  if (Predicate.isNotNullish(data.title)) {
     diff.title = data.title
   }
-  if (data.body !== undefined) {
+  if (Predicate.isNotNullish(data.body)) {
     diff.bodyChanged = true
   }
-  if (data.status !== undefined) {
+  if (Predicate.isNotNullish(data.status)) {
     diff.status = data.status
   }
-  if (data.priority !== undefined) {
+  if (Predicate.isNotNullish(data.priority)) {
     diff.priority = data.priority
   }
-  if (data.labels !== undefined) {
+  if (Predicate.isNotNullish(data.labels)) {
     diff.labels = data.labels
   }
   return diff
@@ -1201,7 +1201,7 @@ const buildUpdateDiffRefs = function buildUpdateDiffRefs(data: UpdateIssueData):
   if ('typeId' in data) {
     diff.typeId = data.typeId ?? null
   }
-  if (data.customFields !== undefined) {
+  if (Predicate.isNotNullish(data.customFields)) {
     diff.customFields = data.customFields
   }
   return diff
@@ -1281,7 +1281,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
   // No grant → invisible → 404; a viewer grant is read-only → 403.
   if (!isWorkspaceAdmin(ctx.role)) {
     const projRole = await effectiveProjectRole(ctx, existing.projectId)
-    if (projRole === null) {
+    if (Predicate.isNullish(projRole)) {
       throw new NotFoundError('Issue not found')
     }
     if (!canWriteProject(projRole)) {
@@ -1340,7 +1340,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 
   const statements: D1PreparedStatement[] = [updateStatement]
 
-  if (data.title !== undefined || data.body !== undefined) {
+  if (Predicate.isNotNullish(data.title) || Predicate.isNotNullish(data.body)) {
     statements.push(...buildFtsReindexStatements(ctx, id, data.title ?? existing.title, data.body ?? existing.body))
   }
 
@@ -1409,7 +1409,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 
   await invalidateUpdateCaches(ctx, id, data, existing)
 
-  const isStatusChange = data.status !== undefined || data.statusId !== undefined
+  const isStatusChange = Predicate.isNotNullish(data.status) || data.statusId !== undefined
   await broadcastWorkspaceEvent(ctx, {
     type: isStatusChange ? 'issue.status_changed' : 'issue.updated',
     projectId: existing.projectId ?? undefined,
@@ -1626,13 +1626,13 @@ const parsePrioritizedFilters = function parsePrioritizedFilters(raw: unknown): 
     const parsed = BooleanQueryParam.safeParse(v)
     return parsed.success ? parsed.data : fallback
   }
-  const rawLimit = typeof input.limit === 'string' ? Number(input.limit) : input.limit
+  const rawLimit = Predicate.isString(input.limit) ? Number(input.limit) : input.limit
   const limit =
-    typeof rawLimit === 'number' && Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 100) : 10
+    Predicate.isNumber(rawLimit) && Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 100) : 10
   const includeBacklog = flag(input.includeBacklog, true)
   const excludeClaimed = flag(input.excludeClaimed, false)
   const includeNotReady = flag(input.includeNotReady, false)
-  const projectId = typeof input.projectId === 'string' && input.projectId ? input.projectId : undefined
+  const projectId = Predicate.isString(input.projectId) && input.projectId ? input.projectId : undefined
   return { limit, includeBacklog, excludeClaimed, includeNotReady, projectId }
 }
 

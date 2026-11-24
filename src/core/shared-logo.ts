@@ -11,7 +11,7 @@ export async function handleSharedLogoRequest(request: Request, env: CoreEnviron
     return undefined
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return new Response(null, { status: 405, headers: { allow: 'GET, HEAD' } })
+    return new Response(null, { headers: { allow: 'GET, HEAD' }, status: 405 })
   }
   try {
     let token: string
@@ -42,7 +42,7 @@ export async function handleSharedLogoRequest(request: Request, env: CoreEnviron
     }
     return Response.json(
       { error: problem.message, occurrenceId: problem.occurrenceId },
-      { status: problem.status, headers: { 'cache-control': 'private, no-store' } },
+      { headers: { 'cache-control': 'private, no-store' }, status: problem.status },
     )
   }
 }

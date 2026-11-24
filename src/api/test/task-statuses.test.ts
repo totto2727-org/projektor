@@ -193,8 +193,8 @@ describe('Task Statuses API', () => {
     })
 
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
 
@@ -207,8 +207,8 @@ describe('Task Statuses API', () => {
 
   test('DELETE /api/task-statuses/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(404)
   })
@@ -222,8 +222,8 @@ describe('Task Statuses API', () => {
     await seedIssue(workspaceId, projectId, userId, { statusId })
 
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${statusId}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(409)
   })
@@ -237,8 +237,8 @@ describe('Task Statuses API', () => {
     })
 
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(409)
   })

@@ -50,10 +50,10 @@ describe('Core persistent authorization', () => {
     const f = await fixture()
     const first = await resolveCoreServiceCtx(f.actor, 'w', 'write', f.env)
     expect(first).toMatchObject({
-      workspaceId: 'w',
-      userId: 'u',
-      role: 'member',
       auth: { kind: 'agent', method: 'pk' },
+      role: 'member',
+      userId: 'u',
+      workspaceId: 'w',
     })
     f.sqlite.exec("UPDATE workspace_members SET role = 'viewer' WHERE workspace_id = 'w'")
     expect((await resolveCoreServiceCtx(f.actor, 'w', 'read', f.env)).role).toBe('viewer')
@@ -98,9 +98,9 @@ describe('Core persistent authorization', () => {
     }
     const principal = await resolveCorePrincipal(actor, f.env)
     expect(principal).toMatchObject({
-      tokenWorkspaceId: 'w',
+      auth: { clientId: 'client', credentialId: 'grant', kind: 'agent', method: 'oauth' },
       tokenScopes: ['read'],
-      auth: { kind: 'agent', method: 'oauth', credentialId: 'grant', clientId: 'client' },
+      tokenWorkspaceId: 'w',
     })
     await expect(resolveCoreServiceCtx(actor, 'w', 'write', f.env)).rejects.toMatchObject({ status: 403 })
     await expect(resolveCoreServiceCtx(actor, 'other', 'read', f.env)).rejects.toMatchObject({ status: 403 })
@@ -126,9 +126,9 @@ describe('Core persistent authorization', () => {
   test('registers coarsened token audit work on the Core invocation lifecycle', async () => {
     const f = await fixture()
     await resolveCorePrincipal(f.actor, f.env)
-    expect(f.waitUntil).toHaveBeenCalledTimes(1)
+    expect(f.waitUntil).toHaveBeenCalledOnce()
     await f.waitUntil.mock.calls[0][0]
     await resolveCorePrincipal(f.actor, f.env)
-    expect(f.waitUntil).toHaveBeenCalledTimes(1)
+    expect(f.waitUntil).toHaveBeenCalledOnce()
   })
 })

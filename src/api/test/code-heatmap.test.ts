@@ -49,7 +49,12 @@ describe('Code heatmap (PROJ-332)', () => {
    * scoped to workspace+path, not directory) is never at risk since each seeded path is
    * distinct.
    */
-  const seedClaim = async function seedClaim(issueId: string, path: string, claimedAt: number, releasedAt?: number) {
+  const seedClaim = async function seedClaim(
+    issueId: string,
+    path: string,
+    claimedAt: number,
+    releasedAt?: number,
+  ): Promise<void> {
     await env.DB.prepare(
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +
         'released_at) VALUES (?, ?, ?, NULL, ?, ?, ?)',
@@ -64,7 +69,7 @@ describe('Code heatmap (PROJ-332)', () => {
     path: string,
     occurredAt: number,
     forced = 0,
-  ) {
+  ): Promise<void> {
     await env.DB.prepare(
       'INSERT INTO claim_conflicts (id, workspace_id, path, rejected_issue_id, rejected_agent_id, ' +
         'holding_issue_id, holding_agent_id, forced, occurred_at) VALUES (?, ?, ?, ?, NULL, ?, NULL, ?, ?)',
@@ -73,7 +78,7 @@ describe('Code heatmap (PROJ-332)', () => {
       .run()
   }
 
-  const getHeatmap = async function getHeatmap(params: Record<string, string> = {}) {
+  const getHeatmap = async function getHeatmap(params: Record<string, string> = {}): Promise<Response> {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/projects/${projectId}/code-heatmap${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(token, slug),

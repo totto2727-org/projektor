@@ -32,7 +32,7 @@ describe('compose_playbook', () => {
     epicNumber = row!.number
   })
 
-  const compose = async function compose(params: Record<string, unknown>) {
+  const compose = async function compose(params: Record<string, unknown>): Promise<Response> {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),

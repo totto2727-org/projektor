@@ -28,7 +28,7 @@ import {
 } from './types.ts'
 
 export function checked<A>(read: () => A) {
-  return Effect.try({ try: read, catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)) })
+  return Effect.try({ catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)), try: read })
 }
 
 export function readDataIssue(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {

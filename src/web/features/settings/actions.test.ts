@@ -111,15 +111,15 @@ const cases: {
     label: 'disconnect connector',
     invoke: (test) => test.invoke(actions.disconnectConnector, { ...workspace, connectorId: 'c1' }),
     check: async (test) => {
-      expect(await test.oauthKV.get('grant:u1:c1')).toBeNull()
-      expect(await test.oauthKV.get('token:u1:c1:secret')).toBeNull()
-      expect(await test.oauthKV.get('grant:u1:c2')).not.toBeNull()
-      expect(await test.oauthKV.get('grant:u2:c3')).not.toBeNull()
+      await expect(test.oauthKV.get('grant:u1:c1')).resolves.toBeNull()
+      await expect(test.oauthKV.get('token:u1:c1:secret')).resolves.toBeNull()
+      await expect(test.oauthKV.get('grant:u1:c2')).resolves.not.toBeNull()
+      await expect(test.oauthKV.get('grant:u2:c3')).resolves.not.toBeNull()
     },
   },
 ]
 const grantCases = cases.filter((operation) => operation.label.includes('grant'))
-function checkGrant(test: Fixture) {
+function checkGrant(test: Fixture): void {
   expect(
     test.sqlite.prepare("SELECT role FROM group_project_grants WHERE group_id='g1' AND project_id='p1'").get()?.role,
   ).toBe('admin')
@@ -140,7 +140,7 @@ const memberFixture = function memberFixture() {
   test.sqlite.exec("UPDATE workspace_members SET role='member' WHERE user_id='u1'")
   return test
 }
-const seedConnectors = async function seedConnectors(test: Fixture) {
+const seedConnectors = async function seedConnectors(test: Fixture): Promise<void> {
   for (const [id, userId, workspaceId] of [
     ['c1', 'u1', 'w1'],
     ['c2', 'u1', 'w2'],
@@ -175,17 +175,17 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     )
     expect(result).toMatchObject({ ok: false, status: 500 })
     expect(JSON.stringify(result)).not.toContain('private driver detail')
-    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.invalidated).toHaveBeenCalledOnce()
     expect(test.transport).not.toHaveBeenCalled()
   })
 
   test.each(grantCases)('$label accepts archived owner targets outside the active catalog', async (operation) => {
     const test = settingsFixture()
     test.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p1'")
-    expect(await operation.invoke(test)).toEqual({ ok: true, value: { ok: true } })
+    await expect(operation.invoke(test)).resolves.toEqual({ ok: true, value: { ok: true } })
     await operation.check(test)
     expect(test.transport).not.toHaveBeenCalled()
-    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.invalidated).toHaveBeenCalledOnce()
   })
 
   test.each(grantCases)(
@@ -198,12 +198,12 @@ describe('explicit settings ServerFns use real shared commands and authoritative
       const member = memberFixture()
       member.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p1'")
       for (const test of [foreign, missing, member]) {
-        expect(await operation.invoke(test)).toMatchObject({ ok: false, status: 404 })
+        await expect(operation.invoke(test)).resolves.toMatchObject({ ok: false, status: 404 })
         expect(
           test.sqlite.prepare("SELECT role FROM group_project_grants WHERE group_id='g1' AND project_id='p1'").get(),
         ).toBeUndefined()
         expect(test.transport).not.toHaveBeenCalled()
-        expect(test.invalidated).toHaveBeenCalledTimes(1)
+        expect(test.invalidated).toHaveBeenCalledOnce()
       }
     },
   )
@@ -215,13 +215,13 @@ describe('explicit settings ServerFns use real shared commands and authoritative
       test.sqlite.exec(
         "UPDATE projects SET archived_at=2 WHERE id='p1'; INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1); INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');",
       )
-      expect(await operation.invoke(test)).toMatchObject({ ok: false, status: 403 })
+      await expect(operation.invoke(test)).resolves.toMatchObject({ ok: false, status: 403 })
       expect(
         test.sqlite.prepare("SELECT role FROM group_project_grants WHERE group_id='g1' AND project_id='p1'").get()
           ?.role,
       ).toBe('viewer')
       expect(test.transport).not.toHaveBeenCalled()
-      expect(test.invalidated).toHaveBeenCalledTimes(1)
+      expect(test.invalidated).toHaveBeenCalledOnce()
     },
   )
 
@@ -250,15 +250,17 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     }
     await operation.check(test)
     expect(test.transport).not.toHaveBeenCalled()
-    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.invalidated).toHaveBeenCalledOnce()
   })
 
   test('rejects foreign workspace/project selection before any write', async () => {
     const test = settingsFixture()
-    expect(
-      await test.invoke(actions.createGroup, null, formData({ workspaceSlug: 'beta', name: 'Foreign team' })),
-    ).toMatchObject({ ok: false, status: 403 })
-    expect(await test.invoke(actions.setGroupGrant, { ...group, projectId: 'foreign', role: 'member' })).toMatchObject({
+    await expect(
+      test.invoke(actions.createGroup, null, formData({ workspaceSlug: 'beta', name: 'Foreign team' })),
+    ).resolves.toMatchObject({ ok: false, status: 403 })
+    await expect(
+      test.invoke(actions.setGroupGrant, { ...group, projectId: 'foreign', role: 'member' }),
+    ).resolves.toMatchObject({
       ok: false,
       status: 404,
     })
@@ -268,20 +270,20 @@ describe('explicit settings ServerFns use real shared commands and authoritative
 
   test('guards origin and maps concrete connector not-found failures while invalidating', async () => {
     const origin = settingsFixture('https://other.example')
-    expect(await origin.invoke(actions.revokeToken, { ...workspace, tokenId: 't1' })).toMatchObject({
+    await expect(origin.invoke(actions.revokeToken, { ...workspace, tokenId: 't1' })).resolves.toMatchObject({
       ok: false,
       status: 403,
     })
     expect(origin.sqlite.prepare("SELECT id FROM api_tokens WHERE id='t1'").get()).toBeDefined()
     expect(origin.transport).not.toHaveBeenCalled()
-    expect(origin.invalidated).toHaveBeenCalledTimes(1)
+    expect(origin.invalidated).toHaveBeenCalledOnce()
     const test = settingsFixture()
-    expect(await test.invoke(actions.disconnectConnector, { ...workspace, connectorId: 'missing' })).toEqual({
+    await expect(test.invoke(actions.disconnectConnector, { ...workspace, connectorId: 'missing' })).resolves.toEqual({
+      message: 'Connector not found',
       ok: false,
       status: 404,
-      message: 'Connector not found',
     })
-    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.invalidated).toHaveBeenCalledOnce()
   })
 
   test('validates Effect fields and preserves concrete read/write token creation shapes', async () => {
@@ -292,43 +294,39 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     await expect(
       test.invoke(actions.createToken, null, formData({ ...workspace, name: 'Agent', scope: 'read', expiry: '1.5' })),
     ).rejects.toMatchObject({ _tag: 'SchemaError' })
-    expect(
-      await test.invoke(
+    await expect(
+      test.invoke(
         actions.createToken,
         null,
         formData({ ...workspace, name: 'Writer', scope: 'readwrite', expiry: '' }),
       ),
-    ).toMatchObject({ ok: true, value: { scopes: ['read', 'write'], expiresAt: null } })
+    ).resolves.toMatchObject({ ok: true, value: { expiresAt: null, scopes: ['read', 'write'] } })
     expect(test.sqlite.prepare("SELECT scopes,expires_at FROM api_tokens WHERE name='Writer'").get()).toMatchObject({
-      scopes: '["read","write"]',
       expires_at: null,
+      scopes: '["read","write"]',
     })
     expect(test.transport).not.toHaveBeenCalled()
   })
 
   test('refuses workspace token minting by a real member', async () => {
     const test = memberFixture()
-    expect(
-      await test.invoke(
-        actions.createToken,
-        null,
-        formData({ ...workspace, name: 'Denied', scope: 'read', expiry: '' }),
-      ),
-    ).toMatchObject({ ok: false, status: 403 })
+    await expect(
+      test.invoke(actions.createToken, null, formData({ ...workspace, name: 'Denied', scope: 'read', expiry: '' })),
+    ).resolves.toMatchObject({ ok: false, status: 403 })
     expect(test.sqlite.prepare("SELECT id FROM api_tokens WHERE name='Denied'").get()).toBeUndefined()
   })
 
   test('refuses credential minting and connector revocation for the public viewer identity', async () => {
     const test = actionFixture(undefined, 'https://front.example', { DEV_USER_EMAIL: 'public-viewer@projektor.local' })
     test.sqlite.exec("UPDATE users SET email='public-viewer@projektor.local' WHERE id='u1'")
-    expect(
-      await test.invoke(
+    await expect(
+      test.invoke(
         actions.createToken,
         null,
         formData({ ...workspace, name: 'Public token', scope: 'read', expiry: '' }),
       ),
-    ).toMatchObject({ ok: false, status: 403 })
-    expect(await test.invoke(actions.disconnectConnector, { ...workspace, connectorId: 'c1' })).toMatchObject({
+    ).resolves.toMatchObject({ ok: false, status: 403 })
+    await expect(test.invoke(actions.disconnectConnector, { ...workspace, connectorId: 'c1' })).resolves.toMatchObject({
       ok: false,
       status: 403,
     })
@@ -340,12 +338,12 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     const test = settingsFixture()
     await seedConnectors(test)
     for (const connectorId of ['c2', 'c3']) {
-      expect(await test.invoke(actions.disconnectConnector, { ...workspace, connectorId })).toMatchObject({
+      await expect(test.invoke(actions.disconnectConnector, { ...workspace, connectorId })).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
     }
-    expect(await test.oauthKV.get('grant:u1:c2')).not.toBeNull()
-    expect(await test.oauthKV.get('grant:u2:c3')).not.toBeNull()
+    await expect(test.oauthKV.get('grant:u1:c2')).resolves.not.toBeNull()
+    await expect(test.oauthKV.get('grant:u2:c3')).resolves.not.toBeNull()
   })
 })

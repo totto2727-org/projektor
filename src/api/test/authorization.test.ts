@@ -129,8 +129,8 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     const { id } = (await createRes.json()) as { id: string }
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'DELETE',
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -168,8 +168,8 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   test('viewer cannot DELETE /api/task-types/:id', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
-      method: 'DELETE',
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -207,8 +207,8 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   test('viewer cannot DELETE /api/task-statuses/:id', async () => {
     const { id } = await seedTaskStatus(workspaceId, { key: 'del-st', name: 'Del' })
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
-      method: 'DELETE',
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -246,8 +246,8 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   test('viewer cannot DELETE /api/custom-fields/:id', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_del', type: 'text' })
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
-      method: 'DELETE',
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -263,8 +263,8 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
       body: JSON.stringify({ title: 'Protected Page', content: 'content' }),
     })
     const res = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
-      method: 'DELETE',
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -288,8 +288,8 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
      * (This test just validates the owner can also delete.)
      */
     const res = await fetchNativeApi('http://localhost/api/wiki/member-page', {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
     // Suppress unused variable warning from the extra seedWorkspaceRoles call above
@@ -472,8 +472,8 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
       .first<{ id: string }>()
 
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
-      method: 'DELETE',
       headers: memberHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -489,8 +489,8 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
       .first<{ id: string }>()
 
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
   })
@@ -567,7 +567,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     }
   }
   const humanHeaders = () => ({ 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' })
-  const mint = (email: string, name: string, scopes: string[]) =>
+  const mint = (email: string, name: string, scopes: string[]): Promise<Response> =>
     asHuman(email, () =>
       fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
         method: 'POST',
@@ -575,11 +575,11 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
         body: JSON.stringify({ name, scopes }),
       }),
     )
-  const revoke = (email: string, id: string) =>
+  const revoke = (email: string, id: string): Promise<Response> =>
     asHuman(email, () =>
       fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
-        method: 'DELETE',
         headers: humanHeaders(),
+        method: 'DELETE',
       }),
     )
 

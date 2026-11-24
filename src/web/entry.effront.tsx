@@ -17,7 +17,7 @@ import { RequestServices, RequestServicesLive } from './request.ts'
 // No tenant or identity data is kept in localStorage and no router lifecycle is installed.
 const cosmeticPrefs = `(function(){try{var p=JSON.parse(localStorage.getItem('prefs')||'null')||{},t=p.theme||localStorage.getItem('theme'),r=document.documentElement;if(t==='light'||t==='dark')r.dataset.theme=t;else r.removeAttribute('data-theme');r.dataset.density=p.density==='compact'?'compact':'comfortable';r.dataset.sidebar=p.sidebar==='collapsed'?'collapsed':'expanded'}catch(e){}})();`
 
-function pageTitle(pathname: string) {
+function pageTitle(pathname: string): string {
   const path = pathname.replace(/\/$/, '') || '/'
   const titles: Record<string, string> = {
     '/': 'Projects',

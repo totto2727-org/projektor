@@ -1,4 +1,5 @@
 'use client'
+import { Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 
 import type { ReviewStatus } from '#contracts/review-targets.ts'
@@ -40,7 +41,7 @@ function ReviewTargetRow({
     }
   }, [attachment, pending])
 
-  async function changeStatus(nextStatus: ReviewStatus | null) {
+  async function changeStatus(nextStatus: ReviewStatus | null): Promise<void> {
     if (busy.current) {
       return
     }
@@ -71,21 +72,21 @@ function ReviewTargetRow({
   return (
     <li
       className={`border rounded-md p-3 min-w-0 ${status === 'in_review' ? 'border-accent bg-accent/10' : 'border-border bg-surface text-text-muted'}`}
-      aria-busy={pending !== null}
+      aria-busy={Predicate.isNotNullish(pending)}
     >
       <div className='flex flex-wrap items-center gap-3'>
         <label className='flex items-center gap-2 min-h-[44px]'>
           <input
             type='checkbox'
-            checked={status !== null}
-            disabled={pending !== null}
+            checked={Predicate.isNotNullish(status)}
+            disabled={Predicate.isNotNullish(pending)}
             aria-label={`${name}をレビュー対象にする`}
             onChange={(event) => void changeStatus(event.currentTarget.checked ? 'fixing' : null)}
             className='size-4 accent-accent'
           />
           <span className='text-sm'>対象</span>
         </label>
-        {href && status !== null ? (
+        {href && Predicate.isNotNullish(status) ? (
           <a
             href={href}
             target='_blank'
@@ -104,7 +105,7 @@ function ReviewTargetRow({
             <select
               aria-label={`${name}のレビューステータス`}
               value={status ?? ''}
-              disabled={pending !== null}
+              disabled={Predicate.isNotNullish(pending)}
               onChange={(event) => {
                 const selected = STATUS_OPTIONS.find((entry) => entry.value === event.currentTarget.value)
                 if (selected) {
@@ -153,12 +154,12 @@ export function ReviewTargetsSection({
 }) {
   const eligible = attachments.filter((attachment) => attachment.kind === 'file' || attachment.kind === 'url')
   const selected = eligible
-    .filter((attachment) => attachment.reviewStatus !== null && attachment.reviewStatus !== 'done')
+    .filter((attachment) => Predicate.isNotNullish(attachment.reviewStatus) && attachment.reviewStatus !== 'done')
     .sort((left, right) => {
       const priority = Number(right.reviewStatus === 'in_review') - Number(left.reviewStatus === 'in_review')
       return priority || left.createdAt - right.createdAt || left.id.localeCompare(right.id, 'en')
     })
-  const available = eligible.filter((attachment) => attachment.reviewStatus === null)
+  const available = eligible.filter((attachment) => Predicate.isNullish(attachment.reviewStatus))
   const inReview = selected.filter((attachment) => attachment.reviewStatus === 'in_review').length
   const reviewUrl = new URL(issueHref, 'https://frontend.invalid')
   reviewUrl.searchParams.set('tab', 'review-targets')

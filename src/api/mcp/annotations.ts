@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import type { MCPToolAnnotations } from '#types'
 
 /**
@@ -27,7 +29,7 @@ export function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCP
     readOnlyHint: false,
     openWorldHint: false,
     destructiveHint: opts.destructive,
-    ...(opts.idempotent !== undefined ? { idempotentHint: opts.idempotent } : {}),
+    ...(Predicate.isNotNullish(opts.idempotent) ? { idempotentHint: opts.idempotent } : {}),
   }
 }
 

@@ -1,10 +1,11 @@
-// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 import { getOAuthApi } from '@cloudflare/workers-oauth-provider'
 import type {
   ClientRegistrationCallbackOptions,
   OAuthHelpers,
   OAuthProviderOptions,
 } from '@cloudflare/workers-oauth-provider'
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+import { Predicate } from 'effect'
 
 import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
@@ -20,7 +21,7 @@ export interface OAuthEnvironment {
 const validateNativeClient = function validateNativeClient({ clientMetadata }: ClientRegistrationCallbackOptions) {
   const redirects = clientMetadata.redirect_uris
   const redirect = Array.isArray(redirects) && redirects.length === 1 ? redirects[0] : undefined
-  if (clientMetadata.token_endpoint_auth_method === 'none' && typeof redirect === 'string' && URL.canParse(redirect)) {
+  if (clientMetadata.token_endpoint_auth_method === 'none' && Predicate.isString(redirect) && URL.canParse(redirect)) {
     const url = new URL(redirect)
     if (
       url.protocol === 'http:' &&

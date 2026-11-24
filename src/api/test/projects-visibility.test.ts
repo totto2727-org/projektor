@@ -34,12 +34,12 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
     await seedProject(ws.id, 'BBB')
     const ctx = viewerCtx(ws.id, viewer.id)
 
-    expect(await ids(listProjects(ctx))).toEqual([])
-    expect(await ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).toEqual([])
+    await expect(ids(listProjects(ctx))).resolves.toEqual([])
+    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toEqual([])
 
     await seedGroupGrant(ws.id, viewer.id, a.id, 'viewer')
-    expect(await ids(listProjects(ctx))).toEqual([a.id])
-    expect(await ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).toEqual([a.id])
+    await expect(ids(listProjects(ctx))).resolves.toEqual([a.id])
+    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toEqual([a.id])
   })
 
   test("the public viewer is put in the 'Public viewers' group; granting that group publishes a project", async () => {
@@ -57,12 +57,12 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
       .first<{ id: string }>()
     expect(group).not.toBeNull()
 
-    expect(await ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).toEqual([])
+    await expect(ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).resolves.toEqual([])
     await env.DB.prepare("INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'viewer')")
       .bind(group?.id, published.id)
       .run()
-    expect(await ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).toEqual([published.id])
-    expect(await ids(listProjects(viewerCtx(ws.id, pub.id)))).toEqual([published.id])
+    await expect(ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).resolves.toEqual([published.id])
+    await expect(ids(listProjects(viewerCtx(ws.id, pub.id)))).resolves.toEqual([published.id])
   })
 
   test("the public viewer can't write even when its group is granted `member`", async () => {

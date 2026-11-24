@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -245,10 +246,10 @@ export async function finishWork(ctx: ServiceCtx, raw: unknown) {
   await assertIssueAccess(ctx, issueId, 'edit')
   await assertAgentSessionAccess(ctx, sessionId)
 
-  if (status !== undefined || completionReport !== undefined) {
+  if (Predicate.isNotNullish(status) || Predicate.isNotNullish(completionReport)) {
     await updateIssue(ctx, issueId, {
-      ...(status !== undefined ? { status } : {}),
-      ...(completionReport !== undefined ? { completionReport } : {}),
+      ...(Predicate.isNotNullish(status) ? { status } : {}),
+      ...(Predicate.isNotNullish(completionReport) ? { completionReport } : {}),
       /*
        * Attributes the transition to this session for the PROJ-375 audit flag and
        * the review-gate's completion-report requirement, exactly as a caller passing

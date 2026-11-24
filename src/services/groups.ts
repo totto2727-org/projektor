@@ -1,4 +1,5 @@
 import { and, asc, eq } from 'drizzle-orm'
+import { Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -16,7 +17,7 @@ export function listGroups(db: D1Database, workspaceId: string, options: { membe
       memberCount: orm.$count(schema.userGroupMembers, eq(schema.userGroupMembers.groupId, schema.userGroups.id)),
       grantCount: orm.$count(schema.groupProjectGrants, eq(schema.groupProjectGrants.groupId, schema.userGroups.id)),
     }
-    if (options.memberUserId !== undefined) {
+    if (Predicate.isNotNullish(options.memberUserId)) {
       return orm
         .select(columns)
         .from(schema.userGroups)

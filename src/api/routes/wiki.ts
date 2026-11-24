@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import { jsonBody } from '#api/http/body.ts'
@@ -229,7 +230,7 @@ router.get('/export', (httpContext) => {
   const query = new URLSearchParams()
   for (const name of ['scope', 'projectId', 'pageId']) {
     const value = httpContext.req.query(name)
-    if (value !== undefined) {
+    if (Predicate.isNotNullish(value)) {
       query.set(name, value)
     }
   }

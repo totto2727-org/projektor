@@ -40,7 +40,7 @@ describe('CreateIssueModal — Description caption (PROJ-566)', () => {
 
   test('gives the editor its own accessible name instead', async () => {
     render(<Harness />)
-    expect(await screen.findByLabelText('Description')).toBeTruthy()
+    await expect(screen.findByLabelText('Description')).resolves.toBeTruthy()
   })
 })
 

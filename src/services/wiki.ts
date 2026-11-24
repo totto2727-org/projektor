@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
+import { Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -289,7 +290,7 @@ const decodeJsonArrayColumn = function decodeJsonArrayColumn(value: unknown): st
   if (Array.isArray(value)) {
     return value as string[]
   }
-  if (typeof value !== 'string') {
+  if (!Predicate.isString(value)) {
     return []
   }
   try {
@@ -318,7 +319,7 @@ export function searchWiki(db: D1Database, workspaceId: string, ftsQuery: string
       q += ` AND (${opts.visibilitySql.sql})`
       params.push(...opts.visibilitySql.params)
     }
-    if (opts.updatedSince !== undefined) {
+    if (Predicate.isNotNullish(opts.updatedSince)) {
       q += ' AND p.updated_at >= ?'
       params.push(opts.updatedSince)
     }

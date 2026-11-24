@@ -51,6 +51,7 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
         ApiResults[name],
         Effect.flatMap(envSource, (env) =>
           Effect.tryPromise({
+            catch: publicDomainFailure,
             try: async () => {
               const ctx = await resolveCoreServiceCtx(actor, workspaceId, capability, env)
               if (interactive) {
@@ -58,7 +59,6 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
               }
               return command(ctx, ...args)
             },
-            catch: publicDomainFailure,
           }),
         ),
       )
@@ -75,12 +75,12 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
         ApiResults[name],
         Effect.flatMap(envSource, (env) =>
           Effect.tryPromise({
+            catch: publicDomainFailure,
             try: async () => {
               const ctx = await resolveCoreServiceCtx(actor, workspaceId, capability, env)
               requireInteractive(ctx)
               return command(env, ctx, ...args)
             },
-            catch: publicDomainFailure,
           }),
         ),
       )
@@ -96,12 +96,12 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
         ApiResults[name],
         Effect.flatMap(envSource, (env) =>
           Effect.tryPromise({
+            catch: publicDomainFailure,
             try: async () => {
               const principal = await resolveCorePrincipal(actor, env)
               requireCoreCapability(principal, 'read')
               return command(...args)
             },
-            catch: publicDomainFailure,
           }),
         ),
       )
@@ -262,7 +262,7 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
   }
 }
 
-function requireInteractive(ctx: ServiceCtx) {
+function requireInteractive(ctx: ServiceCtx): void {
   if (ctx.auth?.kind !== 'human' || (ctx.auth.method !== 'access' && ctx.auth.method !== 'dev')) {
     throw coreFailure(403, 'Personal credentials require a signed-in browser session')
   }

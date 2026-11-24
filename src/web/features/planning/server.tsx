@@ -15,11 +15,11 @@ import { MetricsDashboard, SprintManager } from './widgets.tsx'
 
 function selectedProject(scope: RequestScope, projectId: string, workspaceId: string) {
   return Effect.try({
+    catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     try: () => {
       requireDataWorkspace(scope, workspaceId)
       return requireDataProject(scope, projectId, workspaceId)
     },
-    catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
   })
 }
 

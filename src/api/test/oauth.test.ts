@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { relyingPartyHost } from '#commands/oauth.ts'
@@ -71,7 +72,7 @@ const installAccessKeys = async function installAccessKeys(): Promise<void> {
 }
 
 const accessJwt = async function accessJwt(email: string): Promise<string> {
-  const part = (obj: unknown) => b64url(new TextEncoder().encode(JSON.stringify(obj)))
+  const part = (obj: unknown): string => b64url(new TextEncoder().encode(JSON.stringify(obj)))
   const header = part({ alg: 'RS256', typ: 'JWT' })
   const body = part({
     exp: Math.floor(Date.now() / 1000) + 3600,
@@ -147,10 +148,10 @@ const authorizeUrl = function authorizeUrl(
   url.searchParams.set('state', opts.state ?? 'opaque-state')
   url.searchParams.set('code_challenge', opts.challenge)
   url.searchParams.set('code_challenge_method', 'S256')
-  if (opts.scope !== undefined) {
+  if (Predicate.isNotNullish(opts.scope)) {
     url.searchParams.set('scope', opts.scope)
   }
-  if (opts.resource !== undefined) {
+  if (Predicate.isNotNullish(opts.resource)) {
     url.searchParams.set('resource', opts.resource)
   }
   return url.toString()
@@ -192,7 +193,7 @@ const exchange = async function exchange(body: Record<string, string>, ip?: stri
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-const registerClient = function registerClient(metadata: Record<string, unknown> = {}) {
+const registerClient = function registerClient(metadata: Record<string, unknown> = {}): Promise<Response> {
   return fetchNativeApi(`${HOST}/oauth/register`, {
     method: 'POST',
     headers: browserHeaders({ 'Content-Type': 'application/json' }),
@@ -267,7 +268,12 @@ const connect = async function connect(opts: {
   return { tokens: await res.json<TokenResponse>(), clientId, resource }
 }
 
-const mcpCall = function mcpCall(workspaceId: string, token: string, name: string, args: unknown = {}) {
+const mcpCall = function mcpCall(
+  workspaceId: string,
+  token: string,
+  name: string,
+  args: unknown = {},
+): Promise<Response> {
   return fetchNativeApi(`${HOST}/mcp/${workspaceId}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -294,7 +300,7 @@ describe('dynamic client registration', () => {
   ])('rejects metadata outside the public loopback flow: %j', async (metadata) => {
     const response = await registerClient(metadata)
     expect(response.status).toBe(400)
-    expect(await response.json()).toMatchObject({ error: 'invalid_client_metadata' })
+    await expect(response.json()).resolves.toMatchObject({ error: 'invalid_client_metadata' })
   })
 
   test('rate limits anonymous registrations independently of token requests', async () => {
@@ -334,7 +340,7 @@ describe('only a signed-in human reaches the consent screen', () => {
     )
 
     expect(res.status).toBe(403)
-    expect(await res.text()).toContain('Sign-in required')
+    await expect(res.text()).resolves.toContain('Sign-in required')
   })
 
   test('refuses the shared PUBLIC_READ_ONLY viewer', async () => {
@@ -352,7 +358,7 @@ describe('only a signed-in human reaches the consent screen', () => {
       })
 
       expect(res.status).toBe(403)
-      expect(await res.text()).toContain('Sign-in required')
+      await expect(res.text()).resolves.toContain('Sign-in required')
     } finally {
       env.PUBLIC_READ_ONLY = undefined as unknown as string
     }
@@ -414,7 +420,7 @@ describe('the authorization request must name a workspace the user belongs to', 
      * client whether this user is a member of that workspace.
      */
     expect(res.status).toBe(403)
-    expect(await res.text()).toContain('Workspace unavailable')
+    await expect(res.text()).resolves.toContain('Workspace unavailable')
   })
 })
 
@@ -477,7 +483,7 @@ describe('the consent screen', () => {
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
 
-    expect(await res.text()).toContain('your own machine')
+    await expect(res.text()).resolves.toContain('your own machine')
   })
 
   test('matches a loopback callback on a different ephemeral port (RFC 8252 §7.3)', async () => {
@@ -625,7 +631,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
 
     const res = await mcpCall(workspaceId, tokens.access_token, 'list_projects')
     expect(res.status).toBe(200)
-    expect(await res.json<{ error?: unknown }>()).not.toHaveProperty('error')
+    await expect(res.json<{ error?: unknown }>()).resolves.not.toHaveProperty('error')
   })
 
   test("refuses the same token against another workspace's MCP endpoint", async () => {
@@ -659,7 +665,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
 
   test('rotates the refresh token, keeping exactly one generation alive', async () => {
     const { tokens, clientId, resource } = await connect({ email, workspaceId })
-    const refresh = (refresh_token: string) =>
+    const refresh = (refresh_token: string): Promise<Response> =>
       exchange({ grant_type: 'refresh_token', refresh_token, client_id: clientId, resource })
 
     const first = await refresh(tokens.refresh_token)
@@ -762,12 +768,12 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
     const res = await fetchNativeApi(`${HOST}/api/workspaces/${workspace.slug}/tokens/${target?.id}`, {
-      method: 'DELETE',
       headers: {
         Authorization: `Bearer ${tokens.access_token}`,
         'X-Workspace-Slug': workspace.slug,
         'CF-Connecting-IP': clientIp,
       },
+      method: 'DELETE',
     })
     expect([401, 403]).toContain(res.status)
     const still = await env.DB.prepare('SELECT id FROM api_tokens WHERE id = ?').bind(target?.id).first()
@@ -819,7 +825,7 @@ describe("the token endpoint's failure modes", () => {
     const replay = await exchange(body)
     expect(replay.status).toBe(400)
     // RFC 6749 §5.2 wire shape. Claude's refresh path keys off this exact code.
-    expect(await replay.json()).toMatchObject({ error: 'invalid_grant' })
+    await expect(replay.json()).resolves.toMatchObject({ error: 'invalid_grant' })
 
     /*
      * The access token already handed out is gone too — that is what makes this a
@@ -875,7 +881,7 @@ describe("the token endpoint's failure modes", () => {
     })
 
     expect(res.status).toBe(400)
-    expect(await res.json()).toMatchObject({ error: 'invalid_grant' })
+    await expect(res.json()).resolves.toMatchObject({ error: 'invalid_grant' })
   })
 })
 
@@ -977,7 +983,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
 })
 
 describe('Settings lists and withdraws connectors (PROJ-659)', () => {
-  const settings = function settings(slug: string, jwt: string, path = '', init: RequestInit = {}) {
+  const settings = function settings(slug: string, jwt: string, path = '', init: RequestInit = {}): Promise<Response> {
     return fetchNativeApi(`${HOST}/api/workspaces/${slug}/connectors${path}`, {
       ...init,
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt, 'X-Workspace-Slug': slug }),
@@ -1036,7 +1042,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     expect(approved.status).toBe(302)
 
     clientIp = '203.0.113.244'
-    expect(await (await settings(workspace.slug, jwt)).json()).toEqual([])
+    await expect((await settings(workspace.slug, jwt)).json()).resolves.toStrictEqual([])
 
     clientIp = '203.0.113.245'
     await connect({ email, workspaceId: workspace.id })
@@ -1068,7 +1074,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
      * grant lookup that produces the props is per-request, in the provider.
      */
     expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(401)
-    expect(await (await settings(workspace.slug, jwt)).json()).toEqual([])
+    await expect((await settings(workspace.slug, jwt)).json()).resolves.toStrictEqual([])
   })
 
   test("keeps grants for another workspace off this workspace's page, and out of its reach", async () => {
@@ -1087,7 +1093,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     const [grant] = await listed.json<{ id: string }[]>()
     expect(grant).toBeTruthy()
 
-    expect(await (await settings(first.slug, jwt)).json()).toEqual([])
+    await expect((await settings(first.slug, jwt)).json()).resolves.toStrictEqual([])
     /*
      * Revoking it from the wrong workspace would disconnect a client this page never
      * showed the user.
@@ -1131,7 +1137,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
      * An admin, deliberately: a grant is a personal credential, so seniority in the
      * workspace does not confer visibility into it.
      */
-    expect(await (await settings(workspace.slug, await accessJwt(other))).json()).toEqual([])
+    await expect((await settings(workspace.slug, await accessJwt(other))).json()).resolves.toStrictEqual([])
   })
 })
 
@@ -1223,7 +1229,7 @@ describe('hardening the consent screen itself', () => {
     try {
       const res = await consentPage()
       expect(res.status).toBe(500)
-      expect(await res.text()).toContain('JWT_SECRET')
+      await expect(res.text()).resolves.toContain('JWT_SECRET')
     } finally {
       env.JWT_SECRET = saved
     }

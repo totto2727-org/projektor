@@ -9,7 +9,7 @@ interface UploadAnchor {
 class ImageUploads {
   readonly anchors = new Set<UploadAnchor>()
 
-  update(update: ViewUpdate) {
+  update(update: ViewUpdate): void {
     if (!update.docChanged) {
       return
     }
@@ -18,14 +18,14 @@ class ImageUploads {
     }
   }
 
-  cancel() {
+  cancel(): void {
     for (const anchor of this.anchors) {
       anchor.active = false
     }
     this.anchors.clear()
   }
 
-  destroy() {
+  destroy(): void {
     this.cancel()
   }
 }

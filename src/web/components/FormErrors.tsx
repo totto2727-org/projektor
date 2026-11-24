@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import type { ReactNode } from 'react'
 
 /** Structural subset shared by Standard Schema issues and TanStack Form error values. */
@@ -13,7 +14,7 @@ export interface FormErrorsProps {
 }
 
 function messagesFrom(error: unknown): string[] {
-  if (typeof error === 'string' && error.trim()) {
+  if (Predicate.isString(error) && error.trim()) {
     return [error]
   }
   if (Array.isArray(error)) {
@@ -23,7 +24,7 @@ function messagesFrom(error: unknown): string[] {
     return []
   }
   const issue = error as FormIssue & { readonly errors?: unknown; readonly errorMap?: unknown }
-  if (typeof issue.message === 'string' && issue.message.trim()) {
+  if (Predicate.isString(issue.message) && issue.message.trim()) {
     return [issue.message]
   }
   const errorMap =

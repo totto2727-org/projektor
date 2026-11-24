@@ -66,7 +66,7 @@ function seed(): WikiSeed {
 const localeString = Date.prototype.toLocaleString
 // oxlint-disable-next-line typescript/unbound-method -- Each mock calls this original on its own Date instance.
 const localeDateString = Date.prototype.toLocaleDateString
-function environment(locale: string, timeZone: string) {
+function environment(locale: string, timeZone: string): void {
   vi.spyOn(Date.prototype, 'toLocaleString').mockImplementation(function (this: Date, locales, options) {
     return localeString.call(this, locales ?? locale, { timeZone, ...options })
   })

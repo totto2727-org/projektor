@@ -72,7 +72,7 @@ describe('KV caching', () => {
       await fetchNativeApi(url, { headers: hdrs })
 
       // DELETE — should invalidate the cache entry
-      const del = await fetchNativeApi(url, { method: 'DELETE', headers: hdrs })
+      const del = await fetchNativeApi(url, { headers: hdrs, method: 'DELETE' })
       expect(del.status).toBe(200)
 
       // GET after delete must return 404, not the stale cached value
@@ -182,7 +182,7 @@ describe('KV caching', () => {
       expect(created.status).toBe(201)
 
       const after = await mcpListProjects()
-      expect(after.length).toBe(before.length + 1)
+      expect(after).toHaveLength(before.length + 1)
       expect(after.some((p) => p.key === 'NEWP')).toBe(true)
     })
 
@@ -204,7 +204,7 @@ describe('KV caching', () => {
       // GET immediately after — must not be served from the pre-create cache entry
       const after = await fetchNativeApi(url, { headers: hdrs })
       const afterBody = (await after.json()) as { key: string }[]
-      expect(afterBody.length).toBe(beforeBody.length + 1)
+      expect(afterBody).toHaveLength(beforeBody.length + 1)
       expect(afterBody.some((s) => s.key === 'blocked')).toBe(true)
     })
 
@@ -218,7 +218,7 @@ describe('KV caching', () => {
       const beforeBody = (await before.json()) as { key: string }[]
       expect(beforeBody.some((t) => t.key === 'chore')).toBe(true)
 
-      const del = await fetchNativeApi(`${url}/${taskType.id}`, { method: 'DELETE', headers: hdrs })
+      const del = await fetchNativeApi(`${url}/${taskType.id}`, { headers: hdrs, method: 'DELETE' })
       expect(del.status).toBe(200)
 
       // GET immediately after — must not be served from the pre-delete cache entry

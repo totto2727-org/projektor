@@ -7,6 +7,7 @@
  * Query budgets cover shared domain work, not private Core authentication overhead.
  * Conflict/force/stale semantics remain asserted at 100-path scale.
  */
+import { Predicate } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
@@ -32,14 +33,14 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
     new Proxy(stmt, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver)
-        if (typeof value !== 'function') {
+        if (!Predicate.isFunction(value)) {
           return value
         }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
             wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
         }
-        if (typeof prop === 'string' && EXEC_METHODS.has(prop)) {
+        if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
             count++
             return (value as (...a: unknown[]) => unknown).apply(target, args)
@@ -64,7 +65,11 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
 describe('PROJ-864: claim_files/release_files write batching', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  const seedStaleClaim = async function seedStaleClaim(workspaceId: string, issueId: string, path: string) {
+  const seedStaleClaim = async function seedStaleClaim(
+    workspaceId: string,
+    issueId: string,
+    path: string,
+  ): Promise<void> {
     const agentId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
@@ -83,7 +88,11 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       .run()
   }
 
-  const seedLiveClaim = async function seedLiveClaim(workspaceId: string, issueId: string, path: string) {
+  const seedLiveClaim = async function seedLiveClaim(
+    workspaceId: string,
+    issueId: string,
+    path: string,
+  ): Promise<void> {
     const now = Math.floor(Date.now() / 1000)
     // agentId NULL: an agentless claim is live until its claim TTL expires.
     await env.DB.prepare(
@@ -299,7 +308,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     const raced = await env.DB.prepare('SELECT released_at, release_reason FROM issue_file_claims WHERE path = ?')
       .bind('src/race-0.ts')
       .first()
-    expect(raced).toEqual({ released_at: 1, release_reason: 'expired' })
+    expect(raced).toEqual({ release_reason: 'expired', released_at: 1 })
     const observed = await fetchNativeApi('http://localhost/api/file-claims?includeStale=true', {
       headers: authHeaders(token, slug),
     })

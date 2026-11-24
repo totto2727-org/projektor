@@ -271,9 +271,9 @@ describe('complete direct D1 issues SSR loaders', () => {
 
   test('does not fetch an unauthorized workspace or expand an unauthorized catalog project', async () => {
     const data = fixture()
-    expect(
-      await data.run(loadIssue(scope, new URL('https://front.test/issues/view?id=issue-a&workspace=foreign'))),
-    ).toBeNull()
+    await expect(
+      data.run(loadIssue(scope, new URL('https://front.test/issues/view?id=issue-a&workspace=foreign'))),
+    ).resolves.toBeNull()
     for (const id of ['hidden-issue', 'other-issue']) {
       const error = await data.run(
         Effect.flip(loadIssue(scope, new URL(`https://front.test/issues/view?id=${id}&workspace=workspace`))),
@@ -422,7 +422,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(result?.initialData.page.nextCursor).toBeNull()
     expect(result?.initialData.search.results).toHaveLength(20)
     expect(result?.initialData.search.results?.every((entry) => entry.project_id === project.id)).toBe(true)
-    expect(await data.run(searchDataIssues(scope, workspace.id, 'secret'))).toEqual([])
+    await expect(data.run(searchDataIssues(scope, workspace.id, 'secret'))).resolves.toEqual([])
   })
 
   test('keeps query schema and driver failures in the typed Effect error channel', async () => {
@@ -447,9 +447,9 @@ describe('complete direct D1 issues SSR loaders', () => {
     const result = await data.run(loadEpics(selected, new URL('https://front.test/epics?projectId=project-a')))
     expect(result?.initialData.page.items).toHaveLength(1)
     expect(result?.initialData.page.items[0].rollup).toMatchObject({
-      total: 1,
       done: 1,
       remaining: 0,
+      total: 1,
     })
     const detail = await data.run(
       loadIssue(scope, new URL('https://front.test/issues/view?id=epic-a&workspace=workspace')),

@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '#contracts/inputs/wiki.ts'
@@ -554,7 +555,7 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
     // PROJ-815: trashed pages are skipped.
     isNull(schema.wikiPages.deletedAt),
   ]
-  if (updatedSince !== undefined) {
+  if (Predicate.isNotNullish(updatedSince)) {
     conditions.push(sql`${schema.wikiPages.updatedAt} >= ${updatedSince}`)
   }
   if (cursor) {
@@ -851,10 +852,10 @@ export async function backlinksForResolvedPage(
       ? rows.map((r) => r.pageId)
       : await visibleSourcePageIds(
           ctx,
-          rows.filter((r) => r.projectId !== null),
+          rows.filter((r) => Predicate.isNotNullish(r.projectId)),
         ),
   )
-  const visible = rows.filter((r) => r.projectId === null || visibleSourceIds.has(r.pageId))
+  const visible = rows.filter((r) => Predicate.isNullish(r.projectId) || visibleSourceIds.has(r.pageId))
 
   return visible.map((r) => ({
     linkId: r.linkId,
@@ -874,14 +875,18 @@ async function visibleSourcePageIds(
   if (rows.length === 0) {
     return []
   }
-  const uniqueProjectIds = [...new Set(rows.map((r) => r.projectId).filter((p): p is string => p !== null))]
+  const uniqueProjectIds = [
+    ...new Set(rows.map((r) => r.projectId).filter((p): p is string => Predicate.isNotNullish(p))),
+  ]
   const grantedProjectIds = new Set<string>()
   for (const projectId of uniqueProjectIds) {
     if (await hasProjectAccess(ctx, projectId)) {
       grantedProjectIds.add(projectId)
     }
   }
-  return rows.filter((r) => r.projectId !== null && grantedProjectIds.has(r.projectId)).map((r) => r.pageId)
+  return rows
+    .filter((r) => Predicate.isNotNullish(r.projectId) && grantedProjectIds.has(r.projectId))
+    .map((r) => r.pageId)
 }
 
 export interface BrokenWikiLink {

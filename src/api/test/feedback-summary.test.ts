@@ -163,6 +163,6 @@ describe('GET /api/projects/:id/feedback/summary', () => {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual([])
+    await expect(res.json()).resolves.toStrictEqual([])
   })
 })

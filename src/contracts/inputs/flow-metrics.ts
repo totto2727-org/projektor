@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
 
 const DAY = 86_400
@@ -41,13 +42,13 @@ export const GetFlowMetricsSchema = z
     granularity: z.enum(['day', 'week']).default('week'),
   })
   .superRefine((data, ctx) => {
-    if (data.since === undefined && data.until === undefined) {
+    if (Predicate.isNullish(data.since) && Predicate.isNullish(data.until)) {
       return
     }
     const now = Math.floor(Date.now() / 1000)
     let effSince: number
     let effUntil: number
-    if (data.since !== undefined) {
+    if (Predicate.isNotNullish(data.since)) {
       effSince = data.since
       effUntil = data.until ?? now
       if (effUntil < effSince) {
@@ -76,7 +77,7 @@ export const GetFlowMetricsSchema = z
           data.granularity === 'day'
             ? 'Window too large for granularity "day": max 366 days'
             : 'Window too large for granularity "week": max 5 years',
-        path: [data.since !== undefined ? 'since' : 'until'],
+        path: [Predicate.isNotNullish(data.since) ? 'since' : 'until'],
       })
     }
   })

@@ -10,6 +10,7 @@ import { makeApiDomainHandlers } from '#core/api/domain-operations.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 vi.mock('../../contracts/oauth-provider', () => ({
@@ -83,7 +84,7 @@ describe('API facade reply boundary', () => {
         ApiResults.apiCreateToken,
         humanHandlers.apiCreateToken(human, 'facade-workspace', { name: 'Human credential', scopes: ['read'] }),
       )
-      expect(created).toMatchObject({ name: 'Human credential', scopes: ['read'], expiresAt: null })
+      expect(created).toMatchObject({ expiresAt: null, name: 'Human credential', scopes: ['read'] })
       expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/)
       await expect(
         apiReply(ApiResults.apiRevokeToken, humanHandlers.apiRevokeToken(human, 'facade-workspace', created.id)),
@@ -180,7 +181,7 @@ describe('API facade reply boundary', () => {
           workspaceId: 'workspace',
           input: { id: 'issue' },
         })
-        return Effect.runPromise(coreReply('getIssue', ApiResults.apiGetIssue, Effect.succeed(publicIssue)))
+        return runTestEffect(coreReply('getIssue', ApiResults.apiGetIssue, Effect.succeed(publicIssue)))
       },
     })
     await expect(
@@ -289,7 +290,7 @@ describe('API facade reply boundary', () => {
   })
 
   test('preserves the declared public success fields', async () => {
-    const client = clientFor(() => Effect.runPromise(coreReply('load', PublicIssue, Effect.succeed(issue))))
+    const client = clientFor(() => runTestEffect(coreReply('load', PublicIssue, Effect.succeed(issue))))
     await expect(apiReply(PublicIssue, client.load())).resolves.toEqual(issue)
   })
 
@@ -310,7 +311,7 @@ describe('API facade reply boundary', () => {
       details: { currentRevisionId: 'revision', diff: 'public diff' },
       retryAfter: 4,
     })
-    const client = clientFor(() => Effect.runPromise(coreReply('update', PublicIssue, Effect.fail(failure))))
+    const client = clientFor(() => runTestEffect(coreReply('update', PublicIssue, Effect.fail(failure))))
     await expect(apiReply(PublicIssue, client.load())).rejects.toMatchObject({
       _tag: 'CorePublicError',
       status: 409,
@@ -337,10 +338,10 @@ describe('API facade reply boundary', () => {
 
   test('keeps concurrent contexts bound to their respective services', async () => {
     const first = clientFor(() =>
-      Effect.runPromise(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'first' }))),
+      runTestEffect(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'first' }))),
     )
     const second = clientFor(() =>
-      Effect.runPromise(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'second' }))),
+      runTestEffect(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'second' }))),
     )
     await expect(
       Promise.all([apiReply(PublicIssue, first.load()), apiReply(PublicIssue, second.load())]),

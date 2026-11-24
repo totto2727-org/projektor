@@ -287,18 +287,18 @@ export function loadIssue(
           ...issue,
           workspaceSlug,
           renderedBody: yield* Effect.tryPromise({
-            try: () => renderMarkdownDocument(issue.body ?? ''),
             catch: () => new ApiError('schema', 502, 'The issue Markdown could not be rendered.'),
+            try: () => renderMarkdownDocument(issue.body ?? ''),
           }),
         },
         comments: yield* Effect.all(
           comments.map((comment) =>
             Effect.tryPromise({
+              catch: () => new ApiError('schema', 502, 'The comment Markdown could not be rendered.'),
               try: async () => ({
                 ...comment,
                 renderedBody: await renderMarkdownDocument(comment.body),
               }),
-              catch: () => new ApiError('schema', 502, 'The comment Markdown could not be rendered.'),
             }),
           ),
           { concurrency: CONCURRENCY },

@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -137,7 +137,7 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
   }
 
   const setObj: Record<string, unknown> = {}
-  if (parsed.data.name !== undefined) {
+  if (Predicate.isNotNullish(parsed.data.name)) {
     setObj.name = parsed.data.name
   }
   if (parsed.data.description !== undefined) {

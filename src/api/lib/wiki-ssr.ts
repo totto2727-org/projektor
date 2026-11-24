@@ -112,7 +112,7 @@ class AttrSetter {
     this.attr = attr
     this.value = value
   }
-  element(el: Element) {
+  element(el: Element): void {
     el.setAttribute(this.attr, this.value)
   }
 }
@@ -122,7 +122,7 @@ class TextSetter {
   constructor(value: string) {
     this.value = value
   }
-  element(el: Element) {
+  element(el: Element): void {
     el.setInnerContent(this.value)
   }
 }

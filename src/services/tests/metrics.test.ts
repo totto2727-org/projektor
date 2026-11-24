@@ -7,6 +7,7 @@ import { migratedDb } from '#db/test/helpers.ts'
 import { getCodeHeatmap } from '#services/code-heatmap.ts'
 import { DataQueryError } from '#services/errors.ts'
 import { getFlowMetrics } from '#services/flow-metrics.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 const DAY = 86_400
 const now = 3 * DAY
@@ -86,7 +87,7 @@ describe('shared metrics migrated SQLite reads', () => {
   afterEach(() => sqlite.close())
 
   test('preserves the complete windowed output, historical CFD baseline, human attribution and present aging snapshot', async () => {
-    const result = await Effect.runPromise(
+    const result = await runTestEffect(
       getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY, until: now - 1, granularity: 'day' }, now),
     )
     expect(result).toEqual({
@@ -129,7 +130,7 @@ describe('shared metrics migrated SQLite reads', () => {
   })
 
   test('retains unbounded default distributions and deterministic default day/ISO-week buckets', async () => {
-    const result = await Effect.runPromise(getFlowMetrics(db, 'wa', { projectId: 'pa', granularity: 'week' }, now))
+    const result = await runTestEffect(getFlowMetrics(db, 'wa', { projectId: 'pa', granularity: 'week' }, now))
     expect(result.leadTime).toEqual(distribution(50))
     expect(result.leadTimeExcluded).toBe(1)
     expect(result.humanInterventions.count).toBe(2)
@@ -139,24 +140,24 @@ describe('shared metrics migrated SQLite reads', () => {
   })
 
   test('clamps partial weekly edges and returns empty data without cross-workspace leakage', async () => {
-    const partial = await Effect.runPromise(
+    const partial = await runTestEffect(
       getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY + 60, until: DAY + 70, granularity: 'week' }, now),
     )
     expect(partial.throughputOverTime).toEqual([{ bucketStart: '1969-12-29', count: 1 }])
     expect(partial.arrivalVsCompletionOverTime[0]).toMatchObject({
-      created: 0,
       completed: 1,
+      created: 0,
       net: -1,
     })
-    const foreign = await Effect.runPromise(
+    const foreign = await runTestEffect(
       getFlowMetrics(db, 'wa', { projectId: 'pb', since: DAY, until: now, granularity: 'day' }, now),
     )
-    expect(foreign.leadTime).toEqual({ count: 0, avg: null, p50: null, p90: null })
+    expect(foreign.leadTime).toEqual({ avg: null, count: 0, p50: null, p90: null })
     expect(foreign.agingWip).toEqual([])
     expect(foreign.factoryHealth).toEqual({
-      leaseExpiries: 0,
       abandonedClaims: 0,
       gateRejections: 0,
+      leaseExpiries: 0,
       wipCapPressure: 0,
     })
   })
@@ -172,34 +173,34 @@ describe('shared metrics migrated SQLite reads', () => {
     insert.run('before', 'wa', 'done', 'outside.ts', DAY - 1, DAY)
     insert.run('foreign-claim', 'wb', 'foreign', 'foreign.ts', DAY, null)
     insert.run('other-claim', 'wa', 'other-project', 'other.ts', DAY, null)
-    const result = await Effect.runPromise(getCodeHeatmap(db, 'wa', { projectId: 'pa', since: DAY, until: now }, now))
+    const result = await runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pa', since: DAY, until: now }, now))
     expect(result).toEqual({
-      prefix: '',
-      mode: 'claims',
-      totalDistinctIssues: 3,
       entries: [
-        { path: 'src', segment: 'src', isLeaf: false, distinctIssueCount: 2, claimCount: 3 },
-        { path: 'docs', segment: 'docs', isLeaf: false, distinctIssueCount: 1, claimCount: 1 },
-        { path: 'z.ts', segment: 'z.ts', isLeaf: true, distinctIssueCount: 1, claimCount: 1 },
+        { claimCount: 3, distinctIssueCount: 2, isLeaf: false, path: 'src', segment: 'src' },
+        { claimCount: 1, distinctIssueCount: 1, isLeaf: false, path: 'docs', segment: 'docs' },
+        { claimCount: 1, distinctIssueCount: 1, isLeaf: true, path: 'z.ts', segment: 'z.ts' },
       ],
+      mode: 'claims',
+      prefix: '',
+      totalDistinctIssues: 3,
     })
-    const nested = await Effect.runPromise(
+    const nested = await runTestEffect(
       getCodeHeatmap(db, 'wa', { projectId: 'pa', since: DAY, until: now, prefix: 'src' }, now),
     )
     expect(nested).toEqual({
-      prefix: 'src',
-      mode: 'claims',
-      totalDistinctIssues: 3,
       entries: [
-        { path: 'src/a.ts', segment: 'a.ts', isLeaf: true, distinctIssueCount: 1, claimCount: 1 },
+        { claimCount: 1, distinctIssueCount: 1, isLeaf: true, path: 'src/a.ts', segment: 'a.ts' },
         {
+          claimCount: 1,
+          distinctIssueCount: 1,
+          isLeaf: false,
           path: 'src/nested',
           segment: 'nested',
-          isLeaf: false,
-          distinctIssueCount: 1,
-          claimCount: 1,
         },
       ],
+      mode: 'claims',
+      prefix: 'src',
+      totalDistinctIssues: 3,
     })
   })
 
@@ -212,26 +213,28 @@ describe('shared metrics migrated SQLite reads', () => {
     insert.run('c3', 'wa', 'src/a.ts', 'done', 'old', DAY + 1)
     insert.run('cf', 'wb', 'foreign.ts', 'foreign', 'foreign', DAY)
     insert.run('cp', 'wa', 'other.ts', 'other-project', 'done', DAY)
-    const result = await Effect.runPromise(getCodeHeatmap(db, 'wa', { projectId: 'pa', mode: 'contention' }, now))
+    const result = await runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pa', mode: 'contention' }, now))
     expect(result).toEqual({
-      prefix: '',
-      mode: 'contention',
-      totalDistinctIssues: 2,
       entries: [
         {
+          conflictCount: 3,
+          distinctRejectedIssueCount: 2,
+          isLeaf: false,
           path: 'src',
           segment: 'src',
-          isLeaf: false,
-          distinctRejectedIssueCount: 2,
-          conflictCount: 3,
         },
       ],
-    })
-    expect(await Effect.runPromise(getCodeHeatmap(db, 'wa', { projectId: 'pb', mode: 'contention' }, now))).toEqual({
-      prefix: '',
       mode: 'contention',
-      totalDistinctIssues: 0,
+      prefix: '',
+      totalDistinctIssues: 2,
+    })
+    await expect(
+      runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pb', mode: 'contention' }, now)),
+    ).resolves.toEqual({
       entries: [],
+      mode: 'contention',
+      prefix: '',
+      totalDistinctIssues: 0,
     })
   })
 
@@ -241,18 +244,18 @@ describe('shared metrics migrated SQLite reads', () => {
     const flow = getFlowMetrics(tracked, 'wa', { projectId: 'pa', since: DAY, until: now, granularity: 'day' }, now)
     const heatmap = getCodeHeatmap(tracked, 'wa', { projectId: 'pa' }, now)
     expect(queries).toBe(0)
-    await Effect.runPromise(flow)
-    await Effect.runPromise(heatmap)
+    await runTestEffect(flow)
+    await runTestEffect(heatmap)
     expect(queries).toBeGreaterThan(0)
     const failed = {
       prepare: () => {
         throw new Error('database unavailable')
       },
     } as unknown as D1Database
-    const error = await Effect.runPromise(getCodeHeatmap(failed, 'wa', { projectId: 'pa' }, now).pipe(Effect.flip))
+    const error = await runTestEffect(getCodeHeatmap(failed, 'wa', { projectId: 'pa' }, now).pipe(Effect.flip))
     expect(error).toBeInstanceOf(DataQueryError)
     expect(error.operation).toBe('getCodeHeatmap')
-    const flowError = await Effect.runPromise(
+    const flowError = await runTestEffect(
       getFlowMetrics(failed, 'wa', { projectId: 'pa', granularity: 'day' }, now).pipe(Effect.flip),
     )
     expect(flowError).toBeInstanceOf(DataQueryError)

@@ -194,7 +194,7 @@ describe('PROJ-859: bounded query count', () => {
     const after = await env.DB.prepare('SELECT dor_ready, dor_missing FROM issues WHERE id = ?')
       .bind(row?.id)
       .first<{ dor_ready: number; dor_missing: string }>()
-    expect(after).toEqual({ dor_ready: 1, dor_missing: '[]' })
+    expect(after).toEqual({ dor_missing: '[]', dor_ready: 1 })
   })
 })
 

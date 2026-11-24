@@ -1,3 +1,8 @@
+import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
+
+import { ApiPrincipal } from '#contracts/api-auth.ts'
+import { verifyJwtPayload } from '#services/authentication.ts'
 /**
  * PROJ-79 — Auth-middleware & MCP error-mapping tests
  *
@@ -7,12 +12,7 @@
  *  3. /auth endpoints — GET /auth/me, POST /auth/tokens, DELETE /auth/tokens/:id
  *  4. MCP error contract — serviceErr → JSON-RPC error codes, malformed bodies, unknown workspace
  */
-import { Effect } from 'effect'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
-import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
-
-import { ApiPrincipal } from '#contracts/api-auth.ts'
-import { verifyJwtPayload } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 import {
   configureCore,
@@ -239,7 +239,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
 
   // PROJ-879: the payload is schema-validated, not cast.
   describe('PROJ-879: payload validation', () => {
-    const now = () => Math.floor(Date.now() / 1000)
+    const now = (): number => Math.floor(Date.now() / 1000)
 
     test('missing exp is rejected (previously never expired)', async () => {
       const jwt = await signTestJwt(privateKey, {
@@ -247,7 +247,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
         iss: TEST_ISSUER,
         email: TEST_EMAIL,
       })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
     test('missing email (Access service-token JWT) is rejected, not a crash', async () => {
@@ -257,7 +257,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
         iss: TEST_ISSUER,
         common_name: 'svc-token.access',
       })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
     test('expired is rejected', async () => {
@@ -267,7 +267,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
         iss: TEST_ISSUER,
         email: TEST_EMAIL,
       })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
     test('wrong aud is rejected', async () => {
@@ -277,7 +277,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
         iss: TEST_ISSUER,
         email: TEST_EMAIL,
       })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
     test('exp of the wrong type is rejected', async () => {
@@ -287,7 +287,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
         iss: TEST_ISSUER,
         email: TEST_EMAIL,
       })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
   })
 })
@@ -499,7 +499,7 @@ describe('native Core authentication invocation isolation', () => {
     await resetCoreAuthCaches()
     const principals = await Promise.all(
       sessions.map(({ binding, jwt }) =>
-        Effect.runPromise(
+        runTestEffect(
           decodeCoreReply(
             ApiPrincipal,
             makeCoreClient(binding).apiAuthenticate({
@@ -645,7 +645,7 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
 
       expect(res.status).toBe(200)
       expect((await getCoreObservations()).authCachePuts).toContain('cf-access-certs')
-      expect(await env.KV.get('cf-access-certs')).toBeNull()
+      await expect(env.KV.get('cf-access-certs')).resolves.toBeNull()
     } finally {
       await configureCore()
     }
@@ -889,9 +889,9 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
     const res = await fetchNativeApi(`http://localhost/mcp/${ws.id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     })
 
     expect(res.status).toBe(401)
@@ -1109,9 +1109,9 @@ describe('PROJ-79: POST /auth/tokens', () => {
   test('returns 401 without authentication', async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 't', workspaceId: fixture.workspace.id, scopes: ['read'] }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     })
     expect(res.status).toBe(401)
   })

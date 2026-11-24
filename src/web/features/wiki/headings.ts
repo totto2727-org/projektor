@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import sanitizeHtml from 'sanitize-html'
 
 export interface Heading {
@@ -19,7 +20,7 @@ export function assignHeadingIds(headings: Readonly<{ text: string; id?: string 
   })
   return headings.map((heading, index) => {
     const kept = result[index]
-    if (kept !== null) {
+    if (Predicate.isNotNullish(kept)) {
       return kept
     }
     const slug = heading.text

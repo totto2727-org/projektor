@@ -1,6 +1,6 @@
 'use server'
 
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import { EFFRONT } from '@/effront.ts'
 import { RequestServices } from '@/request.ts'
@@ -44,7 +44,8 @@ const Create = Schema.Struct({
 }).check(
   Schema.makeFilter(
     (value) =>
-      !(value.content !== undefined && value.templateSlug !== undefined) || 'Choose template or content, not both.',
+      !(Predicate.isNotNullish(value.content) && Predicate.isNotNullish(value.templateSlug)) ||
+      'Choose template or content, not both.',
   ),
 )
 

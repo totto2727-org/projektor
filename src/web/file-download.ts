@@ -31,8 +31,8 @@ export function downloadFile(
     }
     const workspaceHint = workspaceHints[0]
     const id = yield* Effect.try({
-      try: () => decodeURIComponent(match[1]),
       catch: () => new ScopeError(400, 'Invalid attachment identifier.'),
+      try: () => decodeURIComponent(match[1]),
     })
     // A download target is not a page selector. Archived owners are not in the active catalog.
     const scope = yield* services.scope({ workspaceHint, projectHint: '', requireWorkspace: true })
@@ -45,8 +45,8 @@ export function downloadFile(
     )
     const contentType = stored.headers.get('content-type') ?? 'application/octet-stream'
     const filename = yield* Effect.try({
-      try: () => decodeURIComponent(stored.headers.get('x-projektor-filename') ?? 'download'),
       catch: () => new ScopeError(400, 'Invalid attachment filename.'),
+      try: () => decodeURIComponent(stored.headers.get('x-projektor-filename') ?? 'download'),
     })
     const inline = INLINE_TYPES.has(contentType)
     const headers = {

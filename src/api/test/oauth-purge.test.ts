@@ -1,4 +1,5 @@
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
+import { Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { providerOptions } from '#contracts/oauth-provider.ts'
@@ -17,10 +18,10 @@ const memoryNamespace = function memoryNamespace() {
         throw new Error('Injected KV read failure')
       }
       const value = values.get(key)
-      if (value === undefined) {
+      if (Predicate.isNullish(value)) {
         return null
       }
-      const type = typeof options === 'string' ? options : options?.type
+      const type = Predicate.isString(options) ? options : options?.type
       return type === 'json' ? JSON.parse(value) : value
     },
     async put(key: string, value: string) {
@@ -96,13 +97,13 @@ describe('official OAuth cleanup durable pagination', () => {
           JSON.stringify({ id, userId, clientId, ...(index === 201 ? { expiresAt: 1 } : {}) }),
         )
       }
-      expect(await purgeOAuthPage(env, provider)).toMatchObject({ phase: 'grants', grantsChecked: 200 })
+      await expect(purgeOAuthPage(env, provider)).resolves.toMatchObject({ grantsChecked: 200, phase: 'grants' })
       const checkpoint = await env.KV.get<{ phase: string; cursor: string }>(OAUTH_PURGE_STATE_KEY, 'json')
       expect(checkpoint).toMatchObject({ phase: 'grants', cursor: expect.any(String) })
-      expect(await purgeOAuthPage(env, provider)).toMatchObject({ grantsPurged: 1, nextPhase: 'tokens' })
-      expect(await env.OAUTH_KV.get(`grant:${userId}:201`)).toBeNull()
-      expect(await env.OAUTH_KV.get(`grant:${userId}:000`)).not.toBeNull()
-      expect(await purgeOAuthPage(env, provider)).toMatchObject({ phase: 'tokens', done: true })
+      await expect(purgeOAuthPage(env, provider)).resolves.toMatchObject({ grantsPurged: 1, nextPhase: 'tokens' })
+      await expect(env.OAUTH_KV.get(`grant:${userId}:201`)).resolves.toBeNull()
+      await expect(env.OAUTH_KV.get(`grant:${userId}:000`)).resolves.not.toBeNull()
+      await expect(purgeOAuthPage(env, provider)).resolves.toMatchObject({ done: true, phase: 'tokens' })
     } finally {
       for (const key of keys) {
         await env.OAUTH_KV.delete(key)
@@ -124,18 +125,18 @@ describe('official OAuth cleanup durable pagination', () => {
     f.put('token:z:missing:access', { userId: 'z', grantId: 'missing' })
 
     const first = await f.run()
-    expect(first).toMatchObject({ phase: 'grants', grantsChecked: 200, done: false })
-    expect(f.state()).toEqual({ phase: 'grants', cursor: 'grant:u:199' })
+    expect(first).toMatchObject({ done: false, grantsChecked: 200, phase: 'grants' })
+    expect(f.state()).toEqual({ cursor: 'grant:u:199', phase: 'grants' })
     expect((await f.run()).grantsChecked).toBe(200)
-    expect(await f.run()).toMatchObject({ phase: 'grants', grantsPurged: 2, nextPhase: 'tokens' })
+    await expect(f.run()).resolves.toMatchObject({ grantsPurged: 2, nextPhase: 'tokens', phase: 'grants' })
     expect(f.storage.values.has('grant:z:expired')).toBe(false)
     expect(f.storage.values.has('grant:z:orphan')).toBe(false)
     expect(f.storage.values.has('token:z:expired:access')).toBe(false)
 
     const grantScans = f.storage.scans.filter((scan) => scan.prefix === 'grant:').length
-    expect(await f.run()).toMatchObject({ phase: 'tokens', tokensChecked: 200, done: false })
-    expect(await f.run()).toMatchObject({ phase: 'tokens', tokensChecked: 200, done: false })
-    expect(await f.run()).toMatchObject({ phase: 'tokens', tokensPurged: 1, done: true })
+    await expect(f.run()).resolves.toMatchObject({ done: false, phase: 'tokens', tokensChecked: 200 })
+    await expect(f.run()).resolves.toMatchObject({ done: false, phase: 'tokens', tokensChecked: 200 })
+    await expect(f.run()).resolves.toMatchObject({ done: true, phase: 'tokens', tokensPurged: 1 })
     expect(f.storage.scans.filter((scan) => scan.prefix === 'grant:')).toHaveLength(grantScans)
     expect(f.storage.values.has('token:z:missing:access')).toBe(false)
     expect(f.storage.values.has('token:u:000:404')).toBe(true)
@@ -156,7 +157,7 @@ describe('official OAuth cleanup durable pagination', () => {
     expect(f.storage.values.has('grant:u:201')).toBe(false)
     expect(f.storage.values.has('grant:z:expired')).toBe(true)
     f.storage.failGet()
-    expect(await f.run()).toMatchObject({ grantsPurged: 1, nextPhase: 'tokens' })
+    await expect(f.run()).resolves.toMatchObject({ grantsPurged: 1, nextPhase: 'tokens' })
     expect(f.storage.values.has('grant:z:expired')).toBe(false)
   })
 
@@ -168,7 +169,7 @@ describe('official OAuth cleanup durable pagination', () => {
     expect(f.state()).toBeNull()
     expect(f.storage.values.has('grant:z:expired')).toBe(false)
     f.checkpoints.failPut(false)
-    expect(await f.run()).toMatchObject({ grantsPurged: 0, nextPhase: 'tokens' })
+    await expect(f.run()).resolves.toMatchObject({ grantsPurged: 0, nextPhase: 'tokens' })
   })
 
   test('bounds nested SDK revocation calls without advancing past a partially processed grant', async () => {
@@ -180,7 +181,7 @@ describe('official OAuth cleanup durable pagination', () => {
     await expect(f.run()).rejects.toThrow('OAuth purge KV call budget exhausted')
     expect(f.state()).toBeNull()
     expect(f.storage.values.has('grant:z:expired')).toBe(true)
-    expect(await f.run()).toMatchObject({ grantsPurged: 1, nextPhase: 'tokens' })
+    await expect(f.run()).resolves.toMatchObject({ grantsPurged: 1, nextPhase: 'tokens' })
     expect([...f.storage.values.keys()].some((key) => key.startsWith('token:z:expired:'))).toBe(false)
   })
 })

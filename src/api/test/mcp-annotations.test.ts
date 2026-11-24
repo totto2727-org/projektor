@@ -3,6 +3,7 @@
  * openWorldHint) on every core tool, and their presence on the `tools/list` wire
  * response.
  */
+import { Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { capabilityForMcpTool } from '#api/auth/scopes.ts'
@@ -16,7 +17,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 describe('MCP tool annotations (PROJ-887)', () => {
   test('every core tool declares readOnlyHint and openWorldHint', () => {
     const missing = coreMCPTools.filter(
-      (t) => t.annotations?.readOnlyHint === undefined || t.annotations?.openWorldHint === undefined,
+      (t) => Predicate.isNullish(t.annotations?.readOnlyHint) || Predicate.isNullish(t.annotations?.openWorldHint),
     )
     expect(missing.map((t) => t.name)).toEqual([])
   })
@@ -47,7 +48,7 @@ describe('MCP tool annotations (PROJ-887)', () => {
 
   test('every non-read (write-capability) tool declares destructiveHint', () => {
     const missing = coreMCPTools.filter(
-      (t) => capabilityForMcpTool(t.name) === 'write' && t.annotations?.destructiveHint === undefined,
+      (t) => capabilityForMcpTool(t.name) === 'write' && Predicate.isNullish(t.annotations?.destructiveHint),
     )
     expect(missing.map((t) => t.name)).toEqual([])
   })
@@ -58,7 +59,7 @@ describe('MCP tool annotations (PROJ-887)', () => {
       .map((t) => t.name)
       .sort()
     expect(actualDestructive).toEqual([...DESTRUCTIVE_TOOLS].sort())
-    expect(actualDestructive.length).toBe(22)
+    expect(actualDestructive).toHaveLength(22)
   })
 
   test('no non-destructive tool is marked destructiveHint: true, and vice versa', () => {
@@ -83,17 +84,17 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
     }>
 
     const listIssues = res.result.tools.find((t) => t.name === 'list_issues')
-    expect(listIssues?.annotations).toMatchObject({ readOnlyHint: true, openWorldHint: false })
+    expect(listIssues?.annotations).toMatchObject({ openWorldHint: false, readOnlyHint: true })
 
     const deleteIssue = res.result.tools.find((t) => t.name === 'delete_issue')
     expect(deleteIssue?.annotations).toMatchObject({
-      readOnlyHint: false,
       destructiveHint: true,
       openWorldHint: false,
+      readOnlyHint: false,
     })
 
     // Every tool in the wire response must carry annotations at all.
-    const missing = res.result.tools.filter((t) => t.annotations === undefined)
+    const missing = res.result.tools.filter((t) => Predicate.isNullish(t.annotations))
     expect(missing.map((t) => t.name)).toEqual([])
   })
 })

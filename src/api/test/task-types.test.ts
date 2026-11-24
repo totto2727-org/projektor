@@ -171,8 +171,8 @@ describe('Task Types API', () => {
     const { id } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
 
@@ -185,8 +185,8 @@ describe('Task Types API', () => {
 
   test('DELETE /api/task-types/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(404)
   })
@@ -196,8 +196,8 @@ describe('Task Types API', () => {
     await seedIssue(workspaceId, projectId, userId, { typeId })
 
     const res = await fetchNativeApi(`http://localhost/api/task-types/${typeId}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(409)
   })

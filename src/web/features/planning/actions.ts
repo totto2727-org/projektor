@@ -1,6 +1,6 @@
 'use server'
 
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import { EFFRONT } from '@/effront.ts'
 import { readDataIssue, readSprint } from '@/features/issues/data.ts'
@@ -29,11 +29,11 @@ const sprintInProject = function sprintInProject(
 ) {
   return Effect.gen(function* () {
     yield* Effect.try({
+      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       try: () => {
         requireDataWorkspace(scope, workspaceId)
         requireDataProject(scope, projectId, workspaceId)
       },
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
     const sprint = yield* readSprint(workspaceId, sprintId)
     if (!sprint || sprint.projectId !== projectId) {
@@ -62,8 +62,8 @@ export const createSprint = EFFRONT.ServerFn.make({
             projectId: project.id,
             name: input.name.trim(),
             ...(input.goal.trim() ? { goal: input.goal.trim() } : {}),
-            ...(startDate === null ? {} : { startDate }),
-            ...(endDate === null ? {} : { endDate }),
+            ...(Predicate.isNullish(startDate) ? {} : { startDate }),
+            ...(Predicate.isNullish(endDate) ? {} : { endDate }),
           }),
         )
         return { ok: true as const, value }

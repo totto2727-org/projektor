@@ -11,12 +11,11 @@ import {
 } from '#commands/errors.ts'
 import { coreReply, coreReplyCodec } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 const success = Schema.Struct({ ok: Schema.Literal(true) })
 const failure = async function failure(cause: unknown) {
-  const encoded = await Effect.runPromise(
-    coreReply('testBrowserCommand', success, Effect.fail(publicDomainFailure(cause))),
-  )
+  const encoded = await runTestEffect(coreReply('testBrowserCommand', success, Effect.fail(publicDomainFailure(cause))))
   const decoded = Schema.decodeUnknownSync(coreReplyCodec(success))(encoded)
   if (Result.isSuccess(decoded)) {
     throw new Error('Expected encoded failure')
@@ -48,7 +47,7 @@ describe('private Core browser command failure boundary', () => {
     const { problem, encoded } = await failure(
       Object.assign(new Error('private SQL/token/binding'), { details: { token: 'private-secret' } }),
     )
-    expect(problem).toMatchObject({ status: 500, message: 'An unexpected error occurred.' })
+    expect(problem).toMatchObject({ message: 'An unexpected error occurred.', status: 500 })
     expect(problem).not.toHaveProperty('details')
     expect(encoded).not.toContain('private')
   })

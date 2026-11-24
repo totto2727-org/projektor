@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
 /*
@@ -20,7 +22,7 @@ export function dateInputToUnix(value: string): number | null {
 
 /** unix seconds → "YYYY-MM-DD" in local time; null → "". */
 export function unixToDateInput(ts: number | null | undefined): string {
-  if (ts === null || ts === undefined) {
+  if (ts === null || Predicate.isNullish(ts)) {
     return ''
   }
   const d = new Date(ts * 1000)
@@ -32,7 +34,7 @@ export function unixToDateInput(ts: number | null | undefined): string {
 
 /** unix seconds → a UTC date for display; null → "—". */
 export function formatUnixDate(ts: number | null | undefined): string {
-  if (ts === null || ts === undefined) {
+  if (ts === null || Predicate.isNullish(ts)) {
     return '—'
   }
   return formatTimestampDate(ts)

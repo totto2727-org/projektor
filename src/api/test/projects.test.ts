@@ -270,8 +270,8 @@ describe('Projects REST', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'DELETE',
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
   })
@@ -285,8 +285,8 @@ describe('Projects REST', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'DELETE',
       headers: memberHeaders,
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(403)
   })

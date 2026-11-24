@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { D1Database } from '@cloudflare/workers-types'
-import { Effect } from 'effect'
+import { Predicate } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
@@ -10,6 +10,7 @@ import { schema } from '#db'
 import { listProjects } from '#services'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
 import type { BrowserAuthEnvironment } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 import {
@@ -55,7 +56,7 @@ const otherProject: ProjectSummary = {
   workspace_name: 'Beta',
 }
 const projects = [project, otherProject]
-const page = (path: string) => new URL(path, 'https://front.example.test')
+const page = (path: string): URL => new URL(path, 'https://front.example.test')
 
 describe('request scope selection', () => {
   test.each(['/', '/my-issues', '/settings/groups', '/settings/tokens'])(
@@ -90,13 +91,13 @@ describe('request scope selection', () => {
   test('does not pick the first of multiple workspaces or projects', () => {
     expect(resolveScope(session, projects, page('/settings/groups'), { requireWorkspace: true }).selection).toEqual({
       kind: 'selection-required',
-      target: 'workspace',
       reason: 'ambiguous',
+      target: 'workspace',
     })
     expect(resolveScope(session, projects, page('/projects/view'), { requireProject: true }).selection).toEqual({
       kind: 'selection-required',
-      target: 'project',
       reason: 'ambiguous',
+      target: 'project',
     })
   })
 
@@ -104,13 +105,13 @@ describe('request scope selection', () => {
     const noMemberships = { ...session, workspaces: [] }
     expect(resolveScope(noMemberships, [], page('/settings/groups'), { requireWorkspace: true }).selection).toEqual({
       kind: 'selection-required',
-      target: 'workspace',
       reason: 'empty',
+      target: 'workspace',
     })
     expect(resolveScope(noMemberships, [], page('/issues'), { requireProject: true }).selection).toEqual({
       kind: 'selection-required',
-      target: 'project',
       reason: 'empty',
+      target: 'project',
     })
   })
 
@@ -141,8 +142,8 @@ describe('request scope selection', () => {
     const collision = { ...otherProject, key: 'ALPHA' }
     expect(resolveScope(session, [project, collision], page('/issues?project=ALPHA')).selection).toEqual({
       kind: 'selection-required',
-      target: 'project',
       reason: 'ambiguous',
+      target: 'project',
     })
     expect(
       resolveScope(session, [project, collision], page('/issues?project=ALPHA&workspace=beta')).selection,
@@ -192,7 +193,7 @@ describe('server scope loading', () => {
       KV: {
         get: async (key: string, type?: string) => {
           const value = cache.get(key)
-          return value === undefined ? null : type === 'json' ? JSON.parse(value) : value
+          return Predicate.isNullish(value) ? null : type === 'json' ? JSON.parse(value) : value
         },
         put: async (key: string, value: string) => {
           cache.set(key, value)
@@ -226,12 +227,12 @@ describe('server scope loading', () => {
     sqlite.close()
   })
   const load = function load(request = new Request(page('/')), database = db) {
-    return Effect.runPromise(
+    return runTestEffect(
       loadRequestScope(new URL(request.url), {}, { request, env: testEnvironment(database, env.DEV_USER_EMAIL, env) }),
     )
   }
-  const catalogReads = function catalogReads() {
-    return prepare.mock.calls.filter(([query]) => typeof query === 'string' && query.includes('COUNT(CASE')).length
+  const catalogReads = function catalogReads(): number {
+    return prepare.mock.calls.filter(([query]) => Predicate.isString(query) && query.includes('COUNT(CASE')).length
   }
 
   test('verifies browser auth then reads only granted projects directly, without inherited workspace header', async () => {
@@ -251,7 +252,7 @@ describe('server scope loading', () => {
     expect((await load()).projects).toEqual([])
     prepare.mockClear()
     const scope = await load(new Request(page('/issues?projectId=project-a')))
-    expect(scope.selection).toMatchObject({ kind: 'project', project: { id: 'project-a', archived_at: 42 } })
+    expect(scope.selection).toMatchObject({ kind: 'project', project: { archived_at: 42, id: 'project-a' } })
     expect(catalogReads()).toBe(2)
   })
 
@@ -301,20 +302,20 @@ describe('server scope loading', () => {
 
   test('applies the web app grant predicate to shared workspace-scoped list queries', async () => {
     const scope = await load()
-    const rows = await Effect.runPromise(
+    const rows = await runTestEffect(
       listProjects(db, 'workspace-a', {
         visibility: visibleProjectPredicate(scope, 'workspace-a', schema.projects.id),
       }),
     )
     expect(rows.map((row) => row.id)).toEqual(['project-a'])
     sqlite.exec('DELETE FROM user_group_members')
-    expect(
-      await Effect.runPromise(
+    await expect(
+      runTestEffect(
         listProjects(db, 'workspace-a', {
           visibility: visibleProjectPredicate(scope, 'workspace-a', schema.projects.id),
         }),
       ),
-    ).toEqual([])
+    ).resolves.toEqual([])
   })
 
   test('fails closed on missing DB and redacts SQL failures without API catalog fallback', async () => {
@@ -335,7 +336,7 @@ describe('server scope loading', () => {
       await load()
       throw new Error('expected failure')
     } catch (error) {
-      expect(error).toMatchObject({ _tag: 'ApiError', status: 500, message: 'An unexpected error occurred.' })
+      expect(error).toMatchObject({ _tag: 'ApiError', message: 'An unexpected error occurred.', status: 500 })
       expect(JSON.stringify(error)).not.toContain('secret SQL credential')
     }
   })

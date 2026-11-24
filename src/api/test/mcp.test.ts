@@ -612,9 +612,9 @@ describe('MCP endpoint', () => {
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     expect(JSON.parse(delRes.result.content[0].text)).toEqual({
-      ok: true,
       deletedCount: 2,
       linkedByCount: 0,
+      ok: true,
     })
 
     const childRes2 = await fetchNativeApi(`http://localhost/api/wiki/${child.slug}`, {

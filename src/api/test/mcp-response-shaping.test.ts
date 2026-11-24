@@ -78,24 +78,24 @@ describe('PROJ-891: serializer (unit)', () => {
 
   test('summary view is {ref,title,status,priority,type,parent?,assignee?,updated}', () => {
     expect(shapeIssue(raw, { view: 'summary' })).toEqual({
-      ref: 'PROJ-7',
-      title: 'T',
-      status: 'todo',
       priority: 'high',
+      ref: 'PROJ-7',
+      status: 'todo',
+      title: 'T',
       type: 'bug',
       updated: 2,
     })
     expect(shapeIssue({ ...raw, parent_id: 'P', assignee_name: 'Ann' }, { view: 'summary' })).toMatchObject({
-      parent: 'P',
       assignee: 'Ann',
+      parent: 'P',
     })
   })
 
   test('verbose returns the raw row; fields picks (incl. derived ref) with null for absent values', () => {
     expect(shapeIssue(raw, { verbose: true })).toBe(raw)
     expect(shapeIssue(raw, { fields: ['ref', 'assignee_id', 'updated'] })).toEqual({
-      ref: 'PROJ-7',
       assignee_id: null,
+      ref: 'PROJ-7',
       updated: 2,
     })
   })

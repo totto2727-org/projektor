@@ -2,6 +2,8 @@ import { Effect } from 'effect'
 import { FetchHttpClient, HttpServerResponse } from 'effect/http'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { runTestEffect } from '#tests/run-effect.ts'
+
 import { featureDatabase } from './features/planning/action-test-fixture.ts'
 import { downloadFile } from './file-download.ts'
 import { makeRequestServices, RequestServices } from './request.ts'
@@ -35,9 +37,13 @@ const fixture = function fixture(contentType = 'image/png', filename = 'diagram.
     DEFAULT_WORKSPACE_SLUG: 'alpha',
     AUTO_JOIN_ROLE: 'none',
   })
-  const execute = function execute(path = '/api/files/a1?workspace=alpha', method = 'GET', headers?: HeadersInit) {
+  const execute = function execute(
+    path = '/api/files/a1?workspace=alpha',
+    method = 'GET',
+    headers?: HeadersInit,
+  ): Promise<Response> {
     const request = new Request(`https://front.example${path}`, { method, headers })
-    return Effect.runPromise(
+    return runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(request, env)
         return yield* downloadFile(request).pipe(
@@ -82,7 +88,7 @@ describe('native Core authenticated Web file delivery', () => {
     const f = fixture()
     const response = await f.execute(undefined, 'HEAD')
     expect(response.status).toBe(200)
-    expect(await response.text()).toBe('')
+    await expect(response.text()).resolves.toBe('')
     expect(response.headers.get('content-type')).toBe('image/png')
     expect(f.consume).not.toHaveBeenCalled()
     expect(f.get).not.toHaveBeenCalled()
@@ -149,12 +155,12 @@ describe('native Core authenticated Web file delivery', () => {
     f.get.mockRejectedValueOnce(new Error('private R2 diagnostic'))
     const response = await f.execute()
     expect(response.status).toBe(500)
-    expect(await response.text()).not.toContain('private R2 diagnostic')
+    await expect(response.text()).resolves.not.toContain('private R2 diagnostic')
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     const head = await f.execute('/api/files/missing?workspace=alpha', 'HEAD')
     expect(head.status).toBe(404)
-    expect(await head.text()).toBe('')
+    await expect(head.text()).resolves.toBe('')
     expect(head.headers.get('cache-control')).toBe('private, no-store')
   })
 

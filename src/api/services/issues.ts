@@ -10,7 +10,7 @@ export function listIssues(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpc
 export function resolveIssueIdParam(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiResolveIssueIdParam']>
-) {
+): Promise<string> {
   return apiReply(
     ApiResults.apiResolveIssueIdParam,
     ctx.core.apiResolveIssueIdParam(ctx.actor, ctx.workspaceId, ...args),

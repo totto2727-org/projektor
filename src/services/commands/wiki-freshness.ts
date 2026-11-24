@@ -9,6 +9,7 @@
  * see services/wiki.ts#staleWikiPageCondition).
  */
 
+import { Predicate } from 'effect'
 export type WikiFreshnessState = 'fresh' | 'stale' | 'unverified'
 
 export interface WikiFreshness {
@@ -40,7 +41,7 @@ const SECONDS_PER_DAY = 86_400
  * directly (`freshness: computeFreshness(...)`).
  */
 const computeDueAt = function computeDueAt(verifiedAt: number | null, verifyInterval: number | null): number | null {
-  if (verifyInterval === null || verifiedAt === null) {
+  if (Predicate.isNullish(verifyInterval) || Predicate.isNullish(verifiedAt)) {
     return null
   }
   return verifiedAt + verifyInterval * SECONDS_PER_DAY
@@ -51,7 +52,7 @@ const computeDueAt = function computeDueAt(verifiedAt: number | null, verifyInte
  * status override (see computeFreshness) and the page has been verified at least once.
  */
 const computeTimeBasedFreshness = function computeTimeBasedFreshness(dueAt: number | null, now: number): WikiFreshness {
-  if (dueAt !== null && dueAt <= now) {
+  if (Predicate.isNotNullish(dueAt) && dueAt <= now) {
     return { state: 'stale', staleSince: dueAt }
   }
   return { state: 'fresh', staleSince: null }
@@ -59,7 +60,7 @@ const computeTimeBasedFreshness = function computeTimeBasedFreshness(dueAt: numb
 
 export function computeFreshness(input: ComputeFreshnessInput): WikiFreshness | null {
   const { verifiedAt, verifyInterval, status } = input
-  const hasSignal = status !== null || verifyInterval !== null
+  const hasSignal = Predicate.isNotNullish(status) || Predicate.isNotNullish(verifyInterval)
   if (!hasSignal) {
     return null
   }
@@ -74,14 +75,14 @@ export function computeFreshness(input: ComputeFreshnessInput): WikiFreshness | 
    * scheduled re-verification).
    */
   if (status === 'stale' || status === 'deprecated') {
-    return { state: 'stale', staleSince: dueAt !== null && dueAt <= now ? dueAt : null }
+    return { state: 'stale', staleSince: Predicate.isNotNullish(dueAt) && dueAt <= now ? dueAt : null }
   }
 
   /*
    * A verify_interval was declared but the page has never been verified at all —
    * distinct from "verified, but overdue" (below).
    */
-  if (verifyInterval !== null && verifiedAt === null) {
+  if (Predicate.isNotNullish(verifyInterval) && Predicate.isNullish(verifiedAt)) {
     return { state: 'unverified', staleSince: null }
   }
 

@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { LIMITER_TIMEOUT_MS } from '#api/middleware/rate-limit.ts'
@@ -39,7 +40,7 @@ const seedD1Counter = async function seedD1Counter(key: string, count: number): 
 }
 
 // Run the worker without the Durable Object binding, as a deploy that hasn't added it yet.
-const withoutLimiterBinding = function withoutLimiterBinding() {
+const withoutLimiterBinding = function withoutLimiterBinding(): void {
   let saved: Env['RATE_LIMITER']
   beforeEach(async () => {
     saved = env.RATE_LIMITER
@@ -181,7 +182,7 @@ describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
           counts.batch++
         }
         const value = Reflect.get(target, prop, receiver)
-        return typeof value === 'function' ? value.bind(target) : value
+        return Predicate.isFunction(value) ? value.bind(target) : value
       },
     })
     return { counts, proxy }
@@ -201,9 +202,9 @@ describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
 
   test('still counts correctly through the batch', async () => {
     const key = `ip:batch-count-${crypto.randomUUID().slice(0, 8)}`
-    expect(await bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).toBe(1)
-    expect(await bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).toBe(2)
-    expect(await bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).toBe(3)
+    await expect(bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).resolves.toBe(1)
+    await expect(bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).resolves.toBe(2)
+    await expect(bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).resolves.toBe(3)
   })
 })
 
@@ -224,7 +225,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       expect(res.status).toBe(200)
     }
     await fetchNativeApi(ENDPOINT) // IP-keyed, unauthenticated
-    expect(await rateLimitRows()).toBe(0)
+    await expect(rateLimitRows()).resolves.toBe(0)
   })
 
   test('still enforces the token limit (API max 5) from the Durable Object counter', async () => {
@@ -238,7 +239,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     }
     expect(statuses.slice(0, API_LIMIT).every((s) => s === 200)).toBe(true)
     expect(statuses[API_LIMIT]).toBe(429)
-    expect(await rateLimitRows()).toBe(0)
+    await expect(rateLimitRows()).resolves.toBe(0)
   })
 
   test('Retry-After is the seconds left in the fixed window, as before', async () => {
@@ -253,7 +254,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       }
       expect(res?.status).toBe(429)
       expect(res?.headers.get('Retry-After')).toBe(String(WINDOW_SECS - 20))
-      expect(await res?.json()).toEqual({ error: 'Too Many Requests' })
+      await expect(res?.json()).resolves.toStrictEqual({ error: 'Too Many Requests' })
     } finally {
       env.RATE_LIMIT_TEST_NOW_MS = undefined
       await configureCore()
@@ -271,7 +272,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
-      expect(await getCoreLimiterCalls()).toBeGreaterThan(0)
+      await expect(getCoreLimiterCalls()).resolves.toBeGreaterThan(0)
       expect(res.status).toBe(200)
     })
 
@@ -280,7 +281,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       const res = await fetchNativeApi(ENDPOINT, {
         headers: { Authorization: 'Bearer pk_not_a_real_token' },
       })
-      expect(await getCoreLimiterCalls()).toBeGreaterThanOrEqual(2)
+      await expect(getCoreLimiterCalls()).resolves.toBeGreaterThanOrEqual(2)
       expect(res.status).toBe(401)
     })
 
@@ -291,7 +292,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
-      expect(await getCoreLimiterCalls()).toBeGreaterThan(0)
+      await expect(getCoreLimiterCalls()).resolves.toBeGreaterThan(0)
       expect(res.status).toBe(200)
       expect(Date.now() - started).toBeLessThan(LIMITER_TIMEOUT_MS + 5000)
     })

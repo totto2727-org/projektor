@@ -64,7 +64,7 @@ function dragStartCard() {
   return dataTransfer
 }
 
-function dropOnInProgress(dataTransfer: ReturnType<typeof fakeDataTransfer>) {
+function dropOnInProgress(dataTransfer: ReturnType<typeof fakeDataTransfer>): void {
   const inProgressColumn = screen.getByRole('region', { name: 'In Progress column' })
   fireEvent.drop(inProgressColumn, { dataTransfer })
 }

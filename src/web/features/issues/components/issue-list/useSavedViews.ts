@@ -44,7 +44,7 @@ export function useSavedViews(
       setActiveViewName(null)
     }
   }, [currentFilters, activeViewName, savedViews])
-  const persist = function persist(updated: SavedView[]) {
+  const persist = function persist(updated: SavedView[]): void {
     setSavedViews(updated)
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(updated))
@@ -52,7 +52,7 @@ export function useSavedViews(
       /* Storage is optional, controls still work in memory. */
     }
   }
-  const doSaveView = async function doSaveView() {
+  const doSaveView = async function doSaveView(): Promise<void> {
     if (!(await nameForm.validate())) {
       return
     }
@@ -62,13 +62,13 @@ export function useSavedViews(
     setSaveViewName('')
     setShowSaveInput(false)
   }
-  const deleteView = function deleteView(name: string) {
+  const deleteView = function deleteView(name: string): void {
     persist(removeView(savedViews, name))
     if (activeViewName === name) {
       setActiveViewName(null)
     }
   }
-  const applyView = function applyView(view: SavedView) {
+  const applyView = function applyView(view: SavedView): void {
     onApply(view.filters)
     setActiveViewName(view.name)
   }

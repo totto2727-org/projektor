@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -39,7 +41,7 @@ export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
 }
 
 const retentionCutoff = function retentionCutoff(raw: string | undefined, defaultDays: number): number {
-  const days = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN
+  const days = Predicate.isString(raw) && raw.trim() !== '' ? Number(raw) : Number.NaN
   return Math.floor(Date.now() / 1000) - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86_400
 }
 
@@ -48,7 +50,7 @@ const deleteExpiredInChunks = async function deleteExpiredInChunks(
   table: string,
   whereSql: string,
   params: Readonly<unknown[]>,
-) {
+): Promise<number> {
   let totalDeleted = 0
   for (let index = 0; index < RETENTION_MAX_CHUNKS_PER_CATEGORY; index++) {
     const result = await db
@@ -165,17 +167,17 @@ const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: Subre
                   return new Proxy(bound, {
                     get(boundTarget, boundProperty, boundReceiver) {
                       const original = Reflect.get(boundTarget, boundProperty, boundReceiver)
-                      if (typeof boundProperty === 'string' && reads.has(boundProperty))
+                      if (Predicate.isString(boundProperty) && reads.has(boundProperty))
                         return async (...values: unknown[]) => {
                           budget.spend()
                           return original.apply(boundTarget, values)
                         }
-                      return typeof original === 'function' ? original.bind(boundTarget) : original
+                      return Predicate.isFunction(original) ? original.bind(boundTarget) : original
                     },
                   })
                 }
               const original = Reflect.get(statementTarget, statementProperty, statementReceiver)
-              return typeof original === 'function' ? original.bind(statementTarget) : original
+              return Predicate.isFunction(original) ? original.bind(statementTarget) : original
             },
           })
         }
@@ -187,7 +189,7 @@ const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: Subre
         }
       }
       const original = Reflect.get(target, property, receiver)
-      return typeof original === 'function' ? original.bind(target) : original
+      return Predicate.isFunction(original) ? original.bind(target) : original
     },
   })
 }
@@ -196,7 +198,7 @@ const wrapCallsWithBudget = function wrapCallsWithBudget<T extends object>(targe
   return new Proxy(target, {
     get(object, property, receiver) {
       const original = Reflect.get(object, property, receiver)
-      if (typeof original !== 'function') {
+      if (!Predicate.isFunction(original)) {
         return original
       }
       return (...args: unknown[]) => {
@@ -217,7 +219,7 @@ const loadCursor = async function loadCursor(kv: KVNamespace): Promise<string[] 
     if (!parsed || typeof parsed !== 'object' || !('workspaceIds' in parsed) || !Array.isArray(parsed.workspaceIds)) {
       return null
     }
-    return parsed.workspaceIds.filter((id): id is string => typeof id === 'string')
+    return parsed.workspaceIds.filter((id): id is string => Predicate.isString(id))
   } catch {
     return null
   }

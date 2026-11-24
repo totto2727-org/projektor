@@ -56,7 +56,7 @@ describe('native D1 domain invariants', () => {
         'deleteIssue: R2 cleanup failed',
         expect.objectContaining({ r2Keys: expect.any(Array) }),
       )
-      expect(await env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(f.issue.id).first()).toBeNull()
+      await expect(env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(f.issue.id).first()).resolves.toBeNull()
     } finally {
       log.mockRestore()
     }
@@ -76,9 +76,9 @@ describe('native D1 domain invariants', () => {
     await expect(deleteComment(f.ctx, { issueId: f.issue.id, commentId: comment.id })).rejects.toMatchObject({
       kind: 'forbidden',
     })
-    expect(await env.DB.prepare('SELECT body FROM issue_comments WHERE id = ?').bind(comment.id).first()).toMatchObject(
-      { body: 'Original' },
-    )
+    await expect(
+      env.DB.prepare('SELECT body FROM issue_comments WHERE id = ?').bind(comment.id).first(),
+    ).resolves.toMatchObject({ body: 'Original' })
   })
 
   test('omits related issue metadata after access to its project is revoked', async () => {
@@ -91,9 +91,9 @@ describe('native D1 domain invariants', () => {
       VALUES (?, ?, ?, ?, 'blocks', ?, 1)`)
       .bind(crypto.randomUUID(), f.workspace.id, f.issue.id, linked.id, f.user.id)
       .run()
-    expect(await listLinksForIssue(f.ctx, { issueId: f.issue.id })).toHaveLength(1)
+    await expect(listLinksForIssue(f.ctx, { issueId: f.issue.id })).resolves.toHaveLength(1)
     await env.DB.prepare('DELETE FROM group_project_grants WHERE project_id = ?').bind(hidden.id).run()
-    expect(await listLinksForIssue(f.ctx, { issueId: f.issue.id })).toEqual([])
+    await expect(listLinksForIssue(f.ctx, { issueId: f.issue.id })).resolves.toEqual([])
   })
 
   test.each([98, 200])(
@@ -109,13 +109,11 @@ describe('native D1 domain invariants', () => {
         ),
       )
       await markWikiNotificationsRead(f.ctx, { ids })
-      expect(
-        await env.DB.prepare(
-          'SELECT COUNT(*) AS n FROM wiki_notifications WHERE workspace_id = ? AND read_at IS NOT NULL',
-        )
+      await expect(
+        env.DB.prepare('SELECT COUNT(*) AS n FROM wiki_notifications WHERE workspace_id = ? AND read_at IS NOT NULL')
           .bind(f.workspace.id)
           .first(),
-      ).toMatchObject({ n: count })
+      ).resolves.toMatchObject({ n: count })
     },
   )
 
@@ -131,11 +129,9 @@ describe('native D1 domain invariants', () => {
       const update = kind === 'type' ? updateTaskType : updateTaskStatus
       await expect(update(f.ctx, crypto.randomUUID(), { isDefault: true })).rejects.toMatchObject({ kind: 'not_found' })
       const table = kind === 'type' ? 'task_types' : 'task_statuses'
-      expect(
-        await env.DB.prepare(`SELECT id FROM ${table} WHERE workspace_id = ? AND is_default = 1`)
-          .bind(f.workspace.id)
-          .all(),
-      ).toMatchObject({ results: [{ id: target.id }] })
+      await expect(
+        env.DB.prepare(`SELECT id FROM ${table} WHERE workspace_id = ? AND is_default = 1`).bind(f.workspace.id).all(),
+      ).resolves.toMatchObject({ results: [{ id: target.id }] })
     },
   )
 })

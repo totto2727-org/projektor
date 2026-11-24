@@ -1,9 +1,10 @@
 import { env as nativeApiEnv } from 'cloudflare:workers'
-import { Effect } from 'effect'
+import { Predicate } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { RateLimitResult } from '#contracts/request-rate-limit.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 import type NativeFixtureCore from './core.worker'
 
@@ -16,8 +17,8 @@ const fixtureBinding = function fixtureBinding(value: unknown): FixtureBinding {
   if (
     value === null ||
     typeof value !== 'object' ||
-    typeof Reflect.get(value, 'fixtureEnvironment') !== 'function' ||
-    typeof Reflect.get(value, 'fixtureSession') !== 'function'
+    !Predicate.isFunction(Reflect.get(value, 'fixtureEnvironment')) ||
+    !Predicate.isFunction(Reflect.get(value, 'fixtureSession'))
   ) {
     throw new Error('The actual native Core fixture binding is missing')
   }
@@ -34,16 +35,16 @@ describe('actual native API and Core topology', () => {
   })
 
   test('keeps real native storage in the private Core isolate', async () => {
-    expect(await core.fixtureEnvironment()).toMatchObject({ database: true, cache: true, files: true })
+    await expect(core.fixtureEnvironment()).resolves.toMatchObject({ cache: true, database: true, files: true })
   })
 
   test('dispatches the official named Core RPC protocol through root and configured session bindings', async () => {
     const session = await core.fixtureSession({ DEV_USER_EMAIL: '' })
     for (const binding of [core, session]) {
-      const wire = await Effect.runPromise(makeCoreClient(binding).apiCheckRateLimit({}))
+      const wire = await runTestEffect(makeCoreClient(binding).apiCheckRateLimit({}))
       expect(typeof wire).toBe('string')
       expect(JSON.parse(wire)).toHaveProperty('_tag')
-      const decoded = await Effect.runPromise(
+      const decoded = await runTestEffect(
         decodeCoreReply(RateLimitResult, makeCoreClient(binding).apiCheckRateLimit({})),
       )
       expect(decoded).toBe(null)
@@ -65,12 +66,12 @@ describe('actual native API and Core topology', () => {
       }),
     ])
     const check = (binding: FixtureBinding) =>
-      Effect.runPromise(
+      runTestEffect(
         decodeCoreReply(RateLimitResult, makeCoreClient(binding).apiCheckRateLimit({ ip: '203.0.113.254' })),
       )
-    expect(await check(restricted)).toBe(null)
-    expect(await check(restricted)).toMatchObject({ retryAfter: expect.any(Number) })
-    expect(await check(ordinary)).toBe(null)
+    await expect(check(restricted)).resolves.toBe(null)
+    await expect(check(restricted)).resolves.toMatchObject({ retryAfter: expect.any(Number) })
+    await expect(check(ordinary)).resolves.toBe(null)
   })
 
   test('creates independently configured native Core sessions without shared policy state', async () => {
@@ -83,8 +84,8 @@ describe('actual native API and Core topology', () => {
       second.fixtureEnvironment(),
       core.fixtureEnvironment(),
     ])
-    expect(firstPolicy).toMatchObject({ devEmail: 'first@example.test', brandName: 'First' })
-    expect(secondPolicy).toMatchObject({ devEmail: 'second@example.test', brandName: 'Second' })
-    expect(rootPolicy).toMatchObject({ devEmail: '', brandName: null })
+    expect(firstPolicy).toMatchObject({ brandName: 'First', devEmail: 'first@example.test' })
+    expect(secondPolicy).toMatchObject({ brandName: 'Second', devEmail: 'second@example.test' })
+    expect(rootPolicy).toMatchObject({ brandName: null, devEmail: '' })
   })
 })

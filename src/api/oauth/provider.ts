@@ -101,6 +101,6 @@ export async function oauthProviderRateLimited(request: Request, env: ApiEnv): P
       error: 'slow_down',
       error_description: isRegistration ? 'Too many registration requests' : 'Too many token requests',
     },
-    { status: 429, headers: { 'Retry-After': String(windowSecs) } },
+    { headers: { 'Retry-After': String(windowSecs) }, status: 429 },
   )
 }

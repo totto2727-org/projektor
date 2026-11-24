@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -20,7 +21,7 @@ import { resetRateLimits } from './rate-limit-reset.ts'
  */
 const countSubrequests = function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
   let used = 0
-  const bump = () => {
+  const bump = (): void => {
     used++
   }
   const wrapD1 = (db: D1Database): D1Database =>
@@ -37,19 +38,19 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
                     return new Proxy(bound, {
                       get(boundTarget, boundProp, boundReceiver) {
                         const orig = Reflect.get(boundTarget, boundProp, boundReceiver)
-                        if (typeof boundProp === 'string' && ['all', 'first', 'raw', 'run'].includes(boundProp)) {
+                        if (Predicate.isString(boundProp) && ['all', 'first', 'raw', 'run'].includes(boundProp)) {
                           return async (...a: unknown[]) => {
                             bump()
                             return await orig.apply(boundTarget, a)
                           }
                         }
-                        return typeof orig === 'function' ? orig.bind(boundTarget) : orig
+                        return Predicate.isFunction(orig) ? orig.bind(boundTarget) : orig
                       },
                     })
                   }
                 }
                 const orig = Reflect.get(stmtTarget, stmtProp, stmtReceiver)
-                return typeof orig === 'function' ? orig.bind(stmtTarget) : orig
+                return Predicate.isFunction(orig) ? orig.bind(stmtTarget) : orig
               },
             })
           }
@@ -61,14 +62,14 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
           }
         }
         const orig = Reflect.get(dbTarget, dbProp, dbReceiver)
-        return typeof orig === 'function' ? orig.bind(dbTarget) : orig
+        return Predicate.isFunction(orig) ? orig.bind(dbTarget) : orig
       },
     })
   const wrapCalls = <T extends object>(target: T): T =>
     new Proxy(target, {
       get(t, prop, receiver) {
         const orig = Reflect.get(t, prop, receiver)
-        if (typeof orig !== 'function') {
+        if (!Predicate.isFunction(orig)) {
           return orig
         }
         return (...args: unknown[]) => {
@@ -104,7 +105,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
     slug = fixture.workspace.slug
   })
 
-  const req = async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
     await resetRateLimits()
     return fetchNativeApi(url, opts)
   }
@@ -140,8 +141,10 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
 
     await purgeAllWorkspacesExpiredWikiPages(env)
 
-    expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(page.id).first()).toBeNull()
-    expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(otherPage.id).first()).not.toBeNull()
+    await expect(env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(page.id).first()).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(otherPage.id).first(),
+    ).resolves.not.toBeNull()
   })
 
   test('does not throw when a workspace has no expired trash', async () => {
@@ -156,7 +159,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
  * correction): flow metrics read old leases for lease-held time and lease expiries.
  */
 describe('scheduled retention purge (PROJ-869)', () => {
-  const now = () => Math.floor(Date.now() / 1000)
+  const now = (): number => Math.floor(Date.now() / 1000)
   const DAY = 24 * 60 * 60
 
   test("deletes only rows older than each category's retention window", async () => {
@@ -219,35 +222,43 @@ describe('scheduled retention purge (PROJ-869)', () => {
 
     await purgeExpiredRetentionData(env)
 
-    expect(
-      await env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(expiredNotificationId).first(),
-    ).toBeNull()
-    expect(
-      await env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(freshNotificationId).first(),
-    ).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(expiredNotificationId).first(),
+    ).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(freshNotificationId).first(),
+    ).resolves.not.toBeNull()
 
     // The lease-less expired session is purged.
-    expect(await env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredNoLeaseId).first()).toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredNoLeaseId).first(),
+    ).resolves.toBeNull()
 
     /*
      * PROJ-869 (must-fix): an old ended session that STILL has a lease survives, and so
      * does its lease — issue_leases is never pruned by age, and the NOT EXISTS clause on
      * agent_sessions keeps any session a lease still references.
      */
-    expect(
-      await env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(expiredWithLease.leaseId).first(),
-    ).not.toBeNull()
-    expect(
-      await env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredWithLease.agentSessionId).first(),
-    ).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(expiredWithLease.leaseId).first(),
+    ).resolves.not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredWithLease.agentSessionId).first(),
+    ).resolves.not.toBeNull()
 
-    expect(await env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(live.leaseId).first()).not.toBeNull()
-    expect(
-      await env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(live.agentSessionId).first(),
-    ).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(live.leaseId).first(),
+    ).resolves.not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(live.agentSessionId).first(),
+    ).resolves.not.toBeNull()
 
-    expect(await env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(expiredActivityId).first()).toBeNull()
-    expect(await env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(freshActivityId).first()).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(expiredActivityId).first(),
+    ).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(freshActivityId).first(),
+    ).resolves.not.toBeNull()
   })
 
   test('does not throw when there is nothing expired', async () => {
@@ -462,7 +473,7 @@ describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
     await runFtsDedupeOnce(spyEnv) // second cron fire: must be a no-op, guarded by the KV flag
 
     expect(ran).toBe(1)
-    expect(await env.DB.prepare('SELECT rowid FROM wiki_fts WHERE rowid = 999999999').first()).toBeNull()
-    expect(await env.KV.get('maint:fts-dedupe-0065')).not.toBeNull()
+    await expect(env.DB.prepare('SELECT rowid FROM wiki_fts WHERE rowid = 999999999').first()).resolves.toBeNull()
+    await expect(env.KV.get('maint:fts-dedupe-0065')).resolves.not.toBeNull()
   })
 })

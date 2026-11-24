@@ -33,24 +33,24 @@ export function MetricHelp({ id }: { id: MetricId }) {
     if (!open) {
       return
     }
-    const inside = (node: Node) => root.current?.contains(node) || panel.current?.contains(node)
-    const pointer = (event: MouseEvent) => {
+    const inside = (node: Node): undefined | boolean => root.current?.contains(node) || panel.current?.contains(node)
+    const pointer = (event: MouseEvent): void => {
       if (!(event.target instanceof Node) || !inside(event.target)) {
         setOpen(false)
       }
     }
-    const key = (event: KeyboardEvent) => {
+    const key = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         setOpen(false)
       }
     }
-    const scroll = (event: Event) => {
+    const scroll = (event: Event): void => {
       if (!(event.target instanceof Node) || !inside(event.target)) {
         setOpen(false)
       }
     }
     let width = window.innerWidth
-    const resize = () => {
+    const resize = (): void => {
       if (window.innerWidth !== width) {
         width = window.innerWidth
         setOpen(false)

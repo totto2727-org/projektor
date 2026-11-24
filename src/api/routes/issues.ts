@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import { jsonBody } from '#api/http/body.ts'
@@ -89,10 +90,10 @@ router.get('/prioritized', async (httpContext) => {
   try {
     return httpContext.json(
       await getPrioritizedIssues(ctx, {
-        limit: limit !== undefined ? Number(limit) : undefined,
-        includeBacklog: includeBacklog !== undefined ? includeBacklog !== 'false' : undefined,
-        excludeClaimed: excludeClaimed !== undefined ? excludeClaimed === 'true' : undefined,
-        includeNotReady: includeNotReady !== undefined ? includeNotReady === 'true' : undefined,
+        limit: Predicate.isNotNullish(limit) ? Number(limit) : undefined,
+        includeBacklog: Predicate.isNotNullish(includeBacklog) ? includeBacklog !== 'false' : undefined,
+        excludeClaimed: Predicate.isNotNullish(excludeClaimed) ? excludeClaimed === 'true' : undefined,
+        includeNotReady: Predicate.isNotNullish(includeNotReady) ? includeNotReady === 'true' : undefined,
         projectId,
       }),
     )

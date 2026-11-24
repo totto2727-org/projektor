@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
+import { Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -30,7 +31,7 @@ export function listCustomFieldDefs(db: D1Database, workspaceId: string, project
     }
     if (projectId !== undefined) {
       conditions.push(
-        projectId === null
+        Predicate.isNullish(projectId)
           ? isNull(schema.customFieldDefinitions.projectId)
           : or(
               isNull(schema.customFieldDefinitions.projectId),

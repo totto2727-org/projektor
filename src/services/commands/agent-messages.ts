@@ -1,4 +1,5 @@
 import { and, asc, eq, gt, sql } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -152,7 +153,7 @@ export async function listMessages(ctx: ServiceCtx, raw: unknown) {
    * the same second-precision timestamp.
    */
   let cursorFilter: ReturnType<typeof and> | undefined
-  if (cursor !== undefined) {
+  if (Predicate.isNotNullish(cursor)) {
     const sep = cursor.lastIndexOf(':')
     const cursorTime = parseInt(cursor.slice(0, sep), 10)
     const cursorId = cursor.slice(sep + 1)

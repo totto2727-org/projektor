@@ -8,11 +8,11 @@ class PluginRegistry {
   // workspaceId -> Set of pluginIds
   private workspacePlugins = new Map<string, Set<string>>()
 
-  register(plugin: Plugin) {
+  register(plugin: Plugin): void {
     this.plugins.set(plugin.id, plugin)
   }
 
-  enableForWorkspace(workspaceId: string, pluginId: string) {
+  enableForWorkspace(workspaceId: string, pluginId: string): void {
     const set = this.workspacePlugins.get(workspaceId) ?? new Set()
     set.add(pluginId)
     this.workspacePlugins.set(workspaceId, set)

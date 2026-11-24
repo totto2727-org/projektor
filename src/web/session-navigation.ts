@@ -41,8 +41,8 @@ export function sessionNavigation(request: Request) {
     if (form.action === 'login') {
       const origin = new URL(request.url).origin
       const destination = yield* Effect.try({
-        try: () => new URL(form.redirect_url ?? '/', origin),
         catch: () => new ApiError('request', 400, 'A local session redirect is required.'),
+        try: () => new URL(form.redirect_url ?? '/', origin),
       })
       if (destination.origin !== origin) {
         return yield* new ApiError('request', 400, 'A local session redirect is required.')

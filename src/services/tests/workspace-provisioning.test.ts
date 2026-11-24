@@ -53,7 +53,7 @@ describe('atomic workspace provisioning', () => {
     expect(f.count('workspaces')).toBe(1)
     expect(
       f.sqlite.prepare('SELECT user_id,role FROM workspace_members WHERE workspace_id=?').get(workspace.id),
-    ).toMatchObject({ user_id: 'u', role: 'owner' })
+    ).toMatchObject({ role: 'owner', user_id: 'u' })
     expect(f.count('task_types')).toBe(4)
     expect(f.count('task_statuses')).toBe(6)
     expect(f.count('custom_field_definitions')).toBe(1)

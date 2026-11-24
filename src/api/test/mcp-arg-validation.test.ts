@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import { validateToolArgs } from '#api/mcp/validate-args.ts'
@@ -24,10 +25,10 @@ const validValue = function validValue(s: Schema): unknown {
   }
   switch (schemaType(s)) {
     case 'string':
-      return 'x'.repeat(Math.max(1, typeof s.minLength === 'number' ? s.minLength : 1))
+      return 'x'.repeat(Math.max(1, Predicate.isNumber(s.minLength) ? s.minLength : 1))
     case 'number':
     case 'integer':
-      return typeof s.minimum === 'number' ? s.minimum : 1
+      return Predicate.isNumber(s.minimum) ? s.minimum : 1
     case 'boolean':
       return true
     case 'array':

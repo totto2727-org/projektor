@@ -18,7 +18,7 @@ import type { ServiceCtx } from './types.ts'
  */
 export const SESSION_TTL_SECONDS = 120
 
-const liveCutoff = () => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
+const liveCutoff = (): number => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
 
 /*
  * PROJ-253: per-project agent WIP cap, used when a project doesn't set its own
@@ -359,7 +359,7 @@ export function buildReleaseLeaseForClosedIssueStatement(ctx: ServiceCtx, issueI
 }
 
 /** Release every active lease held by an agent session (called when it ends). */
-export async function releaseLeasesForAgent(ctx: ServiceCtx, agentSessionId: string) {
+export async function releaseLeasesForAgent(ctx: ServiceCtx, agentSessionId: string): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
 

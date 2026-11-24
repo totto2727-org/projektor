@@ -158,7 +158,7 @@ app.use('/api/issues/*', authMiddleware, workspaceMiddleware)
 app.use('/api/issue-links/*', authMiddleware, workspaceMiddleware)
 app.use('/api/wiki/*', authMiddleware, workspaceMiddleware)
 app.use('/mcp/*', authMiddleware, workspaceMiddleware)
-const allowFilesQueryWorkspaceFallback = async (httpContext: Context<HonoEnv>, next: Next) => {
+const allowFilesQueryWorkspaceFallback = async (httpContext: Context<HonoEnv>, next: Next): Promise<void> => {
   if (httpContext.req.method === 'GET') {
     httpContext.set('allowQueryWorkspaceFallback', true)
   }
@@ -215,7 +215,7 @@ app.get('/wiki', async (httpContext) => {
     return httpContext.notFound()
   }
   const slug = httpContext.req.query('slug')
-  const shell = () => assets.fetch(new Request(new URL('/wiki/index.html', httpContext.req.url)))
+  const shell = (): Promise<Response> => assets.fetch(new Request(new URL('/wiki/index.html', httpContext.req.url)))
   if (!slug) {
     return shell()
   }

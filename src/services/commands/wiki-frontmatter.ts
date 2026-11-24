@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
@@ -49,10 +50,10 @@ const normalizeVerifiedAt = function normalizeVerifiedAt(value: unknown): number
   if (value instanceof Date) {
     return Math.floor(value.getTime() / 1000)
   }
-  if (typeof value === 'number') {
+  if (Predicate.isNumber(value)) {
     return Math.floor(value)
   }
-  if (typeof value === 'string') {
+  if (Predicate.isString(value)) {
     const parsed = new Date(value)
     if (Number.isNaN(parsed.getTime())) {
       throw new Error(`verified_at is not a valid date: '${value}'`)
@@ -104,7 +105,7 @@ const normalizeFrontmatterRecord = function normalizeFrontmatterRecord(raw: obje
  * Anything else that isn't a plain mapping (a list, a scalar) is a genuine error.
  */
 const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null {
-  if (raw === null || raw === undefined) {
+  if (raw === null || Predicate.isNullish(raw)) {
     return null
   }
   if (typeof raw !== 'object' || Array.isArray(raw)) {
@@ -138,7 +139,7 @@ export function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
   }
 
   const raw = requireFrontmatterMapping(parseFrontmatterYaml(match[1]))
-  if (raw === null) {
+  if (Predicate.isNullish(raw)) {
     return EMPTY_WIKI_FRONTMATTER
   }
 

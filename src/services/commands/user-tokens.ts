@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { CreateUserTokenSchema } from '#contracts/inputs/user-tokens.ts'
@@ -46,7 +47,7 @@ export async function createUserToken(ctx: UserCtx, raw: unknown) {
    * of that workspace. Omitting workspaceId mints a user-scoped token (NULL in DB),
    * which is valid across all workspaces the user is a member of.
    */
-  if (workspaceId !== undefined) {
+  if (Predicate.isNotNullish(workspaceId)) {
     const member = await ctx.db
       .prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, ctx.userId)

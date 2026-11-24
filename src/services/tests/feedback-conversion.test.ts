@@ -24,7 +24,7 @@ const fixture = function fixture(concurrentBatches = 1) {
     INSERT INTO feedback_sources (id,token_hash,workspace_id,project_id,name,created_by,created_at)
       VALUES ('s','hash','w','p','Source','u',1);`)
   let arrivals = 0
-  let release = () => {}
+  let release = (): void => {}
   const barrier = new Promise<void>((resolve) => {
     release = resolve
   })
@@ -108,7 +108,7 @@ describe('feedback conversion transaction', () => {
     for (const table of ['issues', 'issues_fts', 'activity']) {
       expect(f.count(table), table).toBe(1)
     }
-    expect(f.fetch).toHaveBeenCalledTimes(1)
+    expect(f.fetch).toHaveBeenCalledOnce()
     const issue = f.sqlite.prepare('SELECT id,number FROM issues').get()
     expect(issue?.number).toBe(1)
     expect(f.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({

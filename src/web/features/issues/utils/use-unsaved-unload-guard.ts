@@ -6,7 +6,7 @@ export function useUnsavedUnloadGuard(dirty: boolean): void {
     if (!dirty) {
       return
     }
-    const guard = (event: BeforeUnloadEvent) => {
+    const guard = (event: BeforeUnloadEvent): void => {
       event.preventDefault()
       event.returnValue = ''
     }

@@ -10,7 +10,7 @@ import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './hel
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-const call = async function call(url: string, token: string, slug: string, init?: RequestInit) {
+const call = async function call(url: string, token: string, slug: string, init?: RequestInit): Promise<Response> {
   await resetRateLimits()
   return fetchNativeApi(url, { ...init, headers: authHeaders(token, slug) })
 }
@@ -34,7 +34,7 @@ const broken = async function broken(token: string, slug: string) {
   return (await res.json()) as { sourceSlug: string; targetTitle: string }[]
 }
 
-const targetOf = async function targetOf(sourceId: string) {
+const targetOf = async function targetOf(sourceId: string): Promise<null | string> {
   const row = await env.DB.prepare('SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?')
     .bind(sourceId)
     .first<{ t: string | null }>()
@@ -49,7 +49,7 @@ describe('PROJ-818: accented Latin titles fold on both sides', () => {
       title: 'Home',
       content: 'See [[über uns]].',
     })
-    expect(await targetOf(source.id)).toBe(target.id)
+    await expect(targetOf(source.id)).resolves.toBe(target.id)
   })
 
   test("a link written before the page exists resolves when 'Über uns' is created", async () => {
@@ -58,9 +58,9 @@ describe('PROJ-818: accented Latin titles fold on both sides', () => {
       title: 'Home',
       content: 'See [[ÜBER UNS]].',
     })
-    expect(await targetOf(source.id)).toBeNull()
+    await expect(targetOf(source.id)).resolves.toBeNull()
     const target = await createPage(token, workspace.slug, { title: 'über uns' })
-    expect(await targetOf(source.id)).toBe(target.id)
+    await expect(targetOf(source.id)).resolves.toBe(target.id)
   })
 
   test('pre-migration rows with a NULL fold are healed before matching', async () => {
@@ -76,7 +76,7 @@ describe('PROJ-818: accented Latin titles fold on both sides', () => {
       title: 'Links',
       content: '[[über legacy]]',
     })
-    expect(await targetOf(source.id)).toBe(legacyId)
+    await expect(targetOf(source.id)).resolves.toBe(legacyId)
   })
 })
 

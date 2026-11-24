@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
@@ -14,7 +15,7 @@ const fixture = async function fixture(concurrentBatches = 1) {
     .bind(sourceId, crypto.randomUUID(), f.workspaceId, f.projectId, 'Source', f.userId)
     .run()
   let arrivals = 0
-  let release = () => {}
+  let release = (): void => {}
   const barrier = new Promise<void>((resolve) => {
     release = resolve
   })
@@ -28,7 +29,7 @@ const fixture = async function fixture(concurrentBatches = 1) {
         }
       }
       const value = Reflect.get(target, key)
-      return typeof value === 'function' ? value.bind(target) : value
+      return Predicate.isFunction(value) ? value.bind(target) : value
     },
   })
   const ctx: ServiceCtx = { db, kv: env.KV, r2: env.R2, workspaceId: f.workspaceId, userId: f.userId, role: 'owner' }
@@ -59,17 +60,17 @@ describe('native D1 atomic feedback conversion', () => {
     expect(issues.results).toHaveLength(1)
     const issue = issues.results[0]!
     expect(issue.number).toBe(1)
-    expect(
-      await env.DB.prepare('SELECT linked_issue_id FROM feedback WHERE id=?').bind(id).first('linked_issue_id'),
-    ).toBe(issue.id)
-    expect(
-      await env.DB.prepare('SELECT COUNT(*) AS n FROM issues_fts WHERE workspace_id=?').bind(f.workspaceId).first('n'),
-    ).toBe(1)
-    expect(
-      await env.DB.prepare("SELECT COUNT(*) AS n FROM activity WHERE workspace_id=? AND entity_type='issue'")
+    await expect(
+      env.DB.prepare('SELECT linked_issue_id FROM feedback WHERE id=?').bind(id).first('linked_issue_id'),
+    ).resolves.toBe(issue.id)
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS n FROM issues_fts WHERE workspace_id=?').bind(f.workspaceId).first('n'),
+    ).resolves.toBe(1)
+    await expect(
+      env.DB.prepare("SELECT COUNT(*) AS n FROM activity WHERE workspace_id=? AND entity_type='issue'")
         .bind(f.workspaceId)
         .first('n'),
-    ).toBe(1)
+    ).resolves.toBe(1)
   })
 
   test('rolls back an issue and FTS when feedback linking fails, then retries with number one', async () => {
@@ -80,19 +81,17 @@ describe('native D1 atomic feedback conversion', () => {
       WHEN OLD.id='${id}' BEGIN SELECT RAISE(ABORT,'feedback link failure'); END`).run()
     try {
       await expect(convertFeedbackToIssue(f.ctx, { feedbackId: id })).rejects.toThrow('feedback link failure')
-      expect(
-        await env.DB.prepare('SELECT COUNT(*) AS n FROM issues WHERE project_id=?').bind(f.projectId).first('n'),
-      ).toBe(0)
-      expect(
-        await env.DB.prepare('SELECT COUNT(*) AS n FROM issues_fts WHERE workspace_id=?')
+      await expect(
+        env.DB.prepare('SELECT COUNT(*) AS n FROM issues WHERE project_id=?').bind(f.projectId).first('n'),
+      ).resolves.toBe(0)
+      await expect(
+        env.DB.prepare('SELECT COUNT(*) AS n FROM issues_fts WHERE workspace_id=?').bind(f.workspaceId).first('n'),
+      ).resolves.toBe(0)
+      await expect(
+        env.DB.prepare("SELECT COUNT(*) AS n FROM activity WHERE workspace_id=? AND entity_type='issue'")
           .bind(f.workspaceId)
           .first('n'),
-      ).toBe(0)
-      expect(
-        await env.DB.prepare("SELECT COUNT(*) AS n FROM activity WHERE workspace_id=? AND entity_type='issue'")
-          .bind(f.workspaceId)
-          .first('n'),
-      ).toBe(0)
+      ).resolves.toBe(0)
     } finally {
       await env.DB.prepare(`DROP TRIGGER ${trigger}`).run()
     }
@@ -114,10 +113,10 @@ describe('native D1 atomic feedback conversion', () => {
       convertedCount: 500,
       number: 1,
     })
-    expect(
-      await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE project_id=? AND linked_issue_id IS NOT NULL')
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE project_id=? AND linked_issue_id IS NOT NULL')
         .bind(f.projectId)
         .first('n'),
-    ).toBe(500)
+    ).resolves.toBe(500)
   })
 })

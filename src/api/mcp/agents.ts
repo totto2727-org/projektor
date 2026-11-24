@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import {
   endAgent,
   finishWork,
@@ -14,10 +16,10 @@ import type { MCPTool } from './types.ts'
 /** claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
 const withIdAlias = function withIdAlias(input: unknown): unknown {
   const { agentId, ...rest } = (input ?? {}) as { agentId?: unknown; id?: unknown }
-  if (agentId === undefined || agentId === null) {
+  if (agentId === undefined || Predicate.isNullish(agentId)) {
     return rest
   }
-  if (rest.id === undefined || rest.id === null) {
+  if (rest.id === undefined || Predicate.isNullish(rest.id)) {
     return { ...rest, id: agentId }
   }
   if (rest.id !== agentId) {

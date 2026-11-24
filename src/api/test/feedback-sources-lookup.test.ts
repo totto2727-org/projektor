@@ -3,7 +3,9 @@ import { describe, expect, test } from 'vite-plus/test'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-const createSource = async function createSource(f: Readonly<{ projectId: string; token: string; slug: string }>) {
+const createSource = async function createSource(
+  f: Readonly<{ projectId: string; token: string; slug: string }>,
+): Promise<string> {
   const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
     method: 'POST',
     headers: authHeaders(f.token, f.slug),

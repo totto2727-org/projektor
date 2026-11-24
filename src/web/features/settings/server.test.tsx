@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { apiOrigin } from '#deployment'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 import { inMemoryKV, testEnvironment } from '@/server/test/resources.ts'
@@ -124,13 +125,13 @@ async function fixture(currentScope = scope) {
     }),
   )
   const request = new Request(url)
-  const services = await Effect.runPromise(
+  const services = await runTestEffect(
     makeRequestServices(request, testEnvironment(database.db, 'owner@example.test', { OAUTH_KV: oauthKV })),
   )
-  const authenticated = await Effect.runPromise(services.scope())
+  const authenticated = await runTestEffect(services.scope())
   const requestScope: RequestScope = { ...currentScope, user: authenticated.user, auth: authenticated.auth }
   function run<T, E>(effect: Effect.Effect<T, E, RequestServices>) {
-    return Effect.runPromise(effect.pipe(Effect.provideService(RequestServices, services)))
+    return runTestEffect(effect.pipe(Effect.provideService(RequestServices, services)))
   }
   return { ...database, scope: requestScope, calls, run }
 }
@@ -144,14 +145,14 @@ describe('settings authorized direct D1 SSR', () => {
     expect(node.props.view).toBe(view)
     expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toEqual(['g2', 'g1'])
     expect(node.props.initialData.details.find((group: { id: string }) => group.id === 'g1')).toMatchObject({
+      grantCount: 1,
+      grants: [{ projectId: 'p1', projectKey: 'PROJ', projectName: 'Project', role: 'member' }],
       id: 'g1',
       memberCount: 1,
-      grantCount: 1,
-      members: [{ userId: 'u1', name: 'owner', email: 'owner@example.test' }],
-      grants: [{ projectId: 'p1', projectName: 'Project', projectKey: 'PROJ', role: 'member' }],
+      members: [{ email: 'owner@example.test', name: 'owner', userId: 'u1' }],
     })
     expect(node.props.initialData.projects.map((project: { id: string }) => project.id)).toEqual(['p1'])
-    expect(node.props.initialData.memberGroups).toEqual([{ userId: 'u1', groups: [{ id: 'g1', name: 'Team' }] }])
+    expect(node.props.initialData.memberGroups).toEqual([{ groups: [{ id: 'g1', name: 'Team' }], userId: 'u1' }])
     expect(f.calls).not.toHaveBeenCalled()
     expect(renderToStaticMarkup(node)).toContain(`id="group-tabpanel-${view}"`)
   })
@@ -249,8 +250,8 @@ describe('settings authorized direct D1 SSR', () => {
     const error = await f.run(renderGroups(f.scope, url).pipe(Effect.catch((error) => Effect.succeed(error))))
     expect(error).toMatchObject({
       _tag: 'ApiError',
-      status: 500,
       message: 'An unexpected error occurred.',
+      status: 500,
     })
     expect(JSON.stringify(error)).not.toContain('user_groups')
   })

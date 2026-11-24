@@ -1,7 +1,7 @@
 'use client'
 import { useForm, useStore } from '@tanstack/react-form'
 import type { DeepValue } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { useRef } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -34,17 +34,16 @@ export function useIssueForm<Values extends Record<string, unknown>>(
     let setter = setters.current.get(name)
     if (!setter) {
       setter = (next: unknown) => {
-        const value =
-          typeof next === 'function'
-            ? (next as (previous: Values[Key]) => Values[Key])(form.state.values[name])
-            : (next as Values[Key])
+        const value = Predicate.isFunction(next)
+          ? (next as (previous: Values[Key]) => Values[Key])(form.state.values[name])
+          : (next as Values[Key])
         form.setFieldValue(name, value as DeepValue<Values, Key>)
       }
       setters.current.set(name, setter)
     }
     return [values[name], setter]
   }
-  const validate = async function validate() {
+  const validate = async function validate(): Promise<boolean> {
     await form.validate('submit')
     return form.state.isValid
   }

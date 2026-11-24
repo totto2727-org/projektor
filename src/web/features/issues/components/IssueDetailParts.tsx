@@ -1,6 +1,6 @@
 'use client'
 import { query as serverQuery } from '@effront/core/query'
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -93,7 +93,7 @@ function SidebarField({ label, children }: { label: string; children: ReactNode 
 export function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: string }) {
   const [copiedRef, setCopiedRef] = useState(false)
 
-  function copyLink() {
+  function copyLink(): void {
     navigator.clipboard.writeText(new URL(copyUrl, window.location.origin).href).catch(() => {})
     setCopiedRef(true)
     setTimeout(() => setCopiedRef(false), 2000)
@@ -148,7 +148,7 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
   const [sharingLoading, setSharingLoading] = useState(false)
   const [copiedShare, setCopiedShare] = useState(false)
 
-  async function createShareLink() {
+  async function createShareLink(): Promise<void> {
     if (shareUrl) {
       setShareUrl(null)
       return
@@ -163,7 +163,7 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
     setSharingLoading(false)
   }
 
-  function copyShareUrl() {
+  function copyShareUrl(): void {
     if (!shareUrl) {
       return
     }
@@ -249,18 +249,18 @@ export function TitleSection({
   const [saveTitleError, setSaveTitleError] = useState<string | null>(null)
   useUnsavedUnloadGuard(editingTitle && editTitle !== issue.title)
 
-  function startEditTitle() {
+  function startEditTitle(): void {
     setEditTitle(issue.title)
     setSaveTitleError(null)
     setEditingTitle(true)
   }
 
-  function cancelEditTitle() {
+  function cancelEditTitle(): void {
     setEditingTitle(false)
     setSaveTitleError(null)
   }
 
-  async function saveTitle() {
+  async function saveTitle(): Promise<void> {
     if (!(await titleForm.validate())) {
       setSaveTitleError('Enter a title.')
       return
@@ -364,7 +364,7 @@ function useBodyEditor(
    * editor — the user may have moved on, and the issue may have changed since.
    */
   useEffect(() => {
-    setHasDraft(loadDraft(key) !== null)
+    setHasDraft(Predicate.isNotNullish(loadDraft(key)))
   }, [key])
 
   useEffect(() => {
@@ -386,27 +386,27 @@ function useBodyEditor(
     setAwaitingBody(null)
   }, [awaitingBody, editBody, issue.body, key])
 
-  function startEditBody(fromDraft = false) {
+  function startEditBody(fromDraft = false): void {
     setEditBody((fromDraft ? loadDraft(key) : null) ?? issue.body ?? '')
     setSaveBodyError(null)
     setEditingBody(true)
   }
 
-  function updateBody(value: string) {
+  function updateBody(value: string): void {
     bodyRevision.current += 1
     setEditBody(value)
     saveDraft(key, value)
     setHasDraft(!!value.trim())
   }
 
-  function cancelEditBody() {
+  function cancelEditBody(): void {
     setEditingBody(false)
     setSaveBodyError(null)
     clearDraft(key)
     setHasDraft(false)
   }
 
-  async function saveBody() {
+  async function saveBody(): Promise<void> {
     const revision = bodyRevision.current
     const submittedBody = editBody
     if (!(await bodyForm.validate())) {
@@ -752,7 +752,7 @@ export function RelationsSection({
     }))
     .filter((g) => g.items.length > 0)
 
-  async function addLink() {
+  async function addLink(): Promise<void> {
     const ref = normalizeIssueRef(linkFormRef)
     setLinkFormRef(ref)
     if (!(await relationForm.validate())) {
@@ -784,7 +784,7 @@ export function RelationsSection({
     setAddingLink(false)
   }
 
-  async function removeLink(linkId: string) {
+  async function removeLink(linkId: string): Promise<void> {
     try {
       unwrapResult(await deleteIssueLink({ workspaceSlug, issueId, linkId }))
     } catch {
@@ -1241,13 +1241,13 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
   const [urlValue, setUrlValue] = urlForm.field('url')
   const [labelValue, setLabelValue] = urlForm.field('label')
 
-  function reset() {
+  function reset(): void {
     setLinkError(null)
     setUrlValue('')
     setLabelValue('')
   }
 
-  async function linkWikiPage(wikiPageId: string) {
+  async function linkWikiPage(wikiPageId: string): Promise<void> {
     setLinking(true)
     setLinkError(null)
     try {
@@ -1260,7 +1260,7 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
     setLinking(false)
   }
 
-  async function addUrl() {
+  async function addUrl(): Promise<void> {
     if (!(await urlForm.validate())) {
       setLinkError('Enter a valid URL.')
       return
@@ -1302,14 +1302,14 @@ function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) 
 
   const links = useAttachmentLinks(issueId, workspaceSlug, () => setMode('none'))
 
-  function resetForms() {
+  function resetForms(): void {
     setMode('none')
     links.reset()
   }
 
   // PROJ-876: a failed delete is shown, not swallowed.
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  async function deleteAttachment(attachmentId: string) {
+  async function deleteAttachment(attachmentId: string): Promise<void> {
     setDeleteError(null)
     try {
       unwrapResult(await deleteIssueAttachment({ workspaceSlug, issueId, attachmentId }))
@@ -1508,9 +1508,9 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
   const [editCommentError, setEditCommentError] = useState<string | null>(null)
   const commentRevision = useRef(0)
   const [originalCommentBody, setOriginalCommentBody] = useState('')
-  useUnsavedUnloadGuard(editingCommentId !== null && editCommentBody !== originalCommentBody)
+  useUnsavedUnloadGuard(Predicate.isNotNullish(editingCommentId) && editCommentBody !== originalCommentBody)
 
-  function startEditComment(comment: Comment) {
+  function startEditComment(comment: Comment): void {
     commentRevision.current += 1
     setOriginalCommentBody(comment.body)
     setEditingCommentId(comment.id)
@@ -1518,17 +1518,17 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
     setEditCommentError(null)
   }
 
-  function cancelEditComment() {
+  function cancelEditComment(): void {
     setEditingCommentId(null)
     setEditCommentError(null)
   }
 
-  function updateEditComment(value: string) {
+  function updateEditComment(value: string): void {
     commentRevision.current += 1
     setEditCommentBody(value)
   }
 
-  async function saveEditComment(commentId: string) {
+  async function saveEditComment(commentId: string): Promise<void> {
     const revision = commentRevision.current
     const submittedBody = editCommentBody
     if (!(await editForm.validate())) {
@@ -1548,7 +1548,7 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
     setSavingComment(false)
   }
 
-  async function doDeleteComment(commentId: string) {
+  async function doDeleteComment(commentId: string): Promise<void> {
     if (!window.confirm('Delete this comment?')) {
       return
     }
@@ -1589,13 +1589,13 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
     setNewComment(loadDraft(key) ?? '')
   }, [key, setNewComment])
 
-  function updateComment(value: string) {
+  function updateComment(value: string): void {
     newCommentRevision.current += 1
     setNewComment(value)
     saveDraft(key, value)
   }
 
-  async function submitComment(event: import('react').FormEvent<HTMLFormElement>) {
+  async function submitComment(event: import('react').FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     const revision = newCommentRevision.current
     const submittedBody = newComment.trim()
@@ -1793,12 +1793,12 @@ function PointsField({
   const [pointsValue, setPointsValue] = pointsForm.field('points')
   const [savingPoints, setSavingPoints] = useState(false)
 
-  function startEditPoints() {
+  function startEditPoints(): void {
     setPointsValue(storyPointsValue)
     setEditingPoints(true)
   }
 
-  async function savePoints() {
+  async function savePoints(): Promise<void> {
     if (!(await pointsForm.validate())) {
       return
     }
@@ -1809,7 +1809,7 @@ function PointsField({
         await updateIssue({
           workspaceSlug,
           issueId,
-          patch: { customFields: { story_points: parsed === null ? null : String(parsed) } },
+          patch: { customFields: { story_points: Predicate.isNullish(parsed) ? null : String(parsed) } },
         }),
       )
     } catch {

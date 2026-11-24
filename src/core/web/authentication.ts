@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import { getUserWorkspaces } from '#commands/user-tokens.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
@@ -43,26 +43,26 @@ export function loadBrowserScope(env: CoreEnvironment, input: WebRequest, option
       Effect.mapError(() => coreFailure(400, 'Invalid scope options.')),
     )
     const request = yield* Effect.try({
-      try: () => nativeRequest(decoded),
       catch: () => coreFailure(400, 'Invalid browser request.'),
+      try: () => nativeRequest(decoded),
     })
     if (request.headers.has('authorization')) {
       return yield* coreFailure(403, 'An interactive browser session is required.')
     }
     const principal = yield* Effect.tryPromise({
-      try: () => authenticateBrowser(request, env),
       catch: publicWebFailure,
+      try: () => authenticateBrowser(request, env),
     })
     if (principal.user.email === 'public-viewer@projektor.local') {
       return yield* coreFailure(403, 'An interactive browser session is required.')
     }
     const session = yield* Effect.tryPromise({
+      catch: publicWebFailure,
       try: async () =>
         decodeAuthSession({
           user: principal.user,
           workspaces: await getUserWorkspaces({ db: env.DB, userId: principal.user.id }),
         }),
-      catch: publicWebFailure,
     })
     const visibility = {
       sql: `wm.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM user_group_members ugm JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id WHERE ugm.user_id = ? AND gpg.project_id = p.id)`,
@@ -81,20 +81,22 @@ export function loadBrowserScope(env: CoreEnvironment, input: WebRequest, option
     const projects = yield* catalog()
     const url = new URL(request.url)
     const { hint, workspace } = yield* Effect.try({
+      catch: publicWebFailure,
       try: () => ({
         hint: selected.projectHint ?? readProjectHint(url),
         workspace: selectedWorkspace(session.workspaces, selected.workspaceHint ?? queryHint(url, 'workspace')),
       }),
-      catch: publicWebFailure,
     })
     const active = projects.some(
       (project) =>
-        hint !== undefined && matchesProject(project, hint) && (!workspace || workspace.id === project.workspace_id),
+        Predicate.isNotNullish(hint) &&
+        matchesProject(project, hint) &&
+        (!workspace || workspace.id === project.workspace_id),
     )
     const visible = hint && !active ? yield* catalog(true) : projects
     const scope = yield* Effect.try({
-      try: () => resolveScope(session, visible, url, selected),
       catch: publicWebFailure,
+      try: () => resolveScope(session, visible, url, selected),
     })
     return { ...scope, auth: principal.auth }
   })

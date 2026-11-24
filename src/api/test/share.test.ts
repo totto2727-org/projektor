@@ -28,8 +28,8 @@ describe('Share tokens', () => {
 
   test('POST /api/issues/:id/share creates a token and returns { token, url }', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { token: string; url: string }
@@ -40,8 +40,8 @@ describe('Share tokens', () => {
 
   test('GET /api/share/:token returns issue data without auth', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -73,8 +73,8 @@ describe('Share tokens', () => {
 
   test('stores the share token hashed, not in plaintext, in D1', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -95,24 +95,24 @@ describe('Share tokens', () => {
   test('POST /api/issues/:id/share returns 404 for issue in another workspace', async () => {
     const other = await seedFixture()
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(404)
   })
 
   test('POST /api/issues/:id/share returns 404 for a nonexistent issue ID', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues/00000000-0000-0000-0000-000000000000/share', {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(404)
   })
 
   test('GET /api/share/:token returns project_key, project_name, and status_name', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -132,8 +132,8 @@ describe('Share tokens', () => {
 
   test('GET /api/share/:token is reusable — multiple requests all return 200', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -146,8 +146,8 @@ describe('Share tokens', () => {
   test('PROJ-240: viewer role cannot create a share link', async () => {
     const viewerFixture = await seedIssueFixture({ role: 'viewer' })
     const res = await fetchNativeApi(`http://localhost/api/issues/${viewerFixture.issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(viewerFixture.token, viewerFixture.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -179,8 +179,8 @@ describe('Share tokens', () => {
       .run()
 
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -195,14 +195,14 @@ describe('Share tokens', () => {
 
   test('PROJ-242: revokes a share token so it no longer resolves', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
     const revokeRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(revokeRes.status).toBe(200)
 
@@ -220,8 +220,8 @@ describe('Share tokens', () => {
     expect(patchRes.status).toBe(200)
 
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${owner.issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(owner.token, owner.slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -237,8 +237,8 @@ describe('Share tokens', () => {
 
   test('PROJ-762: GET /api/share/:token returns a null-fielded brand when the workspace has none set', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -265,8 +265,8 @@ describe('Share tokens', () => {
     expect(uploadRes.status).toBe(201)
 
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${owner.issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(owner.token, owner.slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -282,8 +282,8 @@ describe('Share tokens', () => {
 
   test('review finding 1: GET /api/share/:token/logo 404s when the workspace has no logo set', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
@@ -314,8 +314,8 @@ describe('Share tokens', () => {
       .run()
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${viewerFixture.issueId}/share`, {
-      method: 'DELETE',
       headers: authHeaders(viewerFixture.token, viewerFixture.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -343,8 +343,8 @@ describe('Share tokens', () => {
     test('member without a grant cannot create a share link (404, existence hidden)', async () => {
       const f = await restrictedIssue('none')
       const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        method: 'POST',
         headers: authHeaders(f.token, f.slug),
+        method: 'POST',
       })
       expect(res.status).toBe(404)
       const { env } = await import('./fixture-api.ts')
@@ -364,8 +364,8 @@ describe('Share tokens', () => {
         .bind(await hashToken('victim-link'), f.issueId, f.workspaceId, f.userId, now + 3600, now)
         .run()
       const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        method: 'DELETE',
         headers: authHeaders(f.token, f.slug),
+        method: 'DELETE',
       })
       expect(res.status).toBe(404)
       const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
@@ -377,8 +377,8 @@ describe('Share tokens', () => {
     test('member with only a viewer grant gets 403', async () => {
       const f = await restrictedIssue('viewer')
       const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        method: 'POST',
         headers: authHeaders(f.token, f.slug),
+        method: 'POST',
       })
       expect(res.status).toBe(403)
     })
@@ -386,8 +386,8 @@ describe('Share tokens', () => {
     test('workspace viewer with a member grant on the project can share (grant replaces workspace role)', async () => {
       const f = await restrictedIssue('member', 'viewer')
       const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        method: 'POST',
         headers: authHeaders(f.token, f.slug),
+        method: 'POST',
       })
       expect(res.status).toBe(201)
     })
@@ -404,8 +404,8 @@ describe('Share tokens', () => {
       const g = grant === 'member' ? await seedGroupGrant(workspace.id, user.id, project.id, 'member') : null
       const issue = await seedIssue(workspace.id, project.id, user.id, { title: 'Shared' })
       const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/share`, {
-        method: 'POST',
         headers: authHeaders(token, workspace.slug),
+        method: 'POST',
       })
       expect(res.status).toBe(201)
       const { token: shareToken } = (await res.json()) as { token: string }
@@ -427,23 +427,23 @@ describe('Share tokens', () => {
 
     test('404s once the issue is deleted', async () => {
       const f = await sharedIssue('admin', 'none')
-      expect(await shareStatus(f.shareToken)).toBe(200)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
       await env.DB.prepare('DELETE FROM issues WHERE id = ?').bind(f.issueId).run()
-      expect(await shareStatus(f.shareToken)).toBe(404)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
     })
 
     test("404s once the issue's project is archived", async () => {
       const f = await sharedIssue('admin', 'none')
-      expect(await shareStatus(f.shareToken)).toBe(200)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
       await env.DB.prepare('UPDATE projects SET archived_at = ? WHERE id = ?')
         .bind(Math.floor(Date.now() / 1000), f.projectId)
         .run()
-      expect(await shareStatus(f.shareToken)).toBe(404)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
     })
 
     test("404s once the creator's project grant is revoked, and resolves again if restored", async () => {
       const f = await sharedIssue('member', 'member')
-      expect(await shareStatus(f.shareToken)).toBe(200)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
 
       const grant = await env.DB.prepare('SELECT role FROM group_project_grants WHERE group_id = ? AND project_id = ?')
         .bind(f.groupId, f.projectId)
@@ -451,23 +451,23 @@ describe('Share tokens', () => {
       await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id = ? AND project_id = ?')
         .bind(f.groupId, f.projectId)
         .run()
-      expect(await shareStatus(f.shareToken)).toBe(404)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
       await resetRateLimits()
       expect((await fetchNativeApi(`http://localhost/api/share/${f.shareToken}/logo`)).status).toBe(404)
 
       await env.DB.prepare('INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)')
         .bind(f.groupId, f.projectId, grant?.role ?? 'member')
         .run()
-      expect(await shareStatus(f.shareToken)).toBe(200)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
     })
 
     test('404s once the creator is removed from the workspace', async () => {
       const f = await sharedIssue('admin', 'none')
-      expect(await shareStatus(f.shareToken)).toBe(200)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
       await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
         .bind(f.workspaceId, f.userId)
         .run()
-      expect(await shareStatus(f.shareToken)).toBe(404)
+      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
     })
   })
 })

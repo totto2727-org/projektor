@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { CorePublicError } from 'projektor/core-client'
 import { z } from 'zod'
 
@@ -28,7 +29,7 @@ const summarizeDetails = function summarizeDetails(details: Record<string, unkno
     .map(([key, value]) => {
       const rendered = Array.isArray(value)
         ? value.join(', ')
-        : typeof value === 'string'
+        : Predicate.isString(value)
           ? value
           : JSON.stringify(value)
       return `${key}: ${truncate(rendered, MAX_DETAIL_VALUE_CHARS)}`
@@ -40,7 +41,7 @@ const summarizeDetails = function summarizeDetails(details: Record<string, unkno
 const hasDetails = function hasDetails(
   details: Record<string, unknown> | undefined,
 ): details is Record<string, unknown> {
-  return details !== undefined && Object.keys(details).length > 0
+  return Predicate.isNotNullish(details) && Object.keys(details).length > 0
 }
 
 /*

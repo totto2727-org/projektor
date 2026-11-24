@@ -32,7 +32,10 @@ const setup = async function setup() {
  * Run `concurrent` just before the next db.batch — i.e. after the service has read the
  * page but before its write lands, which is exactly the race window.
  */
-const interleaveBeforeNextBatch = function interleaveBeforeNextBatch(times: number, concurrent: () => Promise<void>) {
+const interleaveBeforeNextBatch = function interleaveBeforeNextBatch(
+  times: number,
+  concurrent: () => Promise<void>,
+): void {
   const orig = env.DB.batch.bind(env.DB)
   let remaining = times
   vi.spyOn(env.DB, 'batch').mockImplementation(async (stmts) => {
@@ -65,7 +68,7 @@ describe('PROJ-809: get_wiki_page returns the revision it read', () => {
     await expect(
       updateWikiPage(ctx, slug, { content: "A's stale copy", baseRevisionId: readByA.revisionId }),
     ).rejects.toBeInstanceOf(ConflictError)
-    expect(await contentOf(ctx, slug)).toBe("B's edit")
+    await expect(contentOf(ctx, slug)).resolves.toBe("B's edit")
   })
 
   test('REST GET carries revisionId in the body and as the ETag', async () => {
@@ -86,7 +89,7 @@ describe('PROJ-810: guarded writes', () => {
       await env.DB.prepare("UPDATE wiki_pages SET content = 'concurrent' WHERE slug = ?").bind(slug).run()
     })
     await expect(updateWikiPage(ctx, slug, { content: 'mine' })).rejects.toBeInstanceOf(ConflictError)
-    expect(await contentOf(ctx, slug)).toBe('concurrent')
+    await expect(contentOf(ctx, slug)).resolves.toBe('concurrent')
   })
 
   test("set_frontmatter racing an update: the update isn't reverted", async () => {
@@ -181,18 +184,18 @@ describe('PROJ-919: metadata-only writes are guarded too', () => {
   test('every write bumps the page version', async () => {
     const { ctx, slug } = await setup()
     const { id } = (await getWikiPage(ctx, slug)) as { id: string }
-    const versionOf = async () =>
+    const versionOf = async (): Promise<number> =>
       (await env.DB.prepare('SELECT version FROM wiki_pages WHERE id = ?').bind(id).first<{ version: number }>())
         ?.version as number
     const before = await versionOf()
     await updateWikiPage(ctx, slug, { title: 'Bumped' })
-    expect(await versionOf()).toBe(before + 1)
+    await expect(versionOf()).resolves.toBe(before + 1)
     const { revisionId } = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
     await patchWikiPage(ctx, slug, {
       op: 'append_to_page',
       text: 'more',
       baseRevisionId: revisionId,
     })
-    expect(await versionOf()).toBe(before + 2)
+    await expect(versionOf()).resolves.toBe(before + 2)
   })
 })

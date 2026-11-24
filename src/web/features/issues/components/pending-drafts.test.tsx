@@ -289,7 +289,7 @@ test('protects only comment edits that differ from their original body', () => {
       currentUserId='user'
     />,
   )
-  function unloadPrevented() {
+  function unloadPrevented(): boolean {
     const event = new Event('beforeunload', { cancelable: true })
     window.dispatchEvent(event)
     return event.defaultPrevented

@@ -16,13 +16,13 @@ const filenames = readdirSync(new URL('../../../migrations/', import.meta.url))
   .filter((file) => file.endsWith('.sql'))
   .sort()
 
-const seedWorkspace = function seedWorkspace(db: DatabaseSync) {
+const seedWorkspace = function seedWorkspace(db: DatabaseSync): void {
   db.exec(`INSERT INTO workspaces(id,name,slug,created_at) VALUES ('w','Workspace','workspace',0);
     INSERT INTO users(id,email,name,created_at) VALUES ('u','user@example.invalid','User',0);`)
   // No owner membership: historical template seeds must not create unrelated pages.
 }
 
-const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>) {
+const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>): void {
   const insert = db.prepare(`INSERT INTO wiki_pages
     (id,workspace_id,slug,title,content,created_by_id,updated_by_id,created_at,updated_at)
     VALUES (?,?,?,?,'searchneedle','u','u',?,?)`)
@@ -37,7 +37,7 @@ const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>) 
   }
 }
 
-const checkIntegrity = function checkIntegrity(db: DatabaseSync) {
+const checkIntegrity = function checkIntegrity(db: DatabaseSync): void {
   expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
 }
@@ -61,9 +61,9 @@ const cases = [
     },
     verify(this: void, db: DatabaseSync) {
       expect(db.prepare('SELECT id,workspace_id,name,slug FROM projects ORDER BY id').all()).toEqual([
-        { id: 'first', workspace_id: 'w', name: 'Foo', slug: 'foo' },
-        { id: 'natural', workspace_id: 'w', name: 'Foo-2', slug: 'foo-2' },
-        { id: 'second', workspace_id: 'w', name: 'Foo legacy 2', slug: 'foo-legacy-2' },
+        { id: 'first', name: 'Foo', slug: 'foo', workspace_id: 'w' },
+        { id: 'natural', name: 'Foo-2', slug: 'foo-2', workspace_id: 'w' },
+        { id: 'second', name: 'Foo legacy 2', slug: 'foo-legacy-2', workspace_id: 'w' },
       ])
     },
   },

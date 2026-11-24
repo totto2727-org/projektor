@@ -42,7 +42,7 @@ export function useFilterUrlSync(
   state: UrlSyncState,
   search: string,
   projects: Readonly<{ key: string; id: string }[]> = [],
-) {
+): void {
   const {
     filterStatuses,
     filterPriorities,

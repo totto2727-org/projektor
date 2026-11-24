@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 import type { ReactNode } from 'react'
 
@@ -56,7 +56,7 @@ export function pageRenderer(
     const params = yield* getRouteParams
     const scope = options.public ? null : yield* services.scope(options)
     let content: ReactNode
-    if (scope === null) {
+    if (Predicate.isNullish(scope)) {
       content = yield* (render as PublicRenderer)(services.env, null, services.url, params)
     } else if (scope.selection.kind === 'selection-required') {
       content = <ScopeSelection scope={scope} url={services.url} />

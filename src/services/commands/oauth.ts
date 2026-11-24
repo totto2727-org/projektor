@@ -1,4 +1,5 @@
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider'
+import { Predicate } from 'effect'
 
 import { relyingPartyHost } from '#contracts/oauth-consent.ts'
 import type { ConsentWorkspace } from '#contracts/oauth-consent.ts'
@@ -60,7 +61,7 @@ export async function listConnectorGrants(
         continue
       }
       // An unredeemed authorization code is pending, not a live connector. Keep the provider's finite refresh TTL.
-      if (grant.expiresAt === undefined) {
+      if (Predicate.isNullish(grant.expiresAt)) {
         continue
       }
       grants.push({

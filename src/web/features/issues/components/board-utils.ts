@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 
 export interface TaskStatus {
@@ -128,7 +130,10 @@ export function filterIssues(
   filterType: string,
 ): Issue[] {
   return issues
-    .filter((i) => filterStatuses.length === 0 || (i.status_id !== null && filterStatuses.includes(i.status_id)))
+    .filter(
+      (i) =>
+        filterStatuses.length === 0 || (Predicate.isNotNullish(i.status_id) && filterStatuses.includes(i.status_id)),
+    )
     .filter((i) => filterPriorities.length === 0 || filterPriorities.includes(i.priority))
     .filter((i) => !filterProject || i.project_key === filterProject)
     .filter((i) => !filterType || i.type_key === filterType)

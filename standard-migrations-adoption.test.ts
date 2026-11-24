@@ -9,6 +9,8 @@ import type { SqlExecutor } from 'alchemy/SQL/Migrations/index'
 import { Effect } from 'effect'
 import { expect, test } from 'vite-plus/test'
 
+import { runTestEffect } from '#tests/run-effect.ts'
+
 const directory = new URL('./migrations/', import.meta.url)
 const pending = '0068_wiki_draft_heads.sql'
 const alreadyApplied = '0069_attachment_review_status.sql'
@@ -50,7 +52,7 @@ test.each([
   const ledger = () => db.prepare('SELECT id, name, hash, applied_at FROM __alchemy_migrations ORDER BY id').all()
   const users = () => db.prepare('SELECT * FROM users ORDER BY id').all()
   const attachments = () => db.prepare('SELECT * FROM attachments ORDER BY id').all()
-  const checkIntegrity = () => {
+  const checkIntegrity = (): void => {
     expect(db.prepare('PRAGMA integrity_check').all()).toEqual([{ integrity_check: 'ok' }])
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   }
@@ -68,7 +70,7 @@ test.each([
   expect(draftHeads()).toEqual([])
 
   const execute = <A>(sql: string, body: () => A) =>
-    Effect.try({ try: body, catch: (cause) => new MigrationError({ message: `SQLite fixture failed: ${sql}`, cause }) })
+    Effect.try({ catch: (cause) => new MigrationError({ message: `SQLite fixture failed: ${sql}`, cause }), try: body })
   const executor: SqlExecutor = {
     dialect: 'sqlite',
     query: (sql, params) => execute(sql, () => db.prepare(inlineSqlParams(sql, params ?? [], 'sqlite')).all()),
@@ -78,7 +80,7 @@ test.each([
     },
   }
   const run = (stamped: { table?: string }) =>
-    Effect.runPromise(
+    runTestEffect(
       runMigrations({
         input: { dir: fileURLToPath(directory) },
         stamped,
@@ -113,7 +115,7 @@ test.each([
     { name: pending, hash: hashes.get(pending), applied_at: expect.any(String) },
   ])
 
-  expect(await run({ table: first.resolved.table })).toEqual(first)
+  await expect(run({ table: first.resolved.table })).resolves.toEqual(first)
   expect(ledger()).toEqual(adopted)
   expect(originals()).toEqual(initialHistory)
   expect(users()).toEqual(initialUsers)

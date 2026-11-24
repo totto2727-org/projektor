@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
@@ -46,8 +46,8 @@ const requestActor = function requestActor(httpContext: Context<HonoEnv>): CoreA
   const actor: CoreActor = { requestUrl: httpContext.req.url, method: httpContext.req.method }
   return {
     ...actor,
-    ...(accessJwt !== undefined ? { accessJwt } : {}),
-    ...(bearer !== undefined ? { bearer } : {}),
+    ...(Predicate.isNotNullish(accessJwt) ? { accessJwt } : {}),
+    ...(Predicate.isNotNullish(bearer) ? { bearer } : {}),
     ...(verified._tag === 'Some' ? { verifiedOauthGrant: verified.value } : {}),
   }
 }
@@ -72,7 +72,7 @@ export async function authMiddleware(httpContext: Context<HonoEnv>, next: Next) 
       decodeCoreReply(ApiPrincipal, makeCoreClient(httpContext.env.CORE).apiAuthenticate(actor)),
     )
     const scopes = principal.tokenScopes
-    if (scopes !== undefined && !httpContext.req.path.startsWith('/mcp/')) {
+    if (Predicate.isNotNullish(scopes) && !httpContext.req.path.startsWith('/mcp/')) {
       const required = capabilityForMethod(httpContext.req.method)
       if (!tokenAllows(scopes, required)) {
         return httpContext.json({ error: `Token lacks '${required}' scope` }, 403)
@@ -81,11 +81,11 @@ export async function authMiddleware(httpContext: Context<HonoEnv>, next: Next) 
     httpContext.set('coreActor', actor)
     httpContext.set('user', principal.user)
     httpContext.set('tokenWorkspaceId', principal.tokenWorkspaceId)
-    httpContext.set('tokenScopes', scopes === undefined ? undefined : [...scopes])
+    httpContext.set('tokenScopes', Predicate.isNullish(scopes) ? undefined : [...scopes])
     httpContext.set('authKind', principal.auth.kind)
     httpContext.set('auth', {
       ...principal.auth,
-      scopes: principal.auth.scopes === undefined ? undefined : [...principal.auth.scopes],
+      scopes: Predicate.isNullish(principal.auth.scopes) ? undefined : [...principal.auth.scopes],
     })
     return next()
   } catch (error) {
@@ -94,7 +94,7 @@ export async function authMiddleware(httpContext: Context<HonoEnv>, next: Next) 
     }
     let status = error.status
     let message = error.message
-    if (status === 401 && actor.bearer !== undefined && (await authFailureLimited(httpContext))) {
+    if (status === 401 && Predicate.isNotNullish(actor.bearer) && (await authFailureLimited(httpContext))) {
       status = 429
       message = 'Too Many Requests'
     }

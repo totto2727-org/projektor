@@ -50,30 +50,31 @@ describe('REST: invalid JSON bodies → 400', () => {
 })
 
 describe('MCP: parse and envelope errors', () => {
-  const mcp = function mcp(body: string) {
+  const mcp = function mcp(body: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body,
     })
   }
-  const errorCode = async (res: Response) => ((await res.json()) as { error?: { code: number } }).error?.code
+  const errorCode = async (res: Response): Promise<undefined | number> =>
+    ((await res.json()) as { error?: { code: number } }).error?.code
 
   test('invalid JSON → -32700', async () => {
     const res = await mcp('{bad')
     expect(res.status).toBe(400)
-    expect(await errorCode(res)).toBe(-32_700)
+    await expect(errorCode(res)).resolves.toBe(-32_700)
   })
 
   test('not a request object → -32600', async () => {
     const res = await mcp('[1,2,3]')
-    expect(await errorCode(res)).toBe(-32_600)
+    await expect(errorCode(res)).resolves.toBe(-32_600)
   })
 
   test('tools/call with no params → -32602', async () => {
     const res = await mcp(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call' }))
     expect(res.status).toBe(200)
-    expect(await errorCode(res)).toBe(-32_602)
+    await expect(errorCode(res)).resolves.toBe(-32_602)
   })
 
   test('tools/call get_project with no arguments → validation tool error naming the field', async () => {

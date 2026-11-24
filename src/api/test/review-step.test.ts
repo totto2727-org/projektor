@@ -19,7 +19,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  const patch = function patch(id: string, body: Record<string, unknown>) {
+  const patch = function patch(id: string, body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -51,10 +51,10 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     // Leaving it for in_progress is not a review bounce / gate rejection.
     expect((await patch(issue.id, { status: 'in_progress' })).status).toBe(200)
 
-    expect(await reviewState(issue.id)).toEqual({
+    await expect(reviewState(issue.id)).resolves.toEqual({
+      gateRejections: 0,
       in_review_at: null,
       review_bounce_count: 0,
-      gateRejections: 0,
     })
   })
 
@@ -98,13 +98,13 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     })
     expect(created.status).toBe(201)
     const { id } = (await created.json()) as { id: string }
-    const flag = async () =>
+    const flag = async (): Promise<undefined | number> =>
       (
         await env.DB.prepare('SELECT is_review_step AS f FROM task_statuses WHERE id = ?')
           .bind(id)
           .first<{ f: number }>()
       )?.f
-    expect(await flag()).toBe(1)
+    await expect(flag()).resolves.toBe(1)
 
     const updated = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'PATCH',
@@ -112,7 +112,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
       body: JSON.stringify({ isReviewStep: false }),
     })
     expect(updated.status).toBe(200)
-    expect(await flag()).toBe(0)
+    await expect(flag()).resolves.toBe(0)
   })
 })
 

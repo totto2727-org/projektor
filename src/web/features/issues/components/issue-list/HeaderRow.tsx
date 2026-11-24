@@ -1,4 +1,6 @@
 'use client'
+import { Predicate } from 'effect'
+
 import { Button } from '@/components/ui/Button.tsx'
 import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
 import type { Issue } from '@/features/issues/components/board-utils.ts'
@@ -9,7 +11,9 @@ import type { SearchResult } from './useIssueSearch.ts'
 function countLabel(view: ViewMode, filtered: Issue[], totalIssues: number | null): string {
   const listCount = view === 'backlog' ? getBacklogIssues(filtered).length : filtered.length
   const suffix =
-    view !== 'backlog' && totalIssues !== null && totalIssues !== filtered.length ? ` (of ${totalIssues})` : ''
+    view !== 'backlog' && Predicate.isNotNullish(totalIssues) && totalIssues !== filtered.length
+      ? ` (of ${totalIssues})`
+      : ''
   return `${listCount} issue${listCount !== 1 ? 's' : ''}${suffix}`
 }
 
@@ -41,7 +45,7 @@ export default function HeaderRow({
   openCreateModal,
 }: HeaderRowProps) {
   const label =
-    isSearchActive && searchResults !== null
+    isSearchActive && Predicate.isNotNullish(searchResults)
       ? searchCountLabel(searchResults, searchQuery)
       : countLabel(view, filtered, totalIssues)
 

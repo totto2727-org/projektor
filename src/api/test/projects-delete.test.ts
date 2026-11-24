@@ -75,23 +75,25 @@ describe('PROJ-819: deleteProject cleans up explicitly', () => {
     })) as { id: string }
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${doomed.id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, workspace.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
 
-    expect(await count('SELECT COUNT(*) AS n FROM issues WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?', field.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM issues_fts WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_fts WHERE page_id = ?', page.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', doomed.id)).toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM issues WHERE project_id = ?', doomed.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issue.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issue.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issue.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?', field.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM issues_fts WHERE issue_id = ?', issue.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', doomed.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?', doomed.id)).resolves.toBe(
+      0,
+    )
+    await expect(count('SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?', doomed.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM wiki_fts WHERE page_id = ?', page.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', doomed.id)).resolves.toBe(0)
 
     // Outside references are detached, not left dangling.
     const childRow = await env.DB.prepare('SELECT parent_id AS p FROM issues WHERE id = ?')
@@ -109,10 +111,10 @@ describe('PROJ-819: deleteProject cleans up explicitly', () => {
     const b = await seedFixture({ role: 'owner' })
     const bProject = await seedProject(b.workspace.id, 'BBB')
     const res = await fetchNativeApi(`http://localhost/api/projects/${bProject.id}`, {
-      method: 'DELETE',
       headers: authHeaders(a.token, a.workspace.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(404)
-    expect(await count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', bProject.id)).toBe(1)
+    await expect(count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', bProject.id)).resolves.toBe(1)
   })
 })

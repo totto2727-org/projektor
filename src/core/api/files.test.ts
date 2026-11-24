@@ -69,7 +69,7 @@ describe('API Core binary workspace logos', () => {
     const response = await handleApiBinaryRequest(f.request('HEAD'), f.env)
     expect(response?.status).toBe(200)
     expect(response?.body).toBeNull()
-    expect(f.cancel).toHaveBeenCalledTimes(1)
+    expect(f.cancel).toHaveBeenCalledOnce()
   })
 
   test('checks current membership before accessing R2', async () => {

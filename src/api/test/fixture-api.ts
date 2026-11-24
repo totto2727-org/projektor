@@ -1,4 +1,5 @@
 import { env as nativeEnv } from 'cloudflare:workers'
+import { Predicate } from 'effect'
 
 import type NativeFixtureCore from '#tests/native-workers/core.worker.ts'
 import type { Env } from '#types'
@@ -34,7 +35,7 @@ let settingsSnapshot: Record<string, string | null> = {}
 const synchronizeConfiguration = function synchronizeConfiguration(): void {
   const configuration: Record<string, string | null> = {}
   for (const [key, value] of Object.entries(nativeEnv)) {
-    if (key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
+    if (key !== 'CORE_FIXTURE_CONFIGURATION' && (Predicate.isString(value) || value === undefined)) {
       configuration[key] = value ?? null
     }
   }
@@ -73,7 +74,7 @@ const directCore = new Proxy(
       return async (...args: unknown[]): Promise<unknown> => {
         const session = await originalCore.fixtureSession({ ...settingsSnapshot })
         const method: unknown = Reflect.get(session, key)
-        if (typeof method !== 'function') {
+        if (!Predicate.isFunction(method)) {
           throw new Error(`Missing native fixture method: ${String(key)}`)
         }
         return Reflect.apply(method, session, args)
@@ -224,8 +225,8 @@ export const env: Env = new Proxy(nativeEnv, {
   },
   set(target, key, value): boolean {
     const applied = Reflect.set(target, key, value)
-    if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
-      if (typeof key === 'string') {
+    if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && (Predicate.isString(value) || value === undefined)) {
+      if (Predicate.isString(key)) {
         explicitSettings = { ...explicitSettings, [key]: value ?? null }
       }
       synchronizeConfiguration()
@@ -235,7 +236,7 @@ export const env: Env = new Proxy(nativeEnv, {
   deleteProperty(target, key): boolean {
     const value: unknown = Reflect.get(target, key)
     const applied = Reflect.deleteProperty(target, key)
-    if (applied && typeof key === 'string' && (typeof value === 'string' || value === undefined)) {
+    if (applied && Predicate.isString(key) && (Predicate.isString(value) || value === undefined)) {
       explicitSettings = { ...explicitSettings, [key]: null }
       synchronizeConfiguration()
     }

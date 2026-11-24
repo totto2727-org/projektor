@@ -1,4 +1,3 @@
-import { Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors.ts'
@@ -6,6 +5,7 @@ import { setAttachmentReviewStatus } from '#commands/files.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { findAttachment, listIssueReviewTargets } from '#services/files.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
@@ -59,19 +59,19 @@ const fixture = function fixture() {
 describe('issue attachment review target storage and authorization', () => {
   test('defaults existing metadata to null and persists every review state, then removes selection', async () => {
     const f = fixture()
-    expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: null })
+    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
     for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
-      expect(await f.set('a', status)).toEqual({ ok: true })
-      expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: status })
+      await expect(f.set('a', status)).resolves.toEqual({ ok: true })
+      await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: status })
     }
-    expect(await Effect.runPromise(listIssueReviewTargets(f.db, 'w', ['i']))).toEqual(new Map())
+    await expect(runTestEffect(listIssueReviewTargets(f.db, 'w', ['i']))).resolves.toEqual(new Map())
   })
 
   test('includes selected file and URL targets only and prioritizes in-review before creation/id order', async () => {
     const f = fixture()
     await f.set('a', 'fixing')
     await f.set('b', 'in_review')
-    expect(await Effect.runPromise(listIssueReviewTargets(f.db, 'w', ['i', 'other', 'missing']))).toEqual(
+    await expect(runTestEffect(listIssueReviewTargets(f.db, 'w', ['i', 'other', 'missing']))).resolves.toEqual(
       new Map([
         [
           'i',
@@ -84,7 +84,7 @@ describe('issue attachment review target storage and authorization', () => {
     )
     await f.set('b', 'done')
     expect(
-      (await Effect.runPromise(listIssueReviewTargets(f.db, 'w', ['i']))).get('i')?.map((target) => target.id),
+      (await runTestEffect(listIssueReviewTargets(f.db, 'w', ['i']))).get('i')?.map((target) => target.id),
     ).toEqual(['a', 'b'])
   })
 
@@ -108,7 +108,7 @@ describe('issue attachment review target storage and authorization', () => {
     f.ctx.role = 'owner'
     f.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p'")
     await expect(f.set('a', 'fixing')).rejects.toBeInstanceOf(NotFoundError)
-    expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: null })
+    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
   })
 
   test('rechecks current grants and forbids project viewers', async () => {
@@ -141,16 +141,18 @@ describe('issue attachment review target storage and authorization', () => {
       const attachmentCount = f.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()
       await updateIssue(f.ctx, 'i', { status })
       const expected = status === 'done' ? 'done' : null
-      expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: expected })
-      expect(await Effect.runPromise(findAttachment(f.db, 'w', 'b'))).toMatchObject({ reviewStatus: expected })
-      expect(await Effect.runPromise(findAttachment(f.db, 'w', 'wiki'))).toMatchObject({ reviewStatus: null })
-      expect(await Effect.runPromise(findAttachment(f.db, 'w', 'sibling-target'))).toMatchObject({
+      await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: expected })
+      await expect(runTestEffect(findAttachment(f.db, 'w', 'b'))).resolves.toMatchObject({ reviewStatus: expected })
+      await expect(runTestEffect(findAttachment(f.db, 'w', 'wiki'))).resolves.toMatchObject({ reviewStatus: null })
+      await expect(runTestEffect(findAttachment(f.db, 'w', 'sibling-target'))).resolves.toMatchObject({
         reviewStatus: 'fixing',
       })
-      expect(await Effect.runPromise(findAttachment(f.db, 'other', 'other'))).toMatchObject({ reviewStatus: 'fixing' })
+      await expect(runTestEffect(findAttachment(f.db, 'other', 'other'))).resolves.toMatchObject({
+        reviewStatus: 'fixing',
+      })
       expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()).toEqual(attachmentCount)
       await updateIssue(f.ctx, 'i', { status: 'todo' })
-      expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: expected })
+      await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: expected })
     },
   )
 
@@ -164,9 +166,11 @@ describe('issue attachment review target storage and authorization', () => {
       .run(statusId)
     await f.set('a', 'in_review')
     await updateIssue(f.ctx, 'i', { status: 'in_progress' })
-    expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: 'in_review' })
+    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({
+      reviewStatus: 'in_review',
+    })
     await updateIssue(f.ctx, 'i', { statusId })
-    expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: 'done' })
+    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: 'done' })
   })
 
   test('keeps batched lookup below the D1 parameter ceiling and deduplicates issue ids', async () => {
@@ -198,9 +202,9 @@ describe('issue attachment review target storage and authorization', () => {
       },
     })
     const ids = ['i', ...Array.from({ length: 205 }, (_, index) => `missing-${index}`), 'i']
-    expect((await Effect.runPromise(listIssueReviewTargets(bounded, 'w', ids))).get('i')).toHaveLength(1)
+    expect((await runTestEffect(listIssueReviewTargets(bounded, 'w', ids))).get('i')).toHaveLength(1)
     expect(bindings).toEqual([100, 100, 9])
-    expect(await Effect.runPromise(listIssueReviewTargets(bounded, 'w', []))).toEqual(new Map())
+    await expect(runTestEffect(listIssueReviewTargets(bounded, 'w', []))).resolves.toEqual(new Map())
     expect(bindings).toEqual([100, 100, 9])
   })
 })

@@ -29,7 +29,7 @@ describe('Issue leases API (PROJ-184)', () => {
     return session.id
   }
 
-  const claim = function claim(issueId: string, agentId: string) {
+  const claim = function claim(issueId: string, agentId: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -37,7 +37,7 @@ describe('Issue leases API (PROJ-184)', () => {
     })
   }
 
-  const release = function release(issueId: string, agentId?: string) {
+  const release = function release(issueId: string, agentId?: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/release`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -113,8 +113,8 @@ describe('Issue leases API (PROJ-184)', () => {
 
     expect((await claim(issue.id, a1)).status).toBe(201)
     const endRes = await fetchNativeApi(`http://localhost/api/agents/${a1}/end`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(endRes.status).toBe(200)
 
@@ -236,7 +236,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     return session.id
   }
 
-  const claim = function claim(issueId: string, agentId: string) {
+  const claim = function claim(issueId: string, agentId: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -248,7 +248,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * Under a WIP cap of 1: registers an agent, seeds two issues, and asserts the first
    * claim succeeds while the second is rejected as over-cap.
    */
-  const expectWipCapBlocksSecondClaim = async function expectWipCapBlocksSecondClaim() {
+  const expectWipCapBlocksSecondClaim = async function expectWipCapBlocksSecondClaim(): Promise<void> {
     const agent = await registerAgent('worker')
     const [first, second] = await Promise.all([
       seedIssue(workspaceId, projectId, userId, { title: 'First' }),
@@ -419,7 +419,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * lease no one is still working.
    */
   describe('PROJ-928: issue close releases its lease', () => {
-    const patchStatus = function patchStatus(id: string, status: string, completionReport?: object) {
+    const patchStatus = function patchStatus(id: string, status: string, completionReport?: object): Promise<Response> {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
@@ -515,7 +515,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     return session.id
   }
 
-  const claim = function claim(issueId: string, agentId: string) {
+  const claim = function claim(issueId: string, agentId: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),

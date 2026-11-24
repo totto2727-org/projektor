@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
@@ -90,7 +91,7 @@ const ShapeOptsSchema = z.object({
   verbose: z.boolean().optional(),
   fields: z
     .union([z.string(), z.array(z.string())])
-    .transform((v) => (typeof v === 'string' ? v.split(',') : v).map((s) => s.trim()).filter((s) => s.length > 0))
+    .transform((v) => (Predicate.isString(v) ? v.split(',') : v).map((s) => s.trim()).filter((s) => s.length > 0))
     .pipe(z.array(z.enum(ISSUE_FIELD_NAMES)).max(ISSUE_FIELD_NAMES.length))
     .optional(),
 })
@@ -116,14 +117,14 @@ const isEmptyArray = function isEmptyArray(v: unknown): boolean {
 
 const parseLabels = function parseLabels(v: unknown): string[] | undefined {
   if (Array.isArray(v)) {
-    return v.filter((x): x is string => typeof x === 'string')
+    return v.filter((x): x is string => Predicate.isString(x))
   }
-  if (typeof v !== 'string') {
+  if (!Predicate.isString(v)) {
     return undefined
   }
   try {
     const parsed = JSON.parse(v)
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : undefined
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => Predicate.isString(x)) : undefined
   } catch {
     return undefined
   }
@@ -151,7 +152,7 @@ const DUPLICATE_KEYS = ['project_key', 'project_name', 'type_key', 'type_name', 
 
 /** `PROJ-42` from a raw issue row, or undefined when the project key isn't joined in. */
 const refOf = function refOf(issue: Record<string, unknown>): string | undefined {
-  return typeof issue.project_key === 'string' && typeof issue.number === 'number'
+  return Predicate.isString(issue.project_key) && Predicate.isNumber(issue.number)
     ? `${issue.project_key}-${issue.number}`
     : undefined
 }
@@ -181,7 +182,7 @@ const summarize = function summarize(issue: Record<string, unknown>): Record<str
   }
   out.updated = issue.updated_at
   // PROJ-892: present only when the caller asked for a body preview (bodyChars).
-  if (typeof issue.body === 'string') {
+  if (Predicate.isString(issue.body)) {
     out.body = issue.body
   }
   if (issue.bodyTruncated) {
@@ -264,7 +265,7 @@ export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {})
    * `status` is the legacy enum; a custom workflow status (e.g. "qa" within in_progress)
    * is only distinguishable by its key, so keep it whenever it adds information.
    */
-  if (typeof issue.status_key === 'string' && issue.status_key !== issue.status) {
+  if (Predicate.isString(issue.status_key) && issue.status_key !== issue.status) {
     out.status_key = issue.status_key
   }
   return out

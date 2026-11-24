@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -39,10 +39,10 @@ export function formatTokenScopes(raw: string): string {
   if (scopes.includes('read')) {
     return 'Read-only'
   }
-  return scopes.filter((value): value is string => typeof value === 'string').join(', ') || '–'
+  return scopes.filter((value): value is string => Predicate.isString(value)).join(', ') || '–'
 }
 function formatDate(timestamp: number | null): string {
-  return timestamp === null ? 'Never' : formatTimestampDate(timestamp)
+  return Predicate.isNullish(timestamp) ? 'Never' : formatTimestampDate(timestamp)
 }
 function NewTokenPanel({
   token,
@@ -55,7 +55,7 @@ function NewTokenPanel({
 }) {
   const command = template?.replace('{{TOKEN}}', token.token) ?? ''
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
-  async function copy(value: string) {
+  async function copy(value: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(value)
       setCopyMessage('Copied to clipboard.')
@@ -170,9 +170,9 @@ function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) 
                 <TableCell muted>{formatTokenScopes(token.scopes)}</TableCell>
                 <TableCell muted>{formatDate(token.createdAt)}</TableCell>
                 <TableCell
-                  className={`font-mono text-[0.8rem] ${token.expiresAt !== null && token.expiresAt < Date.now() / 1000 ? 'text-danger-text' : 'text-text-muted'}`}
+                  className={`font-mono text-[0.8rem] ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < Date.now() / 1000 ? 'text-danger-text' : 'text-text-muted'}`}
                 >
-                  {token.expiresAt === null ? 'No expiry' : formatDate(token.expiresAt)}
+                  {Predicate.isNullish(token.expiresAt) ? 'No expiry' : formatDate(token.expiresAt)}
                 </TableCell>
                 <TableCell muted>{formatDate(token.lastUsedAt)}</TableCell>
                 <TableCell className='whitespace-nowrap'>
@@ -194,9 +194,9 @@ function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) 
               <dd className='m-0'>{formatDate(token.createdAt)}</dd>
               <dt className='font-semibold'>Expires</dt>
               <dd
-                className={`m-0 ${token.expiresAt !== null && token.expiresAt < Date.now() / 1000 ? 'text-danger-text' : ''}`}
+                className={`m-0 ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < Date.now() / 1000 ? 'text-danger-text' : ''}`}
               >
-                {token.expiresAt === null ? 'No expiry' : formatDate(token.expiresAt)}
+                {Predicate.isNullish(token.expiresAt) ? 'No expiry' : formatDate(token.expiresAt)}
               </dd>
               <dt className='font-semibold'>Last used</dt>
               <dd className='m-0'>{formatDate(token.lastUsedAt)}</dd>
@@ -249,19 +249,19 @@ export function TokenManager({
     defaultValues: defaults,
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
   })
-  function open() {
+  function open(): void {
     setShowCreate(true)
     form.reset()
     setError(null)
     setNewToken(null)
     setTimeout(() => inputRef.current?.focus(), 0)
   }
-  function close() {
+  function close(): void {
     setShowCreate(false)
     setNewToken(null)
     setError(null)
   }
-  async function revoke(id: string) {
+  async function revoke(id: string): Promise<void> {
     if (revoking) {
       return
     }

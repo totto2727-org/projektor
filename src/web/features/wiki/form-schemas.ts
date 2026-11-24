@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 
 import { UploadFileSchema } from '@/attachments.ts'
 
@@ -24,5 +24,7 @@ export const FilterFields = Schema.Struct({
 export const SearchFields = Schema.Struct({ query: Schema.String.check(Schema.isMaxLength(2000)) })
 export const MoveFields = Schema.Struct({ parentId: Schema.String })
 export const AttachmentFields = Schema.Struct({
-  file: Schema.NullOr(UploadFileSchema).check(Schema.makeFilter((file) => file !== null || 'Choose a file.')),
+  file: Schema.NullOr(UploadFileSchema).check(
+    Schema.makeFilter((file) => Predicate.isNotNullish(file) || 'Choose a file.'),
+  ),
 })

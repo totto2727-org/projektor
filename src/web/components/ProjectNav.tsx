@@ -73,7 +73,7 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
     if (!element || !project) {
       return
     }
-    const measure = () => {
+    const measure = (): void => {
       setWidth(
         element.clientWidth -
           Number.parseFloat(getComputedStyle(element).paddingLeft || '0') -
@@ -94,12 +94,12 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
     if (!moreOpen) {
       return
     }
-    const outside = (event: MouseEvent) => {
+    const outside = (event: MouseEvent): void => {
       if (event.target instanceof Node && !moreRef.current?.contains(event.target)) {
         setMoreOpen(false)
       }
     }
-    const onEscapeKey = (event: KeyboardEvent) => {
+    const onEscapeKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         setMoreOpen(false)
         moreTrigger.current?.focus()

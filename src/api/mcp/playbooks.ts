@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { composePlaybook } from '#api/services/playbook-compose.ts'
 import { getPlaybook, listPlaybooks } from '#api/services/playbooks.ts'
 import { ValidationError } from '#contracts/errors.ts'
@@ -33,7 +35,7 @@ export const playbooksTools: MCPTool[] = [
     annotations: READ,
     async handler(input, ctx) {
       const { name } = input as { name?: unknown }
-      if (!name || typeof name !== 'string') {
+      if (!name || !Predicate.isString(name)) {
         throw new ValidationError({ formErrors: ['name is required'], fieldErrors: {} })
       }
       return getPlaybook(ctx, name)

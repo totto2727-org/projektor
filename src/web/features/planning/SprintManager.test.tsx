@@ -68,7 +68,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Submitted draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save sprint' }))
-    await waitFor(() => expect(request).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(request).toHaveBeenCalledOnce())
     view.rerender(<SprintManager {...props} initialSprints={[sprint('sprint-a', 'active', 'Canonical refresh')]} />)
     const name = screen.getByLabelText<HTMLInputElement>('Name *')
     expect(name.value).toBe('Submitted draft')
@@ -77,7 +77,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
     await waitFor(() => expect(screen.queryByLabelText('Name *')).toBeNull())
     expect(screen.getAllByText('Canonical refresh')).toHaveLength(2)
-    expect(request).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledOnce()
   })
 
   test('releases pending status and archive controls after rejected requests for a safe retry', async () => {
@@ -254,7 +254,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     expect(screen.queryByText('Sprint complete: Sprint A')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Yes, complete' }))
     await waitFor(() => expect(screen.getByText('Sprint complete: Sprint A')).toBeTruthy())
-    expect(screen.getAllByText('5/8').length).toBe(2)
+    expect(screen.getAllByText('5/8')).toHaveLength(2)
     expect(screen.getByRole('link', { name: 'Issue done' }).getAttribute('href')).toContain(
       '/projects/PROJ/issues/1/issue-done?workspace=alpha',
     )
@@ -296,7 +296,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     )
     const count = request.mock.calls.length
     fireEvent.click(screen.getAllByRole('button', { name: 'Archive' })[0])
-    expect(request.mock.calls.length).toBe(count)
+    expect(request.mock.calls).toHaveLength(count)
     fireEvent.click(screen.getByRole('button', { name: 'Yes, archive' }))
     await waitFor(() => expect(request).toHaveBeenLastCalledWith('archive', { ...scope, sprintId: 'sprint-a' }))
   })

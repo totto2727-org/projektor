@@ -2,6 +2,7 @@ import { Cause, Effect, Exit } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
@@ -91,7 +92,7 @@ const fixture = function fixture(
   const invalidated = vi.fn()
   const env = testEnvironment(database.db, auth.user.email)
   const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
-    return Effect.runPromise(
+    return runTestEffect(
       Effect.gen(function* () {
         const request = new Request(`https://front.example.test${path}`, {
           method: 'POST',

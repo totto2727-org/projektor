@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL, SQLWrapper } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
@@ -38,7 +39,7 @@ const summarize = function summarize(durations: Readonly<number[]>): Distributio
   }
   const sorted = [...durations].sort((left, right) => left - right)
   const avg = sorted.reduce((sum, d) => sum + d, 0) / sorted.length
-  const percentile = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
+  const percentile = (p: number): number => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
   return { count: sorted.length, avg, p50: percentile(0.5), p90: percentile(0.9) }
 }
 
@@ -147,11 +148,11 @@ const buildWipOverTime = function buildWipOverTime(
    */
   const events: [number, number][] = []
   for (const i of issues) {
-    if (i.claimedAt === null) {
+    if (Predicate.isNullish(i.claimedAt)) {
       continue
     }
     events.push([i.claimedAt, 1])
-    if (i.doneAt !== null) {
+    if (Predicate.isNotNullish(i.doneAt)) {
       events.push([i.doneAt, -1])
     }
   }
@@ -179,7 +180,7 @@ const buildThroughputOverTime = function buildThroughputOverTime(
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
-  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => i.doneAt !== null)
+  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => Predicate.isNotNullish(i.doneAt))
   const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => ({ bucketStart: dateLabel(t), count: groups[idx].length }))
 }
@@ -200,7 +201,7 @@ const buildBugShareOverTime = function buildBugShareOverTime(
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
-  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => i.doneAt !== null)
+  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => Predicate.isNotNullish(i.doneAt))
   const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => {
     const group = groups[idx]
@@ -228,7 +229,8 @@ const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
   const reviewed = issues.filter(
-    (i): i is FlowIssueRow & { doneAt: number; inReviewAt: number } => i.doneAt !== null && i.inReviewAt !== null,
+    (i): i is FlowIssueRow & { doneAt: number; inReviewAt: number } =>
+      Predicate.isNotNullish(i.doneAt) && Predicate.isNotNullish(i.inReviewAt),
   )
   const groups = groupBySortedRanges(reviewed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => ({
@@ -252,7 +254,7 @@ const buildArrivalVsCompletion = function buildArrivalVsCompletion(
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
   const createdGroups = groupBySortedRanges(issues, (i) => i.createdAt, ranges)
-  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => i.doneAt !== null)
+  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => Predicate.isNotNullish(i.doneAt))
   const completedGroups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => {
     const created = createdGroups[idx].length
@@ -273,13 +275,13 @@ const classifyCfdBand = function classifyCfdBand(issue: FlowIssueRow, sampleAt: 
   if (issue.createdAt > sampleAt) {
     return 'excluded'
   }
-  if (issue.doneAt !== null && issue.doneAt <= sampleAt) {
+  if (Predicate.isNotNullish(issue.doneAt) && issue.doneAt <= sampleAt) {
     return 'done'
   }
-  if (issue.inReviewAt !== null && issue.inReviewAt <= sampleAt) {
+  if (Predicate.isNotNullish(issue.inReviewAt) && issue.inReviewAt <= sampleAt) {
     return 'inReview'
   }
-  if (issue.claimedAt !== null && issue.claimedAt <= sampleAt) {
+  if (Predicate.isNotNullish(issue.claimedAt) && issue.claimedAt <= sampleAt) {
     return 'inProgress'
   }
   return 'backlogTodo'
@@ -301,7 +303,9 @@ const buildCfdEvents = function buildCfdEvents(
   for (const issue of issues) {
     const thresholds = [
       ...new Set(
-        [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((t): t is number => t !== null),
+        [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((t): t is number =>
+          Predicate.isNotNullish(t),
+        ),
       ),
     ].sort((left, right) => left - right)
     let prevBand: CfdBand = 'excluded'
@@ -426,7 +430,7 @@ const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
   const held = new Map<string, number>()
   for (const row of rows) {
     const end = row.releasedAt ?? row.doneAt ?? null
-    if (end === null) {
+    if (Predicate.isNullish(end)) {
       continue
     }
     const seconds = Math.max(0, end - row.claimedAt)
@@ -445,21 +449,21 @@ const computeCoreDistributions = function computeCoreDistributions(
   timeInProgress: number[]
 } {
   const leadTimes = issues
-    .filter((i) => i.readyAt !== null && i.doneAt !== null && inWindow(i.doneAt))
+    .filter((i) => Predicate.isNotNullish(i.readyAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => i.doneAt! - i.readyAt!)
   const cycleTimes = issues
-    .filter((i) => i.claimedAt !== null && i.doneAt !== null && inWindow(i.doneAt))
+    .filter((i) => Predicate.isNotNullish(i.claimedAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => i.doneAt! - i.claimedAt!)
   const reviewLatencies = issues
-    .filter((i) => i.inReviewAt !== null && i.doneAt !== null && inWindow(i.doneAt))
+    .filter((i) => Predicate.isNotNullish(i.inReviewAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => i.doneAt! - i.inReviewAt!)
   // PROJ-329: time in in_progress = claimed -> the issue's next recorded stage
   // (entering review, or done directly for issues that skipped review).
   const timeInProgress = issues
-    .filter((i) => i.claimedAt !== null && i.doneAt !== null && inWindow(i.doneAt))
+    .filter((i) => Predicate.isNotNullish(i.claimedAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => (i.inReviewAt ?? i.doneAt!) - i.claimedAt!)
   return { leadTimes, cycleTimes, reviewLatencies, timeInProgress }
@@ -475,7 +479,7 @@ const computeHumanInterventions = function computeHumanInterventions(
   inWindow: (t: number) => boolean,
 ): number[] {
   return issues
-    .filter((i) => i.doneAt !== null && inWindow(i.doneAt))
+    .filter((i) => Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
     .map((i) => (humanCommentCounts.get(i.id) ?? 0) + i.reviewBounceCount)
 }
 
@@ -489,7 +493,7 @@ const computeAutonomyRatios = function computeAutonomyRatios(
   inWindow: (t: number) => boolean,
 ): number[] {
   return issues
-    .filter((i) => i.claimedAt !== null && i.doneAt !== null && inWindow(i.doneAt))
+    .filter((i) => Predicate.isNotNullish(i.claimedAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
     .map((i) => {
       // biome-ignore lint/style/noNonNullAssertion: filtered above
       const cycle = i.doneAt! - i.claimedAt!
@@ -515,7 +519,7 @@ const computeFlowEfficiencies = function computeFlowEfficiencies(
   inWindow: (t: number) => boolean,
 ): number[] {
   return issues
-    .filter((i) => i.readyAt !== null && i.doneAt !== null && inWindow(i.doneAt))
+    .filter((i) => Predicate.isNotNullish(i.readyAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
     .map((i) => {
       // biome-ignore lint/style/noNonNullAssertion: filtered above
       const leadTime = i.doneAt! - i.readyAt!
@@ -542,7 +546,7 @@ const buildAgingWip = function buildAgingWip(
   return issues
     .filter(
       (i): i is FlowIssueRow & { claimedAt: number } =>
-        i.claimedAt !== null && (i.status === 'in_progress' || i.status === 'in_review'),
+        Predicate.isNotNullish(i.claimedAt) && (i.status === 'in_progress' || i.status === 'in_review'),
     )
     .map((i) => ({
       id: i.id,
@@ -646,22 +650,21 @@ const fetchWindowCounts = async function fetchWindowCounts(
             ),
           ),
       ),
-      doneBeforeWindow:
-        opts.doneBefore === undefined
-          ? sql<number>`0`
-          : countOf(
-              orm
-                .select({ n: count })
-                .from(schema.issues)
-                .where(
-                  and(
-                    eq(schema.issues.workspaceId, workspaceId),
-                    eq(schema.issues.projectId, projectId),
-                    lte(schema.issues.createdAt, opts.createdUntil),
-                    sql`${schema.issues.doneAt} < ${opts.doneBefore}`,
-                  ),
+      doneBeforeWindow: Predicate.isNullish(opts.doneBefore)
+        ? sql<number>`0`
+        : countOf(
+            orm
+              .select({ n: count })
+              .from(schema.issues)
+              .where(
+                and(
+                  eq(schema.issues.workspaceId, workspaceId),
+                  eq(schema.issues.projectId, projectId),
+                  lte(schema.issues.createdAt, opts.createdUntil),
+                  sql`${schema.issues.doneAt} < ${opts.doneBefore}`,
                 ),
-            ),
+              ),
+          ),
     })
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, workspaceId)))
@@ -705,13 +708,16 @@ const readFlowMetrics = async function readFlowMetrics(
    *   they're counted (fetchWindowCounts) rather than loaded.
    */
   const createdUntil = until ?? now
-  const doneBefore = since === undefined ? undefined : Math.min(since, since - (since % DAY))
+  const doneBefore = Predicate.isNullish(since) ? undefined : Math.min(since, since - (since % DAY))
   const windowPredicate = and(
     lte(schema.issues.createdAt, createdUntil),
-    doneBefore === undefined ? undefined : or(isNull(schema.issues.doneAt), gte(schema.issues.doneAt, doneBefore)),
+    Predicate.isNullish(doneBefore)
+      ? undefined
+      : or(isNull(schema.issues.doneAt), gte(schema.issues.doneAt, doneBefore)),
   )
-  const inSqlWindow = (i: FlowIssueRow) =>
-    i.createdAt <= createdUntil && (doneBefore === undefined || i.doneAt === null || i.doneAt >= doneBefore)
+  const inSqlWindow = (i: FlowIssueRow): boolean =>
+    i.createdAt <= createdUntil &&
+    (Predicate.isNullish(doneBefore) || Predicate.isNullish(i.doneAt) || i.doneAt >= doneBefore)
   const projectScope = and(eq(schema.issues.workspaceId, workspaceId), eq(schema.issues.projectId, projectId))
 
   const loaded = await orm
@@ -748,7 +754,8 @@ const readFlowMetrics = async function readFlowMetrics(
    * still count (e.g. WIP). Row count stays bounded by the window (via the SQL filter
    * above) rather than total project size.
    */
-  const inWindow = (t: number) => (since === undefined || t >= since) && (until === undefined || t <= until)
+  const inWindow = (t: number): boolean =>
+    (Predicate.isNullish(since) || t >= since) && (Predicate.isNullish(until) || t <= until)
 
   const { leadTimes, cycleTimes, reviewLatencies, timeInProgress } = computeCoreDistributions(issues, inWindow)
 
@@ -756,8 +763,8 @@ const readFlowMetrics = async function readFlowMetrics(
   const doneInWindowScope = and(
     projectScope,
     isNotNull(schema.issues.doneAt),
-    since === undefined ? undefined : gte(schema.issues.doneAt, since),
-    until === undefined ? undefined : lte(schema.issues.doneAt, until),
+    Predicate.isNullish(since) ? undefined : gte(schema.issues.doneAt, since),
+    Predicate.isNullish(until) ? undefined : lte(schema.issues.doneAt, until),
   )
   // Never let the per-issue lookups run without a tenant scope.
   if (!doneInWindowScope) {
@@ -803,7 +810,7 @@ const readFlowMetrics = async function readFlowMetrics(
   const reviewLatencyOverTime = buildReviewLatencyOverTime(issues, throughputSince, throughputUntil, granularity)
   const cfdOverTime = buildCfdOverTime(issues, throughputSince, throughputUntil, granularity, now, doneBeforeWindow)
   const bugShareOverTime = buildBugShareOverTime(issues, throughputSince, throughputUntil, granularity)
-  const bugTypeTracked = bugTypeExists !== undefined
+  const bugTypeTracked = Predicate.isNotNullish(bugTypeExists)
   const arrivalVsCompletionOverTime = buildArrivalVsCompletion(issues, throughputSince, throughputUntil, granularity)
   const flowEfficiencies = computeFlowEfficiencies(issues, leaseHeldSeconds, inWindow)
   const agingWip = buildAgingWip(loaded, now)
@@ -815,7 +822,9 @@ const readFlowMetrics = async function readFlowMetrics(
      * backlog to in_progress/done). They have no lead time and are not in leadTime's
      * sample (leadTime.count); reported so a small or skewed sample is visible.
      */
-    leadTimeExcluded: issues.filter((i) => i.readyAt === null && i.doneAt !== null && inWindow(i.doneAt)).length,
+    leadTimeExcluded: issues.filter(
+      (i) => Predicate.isNullish(i.readyAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt),
+    ).length,
     cycleTime: summarize(cycleTimes),
     wipOverTime,
     throughputOverTime,

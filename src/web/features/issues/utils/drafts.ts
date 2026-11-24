@@ -5,6 +5,7 @@
  * isn't (see the ticket's caching recommendation).
  */
 
+import { Predicate } from 'effect'
 const PREFIX = 'projektor:draft:'
 const TTL_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -25,11 +26,11 @@ export function draftKey(workspaceSlug: string | undefined, scope: string, field
 export function loadDraft(key: string): string | null {
   try {
     const raw = sessionStorage.getItem(key)
-    if (raw === null) {
+    if (Predicate.isNullish(raw)) {
       return null
     }
     const parsed = JSON.parse(raw) as StoredDraft
-    if (typeof parsed?.value !== 'string' || typeof parsed?.at !== 'number') {
+    if (!Predicate.isString(parsed?.value) || !Predicate.isNumber(parsed?.at)) {
       sessionStorage.removeItem(key)
       return null
     }

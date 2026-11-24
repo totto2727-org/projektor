@@ -103,16 +103,16 @@ describe('reserved wiki slugs (PROJ-811)', () => {
       await env.DB.prepare(stmt).run()
     }
 
-    const slugOf = async (id: string) =>
+    const slugOf = async (id: string): Promise<undefined | string> =>
       (
         await env.DB.prepare('SELECT slug FROM wiki_pages WHERE id = ?').bind(id).first<{
           slug: string
         }>()
       )?.slug
-    expect(await slugOf(search.id)).toBe('search-page')
-    expect(await slugOf(exportTaken.id)).toBe('export-page')
-    expect(await slugOf(exportPage.id)).toBe(`export-page-${exportPage.id.replace(/-/g, '').slice(0, 8)}`)
-    expect(await slugOf(trashed.id)).toBe('trash-page')
+    await expect(slugOf(search.id)).resolves.toBe('search-page')
+    await expect(slugOf(exportTaken.id)).resolves.toBe('export-page')
+    await expect(slugOf(exportPage.id)).resolves.toBe(`export-page-${exportPage.id.replace(/-/g, '').slice(0, 8)}`)
+    await expect(slugOf(trashed.id)).resolves.toBe('trash-page')
 
     const reservedLeft = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM wiki_pages WHERE workspace_id = ? AND slug IN (${[...RESERVED_WIKI_SLUGS]

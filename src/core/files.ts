@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 
 import { getAttachmentForDownload, storageQuotaBytes, uploadStoredAttachment } from '#commands/files.ts'
 
@@ -17,7 +17,7 @@ export async function handleCoreFileRequest(request: Request, env: CoreEnvironme
       return new Response('Not found', { status: 404 })
     }
     if (download && request.method !== 'GET' && request.method !== 'HEAD') {
-      return new Response(null, { status: 405, headers: { allow: 'GET, HEAD' } })
+      return new Response(null, { headers: { allow: 'GET, HEAD' }, status: 405 })
     }
     let actor: CoreActor
     try {
@@ -44,7 +44,7 @@ export async function handleCoreFileRequest(request: Request, env: CoreEnvironme
       if (entityType !== 'issue' && entityType !== 'wiki_page') {
         throw coreFailure(400, 'entityType must be issue or wiki_page')
       }
-      if (typeof entityId !== 'string' || !entityId) {
+      if (!Predicate.isString(entityId) || !entityId) {
         throw coreFailure(400, 'entityId is required')
       }
       return Response.json(await uploadStoredAttachment(ctx, { file, entityType, entityId }, storageQuotaBytes(env)), {
@@ -82,8 +82,8 @@ export async function handleCoreFileRequest(request: Request, env: CoreEnvironme
     return Response.json(
       { error: problem.message, occurrenceId: problem.occurrenceId },
       {
-        status: problem.status,
         headers: { 'cache-control': 'private, no-store' },
+        status: problem.status,
       },
     )
   }

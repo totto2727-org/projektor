@@ -158,8 +158,8 @@ describe('Custom Field Definitions API', () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'sprint', type: 'text' })
 
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
 
@@ -179,8 +179,8 @@ describe('Custom Field Definitions API', () => {
     await seedCustomFieldValue(issue.id, fieldId, 'sprint-1')
 
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${fieldId}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(409)
   })

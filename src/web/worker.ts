@@ -21,8 +21,8 @@ const logoResponse = function logoResponse(request: Request) {
       return yield* new ScopeError(404, 'Not found')
     }
     const selector = yield* Effect.try({
-      try: () => decodeURIComponent(value),
       catch: () => new ScopeError(400, 'Invalid logo address.'),
+      try: () => decodeURIComponent(value),
     })
     const path = publicLogo
       ? `/share-logo/${encodeURIComponent(selector)}`

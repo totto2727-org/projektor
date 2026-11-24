@@ -41,8 +41,8 @@ export async function etagMiddleware(httpContext: Context<HonoEnv>, next: Next):
 
   if (ifNoneMatchMatches(httpContext.req.header('If-None-Match'), etag)) {
     httpContext.res = new Response(null, {
-      status: 304,
       headers: { ETag: etag, 'Cache-Control': CACHE_CONTROL },
+      status: 304,
     })
     return
   }
@@ -58,7 +58,7 @@ function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
   if (header.trim() === '*') {
     return true
   }
-  const stripWeak = (t: string) => t.trim().replace(/^W\//, '')
+  const stripWeak = (t: string): string => t.trim().replace(/^W\//, '')
   return header.split(',').some((t) => stripWeak(t) === stripWeak(etag))
 }
 

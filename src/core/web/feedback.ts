@@ -24,7 +24,7 @@ import { checked } from './issue-data.ts'
 import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 
-const admin = function admin(role: string) {
+const admin = function admin(role: string): void {
   if (role !== 'owner' && role !== 'admin') {
     throw new ScopeError(403, 'Insufficient permissions')
   }
@@ -79,7 +79,7 @@ const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
 const loadSources = function loadSources(env: CoreEnvironment, workspaceId: string, projectId: string) {
   return queries
     .listFeedbackSources(env.DB, workspaceId, { projectId })
-    .pipe(Effect.flatMap((rows) => Effect.try({ try: () => rows.map(sourceDto), catch: publicWebFailure })))
+    .pipe(Effect.flatMap((rows) => Effect.try({ catch: publicWebFailure, try: () => rows.map(sourceDto) })))
 }
 const loadSummaries = function loadSummaries(env: CoreEnvironment, workspaceId: string, projectId: string) {
   return queries.readFeedbackSummary(env.DB, workspaceId, { projectId }).pipe(Effect.map(summaryDtos))

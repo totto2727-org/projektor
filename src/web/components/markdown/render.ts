@@ -140,9 +140,9 @@ export function sanitizeMarkdownHtml(html: string): string {
 }
 
 const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
-  const fold = (title: string) => title.normalize('NFC').toLowerCase()
+  const fold = (title: string): string => title.normalize('NFC').toLowerCase()
   const pages = new Map(options.pages?.map((page) => [fold(page.title), page.slug]))
-  const scoped = (path: string) => {
+  const scoped = (path: string): string => {
     const url = new URL(path, 'https://wiki.invalid')
     if (options.workspaceSlug) {
       url.searchParams.set('workspace', options.workspaceSlug)

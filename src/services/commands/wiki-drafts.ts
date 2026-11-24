@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -88,7 +89,7 @@ const resolveDraftTarget = async function resolveDraftTarget(
     throw new NotFoundError('Wiki page not found')
   }
 
-  if (page.projectId !== null) {
+  if (Predicate.isNotNullish(page.projectId)) {
     await assertProjectAccess(ctx, page.projectId, 'read', {
       notFoundMessage: 'Wiki page not found',
       projectLoadedFromWorkspaceRow: true,
@@ -147,7 +148,10 @@ export async function readWikiDraftState(db: D1Database, workspaceId: string, pa
   return {
     revision: row?.revision ?? null,
     draft:
-      row && row.title !== null && row.content !== null && row.updatedAt !== null
+      row &&
+      Predicate.isNotNullish(row.title) &&
+      Predicate.isNotNullish(row.content) &&
+      Predicate.isNotNullish(row.updatedAt)
         ? { title: row.title, content: row.content, baseRevisionId: row.baseRevisionId, updatedAt: row.updatedAt }
         : null,
   }
@@ -170,7 +174,7 @@ const advanceHead = function advanceHead(
       ON CONFLICT(workspace_id,user_id,page_id) DO UPDATE SET revision = excluded.revision RETURNING revision`)
       .bind(...key, revision)
   }
-  if (expected === null) {
+  if (Predicate.isNullish(expected)) {
     return ctx.db
       .prepare(`INSERT INTO wiki_draft_heads(workspace_id,user_id,page_id,revision) VALUES (?,?,?,?)
       ON CONFLICT(workspace_id,user_id,page_id) DO NOTHING RETURNING revision`)
@@ -182,10 +186,10 @@ const advanceHead = function advanceHead(
     .bind(revision, ...key, expected)
 }
 
-const requireAdvanced = function requireAdvanced(result: D1Result, revision: string) {
+const requireAdvanced = function requireAdvanced(result: D1Result, revision: string): void {
   if (
     !result.results.some(
-      (row) => typeof row === 'object' && row !== null && 'revision' in row && row.revision === revision,
+      (row) => typeof row === 'object' && Predicate.isNotNullish(row) && 'revision' in row && row.revision === revision,
     )
   ) {
     throw new ConflictError('The saved draft changed. Reload its current state before saving again.')

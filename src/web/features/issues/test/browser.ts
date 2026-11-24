@@ -29,7 +29,7 @@ vi.mock('@effront/core/query', async () => {
   const { Effect } = await import('effect')
   return {
     query: (operation: (input: unknown) => Promise<unknown>) => (input: unknown) =>
-      Effect.tryPromise({ try: () => operation(input), catch: (error) => error }),
+      Effect.tryPromise({ catch: (error) => error, try: () => operation(input) }),
   }
 })
 beforeEach(() => {

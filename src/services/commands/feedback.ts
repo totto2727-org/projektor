@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -56,7 +56,7 @@ const resolveFeedbackSource = async function resolveFeedbackSource(
     .first<SubmitSourceRow>()
 
   // Unknown or revoked → treated as an invalid credential (route maps NotFound → 401).
-  if (!source || source.revoked_at !== null) {
+  if (!source || Predicate.isNotNullish(source.revoked_at)) {
     throw new NotFoundError('Invalid feedback token')
   }
   // Inactive → the credential is real but the source is paused (kill switch) → 403.
@@ -219,7 +219,7 @@ export async function updateFeedbackStatus(ctx: ServiceCtx, input: unknown): Pro
 }
 
 const ratingLabel = function ratingLabel(rating: number | null, scale: string | null): string {
-  if (rating === null) {
+  if (Predicate.isNullish(rating)) {
     return 'Rating'
   }
   if (scale === 'thumbs') {
@@ -271,7 +271,7 @@ export async function convertFeedbackToIssue(
   const title = fb.body ? fb.body.slice(0, 120) : `${ratingLabel(fb.rating, fb.rating_scale)} feedback`
   const footer =
     `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
-    (fb.rating !== null ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
+    (Predicate.isNotNullish(fb.rating) ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
 
   return createIssueFromFeedback(
     ctx,
@@ -355,12 +355,14 @@ export async function bulkConvertToIssue(
   }
 
   const byId = new Map(rows.map((r) => [r.id, r]))
-  const orderedRows = feedbackIds.map((id) => byId.get(id)).filter((r): r is BulkConvertFeedbackRow => r !== undefined)
+  const orderedRows = feedbackIds
+    .map((id) => byId.get(id))
+    .filter((r): r is BulkConvertFeedbackRow => Predicate.isNotNullish(r))
   const body = orderedRows
     .map((fb, i) => {
       const footer =
         `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
-        (fb.rating !== null ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
+        (Predicate.isNotNullish(fb.rating) ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
       return [`${i + 1}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? '', footer].join('\n')
     })
     .join('\n\n')

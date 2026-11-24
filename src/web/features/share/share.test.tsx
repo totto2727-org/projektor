@@ -1,14 +1,14 @@
-import { Effect } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { runTestEffect } from '#tests/run-effect.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 import { DEFAULT_BRAND, layerBrand } from './brand.ts'
 import { renderShare as renderShareEffect } from './server.tsx'
 
-const renderShare = (...args: Parameters<typeof renderShareEffect>) => Effect.runPromise(renderShareEffect(...args))
+const renderShare = (...args: Parameters<typeof renderShareEffect>) => runTestEffect(renderShareEffect(...args))
 const workspaceBrand = {
   displayName: 'Acme',
   accent: '#123456',

@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { queryFields } from '@/features/issues/utils/query-fields.ts'
 import type { IssuesRoute } from '@/features/issues/views/IssuesPage.tsx'
 
@@ -11,7 +13,7 @@ export function PageNavigation({ route, nextCursor }: IssuePagination) {
   const params = new URLSearchParams(route.search)
   const hasCursor = params.has('cursor')
   params.delete('cursor')
-  if (nextCursor === null && !hasCursor) {
+  if (Predicate.isNullish(nextCursor) && !hasCursor) {
     return null
   }
   return (
@@ -21,7 +23,7 @@ export function PageNavigation({ route, nextCursor }: IssuePagination) {
           First page
         </a>
       )}
-      {nextCursor !== null && (
+      {Predicate.isNotNullish(nextCursor) && (
         <form action={route.pathname} method='get'>
           {queryFields(params.toString()).map(({ name, value, key }) => (
             <input key={key} type='hidden' name={name} value={value} />

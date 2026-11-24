@@ -43,8 +43,8 @@ describe('PROJ-923: explicit cleanup on delete', () => {
     const project = await seedProject(workspace.id, 'GRP')
     const { groupId } = await seedGroupGrant(workspace.id, user.id, project.id)
     await deleteGroup(ctx, groupId)
-    expect(await count('SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ?', groupId)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?', groupId)).toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ?', groupId)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?', groupId)).resolves.toBe(0)
   })
 
   test('revokeToken nulls agent_sessions.token_id', async () => {
@@ -91,7 +91,7 @@ describe('PROJ-923: explicit cleanup on delete', () => {
         `${t}: 0`,
       )
     }
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM workspaces WHERE id = ?', workspace.id)).toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM workspaces WHERE id = ?', workspace.id)).resolves.toBe(0)
   })
 })

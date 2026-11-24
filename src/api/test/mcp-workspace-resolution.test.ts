@@ -10,7 +10,11 @@ import { fetchNativeApi } from './native-fetch.ts'
  * security boundary: a token minted for another workspace is still rejected.
  */
 describe('MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
-  const mcpRequest = function mcpRequest(workspaceId: string, token: string, extraHeaders?: Record<string, string>) {
+  const mcpRequest = function mcpRequest(
+    workspaceId: string,
+    token: string,
+    extraHeaders?: Record<string, string>,
+  ): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: {

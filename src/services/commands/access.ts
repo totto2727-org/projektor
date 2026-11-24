@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Column, SQL } from 'drizzle-orm'
+import { Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 import type { Role } from '#types'
@@ -85,7 +86,7 @@ export async function effectiveProjectRole(ctx: ServiceCtx, projectId: string): 
  */
 export async function requireProjectAccess(ctx: ServiceCtx, projectId: string): Promise<Role> {
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) {
+  if (Predicate.isNullish(role)) {
     throw new NotFoundError('Project not found')
   }
   return role
@@ -186,7 +187,7 @@ export async function assertProjectAccess(
     }
   }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) {
+  if (Predicate.isNullish(role)) {
     throw new NotFoundError(notFound)
   }
   if (mode === 'edit' && !canWriteProject(role)) {
@@ -208,7 +209,7 @@ export async function hasProjectAccess(
     return true
   }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) {
+  if (Predicate.isNullish(role)) {
     return false
   }
   return mode === 'read' || canWriteProject(role)
@@ -366,7 +367,7 @@ export async function usersWithProjectReadAccess(
         and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), inArray(schema.workspaceMembers.userId, chunk)),
       ),
   )
-  if (projectId === null) {
+  if (Predicate.isNullish(projectId)) {
     return new Set(members.map((m) => m.userId))
   }
 

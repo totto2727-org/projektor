@@ -20,6 +20,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { Predicate } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
@@ -328,7 +329,7 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): unknown
     const text = node.expression.expression.text
     const end = text.lastIndexOf('/')
     const input = node.arguments[0] && valueOf(node.arguments[0], context)
-    if (typeof input === 'string') {
+    if (Predicate.isString(input)) {
       return new RegExp(text.slice(1, end), text.slice(end + 1)).test(input)
     }
   }
@@ -356,7 +357,7 @@ const domainOperations = function domainOperations(
   visited = new Set<string>(),
 ): Set<string> {
   const keys = new Set<string>()
-  const merge = (items: Iterable<string>) => {
+  const merge = (items: Iterable<string>): void => {
     for (const key of items) {
       keys.add(key)
     }
@@ -482,7 +483,7 @@ const domainOperations = function domainOperations(
     child.forEachChild((nested) => {
       visit(nested, method)
     })
-    return binary !== undefined && ts.isReturnStatement(child)
+    return Predicate.isNotNullish(binary) && ts.isReturnStatement(child)
   }
   visit(node)
   return keys

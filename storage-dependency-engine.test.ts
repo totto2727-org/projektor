@@ -56,7 +56,7 @@ test.each(['all Workers update', 'Core is unchanged', 'migration fails'] as cons
         delete: () => Effect.void,
       }),
     )
-    const deploy = (version: number) => {
+    const deploy = (version: number): Promise<void> => {
       const stack = Stack(
         'storage-dependency-test',
         { providers, state },

@@ -97,7 +97,7 @@ export function useIssueFilters(
     projects,
   )
 
-  const handleHeaderClick = function handleHeaderClick(key: SortKey) {
+  const handleHeaderClick = function handleHeaderClick(key: SortKey): void {
     if (sortBy === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -119,7 +119,7 @@ export function useIssueFilters(
     dateTo: filterDateTo,
   }
 
-  const applyFilters = function applyFilters(filters: SavedViewFilters) {
+  const applyFilters = function applyFilters(filters: SavedViewFilters): void {
     setFilterStatuses(filters.statuses)
     setFilterPriorities(filters.priorities)
     setFilterProject(filters.project)

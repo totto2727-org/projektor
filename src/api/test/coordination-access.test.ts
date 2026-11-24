@@ -41,7 +41,7 @@ const mcpList = async function mcpList(
   return JSON.parse(body.result.content[0].text) as ListResult
 }
 
-const seedFileClaim = async function seedFileClaim(workspaceId: string, issueId: string, path: string) {
+const seedFileClaim = async function seedFileClaim(workspaceId: string, issueId: string, path: string): Promise<void> {
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare(
     `INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)

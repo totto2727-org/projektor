@@ -6,7 +6,7 @@ import * as Plugin from '@alchemy.run/cloudflare-runtime/core/Plugin'
 import * as PluginContext from '@alchemy.run/cloudflare-runtime/core/PluginContext'
 import type * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/RuntimeServices'
 import type * as WorkerdConfig from '@alchemy.run/cloudflare-runtime/core/workerd/Config'
-import { Effect, Layer } from 'effect'
+import { Predicate, Effect, Layer } from 'effect'
 
 import { deployment } from '#worker-graph'
 
@@ -91,7 +91,7 @@ export async function makeInlineApiLayer(directory: string) {
             }),
           )
           for (const binding of apiBindings) {
-            if (binding.name !== undefined && ['DB', 'KV', 'R2'].includes(binding.name)) {
+            if (Predicate.isNotNullish(binding.name) && ['DB', 'KV', 'R2'].includes(binding.name)) {
               throw new Error(`Public API fixture unexpectedly received storage: ${binding.name}`)
             }
           }

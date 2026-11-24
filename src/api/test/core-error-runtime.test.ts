@@ -4,6 +4,7 @@ import { decodeCoreReply } from 'projektor/core-client'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import type { HonoEnv } from '#types'
 
 /** Workers prebundles the native client. Error handling must use that same class identity. */
@@ -20,13 +21,13 @@ describe('native client failure identity at the public HTTP adapter', () => {
           retryAfter: 7,
         },
       })
-      const error = await Effect.runPromise(Effect.flip(decodeCoreReply(Schema.String, Effect.succeed(wire))))
+      const error = await runTestEffect(Effect.flip(decodeCoreReply(Schema.String, Effect.succeed(wire))))
       const app = new Hono<HonoEnv>()
       app.get('/', (c) => serviceErrToResponse(c, error))
       const response = await app.request('https://api.test/')
       expect(response.status).toBe(status)
       expect(response.headers.get('Retry-After')).toBe('7')
-      expect(await response.json()).toEqual({ error: 'Public failure' })
+      await expect(response.json()).resolves.toStrictEqual({ error: 'Public failure' })
     },
   )
 })

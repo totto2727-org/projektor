@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import {
   createCustomFieldDef,
   deleteCustomFieldDef,
@@ -74,7 +76,7 @@ export const customFieldsTools: MCPTool[] = [
     annotations: IDEMPOTENT_WRITE,
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return updateCustomFieldDef(ctx, id, fields)
@@ -93,7 +95,7 @@ export const customFieldsTools: MCPTool[] = [
     annotations: DESTRUCTIVE,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return deleteCustomFieldDef(ctx, id)

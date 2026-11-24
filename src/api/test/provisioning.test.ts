@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import {
@@ -25,7 +26,7 @@ const envWith = function envWith(overrides: Partial<Env>): Env {
   return { ...(env as unknown as Env), ...overrides }
 }
 
-const memberRole = async function memberRole(workspaceId: string, userId: string) {
+const memberRole = async function memberRole(workspaceId: string, userId: string): Promise<null | string> {
   const row = await env.DB.prepare('SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
     .bind(workspaceId, userId)
     .first<{ role: string }>()
@@ -33,7 +34,7 @@ const memberRole = async function memberRole(workspaceId: string, userId: string
 }
 
 // Simulates a prior removeMember call without going through the HTTP route.
-const tombstoneRemoval = async function tombstoneRemoval(workspaceId: string, userId: string) {
+const tombstoneRemoval = async function tombstoneRemoval(workspaceId: string, userId: string): Promise<void> {
   await env.DB.prepare('INSERT INTO provisioning_removals (workspace_id, user_id, removed_at) VALUES (?, ?, ?)')
     .bind(workspaceId, userId, Math.floor(Date.now() / 1000))
     .run()
@@ -55,7 +56,7 @@ describe('login provisioning', () => {
 
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     expect(ws).not.toBeNull()
-    expect(await memberRole(ws!.id, admin.id)).toBe('owner')
+    await expect(memberRole(ws!.id, admin.id)).resolves.toBe('owner')
   })
 
   test('non-admin auto-joins an existing workspace as viewer', async () => {
@@ -72,7 +73,7 @@ describe('login provisioning', () => {
       user,
     )
 
-    expect(await memberRole(ws.id, user.id)).toBe('viewer')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('viewer')
   })
 
   test('non-admin logging in before any workspace exists gets nothing (no workspace, no membership)', async () => {
@@ -106,7 +107,7 @@ describe('login provisioning', () => {
       user,
     )
 
-    expect(await memberRole(ws.id, user.id)).toBeNull()
+    await expect(memberRole(ws.id, user.id)).resolves.toBeNull()
   })
 
   test('PROJ-193: defaults to invite-only (no auto-join) when AUTO_JOIN_ROLE is unset', async () => {
@@ -123,7 +124,7 @@ describe('login provisioning', () => {
       user,
     )
 
-    expect(await memberRole(ws.id, user.id)).toBeNull()
+    await expect(memberRole(ws.id, user.id)).resolves.toBeNull()
   })
 
   test('promotes an existing lower-role member to owner when they are now an admin', async () => {
@@ -141,7 +142,7 @@ describe('login provisioning', () => {
       user,
     )
 
-    expect(await memberRole(ws.id, user.id)).toBe('owner')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('owner')
   })
 
   test('confines a non-admin to the workspace mapped to their email domain (not the default)', async () => {
@@ -159,9 +160,9 @@ describe('login provisioning', () => {
       user,
     )
 
-    expect(await memberRole(mappedWs.id, user.id)).toBe('member')
+    await expect(memberRole(mappedWs.id, user.id)).resolves.toBe('member')
     // Confinement: they must NOT have been auto-joined to the default workspace.
-    expect(await memberRole(defaultWs.id, user.id)).toBeNull()
+    await expect(memberRole(defaultWs.id, user.id)).resolves.toBeNull()
   })
 
   test('an admin in a mapped domain owns default + mapped workspace (ADMIN_EMAILS beats confinement)', async () => {
@@ -180,8 +181,8 @@ describe('login provisioning', () => {
     )
 
     // The domain rule never confines an admin; admins own every workspace, mapped or not.
-    expect(await memberRole(defaultWs.id, admin.id)).toBe('owner')
-    expect(await memberRole(mappedWs.id, admin.id)).toBe('owner')
+    await expect(memberRole(defaultWs.id, admin.id)).resolves.toBe('owner')
+    await expect(memberRole(mappedWs.id, admin.id)).resolves.toBe('owner')
   })
 
   test('an admin is made owner of every existing workspace on login, not just the default', async () => {
@@ -201,9 +202,9 @@ describe('login provisioning', () => {
       admin,
     )
 
-    expect(await memberRole(defaultWs.id, admin.id)).toBe('owner')
-    expect(await memberRole(wsA.id, admin.id)).toBe('owner')
-    expect(await memberRole(wsB.id, admin.id)).toBe('owner')
+    await expect(memberRole(defaultWs.id, admin.id)).resolves.toBe('owner')
+    await expect(memberRole(wsA.id, admin.id)).resolves.toBe('owner')
+    await expect(memberRole(wsB.id, admin.id)).resolves.toBe('owner')
   })
 
   test('matches ADMIN_EMAILS case-insensitively', async () => {
@@ -221,7 +222,7 @@ describe('login provisioning', () => {
 
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     expect(ws).not.toBeNull()
-    expect(await memberRole(ws!.id, user.id)).toBe('owner')
+    await expect(memberRole(ws!.id, user.id)).resolves.toBe('owner')
   })
 })
 
@@ -246,8 +247,8 @@ describe('PROJ-436: removal tombstone', () => {
       admin,
     )
 
-    expect(await memberRole(removedFrom.id, admin.id)).toBeNull()
-    expect(await memberRole(stillOwns.id, admin.id)).toBe('owner')
+    await expect(memberRole(removedFrom.id, admin.id)).resolves.toBeNull()
+    await expect(memberRole(stillOwns.id, admin.id)).resolves.toBe('owner')
   })
 
   test('a tombstoned user is not auto-rejoined to the default workspace', async () => {
@@ -265,7 +266,7 @@ describe('PROJ-436: removal tombstone', () => {
       user,
     )
 
-    expect(await memberRole(ws.id, user.id)).toBeNull()
+    await expect(memberRole(ws.id, user.id)).resolves.toBeNull()
   })
 
   test("a tombstoned user is not re-mapped into their domain's workspace", async () => {
@@ -283,7 +284,7 @@ describe('PROJ-436: removal tombstone', () => {
       user,
     )
 
-    expect(await memberRole(mappedWs.id, user.id)).toBeNull()
+    await expect(memberRole(mappedWs.id, user.id)).resolves.toBeNull()
   })
 })
 
@@ -294,7 +295,7 @@ describe('PROJ-436: removal tombstone', () => {
  * again, and see whether it comes back.
  */
 describe('PROJ-433: provisioning runs once per user, not per request', () => {
-  const dropMembership = async function dropMembership(workspaceId: string, userId: string) {
+  const dropMembership = async function dropMembership(workspaceId: string, userId: string): Promise<void> {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, userId)
       .run()
@@ -311,13 +312,13 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     })
 
     await ensureUserProvisioned(config, user)
-    expect(await memberRole(ws.id, user.id)).toBe('viewer')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('viewer')
 
     await dropMembership(ws.id, user.id)
     await ensureUserProvisioned(config, user)
 
     // Still gone: the second call short-circuited instead of re-writing the membership.
-    expect(await memberRole(ws.id, user.id)).toBeNull()
+    await expect(memberRole(ws.id, user.id)).resolves.toBeNull()
   })
 
   test('re-runs once the marker is gone', async () => {
@@ -336,7 +337,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     await forgetProvisionedForTests(config, user.id)
     await ensureUserProvisioned(config, user)
 
-    expect(await memberRole(ws.id, user.id)).toBe('viewer')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('viewer')
   })
 
   test('re-runs safely when the provisioned-marker read fails, instead of throwing', async () => {
@@ -360,7 +361,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
       vi.restoreAllMocks()
     }
 
-    expect(await memberRole(ws.id, user.id)).toBe('viewer')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('viewer')
   })
 
   // Yet — that user would then stay unprovisioned for the whole TTL after bootstrap.
@@ -378,7 +379,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     const ws = await seedWorkspace(slug)
     await ensureUserProvisioned(config, user)
 
-    expect(await memberRole(ws.id, user.id)).toBe('viewer')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('viewer')
   })
 
   test('caches the public viewer too', async () => {
@@ -391,7 +392,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     await dropMembership(ws.id, user.id)
     await provisionPublicViewer(config, user)
 
-    expect(await memberRole(ws.id, user.id)).toBeNull()
+    await expect(memberRole(ws.id, user.id)).resolves.toBeNull()
   })
 })
 
@@ -407,7 +408,7 @@ const countingDb = function countingDb(db: D1Database) {
         counts.batch++
       }
       const value = Reflect.get(target, prop, receiver)
-      return typeof value === 'function' ? value.bind(target) : value
+      return Predicate.isFunction(value) ? value.bind(target) : value
     },
   })
   return { counts, proxy }
@@ -474,7 +475,7 @@ describe('public viewer provisioning (PROJ-373)', () => {
 
     await provisionPublicViewer(envWith({ DEFAULT_WORKSPACE_SLUG: slug }), user)
 
-    expect(await memberRole(ws.id, user.id)).toBe('viewer')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('viewer')
   })
 
   test('is a no-op until the default workspace is bootstrapped', async () => {
@@ -496,6 +497,6 @@ describe('public viewer provisioning (PROJ-373)', () => {
 
     await provisionPublicViewer(envWith({ DEFAULT_WORKSPACE_SLUG: slug }), user)
 
-    expect(await memberRole(ws.id, user.id)).toBe('owner')
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('owner')
   })
 })

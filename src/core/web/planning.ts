@@ -46,8 +46,8 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                 ),
               )
               yield* Effect.try({
-                try: () => requireDataProject(scope, query.projectId, workspaceId),
                 catch: publicWebFailure,
+                try: () => requireDataProject(scope, query.projectId, workspaceId),
               })
               return yield* getFlowMetrics(env.DB, workspaceId, query)
             }),
@@ -72,8 +72,8 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                 ),
               )
               yield* Effect.try({
-                try: () => requireDataProject(scope, query.projectId, workspaceId),
                 catch: publicWebFailure,
+                try: () => requireDataProject(scope, query.projectId, workspaceId),
               })
               return yield* getCodeHeatmap(env.DB, workspaceId, query)
             }),

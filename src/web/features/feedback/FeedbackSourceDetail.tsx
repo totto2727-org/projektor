@@ -1,5 +1,5 @@
 'use client'
-
+import { Predicate } from 'effect'
 import { useRef } from 'react'
 
 import Select from '@/components/ui/Select.tsx'
@@ -32,12 +32,12 @@ const TAB_LABELS: Record<TabId, string> = {
 }
 
 const TAB_LIST = 'flex gap-1 border-b border-border mb-4'
-const tabBtnClass = (active: boolean) =>
+const tabBtnClass = (active: boolean): string =>
   'px-4 py-2 text-[0.85rem] font-semibold border-b-2 -mb-px bg-transparent cursor-pointer ' +
   (active ? 'border-accent text-text-base' : 'border-transparent text-text-muted hover:text-text-base')
 
 function statusLabel(s: FeedbackSource): string {
-  if (s.revokedAt !== null) {
+  if (Predicate.isNotNullish(s.revokedAt)) {
     return 'Revoked'
   }
   return s.isActive ? 'Active' : 'Inactive'
@@ -175,7 +175,7 @@ export default function FeedbackSourceDetail({
   const sources = initialSources
   const tab = initialTab
   const tabRefs = useRef<Partial<Record<TabId, HTMLAnchorElement | null>>>({})
-  function hrefForTab(id: TabId) {
+  function hrefForTab(id: TabId): string {
     const params = new URLSearchParams({ projectId, workspace: workspaceSlug, tab: id })
     if (initialStatus) {
       params.set('status', initialStatus)
@@ -183,11 +183,11 @@ export default function FeedbackSourceDetail({
     return `/feedback/${encodeURIComponent(sourceId)}?${params}`
   }
 
-  function focusTab(id: TabId) {
+  function focusTab(id: TabId): void {
     tabRefs.current[id]?.focus()
   }
 
-  function onTabKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+  function onTabKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     const focused = TABS.find((id) => tabRefs.current[id] === document.activeElement) ?? tab
     const idx = TABS.indexOf(focused)
     let nextId: TabId | null = null

@@ -98,7 +98,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
     expect(uploaded).toEqual({ id: expect.any(String), filename: 'diagram.png', contentType: 'image/png', size: 4 })
     const row = f.sqlite.prepare('SELECT * FROM attachments WHERE id = ?').get(uploaded.id)
-    expect(row).toMatchObject({ workspace_id: 'w1', entity_id: 'i1', created_by_id: 'u1', size: 4 })
+    expect(row).toMatchObject({ created_by_id: 'u1', entity_id: 'i1', size: 4, workspace_id: 'w1' })
     expect(f.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), expect.any(ReadableStream), {
       httpMetadata: { contentType: 'image/png' },
     })
@@ -129,7 +129,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     await expect(uploadStoredAttachment(f.ctx, input(f.file), 4)).rejects.toMatchObject({
       kind: 'payload_too_large',
     })
-    expect(f.put).toHaveBeenCalledTimes(1)
+    expect(f.put).toHaveBeenCalledOnce()
   })
 
   test('removes newly stored bytes when metadata insertion fails', async () => {
@@ -182,7 +182,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
-    expect(await getStoredAttachment(f.ctx, uploaded.id)).not.toBeNull()
+    await expect(getStoredAttachment(f.ctx, uploaded.id)).resolves.not.toBeNull()
     await expect(deleteStoredAttachment(f.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'forbidden' })
     expect(f.objects.size).toBe(1)
     f.sqlite.exec("UPDATE group_project_grants SET role = 'member' WHERE group_id = 'g1'")
@@ -195,19 +195,19 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     const f = fixture()
     f.ctx.role = 'member'
     const orphan = await uploadStoredAttachment(f.ctx, input(f.file, 'missing-owner'))
-    expect(await getStoredAttachment(f.ctx, orphan.id)).not.toBeNull()
+    await expect(getStoredAttachment(f.ctx, orphan.id)).resolves.not.toBeNull()
     f.sqlite.exec(`INSERT INTO wiki_pages
       (id,workspace_id,slug,title,created_by_id,updated_by_id,created_at,updated_at)
       VALUES ('page','w1','page','Page','u1','u1',1,1)`)
     const page = await uploadStoredAttachment(f.ctx, { file: f.file, entityType: 'wiki_page', entityId: 'page' })
-    expect(await getStoredAttachment(f.ctx, page.id)).not.toBeNull()
+    await expect(getStoredAttachment(f.ctx, page.id)).resolves.not.toBeNull()
   })
 
   test('returns null for missing objects and skips R2 deletion for non-file metadata', async () => {
     const f = fixture()
     const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
     f.objects.clear()
-    expect(await getStoredAttachment(f.ctx, uploaded.id)).toBeNull()
+    await expect(getStoredAttachment(f.ctx, uploaded.id)).resolves.toBeNull()
     const link = await createLinkAttachment(f.ctx, {
       kind: 'url',
       entityType: 'issue',

@@ -69,8 +69,8 @@ describe('agent session ownership at shared command boundaries', () => {
       await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
     }
     await releaseIssue(admin, { issueId: f.issueId })
-    expect(await releaseFiles(admin, { paths: ['src/admin.ts'] })).toMatchObject({ count: 1 })
-    expect(await endAgent(admin, { id: session.id })).toMatchObject({ status: 'ended' })
+    await expect(releaseFiles(admin, { paths: ['src/admin.ts'] })).resolves.toMatchObject({ count: 1 })
+    await expect(endAgent(admin, { id: session.id })).resolves.toMatchObject({ status: 'ended' })
     expect(f.sqlite.prepare('SELECT title FROM issues WHERE id = ?').get(f.issueId)).toMatchObject({
       title: 'Original',
     })
@@ -83,7 +83,7 @@ describe('agent session ownership at shared command boundaries', () => {
     f.ctx.auth = { kind: 'agent', method: 'pat', credentialId: 'token-a' }
     const session = await registerAgent(f.ctx, { name: 'legacy' })
     f.sqlite.prepare('UPDATE agent_sessions SET credential_id = NULL WHERE id = ?').run(session.id)
-    expect(await heartbeatAgent(f.ctx, {})).toMatchObject({ id: session.id })
+    await expect(heartbeatAgent(f.ctx, {})).resolves.toMatchObject({ id: session.id })
     f.sqlite.prepare("UPDATE agent_sessions SET credential_id = 'different-owner' WHERE id = ?").run(session.id)
     await expect(heartbeatAgent(f.ctx, { id: session.id })).rejects.toMatchObject({ kind: 'forbidden' })
   })
@@ -134,8 +134,8 @@ describe('agent session ownership at shared command boundaries', () => {
     f.ctx.role = 'admin'
     const first = await registerAgent(f.ctx, { name: 'one', issueId: f.issueId })
     const second = await registerAgent(f.ctx, { name: 'two', issueId: f.issueId })
-    expect(await heartbeatAgent(f.ctx, { id: first.id })).toMatchObject({ id: first.id })
-    expect(await heartbeatAgent(f.ctx, { id: second.id })).toMatchObject({ id: second.id })
+    await expect(heartbeatAgent(f.ctx, { id: first.id })).resolves.toMatchObject({ id: first.id })
+    await expect(heartbeatAgent(f.ctx, { id: second.id })).resolves.toMatchObject({ id: second.id })
     f.ctx.role = 'member'
     f.sqlite.exec("DELETE FROM group_project_grants WHERE project_id = 'p'")
     await expect(heartbeatAgent(f.ctx, { id: first.id })).rejects.toMatchObject({ kind: 'not_found' })
@@ -149,12 +149,12 @@ describe('agent session ownership at shared command boundaries', () => {
     expect(
       f.sqlite.prepare('SELECT credential_id,token_id FROM agent_sessions WHERE id = ?').get(session.id),
     ).toMatchObject({ credential_id: 'user:u', token_id: null })
-    expect(await heartbeatAgent(f.ctx, {})).toMatchObject({ id: session.id })
+    await expect(heartbeatAgent(f.ctx, {})).resolves.toMatchObject({ id: session.id })
     f.sqlite.prepare('UPDATE agent_sessions SET credential_id = NULL WHERE id = ?').run(session.id)
     await expect(heartbeatAgent(f.ctx, { id: session.id })).rejects.toMatchObject({ kind: 'forbidden' })
     f.ctx.role = 'admin'
     await expect(heartbeatAgent(f.ctx, { id: session.id })).rejects.toMatchObject({ kind: 'forbidden' })
-    expect(await endAgent(f.ctx, { id: session.id })).toMatchObject({ status: 'ended' })
+    await expect(endAgent(f.ctx, { id: session.id })).resolves.toMatchObject({ status: 'ended' })
     await expect(assertAgentSessionAccess({ ...f.ctx, workspaceId: 'another' }, session.id)).rejects.toMatchObject({
       kind: 'not_found',
     })

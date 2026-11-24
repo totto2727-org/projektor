@@ -2,10 +2,12 @@ import { Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { runTestEffect } from '#tests/run-effect.ts'
+
 import { sessionNavigation as navigate } from './session-navigation.ts'
 
-const sessionNavigation = (request: Request) =>
-  Effect.runPromise(navigate(request).pipe(Effect.map(HttpServerResponse.toWeb)))
+const sessionNavigation = (request: Request): Promise<Response> =>
+  runTestEffect(navigate(request).pipe(Effect.map(HttpServerResponse.toWeb)))
 
 const origin = 'https://frontend.example'
 const form = function form(fields: Record<string, string>, requestOrigin = origin) {

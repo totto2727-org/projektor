@@ -1,4 +1,4 @@
-import { Data, Redacted } from 'effect'
+import { Predicate, Data, Redacted } from 'effect'
 
 export type ZodFlattenOutput = {
   formErrors: string[]
@@ -79,7 +79,7 @@ export class ApiError extends Data.TaggedError('ApiError')<{
       status,
       message,
       ...(cause === undefined ? {} : { cause: Redacted.make(cause) }),
-      ...(details === undefined ? {} : { details }),
+      ...(Predicate.isNullish(details) ? {} : { details }),
     })
   }
 }

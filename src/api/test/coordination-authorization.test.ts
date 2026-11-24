@@ -41,14 +41,12 @@ describe('coordination project authorization', () => {
       })
     }
     await expect(releaseFiles(f.ctx, { paths: ['src/shared.ts'] })).rejects.toMatchObject({ kind: 'not_found' })
-    expect(
-      await env.DB.prepare('SELECT released_at FROM issue_file_claims WHERE id = ?').bind(id).first(),
-    ).toMatchObject({ released_at: null })
-    expect(
-      await env.DB.prepare('SELECT COUNT(*) AS n FROM claim_conflicts WHERE workspace_id = ?')
-        .bind(f.workspace.id)
-        .first(),
-    ).toMatchObject({ n: 0 })
+    await expect(
+      env.DB.prepare('SELECT released_at FROM issue_file_claims WHERE id = ?').bind(id).first(),
+    ).resolves.toMatchObject({ released_at: null })
+    await expect(
+      env.DB.prepare('SELECT COUNT(*) AS n FROM claim_conflicts WHERE workspace_id = ?').bind(f.workspace.id).first(),
+    ).resolves.toMatchObject({ n: 0 })
   })
 
   test('rejects hidden project coordination before any side effect', async () => {
@@ -66,9 +64,9 @@ describe('coordination project authorization', () => {
       await expect(action()).rejects.toMatchObject({ kind: 'not_found' })
     }
     for (const table of ['agent_sessions', 'issue_leases', 'issue_file_claims', 'agent_messages']) {
-      expect(
-        await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`).bind(f.workspace.id).first(),
-      ).toMatchObject({ n: 0 })
+      await expect(
+        env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`).bind(f.workspace.id).first(),
+      ).resolves.toMatchObject({ n: 0 })
     }
   })
 
@@ -89,6 +87,8 @@ describe('coordination project authorization', () => {
     await expect(postMessage(f.ctx, { scope: `issue:${f.issue.id}`, body: 'blocked' })).rejects.toMatchObject({
       kind: 'forbidden',
     })
-    expect(await listMessages(f.ctx, { scope: `issue:${f.issue.id}` })).toMatchObject({ items: [{ body: 'visible' }] })
+    await expect(listMessages(f.ctx, { scope: `issue:${f.issue.id}` })).resolves.toMatchObject({
+      items: [{ body: 'visible' }],
+    })
   })
 })

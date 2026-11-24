@@ -11,6 +11,6 @@ export class MarkdownRenderError extends Data.TaggedError('MarkdownRenderError')
 /** Domains choose their own error adaptation without changing HTTP decoding. */
 export const renderMarkdownEffect = (content: string, options?: MarkdownOptions) =>
   Effect.tryPromise({
-    try: () => renderMarkdownDocument(content, options),
     catch: (cause) => new MarkdownRenderError({ message: 'Markdown could not be rendered.', cause }),
+    try: () => renderMarkdownDocument(content, options),
   })

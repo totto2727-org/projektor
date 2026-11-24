@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { coreResult, browserRequest } from '@/core.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import type { ApiError, ScopeError } from '@/server/errors.ts'
@@ -37,7 +38,7 @@ function runWithDatabase<T>(
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
   const transport = vi.spyOn(globalThis, 'fetch')
-  const result = Effect.runPromise(
+  const result = runTestEffect(
     Effect.gen(function* () {
       const services = yield* makeRequestServices(new Request(url), testEnvironment(database.db))
       const scope = yield* services.scope({
@@ -50,7 +51,7 @@ function runWithDatabase<T>(
   )
   return { result, transport }
 }
-function issueRows(database: ReturnType<typeof featureDatabase>, count: number) {
+function issueRows(database: ReturnType<typeof featureDatabase>, count: number): void {
   const statement = database.sqlite.prepare(
     "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at,sprint_id,status) VALUES (?, 'w1', 'p1', ?, ?, 'u1', 1, 1, 's1', 'done')",
   )
@@ -182,28 +183,28 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     const run = runWithDatabase(database, url, (scope) => renderMetrics(scope, url))
     const node = await run.result
     expect(node.props.initialRange).toEqual({
+      granularity: 'day',
       since: '2026-09-01',
       until: '2026-10-01',
-      granularity: 'day',
     })
     expect(node.props.initialMetrics.leadTime).toEqual({
-      count: 1,
       avg: 3600,
+      count: 1,
       p50: 3600,
       p90: 3600,
     })
     expect(node.props.initialHeatmap).toEqual({
-      prefix: 'src',
-      totalDistinctIssues: 1,
       entries: [
         {
+          conflictCount: 1,
+          distinctRejectedIssueCount: 1,
+          isLeaf: false,
           path: 'src/api',
           segment: 'api',
-          isLeaf: false,
-          distinctRejectedIssueCount: 1,
-          conflictCount: 1,
         },
       ],
+      prefix: 'src',
+      totalDistinctIssues: 1,
     })
     expect(node.props.initialUrl).toContain('workspace=alpha')
     expect(renderToStaticMarkup(node)).toContain('Where the fleet queues up')
@@ -240,9 +241,9 @@ describe('planning SSR named shared queries on real migrated D1', () => {
   test('keeps the six-week weekly default and date normalization', () => {
     const now = new Date('2026-10-04T12:00:00Z')
     expect(defaultRange(now)).toEqual({
+      granularity: 'week',
       since: '2026-08-24',
       until: '2026-10-04',
-      granularity: 'week',
     })
     expect(rangeFromUrl(new URL('https://front.example/metrics?since=not-a-date&until=2026-10-04'), now).since).toBe(
       '2026-08-24',

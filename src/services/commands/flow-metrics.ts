@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { GetFlowMetricsSchema } from '#contracts/inputs/flow-metrics.ts'
@@ -23,7 +23,7 @@ const assertProjectExists = async function assertProjectExists(ctx: ServiceCtx, 
     throw new NotFoundError('Project not found')
   }
   // PROJ-311: a non-admin without a grant can't see the project's metrics.
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     throw new NotFoundError('Project not found')
   }
 }

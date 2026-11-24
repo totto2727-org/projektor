@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -15,7 +15,7 @@ import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
-const TASK_STATUSES_CACHE_KEY = (workspaceId: string) => `ws-meta:${workspaceId}:task-statuses`
+const TASK_STATUSES_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:task-statuses`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
 export async function listTaskStatuses(ctx: ServiceCtx) {
@@ -37,7 +37,7 @@ export async function listTaskStatuses(ctx: ServiceCtx) {
   return result
 }
 
-const invalidateTaskStatusesCache = async function invalidateTaskStatusesCache(ctx: ServiceCtx) {
+const invalidateTaskStatusesCache = async function invalidateTaskStatusesCache(ctx: ServiceCtx): Promise<void> {
   const cacheKey = TASK_STATUSES_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
@@ -91,22 +91,22 @@ type TaskStatusUpdateData = z.infer<typeof UpdateTaskStatusSchema>
 
 const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpdateData) {
   const setObj: Record<string, unknown> = {}
-  if (data.name !== undefined) {
+  if (Predicate.isNotNullish(data.name)) {
     setObj.name = data.name
   }
-  if (data.category !== undefined) {
+  if (Predicate.isNotNullish(data.category)) {
     setObj.category = data.category
   }
   if ('color' in data) {
     setObj.color = data.color ?? null
   }
-  if (data.position !== undefined) {
+  if (Predicate.isNotNullish(data.position)) {
     setObj.position = data.position
   }
-  if (data.isDefault !== undefined) {
+  if (Predicate.isNotNullish(data.isDefault)) {
     setObj.isDefault = data.isDefault ? 1 : 0
   }
-  if (data.isReviewStep !== undefined) {
+  if (Predicate.isNotNullish(data.isReviewStep)) {
     setObj.isReviewStep = data.isReviewStep ? 1 : 0
   }
   return setObj
@@ -272,7 +272,7 @@ export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: st
   )
 }
 
-export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: string) {
+export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: string): Promise<void> {
   await db.batch(buildDefaultTaskStatusStatements(db, workspaceId))
 }
 

@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 
 import { handleApiBinaryRequest } from '#core/api/files.ts'
 import { makeApiRateLimitHandlers } from '#core/api/rate-limit.ts'
@@ -23,8 +23,8 @@ export function inMemoryKV(): KVNamespace {
   return {
     get: async (key: string, options?: string | { type?: string }) => {
       const value = values.get(key) ?? null
-      const type = typeof options === 'string' ? options : options?.type
-      if (value === null) {
+      const type = Predicate.isString(options) ? options : options?.type
+      if (Predicate.isNullish(value)) {
         return null
       }
       if (type === 'json') {
@@ -40,7 +40,7 @@ export function inMemoryKV(): KVNamespace {
     },
     getWithMetadata: async (key: string) => ({ value: values.get(key) ?? null, metadata: null, cacheStatus: null }),
     put: async (key: string, value: string | ArrayBuffer | ArrayBufferView | ReadableStream) => {
-      const text = typeof value === 'string' ? value : await new Response(value as BodyInit).text()
+      const text = Predicate.isString(value) ? value : await new Response(value as BodyInit).text()
       values.set(key, text)
     },
     delete: async (key: string) => {
@@ -110,7 +110,7 @@ export function inMemoryR2(): R2Bucket {
       return value ? object(key, value) : null
     },
     delete: async (keys: string | string[]) => {
-      for (const key of typeof keys === 'string' ? [keys] : keys) {
+      for (const key of Predicate.isString(keys) ? [keys] : keys) {
         values.delete(key)
       }
     },

@@ -26,8 +26,8 @@ export function renderProjects(
   return Effect.gen(function* () {
     const services = yield* RequestServices
     yield* Effect.try({
-      try: () => requireAuthenticatedDataSession(scope),
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
+      try: () => requireAuthenticatedDataSession(scope),
     })
     const showArchived = url.searchParams.get('includeArchived') === 'true'
     const projects = showArchived
@@ -51,11 +51,11 @@ export function renderOverview(
   return Effect.gen(function* () {
     const services = yield* RequestServices
     yield* Effect.try({
+      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       try: () => {
         requireDataWorkspace(scope, workspace.id)
         requireDataProject(scope, selected.id, workspace.id)
       },
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
     const value = yield* coreResult(
       ProjectOverviewSchema,

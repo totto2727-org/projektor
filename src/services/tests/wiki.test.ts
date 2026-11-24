@@ -1,7 +1,6 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { eq, isNull, or } from 'drizzle-orm'
-import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types.ts'
@@ -10,6 +9,7 @@ import { schema } from '#db'
 import { migratedDb } from '#db/test/helpers.ts'
 import { DataQueryError } from '#services/errors.ts'
 import * as wiki from '#services/wiki.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
   const prepare = function prepare(query: string, bindings: SQLInputValue[] = []) {
@@ -54,101 +54,101 @@ describe('pure wiki reads', () => {
   afterEach(() => sqlite.close())
 
   test('preserves list metadata projection, JSON decoding, filters and template exclusion', async () => {
-    const rows = await Effect.runPromise(wiki.listWikiPages(db, 'wa'))
+    const rows = await runTestEffect(wiki.listWikiPages(db, 'wa'))
     expect(rows.map((r) => r.id)).toEqual(['root', 'child'])
     expect(rows[0]).toEqual({
       id: 'root',
-      slug: 'root',
-      title: 'Alpha',
+      is_template: false,
+      owners: ['u'],
       parent_id: null,
       project_id: null,
-      updated_at: 10,
-      type: 'runbook',
-      tags: ['ops'],
+      slug: 'root',
       status: null,
+      tags: ['ops'],
+      title: 'Alpha',
+      type: 'runbook',
+      updated_at: 10,
       verified_at: null,
       verified_by: null,
-      owners: ['u'],
       verify_interval: null,
-      is_template: false,
     })
-    expect(
-      await Effect.runPromise(wiki.listWikiPages(db, 'wa', { type: 'guide', tags: ['dev'], parentId: 'root' })),
-    ).toHaveLength(1)
-    expect(await Effect.runPromise(wiki.listWikiPages(db, 'wa', { tags: ['none'] }))).toEqual([])
-    expect(await Effect.runPromise(wiki.listWikiPages(db, 'wa', { includeTemplates: true }))).toHaveLength(3)
+    await expect(
+      runTestEffect(wiki.listWikiPages(db, 'wa', { type: 'guide', tags: ['dev'], parentId: 'root' })),
+    ).resolves.toHaveLength(1)
+    await expect(runTestEffect(wiki.listWikiPages(db, 'wa', { tags: ['none'] }))).resolves.toEqual([])
+    await expect(runTestEffect(wiki.listWikiPages(db, 'wa', { includeTemplates: true }))).resolves.toHaveLength(3)
   })
 
   test('accepts app-authorized visibility and includes workspace pages only when requested', async () => {
     const visibility = or(isNull(schema.wikiPages.projectId), eq(schema.wikiPages.projectId, 'other'))
-    expect((await Effect.runPromise(wiki.listWikiPages(db, 'wa', { visibility }))).map((r) => r.id)).toEqual(['root'])
+    expect((await runTestEffect(wiki.listWikiPages(db, 'wa', { visibility }))).map((r) => r.id)).toEqual(['root'])
     expect(
-      (await Effect.runPromise(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa', includeWorkspacePages: true }))).map(
+      (await runTestEffect(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa', includeWorkspacePages: true }))).map(
         (r) => r.id,
       ),
     ).toEqual(['root', 'child', 'template'])
-    expect((await Effect.runPromise(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa' }))).map((r) => r.id)).toEqual([
+    expect((await runTestEffect(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa' }))).map((r) => r.id)).toEqual([
       'child',
     ])
   })
 
   test('resolves id before colliding slug and live pages before redirects, excludes trash and foreign targets', async () => {
-    expect((await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'old-root')))?.content).toBe('Root content')
-    expect(await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'cross-tenant'))).toBeUndefined()
-    expect(await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'trash'))).toBeUndefined()
-    expect(await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'foreign'))).toBeUndefined()
+    expect((await runTestEffect(wiki.findWikiPage(db, 'wa', 'old-root')))?.content).toBe('Root content')
+    await expect(runTestEffect(wiki.findWikiPage(db, 'wa', 'cross-tenant'))).resolves.toBeUndefined()
+    await expect(runTestEffect(wiki.findWikiPage(db, 'wa', 'trash'))).resolves.toBeUndefined()
+    await expect(runTestEffect(wiki.findWikiPage(db, 'wa', 'foreign'))).resolves.toBeUndefined()
     sqlite.exec(
       "UPDATE wiki_pages SET slug='new-root' WHERE id='root'; UPDATE wiki_pages SET slug='root' WHERE id='child';",
     )
-    expect((await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'root')))?.id).toBe('root')
+    expect((await runTestEffect(wiki.findWikiPage(db, 'wa', 'root')))?.id).toBe('root')
     sqlite.exec("UPDATE wiki_pages SET slug='old-root' WHERE id='child';")
-    expect((await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'old-root')))?.id).toBe('child')
+    expect((await runTestEffect(wiki.findWikiPage(db, 'wa', 'old-root')))?.id).toBe('child')
   })
 
   test('preserves maintenance/trash/template filtering and pagination without presentation fields', async () => {
     expect(
-      (await Effect.runPromise(wiki.listStaleWikiPages(db, 'wa', { now: 100, limit: 10, offset: 0 }))).map((r) => r.id),
+      (await runTestEffect(wiki.listStaleWikiPages(db, 'wa', { now: 100, limit: 10, offset: 0 }))).map((r) => r.id),
     ).toEqual(['child'])
-    expect((await Effect.runPromise(wiki.listWikiTemplates(db, 'wa'))).map((r) => r.id)).toEqual(['template'])
-    const trash = await Effect.runPromise(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 0 }))
+    expect((await runTestEffect(wiki.listWikiTemplates(db, 'wa'))).map((r) => r.id)).toEqual(['template'])
+    const trash = await runTestEffect(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 0 }))
     expect(trash).toEqual([
       {
+        deleted_at: 50,
         id: 'trash',
-        slug: 'trash',
-        title: 'Trash',
         parent_id: null,
         project_id: null,
-        deleted_at: 50,
+        slug: 'trash',
+        title: 'Trash',
       },
     ])
-    expect(await Effect.runPromise(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 1 }))).toEqual([])
+    await expect(runTestEffect(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 1 }))).resolves.toEqual([])
   })
 
   test('orders same-second revisions by rowid and scopes every revision query to the workspace/page', async () => {
-    expect((await Effect.runPromise(wiki.listWikiRevisions(db, 'wa', 'root'))).map((r) => r.id)).toEqual(['r2', 'r1'])
-    expect(await Effect.runPromise(wiki.getLatestWikiRevisionId(db, 'wa', 'root'))).toBe('r2')
-    expect(await Effect.runPromise(wiki.getWikiRevision(db, 'wa', 'root', 'r1'))).toEqual({
-      id: 'r1',
-      title: 'Old',
-      summary: 'first',
+    expect((await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root'))).map((r) => r.id)).toEqual(['r2', 'r1'])
+    await expect(runTestEffect(wiki.getLatestWikiRevisionId(db, 'wa', 'root'))).resolves.toBe('r2')
+    await expect(runTestEffect(wiki.getWikiRevision(db, 'wa', 'root', 'r1'))).resolves.toEqual({
       author_id: 'u',
-      created_at: 100,
       content: 'Before',
+      created_at: 100,
+      id: 'r1',
+      summary: 'first',
+      title: 'Old',
     })
-    expect(await Effect.runPromise(wiki.listWikiRevisions(db, 'wa', 'foreign'))).toEqual([])
-    expect(await Effect.runPromise(wiki.getWikiRevision(db, 'wa', 'foreign', 'rf'))).toBeUndefined()
-    expect(await Effect.runPromise(wiki.getLatestWikiRevisionId(db, 'wa', 'foreign'))).toBeNull()
+    await expect(runTestEffect(wiki.listWikiRevisions(db, 'wa', 'foreign'))).resolves.toEqual([])
+    await expect(runTestEffect(wiki.getWikiRevision(db, 'wa', 'foreign', 'rf'))).resolves.toBeUndefined()
+    await expect(runTestEffect(wiki.getLatestWikiRevisionId(db, 'wa', 'foreign'))).resolves.toBeNull()
   })
 
   test('isolates drafts by workspace, user and page', async () => {
-    expect(await Effect.runPromise(wiki.getWikiDraft(db, 'wa', 'root', 'u'))).toEqual({
-      title: 'Draft',
-      content: 'Draft text',
+    await expect(runTestEffect(wiki.getWikiDraft(db, 'wa', 'root', 'u'))).resolves.toEqual({
       baseRevisionId: null,
+      content: 'Draft text',
+      title: 'Draft',
       updatedAt: 90,
     })
-    expect(await Effect.runPromise(wiki.getWikiDraft(db, 'wa', 'root', 'v'))).toBeNull()
-    expect(await Effect.runPromise(wiki.getWikiDraft(db, 'wb', 'root', 'u'))).toBeNull()
+    await expect(runTestEffect(wiki.getWikiDraft(db, 'wa', 'root', 'v'))).resolves.toBeNull()
+    await expect(runTestEffect(wiki.getWikiDraft(db, 'wb', 'root', 'u'))).resolves.toBeNull()
   })
 
   test('keeps FTS weighting, stable paging, JSON mapping, templates/trash exclusion and permission fragments', async () => {
@@ -156,19 +156,19 @@ describe('pure wiki reads', () => {
       "CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags); INSERT INTO wiki_fts(page_id,workspace_id,title,content,tags) SELECT id,workspace_id,title,'needle',tags FROM wiki_pages;",
     )
     const opts = { now: 100, limit: 10, offset: 0 }
-    const rows = await Effect.runPromise(wiki.searchWiki(db, 'wa', 'needle*', opts))
+    const rows = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', opts))
     expect(rows.map((r) => r.id).sort()).toEqual(['child', 'root'])
     expect(rows.find((r) => r.id === 'root')?.owners).toEqual(['u'])
-    const restricted = await Effect.runPromise(
+    const restricted = await runTestEffect(
       wiki.searchWiki(db, 'wa', 'needle*', {
         ...opts,
         visibilitySql: { sql: 'p.project_id IS NULL', params: [] },
       }),
     )
     expect(restricted.map((r) => r.id)).toEqual(['root'])
-    expect(await Effect.runPromise(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, tags: ['none'] }))).toEqual([])
-    const one = await Effect.runPromise(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1 }))
-    const two = await Effect.runPromise(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1, offset: 1 }))
+    await expect(runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, tags: ['none'] }))).resolves.toEqual([])
+    const one = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1 }))
+    const two = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1, offset: 1 }))
     expect([one[0].id, two[0].id]).toEqual(rows.map((r) => r.id))
   })
 
@@ -179,24 +179,24 @@ describe('pure wiki reads', () => {
       },
     } as unknown as D1Database
     const query = wiki.listWikiPages(broken, 'wa')
-    await expect(Effect.runPromise(query)).rejects.toBeInstanceOf(DataQueryError)
+    await expect(runTestEffect(query)).rejects.toBeInstanceOf(DataQueryError)
   })
 
   test('keeps API list, template, trash and tree contracts while sharing the DB read', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'owner' } as ServiceCtx
-    const rows = await Effect.runPromise(wiki.listWikiPages(db, 'wa'))
-    expect(await apiWiki.listWikiPages(ctx, {})).toEqual(rows.map((r) => ({ ...r, url: `/wiki/${r.slug}` })))
-    expect(await apiWiki.listWikiTemplates(ctx, {})).toEqual([
+    const rows = await runTestEffect(wiki.listWikiPages(db, 'wa'))
+    await expect(apiWiki.listWikiPages(ctx, {})).resolves.toEqual(rows.map((r) => ({ ...r, url: `/wiki/${r.slug}` })))
+    await expect(apiWiki.listWikiTemplates(ctx, {})).resolves.toEqual([
       {
         id: 'template',
+        project_id: null,
         slug: 'template',
         title: 'Template',
-        project_id: null,
         type: 'runbook',
         url: '/wiki/template',
       },
     ])
-    expect(await apiWiki.listWikiTrash(ctx, {})).toEqual([
+    await expect(apiWiki.listWikiTrash(ctx, {})).resolves.toEqual([
       {
         id: 'trash',
         slug: 'trash',
@@ -207,50 +207,50 @@ describe('pure wiki reads', () => {
         purgeAfter: 50 + apiWiki.WIKI_TRASH_RETENTION_SECONDS,
       },
     ])
-    expect(await apiWiki.getWikiTree(ctx)).toEqual([
+    await expect(apiWiki.getWikiTree(ctx)).resolves.toEqual([
       {
-        id: 'root',
-        slug: 'root',
-        title: 'Alpha',
-        url: '/wiki/root',
-        type: 'runbook',
         children: [
           {
+            children: [],
             id: 'child',
             slug: 'child',
             title: 'Beta',
-            url: '/wiki/child',
             type: 'guide',
-            children: [],
+            url: '/wiki/child',
           },
         ],
+        id: 'root',
+        slug: 'root',
+        title: 'Alpha',
+        type: 'runbook',
+        url: '/wiki/root',
       },
       {
+        children: [],
         id: 'template',
         slug: 'template',
         title: 'Template',
-        url: '/wiki/template',
         type: 'runbook',
-        children: [],
+        url: '/wiki/template',
       },
     ])
   })
 
   test('preserves detail redirect extras, revision contracts and API not-found errors', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'owner' } as ServiceCtx
-    const detail = await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'root'))
-    expect(await apiWiki.getWikiPage(ctx, 'root')).toEqual({
+    const detail = await runTestEffect(wiki.findWikiPage(db, 'wa', 'root'))
+    await expect(apiWiki.getWikiPage(ctx, 'root')).resolves.toEqual({
       ...detail,
       revisionId: 'r2',
       url: '/wiki/root',
       freshness: null,
     })
-    expect(await apiWiki.getWikiPage(ctx, 'old-root')).toHaveProperty('version', 0)
-    expect(await apiWiki.listWikiRevisions(ctx, 'old-root')).toEqual(
-      await Effect.runPromise(wiki.listWikiRevisions(db, 'wa', 'root')),
+    await expect(apiWiki.getWikiPage(ctx, 'old-root')).resolves.toHaveProperty('version', 0)
+    await expect(apiWiki.listWikiRevisions(ctx, 'old-root')).resolves.toEqual(
+      await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root')),
     )
-    expect(await apiWiki.getWikiRevision(ctx, 'old-root', 'r1')).toEqual(
-      await Effect.runPromise(wiki.getWikiRevision(db, 'wa', 'root', 'r1')),
+    await expect(apiWiki.getWikiRevision(ctx, 'old-root', 'r1')).resolves.toEqual(
+      await runTestEffect(wiki.getWikiRevision(db, 'wa', 'root', 'r1')),
     )
     await expect(apiWiki.getWikiPage(ctx, 'foreign')).rejects.toMatchObject({
       message: 'Wiki page not found',
@@ -258,10 +258,10 @@ describe('pure wiki reads', () => {
     await expect(apiWiki.getWikiRevision(ctx, 'root', 'rf')).rejects.toMatchObject({
       message: 'Revision not found',
     })
-    expect(await apiWiki.getWikiRevisionDiff(ctx, 'root', 'r1', { against: 'r2' })).toEqual({
+    await expect(apiWiki.getWikiRevisionDiff(ctx, 'root', 'r1', { against: 'r2' })).resolves.toEqual({
+      diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Before\n+After',
       from: 'r1',
       to: 'r2',
-      diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Before\n+After',
     })
   })
 
@@ -277,10 +277,10 @@ describe('pure wiki reads', () => {
     sqlite.exec(
       "CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags); INSERT INTO wiki_fts(page_id,workspace_id,title,content,tags) SELECT id,workspace_id,title,'needle',tags FROM wiki_pages;",
     )
-    expect(await apiWiki.searchWiki(ctx, { query: 'needle' })).toEqual([
+    await expect(apiWiki.searchWiki(ctx, { query: 'needle' })).resolves.toEqual([
       expect.objectContaining({ id: 'root', tags: ['ops'], owners: ['u'], freshness: null }),
     ])
-    expect(await apiWiki.listStaleWikiPages(ctx, {})).toEqual([])
+    await expect(apiWiki.listStaleWikiPages(ctx, {})).resolves.toEqual([])
   })
 
   test('keeps bounded unified diff behavior for unchanged content, contextual hunks and huge pages', () => {

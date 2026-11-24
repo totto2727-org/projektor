@@ -8,6 +8,7 @@ import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { discardWikiDraft, saveWikiDraft } from '#commands/wiki-drafts.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
@@ -93,10 +94,8 @@ async function fixture(currentScope: RequestScope = scope) {
 	`)
   const calls = vi.spyOn(globalThis, 'fetch')
   const request = new Request('https://app.test/wiki/guide')
-  const services = await Effect.runPromise(
-    makeRequestServices(request, testEnvironment(database.db, 'alice@example.test')),
-  )
-  const authenticated = await Effect.runPromise(services.scope({ workspaceHint: 'team' }))
+  const services = await runTestEffect(makeRequestServices(request, testEnvironment(database.db, 'alice@example.test')))
+  const authenticated = await runTestEffect(services.scope({ workspaceHint: 'team' }))
   expect(authenticated.user.id).toBe(currentScope.user.id)
   const effect = (path = 'https://app.test/wiki/guide', params = { slug: 'guide' }) =>
     renderWiki(currentScope, new URL(path), params).pipe(Effect.provideService(RequestServices, services))
@@ -106,7 +105,7 @@ async function fixture(currentScope: RequestScope = scope) {
 describe('Wiki direct request-owned queries', () => {
   test('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
     const test = await fixture()
-    const reopen = async () => initialData(await Effect.runPromise(test.effect('https://app.test/wiki/guide/edit')))
+    const reopen = async () => initialData(await runTestEffect(test.effect('https://app.test/wiki/guide/edit')))
     const initial = await reopen()
     expect(initial.draftRevision).toBeNull()
     expect(initial.draft).toMatchObject({ content: 'Personal body' })
@@ -130,24 +129,24 @@ describe('Wiki direct request-owned queries', () => {
     })
     const fresh = await reopen()
     expect(fresh.draftRevision).toBe(saved.revision)
-    expect(fresh.draft).toMatchObject({ title: 'Fresh edit', content: 'B' })
+    expect(fresh.draft).toMatchObject({ content: 'B', title: 'Fresh edit' })
   })
 
   test('is lazy, preserves real SSR HTML and ToC, tree shaping, revision pointer and user-only draft without wiki HTTP', async () => {
     const test = await fixture()
     const effect = test.effect('https://app.test/wiki/guide?workspace=team&slug=untrusted-hint')
     expect(test.calls).not.toHaveBeenCalled()
-    const rendered = await Effect.runPromise(effect)
+    const rendered = await runTestEffect(effect)
     const initial = initialData(rendered)
     expect(initial.page).toMatchObject({
-      id: 'page',
-      revisionId: 'rev-new',
-      project_id: null,
       freshness: null,
+      id: 'page',
+      project_id: null,
+      revisionId: 'rev-new',
     })
-    expect(initial.draft).toMatchObject({ title: 'My draft', content: 'Personal body' })
+    expect(initial.draft).toMatchObject({ content: 'Personal body', title: 'My draft' })
     expect(initial.attachments).toEqual([
-      { id: 'attachment', filename: 'guide.txt', contentType: 'text/plain', size: 4, createdAt: 1 },
+      { contentType: 'text/plain', createdAt: 1, filename: 'guide.txt', id: 'attachment', size: 4 },
     ])
     expect(initial.tree.find((node) => node.id === 'page')?.children.map((node) => node.id)).toEqual(['child'])
     expect(initial.tree.map((node) => node.id)).not.toContain('hidden-page')
@@ -167,7 +166,7 @@ describe('Wiki direct request-owned queries', () => {
         .run(role, 'workspace', 'user')
       test.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'")
       const initial = initialData(
-        await Effect.runPromise(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
+        await runTestEffect(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
       )
       expect(initial.page).toMatchObject({ id: 'visible-page', project_id: 'allowed' })
     },
@@ -177,14 +176,14 @@ describe('Wiki direct request-owned queries', () => {
     const test = await fixture()
     test.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'; DELETE FROM group_project_grants")
     await expect(
-      Effect.runPromise(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
+      runTestEffect(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
     ).rejects.toMatchObject({ status: 404 })
   })
 
   test('disables autosave after an actual optional draft query failure', async () => {
     const test = await fixture()
     test.sqlite.exec('DROP TABLE wiki_drafts')
-    const rendered = await Effect.runPromise(test.effect('https://app.test/wiki/guide/edit'))
+    const rendered = await runTestEffect(test.effect('https://app.test/wiki/guide/edit'))
     const initial = initialData(rendered)
     expect(initial.draftStatus).toBe('failed')
     expect(initial.page?.content).toContain('server')
@@ -193,26 +192,26 @@ describe('Wiki direct request-owned queries', () => {
   test('rejects a fetched project page outside the authorized catalog before loading lookup data', async () => {
     const test = await fixture()
     await expect(
-      Effect.runPromise(test.effect('https://app.test/wiki/hidden-guide', { slug: 'hidden-guide' })),
+      runTestEffect(test.effect('https://app.test/wiki/hidden-guide', { slug: 'hidden-guide' })),
     ).rejects.toMatchObject({ status: 404 })
     expect(test.calls).not.toHaveBeenCalled()
   })
 
   test('applies the existing FTS and browse visibility policy with workspace pages and computed freshness', async () => {
     const test = await fixture()
-    const rendered = await Effect.runPromise(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
+    const rendered = await runTestEffect(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
     const initial = initialData(rendered)
     expect(initial.searchResults.map((page) => page.id).sort()).toEqual(['child', 'page', 'visible-page'])
     expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toEqual({
-      state: 'stale',
       staleSince: 86_401,
+      state: 'stale',
     })
     expect(initial.stalePages.map((page) => page.id)).toEqual(['visible-page'])
   })
 
   test('retains explicit project scope plus workspace pages and validates bounded filters', async () => {
     const test = await fixture({ ...scope, selection: { kind: 'project', workspace, project } })
-    const rendered = await Effect.runPromise(
+    const rendered = await runTestEffect(
       test.effect('https://app.test/wiki?type=guide&tags=docs&q=Guide', { slug: '' }),
     )
     const initial = initialData(rendered)
@@ -220,10 +219,10 @@ describe('Wiki direct request-owned queries', () => {
     expect(initial.filteredPages.map((page) => page.id)).toEqual(['page'])
     expect(initial.searchResults.map((page) => page.id)).toEqual(['page'])
     await expect(
-      Effect.runPromise(test.effect('https://app.test/wiki?status=invalid', { slug: '' })),
+      runTestEffect(test.effect('https://app.test/wiki?status=invalid', { slug: '' })),
     ).rejects.toMatchObject({ status: 400 })
     await expect(
-      Effect.runPromise(
+      runTestEffect(
         test.effect(`https://app.test/wiki?tags=${Array.from({ length: 51 }, (_, i) => `tag${i}`).join(',')}`, {
           slug: '',
         }),
@@ -236,7 +235,7 @@ describe('Wiki direct request-owned queries', () => {
       ...scope,
       selection: { kind: 'selection-required', target: 'workspace', reason: 'ambiguous' },
     })
-    const html = renderToStaticMarkup(await Effect.runPromise(test.effect()))
+    const html = renderToStaticMarkup(await runTestEffect(test.effect()))
     expect(html).toContain('Choose a workspace')
     expect(test.calls).not.toHaveBeenCalled()
   })

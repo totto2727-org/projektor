@@ -327,7 +327,7 @@ export default function SprintBannerSection({
   const [sprintEditSaving, setSprintEditSaving] = useState(false)
   const [sprintEditError, setSprintEditError] = useState<string | null>(null)
 
-  function openSprintEdit() {
+  function openSprintEdit(): void {
     if (!sprintDetail) {
       return
     }
@@ -340,7 +340,7 @@ export default function SprintBannerSection({
     setSprintEditing(true)
   }
 
-  async function saveSprintEdit(event: import('react').FormEvent<HTMLFormElement>) {
+  async function saveSprintEdit(event: import('react').FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     if (!sprintDetail) {
       return

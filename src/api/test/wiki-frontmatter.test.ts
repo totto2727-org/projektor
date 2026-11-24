@@ -10,14 +10,14 @@ import {
 describe('parseWikiFrontmatter (PROJ-488)', () => {
   test('returns empty meta for content with no frontmatter block', () => {
     expect(parseWikiFrontmatter('# Just a heading\n\nbody text')).toEqual({
-      type: null,
-      tags: [],
+      isTemplate: false,
+      owners: [],
       status: null,
+      tags: [],
+      type: null,
       verifiedAt: null,
       verifiedBy: null,
-      owners: [],
       verifyInterval: null,
-      isTemplate: false,
     })
   })
 
@@ -41,14 +41,14 @@ describe('parseWikiFrontmatter (PROJ-488)', () => {
     ].join('\n')
 
     expect(parseWikiFrontmatter(content)).toEqual({
-      type: 'runbook',
-      tags: ['ops', 'oncall'],
+      isTemplate: true,
+      owners: ['alice'],
       status: 'current',
+      tags: ['ops', 'oncall'],
+      type: 'runbook',
       verifiedAt: null,
       verifiedBy: null,
-      owners: ['alice'],
       verifyInterval: 30,
-      isTemplate: true,
     })
   })
 

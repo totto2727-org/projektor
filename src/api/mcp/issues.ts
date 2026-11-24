@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import {
   createIssue,
   deleteIssue,
@@ -174,7 +176,7 @@ export const issuesTools: MCPTool[] = [
       const page = toPage(
         raw.map((i) => shapeIssue(withBodyPreview(i, bodyChars), shape)),
         result.nextCursor,
-        result.total === undefined ? {} : { total: result.total },
+        Predicate.isNullish(result.total) ? {} : { total: result.total },
       )
       return capPage(page, {
         // oxlint-disable-next-line @typescript-eslint/restrict-template-expressions -- Preserve raw-row cursor coercion and the existing MCP cursor protocol.
@@ -206,12 +208,12 @@ export const issuesTools: MCPTool[] = [
       const { cursor, ...rest } = shapeRest as { cursor?: string } & Record<string, unknown>
       const issue = (await getIssue(ctx, rest)) as Record<string, unknown>
       const shaped = shapeIssue(issue, shape)
-      if (typeof shaped.body !== 'string') {
+      if (!Predicate.isString(shaped.body)) {
         return shaped
       }
       // PROJ-892: a long body is windowed; \`next\` continues it.
       const w = windowText(shaped.body, { max: ISSUE_BODY_MAX_CHARS, cursor })
-      if (!w.next && cursor === undefined) {
+      if (!w.next && Predicate.isNullish(cursor)) {
         return shaped
       }
       return {
@@ -355,7 +357,7 @@ export const issuesTools: MCPTool[] = [
     annotations: IDEMPOTENT_WRITE,
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return updateIssue(ctx, id, fields)
@@ -394,7 +396,7 @@ export const issuesTools: MCPTool[] = [
     annotations: DESTRUCTIVE,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
+      if (!id || !Predicate.isString(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return deleteIssue(ctx, id)

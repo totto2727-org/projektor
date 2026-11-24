@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { ValidationError } from '#contracts/errors.ts'
 
 /*
@@ -31,7 +33,7 @@ export type TextWindow = { text: string; totalChars: number; next?: string }
  */
 export function windowText(text: string, opts: { max: number; cursor?: string }): TextWindow {
   let start = 0
-  if (opts.cursor !== undefined) {
+  if (Predicate.isNotNullish(opts.cursor)) {
     start = Number(opts.cursor)
     if (!Number.isInteger(start) || start < 0 || start > text.length) {
       throw new ValidationError({ formErrors: [], fieldErrors: { cursor: ['invalid cursor'] } })
@@ -76,7 +78,7 @@ const headings = function headings(content: string): Heading[] {
     }
     const fenceMatch = /^\s*(```|~~~)/.exec(line)
     if (fenceMatch) {
-      if (fence === null) {
+      if (Predicate.isNullish(fence)) {
         fence = fenceMatch[1]
       } else if (fenceMatch[1] === fence) {
         fence = null
@@ -128,7 +130,7 @@ export function sectionOf(content: string, name: string): string | undefined {
 
 /** `bodyChars` on lists: a prefix of the body, flagged when it was cut. */
 export function bodyPreview(body: unknown, chars: number): { body: string; bodyTruncated?: true } {
-  const text = typeof body === 'string' ? body : ''
+  const text = Predicate.isString(body) ? body : ''
   if (text.length <= chars) {
     return { body: text }
   }

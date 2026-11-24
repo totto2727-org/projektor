@@ -219,8 +219,8 @@ describe('Issues API', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -1075,7 +1075,7 @@ describe('Issues API', () => {
    * window, so set up state via env.DB and assert via env.DB where possible —
    * DB access bypasses both the rate limiter and the getIssue KV cache.
    */
-  const patch = async function patch(id: string, body: Record<string, unknown>) {
+  const patch = async function patch(id: string, body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -1094,7 +1094,7 @@ describe('Issues API', () => {
     // 3 API requests (DB seed + 3 patch), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Will complete' })
     const id = issue.id
-    expect(await completedAtOf(id)).toBeNull()
+    await expect(completedAtOf(id)).resolves.toBeNull()
 
     await patch(id, {
       status: 'done',
@@ -1105,11 +1105,11 @@ describe('Issues API', () => {
 
     // Re-saving while still done keeps the original completion time.
     await patch(id, { priority: 'high' })
-    expect(await completedAtOf(id)).toBe(completed)
+    await expect(completedAtOf(id)).resolves.toBe(completed)
 
     // Leaving done clears it.
     await patch(id, { status: 'in_progress' })
-    expect(await completedAtOf(id)).toBeNull()
+    await expect(completedAtOf(id)).resolves.toBeNull()
   })
 
   test('filters by completedAfter / completedBefore (PROJ-212)', async () => {
@@ -1163,7 +1163,7 @@ describe('Issues API', () => {
     // 4 API requests (seed + 4 patches), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Flows through' })
     const id = issue.id
-    expect(await flowTimestampsOf(id)).toEqual({ ready_at: null, claimed_at: null, done_at: null })
+    await expect(flowTimestampsOf(id)).resolves.toEqual({ claimed_at: null, done_at: null, ready_at: null })
 
     await patch(id, { status: 'todo' })
     const afterReady = await flowTimestampsOf(id)
@@ -1217,7 +1217,7 @@ describe('Issues API', () => {
     const id = issue.id
 
     await patch(id, { status: 'in_progress' })
-    expect(await reviewFieldsOf(id)).toEqual({ in_review_at: null, review_bounce_count: 0 })
+    await expect(reviewFieldsOf(id)).resolves.toEqual({ in_review_at: null, review_bounce_count: 0 })
 
     await patch(id, { status: 'in_review' })
     const afterReview = await reviewFieldsOf(id)
@@ -1262,7 +1262,7 @@ describe('Issues API', () => {
     await patch(rejected.id, { status: 'in_progress' })
     await patch(rejected.id, { status: 'in_review' })
     await patch(rejected.id, { status: 'in_progress' })
-    expect(await gateRejectionCountOf(rejected.id)).toBe(1)
+    await expect(gateRejectionCountOf(rejected.id)).resolves.toBe(1)
     // review_bounce_count still counts it (PROJ-328's aggregate is unchanged).
     expect((await reviewFieldsOf(rejected.id)).review_bounce_count).toBe(1)
   })
@@ -1276,7 +1276,7 @@ describe('Issues API', () => {
      * Not a gate rejection — the issue was cancelled, not sent back for rework —
      * even though the aggregate reviewBounceCount still increments for it.
      */
-    expect(await gateRejectionCountOf(killed.id)).toBe(0)
+    await expect(gateRejectionCountOf(killed.id)).resolves.toBe(0)
     expect((await reviewFieldsOf(killed.id)).review_bounce_count).toBe(1)
   })
 })
@@ -1903,8 +1903,8 @@ describe('Issues role guards', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(403)
   })
@@ -1921,8 +1921,8 @@ describe('Issues role guards', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
   })
@@ -2677,10 +2677,10 @@ describe('PROJ-931 — compact MCP responses', () => {
     const parentRes = await mcpCall({ name: 'get_issue', arguments: { id: parent.id } })
     const parentIssue = JSON.parse(parentRes.result!.content[0].text) as Record<string, unknown>
     expect(parentIssue.rollup).toEqual({
-      total: 2,
       byStatus: { backlog: 2 },
       done: 0,
       remaining: 2,
+      total: 2,
     })
 
     const childRes = await mcpCall({ name: 'get_issue', arguments: { id: childId } })
@@ -2783,7 +2783,10 @@ describe('PROJ-931 — compact MCP responses', () => {
 
   test('verbose/fields wrong types are rejected with a validation tool error before reaching the service', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Bad opts' })
-    const errorCode = (res: unknown) => toolError(res)?.code
+    const errorCode = (
+      res: unknown,
+    ): undefined | 'validation' | 'not_found' | 'forbidden' | 'conflict' | 'payload_too_large' | 'rate_limited' =>
+      toolError(res)?.code
 
     const badVerbose = await mcpCall({ name: 'get_issue', arguments: { id, verbose: 'yes' } })
     expect(errorCode(badVerbose)).toBe('validation')
@@ -2840,7 +2843,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(afterBytes).toBeLessThan(JSON.stringify(fullIssue).length * 0.8)
   })
 
-  const projectKey = async function projectKey() {
+  const projectKey = async function projectKey(): Promise<string> {
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
     return row!.key
   }

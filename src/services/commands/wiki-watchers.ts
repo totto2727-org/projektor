@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -99,7 +100,7 @@ const resolveWatchTarget = async function resolveWatchTarget(
     throw new NotFoundError('Wiki page not found')
   }
 
-  if (page.projectId !== null) {
+  if (Predicate.isNotNullish(page.projectId)) {
     await assertProjectAccess(ctx, page.projectId, 'read', {
       notFoundMessage: 'Wiki page not found',
       projectLoadedFromWorkspaceRow: true,
@@ -403,7 +404,7 @@ export async function notifyCascadeDescendantWatchers(
         action,
       }
     })
-    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .filter((e): e is NonNullable<typeof e> => Predicate.isNotNullish(e))
 
   await insertNotifications(ctx, orm, entries)
 }
@@ -552,15 +553,15 @@ const extractDeletedPageInfo = function extractDeletedPageInfo(rawDiff: string |
     }
   }
   return {
-    slug: typeof diff.slug === 'string' ? diff.slug : null,
-    title: typeof diff.title === 'string' ? diff.title : null,
-    projectId: typeof diff.projectId === 'string' ? diff.projectId : null,
+    slug: Predicate.isString(diff.slug) ? diff.slug : null,
+    title: Predicate.isString(diff.title) ? diff.title : null,
+    projectId: Predicate.isString(diff.projectId) ? diff.projectId : null,
     /*
      * PROJ-526: only present on a cascade root's diff (services/wiki.ts#deleteWikiPage);
      * includes the root's own id — see WikiChangeEvent's doc for the full contract.
      */
     deletedPageIds: Array.isArray(diff.deletedPageIds)
-      ? diff.deletedPageIds.filter((id): id is string => typeof id === 'string')
+      ? diff.deletedPageIds.filter((id): id is string => Predicate.isString(id))
       : null,
     deletedPageIdsTruncated: diff.deletedPageIdsTruncated === true,
   }
@@ -625,7 +626,7 @@ const isEventVisible = async function isEventVisible(
   if (projectId) {
     return eventProjectId === projectId
   }
-  if (eventProjectId === null) {
+  if (Predicate.isNullish(eventProjectId)) {
     return true
   }
   return canSeeProject(eventProjectId)
@@ -641,7 +642,7 @@ const toWikiChangeEvent = async function toWikiChangeEvent(
   canSeeProject: (id: string) => Promise<boolean>,
 ): Promise<WikiChangeEvent | null> {
   const action = r.action as 'created' | 'updated' | 'deleted'
-  if (action !== 'deleted' && r.pageDeletedAt !== null && r.pageDeletedAt !== undefined) {
+  if (action !== 'deleted' && Predicate.isNotNullish(r.pageDeletedAt) && Predicate.isNotNullish(r.pageDeletedAt)) {
     return null
   }
 
@@ -709,7 +710,7 @@ const matchSubtreeWatches = async function matchSubtreeWatches(
     const parentOf = new Map(rows.map((r) => [r.id, r.parentId]))
     for (const [candidate, cur] of pending) {
       const parent = parentOf.get(cur) ?? null
-      if (parent === null) {
+      if (Predicate.isNullish(parent)) {
         pending.delete(candidate)
       } else if (subtreeRootIds.has(parent)) {
         matched.add(candidate)
@@ -842,7 +843,7 @@ export async function listWikiChanges(
   const roleCache = new Map<string, boolean>()
   const canSeeProject = async (id: string): Promise<boolean> => {
     const cached = roleCache.get(id)
-    if (cached !== undefined) {
+    if (Predicate.isNotNullish(cached)) {
       return cached
     }
     const visible = await hasProjectAccess(ctx, id)

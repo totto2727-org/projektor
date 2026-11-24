@@ -18,7 +18,7 @@ vi.mock('../../effront', () => ({
   EFFRONT: {
     ServerFn: {
       make: (definition: Definition) => {
-        const callable = () => Promise.reject(new Error('Use the maintained action test boundary.'))
+        const callable = (): Promise<never> => Promise.reject(new Error('Use the maintained action test boundary.'))
         definitions.set(callable, definition)
         return callable
       },
@@ -102,8 +102,8 @@ export function actionFixture(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(
           new Request('https://front.example/_effront/functions', {
-            method: 'POST',
             headers: { origin },
+            method: 'POST',
           }),
           env,
         )

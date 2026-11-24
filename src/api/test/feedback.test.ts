@@ -111,14 +111,14 @@ describe('Feedback sources REST', () => {
     const { id } = (await create.json()) as { id: string }
 
     const memberRes = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
+      method: 'DELETE',
     })
     expect(memberRes.status).toBe(403)
 
     const ownerRes = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
+      method: 'DELETE',
     })
     expect(ownerRes.status).toBe(200)
     const row = await env.DB.prepare('SELECT revoked_at FROM feedback_sources WHERE id = ?')
@@ -196,9 +196,9 @@ describe('Feedback submit (public)', () => {
 
   test('rejects an unknown token with 401', async () => {
     const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer nope', 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x' }),
+      headers: { Authorization: 'Bearer nope', 'Content-Type': 'application/json' },
+      method: 'POST',
     })
     expect(res.status).toBe(401)
   })
@@ -211,8 +211,8 @@ describe('Feedback submit (public)', () => {
     })
     const [{ id }] = (await list.json()) as { id: string }[]
     await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(f.token, f.slug),
+      method: 'DELETE',
     })
     const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
@@ -627,8 +627,8 @@ describe('Feedback convert-to-issue', () => {
     })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`, {
-      method: 'POST',
       headers: authHeaders(f.token, f.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const issue = (await res.json()) as { id: string }
@@ -657,8 +657,8 @@ describe('Feedback convert-to-issue', () => {
     const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
-      method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -679,8 +679,8 @@ describe('Feedback convert-to-issue', () => {
     const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id, { body: 'Fix this' })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
-      method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
   })
@@ -701,8 +701,8 @@ describe('Feedback convert-to-issue', () => {
       .run()
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/${id}/convert-to-issue`, {
-      method: 'POST',
       headers: authHeaders(f.token, f.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const issue = (await res.json()) as { id: string }
@@ -723,8 +723,8 @@ describe('Feedback convert-to-issue', () => {
     const first = await fetchNativeApi(
       `http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`,
       {
-        method: 'POST',
         headers: authHeaders(f.token, f.slug),
+        method: 'POST',
       },
     )
     expect(first.status).toBe(201)
@@ -732,8 +732,8 @@ describe('Feedback convert-to-issue', () => {
     const second = await fetchNativeApi(
       `http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`,
       {
-        method: 'POST',
         headers: authHeaders(f.token, f.slug),
+        method: 'POST',
       },
     )
     expect(second.status).toBe(409)
@@ -830,8 +830,8 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
   test("rotate via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
     const res = await fetchNativeApi(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}/rotate`, {
-      method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(404)
   })
@@ -839,8 +839,8 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
   test("revoke via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
     const res = await fetchNativeApi(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
-      method: 'DELETE',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(404)
   })
@@ -849,7 +849,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
 describe('PROJ-390: mutating a revoked feedback source', () => {
   const seedRevokedSource = async function seedRevokedSource(
     f: Readonly<{ projectId: string; token: string; slug: string }>,
-  ) {
+  ): Promise<string> {
     const created = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
@@ -857,8 +857,8 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
     })
     const { id } = (await created.json()) as { id: string }
     await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(f.token, f.slug),
+      method: 'DELETE',
     })
     return id
   }
@@ -878,8 +878,8 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}/rotate`, {
-      method: 'POST',
       headers: authHeaders(f.token, f.slug),
+      method: 'POST',
     })
     expect(res.status).toBe(409)
   })
@@ -888,8 +888,8 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
-      method: 'DELETE',
       headers: authHeaders(f.token, f.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
   })

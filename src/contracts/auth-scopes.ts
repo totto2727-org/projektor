@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
 
 /**
@@ -61,7 +62,7 @@ export function parseScopes(raw: string | null | undefined): string[] {
   }
   try {
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : []
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => Predicate.isString(s)) : []
   } catch {
     // Legacy fallback: only an unquoted bracketed list like "[read,write]".
     const m = raw.match(/^\s*\[(.*)\]\s*$/)

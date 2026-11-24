@@ -1,4 +1,6 @@
 'use client'
+import { Predicate } from 'effect'
+
 import { ReviewTargetsSummary } from '@/features/issues/components/ReviewTargetsSummary.tsx'
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
@@ -106,7 +108,7 @@ export default function SearchResultsSection({
       </p>
     )
   }
-  if (searchResults === null) {
+  if (Predicate.isNullish(searchResults)) {
     return null
   }
   if (searchResults.length === 0) {

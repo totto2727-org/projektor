@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { z } from 'zod'
 
@@ -116,7 +116,7 @@ function jwtClaimsValid(
     return false
   }
   const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
-  return audiences.includes(audience) && payload.iss === issuer && typeof payload.email === 'string'
+  return audiences.includes(audience) && payload.iss === issuer && Predicate.isString(payload.email)
 }
 /** Injectable keys preserve the API's native regression verifier contract. */
 export async function verifyJwtPayload(

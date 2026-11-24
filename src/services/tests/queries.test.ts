@@ -20,6 +20,7 @@ import {
   listWorkspaceTokenMetadata,
   readWorkspaceBrand,
 } from '#services'
+import { runTestEffect } from '#tests/run-effect.ts'
 
 /** Read-only D1 transport over the real migrated schema. Not a Worker emulator. */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
@@ -63,28 +64,28 @@ describe('project/workspace pure queries', () => {
   afterEach(() => sqlite.close())
 
   test('retains camelCase project rows, ordering, archive opt-in and app-supplied visibility', async () => {
-    const projects = await Effect.runPromise(listProjects(db, 'wa'))
+    const projects = await runTestEffect(listProjects(db, 'wa'))
     expect(projects.map((project) => project.id)).toEqual(['p3', 'p1'])
     expect(projects[1]).toEqual({
-      id: 'p1',
-      workspaceId: 'wa',
-      name: 'Zeta',
-      key: 'SAME',
-      description: null,
-      createdAt: 100,
-      updatedAt: 101,
       agentWipLimit: null,
-      slug: 'same',
       archivedAt: null,
+      createdAt: 100,
+      description: null,
+      id: 'p1',
+      key: 'SAME',
+      name: 'Zeta',
+      slug: 'same',
+      updatedAt: 101,
+      workspaceId: 'wa',
     })
-    expect((await Effect.runPromise(listProjects(db, 'wa', { includeArchived: true }))).map((p) => p.id)).toEqual([
+    expect((await runTestEffect(listProjects(db, 'wa', { includeArchived: true }))).map((p) => p.id)).toEqual([
       'p2',
       'p3',
       'p1',
     ])
     expect(
       (
-        await Effect.runPromise(
+        await runTestEffect(
           listProjects(db, 'wa', {
             visibility: eq(schema.projects.id, 'p1'),
           }),
@@ -94,17 +95,17 @@ describe('project/workspace pure queries', () => {
   })
 
   test('scopes id, slug and key lookups to the explicit workspace and retains missing results', async () => {
-    expect(await Effect.runPromise(findProjectById(db, 'wa', 'p4'))).toBeUndefined()
-    expect(await Effect.runPromise(findProjectById(db, 'wa', 'p1'))).toMatchObject({ id: 'p1' })
-    expect(await Effect.runPromise(findProjectBySlug(db, 'wa', 'same'))).toMatchObject({
+    await expect(runTestEffect(findProjectById(db, 'wa', 'p4'))).resolves.toBeUndefined()
+    await expect(runTestEffect(findProjectById(db, 'wa', 'p1'))).resolves.toMatchObject({ id: 'p1' })
+    await expect(runTestEffect(findProjectBySlug(db, 'wa', 'same'))).resolves.toMatchObject({
       id: 'p1',
     })
-    expect(await Effect.runPromise(findProjectBySlug(db, 'wb', 'same'))).toMatchObject({
+    await expect(runTestEffect(findProjectBySlug(db, 'wb', 'same'))).resolves.toMatchObject({
       id: 'p4',
     })
-    expect(await Effect.runPromise(findProjectIdByKey(db, 'wa', 'SAME'))).toEqual({ id: 'p1' })
-    expect(await Effect.runPromise(findProjectIdByKey(db, 'wb', 'SAME'))).toEqual({ id: 'p4' })
-    expect(await Effect.runPromise(findProjectIdByKey(db, 'wa', 'MISSING'))).toBeUndefined()
+    await expect(runTestEffect(findProjectIdByKey(db, 'wa', 'SAME'))).resolves.toEqual({ id: 'p1' })
+    await expect(runTestEffect(findProjectIdByKey(db, 'wb', 'SAME'))).resolves.toEqual({ id: 'p4' })
+    await expect(runTestEffect(findProjectIdByKey(db, 'wa', 'MISSING'))).resolves.toBeUndefined()
   })
 
   test('retains summary column names, membership join, archive filtering and custom status counts', async () => {
@@ -115,7 +116,7 @@ describe('project/workspace pure queries', () => {
     insert.run('i2', 2, 'custom-done', 'done')
     insert.run('i3', 3, 'custom-working', 'in_progress')
     insert.run('i4', 4, 'cancelled', '')
-    const rows = await Effect.runPromise(
+    const rows = await runTestEffect(
       listProjectSummaries(db, 'u1', {
         sql: 'p.id = ?',
         bindings: ['p1'],
@@ -123,58 +124,60 @@ describe('project/workspace pure queries', () => {
     )
     expect(rows).toEqual([
       {
-        id: 'p1',
-        name: 'Zeta',
-        key: 'SAME',
-        slug: 'same',
-        description: null,
         archived_at: null,
+        backlog_issue_count: 1,
         created_at: 100,
+        description: null,
+        id: 'p1',
+        key: 'SAME',
+        name: 'Zeta',
+        open_issue_count: 2,
+        slug: 'same',
         updated_at: 101,
         workspace_id: 'wa',
         workspace_name: 'Alpha workspace',
         workspace_slug: 'alpha',
-        open_issue_count: 2,
-        backlog_issue_count: 1,
       },
     ])
     // Even a permissive caller predicate never drops the membership relation.
     expect(
-      (await Effect.runPromise(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }))).map((p) => p.id),
+      (await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }))).map((p) => p.id),
     ).toEqual(['p3', 'p1'])
     expect(
-      (await Effect.runPromise(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }, true))).map((p) => p.id),
+      (await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }, true))).map((p) => p.id),
     ).toEqual(['p2', 'p3', 'p1'])
-    expect(await Effect.runPromise(listProjectSummaries(db, 'unknown', { sql: '1 = 1', bindings: [] }))).toEqual([])
+    await expect(runTestEffect(listProjectSummaries(db, 'unknown', { sql: '1 = 1', bindings: [] }))).resolves.toEqual(
+      [],
+    )
   })
 
   test('loads workspace/membership relations without authorizing roles or selecting an implicit tenant', async () => {
-    expect(await Effect.runPromise(listWorkspaces(db, 'u2'))).toEqual([
-      { id: 'wa', name: 'Alpha workspace', slug: 'alpha', createdAt: 10, role: 'viewer' },
-      { id: 'wb', name: 'Beta workspace', slug: 'beta', createdAt: 20, role: 'member' },
+    await expect(runTestEffect(listWorkspaces(db, 'u2'))).resolves.toEqual([
+      { createdAt: 10, id: 'wa', name: 'Alpha workspace', role: 'viewer', slug: 'alpha' },
+      { createdAt: 20, id: 'wb', name: 'Beta workspace', role: 'member', slug: 'beta' },
     ])
-    expect(await Effect.runPromise(listWorkspaces(db, 'unknown'))).toEqual([])
-    expect(await Effect.runPromise(findWorkspaceBySlug(db, 'alpha'))).toMatchObject({
+    await expect(runTestEffect(listWorkspaces(db, 'unknown'))).resolves.toEqual([])
+    await expect(runTestEffect(findWorkspaceBySlug(db, 'alpha'))).resolves.toMatchObject({
       id: 'wa',
       slug: 'alpha',
     })
-    expect(await Effect.runPromise(findWorkspaceBySlug(db, 'unknown'))).toBeUndefined()
-    expect(await Effect.runPromise(findWorkspaceMembership(db, 'wa', 'u2'))).toEqual({
-      workspaceId: 'wa',
-      userId: 'u2',
-      role: 'viewer',
+    await expect(runTestEffect(findWorkspaceBySlug(db, 'unknown'))).resolves.toBeUndefined()
+    await expect(runTestEffect(findWorkspaceMembership(db, 'wa', 'u2'))).resolves.toEqual({
       joinedAt: 10,
+      role: 'viewer',
+      userId: 'u2',
+      workspaceId: 'wa',
     })
-    expect(await Effect.runPromise(findWorkspaceMembership(db, 'wb', 'u1'))).toBeUndefined()
-    expect((await Effect.runPromise(listWorkspaceMembers(db, 'wa'))).map((member) => member.id)).toEqual(['u2', 'u1'])
+    await expect(runTestEffect(findWorkspaceMembership(db, 'wb', 'u1'))).resolves.toBeUndefined()
+    expect((await runTestEffect(listWorkspaceMembers(db, 'wa'))).map((member) => member.id)).toEqual(['u2', 'u1'])
   })
 
   test('decodes stored brand JSON but does not synthesize API URLs', async () => {
-    expect(await Effect.runPromise(readWorkspaceBrand(db, 'wa'))).toEqual({
+    await expect(runTestEffect(readWorkspaceBrand(db, 'wa'))).resolves.toEqual({
       accent: '#abcdef',
       logoR2Key: 'wa/brand-logo/x',
     })
-    expect(await Effect.runPromise(readWorkspaceBrand(db, 'missing'))).toEqual({})
+    await expect(runTestEffect(readWorkspaceBrand(db, 'missing'))).resolves.toEqual({})
   })
 
   test('returns only scoped token metadata with decoded scopes and existing descending order', async () => {
@@ -182,22 +185,22 @@ describe('project/workspace pure queries', () => {
 		 ('t1','wa','u1','First','secret1','["read"]',10),
 		 ('t2','wa','u1','Second','secret2','["write"]',20),
 		 ('t3','wb','u2','Other','secret3','["read"]',30);`)
-    expect(await Effect.runPromise(listWorkspaceTokenMetadata(db, 'wa'))).toEqual([
+    await expect(runTestEffect(listWorkspaceTokenMetadata(db, 'wa'))).resolves.toEqual([
       {
+        createdAt: 20,
+        expiresAt: null,
         id: 't2',
+        lastUsedAt: null,
         name: 'Second',
         scopes: ['write'],
-        createdAt: 20,
-        lastUsedAt: null,
-        expiresAt: null,
       },
       {
+        createdAt: 10,
+        expiresAt: null,
         id: 't1',
+        lastUsedAt: null,
         name: 'First',
         scopes: ['read'],
-        createdAt: 10,
-        lastUsedAt: null,
-        expiresAt: null,
       },
     ])
   })
@@ -213,7 +216,7 @@ describe('project/workspace pure queries', () => {
     } as unknown as D1Database
     const query = listProjects(broken, 'wa')
     expect(calls).toBe(0)
-    const failure = await Effect.runPromise(
+    const failure = await runTestEffect(
       query.pipe(
         Effect.match({
           onSuccess: () => undefined,

@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
@@ -62,7 +63,7 @@ const requireSpaceVisible = async function requireSpaceVisible(
   ctx: ServiceCtx,
   projectId: string | null,
 ): Promise<void> {
-  if (projectId === null) {
+  if (Predicate.isNullish(projectId)) {
     return
   }
   await assertProjectAccess(ctx, projectId, 'read', { notFoundMessage: 'Project not found' })
@@ -293,7 +294,7 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       let streamErrored = false
-      const failStream = (err: unknown) => {
+      const failStream = (err: unknown): void => {
         if (streamErrored) {
           return
         }

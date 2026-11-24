@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
@@ -60,13 +61,11 @@ async function fixture(currentScope = scope) {
 	`)
   const execute = vi.spyOn(globalThis, 'fetch')
   const request = new Request('https://app.test/feedback')
-  const services = await Effect.runPromise(
-    makeRequestServices(request, testEnvironment(database.db, 'alice@example.test')),
-  )
-  const authenticated = await Effect.runPromise(services.scope({ workspaceHint: 'team' }))
+  const services = await runTestEffect(makeRequestServices(request, testEnvironment(database.db, 'alice@example.test')))
+  const authenticated = await runTestEffect(services.scope({ workspaceHint: 'team' }))
   expect(authenticated.user.id).toBe(currentScope.user.id)
   function run<T, E>(effect: Effect.Effect<T, E, RequestServices>) {
-    return Effect.runPromise(effect.pipe(Effect.provideService(RequestServices, services)))
+    return runTestEffect(effect.pipe(Effect.provideService(RequestServices, services)))
   }
   return { ...database, execute, run }
 }
@@ -102,7 +101,7 @@ describe('feedback request-local database SSR', () => {
     expect(node.props.initialSummary).toMatchObject({
       totalCount: 2,
       versions: [
-        { appVersion: 'v2', thumbsUpPct: 100, avgFiveStar: null },
+        { appVersion: 'v2', avgFiveStar: null, thumbsUpPct: 100 },
         { appVersion: 'v1', avgFiveStar: 5, thumbsUpPct: null },
       ],
     })
@@ -168,8 +167,8 @@ describe('feedback request-local database SSR', () => {
     )
     expect(result).toMatchObject({
       _tag: 'ApiError',
-      status: 500,
       message: 'An unexpected error occurred.',
+      status: 500,
     })
     expect(JSON.stringify(result)).not.toContain('private invalid JSON')
   })

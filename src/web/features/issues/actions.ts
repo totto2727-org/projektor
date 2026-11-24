@@ -39,12 +39,12 @@ const authorizedIssue = function authorizedIssue(context: FunctionContext, issue
 
 function dataWorkspaceId(context: FunctionContext) {
   return Effect.try({
+    catch: () => new ScopeError(403, 'Selected workspace is not accessible.'),
     try: () =>
       requireDataWorkspace(
         context.scope,
         context.scope.workspaces.find((workspace) => workspace.slug === context.workspaceSlug)?.id,
       ).id,
-    catch: () => new ScopeError(403, 'Selected workspace is not accessible.'),
   })
 }
 

@@ -108,7 +108,9 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
       }
       const res = await fetchNativeApi('http://localhost/api/task-types', { headers })
       expect(res.status).toBe(400)
-      expect(await res.json()).toMatchObject({ error: 'Workspace not specified: missing X-Workspace-Slug header' })
+      await expect(res.json()).resolves.toMatchObject({
+        error: 'Workspace not specified: missing X-Workspace-Slug header',
+      })
 
       /*
        * Observe the routing adapter's diagnostic locally while resolution still

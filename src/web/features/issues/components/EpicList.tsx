@@ -1,5 +1,5 @@
 'use client'
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/Button.tsx'
@@ -142,7 +142,7 @@ function useCreateEpicForm(projectId: string | null, projects: Readonly<ProjectM
   }, [result])
   useUnsavedUnloadGuard(showCreate && Boolean(createTitle.trim()))
 
-  function openCreate() {
+  function openCreate(): void {
     setCreateProjectId(defaultCreateProjectId(projectId, projects))
     setCreateTitle('')
     setCreatePriority('medium')
@@ -160,7 +160,7 @@ function useCreateEpicForm(projectId: string | null, projects: Readonly<ProjectM
     createPriority,
     setCreatePriority,
     submitting,
-    createValid: createForm.isValid && epicTypeId !== null,
+    createValid: createForm.isValid && Predicate.isNotNullish(epicTypeId),
     createError,
     openCreate,
     submitCreate,
@@ -212,7 +212,7 @@ export default function EpicList({
     submitCreate,
   } = useCreateEpicForm(projectId, projects, epicTypeId)
 
-  function toggleSort(key: SortKey) {
+  function toggleSort(key: SortKey): void {
     if (sortBy === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {

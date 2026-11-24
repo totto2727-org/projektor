@@ -8,6 +8,7 @@ import type { CoreActor } from '#core/authorization.ts'
 import { decodeCoreReply } from '#core/client.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 import { makeApiIdentityHandlers } from './identity-operations.ts'
@@ -54,7 +55,7 @@ const reply = function reply<S extends Schema.Top & { readonly DecodingServices:
   schema: S,
   invocation: Effect.Effect<string>,
 ) {
-  return Effect.runPromise(decodeCoreReply(schema, invocation))
+  return runTestEffect(decodeCoreReply(schema, invocation))
 }
 
 describe('API Core authorization and presentation boundaries', () => {
@@ -105,12 +106,12 @@ describe('API Core authorization and presentation boundaries', () => {
 
   test('rechecks live socket membership and credential revocation on every visibility request', async () => {
     const f = await fixture()
-    expect(await reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).toMatchObject({
-      userId: 'u',
+    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).resolves.toMatchObject({
       role: 'owner',
+      userId: 'u',
     })
     f.sqlite.exec("UPDATE workspace_members SET role='viewer' WHERE workspace_id='w'")
-    expect(await reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).toMatchObject({
+    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).resolves.toMatchObject({
       role: 'viewer',
     })
     f.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")

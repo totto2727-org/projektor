@@ -141,8 +141,8 @@ describe('mcp/error-adapter: toMcpError', () => {
     )
     expect(result).toEqual({
       code: -32_000,
-      message: "Heading 'Nope' not found (currentHeadings: Alpha, Beta)",
       data: { currentHeadings: ['Alpha', 'Beta'] },
+      message: "Heading 'Nope' not found (currentHeadings: Alpha, Beta)",
     })
   })
 
@@ -184,8 +184,8 @@ describe('mcp/error-adapter: toMcpError', () => {
     )
     expect(result).toEqual({
       code: -32_000,
-      message: 'Revision conflict (currentRevisionId: rev-2; diff: ...)',
       data: { currentRevisionId: 'rev-2', diff: '...' },
+      message: 'Revision conflict (currentRevisionId: rev-2; diff: ...)',
     })
   })
 

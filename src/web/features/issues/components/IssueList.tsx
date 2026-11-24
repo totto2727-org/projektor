@@ -24,7 +24,7 @@ export default function IssueList({ workspaceSlug, initialData, route }: Props) 
    * cannot change the initial tree or replace primary data after hydration.
    */
   const view = initialData.view
-  const setView = (next: ViewMode) => {
+  const setView = (next: ViewMode): void => {
     const params = new URLSearchParams(route.search)
     params.set('view', next)
     params.delete('cursor')

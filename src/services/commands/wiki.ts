@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -76,7 +76,7 @@ const assertWikiPageVisible = async function assertWikiPageVisible(
   ctx: ServiceCtx,
   projectId: string | null,
 ): Promise<void> {
-  if (projectId === null) {
+  if (Predicate.isNullish(projectId)) {
     return
   }
   // projectId comes from a wiki_pages row already loaded under ctx.workspaceId.
@@ -87,7 +87,7 @@ const assertWikiPageVisible = async function assertWikiPageVisible(
 }
 
 const requireWikiWrite = async function requireWikiWrite(ctx: ServiceCtx, projectId: string | null): Promise<void> {
-  if (projectId === null) {
+  if (Predicate.isNullish(projectId)) {
     if (ctx.role === 'viewer') {
       throw new ForbiddenError('Insufficient permissions')
     }
@@ -448,24 +448,24 @@ const buildWikiPageUpdateSet = function buildWikiPageUpdateSet(
     updatedById,
     version: sql`${schema.wikiPages.version} + 1`,
   }
-  if (fields.title !== undefined) {
+  if (Predicate.isNotNullish(fields.title)) {
     setData.title = fields.title
     setData.titleFold = foldWikiTitle(fields.title) // PROJ-818
   }
-  if (fields.content !== undefined) {
+  if (Predicate.isNotNullish(fields.content)) {
     setData.content = fields.content
   }
   if (fields.parentId !== undefined) {
     setData.parentId = fields.parentId
   }
-  if (fields.slug !== undefined) {
+  if (Predicate.isNotNullish(fields.slug)) {
     setData.slug = fields.slug
   }
   /*
    * PROJ-488: only reparsed (and only overwritten) when content changes — a
    * title/parent/slug-only update leaves the page's existing frontmatter metadata as-is.
    */
-  if (fields.meta !== undefined) {
+  if (Predicate.isNotNullish(fields.meta)) {
     setData.type = fields.meta.type
     setData.tags = fields.meta.tags
     setData.status = fields.meta.status
@@ -493,10 +493,10 @@ const buildWikiPageUpdateDiff = function buildWikiPageUpdateDiff(
   }>,
 ): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
-  if (fields.title !== undefined) {
+  if (Predicate.isNotNullish(fields.title)) {
     diff.title = fields.title
   }
-  if (fields.content !== undefined) {
+  if (Predicate.isNotNullish(fields.content)) {
     diff.contentChanged = true
   }
   return diff
@@ -827,7 +827,7 @@ export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
   const content = templateSlug ? await resolveTemplateContent(ctx, templateSlug) : (parsed.data.content ?? '')
 
   const orm = drizzle(ctx.db, { schema })
-  if (customSlug !== undefined) {
+  if (Predicate.isNotNullish(customSlug)) {
     assertSlugNotIdShaped(customSlug)
   }
   const slug = customSlug ?? deriveSlugFromTitle(title)
@@ -976,7 +976,7 @@ const resolveBaseContent = async function resolveBaseContent(
   baseRevisionId: string | null,
   currentContent: string,
 ): Promise<string> {
-  if (baseRevisionId === null) {
+  if (Predicate.isNullish(baseRevisionId)) {
     const row = await db
       .prepare('SELECT content FROM wiki_revisions WHERE page_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1')
       .bind(pageId)
@@ -1018,7 +1018,7 @@ const assertRevisionBelongsToPage = async function assertRevisionBelongsToPage(
   pageId: string,
   baseRevisionId: string | null,
 ): Promise<void> {
-  if (baseRevisionId === null) {
+  if (Predicate.isNullish(baseRevisionId)) {
     return
   }
   const baseRow = await db
@@ -1181,7 +1181,7 @@ const buildUpdateWikiPageStatements = function buildUpdateWikiPageStatements(
   const { title, content, parentId, slug, summary } = fields
   const statements: D1PreparedStatement[] = []
 
-  if (content !== undefined) {
+  if (Predicate.isNotNullish(content)) {
     /*
      * PROJ-484: title snapshot is the page's title as of THIS revision (i.e. before
      * this update applies any new title) — consistent with content, which snapshots
@@ -1298,13 +1298,13 @@ const buildUpdateWikiPageReindexStatements = async function buildUpdateWikiPageR
 ): Promise<D1PreparedStatement[]> {
   const { title, content, meta } = fields
   const statements: D1PreparedStatement[] = []
-  if (title !== undefined || content !== undefined) {
+  if (Predicate.isNotNullish(title) || Predicate.isNotNullish(content)) {
     const finalTitle = title ?? page.title
     const finalContent = content ?? page.content
-    const tags = meta !== undefined ? meta.tags : await currentPageTags(orm, ctx, page.id)
+    const tags = Predicate.isNotNullish(meta) ? meta.tags : await currentPageTags(orm, ctx, page.id)
     statements.push(...buildFtsReindexStatements(ctx, page.id, finalTitle, finalContent, tags))
   }
-  if (content !== undefined) {
+  if (Predicate.isNotNullish(content)) {
     statements.push(...(await buildWikiLinksReindexStatements(ctx, orm, page.id, content)))
   }
   return statements
@@ -1384,7 +1384,7 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
 
   await assertNoUpdateConflict(ctx.db, page, baseRevisionId)
 
-  if (parentId !== undefined && parentId !== null) {
+  if (parentId !== undefined && Predicate.isNotNullish(parentId)) {
     await validateUpdatedPageParent(ctx.db, parentId, ctx.workspaceId, page)
   }
 
@@ -1394,13 +1394,13 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
    * partial update. `undefined` (not reparsed) means the update doesn't touch content,
    * so buildWikiPageUpdateSet leaves the page's existing metadata columns untouched.
    */
-  const meta = content !== undefined ? parseWikiFrontmatter(content) : undefined
+  const meta = Predicate.isNotNullish(content) ? parseWikiFrontmatter(content) : undefined
 
   /*
    * PROJ-483: renaming the slug — check the new slug isn't already live, then leave a
    * redirect from the old slug to this page so existing links keep resolving.
    */
-  const isRename = slug !== undefined && slug !== page.slug
+  const isRename = Predicate.isNotNullish(slug) && slug !== page.slug
   if (isRename) {
     assertSlugNotIdShaped(slug)
     await assertSlugAvailable(orm, ctx.workspaceId, slug, page.id)
@@ -1441,7 +1441,7 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
    * matching) other pages' raw link text — re-resolve both directions in the same
    * batch as the rename itself.
    */
-  const titleChanged = title !== undefined && title !== page.title
+  const titleChanged = Predicate.isNotNullish(title) && title !== page.title
   if (titleChanged || isRename) {
     await healTitleFolds(ctx) // PROJ-818: link folds must be filled before matching
     const finalTitle = title ?? page.title
@@ -1599,7 +1599,7 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
       return
     }
     const fenceMatch = FENCE_RE.exec(line)
-    if (fence !== null) {
+    if (Predicate.isNotNullish(fence)) {
       // A closing fence must use the same character and be at least as long.
       if (fenceMatch && fenceMatch[1][0] === fence[0] && fenceMatch[1].length >= fence.length) {
         fence = null
@@ -2168,7 +2168,7 @@ const collectCascadeTrashedDescendantIds = async function collectCascadeTrashedD
   workspaceId: string,
   trashBatchId: string | null,
 ): Promise<string[]> {
-  if (trashBatchId === null) {
+  if (Predicate.isNullish(trashBatchId)) {
     return []
   }
   const orm = drizzle(db, { schema })
@@ -2253,7 +2253,7 @@ const deleteWikiPageAttachments = async function deleteWikiPageAttachments(
  * page can also be deleted by someone with a project-admin grant.
  */
 const requireWikiDelete = async function requireWikiDelete(ctx: ServiceCtx, projectId: string | null): Promise<void> {
-  if (projectId === null) {
+  if (Predicate.isNullish(projectId)) {
     if (ctx.role !== 'admin' && ctx.role !== 'owner') {
       throw new ForbiddenError('Insufficient permissions')
     }
@@ -2472,7 +2472,7 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
   if (!page) {
     throw new NotFoundError('Wiki page not found')
   }
-  if (page.deletedAt === null) {
+  if (Predicate.isNullish(page.deletedAt)) {
     throw new ValidationError({ formErrors: ['Page is not in the trash'], fieldErrors: {} })
   }
 
@@ -2686,7 +2686,7 @@ export async function purgeExpiredWikiPages(
   const resolveReparentTarget = (id: string): string | null => {
     let current = parentById.get(id) ?? null
     const seen = new Set<string>()
-    while (current !== null && expiredSet.has(current) && !seen.has(current)) {
+    while (Predicate.isNotNullish(current) && expiredSet.has(current) && !seen.has(current)) {
       seen.add(current)
       current = parentById.get(current) ?? null
     }

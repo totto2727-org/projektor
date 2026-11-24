@@ -148,7 +148,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     next.details[0].name = 'Server Team'
     next.details[0].members = [{ userId: 'u2', name: 'Bob', email: 'bob@example.test' }]
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={next} />)
-    expect(screen.getAllByRole('button', { name: 'Server Team' }).length).toBe(2)
+    expect(screen.getAllByRole('button', { name: 'Server Team' })).toHaveLength(2)
     expect(screen.getByLabelText('Remove Bob')).toBeTruthy()
     expect(screen.queryByLabelText('Remove Alice')).toBeNull()
     expect((screen.getByLabelText('Group name') as HTMLInputElement).value).toBe('Unsaved rename')
@@ -160,7 +160,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   test('submits original rename/description/member/grant controls through typed semantic actions', async () => {
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
-    const submitted = async (operation: string, fields: object) => {
+    const submitted = async (operation: string, fields: object): Promise<void> => {
       await waitFor(() => expect(request).toHaveBeenLastCalledWith(operation, { ...groupScope, ...fields }))
       await waitFor(() =>
         expect((screen.getByRole('button', { name: 'Close' }) as HTMLButtonElement).disabled).toBe(false),
@@ -207,7 +207,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     await waitFor(() => expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe(''))
     const count = request.mock.calls.length
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
-    expect(request.mock.calls.length).toBe(count)
+    expect(request.mock.calls).toHaveLength(count)
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
     await waitFor(() => expect(request).toHaveBeenLastCalledWith('deleteGroup', groupScope))
   })
@@ -229,8 +229,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(target.searchParams.get('workspace')).toBe('alpha')
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={data} view='members' />)
     expect(screen.getByRole('tabpanel').id).toBe('group-tabpanel-members')
-    expect(screen.getAllByText('Pending: no access').length).toBe(2)
-    expect(screen.getAllByText('All projects (bypasses groups)').length).toBe(2)
+    expect(screen.getAllByText('Pending: no access')).toHaveLength(2)
+    expect(screen.getAllByText('All projects (bypasses groups)')).toHaveLength(2)
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={{ ...data, role: 'viewer', details: [] }} />)
     expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
     expect(screen.queryByRole('tablist')).toBeNull()
@@ -252,7 +252,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     })
     fireEvent.click(screen.getByRole('radio', { name: 'Read-only' }))
     view.rerender(<TokenManager {...props} initialTokens={[token('Server token')]} />)
-    expect(screen.getAllByText('Server token').length).toBe(2)
+    expect(screen.getAllByText('Server token')).toHaveLength(2)
     expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('Unsaved agent')
     expect(request).not.toHaveBeenCalled()
     request.mockResolvedValueOnce({
@@ -325,7 +325,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   test('refreshes connector rows without state copies and retains disconnect confirmation/failure/retry', async () => {
     const view = render(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant()]} />)
     view.rerender(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant('Refreshed Claude')]} />)
-    expect(screen.getAllByText('Refreshed Claude').length).toBe(2)
+    expect(screen.getAllByText('Refreshed Claude')).toHaveLength(2)
     expect(request).not.toHaveBeenCalled()
     fireEvent.click(screen.getAllByRole('button', { name: 'Disconnect' })[0])
     expect(request).not.toHaveBeenCalled()

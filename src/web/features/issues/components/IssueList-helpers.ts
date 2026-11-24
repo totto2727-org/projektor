@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 export interface FilterQueryFilters {
   filterStatuses: string[]
   filterPriorities: string[]
@@ -146,7 +147,7 @@ export function buildFilterUrlQueryString(currentSearch: string, filters: UrlSyn
   const params = new URLSearchParams(currentSearch)
   for (const [key, getValue] of URL_SYNC_KEYS) {
     const value = getValue(filters)
-    if (value !== null) {
+    if (Predicate.isNotNullish(value)) {
       params.set(key, value)
     } else {
       params.delete(key)

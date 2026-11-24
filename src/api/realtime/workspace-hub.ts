@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 
 import { apiReply } from '#api/services/reply.ts'
@@ -48,8 +49,8 @@ export class WorkspaceHub {
         })
       } catch {
         return new Response(JSON.stringify({ error: 'Invalid broadcast payload' }), {
-          status: 400,
           headers: { 'Content-Type': 'application/json' },
+          status: 400,
         })
       }
     }
@@ -111,7 +112,7 @@ export class WorkspaceHub {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    if (typeof message !== 'string') {
+    if (!Predicate.isString(message)) {
       return
     }
 
@@ -138,7 +139,7 @@ export class WorkspaceHub {
       if (data.action === 'subscribe') {
         const allowedProjects = new Set(attachment.visibleProjectIds)
         const requestedProjects = Array.isArray(data.projects)
-          ? data.projects.filter((id): id is string => typeof id === 'string')
+          ? data.projects.filter((id): id is string => Predicate.isString(id))
           : undefined
 
         let effectiveProjects: string[] | undefined
@@ -156,7 +157,7 @@ export class WorkspaceHub {
         const filters: SubscriptionFilters = {
           projects: effectiveProjects,
           eventTypes: Array.isArray(data.eventTypes)
-            ? data.eventTypes.filter((t): t is string => typeof t === 'string')
+            ? data.eventTypes.filter((t): t is string => Predicate.isString(t))
             : undefined,
         }
 

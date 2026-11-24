@@ -71,7 +71,7 @@ export function ConnectorManager({
   const [revokeId, setRevokeId] = useState<string | null>(null)
   const [revoking, setRevoking] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  async function revoke(id: string) {
+  async function revoke(id: string): Promise<void> {
     if (revoking) {
       return
     }

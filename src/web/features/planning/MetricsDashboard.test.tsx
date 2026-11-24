@@ -11,9 +11,9 @@ vi.hoisted(() => {
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
     },
   )
   vi.stubGlobal(
@@ -80,11 +80,11 @@ describe('full original metrics surfaces', () => {
 
   test('renders all seven real Recharts surfaces, distribution tiles, help controls, and factory signals without mount loads', async () => {
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
-    expect(screen.getAllByTestId(/^flow-chart-/).length).toBe(7)
-    expect(document.querySelectorAll('svg.recharts-surface').length).toBe(7)
-    await waitFor(() => expect(document.querySelectorAll('.recharts-area').length).toBe(4))
-    expect(document.querySelectorAll('.recharts-scatter-symbol').length).toBe(2)
-    expect(document.querySelectorAll('.recharts-reference-line').length).toBe(2)
+    expect(screen.getAllByTestId(/^flow-chart-/)).toHaveLength(7)
+    expect(document.querySelectorAll('svg.recharts-surface')).toHaveLength(7)
+    await waitFor(() => expect(document.querySelectorAll('.recharts-area')).toHaveLength(4))
+    expect(document.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(2)
+    expect(document.querySelectorAll('.recharts-reference-line')).toHaveLength(2)
     expect(screen.getByTestId('flow-chart-cfd').querySelector('.recharts-legend-wrapper')?.textContent).toBe(
       'Backlog/todoIn progressIn reviewDone',
     )
@@ -130,7 +130,7 @@ describe('full original metrics surfaces', () => {
     ]) {
       expect(screen.getByRole('heading', { name: title })).toBeTruthy()
     }
-    expect(screen.getAllByText('Count').length).toBe(7)
+    expect(screen.getAllByText('Count')).toHaveLength(7)
     for (const label of ['Lease expiries', 'Abandoned claims', 'Gate rejections', 'WIP-cap pressure']) {
       expect(screen.getByRole('button', { name: `About ${label}` })).toBeTruthy()
     }

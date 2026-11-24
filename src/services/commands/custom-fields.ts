@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -40,7 +40,10 @@ export async function listCustomFieldDefs(ctx: ServiceCtx, projectId?: string | 
   )
 }
 
-const assertOptionsAllowedForType = function assertOptionsAllowedForType(type: string, options: string[] | undefined) {
+const assertOptionsAllowedForType = function assertOptionsAllowedForType(
+  type: string,
+  options: string[] | undefined,
+): void {
   if (type !== 'select' && options && options.length > 0) {
     throw new ValidationError({
       formErrors: ['options can only be set for select fields'],
@@ -54,7 +57,7 @@ const assertCustomFieldKeyAvailable = async function assertCustomFieldKeyAvailab
   workspaceId: string,
   projectId: string | null | undefined,
   key: string,
-) {
+): Promise<void> {
   const projCondition = projectId
     ? eq(schema.customFieldDefinitions.projectId, projectId)
     : isNull(schema.customFieldDefinitions.projectId)
@@ -78,7 +81,7 @@ const assertCustomFieldKeyAvailable = async function assertCustomFieldKeyAvailab
 const assertCustomFieldDefLimitNotReached = async function assertCustomFieldDefLimitNotReached(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
-) {
+): Promise<void> {
   const count = await orm.$count(
     schema.customFieldDefinitions,
     eq(schema.customFieldDefinitions.workspaceId, workspaceId),
@@ -151,7 +154,7 @@ const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
   }
 
   const setObj: Record<string, unknown> = {}
-  if (data.label !== undefined) {
+  if (Predicate.isNotNullish(data.label)) {
     setObj.label = data.label
   }
   if ('options' in data) {
@@ -240,7 +243,7 @@ export function buildDefaultCustomFieldStatements(db: D1Database, workspaceId: s
   ]
 }
 
-export async function seedDefaultCustomFields(db: D1Database, workspaceId: string) {
+export async function seedDefaultCustomFields(db: D1Database, workspaceId: string): Promise<void> {
   await db.batch(buildDefaultCustomFieldStatements(db, workspaceId))
 }
 
@@ -248,7 +251,7 @@ const assertValidCustomFieldValue = function assertValidCustomFieldValue(
   key: string,
   value: string,
   def: typeof schema.customFieldDefinitions.$inferSelect,
-) {
+): void {
   if (def.type === 'number') {
     if (Number.isNaN(parseFloat(value)) || !Number.isFinite(parseFloat(value))) {
       throw new ValidationError({
@@ -302,7 +305,7 @@ export async function validateCustomFields(
       })
     }
 
-    if (rawValue === null || rawValue === undefined || rawValue === '') {
+    if (rawValue === null || Predicate.isNullish(rawValue) || rawValue === '') {
       continue
     }
 

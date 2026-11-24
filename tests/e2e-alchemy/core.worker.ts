@@ -1,5 +1,6 @@
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEntrypoint } from 'cloudflare:workers'
+import { Predicate } from 'effect'
 import migrations from 'virtual:fixture-migrations'
 import entrypoint from 'virtual:production-core-entrypoint'
 
@@ -48,7 +49,7 @@ export default class FixtureCore extends NativeCore {
     }
     for (const migration of migrations) {
       const previous = history.get(migration.name)
-      if (previous !== undefined) {
+      if (Predicate.isNotNullish(previous)) {
         if (previous !== migration.hash) {
           throw new Error(`Changed fixture migration history: ${migration.name}`)
         }

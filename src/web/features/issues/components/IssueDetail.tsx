@@ -30,7 +30,7 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
   const [typeChangeError, setTypeChangeError] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState<string | null>(null)
 
-  async function changeStatus(statusId: string) {
+  async function changeStatus(statusId: string): Promise<void> {
     setUpdatingStatus(true)
     setMutationError(null)
     try {
@@ -40,7 +40,7 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
     }
     setUpdatingStatus(false)
   }
-  async function changePriority(priority: string) {
+  async function changePriority(priority: string): Promise<void> {
     setUpdatingPriority(true)
     setMutationError(null)
     try {
@@ -50,7 +50,7 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
     }
     setUpdatingPriority(false)
   }
-  async function changeType(typeId: string) {
+  async function changeType(typeId: string): Promise<void> {
     setUpdatingType(true)
     setTypeChangeError(null)
     try {
@@ -60,7 +60,7 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
     }
     setUpdatingType(false)
   }
-  async function changeAssignee(assigneeId: string) {
+  async function changeAssignee(assigneeId: string): Promise<void> {
     setUpdatingAssignee(true)
     setMutationError(null)
     try {

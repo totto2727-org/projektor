@@ -1,5 +1,5 @@
 import type { HttpEffect, WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
-import { Cause, Data, Effect, Result, Schema } from 'effect'
+import { Predicate, Cause, Data, Effect, Result, Schema } from 'effect'
 
 import type { ApiCoreRpcShape } from './api/operations.ts'
 import type { WebCoreRpcShape } from './web/operations.ts'
@@ -67,9 +67,9 @@ export function coreReply<E, R, S extends Schema.Top>(
           status: problem.status,
           message: problem.message,
           occurrenceId: problem.occurrenceId,
-          ...(problem.kind === undefined ? {} : { kind: problem.kind }),
-          ...(problem.details === undefined ? {} : { details: problem.details }),
-          ...(problem.retryAfter === undefined ? {} : { retryAfter: problem.retryAfter }),
+          ...(Predicate.isNullish(problem.kind) ? {} : { kind: problem.kind }),
+          ...(Predicate.isNullish(problem.details) ? {} : { details: problem.details }),
+          ...(Predicate.isNullish(problem.retryAfter) ? {} : { retryAfter: problem.retryAfter }),
         }),
       ).pipe(
         Effect.catchCause((encodingCause) => {

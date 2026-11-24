@@ -20,7 +20,7 @@ const mcpUrl = function mcpUrl(workspaceId: string): string {
   return `${HOST}/mcp/${workspaceId}`
 }
 
-const rpc = function rpc(method: string, params?: unknown) {
+const rpc = function rpc(method: string, params?: unknown): string {
   return JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
 }
 
@@ -46,9 +46,9 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
 
   test('points at the per-workspace protected resource metadata document', async () => {
     const res = await fetchNativeApi(mcpUrl(workspaceId), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: rpc('initialize'),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     })
 
     expect(res.status).toBe(401)
@@ -62,9 +62,9 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
   test('derives resource_metadata from the request host, not a fixed origin', async () => {
     const other = 'https://tenant.projektor.dev'
     const res = await fetchNativeApi(`${other}/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: rpc('initialize'),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     })
 
     const challenge = parseChallenge(res.headers.get('WWW-Authenticate'))
@@ -73,9 +73,9 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
 
   test('challenges an invalid bearer token too, not just a missing one', async () => {
     const res = await fetchNativeApi(mcpUrl(workspaceId), {
-      method: 'POST',
-      headers: { Authorization: 'Bearer tok_not_a_real_token', 'Content-Type': 'application/json' },
       body: rpc('initialize'),
+      headers: { Authorization: 'Bearer tok_not_a_real_token', 'Content-Type': 'application/json' },
+      method: 'POST',
     })
 
     expect(res.status).toBe(401)
@@ -93,7 +93,7 @@ describe('/api/* 401s are unchanged', () => {
 
     expect(res.status).toBe(401)
     expect(res.headers.get('WWW-Authenticate')).toBeNull()
-    expect(await res.json()).toEqual({ error: 'Unauthorized' })
+    await expect(res.json()).resolves.toStrictEqual({ error: 'Unauthorized' })
   })
 
   test('is unchanged for an invalid bearer token as well', async () => {
@@ -116,7 +116,7 @@ describe('insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
     readToken = await seedToken(fixture.workspace.id, fixture.user.id, { scopes: ['read'] })
   })
 
-  const callAsReadToken = async function callAsReadToken(method: string, params: unknown) {
+  const callAsReadToken = async function callAsReadToken(method: string, params: unknown): Promise<Response> {
     return fetchNativeApi(mcpUrl(workspaceId), {
       method: 'POST',
       headers: { Authorization: `Bearer ${readToken}`, 'Content-Type': 'application/json' },

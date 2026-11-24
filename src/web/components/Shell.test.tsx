@@ -26,7 +26,7 @@ const projectScope: RequestScope = {
   },
 }
 
-function viewport(width: number) {
+function viewport(width: number): void {
   vi.stubGlobal('innerWidth', width)
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('max-width') && width < 768,
@@ -42,9 +42,9 @@ beforeEach(() => {
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
     },
   )
 })
@@ -75,7 +75,7 @@ describe('generated Base UI Shell', () => {
     expect(element.querySelector('main[data-slot="sidebar-inset"]')?.id).toBe('main-content')
     expect(element.querySelector('.app-main, .drawer-overlay, .sidebar')).toBeNull()
     const links = element.querySelectorAll('[data-slot="sidebar-menu-button"]')
-    expect(links.length).toBe(5)
+    expect(links).toHaveLength(5)
     for (const link of links) {
       expect(new URL(link.getAttribute('href')!, 'https://app.test').searchParams.get('workspace')).toBe('team')
     }
@@ -165,7 +165,7 @@ describe('generated Base UI Shell', () => {
     const submit = vi.fn((event: Event) => event.preventDefault())
     refreshForm.addEventListener('submit', submit)
     fireEvent.click(refresh)
-    expect(submit).toHaveBeenCalledTimes(1)
+    expect(submit).toHaveBeenCalledOnce()
     await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Refresh session' })).toBeNull())
     expect(document.getElementById(refreshForm.id)).toBe(refreshForm)
   })

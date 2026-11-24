@@ -82,7 +82,9 @@ describe('Core shared logo binary delivery', () => {
     f.sqlite.exec('UPDATE projects SET archived_at = 2')
     expect((await handleSharedLogoRequest(f.request(), f.env))?.status).toBe(404)
     expect((await handleSharedLogoRequest(f.request('POST'), f.env))?.status).toBe(405)
-    expect(await handleSharedLogoRequest(new Request('https://core.internal/unrelated'), f.env)).toBeUndefined()
+    await expect(
+      handleSharedLogoRequest(new Request('https://core.internal/unrelated'), f.env),
+    ).resolves.toBeUndefined()
     expect(f.get).not.toHaveBeenCalled()
   })
 })

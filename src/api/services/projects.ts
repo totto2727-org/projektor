@@ -16,7 +16,7 @@ export function listProjects(
 export function resolveProjectIdParam(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiResolveProjectIdParam']>
-) {
+): Promise<string> {
   return apiReply(
     ApiResults.apiResolveProjectIdParam,
     ctx.core.apiResolveProjectIdParam(ctx.actor, ctx.workspaceId, ...args),
@@ -25,7 +25,7 @@ export function resolveProjectIdParam(
 export function resolveVisibleProjectIdParam(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiResolveVisibleProjectIdParam']>
-) {
+): Promise<string> {
   return apiReply(
     ApiResults.apiResolveVisibleProjectIdParam,
     ctx.core.apiResolveVisibleProjectIdParam(ctx.actor, ctx.workspaceId, ...args),

@@ -1,5 +1,5 @@
 'use client'
-
+import { Predicate } from 'effect'
 import { useId, useMemo } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 import {
@@ -81,11 +81,11 @@ function valueFormatter(
   onlyDataKey?: string,
 ): ComponentProps<typeof ChartTooltipContent>['formatter'] {
   return (value, name, item) =>
-    onlyDataKey !== undefined && item.dataKey !== onlyDataKey ? null : (
+    Predicate.isNotNullish(onlyDataKey) && item.dataKey !== onlyDataKey ? null : (
       <div className='flex flex-1 items-center justify-between gap-3'>
         <span className='text-muted-foreground'>{config[String(item.dataKey ?? name)]?.label ?? name}</span>
         <span className='font-mono font-medium tabular-nums'>
-          {typeof value === 'number' ? formatValue(value) : String(value)}
+          {Predicate.isNumber(value) ? formatValue(value) : String(value)}
         </span>
       </div>
     )
@@ -182,7 +182,7 @@ export function BugShareChart({
   if (!bugTypeTracked) {
     return <EmptyChartState message={'Not tracked: no task type keyed "bug" exists in this workspace'} />
   }
-  if (!data.length || data.every((point) => point.bugSharePercent === null)) {
+  if (!data.length || data.every((point) => Predicate.isNullish(point.bugSharePercent))) {
     return <EmptyChartState message='No completed issues yet' />
   }
   return (
@@ -207,7 +207,7 @@ export function BugShareChart({
 }
 const reviewConfig = { p50: { label: 'Review latency (p50)', color: accent } } satisfies ChartConfig
 export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyOverTime'] }) {
-  if (!data.length || data.every((point) => point.p50 === null)) {
+  if (!data.length || data.every((point) => Predicate.isNullish(point.p50))) {
     return <EmptyChartState message='No review-latency data yet' />
   }
   return (
@@ -231,7 +231,7 @@ export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyO
   )
 }
 const wipConfig = { count: { label: 'WIP', color: accent } } satisfies ChartConfig
-const timestampDate = (value: number) => new Date(value).toISOString().slice(0, 10)
+const timestampDate = (value: number): string => new Date(value).toISOString().slice(0, 10)
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }) {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])
   if (!data.length || data.every((point) => point.count === 0)) {
@@ -257,7 +257,7 @@ export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }) {
             <ChartTooltipContent
               labelFormatter={(_label, payload) => {
                 const date: unknown = payload[0]?.payload?.date
-                return typeof date === 'string' ? formatFullDate(date) : ''
+                return Predicate.isString(date) ? formatFullDate(date) : ''
               }}
               formatter={valueFormatter(wipConfig, (value) => `${value} in progress`)}
             />
@@ -389,14 +389,18 @@ export function AgingWipScatter({
               className='flex-wrap gap-x-3 gap-y-1 text-[10px]'
               payload={[
                 { value: 'ageSeconds', dataKey: 'ageSeconds', type: 'circle', color: sequential.inProgress },
-                ...(p50 === null ? [] : [{ value: 'p50', dataKey: 'p50', type: 'line' as const, color: muted }]),
-                ...(p90 === null ? [] : [{ value: 'p90', dataKey: 'p90', type: 'line' as const, color: muted }]),
+                ...(Predicate.isNullish(p50)
+                  ? []
+                  : [{ value: 'p50', dataKey: 'p50', type: 'line' as const, color: muted }]),
+                ...(Predicate.isNullish(p90)
+                  ? []
+                  : [{ value: 'p90', dataKey: 'p90', type: 'line' as const, color: muted }]),
               ]}
             />
           )}
         />
         <Scatter dataKey='ageSeconds' name='ageSeconds' fill='var(--color-ageSeconds)' isAnimationActive={false} />
-        {p50 !== null && (
+        {Predicate.isNotNullish(p50) && (
           <ReferenceLine
             y={p50}
             stroke='var(--color-p50)'
@@ -404,7 +408,7 @@ export function AgingWipScatter({
             label={{ value: 'p50 cycle time', position: 'insideTopRight', fill: muted, fontSize: 10 }}
           />
         )}
-        {p90 !== null && (
+        {Predicate.isNotNullish(p90) && (
           <ReferenceLine
             y={p90}
             stroke='var(--color-p90)'

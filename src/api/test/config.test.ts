@@ -8,12 +8,12 @@ describe('GET /api/config/brand', () => {
   test('reflects configured BRAND_* vars, deriving the mark and defaulting unset fields (open, no auth)', async () => {
     const res = await fetchNativeApi('http://localhost/api/config/brand')
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({
-      name: 'Test Brand',
-      mark: 'T',
+    await expect(res.json()).resolves.toStrictEqual({
       accent: '#123456',
-      onAccent: null,
       logoUrl: null,
+      mark: 'T',
+      name: 'Test Brand',
+      onAccent: null,
     })
   })
 })

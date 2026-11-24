@@ -26,11 +26,16 @@ import { fetchNativeApi } from './native-fetch.ts'
 // Helpers
 // ---------------------------------------------------------------------------
 
-const getIssues = async function getIssues(token: string, slug: string) {
+const getIssues = async function getIssues(token: string, slug: string): Promise<Response> {
   return fetchNativeApi('http://localhost/api/issues', { headers: authHeaders(token, slug) })
 }
 
-const postIssue = async function postIssue(token: string, slug: string, projectId: string, title: string) {
+const postIssue = async function postIssue(
+  token: string,
+  slug: string,
+  projectId: string,
+  title: string,
+): Promise<Response> {
   return fetchNativeApi('http://localhost/api/issues', {
     method: 'POST',
     headers: authHeaders(token, slug),
@@ -142,12 +147,12 @@ const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): 
   }
 }
 
-const mintAsHuman = function mintAsHuman(email: string, body: unknown) {
+const mintAsHuman = function mintAsHuman(email: string, body: unknown): Promise<Response> {
   return asHuman(email, () =>
     fetchNativeApi('http://localhost/auth/tokens', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     }),
   )
 }
@@ -240,8 +245,8 @@ describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
     const id = row?.id as string
 
     const byToken = await fetchNativeApi(`http://localhost/auth/tokens/${id}`, {
-      method: 'DELETE',
       headers: { Authorization: `Bearer ${fixture.token}` },
+      method: 'DELETE',
     })
     expect(byToken.status).toBe(403)
 

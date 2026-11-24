@@ -61,7 +61,7 @@ describe('Flow metrics (PROJ-252)', () => {
   const stampFlowTimestamps = async function stampFlowTimestamps(
     id: string,
     { readyAt, claimedAt, doneAt }: { readyAt?: number; claimedAt?: number; doneAt?: number },
-  ) {
+  ): Promise<void> {
     await env.DB.prepare('UPDATE issues SET ready_at = ?, claimed_at = ?, done_at = ? WHERE id = ?')
       .bind(readyAt ?? null, claimedAt ?? null, doneAt ?? null, id)
       .run()
@@ -70,7 +70,7 @@ describe('Flow metrics (PROJ-252)', () => {
   const stampReviewFields = async function stampReviewFields(
     id: string,
     { inReviewAt, reviewBounceCount }: { inReviewAt?: number; reviewBounceCount?: number },
-  ) {
+  ): Promise<void> {
     await env.DB.prepare('UPDATE issues SET in_review_at = ?, review_bounce_count = ? WHERE id = ?')
       .bind(inReviewAt ?? null, reviewBounceCount ?? 0, id)
       .run()
@@ -86,7 +86,7 @@ describe('Flow metrics (PROJ-252)', () => {
     return session.id
   }
 
-  const claim = async function claim(issueId: string, agentId: string) {
+  const claim = async function claim(issueId: string, agentId: string): Promise<void> {
     await fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -421,7 +421,7 @@ describe('Flow metrics (PROJ-252)', () => {
     issueId: string,
     claimedAt: number,
     releasedAt: number | null,
-  ) {
+  ): Promise<void> {
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
       `INSERT INTO agent_sessions
@@ -687,7 +687,7 @@ describe('Flow metrics (PROJ-252)', () => {
 
     const metrics = await getFlowMetrics()
 
-    expect(metrics.agingWip.length).toBe(2)
+    expect(metrics.agingWip).toHaveLength(2)
     const stuck = metrics.agingWip.find((a) => a.id === oldInProgress.id)
     expect(stuck).toBeDefined()
     expect(stuck?.status).toBe('in_progress')
@@ -738,7 +738,7 @@ describe('Flow metrics (PROJ-252)', () => {
 
     expect(Array.isArray(metrics.bugShareOverTime)).toBe(true)
     const nonEmptyBuckets = metrics.bugShareOverTime.filter((b) => b.total > 0)
-    expect(nonEmptyBuckets.length).toBe(2)
+    expect(nonEmptyBuckets).toHaveLength(2)
     for (const bucket of nonEmptyBuckets) {
       expect(bucket.total).toBe(2)
       expect(bucket.bugCount).toBe(1)
@@ -792,7 +792,11 @@ describe('Factory health tiles (PROJ-334)', () => {
    * Bypasses the claim/release APIs so tests can place events at an arbitrary
    * timestamp, inside or outside the window under test.
    */
-  const seedLease = async function seedLease(issueId: string, releaseReason: string | null, releasedAt: number | null) {
+  const seedLease = async function seedLease(
+    issueId: string,
+    releaseReason: string | null,
+    releasedAt: number | null,
+  ): Promise<void> {
     const agentSessionId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
@@ -814,7 +818,7 @@ describe('Factory health tiles (PROJ-334)', () => {
     issueId: string,
     releaseReason: string | null,
     releasedAt: number | null,
-  ) {
+  ): Promise<void> {
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +
@@ -824,7 +828,7 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  const seedGateRejection = async function seedGateRejection(issueId: string, occurredAt: number) {
+  const seedGateRejection = async function seedGateRejection(issueId: string, occurredAt: number): Promise<void> {
     await env.DB.prepare(
       'INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)',
     )
@@ -832,7 +836,11 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  const seedWipCapDenial = async function seedWipCapDenial(project: string, issueId: string, occurredAt: number) {
+  const seedWipCapDenial = async function seedWipCapDenial(
+    project: string,
+    issueId: string,
+    occurredAt: number,
+  ): Promise<void> {
     await env.DB.prepare(
       'INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, ' +
         'occurred_at) VALUES (?, ?, ?, ?, NULL, ?)',
@@ -878,9 +886,9 @@ describe('Factory health tiles (PROJ-334)', () => {
     const metrics = (await res.json()) as FlowMetrics
 
     expect(metrics.factoryHealth).toEqual({
-      leaseExpiries: 1,
       abandonedClaims: 1,
       gateRejections: 1,
+      leaseExpiries: 1,
       wipCapPressure: 1,
     })
   })
@@ -924,9 +932,9 @@ describe('Factory health tiles (PROJ-334)', () => {
     )
     const metrics = (await res.json()) as FlowMetrics
     expect(metrics.factoryHealth).toEqual({
-      leaseExpiries: 0,
       abandonedClaims: 0,
       gateRejections: 0,
+      leaseExpiries: 0,
       wipCapPressure: 0,
     })
   })

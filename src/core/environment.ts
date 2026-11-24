@@ -1,5 +1,5 @@
 import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 
 import type { CoreEnv } from '#types/env.ts'
 
@@ -14,14 +14,14 @@ export type CoreEnvironmentSource = Effect.Effect<CoreEnvironment, never, Worker
 const hasMethods = function hasMethods(value: unknown, methods: Readonly<string[]>): boolean {
   return (
     typeof value === 'object' &&
-    value !== null &&
-    methods.every((key) => key in value && typeof Reflect.get(value, key) === 'function')
+    Predicate.isNotNullish(value) &&
+    methods.every((key) => key in value && Predicate.isFunction(Reflect.get(value, key)))
   )
 }
 
 /** Validate native binding capabilities at the sole untyped runtime boundary. */
 export function isCoreEnvironment(value: unknown): value is CoreEnvironment {
-  if (typeof value !== 'object' || value === null) {
+  if (typeof value !== 'object' || Predicate.isNullish(value)) {
     return false
   }
   const get = (key: string): unknown => Reflect.get(value, key)
@@ -43,7 +43,7 @@ export function isCoreEnvironment(value: unknown): value is CoreEnvironment {
   if (environment !== 'development' && environment !== 'staging' && environment !== 'production') {
     return false
   }
-  if (typeof get('CF_ACCESS_TEAM_DOMAIN') !== 'string' || typeof get('CF_ACCESS_AUDIENCE') !== 'string') {
+  if (!Predicate.isString(get('CF_ACCESS_TEAM_DOMAIN')) || !Predicate.isString(get('CF_ACCESS_AUDIENCE'))) {
     return false
   }
   const optionalStrings = [
@@ -76,7 +76,7 @@ export function isCoreEnvironment(value: unknown): value is CoreEnvironment {
     'ACTIVITY_RETENTION_DAYS',
     'FILE_CLAIM_TTL_SECONDS',
   ] satisfies Readonly<(keyof CoreEnvironment)[]>
-  if (!optionalStrings.every((key) => get(key) === undefined || typeof get(key) === 'string')) {
+  if (!optionalStrings.every((key) => get(key) === undefined || Predicate.isString(get(key)))) {
     return false
   }
   for (const key of ['WORKSPACE_HUB', 'RATE_LIMITER']) {

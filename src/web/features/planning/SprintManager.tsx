@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useEffectEvent, useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -72,7 +72,7 @@ export function SprintManager({
   const [summary, setSummary] = useState<{ sprint: Sprint; issues: SprintIssue[] } | null>(null)
   const active = allSprints.filter((sprint) => sprint.status === 'active')
   const completed = allSprints.filter((sprint) => sprint.status === 'completed')
-  async function complete(sprint: Sprint) {
+  async function complete(sprint: Sprint): Promise<void> {
     if (completing) {
       return
     }
@@ -398,7 +398,7 @@ function SprintRow({
   const [moving, setMoving] = useState(false)
   const sprintIssues = issues.filter((issue) => issue.sprint_id === sprint.id)
   const done = sprintIssues.filter((issue) => issue.status_category === 'done')
-  async function changeStatus(status: Sprint['status']) {
+  async function changeStatus(status: Sprint['status']): Promise<void> {
     if (busy) {
       return
     }
@@ -411,7 +411,7 @@ function SprintRow({
     }
     setBusy(false)
   }
-  async function archiveConfirmed() {
+  async function archiveConfirmed(): Promise<void> {
     if (busy) {
       return
     }
@@ -715,7 +715,7 @@ function CompletionSummaryPanel({
           Close
         </button>
       </div>
-      {(sprint.startDate !== null || sprint.endDate !== null) && (
+      {(Predicate.isNotNullish(sprint.startDate) || Predicate.isNotNullish(sprint.endDate)) && (
         <p className='text-sm text-text-muted m-0 mb-3'>
           {formatUnixDate(sprint.startDate)} – {formatUnixDate(sprint.endDate)}
         </p>

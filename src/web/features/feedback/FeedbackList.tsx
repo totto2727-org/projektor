@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm, useStore } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { useOptimistic, useState, useTransition } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -52,7 +52,7 @@ const TD = 'px-3 py-2 border-b border-border align-top text-[0.875rem]'
 const TH = 'text-left px-3 py-2 border-b-2 border-border font-semibold text-text-base whitespace-nowrap'
 
 function ratingDisplay(rating: number | null, scale: string | null): string {
-  if (rating === null) {
+  if (Predicate.isNullish(rating)) {
     return '—'
   }
   if (scale === 'thumbs') {
@@ -261,7 +261,7 @@ function useFeedbackActions(
   addOptimistic: (change: { ids: Readonly<string[]>; status: string }) => void,
   startTransition: (action: () => Promise<void>) => void,
 ) {
-  function convert(id: string) {
+  function convert(id: string): void {
     startTransition(async () => {
       addOptimistic({ ids: [id], status: 'actioned' })
       try {
@@ -271,7 +271,7 @@ function useFeedbackActions(
       }
     })
   }
-  function markReviewed(id: string) {
+  function markReviewed(id: string): void {
     startTransition(async () => {
       addOptimistic({ ids: [id], status: 'reviewed' })
       try {
@@ -281,7 +281,7 @@ function useFeedbackActions(
       }
     })
   }
-  function bulkMarkReviewed(selected: Set<string>) {
+  function bulkMarkReviewed(selected: Set<string>): void {
     startTransition(async () => {
       const feedbackIds = [...selected]
       addOptimistic({ ids: feedbackIds, status: 'reviewed' })
@@ -293,7 +293,7 @@ function useFeedbackActions(
       }
     })
   }
-  function bulkConvertToIssue(selected: Set<string>) {
+  function bulkConvertToIssue(selected: Set<string>): void {
     startTransition(async () => {
       const feedbackIds = [...selected]
       addOptimistic({ ids: feedbackIds, status: 'actioned' })
@@ -310,7 +310,7 @@ function useFeedbackActions(
 
 function useToggleSet() {
   const [set, setSet] = useState<Set<string>>(new Set())
-  function toggle(id: string) {
+  function toggle(id: string): void {
     setSet((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -339,9 +339,9 @@ function useSelectedFeedback() {
   const selected = new Set(ids)
   const setSelected: Dispatch<SetStateAction<Set<string>>> = (value) => {
     const current = new Set(form.getFieldValue('ids'))
-    form.setFieldValue('ids', [...(typeof value === 'function' ? value(current) : value)])
+    form.setFieldValue('ids', [...(Predicate.isFunction(value) ? value(current) : value)])
   }
-  function toggle(id: string) {
+  function toggle(id: string): void {
     setSelected((current) => {
       const next = new Set(current)
       if (next.has(id)) {
@@ -378,7 +378,7 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId, initi
     startTransition,
   )
 
-  function toggleSelectAll() {
+  function toggleSelectAll(): void {
     setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))))
   }
 

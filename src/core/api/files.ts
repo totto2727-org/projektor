@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 
 import { exportWiki } from '#commands/wiki-export.ts'
 import { getWorkspaceLogoObject, uploadWorkspaceLogo } from '#commands/workspaces.ts'
@@ -73,7 +73,8 @@ export async function handleApiBinaryRequest(request: Request, env: CoreEnvironm
     }
     return Response.json(
       {
-        error: problem.kind === 'validation' && problem.details !== undefined ? problem.details : problem.message,
+        error:
+          problem.kind === 'validation' && Predicate.isNotNullish(problem.details) ? problem.details : problem.message,
         ...(problem.kind === 'validation' ? {} : problem.details),
       },
       { status: problem.status },

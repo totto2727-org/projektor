@@ -1,5 +1,5 @@
 import { Request as WorkerRequest, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
-import { Cache, Context, Data, Effect, Exit, Layer, Option } from 'effect'
+import { Predicate, Cache, Context, Data, Effect, Exit, Layer, Option } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { makeCoreClient } from 'projektor/core-client'
 import type { ReactNode } from 'react'
@@ -29,11 +29,11 @@ export interface Env extends Pick<
 }
 
 export function isWebEnvironment(value: unknown): value is Env {
-  if (typeof value !== 'object' || value === null) {
+  if (typeof value !== 'object' || Predicate.isNullish(value)) {
     return false
   }
   const core: unknown = Reflect.get(value, 'CORE')
-  if (typeof core !== 'object' || core === null || typeof Reflect.get(core, 'fetch') !== 'function') {
+  if (typeof core !== 'object' || Predicate.isNullish(core) || !Predicate.isFunction(Reflect.get(core, 'fetch'))) {
     return false
   }
   if (
@@ -45,9 +45,9 @@ export function isWebEnvironment(value: unknown): value is Env {
   if (
     limiter !== undefined &&
     (typeof limiter !== 'object' ||
-      limiter === null ||
-      typeof Reflect.get(limiter, 'get') !== 'function' ||
-      typeof Reflect.get(limiter, 'idFromName') !== 'function')
+      Predicate.isNullish(limiter) ||
+      !Predicate.isFunction(Reflect.get(limiter, 'get')) ||
+      !Predicate.isFunction(Reflect.get(limiter, 'idFromName')))
   ) {
     return false
   }
@@ -63,7 +63,7 @@ export function isWebEnvironment(value: unknown): value is Env {
     'BRAND_ON_ACCENT',
     'BRAND_LOGO_URL',
   ] satisfies Readonly<(keyof Env)[]>
-  return strings.every((key) => Reflect.get(value, key) === undefined || typeof Reflect.get(value, key) === 'string')
+  return strings.every((key) => Reflect.get(value, key) === undefined || Predicate.isString(Reflect.get(value, key)))
 }
 
 export type PageFailure = ApiError | ScopeError

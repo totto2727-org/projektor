@@ -1,7 +1,8 @@
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { issueDataFixture } from '@/features/issues/test/data-fixture.ts'
 import { scope, workspace } from '@/features/issues/test/fixtures.ts'
 
@@ -58,7 +59,7 @@ const fixture = function fixture() {
   attach('selected-other', 'in_review', 'workspace-b')
   attach('issue-a', 'in_review', 'workspace-b')
   const run = function run<A, E>(operation: Effect.Effect<A, E, CoreReadServices>) {
-    return Effect.runPromise(operation.pipe(Effect.provideService(CoreReadServices, { db: database.db })))
+    return runTestEffect(operation.pipe(Effect.provideService(CoreReadServices, { db: database.db })))
   }
   const page = (params: string) => run(readDataIssuePage(scope, workspace.id, new URLSearchParams(params)))
   const search = (review?: ReviewFilter, projectId?: string) =>
@@ -80,7 +81,7 @@ describe('cross-project review filters at the Core data boundary', () => {
       expect(page.total).toBe(cursor ? null : 35)
       expect(page.items).toHaveLength(7)
       seen.push(...page.items.map((row) => row.id))
-      cursor = typeof page.nextCursor === 'string' ? page.nextCursor : null
+      cursor = Predicate.isString(page.nextCursor) ? page.nextCursor : null
     } while (cursor)
     expect(seen).toEqual(f.selected.map((entry) => entry.id).reverse())
     expect(new Set(seen).size).toBe(35)

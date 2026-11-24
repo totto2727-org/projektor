@@ -1,14 +1,15 @@
+import { Predicate } from 'effect'
 import type { ReactNode } from 'react'
 
 function messages(value: unknown): string[] {
-  if (typeof value === 'string') {
+  if (Predicate.isString(value)) {
     return [value]
   }
   if (Array.isArray(value)) {
     return value.flatMap(messages)
   }
   if (value && typeof value === 'object') {
-    if ('message' in value && typeof value.message === 'string') {
+    if ('message' in value && Predicate.isString(value.message)) {
       return [value.message]
     }
     return Object.values(value).flatMap(messages)

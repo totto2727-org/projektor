@@ -27,7 +27,11 @@ describe('Agent Messages API', () => {
     ;({ token, slug, workspaceId, userId, projectId, issueId } = await seedIssueFixture())
   })
 
-  const postMessage = async function postMessage(body: Record<string, unknown>, t = token, s = slug) {
+  const postMessage = async function postMessage(
+    body: Record<string, unknown>,
+    t = token,
+    s = slug,
+  ): Promise<Response> {
     return fetchNativeApi('http://localhost/api/agent-messages', {
       method: 'POST',
       headers: authHeaders(t, s),
@@ -35,7 +39,11 @@ describe('Agent Messages API', () => {
     })
   }
 
-  const listMessages = async function listMessages(params: Record<string, string> = {}, t = token, s = slug) {
+  const listMessages = async function listMessages(
+    params: Record<string, string> = {},
+    t = token,
+    s = slug,
+  ): Promise<Response> {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/agent-messages${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(t, s),
@@ -48,7 +56,7 @@ describe('Agent Messages API', () => {
     t = token,
     s = slug,
     wsId = workspaceId,
-  ) {
+  ): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
@@ -365,7 +373,7 @@ describe('Agent Messages API', () => {
     return row!.last_heartbeat_at
   }
 
-  const ownSession = async function ownSession(id: string) {
+  const ownSession = async function ownSession(id: string): Promise<void> {
     await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
       (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
       .bind(await hashToken(token), id)
@@ -380,7 +388,7 @@ describe('Agent Messages API', () => {
 
     const res = await postMessage({ scope: `issue:${issueId}`, agentId: live, body: 'still here' })
     expect(res.status).toBe(201)
-    expect(await heartbeatOf(live)).toBeGreaterThan(backdated)
+    await expect(heartbeatOf(live)).resolves.toBeGreaterThan(backdated)
 
     const { agentSessionId: dead } = await seedAgentLease(workspaceId, issueId, { live: false })
     await ownSession(dead)
@@ -392,6 +400,6 @@ describe('Agent Messages API', () => {
       body: 'ghost post',
     })
     expect(res2.status).toBe(201)
-    expect(await heartbeatOf(dead)).toBe(deadBefore)
+    await expect(heartbeatOf(dead)).resolves.toBe(deadBefore)
   })
 })

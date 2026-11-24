@@ -130,10 +130,10 @@ describe('generated UI compatibility adapters', () => {
     expect(dialog.classList.contains('old')).toBe(true)
     expect(dialog.classList.contains('new')).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledOnce()
     onClose.mockClear()
     fireEvent.keyDown(dialog, { key: 'Escape' })
-    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
   })
 
   test('maps old Select options to controlled string callbacks', async () => {

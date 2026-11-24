@@ -84,7 +84,7 @@ function readPrefs(): Prefs {
 }
 
 /** safe-ls: cosmetic theme, density and navigation preferences never reach an API request. */
-function applyPrefs(prefs: Prefs) {
+function applyPrefs(prefs: Prefs): void {
   const root = document.documentElement
   if (prefs.theme === 'system') {
     root.removeAttribute('data-theme')
@@ -94,7 +94,7 @@ function applyPrefs(prefs: Prefs) {
   root.dataset.density = prefs.density
   root.dataset.sidebar = prefs.sidebar
 }
-function savePrefs(prefs: Prefs) {
+function savePrefs(prefs: Prefs): void {
   try {
     // safe-ls: cosmetic preferences only, with a graceful default when storage is unavailable.
     localStorage.setItem('prefs', JSON.stringify(prefs))
@@ -120,7 +120,7 @@ function Icon({ children }: { children: ReactNode }) {
     </svg>
   )
 }
-function initials(name: string, email: string) {
+function initials(name: string, email: string): string {
   const words = (name.trim() || email).split(/\s+/).filter(Boolean)
   return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : (words[0] ?? '?').slice(0, 2).toUpperCase()
 }
@@ -161,7 +161,7 @@ function GlossaryHelp({ term }: { term: keyof typeof glossary }) {
 function OfflineBanner() {
   const [online, setOnline] = useState(true)
   useEffect(() => {
-    const update = () => setOnline(navigator.onLine)
+    const update = (): void => setOnline(navigator.onLine)
     update()
     addEventListener('online', update)
     addEventListener('offline', update)
@@ -333,7 +333,7 @@ const nav = [
   },
 ] as const
 
-function workspaceHref(path: string, scope: RequestScope | null) {
+function workspaceHref(path: string, scope: RequestScope | null): string {
   const selection = scope?.selection
   if (selection?.kind !== 'workspace' && selection?.kind !== 'project') {
     return path
@@ -355,7 +355,7 @@ function ShellContent({
   const brandMark = brand?.mark ?? 'P'
   const projectsHref = workspaceHref('/', scope)
   const fullBleed = pathname === '/wiki' || pathname.startsWith('/wiki/')
-  function cycleTheme() {
+  function cycleTheme(): void {
     const order: Theme[] = ['system', 'light', 'dark']
     update({ theme: order[(order.indexOf(prefs.theme) + 1) % order.length] })
   }
@@ -460,7 +460,7 @@ export function Shell(props: ShellProps) {
     setPrefs(next)
     applyPrefs(next)
   }, [])
-  function update(patch: Partial<Prefs>) {
+  function update(patch: Partial<Prefs>): void {
     const next = { ...readPrefs(), ...patch }
     savePrefs(next)
     applyPrefs(next)

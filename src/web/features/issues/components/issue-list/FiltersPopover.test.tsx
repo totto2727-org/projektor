@@ -38,9 +38,9 @@ describe('computeFiltersPopoverPosition (PROJ-588)', () => {
     window.innerHeight = 500
     // 500 - 224 - 4 - 8 = 264px below.
     expect(computeFiltersPopoverPosition(rectAt(200))).toEqual({
-      top: 228,
       left: 10,
       maxHeight: 264,
+      top: 228,
     })
   })
 

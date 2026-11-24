@@ -326,8 +326,8 @@ describe('Wiki export (PROJ-497)', () => {
 
     const trash = async function trash(pageId: string): Promise<void> {
       const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}`, {
-        method: 'DELETE',
         headers: authHeaders(token, slug),
+        method: 'DELETE',
       })
       expect(res.status).toBeLessThan(300)
     }

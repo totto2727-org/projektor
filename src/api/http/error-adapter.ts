@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import type { Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { CorePublicError } from 'projektor/core-client'
@@ -14,10 +15,10 @@ import type { HonoEnv } from '#types'
 
 export function serviceErrToResponse(httpContext: Context<HonoEnv>, err: unknown) {
   if (err instanceof CorePublicError) {
-    if (err.retryAfter !== undefined) {
+    if (Predicate.isNotNullish(err.retryAfter)) {
       httpContext.header('Retry-After', String(err.retryAfter))
     }
-    const error = err.kind === 'validation' && err.details !== undefined ? err.details : err.message
+    const error = err.kind === 'validation' && Predicate.isNotNullish(err.details) ? err.details : err.message
     return httpContext.json(
       { error, ...(err.kind === 'validation' ? {} : err.details) },
       err.status as ContentfulStatusCode,

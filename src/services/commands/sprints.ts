@@ -1,5 +1,5 @@
 import { and, eq, inArray, ne } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -28,7 +28,7 @@ const assertSprintProjectVisible = async function assertSprintProjectVisible(
   if (isWorkspaceAdmin(ctx.role)) {
     return
   }
-  if ((await effectiveProjectRole(ctx, projectId)) === null) {
+  if (Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     throw new NotFoundError('Sprint not found')
   }
 }
@@ -41,7 +41,7 @@ const requireSprintProjectWrite = async function requireSprintProjectWrite(
     return
   }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) {
+  if (Predicate.isNullish(role)) {
     throw new NotFoundError('Sprint not found')
   }
   if (!canWriteProject(role)) {
@@ -57,7 +57,7 @@ export async function listSprints(ctx: ServiceCtx, raw: unknown) {
   const { projectId } = result.data
 
   // A member without a grant on this project sees no sprints (existence hidden).
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     return { items: [] }
   }
 
@@ -125,13 +125,13 @@ const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, n
     endDate?: number | null
   } = { updatedAt: now }
 
-  if (data.name !== undefined) {
+  if (Predicate.isNotNullish(data.name)) {
     setData.name = data.name
   }
   if ('goal' in data) {
     setData.goal = data.goal ?? null
   }
-  if (data.status !== undefined) {
+  if (Predicate.isNotNullish(data.status)) {
     setData.status = data.status
   }
   if ('startDate' in data) {

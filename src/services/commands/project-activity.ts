@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
 
 import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
@@ -30,8 +31,8 @@ const fetchActivityRows = async function fetchActivityRows(
    * D1 limits compound SELECT to a small number of terms, so we run separate
    * queries per event category and merge/sort in JS.
    */
-  const sinceFilter = (col: string) => (since !== undefined ? `AND ${col} >= ?` : '')
-  const s = since !== undefined ? [since] : []
+  const sinceFilter = (col: string): string => (Predicate.isNotNullish(since) ? `AND ${col} >= ?` : '')
+  const s = Predicate.isNotNullish(since) ? [since] : []
 
   const [issues, comments, statusChanges, wikiPages, sprints] = await Promise.all([
     // issue_created
@@ -152,7 +153,7 @@ export async function listProjectActivity(ctx: ServiceCtx, input: unknown): Prom
     throw new NotFoundError('Project not found')
   }
   // PROJ-311: a non-admin without a grant can't see the project's activity feed.
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     throw new NotFoundError('Project not found')
   }
 

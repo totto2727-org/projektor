@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -18,6 +18,7 @@ import {
   rateLimiterObjectName,
 } from '#services/request-rate-limit.ts'
 import type { RequestRateLimitEnv } from '#services/request-rate-limit.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import type { ApiEnv, HonoEnv } from '#types'
 import { createTestDatabase } from '@/test/database.ts'
 
@@ -57,9 +58,8 @@ const fixture = function fixture() {
   const handlers = makeApiRateLimitHandlers(Effect.sync(() => env))
   const binding = {
     fetch: async () => new Response(null, { status: 404 }),
-    apiCheckRateLimit: (input: typeof RateLimitRequest.Type) => Effect.runPromise(handlers.apiCheckRateLimit(input)),
-    apiBumpRateCounter: (input: typeof RateCounterRequest.Type) =>
-      Effect.runPromise(handlers.apiBumpRateCounter(input)),
+    apiCheckRateLimit: (input: typeof RateLimitRequest.Type) => runTestEffect(handlers.apiCheckRateLimit(input)),
+    apiBumpRateCounter: (input: typeof RateCounterRequest.Type) => runTestEffect(handlers.apiBumpRateCounter(input)),
   } as unknown as Fetcher
   const apiEnv: ApiEnv = {
     ...env,
@@ -73,9 +73,9 @@ const fixture = function fixture() {
 }
 const request = (headers: HeadersInit = {}) => new Request('https://example.test/api/issues', { headers })
 
-const consume = async function consume(count: number, req: Request, env: RequestRateLimitEnv) {
+const consume = async function consume(count: number, req: Request, env: RequestRateLimitEnv): Promise<void> {
   for (let index = 0; index < count; index++) {
-    expect(await checkRateLimit(req, env)).toBeUndefined()
+    await expect(checkRateLimit(req, env)).resolves.toBeUndefined()
   }
 }
 
@@ -83,9 +83,9 @@ describe('shared request rate-limit policy', () => {
   test('retains 300 IP and 600 bearer defaults, with no JWT or app auth bindings', async () => {
     const f = fixture()
     await consume(300, request(), f.env)
-    expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request(), f.env)).resolves.toEqual({ retryAfter: 55 })
     await consume(600, request({ Authorization: 'Bearer token' }), f.env)
-    expect(await checkRateLimit(request({ Authorization: 'Bearer token' }), f.env)).toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request({ Authorization: 'Bearer token' }), f.env)).resolves.toEqual({ retryAfter: 55 })
     expect(f.idFromName).toHaveBeenCalledWith('ip:127.0.0.1')
     expect(f.idFromName).toHaveBeenCalledWith('tok:3c469e9d6c5875d3')
     expect(f.sqlite.prepare('SELECT COUNT(*) AS count FROM rate_limit').get()).toEqual({ count: 0 })
@@ -95,16 +95,16 @@ describe('shared request rate-limit policy', () => {
     const f = fixture()
     f.env.RATE_LIMIT_API_MAX = '1'
     f.env.RATE_LIMIT_AUTH_MAX = '1'
-    expect(await checkRateLimit(request({ Authorization: 'Bearer user:grant:first' }), f.env)).toBeUndefined()
-    expect(await checkRateLimit(request({ Authorization: 'Bearer user:grant:rotated' }), f.env)).toEqual({
+    await expect(checkRateLimit(request({ Authorization: 'Bearer user:grant:first' }), f.env)).resolves.toBeUndefined()
+    await expect(checkRateLimit(request({ Authorization: 'Bearer user:grant:rotated' }), f.env)).resolves.toEqual({
       retryAfter: 55,
     })
-    expect(await checkRateLimit(request({ Authorization: 'Bearer user:other:first' }), f.env)).toBeUndefined()
-    expect(
-      await checkRateLimit(request({ Authorization: 'bearer token', 'CF-Connecting-IP': '1.2.3.4' }), f.env),
-    ).toBeUndefined()
-    expect(await checkRateLimit(request({ 'CF-Connecting-IP': '1.2.3.4' }), f.env)).toEqual({ retryAfter: 55 })
-    expect(await checkRateLimit(request({ 'CF-Connecting-IP': '2.3.4.5' }), f.env)).toBeUndefined()
+    await expect(checkRateLimit(request({ Authorization: 'Bearer user:other:first' }), f.env)).resolves.toBeUndefined()
+    await expect(
+      checkRateLimit(request({ Authorization: 'bearer token', 'CF-Connecting-IP': '1.2.3.4' }), f.env),
+    ).resolves.toBeUndefined()
+    await expect(checkRateLimit(request({ 'CF-Connecting-IP': '1.2.3.4' }), f.env)).resolves.toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request({ 'CF-Connecting-IP': '2.3.4.5' }), f.env)).resolves.toBeUndefined()
   })
 
   test('retains configurable windows, rollover, and the retry fallback for an expired returned slot', async () => {
@@ -112,11 +112,11 @@ describe('shared request rate-limit policy', () => {
     f.env.RATE_LIMIT_AUTH_MAX = '1'
     f.env.RATE_LIMIT_WINDOW_SECS = '30'
     await checkRateLimit(request(), f.env)
-    expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 25 })
+    await expect(checkRateLimit(request(), f.env)).resolves.toEqual({ retryAfter: 25 })
     f.env.RATE_LIMIT_TEST_NOW_MS = '150000'
-    expect(await checkRateLimit(request(), f.env)).toBeUndefined()
+    await expect(checkRateLimit(request(), f.env)).resolves.toBeUndefined()
     f.increment.mockResolvedValueOnce({ count: 2, slot: 0 })
-    expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 30 })
+    await expect(checkRateLimit(request(), f.env)).resolves.toEqual({ retryAfter: 30 })
   })
 
   test('ignores test epochs and clocks in production and shares counter naming across adapters', async () => {
@@ -127,10 +127,12 @@ describe('shared request rate-limit policy', () => {
     f.env.ENVIRONMENT = 'production'
     await checkRateLimit(request(), f.env)
     expect(f.increment).toHaveBeenCalledWith('ip:127.0.0.1', 60, 185)
-    expect(await apiBumpRateCounter({ ...f.apiEnv, ENVIRONMENT: 'production' }, 'authfail:ip:test', 60)).toBe(1)
+    await expect(apiBumpRateCounter({ ...f.apiEnv, ENVIRONMENT: 'production' }, 'authfail:ip:test', 60)).resolves.toBe(
+      1,
+    )
     expect(apiTimeout).toBe(LIMITER_TIMEOUT_MS)
     expect(apiObjectName).toBe(rateLimiterObjectName)
-    expect(await bumpRateCounter(f.env, 'authfail:ip:test', 60)).toBe(2)
+    await expect(bumpRateCounter(f.env, 'authfail:ip:test', 60)).resolves.toBe(2)
     expect(f.increment).toHaveBeenCalledWith('authfail:ip:test', 60, 185)
   })
 
@@ -138,12 +140,12 @@ describe('shared request rate-limit policy', () => {
     const f = fixture()
     vi.spyOn(console, 'error').mockImplementation(() => {})
     f.increment.mockRejectedValueOnce(new Error('offline'))
-    expect(await checkRateLimit(request(), f.env)).toBeUndefined()
+    await expect(checkRateLimit(request(), f.env)).resolves.toBeUndefined()
     vi.useFakeTimers()
     f.increment.mockImplementationOnce(() => new Promise(() => {}))
     const pending = checkRateLimit(request(), f.env)
     await vi.advanceTimersByTimeAsync(LIMITER_TIMEOUT_MS)
-    expect(await pending).toBeUndefined()
+    await expect(pending).resolves.toBeUndefined()
     expect(vi.getTimerCount()).toBe(0)
     expect(f.sqlite.prepare('SELECT COUNT(*) AS count FROM rate_limit').get()).toEqual({ count: 0 })
   })
@@ -156,17 +158,17 @@ describe('shared request rate-limit policy', () => {
     vi.spyOn(Date, 'now').mockReturnValue(125_000)
     vi.spyOn(Math, 'random').mockReturnValue(0)
     f.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale',1,-1000)")
-    expect(await checkRateLimit(request(), f.env)).toBeUndefined()
-    expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request(), f.env)).resolves.toBeUndefined()
+    await expect(checkRateLimit(request(), f.env)).resolves.toEqual({ retryAfter: 55 })
     expect(f.sqlite.prepare('SELECT * FROM rate_limit').all()).toEqual([
-      { key: 'ip:127.0.0.1', count: 2, window_start: 120 },
+      { count: 2, key: 'ip:127.0.0.1', window_start: 120 },
     ])
     f.env.RATE_LIMIT_TEST_NOW_MS = '180000'
-    expect(await checkRateLimit(request(), f.env)).toBeUndefined()
+    await expect(checkRateLimit(request(), f.env)).resolves.toBeUndefined()
     expect(f.sqlite.prepare('SELECT count FROM rate_limit').get()).toEqual({ count: 1 })
     vi.spyOn(f.db, 'batch').mockRejectedValueOnce(new Error('D1 unavailable'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    expect(await checkRateLimit(request(), f.env)).toBeUndefined()
+    await expect(checkRateLimit(request(), f.env)).resolves.toBeUndefined()
   })
 
   test.each([
@@ -180,14 +182,16 @@ describe('shared request rate-limit policy', () => {
     vi.spyOn(Math, 'random').mockReturnValue(roll)
     f.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale-client',1,-1000)")
 
-    expect(await checkRateLimit(request(), f.env)).toBeUndefined()
+    await expect(checkRateLimit(request(), f.env)).resolves.toBeUndefined()
 
-    expect(f.sqlite.prepare('SELECT key FROM rate_limit WHERE key = ?').get('stale-client') === undefined).toBe(pruned)
+    expect(Predicate.isNullish(f.sqlite.prepare('SELECT key FROM rate_limit WHERE key = ?').get('stale-client'))).toBe(
+      pruned,
+    )
     expect(
       f.sqlite.prepare('SELECT key, count, window_start FROM rate_limit WHERE key = ?').get('ip:127.0.0.1'),
     ).toEqual({
-      key: 'ip:127.0.0.1',
       count: 1,
+      key: 'ip:127.0.0.1',
       window_start: 120,
     })
   })
@@ -200,11 +204,11 @@ describe('shared request rate-limit policy', () => {
     app.use('*', rateLimitMiddleware)
     app.get('*', (httpContext) => httpContext.json({ ok: true }))
     expect((await app.request(request(), undefined, f.apiEnv)).status).toBe(200)
-    expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request(), f.env)).resolves.toEqual({ retryAfter: 55 })
     const denied = await app.request(request(), undefined, f.apiEnv)
     expect(denied.status).toBe(429)
     expect(denied.headers.get('Retry-After')).toBe('55')
-    expect(await denied.json()).toEqual({ error: 'Too Many Requests' })
+    await expect(denied.json()).resolves.toStrictEqual({ error: 'Too Many Requests' })
   })
 
   test('never lets a caller override production budgets, epochs or clocks through Core', async () => {
@@ -213,9 +217,9 @@ describe('shared request rate-limit policy', () => {
     f.env.RATE_LIMIT_AUTH_MAX = '1'
     vi.spyOn(Date, 'now').mockReturnValue(185_000)
     const input = { testPolicy: { authMax: '9999', epoch: 'untrusted', nowMs: '0', windowSecs: '1' } }
-    const reply = () => Effect.runPromise(decodeCoreReply(RateLimitResult, f.handlers.apiCheckRateLimit(input)))
-    expect(await reply()).toBeNull()
-    expect(await reply()).toEqual({ retryAfter: 55 })
+    const reply = () => runTestEffect(decodeCoreReply(RateLimitResult, f.handlers.apiCheckRateLimit(input)))
+    await expect(reply()).resolves.toBeNull()
+    await expect(reply()).resolves.toEqual({ retryAfter: 55 })
     expect(f.increment).toHaveBeenCalledWith('ip:127.0.0.1', 60, 185)
     expect(f.idFromName).not.toHaveBeenCalledWith(expect.stringContaining('untrusted'))
   })
@@ -226,8 +230,8 @@ describe('shared request rate-limit policy', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { DB: _db, ...withoutDatabase } = { ...f.apiEnv, DB: f.db }
     expect(withoutDatabase).not.toHaveProperty('DB')
-    expect(await apiBumpRateCounter(withoutDatabase, 'authfail:ip:test', 60)).toBe(1)
-    expect(await apiBumpRateCounter(withoutDatabase, 'authfail:ip:test', 60)).toBe(2)
+    await expect(apiBumpRateCounter(withoutDatabase, 'authfail:ip:test', 60)).resolves.toBe(1)
+    await expect(apiBumpRateCounter(withoutDatabase, 'authfail:ip:test', 60)).resolves.toBe(2)
     expect(f.sqlite.prepare('SELECT count FROM rate_limit WHERE key = ?').get('authfail:ip:test')).toEqual({ count: 2 })
   })
 
@@ -252,7 +256,7 @@ describe('shared request rate-limit policy', () => {
 
   test('rejects malformed counter requests before touching storage', async () => {
     const f = fixture()
-    const result = await Effect.runPromise(
+    const result = await runTestEffect(
       Effect.flip(
         decodeCoreReply(Schema.Number, f.handlers.apiBumpRateCounter({ key: 'authfail:ip:test', windowSecs: 0 })),
       ),
