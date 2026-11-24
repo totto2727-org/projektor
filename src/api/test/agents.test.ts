@@ -1,4 +1,4 @@
-import { Iterable } from 'effect'
+import { Schema, Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { startWork as startWorkDirect } from '#commands/agents.ts'
@@ -8,6 +8,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 describe('agents API', () => {
   let token: string
@@ -34,7 +35,7 @@ describe('agents API', () => {
 
     const res = await registerAgent({ name: 'test-agent', issueId: issue.id })
     expect(res.status).toBe(201)
-    const session = (await res.json()) as { id: string; status: string }
+    const session = await readNativeJson(res, Schema.Struct({ id: Schema.String, status: Schema.String }))
     expect(session.id).toBeTruthy()
     expect(session.status).toBe('active')
 
@@ -42,7 +43,8 @@ describe('agents API', () => {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
-    const body = (await listRes.json()) as { items: { id: string }[] }
+    const bodyShape = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable) })
+    const body = await readNativeJson(listRes, bodyShape)
     expect(body.items.some((item) => item.id === session.id)).toBe(true)
   })
 
@@ -50,7 +52,7 @@ describe('agents API', () => {
   test('a2: heartbeat updates last_heartbeat_at; stale session is excluded from list', async () => {
     const res = await registerAgent({ name: 'heartbeat-agent' })
     expect(res.status).toBe(201)
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
 
     // Heartbeat should succeed
     const hbRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/heartbeat`, {
@@ -58,7 +60,7 @@ describe('agents API', () => {
       method: 'POST',
     })
     expect(hbRes.status).toBe(200)
-    const updated = (await hbRes.json()) as { lastHeartbeatAt: number }
+    const updated = await readNativeJson(hbRes, Schema.Struct({ lastHeartbeatAt: Schema.Number }))
     expect(typeof updated.lastHeartbeatAt).toBe('number')
 
     // Backdate the heartbeat to simulate staleness (> 120s ago)
@@ -70,7 +72,10 @@ describe('agents API', () => {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
-    const listBody = (await listRes.json()) as { items: { id: string }[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     expect(listBody.items.some((item) => item.id === session.id)).toBe(false)
   })
 
@@ -78,14 +83,17 @@ describe('agents API', () => {
   test('a3: POST /:id/end sets status=ended and excludes session from active list', async () => {
     const res = await registerAgent({ name: 'end-agent' })
     expect(res.status).toBe(201)
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
 
     const endRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
     expect(endRes.status).toBe(200)
-    const ended = (await endRes.json()) as { status: string; endedAt: number | null }
+    const ended = await readNativeJson(
+      endRes,
+      Schema.Struct({ endedAt: Schema.Union([Schema.Number, Schema.Null]), status: Schema.String }),
+    )
     expect(ended.status).toBe('ended')
     expect(ended.endedAt).toBeGreaterThan(0)
 
@@ -93,7 +101,10 @@ describe('agents API', () => {
     const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
-    const listBody = (await listRes.json()) as { items: { id: string }[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     expect(listBody.items.some((item) => item.id === session.id)).toBe(false)
   })
 
@@ -103,7 +114,7 @@ describe('agents API', () => {
    */
   test('a4: caller-supplied kind is accepted but ignored, and absent from responses', async () => {
     const agentRes = await registerAgent({ name: 'bot' })
-    const agentSession = (await agentRes.json()) as Record<string, unknown>
+    const agentSession = await readNativeJson(agentRes, Schema.Record(Schema.String, Schema.Unknown))
     expect(agentSession.kind).toBeUndefined()
 
     const humanRes = await registerAgent({ name: 'human-user', kind: 'human' })
@@ -114,7 +125,10 @@ describe('agents API', () => {
     const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
-    const listBody = (await listRes.json()) as { items: Record<string, unknown>[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     const humanItem = listBody.items.find((item) => item.id === humanSession.id)
     expect(humanItem).toBeDefined()
     expect(humanItem?.kind).toBeUndefined()
@@ -126,13 +140,16 @@ describe('agents API', () => {
 
     // Register session in our workspace (X)
     const res = await registerAgent({ name: 'isolated-agent' })
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
 
     // Workspace Y should not see it
     const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
-    const listBody = (await listRes.json()) as { items: { id: string }[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     expect(listBody.items.some((item) => item.id === session.id)).toBe(false)
 
     // Heartbeat from Y -> 404
@@ -183,7 +200,10 @@ describe('agents API', () => {
     const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
-    const body = (await listRes.json()) as { items: { name: string }[] }
+    const bodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(listRes, bodyShape)
     const names = body.items.map((item) => item.name)
     expect(names).toContain('agent-1')
     expect(names).toContain('agent-2')
@@ -238,11 +258,12 @@ describe('agents API', () => {
         name: 'worker-1',
       })
       expect(res.status).toBe(201)
-      const body = (await res.json()) as {
-        sessionId: string
-        lease: { issueId: string }
-        claimedFiles: { path: string }[]
-      }
+      const bodyShape = Schema.Struct({
+        claimedFiles: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+        lease: Schema.Struct({ issueId: Schema.String }),
+        sessionId: Schema.String,
+      })
+      const body = await readNativeJson(res, bodyShape)
       expect(body.sessionId).toBeTruthy()
       expect(body.lease.issueId).toBe(issue.id)
       expect(body.claimedFiles.map((f) => f.path).sort()).toEqual(['src/a.ts', 'src/b.ts'])
@@ -264,7 +285,10 @@ describe('agents API', () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No paths' })
       const res = await startWork({ issue: issue.id, name: 'worker-1' })
       expect(res.status).toBe(201)
-      const body = (await res.json()) as { claimedFiles: unknown[] }
+      const body = await readNativeJson(
+        res,
+        Schema.Struct({ claimedFiles: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
+      )
       expect(body.claimedFiles).toStrictEqual([])
     })
 
@@ -397,7 +421,7 @@ describe('agents API', () => {
     test('finish_work transitions the issue, releases everything, and ends the session', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Finish' })
       const started = await startWork({ issue: issue.id, paths: ['src/finish.ts'], name: 'w' })
-      const { sessionId } = (await started.json()) as { sessionId: string }
+      const { sessionId } = await readNativeJson(started, Schema.Struct({ sessionId: Schema.String }))
 
       const res = await finishWork({
         sessionId,
@@ -431,7 +455,7 @@ describe('agents API', () => {
     test('finish_work with no status/completionReport just releases and ends the session', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No transition' })
       const started = await startWork({ issue: issue.id, name: 'w' })
-      const { sessionId } = (await started.json()) as { sessionId: string }
+      const { sessionId } = await readNativeJson(started, Schema.Struct({ sessionId: Schema.String }))
 
       const res = await finishWork({ sessionId, issue: issue.id })
       expect(res.status).toBe(200)
@@ -452,7 +476,7 @@ describe('agents API', () => {
       const before = currentEpochSeconds() - 100
 
       const res = await startWork({ issue: issue.id, name: 'w' })
-      const { sessionId } = (await res.json()) as { sessionId: string }
+      const { sessionId } = await readNativeJson(res, Schema.Struct({ sessionId: Schema.String }))
 
       const session = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
         .bind(sessionId)
@@ -487,7 +511,7 @@ describe('agents API', () => {
     test('the old tools still work standalone (register_agent/claim_issue/release_issue/end_agent)', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Old path' })
       const reg = await registerAgent({ name: 'old-style' })
-      const { id: agentId } = (await reg.json()) as { id: string }
+      const { id: agentId } = await readNativeJson(reg, IdResponse)
 
       const claim = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
         method: 'POST',
@@ -530,15 +554,21 @@ describe('agents API', () => {
 
     test('excludes a session with a stale heartbeat by default; includeStale:true includes it, flagged live:false', async () => {
       const res = await registerAgent({ name: 'stale-agent-932' })
-      const session = (await res.json()) as { id: string }
+      const session = await readNativeJson(res, IdResponse)
       await backdateHeartbeat(session.id)
 
       const withoutFlag = await listAgents()
-      const withoutBody = (await withoutFlag.json()) as { items: { id: string }[] }
+      const withoutBodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+      })
+      const withoutBody = await readNativeJson(withoutFlag, withoutBodyShape)
       expect(withoutBody.items.some((selectedItem) => selectedItem.id === session.id)).toBe(false)
 
       const withFlag = await listAgents({ includeStale: 'true' })
-      const withBody = (await withFlag.json()) as { items: { id: string; live: boolean }[] }
+      const withBodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ id: Schema.String, live: Schema.Boolean })).pipe(Schema.mutable),
+      })
+      const withBody = await readNativeJson(withFlag, withBodyShape)
       const item = withBody.items.find((selectedItem) => selectedItem.id === session.id)
       expect(item).toBeDefined()
       expect(item?.live).toBe(false)
@@ -548,41 +578,53 @@ describe('agents API', () => {
     // into ended sessions, which end_agent explicitly moves out of the pool for good.
     test('never returns an ended session, with or without includeStale', async () => {
       const res = await registerAgent({ name: 'ended-agent-932' })
-      const session = (await res.json()) as { id: string }
+      const session = await readNativeJson(res, IdResponse)
       await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
         headers: authHeaders(token, slug),
         method: 'POST',
       })
 
       const withoutFlag = await listAgents()
-      const withoutBody = (await withoutFlag.json()) as { items: { id: string }[] }
+      const withoutBodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+      })
+      const withoutBody = await readNativeJson(withoutFlag, withoutBodyShape)
       expect(withoutBody.items.some((item) => item.id === session.id)).toBe(false)
 
       const withFlag = await listAgents({ includeStale: 'true' })
-      const withBody = (await withFlag.json()) as { items: { id: string }[] }
+      const withBodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+      })
+      const withBody = await readNativeJson(withFlag, withBodyShape)
       expect(withBody.items.some((item) => item.id === session.id)).toBe(false)
     })
 
     test('a fresh session is flagged live:true', async () => {
       const res = await registerAgent({ name: 'fresh-agent-932' })
-      const session = (await res.json()) as { id: string }
+      const session = await readNativeJson(res, IdResponse)
 
       const listRes = await listAgents()
-      const body = (await listRes.json()) as { items: { id: string; live: boolean }[] }
+      const bodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ id: Schema.String, live: Schema.Boolean })).pipe(Schema.mutable),
+      })
+      const body = await readNativeJson(listRes, bodyShape)
       expect(body.items.find((item) => item.id === session.id)?.live).toBe(true)
     })
 
     test("carries the linked issue's issueRef; null when unlinked", async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Linked' })
       const linked = await registerAgent({ name: 'linked-932', issueId: issue.id })
-      const linkedSession = (await linked.json()) as { id: string }
+      const linkedSession = await readNativeJson(linked, IdResponse)
       const unlinked = await registerAgent({ name: 'unlinked-932' })
-      const unlinkedSession = (await unlinked.json()) as { id: string }
+      const unlinkedSession = await readNativeJson(unlinked, IdResponse)
 
       const res = await listAgents()
-      const body = (await res.json()) as {
-        items: { id: string; issueRef: string | null }[]
-      }
+      const bodyShape = Schema.Struct({
+        items: Schema.Array(
+          Schema.Struct({ id: Schema.String, issueRef: Schema.Union([Schema.String, Schema.Null]) }),
+        ).pipe(Schema.mutable),
+      })
+      const body = await readNativeJson(res, bodyShape)
       const byId = new Map(body.items.map((item) => [item.id, item.issueRef]))
       expect(byId.get(linkedSession.id)).toBe(`${projectKey}-${issue.number}`)
       expect(byId.get(unlinkedSession.id)).toBeNull()
@@ -599,11 +641,11 @@ describe('agents API', () => {
 
       const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'In A' })
       const linkedA = await registerAgent({ name: 'linked-a-932', issueId: issueA.id })
-      const linkedASession = (await linkedA.json()) as { id: string }
+      const linkedASession = await readNativeJson(linkedA, IdResponse)
 
       const issueB = await seedIssue(workspaceId, otherProject.id, userId, { title: 'In B' })
       const linkedB = await registerAgent({ name: 'linked-b-932', issueId: issueB.id })
-      const linkedBSession = (await linkedB.json()) as { id: string }
+      const linkedBSession = await readNativeJson(linkedB, IdResponse)
 
       const byKey = await listAgents({ projectId: projectKey })
       const byKeyIds = ((await byKey.json()) as { items: { id: string }[] }).items.map((item) => item.id)

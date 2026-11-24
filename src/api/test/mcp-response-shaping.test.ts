@@ -1,4 +1,4 @@
-import { String, Predicate, Iterable } from 'effect'
+import { Schema, String, Predicate, Iterable } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '#api/mcp/serialize.ts'
@@ -11,6 +11,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
 
@@ -207,7 +208,15 @@ describe('covers PROJ-891: MCP tools', () => {
         params: { name, arguments: args },
       }),
     })
-    const body = (await res.json()) as Rpc
+    const bodyShape = Schema.Struct({
+      result: Schema.optional(
+        Schema.Struct({
+          content: Schema.optional(Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable)),
+          isError: Schema.optional(Schema.Boolean),
+        }),
+      ),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.result?.isError, JSON.stringify(body)).toBeUndefined()
     return JSON.parse(body.result?.content?.[0].text ?? 'null') as T
   }

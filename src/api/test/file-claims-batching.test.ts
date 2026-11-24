@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Schema, Iterable, Predicate } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
@@ -17,6 +17,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 /**
  * Counts D1 round trips: each statement executed on its own (via .run()/.all()/.get()/.raw(),
@@ -253,7 +254,11 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     })
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { released: { path: string }[]; count: number }
+    const bodyShape = Schema.Struct({
+      count: Schema.Number,
+      released: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.count).toBe(100)
   })
 
@@ -314,7 +319,10 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       headers: authHeaders(token, slug),
     })
     expect(observed.status).toBe(200)
-    const listed = (await observed.json()) as { items: { path: string; releaseReason: string }[] }
+    const listedShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ path: Schema.String, releaseReason: Schema.String })).pipe(Schema.mutable),
+    })
+    const listed = await readNativeJson(observed, listedShape)
     expect(listed.items.filter((claim) => paths.includes(claim.path))).toHaveLength(0)
   })
 
@@ -326,7 +334,10 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       body: JSON.stringify({ issueId, paths: ['src/b.ts', 'src/a.ts', 'src/b.ts'] }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { created: { path: string }[] }
+    const bodyShape = Schema.Struct({
+      created: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.created.map((c) => c.path)).toEqual(['src/b.ts', 'src/a.ts'])
   })
 

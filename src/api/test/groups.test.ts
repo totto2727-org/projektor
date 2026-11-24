@@ -1,8 +1,10 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -67,11 +69,12 @@ describe('groups REST', () => {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(200)
-    const groups = (await res.json()) as {
-      name: string
-      memberCount: number
-      grantCount: number
-    }[]
+    const groups = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ grantCount: Schema.Number, memberCount: Schema.Number, name: Schema.String })).pipe(
+        Schema.mutable,
+      ),
+    )
     const g = groups.find((group) => group.name === 'Engineering')
     expect(g).toBeTruthy()
     expect(g!.memberCount).toBe(0)
@@ -220,7 +223,13 @@ describe('groups REST', () => {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(200)
-    const rows = (await res.json()) as { userId: string; groups: Array<{ name: string }> }[]
+    const rowsShape = Schema.Array(
+      Schema.Struct({
+        groups: Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable),
+        userId: Schema.String,
+      }),
+    ).pipe(Schema.mutable)
+    const rows = await readNativeJson(res, rowsShape)
     const memberRow = rows.find((row) => row.userId === roles.member.user.id)
     const viewerRow = rows.find((row) => row.userId === roles.viewer.user.id)
     expect(memberRow?.groups.map((group) => group.name)).toEqual(['Assigned'])

@@ -62,7 +62,10 @@ describe('sprints API', () => {
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { items: Record<string, unknown>[] }
+    const bodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.items).toHaveLength(1)
     expect(body.items[0].name).toBe('Sprint 1')
     expect(body.items[0].goal).toBe('Ship the feature')

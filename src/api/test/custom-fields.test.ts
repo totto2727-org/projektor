@@ -349,9 +349,14 @@ describe('custom Fields — resolved on read', () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as {
-      items: { customFields: Array<{ key: string; value: string }> }[]
-    }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(
+        Schema.Struct({
+          customFields: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })).pipe(Schema.mutable),
+        }),
+      ).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(3)
     Iterable.forEach(page.items, (item) => {
       expect(Array.isArray(item.customFields)).toBe(true)

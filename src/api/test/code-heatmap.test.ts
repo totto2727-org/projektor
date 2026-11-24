@@ -6,6 +6,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { RpcTextResponse, readNativeJson } from './response-json.ts'
 
 interface CodeHeatmapResponse {
   prefix: string
@@ -192,9 +193,7 @@ describe('code heatmap (PROJ-332)', () => {
         },
       }),
     })
-    const mcpJson = (await mcpRes.json()) as {
-      result: { content: { text: string }[] }
-    }
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
     expect(mcpBody).toStrictEqual(restBody)

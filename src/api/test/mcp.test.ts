@@ -374,7 +374,12 @@ describe('covers MCP endpoint', () => {
     const restRes = await fetchNativeApi(`http://localhost/api/issues?assignee=${assignee.id}`, {
       headers,
     })
-    const restData = (await restRes.json()) as IssuePage
+    const restDataShape = Schema.Struct({
+      items: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
+      next: Schema.optional(Schema.String),
+      nextCursor: Schema.optional(Schema.Union([Schema.Number, Schema.Null])),
+    })
+    const restData = await readNativeJson(restRes, restDataShape)
     expect(restData.items).toHaveLength(1)
     expect((restData.items[0] as { title: string }).title).toBe('Assigned')
   })
@@ -389,7 +394,12 @@ describe('covers MCP endpoint', () => {
     const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage
 
     const restRes = await fetchNativeApi('http://localhost/api/issues', { headers })
-    const restData = (await restRes.json()) as IssuePage
+    const restDataShape = Schema.Struct({
+      items: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
+      next: Schema.optional(Schema.String),
+      nextCursor: Schema.optional(Schema.Union([Schema.Number, Schema.Null])),
+    })
+    const restData = await readNativeJson(restRes, restDataShape)
 
     expect(Array.isArray(mcpData.items)).toBe(true)
     expect('nextCursor' in mcpData).toBe(false)

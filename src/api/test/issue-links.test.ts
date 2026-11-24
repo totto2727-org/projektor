@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -5,6 +6,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 describe('issue Links API', () => {
   let token: string
@@ -53,7 +55,7 @@ describe('issue Links API', () => {
   test('creates a blocks link and lists it from both sides', async () => {
     const createRes = await createLink(issueA.id, issueB.id, 'blocks')
     expect(createRes.status).toBe(201)
-    const { id: linkId } = (await createRes.json()) as { id: string }
+    const { id: linkId } = await readNativeJson(createRes, IdResponse)
     expect(linkId).toBeTruthy()
 
     // From A's perspective: A blocks B
@@ -131,7 +133,7 @@ describe('issue Links API', () => {
 
   test('deletes a link', async () => {
     const createRes = await createLink(issueA.id, issueB.id, 'relates_to')
-    const { id: linkId } = (await createRes.json()) as { id: string }
+    const { id: linkId } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issueA.id}/links/${linkId}`, {
       headers: authHeaders(token, slug),
@@ -202,7 +204,10 @@ describe('issue Links API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const issue = (await res.json()) as { links: Record<string, unknown>[] }
+    const issueShape = Schema.Struct({
+      links: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
+    })
+    const issue = await readNativeJson(res, issueShape)
     expect(Array.isArray(issue.links)).toBe(true)
     expect(issue.links).toHaveLength(2)
   })
@@ -242,7 +247,7 @@ describe('issue Links role guards', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ targetIssueId: issue2.id, type: 'relates_to' }),
     })
-    const { id: linkId } = (await createRes.json()) as { id: string }
+    const { id: linkId } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links/${linkId}`, {
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
@@ -270,10 +275,10 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const detail = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(fixture.token, slug),
     })
-    const { project_key: key, number } = (await detail.json()) as {
-      project_key: string
-      number: number
-    }
+    const { project_key: key, number } = await readNativeJson(
+      detail,
+      Schema.Struct({ number: Schema.Number, project_key: Schema.String }),
+    )
 
     const byRef = await fetchNativeApi(`http://localhost/api/issues/${key}-${number}/links`, {
       headers: authHeaders(fixture.token, slug),
@@ -311,7 +316,10 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     })
 
     expect(res.status).toBe(200)
-    const links = (await res.json()) as { linkedIssueId: string }[]
+    const links = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ linkedIssueId: Schema.String })).pipe(Schema.mutable),
+    )
     expect(links.map((link) => link.linkedIssueId)).toEqual([b.id])
   })
 

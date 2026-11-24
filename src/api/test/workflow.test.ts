@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { hashWorkflowContent } from '#commands/workflow.ts'
@@ -5,6 +6,7 @@ import { hashWorkflowContent } from '#commands/workflow.ts'
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -37,12 +39,15 @@ describe('workflow spec', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      title: string
-      description: string
-      content: string
-      version: string
-    }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({
+        content: Schema.String,
+        description: Schema.String,
+        title: Schema.String,
+        version: Schema.String,
+      }),
+    )
     expect(body.title).toBe('Workflow spec')
     expect(body.content).toContain('Definition of ready')
     expect(body.content).toContain('Human gates')
@@ -88,12 +93,12 @@ describe('workflow spec', () => {
     const res1 = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
-    const body1 = (await res1.json()) as { version: string }
+    const body1 = await readNativeJson(res1, Schema.Struct({ version: Schema.String }))
 
     const res2 = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
-    const body2 = (await res2.json()) as { version: string }
+    const body2 = await readNativeJson(res2, Schema.Struct({ version: Schema.String }))
 
     expect(body1.version).toBe(body2.version)
 
@@ -131,7 +136,7 @@ describe('workflow spec', () => {
     const first = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
-    const { version } = (await first.json()) as { version: string }
+    const { version } = await readNativeJson(first, Schema.Struct({ version: Schema.String }))
 
     const second = await fetchNativeApi(`http://localhost/api/workflow?ifVersion=${version}`, {
       headers: authHeaders(token, slug),
@@ -157,7 +162,10 @@ describe('workflow spec', () => {
       headers: authHeaders(token, slug),
     })
     expect(restRes.status).toBe(200)
-    const restBody = (await restRes.json()) as { content: string; unchanged?: boolean }
+    const restBody = await readNativeJson(
+      restRes,
+      Schema.Struct({ content: Schema.String, unchanged: Schema.optional(Schema.Boolean) }),
+    )
     expect(restBody.content).toContain('Definition of ready')
     expect(restBody.unchanged).toBeUndefined()
   })
@@ -166,7 +174,10 @@ describe('workflow spec', () => {
     const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { content: string; unchanged?: boolean }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ content: Schema.String, unchanged: Schema.optional(Schema.Boolean) }),
+    )
     expect(body.content).toContain('Definition of ready')
     expect(body.unchanged).toBeUndefined()
   })
@@ -184,12 +195,15 @@ describe('workflow spec', () => {
     const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as {
-      title: string
-      description: string
-      content: string
-      version: string
-    }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({
+        content: Schema.String,
+        description: Schema.String,
+        title: Schema.String,
+        version: Schema.String,
+      }),
+    )
     expect(body.version).toBe(
       await hashWorkflowContent(
         JSON.stringify({ title: body.title, description: body.description, content: body.content }),
@@ -208,7 +222,7 @@ describe('workflow spec', () => {
     const workflowRes = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
-    const { version } = (await workflowRes.json()) as { version: string }
+    const { version } = await readNativeJson(workflowRes, Schema.Struct({ version: Schema.String }))
 
     const initRes = (await mcpCall(workspaceId, 'initialize', {}, authHeaders(token, slug))) as JsonRpcResult<{
       instructions: string

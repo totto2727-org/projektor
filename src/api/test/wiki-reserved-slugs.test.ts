@@ -8,6 +8,7 @@ import m0060 from '#migrations/0060_wiki_reserved_slug_rename.sql?raw'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, SlugResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-811: every fixed first path segment under /api/wiki is matched before the /:slug
@@ -45,7 +46,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
       body: JSON.stringify({ content: 'body', title: 'Search' }),
     })
     expect(res.status).toBe(201)
-    const page = (await res.json()) as { slug: string }
+    const page = await readNativeJson(res, SlugResponse)
     expect(page.slug).toBe('search-page')
 
     const get = await fetchNativeApi(`http://localhost/api/wiki/${page.slug}`, {
@@ -67,7 +68,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Plain' }),
     })
-    const page = (await ok.json()) as { id: string }
+    const page = await readNativeJson(ok, IdResponse)
     const renamed = await fetchNativeApi(`http://localhost/api/wiki/${page.id}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),

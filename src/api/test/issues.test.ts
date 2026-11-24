@@ -791,9 +791,10 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${parentId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as {
-      rollup: { total: number; byStatus: Record<string, number> }
-    }
+    const issueShape = Schema.Struct({
+      rollup: Schema.Struct({ byStatus: Schema.Record(Schema.String, Schema.Number), total: Schema.Number }),
+    })
+    const issue = await readNativeJson(getRes, issueShape)
     expect(issue.rollup.total).toBe(3)
     expect(issue.rollup.byStatus.backlog).toBe(2)
     expect(issue.rollup.byStatus.done).toBe(1)
@@ -810,9 +811,10 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as {
-      rollup: { total: number; byStatus: Record<string, number> }
-    }
+    const issueShape = Schema.Struct({
+      rollup: Schema.Struct({ byStatus: Schema.Record(Schema.String, Schema.Number), total: Schema.Number }),
+    })
+    const issue = await readNativeJson(getRes, issueShape)
     expect(issue.rollup.total).toBe(0)
     expect(issue.rollup.byStatus).toStrictEqual({})
   })
@@ -1394,9 +1396,14 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${parentId}`, {
       headers: authHeaders(token, slug),
     })
-    const single = (await getRes.json()) as {
-      rollup: { total: number; byStatus: Record<string, number>; done: number }
-    }
+    const singleShape = Schema.Struct({
+      rollup: Schema.Struct({
+        byStatus: Schema.Record(Schema.String, Schema.Number),
+        done: Schema.Number,
+        total: Schema.Number,
+      }),
+    })
+    const single = await readNativeJson(getRes, singleShape)
 
     const { page } = await listIssues(`http://localhost/api/issues?noParent=true&includeRollups=1`)
     const parentItem = page.items.find((item) => item.id === parentId) as {
@@ -1681,11 +1688,17 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
     })
-    const body = (await res.json()) as {
-      result: {
-        tools: { name: string; inputSchema: { properties: Record<string, unknown> } }[]
-      }
-    }
+    const bodyShape = Schema.Struct({
+      result: Schema.Struct({
+        tools: Schema.Array(
+          Schema.Struct({
+            inputSchema: Schema.Struct({ properties: Schema.Record(Schema.String, Schema.Unknown) }),
+            name: Schema.String,
+          }),
+        ).pipe(Schema.mutable),
+      }),
+    })
+    const body = await readNativeJson(res, bodyShape)
     const listIssuesTool = body.result.tools.find((t) => t.name === 'list_issues')
     expect(listIssuesTool).toBeDefined()
     const advertised = Object.keys(listIssuesTool!.inputSchema.properties)
@@ -2497,7 +2510,12 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
       body: JSON.stringify({ projectId, title: 'Bad assignee', assigneeId: otherFixture.user.id }),
     })
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: { fieldErrors: Record<string, string[]> } }
+    const bodyShape = Schema.Struct({
+      error: Schema.Struct({
+        fieldErrors: Schema.Record(Schema.String, Schema.Array(Schema.String).pipe(Schema.mutable)),
+      }),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.error.fieldErrors.assigneeId).toBeDefined()
   })
 
@@ -2648,7 +2666,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await res.json()) as Record<string, unknown>
+    const issue = await readNativeJson(res, Schema.Record(Schema.String, Schema.Unknown))
     // REST keeps the full shape: empty/null fields are still present.
     expect(issue.links).toStrictEqual([])
     expect(issue.customFields).toStrictEqual([])

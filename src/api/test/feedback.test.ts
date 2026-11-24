@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { hashFeedbackToken } from '#commands/feedback.ts'
@@ -15,6 +16,7 @@ import {
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { seedRateLimitCounter } from './rate-limit-reset.ts'
+import { IdListResponse, IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 describe('feedback migration', () => {
   test('creates feedback_sources and feedback tables', async () => {
@@ -39,7 +41,7 @@ describe('feedback sources REST', () => {
       body: JSON.stringify({ name: 'Onboarding survey', allowedOrigins: ['https://acme.test'] }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; token: string }
+    const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, token: Schema.String }))
     expect(body.id).toBeTruthy()
     expect(body.token).toBeTruthy()
   })
@@ -61,17 +63,18 @@ describe('feedback sources REST', () => {
       headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({ name: 'NPS' }),
     })
-    const { token } = (await created.json()) as { token: string }
+    const { token } = await readNativeJson(created, TokenResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as {
-      name: string
-      tokenPreview: string
-      isActive: boolean
-    }[]
+    const list = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ isActive: Schema.Boolean, name: Schema.String, tokenPreview: Schema.String })).pipe(
+        Schema.mutable,
+      ),
+    )
     expect(list).toHaveLength(1)
     expect(list[0].name).toBe('NPS')
     expect(list[0].isActive).toBe(true)
@@ -86,7 +89,7 @@ describe('feedback sources REST', () => {
       headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({ name: 'Old' }),
     })
-    const { id } = (await created.json()) as { id: string }
+    const { id } = await readNativeJson(created, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
@@ -109,7 +112,7 @@ describe('feedback sources REST', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
     })
-    const { id } = (await create.json()) as { id: string }
+    const { id } = await readNativeJson(create, IdResponse)
 
     const memberRes = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`, {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
@@ -169,7 +172,7 @@ describe('feedback submit (public)', () => {
       body: JSON.stringify({ body: 'Love it' }),
     })
     expect(res.status).toBe(201)
-    const data = (await res.json()) as Record<string, unknown>
+    const data = await readNativeJson(res, Schema.Record(Schema.String, Schema.Unknown))
     expect(Object.keys(data)).toEqual(['id'])
 
     const row = await env.DB.prepare('SELECT project_id, workspace_id, source_id, status FROM feedback WHERE id = ?')
@@ -188,7 +191,7 @@ describe('feedback submit (public)', () => {
       body: JSON.stringify({ body: 'x', projectId: '00000000-0000-0000-0000-000000000000' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
     const row = await env.DB.prepare('SELECT project_id FROM feedback WHERE id = ?')
       .bind(id)
       .first<{ project_id: string }>()
@@ -210,7 +213,7 @@ describe('feedback submit (public)', () => {
     const list = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })
-    const [{ id }] = (await list.json()) as { id: string }[]
+    const [{ id }] = await readNativeJson(list, IdListResponse)
     await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources/${id}`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
       method: 'DELETE',
@@ -229,7 +232,7 @@ describe('feedback submit (public)', () => {
     const list = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })
-    const [{ id }] = (await list.json()) as { id: string }[]
+    const [{ id }] = await readNativeJson(list, IdListResponse)
     await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
       headers: authHeaders(testFixture.token, testFixture.slug),
@@ -357,7 +360,10 @@ describe('feedback triage read/patch', () => {
     const all = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })
-    const allRows = (await all.json()) as { sourceName: string; status: string }[]
+    const allRows = await readNativeJson(
+      all,
+      Schema.Array(Schema.Struct({ sourceName: Schema.String, status: Schema.String })).pipe(Schema.mutable),
+    )
     expect(allRows).toHaveLength(2)
     expect(allRows[0].sourceName).toBe('Onboarding')
 
@@ -367,7 +373,10 @@ describe('feedback triage read/patch', () => {
         headers: authHeaders(testFixture.token, testFixture.slug),
       },
     )
-    const rows = (await filtered.json()) as { status: string }[]
+    const rows = await readNativeJson(
+      filtered,
+      Schema.Array(Schema.Struct({ status: Schema.String })).pipe(Schema.mutable),
+    )
     expect(rows).toHaveLength(1)
     expect(rows[0].status).toBe('new')
   })
@@ -441,7 +450,10 @@ describe('feedback triage read/patch', () => {
         headers: authHeaders(testFixture.token, testFixture.slug),
       },
     )
-    const rows = (await res.json()) as { sourceId: string }[]
+    const rows = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ sourceId: Schema.String })).pipe(Schema.mutable),
+    )
     expect(rows).toHaveLength(1)
     expect(rows[0].sourceId).toBe(srcA.id)
   })
@@ -641,7 +653,7 @@ describe('feedback convert-to-issue', () => {
       },
     )
     expect(res.status).toBe(201)
-    const issue = (await res.json()) as { id: string }
+    const issue = await readNativeJson(res, IdResponse)
     expect(issue.id).toBeTruthy()
 
     const row = await env.DB.prepare('SELECT status, linked_issue_id FROM feedback WHERE id = ?')
@@ -718,7 +730,7 @@ describe('feedback convert-to-issue', () => {
       },
     )
     expect(res.status).toBe(201)
-    const issue = (await res.json()) as { id: string }
+    const issue = await readNativeJson(res, IdResponse)
     const issueRow = await env.DB.prepare('SELECT title FROM issues WHERE id = ?')
       .bind(issue.id)
       .first<{ title: string }>()
@@ -784,7 +796,7 @@ describe('covers PROJ-390: path params win over body-supplied ids', () => {
       body: JSON.stringify({ name: 'X', projectId: '00000000-0000-0000-0000-000000000000' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
     const row = await env.DB.prepare('SELECT project_id FROM feedback_sources WHERE id = ?')
       .bind(id)
       .first<{ project_id: string }>()
@@ -826,7 +838,7 @@ describe('covers PROJ-390: cross-project feedback source mutation is rejected', 
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: "A's source" }),
     })
-    const { id: sourceId } = (await created.json()) as { id: string }
+    const { id: sourceId } = await readNativeJson(created, IdResponse)
     return { roles, projA, projB, sourceId }
   }
 
@@ -868,7 +880,7 @@ describe('covers PROJ-390: mutating a revoked feedback source', () => {
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'Doomed' }),
     })
-    const { id } = (await created.json()) as { id: string }
+    const { id } = await readNativeJson(created, IdResponse)
     await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       headers: authHeaders(f.token, f.slug),
       method: 'DELETE',
@@ -961,7 +973,7 @@ describe('feedback read/triage MCP tools', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
     })
-    const { id: sourceId } = (await create.json()) as { id: string }
+    const { id: sourceId } = await readNativeJson(create, IdResponse)
     await seedFeedbackRow(sourceId, roles.workspace.id, proj.id)
 
     const res = (await mcpCall(
@@ -1002,7 +1014,7 @@ describe('feedback read/triage MCP tools', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
     })
-    const { id: sourceId } = (await create.json()) as { id: string }
+    const { id: sourceId } = await readNativeJson(create, IdResponse)
     const fbId = await seedFeedbackRow(sourceId, roles.workspace.id, proj.id)
 
     const res = await mcpCall(
@@ -1072,7 +1084,7 @@ describe('feedback read/triage MCP tools', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
     })
-    const { id: sourceId } = (await create.json()) as { id: string }
+    const { id: sourceId } = await readNativeJson(create, IdResponse)
     const fbId = await seedFeedbackRow(sourceId, roles.workspace.id, proj.id, { body: 'x' })
 
     const res = await mcpCall(

@@ -1039,10 +1039,15 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
     })
     expect(treeRes.status).toBe(200)
-    const tree = (await treeRes.json()) as {
-      id: string
-      children: Array<{ id: string; children: unknown[] }>
-    }[]
+    const treeShape = Schema.Array(
+      Schema.Struct({
+        children: Schema.Array(
+          Schema.Struct({ children: Schema.Array(Schema.Unknown).pipe(Schema.mutable), id: Schema.String }),
+        ).pipe(Schema.mutable),
+        id: Schema.String,
+      }),
+    ).pipe(Schema.mutable)
+    const tree = await readNativeJson(treeRes, treeShape)
     const rootNode = tree.find((n) => n.id === root.id)
     expect(rootNode).toBeDefined()
     expect(rootNode!.children).toHaveLength(1)
@@ -3403,7 +3408,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       }),
     })
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: { fieldErrors: Record<string, string[]> } }
+    const bodyShape = Schema.Struct({
+      error: Schema.Struct({
+        fieldErrors: Schema.Record(Schema.String, Schema.Array(Schema.String).pipe(Schema.mutable)),
+      }),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.error.fieldErrors.values?.length).toBeGreaterThan(0)
   })
 
@@ -3671,9 +3681,13 @@ describe('wiki patch operations (PROJ-490)', () => {
       }),
     })
     expect(res.status).toBe(400)
-    const body = (await res.json()) as {
-      error: { formErrors: string[]; fieldErrors: Record<string, string[]> }
-    }
+    const bodyShape = Schema.Struct({
+      error: Schema.Struct({
+        fieldErrors: Schema.Record(Schema.String, Schema.Array(Schema.String).pipe(Schema.mutable)),
+        formErrors: Schema.Array(Schema.String).pipe(Schema.mutable),
+      }),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.error.formErrors.join(' ')).toContain('ambiguous')
     expect(body.error.fieldErrors.heading).toStrictEqual(['h1', 'h2'])
     // Nothing was written.

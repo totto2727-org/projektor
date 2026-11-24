@@ -1,10 +1,11 @@
-import { Iterable } from 'effect'
+import { Schema, Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 describe('compose_playbook', () => {
   let token: string
@@ -212,7 +213,10 @@ describe('handles POST /api/playbooks/:name/compose', () => {
       body: JSON.stringify({ epicRef: `PROJ-${epicNumber}` }),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { name: string; variant: string; directive: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ directive: Schema.String, name: Schema.String, variant: Schema.String }),
+    )
     expect(body.name).toBe('epic-goal')
     expect(body.directive).toContain('Ship the widget')
   })

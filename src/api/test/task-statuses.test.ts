@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -11,6 +12,7 @@ import {
   seedUser,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
 describe('task Statuses API', () => {
   let token: string
@@ -30,7 +32,7 @@ describe('task Statuses API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as unknown[]
+    const list = await readNativeJson(res, JsonListResponse)
     expect(Array.isArray(list)).toBe(true)
     expect(list).toHaveLength(0)
   })
@@ -42,7 +44,7 @@ describe('task Statuses API', () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
-    const list = (await res.json()) as { key: string }[]
+    const list = await readNativeJson(res, Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable))
     expect(list).toHaveLength(2)
     expect(list[0].key).toBe('todo')
     expect(list[1].key).toBe('done')
@@ -62,7 +64,7 @@ describe('task Statuses API', () => {
       }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; key: string }
+    const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, key: Schema.String }))
     expect(body.id).toBeTruthy()
     expect(body.key).toBe('in_progress')
   })
@@ -103,7 +105,10 @@ describe('task Statuses API', () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
-    const list = (await res.json()) as { key: string; is_default: number }[]
+    const list = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ is_default: Schema.Number, key: Schema.String })).pipe(Schema.mutable),
+    )
     const defaults = list.filter((s) => s.is_default === 1)
     expect(defaults).toHaveLength(1)
     expect(defaults[0].key).toBe('backlog')
@@ -141,7 +146,10 @@ describe('task Statuses API', () => {
     const listRes = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
-    const list = (await listRes.json()) as { key: string; name: string }[]
+    const list = await readNativeJson(
+      listRes,
+      Schema.Array(Schema.Struct({ key: Schema.String, name: Schema.String })).pipe(Schema.mutable),
+    )
     expect(list.find((s) => s.key === 'todo')?.name).toBe('To Do')
   })
 
@@ -176,7 +184,10 @@ describe('task Statuses API', () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
-    const list = (await res.json()) as { id: string; is_default: number }[]
+    const list = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ id: Schema.String, is_default: Schema.Number })).pipe(Schema.mutable),
+    )
     const todoRow = list.find((s) => s.id === todoId)
     const doneRow = list.find((s) => s.id === doneId)
     expect(todoRow?.is_default).toBe(0)
@@ -201,7 +212,7 @@ describe('task Statuses API', () => {
     const listRes = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
-    const list = (await listRes.json()) as unknown[]
+    const list = await readNativeJson(listRes, JsonListResponse)
     expect(list).toHaveLength(0)
   })
 
@@ -252,7 +263,7 @@ describe('task Statuses API', () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
-    const list = (await res.json()) as unknown[]
+    const list = await readNativeJson(res, JsonListResponse)
     expect(list).toHaveLength(0)
   })
 })
@@ -282,16 +293,15 @@ describe('task Statuses — issue integration', () => {
       body: JSON.stringify({ projectId, title: 'No status given' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as {
-      status_key: string
-      status_name: string
-      status_category: string
-    }
+    const issue = await readNativeJson(
+      getRes,
+      Schema.Struct({ status_category: Schema.String, status_key: Schema.String, status_name: Schema.String }),
+    )
     expect(issue.status_key).toBe('backlog')
     expect(issue.status_name).toBe('Backlog')
     expect(issue.status_category).toBe('todo')
@@ -310,12 +320,12 @@ describe('task Statuses — issue integration', () => {
       body: JSON.stringify({ projectId, statusId, title: 'Done issue' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { status_key: string; status_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ status_id: Schema.String, status_key: Schema.String }))
     expect(issue.status_key).toBe('done')
     expect(issue.status_id).toBe(statusId)
   })
@@ -333,12 +343,12 @@ describe('task Statuses — issue integration', () => {
       body: JSON.stringify({ projectId, status: 'in_progress', title: 'Legacy status' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { status: string; status_key: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ status: Schema.String, status_key: Schema.String }))
     expect(issue.status).toBe('in_progress')
     expect(issue.status_key).toBe('in_progress')
   })
@@ -380,7 +390,7 @@ describe('task Statuses — issue integration', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
-    const updated = (await getRes.json()) as { status_key: string }
+    const updated = await readNativeJson(getRes, Schema.Struct({ status_key: Schema.String }))
     expect(updated.status_key).toBe('done')
   })
 
@@ -403,7 +413,10 @@ describe('task Statuses — issue integration', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues?statusId=${doneId}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { items: { title: string }[] }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(2)
     expect(page.items.every((item) => item.title.startsWith('Done'))).toBe(true)
   })
@@ -435,7 +448,10 @@ describe('task Statuses — issue integration', () => {
     const res = await fetchNativeApi('http://localhost/api/issues?category=todo', {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { items: { title: string }[] }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(1)
     expect(page.items[0].title).toBe('Todo issue')
   })
@@ -447,7 +463,10 @@ describe('task Statuses — issue integration', () => {
     const res = await fetchNativeApi('http://localhost/api/issues?status=backlog', {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { items: { title: string }[] }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(1)
     expect(page.items[0].title).toBe('Backlog issue')
   })
@@ -463,9 +482,12 @@ describe('task Statuses — issue integration', () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as {
-      items: { status_key: string; status_name: string; status_category: string }[]
-    }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(
+        Schema.Struct({ status_category: Schema.String, status_key: Schema.String, status_name: Schema.String }),
+      ).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.items[0].status_key).toBe('done')
     expect(page.items[0].status_name).toBe('Done')
     expect(page.items[0].status_category).toBe('done')
@@ -482,11 +504,10 @@ describe('task Statuses — issue integration', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as {
-      status_key: string
-      status_name: string
-      status_category: string
-    }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ status_category: Schema.String, status_key: Schema.String, status_name: Schema.String }),
+    )
     expect(body.status_key).toBe('in_progress')
     expect(body.status_name).toBe('In Progress')
     expect(body.status_category).toBe('in_progress')
@@ -498,7 +519,7 @@ describe('task Statuses — issue integration', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { status_id: null; status_key: null }
+    const body = await readNativeJson(res, Schema.Struct({ status_id: Schema.Null, status_key: Schema.Null }))
     expect(body.status_id).toBeNull()
     expect(body.status_key).toBeNull()
   })
