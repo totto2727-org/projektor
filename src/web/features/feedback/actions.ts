@@ -3,6 +3,7 @@
 import { Effect, Schema } from 'effect'
 
 import { EFFRONT } from '@/effront.ts'
+import { actionFailure } from '@/function-result.ts'
 import { RequestServices } from '@/request.ts'
 import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
 import { FunctionSelectorSchema, resolveFunctionContext } from '@/server/function-context.ts'
@@ -50,9 +51,8 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -87,9 +87,8 @@ export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -110,9 +109,8 @@ export const rotateFeedbackSourceToken = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -133,9 +131,8 @@ export const revokeFeedbackSource = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -160,9 +157,8 @@ export const markFeedbackReviewed = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -183,9 +179,8 @@ export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -206,9 +201,8 @@ export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -229,9 +223,8 @@ export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (scopeError) =>
-            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )

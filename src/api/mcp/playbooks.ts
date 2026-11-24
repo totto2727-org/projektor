@@ -5,6 +5,7 @@ import { getPlaybook, listPlaybooks } from '#api/services/playbooks.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
+import { objectInputSchema } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const playbooksTools: MCPTool[] = [
@@ -13,10 +14,7 @@ export const playbooksTools: MCPTool[] = [
     description:
       'List shipped agent playbooks — generic, reusable working patterns (e.g. epic-goal). ' +
       'Returns name/title/description/whenToUse for each; call get_playbook(name) for the full body.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-    },
+    inputSchema: objectInputSchema({}),
     annotations: READ,
     async handler(_input, ctx) {
       return listPlaybooks(ctx)

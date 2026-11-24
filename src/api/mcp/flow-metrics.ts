@@ -1,6 +1,7 @@
 import { getFlowMetrics } from '#api/services/flow-metrics.ts'
 
 import { READ } from './annotations.ts'
+import { requiredObjectInputSchema } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const flowMetricsTools: MCPTool[] = [
@@ -18,26 +19,22 @@ export const flowMetricsTools: MCPTool[] = [
       "bugTypeTracked:false (no 'bug' task type in the workspace) is distinct from a genuine " +
       '0% bug share. Bucketing defaults to weekly (current ISO week plus the preceding 5 ' +
       "weeks); pass granularity: 'day' for daily buckets.",
-    inputSchema: {
-      type: 'object',
-      required: ['projectId'],
-      properties: {
-        projectId: { type: 'string', description: 'Project UUID' },
-        since: {
-          type: 'number',
-          description: 'Only issues completed/active at/after this epoch-seconds time',
-        },
-        until: {
-          type: 'number',
-          description: 'Only issues completed/active at/before this epoch-seconds time',
-        },
-        granularity: {
-          type: 'string',
-          enum: ['day', 'week'],
-          description: "Throughput bucket granularity, 'day' or 'week' (default 'week')",
-        },
+    inputSchema: requiredObjectInputSchema(['projectId'], {
+      projectId: { type: 'string', description: 'Project UUID' },
+      since: {
+        type: 'number',
+        description: 'Only issues completed/active at/after this epoch-seconds time',
       },
-    },
+      until: {
+        type: 'number',
+        description: 'Only issues completed/active at/before this epoch-seconds time',
+      },
+      granularity: {
+        type: 'string',
+        enum: ['day', 'week'],
+        description: "Throughput bucket granularity, 'day' or 'week' (default 'week')",
+      },
+    }),
     annotations: READ,
     handler(input, ctx) {
       return getFlowMetrics(ctx, input)

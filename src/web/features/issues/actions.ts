@@ -4,6 +4,7 @@ import { Iterable, Effect, Schema } from 'effect'
 import { HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
 import { ReviewStatusSchema } from '#contracts/review-targets.ts'
 import { EFFRONT } from '@/effront.ts'
+import { actionFailure } from '@/function-result.ts'
 import { RequestServices } from '@/request.ts'
 import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
 import { requireDataWorkspace } from '@/server/data-context.ts'
@@ -67,8 +68,8 @@ export const setAttachmentReviewStatus = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -110,8 +111,8 @@ export const createIssue = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -138,8 +139,8 @@ export const updateIssue = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -159,8 +160,8 @@ export const readIssue = EFFRONT.ServerFn.make({
       }
     }).pipe(
       Effect.catchTags({
-        ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-        ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+        ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
       }),
     ),
   input: IssueIdentitySchema,
@@ -202,8 +203,8 @@ export const readIssuePage = EFFRONT.ServerFn.make({
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
-        ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-        ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+        ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
       }),
     ),
   input: IssuePageInputSchema,
@@ -221,8 +222,8 @@ export const searchIssues = EFFRONT.ServerFn.make({
       return { ok: true as const, value: [...value] }
     }).pipe(
       Effect.catchTags({
-        ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-        ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+        ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
       }),
     ),
   input: Schema.Struct({ ...SelectorFields, query: Schema.String }),
@@ -235,8 +236,8 @@ export const readComments = EFFRONT.ServerFn.make({
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
-        ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-        ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+        ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
       }),
     ),
   input: IssueIdentitySchema,
@@ -255,8 +256,8 @@ export const addComment = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -280,8 +281,8 @@ export const editComment = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -306,8 +307,8 @@ export const deleteComment = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -322,8 +323,8 @@ export const readLinks = EFFRONT.ServerFn.make({
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
-        ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-        ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+        ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
       }),
     ),
   input: IssueIdentitySchema,
@@ -347,8 +348,8 @@ export const addIssueLink = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -380,8 +381,8 @@ export const deleteIssueLink = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -400,8 +401,8 @@ export const shareIssue = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -416,8 +417,8 @@ export const readAttachments = EFFRONT.ServerFn.make({
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
-        ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-        ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+        ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
       }),
     ),
   input: IssueIdentitySchema,
@@ -441,8 +442,8 @@ export const addAttachmentLink = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -480,8 +481,8 @@ export const deleteAttachment = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -496,8 +497,8 @@ export const searchWikiAttachments = EFFRONT.ServerFn.make({
       return { ok: true as const, value: [...value] }
     }).pipe(
       Effect.catchTags({
-        ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-        ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+        ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
       }),
     ),
   input: Schema.Struct({ ...SelectorFields, query: Schema.String }),
@@ -518,8 +519,8 @@ export const updateSprint = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )

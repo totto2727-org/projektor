@@ -4,6 +4,7 @@ import { Effect, Schema } from 'effect'
 
 import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { EFFRONT } from '@/effront.ts'
+import { actionFailure } from '@/function-result.ts'
 import { RequestServices } from '@/request.ts'
 import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
 import { ScopeError } from '@/server/errors.ts'
@@ -40,8 +41,8 @@ export const createGroup = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -64,8 +65,8 @@ export const renameGroup = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -88,8 +89,8 @@ export const describeGroup = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -110,8 +111,8 @@ export const deleteGroup = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -134,8 +135,8 @@ export const addGroupMember = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -158,8 +159,8 @@ export const removeGroupMember = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -185,8 +186,8 @@ export const setGroupGrant = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -213,8 +214,8 @@ export const createGroupGrant = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -240,8 +241,8 @@ export const removeGroupGrant = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -268,8 +269,8 @@ export const createToken = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -290,8 +291,8 @@ export const revokeToken = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -312,8 +313,8 @@ export const disconnectConnector = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )

@@ -5,6 +5,7 @@ import { Predicate, Effect, Schema } from 'effect'
 import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { EFFRONT } from '@/effront.ts'
 import { readDataIssue, readSprint } from '@/features/issues/data.ts'
+import { actionFailure } from '@/function-result.ts'
 import { RequestServices } from '@/request.ts'
 import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
 import { dataError, requireDataProject, requireDataWorkspace } from '@/server/data-context.ts'
@@ -69,8 +70,8 @@ export const createSprint = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -100,8 +101,8 @@ export const editSprint = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -126,8 +127,8 @@ export const setSprintStatus = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -152,8 +153,8 @@ export const archiveSprint = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -194,8 +195,8 @@ export const moveSprintIssues = EFFRONT.ServerFn.make({
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
-          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
-          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )

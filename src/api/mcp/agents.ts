@@ -11,6 +11,7 @@ import {
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
+import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 /** Claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
@@ -37,19 +38,15 @@ export const agentsTools: MCPTool[] = [
       'compensating cleanup: on any conflict (same errors as claim_issue/claim_files) the session is ' +
       'ended and nothing is left claimed. If the process crashes mid-call, the same claims become ' +
       "reclaimable once the session's heartbeat goes stale (120s).",
-    inputSchema: {
-      type: 'object',
-      required: ['issue', 'name'],
-      properties: {
-        issue: { type: 'string', description: 'Issue UUID to claim' },
-        paths: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'File paths to claim alongside the issue (optional)',
-        },
-        name: { type: 'string', description: 'Display name for the agent session (max 200)' },
+    inputSchema: requiredObjectInputSchema(['issue', 'name'], {
+      issue: { type: 'string', description: 'Issue UUID to claim' },
+      paths: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'File paths to claim alongside the issue (optional)',
       },
-    },
+      name: { type: 'string', description: 'Display name for the agent session (max 200)' },
+    }),
     annotations: PLAIN_WRITE,
     handler(input, ctx) {
       return startWork(ctx, input)
@@ -61,25 +58,21 @@ export const agentsTools: MCPTool[] = [
       'Optionally transition an issue (completion-report rules apply, same as update_issue), then ' +
       'release every claim/lease the session holds and end it — replaces update_issue + ' +
       'release_issue + release_files + end_agent.',
-    inputSchema: {
-      type: 'object',
-      required: ['sessionId', 'issue'],
-      properties: {
-        sessionId: { type: 'string', description: 'Agent session UUID to end' },
-        issue: { type: 'string', description: 'Issue UUID to optionally transition' },
-        status: { type: 'string', description: 'New status for the issue (optional)' },
-        completionReport: {
-          type: 'object',
-          description:
-            'Completion report, required by the review gate in the same cases update_issue requires it (optional)',
-          properties: {
-            summary: { type: 'string' },
-            verification: { type: 'string' },
-            prLink: { type: 'string' },
-          },
+    inputSchema: requiredObjectInputSchema(['sessionId', 'issue'], {
+      sessionId: { type: 'string', description: 'Agent session UUID to end' },
+      issue: { type: 'string', description: 'Issue UUID to optionally transition' },
+      status: { type: 'string', description: 'New status for the issue (optional)' },
+      completionReport: {
+        type: 'object',
+        description:
+          'Completion report, required by the review gate in the same cases update_issue requires it (optional)',
+        properties: {
+          summary: { type: 'string' },
+          verification: { type: 'string' },
+          prLink: { type: 'string' },
         },
       },
-    },
+    }),
     annotations: PLAIN_WRITE,
     handler(input, ctx) {
       return finishWork(ctx, input)
@@ -88,20 +81,16 @@ export const agentsTools: MCPTool[] = [
   {
     name: 'register_agent',
     description: 'Register an agent session, optionally linked to an issue',
-    inputSchema: {
-      type: 'object',
-      required: ['name'],
-      properties: {
-        name: { type: 'string', description: 'Display name for the agent session (max 200)' },
-        issueId: { type: 'string', description: 'Issue UUID to link this session to (optional)' },
-        kind: {
-          type: 'string',
-          enum: ['agent', 'human'],
-          description:
-            'Deprecated, ignored (PROJ-336): self-declared session kind drives no behavior and is not returned.',
-        },
+    inputSchema: requiredObjectInputSchema(['name'], {
+      name: { type: 'string', description: 'Display name for the agent session (max 200)' },
+      issueId: { type: 'string', description: 'Issue UUID to link this session to (optional)' },
+      kind: {
+        type: 'string',
+        enum: ['agent', 'human'],
+        description:
+          'Deprecated, ignored (PROJ-336): self-declared session kind drives no behavior and is not returned.',
       },
-    },
+    }),
     annotations: PLAIN_WRITE,
     handler(input, ctx) {
       return registerAgent(ctx, input)
@@ -110,17 +99,14 @@ export const agentsTools: MCPTool[] = [
   {
     name: 'heartbeat_agent',
     description: 'Send a heartbeat to keep an agent session active',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: {
-          type: 'string',
-          description:
-            'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
-        },
-        agentId: { type: 'string', description: 'Alias for `id` (the name claim_issue uses)' },
+    inputSchema: objectInputSchema({
+      id: {
+        type: 'string',
+        description:
+          'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
       },
-    },
+      agentId: { type: 'string', description: 'Alias for `id` (the name claim_issue uses)' },
+    }),
     annotations: PLAIN_WRITE,
     handler(input, ctx) {
       return heartbeatAgent(ctx, withIdAlias(input))
@@ -129,17 +115,14 @@ export const agentsTools: MCPTool[] = [
   {
     name: 'end_agent',
     description: 'End an agent session',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: {
-          type: 'string',
-          description:
-            'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
-        },
-        agentId: { type: 'string', description: 'Alias for `id` (the name claim_issue uses)' },
+    inputSchema: objectInputSchema({
+      id: {
+        type: 'string',
+        description:
+          'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
       },
-    },
+      agentId: { type: 'string', description: 'Alias for `id` (the name claim_issue uses)' },
+    }),
     annotations: PLAIN_WRITE,
     handler(input, ctx) {
       return endAgent(ctx, withIdAlias(input))
@@ -153,23 +136,20 @@ export const agentsTools: MCPTool[] = [
       'heartbeating is also excluded; pass includeStale:true to include those too. Each entry ' +
       'carries a `live` flag (false when its heartbeat has gone stale) and, when tied to an issue, ' +
       'that issue\'s ref (e.g. "PROJ-857") as issueRef.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        issueId: { type: 'string', description: 'Filter by issue UUID (optional)' },
-        projectId: {
-          type: 'string',
-          description:
-            'Filter to sessions linked to an issue in this project — UUID or project key. ' +
-            'A session with no issue link is excluded when this is given (optional)',
-        },
-        includeStale: {
-          type: 'boolean',
-          description:
-            'Include active sessions that have stopped heartbeating (default: false — live entries only). Never includes ended sessions.',
-        },
+    inputSchema: objectInputSchema({
+      issueId: { type: 'string', description: 'Filter by issue UUID (optional)' },
+      projectId: {
+        type: 'string',
+        description:
+          'Filter to sessions linked to an issue in this project — UUID or project key. ' +
+          'A session with no issue link is excluded when this is given (optional)',
       },
-    },
+      includeStale: {
+        type: 'boolean',
+        description:
+          'Include active sessions that have stopped heartbeating (default: false — live entries only). Never includes ended sessions.',
+      },
+    }),
     annotations: READ,
     handler(input, ctx) {
       return listActiveAgents(ctx, input)

@@ -4,6 +4,7 @@ import { Effect, Schema } from 'effect'
 
 import { EFFRONT } from '@/effront.ts'
 import type { ActionResult } from '@/function-result.ts'
+import { actionFailure } from '@/function-result.ts'
 import { RequestServices } from '@/request.ts'
 import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
 import { resolveFunctionContext } from '@/server/function-context.ts'
@@ -31,18 +32,9 @@ export const createProject = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.map((value): ActionResult<CreatedProject> => ({ ok: true, value })),
         Effect.catchTags({
-          ApiError: (error) =>
-            Effect.succeed<ActionResult<CreatedProject>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+          ApiError: (error) => Effect.succeed<ActionResult<CreatedProject>>(actionFailure(error.status, error.message)),
           ScopeError: (error) =>
-            Effect.succeed<ActionResult<CreatedProject>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<CreatedProject>>(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -70,17 +62,9 @@ export const updateDescription = EFFRONT.ServerFn.make({
         Effect.map((value): ActionResult<{ readonly ok: boolean }> => ({ ok: true, value })),
         Effect.catchTags({
           ApiError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
           ScopeError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -106,17 +90,9 @@ export const archiveProject = EFFRONT.ServerFn.make({
         Effect.map((value): ActionResult<{ readonly ok: boolean }> => ({ ok: true, value })),
         Effect.catchTags({
           ApiError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
           ScopeError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )

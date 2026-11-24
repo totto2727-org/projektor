@@ -4,16 +4,14 @@ import { createTaskType, deleteTaskType, listTaskTypes, updateTaskType } from '#
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
+import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const taskTypesTools: MCPTool[] = [
   {
     name: 'list_task_types',
     description: 'List all task types configured for the workspace',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-    },
+    inputSchema: objectInputSchema({}),
     annotations: READ,
     handler(_input, ctx) {
       return listTaskTypes(ctx)
@@ -22,18 +20,14 @@ export const taskTypesTools: MCPTool[] = [
   {
     name: 'create_task_type',
     description: 'Create a new task type for the workspace (owner/admin only)',
-    inputSchema: {
-      type: 'object',
-      required: ['key', 'name'],
-      properties: {
-        key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
-        name: { type: 'string', description: 'Display name' },
-        color: { type: 'string', description: 'Optional color (hex or named)' },
-        icon: { type: 'string', description: 'Optional icon identifier' },
-        position: { type: 'number', description: 'Sort order position' },
-        isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
-      },
-    },
+    inputSchema: requiredObjectInputSchema(['key', 'name'], {
+      key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
+      name: { type: 'string', description: 'Display name' },
+      color: { type: 'string', description: 'Optional color (hex or named)' },
+      icon: { type: 'string', description: 'Optional icon identifier' },
+      position: { type: 'number', description: 'Sort order position' },
+      isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
+    }),
     annotations: CREATE,
     handler(input, ctx) {
       return createTaskType(ctx, input)
@@ -42,18 +36,14 @@ export const taskTypesTools: MCPTool[] = [
   {
     name: 'update_task_type',
     description: 'Update a task type (owner/admin only)',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string' },
-        name: { type: 'string' },
-        color: { type: 'string', nullable: true },
-        icon: { type: 'string', nullable: true },
-        position: { type: 'number' },
-        isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
-      },
-    },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string' },
+      name: { type: 'string' },
+      color: { type: 'string', nullable: true },
+      icon: { type: 'string', nullable: true },
+      position: { type: 'number' },
+      isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
+    }),
     annotations: IDEMPOTENT_WRITE,
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
@@ -66,13 +56,9 @@ export const taskTypesTools: MCPTool[] = [
   {
     name: 'delete_task_type',
     description: 'Delete a task type (owner/admin only). Fails if the type is in use by any issues.',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string' },
-      },
-    },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string' },
+    }),
     annotations: DESTRUCTIVE,
     handler(input, ctx) {
       const { id } = input as { id?: string }

@@ -16,6 +16,7 @@ import { transferCoreBinary } from './core-binary.ts'
 import { coreResult } from './core.ts'
 import { EFFRONT } from './effront.ts'
 import type { ActionResult } from './function-result.ts'
+import { actionFailure } from './function-result.ts'
 import { RequestServices } from './request.ts'
 import { ApiError } from './server/errors.ts'
 import { resolveFunctionContext } from './server/function-context.ts'
@@ -78,17 +79,9 @@ export const uploadAttachment = EFFRONT.ServerFn.make({
         Effect.map((value): ActionResult<UploadedAttachment> => ({ ok: true, value })),
         Effect.catchTags({
           ApiError: (error) =>
-            Effect.succeed<ActionResult<UploadedAttachment>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<UploadedAttachment>>(actionFailure(error.status, error.message)),
           ScopeError: (error) =>
-            Effect.succeed<ActionResult<UploadedAttachment>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<UploadedAttachment>>(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -119,17 +112,9 @@ export const uploadInlineImage = EFFRONT.ServerFn.make({
         Effect.map((value): ActionResult<UploadedAttachment> => ({ ok: true, value })),
         Effect.catchTags({
           ApiError: (error) =>
-            Effect.succeed<ActionResult<UploadedAttachment>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<UploadedAttachment>>(actionFailure(error.status, error.message)),
           ScopeError: (error) =>
-            Effect.succeed<ActionResult<UploadedAttachment>>({
-              ok: false,
-              status: error.status,
-              message: error.message,
-            }),
+            Effect.succeed<ActionResult<UploadedAttachment>>(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
