@@ -237,7 +237,7 @@ describe('wiki API', () => {
       const project = await seedProject(workspaceId)
       await seedGroupGrant(workspaceId, userId, project.id)
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-        body: JSON.stringify({ title: 'Project Notes', content: 'notes', projectId: project.id }),
+        body: JSON.stringify({ content: 'notes', projectId: project.id, title: 'Project Notes' }),
         headers: authHeaders(token, slug),
         method: 'POST',
       })
@@ -254,7 +254,7 @@ describe('wiki API', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(otherOwner.token, otherOwner.workspace.slug),
-        JSON.stringify({ title: 'Cross ws page', content: 'x', projectId: project.id }),
+        JSON.stringify({ content: 'x', projectId: project.id, title: 'Cross ws page' }),
       ),
     )
     expect(res.status).toBe(404)
@@ -397,7 +397,7 @@ describe('wiki API', () => {
     const parent = await readNativeJson(parentRes, IdResponse)
 
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Child Page', content: 'child', parentId: parent.id }),
+      body: JSON.stringify({ content: 'child', parentId: parent.id, title: 'Child Page' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -425,7 +425,7 @@ describe('wiki API', () => {
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Child Page', content: 'child', parentId: parent.id }),
+      body: JSON.stringify({ content: 'child', parentId: parent.id, title: 'Child Page' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -458,8 +458,8 @@ describe('wiki API', () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
-        title: 'Deep Match Page',
         content: `${filler} needle-term ${filler}`,
+        title: 'Deep Match Page',
       }),
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -489,8 +489,8 @@ describe('wiki API', () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
-        title: 'Unrelated Page',
         content: `${filler} zylophone ${filler}`,
+        title: 'Unrelated Page',
       }),
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -512,7 +512,7 @@ describe('wiki API', () => {
   test('handles GET /api/wiki/search supports limit/offset pagination', async () => {
     for (let index = 0; index < 3; index += 1) {
       await fetchNativeApi('http://localhost/api/wiki', {
-        body: JSON.stringify({ title: `Paginated Page ${index}`, content: 'shared-search-term' }),
+        body: JSON.stringify({ content: 'shared-search-term', title: `Paginated Page ${index}` }),
         headers: authHeaders(token, slug),
         method: 'POST',
       })
@@ -543,8 +543,8 @@ describe('wiki API', () => {
     for (let index = 0; index < 3; index += 1) {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
-          title: `Tie Rank Page ${index}`,
           content: 'tie-rank-search-term',
+          title: `Tie Rank Page ${index}`,
         }),
         headers: authHeaders(token, slug),
         method: 'POST',
@@ -704,9 +704,9 @@ describe('wiki API', () => {
           'POST',
           authHeaders(owner.token, owner.workspace.slug),
           JSON.stringify({
-            title: 'Sync Cascade Child',
             content: 'sync-cascade-term',
             parentId: parent.id,
+            title: 'Sync Cascade Child',
           }),
         ),
       )
@@ -759,7 +759,7 @@ describe('wiki API', () => {
     await seedGroupGrant(ws!.id, userId, project.id)
 
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Project Page', content: 'scoped', projectId: project.id }),
+      body: JSON.stringify({ content: 'scoped', projectId: project.id, title: 'Project Page' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -853,7 +853,7 @@ describe('wiki API', () => {
     await seedGroupGrant(ws!.id, userId, project.id)
 
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Scoped Doc', content: 'content', projectId: project.id }),
+      body: JSON.stringify({ content: 'content', projectId: project.id, title: 'Scoped Doc' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -881,7 +881,7 @@ describe('wiki API', () => {
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Child', content: 'child content', parentId: parent.id }),
+      body: JSON.stringify({ content: 'child content', parentId: parent.id, title: 'Child' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -963,7 +963,7 @@ describe('wiki API', () => {
 
     await resetRateLimits()
     const a1Res = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Subtree A1', content: '', parentId: responseBody.id }),
+      body: JSON.stringify({ content: '', parentId: responseBody.id, title: 'Subtree A1' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -972,7 +972,7 @@ describe('wiki API', () => {
 
     await resetRateLimits()
     const a2Res = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Subtree A2', content: '', parentId: a1.id }),
+      body: JSON.stringify({ content: '', parentId: a1.id, title: 'Subtree A2' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -1018,7 +1018,7 @@ describe('wiki API', () => {
 
     await resetRateLimits()
     const yRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Cycle Y', content: '', parentId: responseBody.id }),
+      body: JSON.stringify({ content: '', parentId: responseBody.id, title: 'Cycle Y' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -1059,7 +1059,7 @@ describe('wiki API', () => {
     const root = await readNativeJson(rootRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Child', content: '', parentId: root.id }),
+      body: JSON.stringify({ content: '', parentId: root.id, title: 'Child' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -1127,14 +1127,14 @@ describe('wiki API', () => {
     const grandparent = await readNativeJson(grandparentRes, IdResponse)
 
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Parent To Delete', content: '', parentId: grandparent.id }),
+      body: JSON.stringify({ content: '', parentId: grandparent.id, title: 'Parent To Delete' }),
       headers: ownerHeaders,
       method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Child', content: '', parentId: parent.id }),
+      body: JSON.stringify({ content: '', parentId: parent.id, title: 'Child' }),
       headers: ownerHeaders,
       method: 'POST',
     })
@@ -1166,14 +1166,14 @@ describe('wiki API', () => {
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Cascade Child', content: '', parentId: parent.id }),
+      body: JSON.stringify({ content: '', parentId: parent.id, title: 'Cascade Child' }),
       headers: ownerHeaders,
       method: 'POST',
     })
     const child = await readNativeJson(childRes, IdAndSlugResponse)
 
     const grandchildRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Cascade Grandchild', content: '', parentId: child.id }),
+      body: JSON.stringify({ content: '', parentId: child.id, title: 'Cascade Grandchild' }),
       headers: ownerHeaders,
       method: 'POST',
     })
@@ -1255,7 +1255,7 @@ describe('wiki API', () => {
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Cascade Child With File', content: '', parentId: parent.id }),
+      body: JSON.stringify({ content: '', parentId: parent.id, title: 'Cascade Child With File' }),
       headers: ownerHeaders,
       method: 'POST',
     })
@@ -4261,9 +4261,9 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
         'POST',
         authHeaders(owner.token, owner.workspace.slug),
         JSON.stringify({
-          title: 'Cascade Child',
           content: '[[Nonexistent B]]',
           parentId: parent.id,
+          title: 'Cascade Child',
         }),
       ),
     )

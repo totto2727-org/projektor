@@ -485,7 +485,7 @@ describe('covers MCP endpoint', () => {
       requestOptionsWithBody(
         'POST',
         headers,
-        JSON.stringify({ title: 'Child', content: 'child', parentId: parent.id }),
+        JSON.stringify({ content: 'child', parentId: parent.id, title: 'Child' }),
       ),
     )
 
@@ -651,7 +651,7 @@ describe('covers MCP endpoint', () => {
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'MCP Cascade Child', content: '', parentId: parent.id }),
+      body: JSON.stringify({ content: '', parentId: parent.id, title: 'MCP Cascade Child' }),
       headers: ownerHeaders,
       method: 'POST',
     })
@@ -688,7 +688,7 @@ describe('covers MCP endpoint', () => {
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'MCP Promote Child', content: '', parentId: parent.id }),
+      body: JSON.stringify({ content: '', parentId: parent.id, title: 'MCP Promote Child' }),
       headers: ownerHeaders,
       method: 'POST',
     })

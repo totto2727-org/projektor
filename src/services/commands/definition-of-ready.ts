@@ -5,7 +5,7 @@
  * schema change would break every existing issue's readiness overnight.
  */
 
-import { Array, String } from 'effect'
+import { Array, String, Number } from 'effect'
 
 export interface ReadinessCheck {
   ready: boolean
@@ -83,7 +83,7 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
     return true
   }
 
-  for (let index = idx + 1; index < lines.length; index++) {
+  for (let index = idx + 1; index < lines.length; index = Number.increment(index)) {
     const line = lines[index].trim()
     if (String.isEmpty(line)) {
       continue

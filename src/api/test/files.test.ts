@@ -604,9 +604,9 @@ describe('files API', () => {
       const project = await seedProject(workspaceId)
       const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
-          title: 'Restricted page',
           content: 'secret',
           projectId: project.id,
+          title: 'Restricted page',
         }),
         headers: authHeaders(adminToken, slug),
         method: 'POST',
@@ -638,9 +638,9 @@ describe('files API', () => {
       const project = await seedProject(workspaceId)
       const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
-          title: 'Secret project page',
           content: 'secret',
           projectId: project.id,
+          title: 'Secret project page',
         }),
         headers: adminHeaders,
         method: 'POST',

@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
-import { String, Array, Iterable, Predicate, Effect } from 'effect'
+import { String, Array, Iterable, Predicate, Effect, Number } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -343,7 +343,7 @@ const validateParentDepth = async function validateParentDepth(
       )
     }
     cur = pid
-    parentDepth++
+    parentDepth = Number.increment(parentDepth)
     if (parentDepth >= WIKI_MAX_NESTING_DEPTH - 1) {
       throw new ValidationError(
         validationIssues([`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`], {}),
@@ -1827,7 +1827,7 @@ export const patchWikiPage = async function patchWikiPage(
   const data = parsed.data
   const retryable = data.op === 'append_to_page' || data.op === 'set_frontmatter'
 
-  for (let attempt = 0; ; attempt++) {
+  for (let attempt = 0; ; attempt = Number.increment(attempt)) {
     const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
     try {
       return await patchWikiPageOnce(ctx, page, data)

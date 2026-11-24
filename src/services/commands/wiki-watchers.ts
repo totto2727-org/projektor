@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
-import { String, Array, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate, Number } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -216,7 +216,7 @@ const resolveAncestorChain = async function resolveAncestorChain(
       break
     }
     cur = row.parent_id
-    depth++
+    depth = Number.increment(depth)
   }
   return chain
 }
@@ -713,7 +713,7 @@ const matchSubtreeWatches = async function matchSubtreeWatches(
   subtreeRootIds: ReadonlySet<string>,
   matched: Set<string>,
 ): Promise<void> {
-  for (let depth = 0; depth < WIKI_MAX_NESTING_DEPTH + 1 && pending.size > 0; depth++) {
+  for (let depth = 0; depth < WIKI_MAX_NESTING_DEPTH + 1 && pending.size > 0; depth = Number.increment(depth)) {
     const frontier = [...new Set(pending.values())]
     const rows = await inChunks(frontier, (chunk) =>
       orm

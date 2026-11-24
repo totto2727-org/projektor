@@ -1,5 +1,5 @@
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider'
-import { Iterable, Predicate } from 'effect'
+import { Iterable, Predicate, Number } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { relyingPartyHost } from '#contracts/oauth-consent.ts'
@@ -55,7 +55,7 @@ export const listConnectorGrants = async function listConnectorGrants(
 ): Promise<ConnectorGrant[]> {
   const grants: ConnectorGrant[] = []
   let cursor: string | undefined
-  for (let page = 0; page < GRANT_MAX_PAGES; page++) {
+  for (let page = 0; page < GRANT_MAX_PAGES; page = Number.increment(page)) {
     const result = await api.listUserGrants(userId, { limit: GRANT_PAGE_SIZE, cursor })
     Iterable.forEach(result.items, (grant) => {
       if ((grant.metadata as { workspaceId?: string } | null)?.workspaceId !== workspaceId) {

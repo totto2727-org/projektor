@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Array, Iterable, Predicate } from 'effect'
+import { Array, Iterable, Predicate, Number } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { drizzle, schema } from '#db'
@@ -415,8 +415,8 @@ const buildLcsTable = function buildLcsTable(oldLines: Readonly<string[]>, newLi
   const dp: number[][] = globalThis.Array.from({ length: n + 1 }, () =>
     globalThis.Array.from({ length: m + 1 }, () => 0),
   )
-  for (let index = n - 1; index >= 0; index--) {
-    for (let j = m - 1; j >= 0; j--) {
+  for (let index = n - 1; index >= 0; index = Number.decrement(index)) {
+    for (let j = m - 1; j >= 0; j = Number.decrement(j)) {
       dp[index][j] =
         oldLines[index] === newLines[j] ? dp[index + 1][j + 1] + 1 : Math.max(dp[index + 1][j], dp[index][j + 1])
     }
@@ -437,23 +437,23 @@ const traceLcsDiffOps = function traceLcsDiffOps(
   while (i < n && j < m) {
     if (oldLines[i] === newLines[j]) {
       ops.push({ type: 'equal', line: oldLines[i] })
-      i++
-      j++
+      i = Number.increment(i)
+      j = Number.increment(j)
     } else if (dp[i + 1][j] >= dp[i][j + 1]) {
       ops.push({ type: 'remove', line: oldLines[i] })
-      i++
+      i = Number.increment(i)
     } else {
       ops.push({ type: 'add', line: newLines[j] })
-      j++
+      j = Number.increment(j)
     }
   }
   while (i < n) {
     ops.push({ type: 'remove', line: oldLines[i] })
-    i++
+    i = Number.increment(i)
   }
   while (j < m) {
     ops.push({ type: 'add', line: newLines[j] })
-    j++
+    j = Number.increment(j)
   }
   return ops
 }
@@ -503,12 +503,12 @@ export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, c
     const slice = ops.slice(sliceStart, sliceEnd + 1)
     let oldStart = 1
     let newStart = 1
-    for (let k = 0; k < sliceStart; k++) {
+    for (let k = 0; k < sliceStart; k = Number.increment(k)) {
       if (ops[k].type !== 'add') {
-        oldStart++
+        oldStart = Number.increment(oldStart)
       }
       if (ops[k].type !== 'remove') {
-        newStart++
+        newStart = Number.increment(newStart)
       }
     }
     const oldCount = slice.filter((op) => op.type !== 'add').length

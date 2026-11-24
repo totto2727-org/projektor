@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
-import { String, Array, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate, Number } from 'effect'
 import { flattenError } from 'zod'
 
 import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '#contracts/inputs/wiki.ts'
@@ -554,7 +554,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
   // PROJ-818: drain unhealed folds (bounded) so this backfill resolves against them.
   let healRounds = 0
   while (healRounds < 20 && (await healTitleFolds(ctx)) > 0) {
-    healRounds++
+    healRounds = Number.increment(healRounds)
   }
 
   const orm = drizzle(ctx.db, { schema })

@@ -232,7 +232,7 @@ describe('custom Field Values — validation', () => {
   test('rejects unknown custom field key on create', async () => {
     const { projectId, slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Test', customFields: { unknown_field: 'value' } }),
+      body: JSON.stringify({ customFields: { unknown_field: 'value' }, projectId, title: 'Test' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -254,7 +254,7 @@ describe('custom Field Values — validation', () => {
     const { projectId, slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Test', customFields: { sp: 'not-a-number' } }),
+      body: JSON.stringify({ customFields: { sp: 'not-a-number' }, projectId, title: 'Test' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -270,7 +270,7 @@ describe('custom Field Values — validation', () => {
       type: 'select',
     })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Test', customFields: { size: 'XL' } }),
+      body: JSON.stringify({ customFields: { size: 'XL' }, projectId, title: 'Test' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -286,7 +286,7 @@ describe('custom Field Values — validation', () => {
       type: 'select',
     })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Test', customFields: { size: 'M' } }),
+      body: JSON.stringify({ customFields: { size: 'M' }, projectId, title: 'Test' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -297,7 +297,7 @@ describe('custom Field Values — validation', () => {
     const { projectId, slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Test', customFields: { sp: '5' } }),
+      body: JSON.stringify({ customFields: { sp: '5' }, projectId, title: 'Test' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -308,7 +308,7 @@ describe('custom Field Values — validation', () => {
     const { projectId, slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedCustomFieldDef(workspaceId, { key: 'due', label: 'Due', type: 'date' })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Test', customFields: { due: 'not-a-date' } }),
+      body: JSON.stringify({ customFields: { due: 'not-a-date' }, projectId, title: 'Test' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -327,7 +327,7 @@ describe('custom Fields — resolved on read', () => {
       type: 'number',
     })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'With SP', customFields: { sp: '8' } }),
+      body: JSON.stringify({ customFields: { sp: '8' }, projectId, title: 'With SP' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -381,7 +381,7 @@ describe('custom Fields — resolved on read', () => {
     const { projectId, slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'SP issue', customFields: { sp: '3' } }),
+      body: JSON.stringify({ customFields: { sp: '3' }, projectId, title: 'SP issue' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

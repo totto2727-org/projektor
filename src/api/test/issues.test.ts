@@ -369,7 +369,7 @@ describe('issues API', () => {
   test('handles PATCH with labels updates labels', async () => {
     const { projectId, slug, token } = await seedScenarioFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Label test', labels: ['old'] }),
+      body: JSON.stringify({ labels: ['old'], projectId, title: 'Label test' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -654,9 +654,9 @@ describe('issues API', () => {
         'POST',
         authHeaders(other.token, other.workspace.slug),
         JSON.stringify({
+          body: 'unique-sentinel',
           projectId: otherProject.id,
           title: 'Workspace B issue',
-          body: 'unique-sentinel',
         }),
       ),
     )
@@ -679,9 +679,9 @@ describe('issues API', () => {
     })
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({
+        body: 'shared-term',
         projectId: otherProject.id,
         title: 'Beta project issue',
-        body: 'shared-term',
       }),
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -784,9 +784,9 @@ describe('issues API', () => {
         'POST',
         authHeaders(other.token, other.workspace.slug),
         JSON.stringify({
+          body: '',
           projectId: otherProject.id,
           title: 'Other workspace fts-sentinel',
-          body: '',
         }),
       ),
     )
@@ -1006,7 +1006,7 @@ describe('issues API', () => {
 
     // L5 is at depth 5; adding a child would be depth 6 — must be rejected
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'L6 (should fail)', parentId: l5.id }),
+      body: JSON.stringify({ parentId: l5.id, projectId, title: 'L6 (should fail)' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -1023,7 +1023,7 @@ describe('issues API', () => {
 
     // L4 is at depth 4; adding a child would be depth 5 — must be allowed
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'L5 (should succeed)', parentId: l4.id }),
+      body: JSON.stringify({ parentId: l4.id, projectId, title: 'L5 (should succeed)' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -1053,7 +1053,7 @@ describe('issues API', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Cross-ws child', parentId: otherIssue.id }),
+      body: JSON.stringify({ parentId: otherIssue.id, projectId, title: 'Cross-ws child' }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

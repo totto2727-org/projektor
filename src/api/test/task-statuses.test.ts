@@ -386,8 +386,8 @@ describe('task Statuses — issue integration', () => {
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       body: JSON.stringify({
-        statusId,
         completionReport: { summary: 'Done', verification: 'pnpm test' },
+        statusId,
       }),
       headers: authHeaders(token, slug),
       method: 'PATCH',

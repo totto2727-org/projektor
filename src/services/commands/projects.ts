@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Array, Predicate, Effect } from 'effect'
+import { Array, Predicate, Effect, Number } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
@@ -171,7 +171,7 @@ const generateUniqueSlug = async function generateUniqueSlug(
 ): Promise<string> {
   const base = slugify(name)
   let candidate = base
-  for (let suffix = 2; ; suffix++) {
+  for (let suffix = 2; ; suffix = Number.increment(suffix)) {
     const existing = await orm
       .select({ id: schema.projects.id })
       .from(schema.projects)

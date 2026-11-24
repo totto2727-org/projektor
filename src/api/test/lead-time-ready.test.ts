@@ -25,7 +25,7 @@ describe('covers PROJ-921: ready_at and lead time', () => {
 
   const create = async function create(status: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: `t-${status}`, status }),
+      body: JSON.stringify({ projectId, status, title: `t-${status}` }),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

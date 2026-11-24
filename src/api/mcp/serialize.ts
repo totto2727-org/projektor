@@ -1,4 +1,4 @@
-import { String, Array, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate, Number } from 'effect'
 import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
@@ -339,7 +339,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
    */
   let k = lo
   while (k > 1 && opts.canCutAt && !opts.canCutAt(k)) {
-    k--
+    k = Number.decrement(k)
   }
   if (opts.canCutAt && !opts.canCutAt(k)) {
     return page
