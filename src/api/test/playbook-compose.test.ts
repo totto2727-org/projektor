@@ -36,14 +36,14 @@ describe('compose_playbook', () => {
 
   const compose = async function compose(params: Record<string, unknown>): Promise<Response> {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
         params: { name: 'compose_playbook', arguments: { name: 'epic-goal', params } },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     return res
   }
@@ -171,8 +171,6 @@ describe('compose_playbook', () => {
 
   test('errors on an unknown playbook name, naming valid options', async () => {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
@@ -182,6 +180,8 @@ describe('compose_playbook', () => {
           arguments: { name: 'does-not-exist', params: { epicRef: `PROJ-${epicNumber}` } },
         },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const err = toolError(await res.json())
     expect(err?.code).toBe('not_found')

@@ -28,9 +28,9 @@ describe('covers MCP prompts', () => {
 
   const mcpCall = async function mcpCall(method: string, params: unknown): Promise<unknown> {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     return res.json()
   }

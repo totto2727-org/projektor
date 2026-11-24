@@ -23,9 +23,9 @@ describe('agents API', () => {
 
   const registerAgent = async function registerAgent(body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify(body),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
@@ -213,17 +213,17 @@ describe('agents API', () => {
   describe('covers PROJ-929: start_work / finish_work', () => {
     const startWork = function startWork(body: Record<string, unknown>): Promise<Response> {
       return fetchNativeApi('http://localhost/api/agents/start-work', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify(body),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
     }
 
     const finishWork = function finishWork(body: Record<string, unknown>): Promise<Response> {
       return fetchNativeApi('http://localhost/api/agents/finish-work', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify(body),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
     }
 
@@ -514,9 +514,9 @@ describe('agents API', () => {
       const { id: agentId } = await readNativeJson(reg, IdResponse)
 
       const claim = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ agentId }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       expect(claim.status).toBe(201)
 

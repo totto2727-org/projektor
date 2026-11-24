@@ -37,9 +37,9 @@ describe('agent Messages API', () => {
     s = slug,
   ): Promise<Response> {
     return fetchNativeApi('http://localhost/api/agent-messages', {
-      method: 'POST',
-      headers: authHeaders(t, s),
       body: JSON.stringify(body),
+      headers: authHeaders(t, s),
+      method: 'POST',
     })
   }
 

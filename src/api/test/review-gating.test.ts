@@ -49,9 +49,9 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
 
   const patch = function patch(id: string, body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify(body),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
   }
 
@@ -226,9 +226,9 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
     await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId: agentSessionId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await patch(issue.id, { status: 'done', agentSessionId, completionReport: report })
@@ -278,8 +278,6 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
@@ -289,6 +287,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
           arguments: { id: issue.id, status: 'done', agentSessionId, completionReport: report },
         },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const body = await readNativeJson(
       res,

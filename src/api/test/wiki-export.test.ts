@@ -52,9 +52,9 @@ const createPage = async function createPage(
   body: Record<string, unknown>,
 ): Promise<{ id: string; slug: string }> {
   const res = await fetchNativeApi('http://localhost/api/wiki', {
-    method: 'POST',
-    headers: authHeaders(token, slug),
     body: JSON.stringify(body),
+    headers: authHeaders(token, slug),
+    method: 'POST',
   })
   expect(res.status).toBe(201)
   return res.json()

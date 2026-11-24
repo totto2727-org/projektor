@@ -40,9 +40,9 @@ describe('covers REST: invalid JSON bodies → 400', () => {
   ])('%s %s', async (method, path) => {
     const url = path.replace(':issueId', f.issueId).replace(':slug', f.slug)
     const res = await fetchNativeApi(`http://localhost${url}`, {
-      method,
-      headers: authHeaders(f.token, f.slug),
       body: '{bad json',
+      headers: authHeaders(f.token, f.slug),
+      method,
     })
     expect(res.status).toBe(400)
     expect(JSON.stringify(await res.json())).toMatch(/valid JSON/u)
@@ -52,9 +52,9 @@ describe('covers REST: invalid JSON bodies → 400', () => {
 describe('covers MCP: parse and envelope errors', () => {
   const mcp = function mcp(body: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body,
+      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+      method: 'POST',
     })
   }
   const errorCode = async (res: Response): Promise<undefined | number> =>

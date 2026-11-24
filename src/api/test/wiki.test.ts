@@ -168,9 +168,9 @@ describe('wiki API', () => {
 
   test('handles POST /api/wiki creates a page', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '# Welcome', title: 'Getting Started' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdAndSlugResponse)
@@ -180,9 +180,9 @@ describe('wiki API', () => {
   describe('canonical page url (PROJ-307)', () => {
     test('create/get/update/list/tree all expose a resolvable url', async () => {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'index', title: 'Weekly Updates' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       const created = await readNativeJson(createRes, Schema.Struct({ url: Schema.String }))
       expect(created.url).toBe('/wiki/weekly-updates')
@@ -194,9 +194,9 @@ describe('wiki API', () => {
       expect(fetched.url).toBe('/wiki/weekly-updates')
 
       const updateRes = await fetchNativeApi('http://localhost/api/wiki/weekly-updates', {
-        method: 'PUT',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'index v2' }),
+        headers: authHeaders(token, slug),
+        method: 'PUT',
       })
       const updated = await readNativeJson(updateRes, Schema.Struct({ url: Schema.String }))
       expect(updated.url).toBe('/wiki/weekly-updates')
@@ -224,9 +224,9 @@ describe('wiki API', () => {
       const project = await seedProject(workspaceId)
       await seedGroupGrant(workspaceId, userId, project.id)
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Project Notes', content: 'notes', projectId: project.id }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       const created = await readNativeJson(createRes, Schema.Struct({ url: Schema.String }))
       expect(created.url).toBe('/wiki/project-notes')
@@ -246,9 +246,9 @@ describe('wiki API', () => {
 
   test('handles GET /api/wiki/:slug retrieves a page by slug', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '## System design', title: 'Architecture' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/architecture', {
@@ -269,15 +269,15 @@ describe('wiki API', () => {
 
   test('handles PUT /api/wiki/:slug updates content and saves a revision', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1 content', title: 'Versioned' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const updateRes = await fetchNativeApi('http://localhost/api/wiki/versioned', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v2 content', title: 'Versioned' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(updateRes.status).toBe(200)
 
@@ -296,14 +296,14 @@ describe('wiki API', () => {
 
   test('handles GET /api/wiki/search finds pages by keyword', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'Use wrangler to deploy', title: 'Deployment Guide' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'Welcome to the team', title: 'Onboarding' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler', {
@@ -321,9 +321,9 @@ describe('wiki API', () => {
    */
   test('handles GET /api/wiki/search returns freshness: null for a page with no verification signal', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'wrangler', title: 'Freshness Placeholder Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler', {
       headers: authHeaders(token, slug),
@@ -345,9 +345,9 @@ describe('wiki API', () => {
    */
   test('handles GET /api/wiki/search accepts an arbitrary type filter but rejects an unknown status (PROJ-513)', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'wrangler', title: 'Noop Filter Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const okRes = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler&type=guide', {
       headers: authHeaders(token, slug),
@@ -361,9 +361,9 @@ describe('wiki API', () => {
 
   test('accepts a custom slug', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'Root page', slug: 'home', title: 'Home' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const body = await readNativeJson(res, SlugResponse)
     expect(body.slug).toBe('home')
@@ -373,21 +373,21 @@ describe('wiki API', () => {
 
   test('handles GET /api/wiki?parentId= filters to children of that page (PROJ-244)', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'root', title: 'Parent Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdResponse)
 
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child Page', content: 'child', parentId: parent.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'sibling', title: 'Unrelated Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/wiki?parentId=${parent.id}`, {
@@ -401,16 +401,16 @@ describe('wiki API', () => {
 
   test('handles GET /api/wiki returns ALL pages regardless of parent hierarchy', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'root', title: 'Parent Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child Page', content: 'child', parentId: parent.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -422,9 +422,9 @@ describe('wiki API', () => {
 
   test('handles GET /api/wiki/search with no query returns empty array', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'content', title: 'Some Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const res = await fetchNativeApi('http://localhost/api/wiki/search', {
       headers: authHeaders(token, slug),
@@ -440,12 +440,12 @@ describe('wiki API', () => {
   test('handles GET /api/wiki/search snippet is match-anchored and highlighted', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         title: 'Deep Match Page',
         content: `${filler} needle-term ${filler}`,
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=needle-term', {
       headers: authHeaders(token, slug),
@@ -471,17 +471,17 @@ describe('wiki API', () => {
   test('handles GET /api/wiki/search ranks a title match above a buried body match', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         title: 'Unrelated Page',
         content: `${filler} zylophone ${filler}`,
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'short body, no repeat term', title: 'Zylophone Guide' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=zylophone', {
@@ -495,9 +495,9 @@ describe('wiki API', () => {
   test('handles GET /api/wiki/search supports limit/offset pagination', async () => {
     for (let index = 0; index < 3; index++) {
       await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ title: `Paginated Page ${index}`, content: 'shared-search-term' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
     }
     const page1 = await fetchNativeApi('http://localhost/api/wiki/search?q=shared-search-term&limit=2', {
@@ -525,12 +525,12 @@ describe('wiki API', () => {
      */
     for (let index = 0; index < 3; index++) {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({
           title: `Tie Rank Page ${index}`,
           content: 'tie-rank-search-term',
         }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       expect(createRes.status).toBe(201)
     }
@@ -558,9 +558,9 @@ describe('wiki API', () => {
 
   test('handles GET /api/wiki/search updatedSince filters out pages updated before the cutoff', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'freshness-cutoff-term', title: 'Stale Match Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(createRes, IdResponse)
     const pageRow = await env.DB.prepare('SELECT updated_at FROM wiki_pages WHERE id = ?')
@@ -591,9 +591,9 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: 'cross-tenant-term', title: 'Other Workspace Page' }),
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'cross-tenant-term', title: 'This Workspace Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=cross-tenant-term', {
@@ -608,9 +608,9 @@ describe('wiki API', () => {
   describe('wiki_fts index stays in sync', () => {
     test('a newly created page is searchable immediately', async () => {
       await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'sync-create-term', title: 'Sync Create Page' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       const res = await fetchNativeApi('http://localhost/api/wiki/search?q=sync-create-term', {
         headers: authHeaders(token, slug),
@@ -620,16 +620,16 @@ describe('wiki API', () => {
 
     test("an updated page's new content becomes searchable and old content stops matching", async () => {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'before-update-term', title: 'Sync Update Page' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       const created = await readNativeJson(createRes, SlugResponse)
 
       await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
-        method: 'PUT',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'after-update-term' }),
+        headers: authHeaders(token, slug),
+        method: 'PUT',
       })
 
       const oldRes = await fetchNativeApi('http://localhost/api/wiki/search?q=before-update-term', {
@@ -696,15 +696,15 @@ describe('wiki API', () => {
 
   test('handles PUT /api/wiki/:slug title-only update does not create a revision', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'body text', title: 'Original Title' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     await fetchNativeApi('http://localhost/api/wiki/original-title', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Renamed Title' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     const revRes = await fetchNativeApi('http://localhost/api/wiki/original-title/revisions', {
@@ -716,9 +716,9 @@ describe('wiki API', () => {
 
   test('handles POST /api/wiki returns 400 for invalid input', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: '' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -730,14 +730,14 @@ describe('wiki API', () => {
     await seedGroupGrant(ws!.id, userId, project.id)
 
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Project Page', content: 'scoped', projectId: project.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'global', title: 'Workspace Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const projectRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
@@ -824,9 +824,9 @@ describe('wiki API', () => {
     await seedGroupGrant(ws!.id, userId, project.id)
 
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Scoped Doc', content: 'content', projectId: project.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(createRes.status).toBe(201)
     const created = await readNativeJson(
@@ -844,17 +844,17 @@ describe('wiki API', () => {
 
   test('handles POST /api/wiki creates a nested page with parentId', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'parent content', title: 'Parent' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(parentRes.status).toBe(201)
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child', content: 'child content', parentId: parent.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(childRes.status).toBe(201)
     const child = await readNativeJson(childRes, IdAndSlugResponse)
@@ -875,9 +875,9 @@ describe('wiki API', () => {
         body.parentId = parentId
       }
       const res = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify(body),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       expect(res.status).toBe(201)
       const created = await readNativeJson(res, IdResponse)
@@ -889,9 +889,9 @@ describe('wiki API', () => {
 
     // Level 6 must be rejected (parent is at depth 5 → child would be depth 6)
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '', parentId, title: 'Too deep' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
     const bodyShape = Schema.Struct({
@@ -911,9 +911,9 @@ describe('wiki API', () => {
         body.parentId = chainParentId
       }
       const res = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify(body),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       expect(res.status).toBe(201)
       const created = await readNativeJson(res, IdResponse)
@@ -925,27 +925,27 @@ describe('wiki API', () => {
 
     // Build a separate 3-level subtree: A -> A1 -> A2 (A has height 2).
     const aRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '', title: 'Subtree Root A' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(aRes.status).toBe(201)
     const responseBody = await readNativeJson(aRes, IdAndSlugResponse)
 
     await resetRateLimits()
     const a1Res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Subtree A1', content: '', parentId: responseBody.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(a1Res.status).toBe(201)
     const a1 = await readNativeJson(a1Res, IdResponse)
 
     await resetRateLimits()
     const a2Res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Subtree A2', content: '', parentId: a1.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(a2Res.status).toBe(201)
 
@@ -957,9 +957,9 @@ describe('wiki API', () => {
      * (4) is within range — the check must look at the whole subtree, not just A.
      */
     const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${responseBody.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: l3Id }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(moveRes.status).toBe(400)
     const moveBodyShape = Schema.Struct({
@@ -980,18 +980,18 @@ describe('wiki API', () => {
      * never terminates.
      */
     const xRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '', title: 'Cycle X' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(xRes.status).toBe(201)
     const responseBody = await readNativeJson(xRes, IdAndSlugResponse)
 
     await resetRateLimits()
     const yRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Cycle Y', content: '', parentId: responseBody.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(yRes.status).toBe(201)
     const y = await readNativeJson(yRes, IdResponse)
@@ -1001,9 +1001,9 @@ describe('wiki API', () => {
 
     await resetRateLimits()
     const otherRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '', title: 'Cycle New Parent' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(otherRes.status).toBe(201)
     const other = await readNativeJson(otherRes, IdResponse)
@@ -1014,25 +1014,25 @@ describe('wiki API', () => {
      * cycle. This must resolve promptly (reject or succeed), never hang.
      */
     const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${responseBody.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: other.id }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect([200, 400]).toContain(moveRes.status)
   }, 10_000)
 
   test('handles GET /api/wiki/tree returns nested structure', async () => {
     const rootRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '', title: 'Root' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const root = await readNativeJson(rootRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child', content: '', parentId: root.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const child = await readNativeJson(childRes, IdResponse)
 
@@ -1058,24 +1058,24 @@ describe('wiki API', () => {
 
   test('handles PUT /api/wiki/:slug reparents a page via parentId', async () => {
     const aRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'a', title: 'Page A' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const responseBody = await readNativeJson(aRes, IdAndSlugResponse)
 
     const bRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'b', title: 'Page B' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const b = await readNativeJson(bRes, SlugResponse)
 
     // Reparent B under A
     const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: responseBody.id }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(updateRes.status).toBe(200)
 
@@ -1249,9 +1249,9 @@ describe('wiki API', () => {
 
   test('handles DELETE /api/wiki/:slug returns 403 for viewer role', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'secret', title: 'Protected Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { env } = await import('./fixture-api.ts')
@@ -1351,49 +1351,49 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test("handles POST /api/wiki rejects a title that slugifies to an existing page's slug (409)", async () => {
     const first = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Operations' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(first.status).toBe(201)
 
     const second = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v2', title: 'Operations' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(second.status).toBe(409)
   })
 
   test('handles POST /api/wiki rejects an explicit slug that collides with an existing page (409)', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Operations' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v2', slug: 'operations', title: 'Ops Handbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(409)
   })
 
   test("handles POST /api/wiki rejects the reserved slug 'view' (PROJ-487, 400)", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', slug: 'view', title: 'View' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test("handles POST /api/wiki auto-slugs the title 'View' to 'view-page' (PROJ-811)", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'View' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     expect(((await res.json()) as { slug: string }).slug).toBe('view-page')
@@ -1401,48 +1401,48 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test("handles PUT /api/wiki/:slug rejects renaming to the reserved slug 'view' (PROJ-487, 400)", async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'g', title: 'Gamma' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/gamma', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'view' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(res.status).toBe(400)
   })
 
   test("handles POST /api/wiki rejects a slug containing '/' (PROJ-517, 400)", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', slug: 'a/b', title: 'Nested' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test("handles PUT /api/wiki/:slug rejects renaming to a slug containing '/' (PROJ-517, 400)", async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'd', title: 'Delta' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/delta', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'a/b' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(res.status).toBe(400)
   })
 
   test('handles POST /api/wiki uses an opaque slug for a non-Latin title (empty derived slug, PROJ-517 #5)', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: '測試' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const page = await readNativeJson(res, IdAndSlugResponse)
@@ -1457,9 +1457,9 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test("handles POST /api/wiki uses an opaque slug when derived slug exceeds SlugSchema's 200-char max (PROJ-517)", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'a'.repeat(300), content: 'v1' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const page = await readNativeJson(res, SlugResponse)
@@ -1539,18 +1539,18 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test("handles POST /api/wiki rejects the reserved slug 'index' (PROJ-487, 400)", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', slug: 'index', title: 'Index' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test("handles POST /api/wiki auto-slugs the title 'Index' to 'index-page' (PROJ-811)", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Index' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     expect(((await res.json()) as { slug: string }).slug).toBe('index-page')
@@ -1558,32 +1558,32 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test("handles PUT /api/wiki/:slug rejects renaming to the reserved slug 'index' (PROJ-487, 400)", async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'd', title: 'Delta' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/delta', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'index' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(res.status).toBe(400)
   })
 
   test('handles PUT /api/wiki/:slug renaming the slug creates a redirect; the old slug still resolves', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Roadmap' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(createRes, SlugResponse)
     expect(created.slug).toBe('roadmap')
 
     const updateRes = await fetchNativeApi('http://localhost/api/wiki/roadmap', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'product-roadmap' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(updateRes.status).toBe(200)
     const updated = await readNativeJson(updateRes, Schema.Struct({ url: Schema.String }))
@@ -1604,40 +1604,40 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test('handles PUT /api/wiki/:slug rejects renaming to a slug already used by another page (409)', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'a', title: 'Alpha' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'b', title: 'Beta' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/beta', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'alpha' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(res.status).toBe(409)
   })
 
   test('redirect chains collapse: renaming a page twice still resolves the original slug in one hop', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Docs' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     await fetchNativeApi('http://localhost/api/wiki/docs', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'docs-v2' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     await fetchNativeApi('http://localhost/api/wiki/docs-v2', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'docs-v3' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     const originalRes = await fetchNativeApi('http://localhost/api/wiki/docs', {
@@ -1655,21 +1655,21 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test('getWikiPage prefers a live page over a stale redirect for a reused slug (never ambiguous)', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'original', title: 'Old Name' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki/old-name', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'new-name' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     // "old-name" is now only a redirect. A new page can legitimately claim it.
     const reclaimRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'reclaimed', slug: 'old-name', title: 'Reclaimed' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(reclaimRes.status).toBe(201)
 
@@ -1685,9 +1685,9 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     const other = await seedFixture()
 
     const first = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'workspace one', title: 'Shared Name' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(first.status).toBe(201)
 
@@ -1705,14 +1705,14 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     const other = await seedFixture()
 
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Isolated' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki/isolated', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'isolated-renamed' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     // "isolated" is now a redirect in the first workspace only.
@@ -1787,9 +1787,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
 
   test('covers REST POST /api/wiki parses valid frontmatter into denormalized fields', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: RUNBOOK_CONTENT, title: 'Incident Runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const created = await readNativeJson(
@@ -1839,9 +1839,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
 
   test('a page with no frontmatter gets empty/null metadata', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'just markdown, no frontmatter', title: 'Plain Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(
       res,
@@ -1862,12 +1862,12 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
    */
   test('covers REST POST /api/wiki accepts a `type` value outside the well-known set (PROJ-513)', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntype: whitepaper\n---\nbody',
         title: 'Freeform Type',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const created = await readNativeJson(res, Schema.Struct({ type: Schema.Union([Schema.String, Schema.Null]) }))
@@ -1892,20 +1892,20 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
    */
   test('filters list/search by a `type` value outside the well-known set (PROJ-513)', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntype: whitepaper\n---\nlatency budget',
         title: 'Freeform Filter Whitepaper',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntype: adr\n---\nlatency budget',
         title: 'Freeform Filter Adr',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const listRes = await fetchNativeApi('http://localhost/api/wiki?type=whitepaper', {
@@ -1928,96 +1928,96 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
 
   test('rejects an invalid `status` enum value with a structured error', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\nstatus: archived\n---\nbody',
         title: 'Bad Status',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test('rejects malformed YAML in the frontmatter block with a structured error, not a silent drop', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntags: [unterminated\n---\nbody',
         title: 'Bad Yaml',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test('rejects an unrecognized frontmatter key rather than silently ignoring it', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\nstauts: current\n---\nbody',
         title: 'Typo Key',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test('rejects tags with the wrong type (a string instead of an array)', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntags: ops\n---\nbody',
         title: 'Bad Tags',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test("rejects a frontmatter block that isn't a YAML mapping", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\n- one\n- two\n---\nbody',
         title: 'List Frontmatter',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test("rejects a verified_at that isn't a parseable date", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\nverified_at: last tuesday\n---\nbody',
         title: 'Bad Verified At',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test('rejects a verified_at that is neither a date nor a number', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\nverified_at: true\n---\nbody',
         title: 'Boolean Verified At',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test('accepts a verified_at given as unix seconds', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\nverified_at: 1700000000\n---\nbody',
         title: 'Unix Verified At',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const created = await readNativeJson(res, Schema.Struct({ verifiedAt: Schema.Number }))
@@ -2099,17 +2099,17 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
 
   test('covers REST GET /api/wiki filters by type and status', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: RUNBOOK_CONTENT, title: 'Filter Runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntype: adr\nstatus: draft\n---\nbody',
         title: 'Filter Adr',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const byType = await fetchNativeApi('http://localhost/api/wiki?type=adr', {
@@ -2127,22 +2127,22 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
 
   test('covers REST GET /api/wiki?tags= filters by any-of tag match', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '---\ntags: [ops]\n---\nbody', title: 'Tagged Ops' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntags: [frontend]\n---\nbody',
         title: 'Tagged Frontend',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'no frontmatter here', title: 'Untagged' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki?tags=ops,frontend', {
@@ -2174,20 +2174,20 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
 
   test('covers REST GET /api/wiki/search filters by type/status/tags on top of the FTS match', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntype: runbook\nstatus: current\ntags: [deploy]\n---\ndeploy steps',
         title: 'Deploy Runbook',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: '---\ntype: adr\nstatus: draft\ntags: [deploy]\n---\ndeploy decision',
         title: 'Deploy Adr',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi(
@@ -2203,9 +2203,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
 
   test('search results return tags/owners as arrays, same shape as list and get', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: RUNBOOK_CONTENT, title: 'Shape Runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=Runbook', {
@@ -2272,23 +2272,23 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
 
   test('covers REST: GET /:slug/revisions resolves via an old (pre-rename) slug', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(createRes.status).toBe(201)
 
     const editRes = await fetchNativeApi('http://localhost/api/wiki/runbook', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v2' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(editRes.status).toBe(200)
 
     const renameRes = await fetchNativeApi('http://localhost/api/wiki/runbook', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'operations-runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(renameRes.status).toBe(200)
     await resetRateLimits()
@@ -2311,14 +2311,14 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
 
   test('covers REST: GET /:slug/revisions/:revisionId resolves via an old (pre-rename) slug', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Playbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki/playbook', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v2' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     const revRes = await fetchNativeApi('http://localhost/api/wiki/playbook/revisions', {
       headers: authHeaders(token, slug),
@@ -2326,9 +2326,9 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     const [revision] = await readNativeJson(revRes, IdListResponse)
 
     await fetchNativeApi('http://localhost/api/wiki/playbook', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'team-playbook' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     await resetRateLimits()
 
@@ -3841,9 +3841,9 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   const createPage = async function createPage(title: string, content: string): Promise<{ id: string; slug: string }> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content, title }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     return readNativeJson(res, IdAndSlugResponse)
   }
@@ -3903,12 +3903,12 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   test("covers PROJ-510: a malformed %-escape in a link URL doesn't crash the write; other links still index", async () => {
     const runbook = await createPage('Runbook Eta', 'how to page')
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: 'see [[Runbook Eta]] and [bad](/wiki?slug=100%) for details',
         title: 'Theta',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
 
@@ -3978,9 +3978,9 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     await createPage('Linker', 'see [[Original Name]]')
 
     await fetchNativeApi(`http://localhost/api/wiki/${target.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'renamed-slug' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/renamed-slug/backlinks', {
@@ -4000,9 +4000,9 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     expect((await res.json()) as unknown[]).toHaveLength(1)
 
     await fetchNativeApi(`http://localhost/api/wiki/${linker.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'no more links here' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
@@ -4016,9 +4016,9 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const linker = await createPage('Title Change Source', 'see [[Untouched Target]]')
 
     await fetchNativeApi(`http://localhost/api/wiki/${linker.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Renamed Title Only' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
@@ -4214,17 +4214,17 @@ describe('wiki write atomicity (PROJ-511)', () => {
     // dangling wiki_links row for a page insert that didn't happen.
     const [resA, resB] = await Promise.all([
       fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({
           content: 'see [[Race Target Alpha]]',
           title: 'Atomicity Race Page',
         }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       }),
       fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'see [[Race Target Beta]]', title: 'Atomicity Race Page' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       }),
     ])
     const statuses = [resA.status, resB.status].toSorted((left, right) =>
@@ -4249,27 +4249,27 @@ describe('wiki write atomicity (PROJ-511)', () => {
 
   test("a failed rename (slug conflict) leaves the page's content, wiki_links, and wiki_fts untouched", async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'how to page', title: 'Atomic Runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'x', title: 'Atomic Existing' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const sourceRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'see [[Atomic Runbook]]', title: 'Atomic Source' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const source = await readNativeJson(sourceRes, SlugResponse)
 
     await resetRateLimits()
     const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${source.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'no longer links anywhere', slug: 'atomic-existing' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(updateRes.status).toBe(409)
 
@@ -4388,9 +4388,9 @@ describe('wiki freshness model (PROJ-489)', () => {
 
   test('covers REST GET /api/wiki/:slug returns computed freshness in the page header', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Overdue Runbook', content: overdueContent() }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(createRes, SlugResponse)
 
@@ -4407,9 +4407,9 @@ describe('wiki freshness model (PROJ-489)', () => {
 
   test("covers REST POST /api/wiki/:slug/verify stamps verified_at/verified_by using the CALLING user's identity", async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Needs Verification', content: overdueContent() }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(createRes, SlugResponse)
 
@@ -4444,9 +4444,9 @@ describe('wiki freshness model (PROJ-489)', () => {
 
   test('verify_wiki_page records a revision, same as any other content edit', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Revision Check', content: overdueContent() }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(createRes, SlugResponse)
 
@@ -4473,16 +4473,16 @@ describe('wiki freshness model (PROJ-489)', () => {
    */
   test('handles POST /api/wiki/:slug/verify stamps on top of the latest content, never a stale snapshot', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Edited Then Verified', content: overdueContent() }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(createRes, SlugResponse)
 
     await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: `${overdueContent()}\n\nBrand new paragraph.` }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
 
     await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
@@ -4533,20 +4533,20 @@ describe('wiki freshness model (PROJ-489)', () => {
 
   test('handles GET /api/wiki/search demotes a computed-stale page below a fresh page matching the same query', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         title: 'Stale Deploy Guide',
         content: `${overdueContent()}\ndeploy keyword`,
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         title: 'Fresh Deploy Guide',
         content: `${freshContent()}\ndeploy keyword`,
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=deploy', {
@@ -4566,17 +4566,17 @@ describe('wiki freshness model (PROJ-489)', () => {
 
   test('handles GET /api/wiki/search demotes an explicitly status: deprecated page too', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         title: 'Deprecated Onboarding',
         content: `${explicitStatusContent('deprecated')}\nonboardingkeyword`,
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'onboardingkeyword', title: 'Current Onboarding' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=onboardingkeyword', {
@@ -4600,20 +4600,20 @@ describe('wiki freshness model (PROJ-489)', () => {
      * match proves the opposite: bm25 alone decides the order now.
      */
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         title: 'Securitypolicykeyword Runbook',
         content: unverifiedContent(),
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: 'buried mention of securitypolicykeyword in the body',
         title: 'No Signal Page',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=securitypolicykeyword', {
@@ -4632,32 +4632,32 @@ describe('wiki freshness model (PROJ-489)', () => {
 
   test('handles GET /api/wiki/stale-pages lists computed-stale, unverified, deprecated pages, excluding fresh', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Overdue Page', content: overdueContent() }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Never Verified Page', content: unverifiedContent() }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         title: 'Explicitly Stale Page',
         content: explicitStatusContent('stale'),
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Fresh Page', content: freshContent() }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'plain markdown', title: 'No Signal Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     // PROJ-489: 5 creates already used up this token's test-env rate limit
@@ -4719,9 +4719,9 @@ describe('wiki page templates (PROJ-491)', () => {
 
   const createTemplate = async function createTemplate(): Promise<{ id: string; slug: string; isTemplate: boolean }> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: TEMPLATE_CONTENT, title: 'Runbook Template' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     return readNativeJson(res, Schema.Struct({ id: Schema.String, isTemplate: Schema.Boolean, slug: Schema.String }))
@@ -4742,9 +4742,9 @@ describe('wiki page templates (PROJ-491)', () => {
     await createTemplate()
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ templateSlug: 'runbook-template', title: 'Deploy Runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const created = await readNativeJson(
@@ -4783,24 +4783,24 @@ describe('wiki page templates (PROJ-491)', () => {
 
   test('rejects templateSlug that does not resolve to any page (not a silent blank fallback)', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ templateSlug: 'does-not-exist', title: 'Orphan Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test("rejects templateSlug pointing at a page that isn't flagged template:true", async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '# Just a page', title: 'Ordinary Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ templateSlug: 'ordinary-page', title: 'Bad Seed' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -4809,13 +4809,13 @@ describe('wiki page templates (PROJ-491)', () => {
     await createTemplate()
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         content: 'some content',
         templateSlug: 'runbook-template',
         title: 'Ambiguous Page',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -4823,9 +4823,9 @@ describe('wiki page templates (PROJ-491)', () => {
   test('search_wiki excludes template pages by default', async () => {
     await createTemplate()
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '# Runbook body content', title: 'Runbook For Deploys' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=Runbook', {
@@ -4844,9 +4844,9 @@ describe('wiki page templates (PROJ-491)', () => {
   test('handles GET /api/wiki excludes template pages by default, matching search_wiki/list_stale_pages', async () => {
     await createTemplate()
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '# Not a template', title: 'Ordinary Runbook' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const defaultRes = await fetchNativeApi('http://localhost/api/wiki', {
@@ -4873,9 +4873,9 @@ describe('wiki page templates (PROJ-491)', () => {
       '# Stale-looking template',
     ].join('\n')
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: overdueTemplateContent, title: 'Overdue Template' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/stale-pages', {
@@ -4888,9 +4888,9 @@ describe('wiki page templates (PROJ-491)', () => {
   test('covers REST GET /api/wiki/templates lists only template-flagged pages', async () => {
     await createTemplate()
     await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '# Not a template', title: 'Regular Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki/templates', {
@@ -4903,9 +4903,9 @@ describe('wiki page templates (PROJ-491)', () => {
 
   test("rejects a page slugged 'templates' — it would be shadowed by GET /api/wiki/templates", async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '', slug: 'templates', title: 'Templates' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })

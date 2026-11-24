@@ -38,9 +38,9 @@ const postIssue = async function postIssue(
   title: string,
 ): Promise<Response> {
   return fetchNativeApi('http://localhost/api/issues', {
-    method: 'POST',
-    headers: authHeaders(token, slug),
     body: JSON.stringify({ projectId, title }),
+    headers: authHeaders(token, slug),
+    method: 'POST',
   })
 }
 

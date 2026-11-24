@@ -42,9 +42,9 @@ describe('comments REST API', () => {
     ;({ token, slug, userId } = fixture)
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId: fixture.projectId, title: 'Issue with comments' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const body = await readNativeJson(res, IdResponse)
     issueId = body.id
@@ -62,9 +62,9 @@ describe('comments REST API', () => {
 
   test('handles POST /:issueId/comments creates a comment', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Hello world' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const data = await readNativeJson(res, IdResponse)
@@ -78,9 +78,9 @@ describe('comments REST API', () => {
    */
   test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ authorKind: 'human', body: 'Hello world' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const data = await readNativeJson(res, IdResponse)
@@ -93,9 +93,9 @@ describe('comments REST API', () => {
 
   test('handles GET after POST returns the comment', async () => {
     await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'First comment' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
@@ -108,18 +108,18 @@ describe('comments REST API', () => {
 
   test('handles POST rejects body that exceeds 10000 chars', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'x'.repeat(10_001) }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test('handles POST rejects empty body', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: '' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -161,9 +161,9 @@ describe('comments REST API', () => {
     const comment = await seedComment(issueId, userId)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Updated text' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(200)
 
@@ -183,9 +183,9 @@ describe('comments REST API', () => {
     const comment = await seedComment(issueId, other.user.id)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Hijacked' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(403)
   })

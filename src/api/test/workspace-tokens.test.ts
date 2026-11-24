@@ -33,9 +33,9 @@ const humanHeaders = function humanHeaders(slug: string): { 'X-Workspace-Slug': 
 const mintAsHuman = function mintAsHuman(email: string, slug: string, body: string): Promise<Response> {
   return asHuman(email, () =>
     fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
-      method: 'POST',
-      headers: humanHeaders(slug),
       body,
+      headers: humanHeaders(slug),
+      method: 'POST',
     }),
   )
 }

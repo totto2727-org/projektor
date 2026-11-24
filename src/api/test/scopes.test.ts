@@ -133,9 +133,9 @@ describe('covers PROJ-17: REST scope enforcement', () => {
   test('write token can POST', async () => {
     const token = await seedToken(workspaceId, userId, { scopes: ['write'] })
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'written by write token' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
   })

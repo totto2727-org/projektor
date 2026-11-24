@@ -22,9 +22,9 @@ describe('file Claims API', () => {
 
   const claimFiles = async function claimFiles(body: Record<string, unknown>, t = token, s = slug): Promise<Response> {
     return fetchNativeApi('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(t, s),
       body: JSON.stringify(body),
+      headers: authHeaders(t, s),
+      method: 'POST',
     })
   }
 
@@ -34,9 +34,9 @@ describe('file Claims API', () => {
     s = slug,
   ): Promise<Response> {
     return fetchNativeApi('http://localhost/api/file-claims/release', {
-      method: 'POST',
-      headers: authHeaders(t, s),
       body: JSON.stringify(body),
+      headers: authHeaders(t, s),
+      method: 'POST',
     })
   }
 
@@ -202,9 +202,9 @@ describe('file Claims API', () => {
   test('b4b: endAgent auto-releases agent file claims; path becomes re-claimable', async () => {
     // Register an agent session
     const agentRes = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'test-agent-fc' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(agentRes.status).toBe(201)
     const agent = await readNativeJson(agentRes, IdResponse)
@@ -704,9 +704,9 @@ describe('file Claims API', () => {
   describe('covers PROJ-928: issue close releases file claims', () => {
     const patchStatus = async function patchStatus(id: string, status: string): Promise<Response> {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-        method: 'PATCH',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ status }),
+        headers: authHeaders(token, slug),
+        method: 'PATCH',
       })
     }
 
@@ -746,9 +746,9 @@ describe('file Claims API', () => {
       await claimFiles({ issueId, paths: ['src/after-done.ts'] })
 
       const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
-        method: 'PATCH',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Renamed' }),
+        headers: authHeaders(token, slug),
+        method: 'PATCH',
       })
       expect(res.status).toBe(200)
 
@@ -899,9 +899,9 @@ describe('covers PROJ-932: list_file_claims projectId + visibility for a non-adm
     const hiddenIssue = await seedIssue(workspaceId, hidden.id, userId, { title: 'Hidden' })
 
     const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId: hiddenIssue.id, paths: ['hidden/secret.ts'] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(claimRes.status).toBe(404)
     // Seed existing state directly. A member may not create a claim in a hidden project.

@@ -37,9 +37,9 @@ describe('issue Links API', () => {
     type: string,
   ): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${sourceIssueId}/links`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ targetIssueId, type }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 

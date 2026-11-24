@@ -584,13 +584,13 @@ describe('files API', () => {
 
       const project = await seedProject(workspaceId)
       const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(adminToken, slug),
         body: JSON.stringify({
           title: 'Restricted page',
           content: 'secret',
           projectId: project.id,
         }),
+        headers: authHeaders(adminToken, slug),
+        method: 'POST',
       })
       const { id: restrictedPageId } = await readNativeJson(pageRes, IdResponse)
 

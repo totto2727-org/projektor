@@ -81,9 +81,9 @@ describe('flow metrics (PROJ-252)', () => {
 
   const registerAgent = async function registerAgent(): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'flow-metrics-test-agent' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const session = await readNativeJson(res, IdResponse)
     return session.id
@@ -91,9 +91,9 @@ describe('flow metrics (PROJ-252)', () => {
 
   const claim = async function claim(issueId: string, agentId: string): Promise<void> {
     await fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
@@ -141,14 +141,14 @@ describe('flow metrics (PROJ-252)', () => {
     const restBody = await restRes.json()
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
         params: { name: 'get_flow_metrics', arguments: { projectId } },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)

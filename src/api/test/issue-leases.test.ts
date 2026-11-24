@@ -24,9 +24,9 @@ describe('issue leases API (PROJ-184)', () => {
 
   const registerAgent = async function registerAgent(name: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const session = await readNativeJson(res, IdResponse)
     return session.id
@@ -34,17 +34,17 @@ describe('issue leases API (PROJ-184)', () => {
 
   const claim = function claim(issueId: string, agentId: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
   const release = function release(issueId: string, agentId?: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/release`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify(Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId) ? { agentId } : {}),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
@@ -206,15 +206,15 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'B' })
 
     const agentRes = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'worker' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const agent = await readNativeJson(agentRes, IdResponse)
     await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId: agent.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const withoutFlag = await callPrioritized({ limit: 50, includeNotReady: true })
@@ -246,9 +246,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
   const registerAgent = async function registerAgent(name: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const session = await readNativeJson(res, IdResponse)
     return session.id
@@ -256,9 +256,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
   const claim = function claim(issueId: string, agentId: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
@@ -379,9 +379,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
   test("respects a project's own agent_wip_limit override", async () => {
     const patchRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ agentWipLimit: 1 }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 
@@ -392,14 +392,14 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
   test('covers MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
         params: { name: 'update_project', arguments: { id: projectId, agentWipLimit: 1 } },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(mcpRes.status).toBe(200)
 
@@ -408,8 +408,6 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
   test('covers MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
@@ -419,6 +417,8 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
           arguments: { name: 'MCP WIP Project', key: 'MCPWIP', agentWipLimit: 1 },
         },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(mcpRes.status).toBe(200)
     const body = await readNativeJson(mcpRes, RpcTextResponse)
@@ -443,9 +443,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   describe('covers PROJ-928: issue close releases its lease', () => {
     const patchStatus = function patchStatus(id: string, status: string, completionReport?: object): Promise<Response> {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-        method: 'PATCH',
-        headers: authHeaders(token, slug),
         body: JSON.stringify(completionReport ? { status, completionReport } : { status }),
+        headers: authHeaders(token, slug),
+        method: 'PATCH',
       })
     }
     // An issue an agent held a lease on requires a completion report to close as done.
@@ -490,9 +490,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       expect((await claim(issue.id, a1)).status).toBe(201)
 
       const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
-        method: 'PATCH',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Renamed' }),
+        headers: authHeaders(token, slug),
+        method: 'PATCH',
       })
       expect(res.status).toBe(200)
 
@@ -529,9 +529,9 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
 
   const registerAgent = async function registerAgent(name: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const session = await readNativeJson(res, IdResponse)
     return session.id
@@ -539,9 +539,9 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
 
   const claim = function claim(issueId: string, agentId: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
@@ -555,14 +555,14 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
 
   const mcpLeases = async function mcpLeases(args: Record<string, unknown>) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
         params: { name: 'list_issue_leases', arguments: args },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const jsonShape = Schema.Struct({
       result: Schema.optional(
@@ -595,9 +595,9 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     const agent = await registerAgent('releaser')
     expect((await claim(issue.id, agent)).status).toBe(201)
     const response = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({}),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(response.status).toBe(200)
 
@@ -743,9 +743,9 @@ describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-ad
     const hiddenIssue = await seedIssue(workspaceId, hidden.id, userId, { title: 'Hidden' })
 
     const agentRes = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'hidden-holder' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const agent = await readNativeJson(agentRes, IdResponse)
     /*
@@ -762,14 +762,14 @@ describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-ad
 
     const mcpLeases = async function mcpLeases(args: Record<string, unknown>): Promise<{ items: unknown[] }> {
       const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
           method: 'tools/call',
           params: { name: 'list_issue_leases', arguments: args },
         }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       const jsonShape = Schema.Struct({
         result: Schema.optional(

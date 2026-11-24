@@ -91,9 +91,9 @@ describe('issues API', () => {
 
   test('handles POST /api/issues creates an issue', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ priority: 'high', projectId, title: 'First issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
@@ -107,9 +107,9 @@ describe('issues API', () => {
    */
   test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Author kind test' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
@@ -122,18 +122,18 @@ describe('issues API', () => {
 
   test('covers PROJ-712: rejects an unrecognized field (e.g. a spoofed authorKind) instead of silently ignoring it', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ authorKind: 'human', projectId, title: 'Author kind test' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
   test('handles POST then GET returns the created issue', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Visible issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page } = await listIssues()
@@ -143,9 +143,9 @@ describe('issues API', () => {
 
   test('exposes a resolvable url on list items and single-issue fetches (PROJ-307)', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Wiki full-text search' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const created = await readNativeJson(createRes, Schema.Struct({ id: Schema.String, number: Schema.Number }))
 
@@ -162,9 +162,9 @@ describe('issues API', () => {
   test('auto-increments issue number per project', async () => {
     for (const title of ['Issue A', 'Issue B', 'Issue C']) {
       await fetchNativeApi('http://localhost/api/issues', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ projectId, title }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
     }
     const { page } = await listIssues()
@@ -175,14 +175,14 @@ describe('issues API', () => {
   test('concurrent creates in the same project receive distinct issue numbers', async () => {
     const [res1, res2] = await Promise.all([
       fetchNativeApi('http://localhost/api/issues', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ projectId, title: 'Concurrent A' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       }),
       fetchNativeApi('http://localhost/api/issues', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ projectId, title: 'Concurrent B' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       }),
     ])
     expect(res1.status).toBe(201)
@@ -194,16 +194,16 @@ describe('issues API', () => {
 
   test('handles PATCH /api/issues/:id updates status', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'To update' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ status: 'in_progress' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 
@@ -216,9 +216,9 @@ describe('issues API', () => {
 
   test('handles DELETE /api/issues/:id removes the issue', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'To delete' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
@@ -235,20 +235,20 @@ describe('issues API', () => {
 
   test('filters issues by status', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Backlog item' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'In progress item' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
     await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ status: 'in_progress' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
 
     const { page } = await listIssues('http://localhost/api/issues?status=in_progress')
@@ -269,14 +269,14 @@ describe('issues API', () => {
     await seedMember(workspaceId, assignee.id)
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         projectId,
         title: 'Assigned',
         assigneeId: assignee.id,
         labels: ['bug', 'urgent'],
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
@@ -294,16 +294,16 @@ describe('issues API', () => {
     await seedMember(workspaceId, assignee.id)
 
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Unassigned' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ assigneeId: assignee.id }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 
@@ -316,16 +316,16 @@ describe('issues API', () => {
 
   test('handles PATCH with labels updates labels', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Label test', labels: ['old'] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ labels: ['new', 'tag'] }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -340,14 +340,14 @@ describe('issues API', () => {
     await seedMember(workspaceId, assignee.id)
 
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Unassigned issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Assigned issue', assigneeId: assignee.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page } = await listIssues(`http://localhost/api/issues?assignee=${assignee.id}`)
@@ -462,9 +462,9 @@ describe('issues API', () => {
   test('handles GET /api/issues/KEY-NUMBER looks up by ref', async () => {
     // beforeEach seeds a project with key='PROJ'; first issue in it is PROJ-1
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Ref issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(createRes.status).toBe(201)
 
@@ -480,9 +480,9 @@ describe('issues API', () => {
   test('handles GET /api/issues/KEY-NUMBER resolves for a project key containing digits (PROJ-440)', async () => {
     const digitProject = await seedProject(workspaceId, 'WEB2')
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId: digitProject.id, title: 'Digit-key ref issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(createRes.status).toBe(201)
     const created = await readNativeJson(createRes, Schema.Struct({ id: Schema.String, number: Schema.Number }))
@@ -525,22 +525,22 @@ describe('issues API', () => {
 
   test('handles GET /api/issues/search finds issues by title keyword', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         body: 'Login fails on Safari',
         projectId,
         title: 'Authentication bug',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         body: 'Slow query on dashboard',
         projectId,
         title: 'Performance regression',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=Authentication', {
@@ -554,14 +554,14 @@ describe('issues API', () => {
 
   test('handles GET /api/issues/search finds issues by body keyword', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Contains wrangler reference', projectId, title: 'Some issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Unrelated content', projectId, title: 'Other issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=wrangler', {
@@ -574,9 +574,9 @@ describe('issues API', () => {
 
   test('handles GET /api/issues/search respects workspace scoping', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'unique-sentinel', projectId, title: 'Workspace A issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const other = await seedFixture()
@@ -602,18 +602,18 @@ describe('issues API', () => {
   test('handles GET /api/issues/search with projectId filters to that project', async () => {
     const otherProject = await seedProject(workspaceId, 'SEC')
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'shared-term', projectId, title: 'Alpha project issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         projectId: otherProject.id,
         title: 'Beta project issue',
         body: 'shared-term',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/search?q=shared-term&projectId=${projectId}`, {
@@ -626,9 +626,9 @@ describe('issues API', () => {
 
   test('handles GET /api/issues/search returns project fields in results', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Field check issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=Field+check', {
@@ -664,23 +664,23 @@ describe('issues API', () => {
   test('handles GET /api/issues/search ranks by bm25 (title+body match scores higher than body-only)', async () => {
     // Issue with the term in both title AND body — higher bm25 score
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         body: 'authentication flow is broken',
         projectId,
         title: 'Authentication bug',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     // Issue with the term only in body — lower bm25 score
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         body: 'unrelated to authentication',
         projectId,
         title: 'Performance regression',
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=authentication', {
@@ -695,9 +695,9 @@ describe('issues API', () => {
   test('handles GET /api/issues/search FTS workspace isolation prevents cross-tenant results', async () => {
     // Seed an issue in the primary workspace
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: '', projectId, title: 'Primary workspace fts-sentinel' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     // Seed the same term in a completely separate workspace
@@ -724,9 +724,9 @@ describe('issues API', () => {
 
   test('handles GET /api/issues/search returns empty results for whitespace-only query', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Noise issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=+++', {
       headers: authHeaders(token, slug),
@@ -738,9 +738,9 @@ describe('issues API', () => {
 
   test('handles GET /api/issues/search returns empty results for punctuation-only query', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Noise issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=!!!', {
       headers: authHeaders(token, slug),
@@ -754,16 +754,16 @@ describe('issues API', () => {
 
   test('handles POST creates a child issue with parentId', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId, projectId, title: 'Child issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(childRes.status).toBe(201)
     const { id: childId } = await readNativeJson(childRes, IdResponse)
@@ -777,9 +777,9 @@ describe('issues API', () => {
 
   test('handles GET issue includes rollup of child status counts', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent for rollup' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
@@ -802,9 +802,9 @@ describe('issues API', () => {
 
   test('handles GET issue with no children returns empty rollup', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Childless issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
@@ -821,23 +821,23 @@ describe('issues API', () => {
 
   test('handles PATCH sets parentId on an existing issue', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Child (no parent yet)' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: childId } = await readNativeJson(childRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 
@@ -850,23 +850,23 @@ describe('issues API', () => {
 
   test('handles PATCH clears parentId by setting it to null', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent to detach from' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId, projectId, title: 'Child' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: childId } = await readNativeJson(childRes, IdResponse)
 
     await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: JSON_NULL }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
@@ -879,16 +879,16 @@ describe('issues API', () => {
   test('handles POST rejects self as parent', async () => {
     // Create issue first, then try to set itself as parent via PATCH
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Self-ref' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: id }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(400)
   })
@@ -900,9 +900,9 @@ describe('issues API', () => {
     const c = await seedIssue(workspaceId, projectId, userId, { title: 'C', parentId: currentIssue.id })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: c.id }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(400)
   })
@@ -918,9 +918,9 @@ describe('issues API', () => {
 
     // L5 is at depth 5; adding a child would be depth 6 — must be rejected
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'L6 (should fail)', parentId: l5.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -934,9 +934,9 @@ describe('issues API', () => {
 
     // L4 is at depth 4; adding a child would be depth 5 — must be allowed
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'L5 (should succeed)', parentId: l4.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
   })
@@ -962,9 +962,9 @@ describe('issues API', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Cross-ws child', parentId: otherIssue.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(404)
   })
@@ -1009,19 +1009,19 @@ describe('issues API', () => {
 
   test('filters by multiple priorities (OR)', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ priority: 'urgent', projectId, title: 'Urgent issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ priority: 'high', projectId, title: 'High issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ priority: 'low', projectId, title: 'Low issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page } = await listIssues('http://localhost/api/issues?priorities=urgent,high')
@@ -1034,14 +1034,14 @@ describe('issues API', () => {
     const project2 = await seedProject(workspaceId)
 
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Project 1 issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId: project2.id, title: 'Project 2 issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page } = await listIssues(`http://localhost/api/issues?project=${project2.id}`)
@@ -1051,16 +1051,16 @@ describe('issues API', () => {
 
   test('noParent=true returns only issues without a parent', async () => {
     const r1 = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(r1, IdResponse)
 
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId, projectId, title: 'Child issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page } = await listIssues('http://localhost/api/issues?noParent=true')
@@ -1087,9 +1087,9 @@ describe('issues API', () => {
    */
   const patch = async function patch(id: string, body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify(body),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
   }
 
@@ -1315,9 +1315,9 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   // PROJ-441
   test('includeRollups=1 attaches a rollup per item for parents with mixed-status children', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent with children' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
     await seedIssue(workspaceId, projectId, userId, { parentId, status: 'backlog' })
@@ -1338,9 +1338,9 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
 
   test('without includeRollups, items carry no rollup key', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'No rollup wanted' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { page } = await listIssues('http://localhost/api/issues')
     expect(page.items).toHaveLength(1)
@@ -1350,9 +1350,9 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   test("includeRollups counts children in a different project the same as getIssue's own rollup", async () => {
     const otherProject = await seedProject(workspaceId, 'OTH')
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Cross-project parent' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
     await seedIssue(workspaceId, otherProject.id, userId, { parentId, status: 'done' })
@@ -1378,9 +1378,9 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
 
   test('includeRollups groups by raw status even when status_category diverges, matching getIssue', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Category-divergent parent' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
     const { id: childId } = await seedIssue(workspaceId, projectId, userId, {
@@ -1417,9 +1417,9 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   // PROJ-442
   test('list items omit body by default; includeBody=1 restores it', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Some body text', projectId, title: 'Has a body' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page: defaultPage } = await listIssues('http://localhost/api/issues')
@@ -1434,14 +1434,14 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   test("assignee=me returns the calling user's issues", async () => {
     const other = await seedUser('me-filter-other@example.com')
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ assigneeId: userId, projectId, title: 'Assigned to me' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Assigned to someone else', assigneeId: other.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page } = await listIssues('http://localhost/api/issues?assignee=me')
@@ -1453,9 +1453,9 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     const other = await seedUser('literal-id-filter@example.com')
     await seedMember(workspaceId, other.id)
     await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Assigned to other', assigneeId: other.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const { page } = await listIssues(`http://localhost/api/issues?assignee=${other.id}`)
@@ -1975,14 +1975,14 @@ describe('get_prioritized_issues MCP tool', () => {
 
   const callPrioritized = async function callPrioritized(args: Record<string, unknown> = {}) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
         params: { name: 'get_prioritized_issues', arguments: args },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     return res.json() as Promise<{
       result?: { content: { text: string }[] }
@@ -2505,9 +2505,9 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   test('covers REST POST rejects an assigneeId from another workspace with 400', async () => {
     const otherFixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Bad assignee', assigneeId: otherFixture.user.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
     const bodyShape = Schema.Struct({
@@ -2523,9 +2523,9 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const assignee = await seedUser('proj785-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Good assignee', assigneeId: assignee.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
   })
@@ -2533,16 +2533,16 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   test('covers REST PATCH rejects reassigning to a user from another workspace with 400', async () => {
     const otherFixture = await seedFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'To reassign' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ assigneeId: otherFixture.user.id }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(400)
   })
@@ -2551,16 +2551,16 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const assignee = await seedUser('proj785-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Will be cleared', assigneeId: assignee.id }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ assigneeId: JSON_NULL }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 

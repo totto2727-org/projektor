@@ -54,14 +54,14 @@ describe('task Statuses API', () => {
 
   test('handles POST /api/task-statuses creates a new status (owner)', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         key: 'in_progress',
         name: 'In Progress',
         category: 'in_progress',
         position: 1,
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, key: Schema.String }))
@@ -72,18 +72,18 @@ describe('task Statuses API', () => {
   test('handles POST /api/task-statuses rejects duplicate key', async () => {
     await seedTaskStatus(workspaceId, { category: 'done', key: 'done', name: 'Done' })
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'done', name: 'Done 2', category: 'done' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(409)
   })
 
   test('handles POST /api/task-statuses rejects invalid key format', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'Bad Key!', name: 'Bad', category: 'todo' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -97,9 +97,9 @@ describe('task Statuses API', () => {
     })
 
     await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'backlog', name: 'Backlog', category: 'todo', isDefault: true }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
@@ -120,9 +120,9 @@ describe('task Statuses API', () => {
     const memberToken = await seedToken(workspaceId, memberUser.id)
 
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: authHeaders(memberToken, slug),
       body: JSON.stringify({ key: 'done', name: 'Done', category: 'done' }),
+      headers: authHeaders(memberToken, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -137,9 +137,9 @@ describe('task Statuses API', () => {
     })
 
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'To Do' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(200)
 
@@ -155,9 +155,9 @@ describe('task Statuses API', () => {
 
   test('handles PATCH /api/task-statuses/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'Ghost' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(404)
   })
@@ -176,9 +176,9 @@ describe('task Statuses API', () => {
     })
 
     await fetchNativeApi(`http://localhost/api/task-statuses/${doneId}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ isDefault: true }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
 
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
@@ -288,9 +288,9 @@ describe('task Statuses — issue integration', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'No status given' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
@@ -315,9 +315,9 @@ describe('task Statuses — issue integration', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, statusId, title: 'Done issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
@@ -338,9 +338,9 @@ describe('task Statuses — issue integration', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, status: 'in_progress', title: 'Legacy status' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
@@ -362,9 +362,9 @@ describe('task Statuses — issue integration', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, statusId: foreignStatusId, title: 'Cross-ws status' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -378,12 +378,12 @@ describe('task Statuses — issue integration', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No status' })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         statusId,
         completionReport: { summary: 'Done', verification: 'pnpm test' },
       }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(200)
 

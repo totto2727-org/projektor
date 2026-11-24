@@ -181,8 +181,6 @@ describe('code heatmap (PROJ-332)', () => {
     const restBody = await restRes.json()
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
@@ -192,6 +190,8 @@ describe('code heatmap (PROJ-332)', () => {
           arguments: { projectId, since: now - 3600, until: now },
         },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)

@@ -70,14 +70,14 @@ describe('workflow spec', () => {
     const restBody = await restRes.json()
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
         params: { name: 'get_workflow', arguments: {} },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)

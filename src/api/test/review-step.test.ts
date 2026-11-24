@@ -22,9 +22,9 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
 
   const patch = function patch(id: string, body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify(body),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
   }
 
@@ -90,14 +90,14 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
 
   test('create/update_task_status set and clear the flag (REST)', async () => {
     const created = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({
         key: 'design_review',
         name: 'Design Review',
         category: 'in_progress',
         isReviewStep: true,
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(created.status).toBe(201)
     const { id } = await readNativeJson(created, IdResponse)
@@ -110,9 +110,9 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     await expect(flag()).resolves.toBe(1)
 
     const updated = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ isReviewStep: false }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(updated.status).toBe(200)
     await expect(flag()).resolves.toBe(0)

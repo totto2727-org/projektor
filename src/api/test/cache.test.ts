@@ -301,14 +301,14 @@ describe('covers KV caching', () => {
       await resetCoreObservations()
 
       const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
           method: 'tools/call',
           params: { name: 'update_issue', arguments: { id: issue.id, title: 'After' } },
         }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       const result = await getCoreObservations()
       expect(result.cacheDeletes).toContain(`issue:${workspaceId}:${issue.id}`)

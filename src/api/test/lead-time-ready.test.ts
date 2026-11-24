@@ -25,9 +25,9 @@ describe('covers PROJ-921: ready_at and lead time', () => {
 
   const create = async function create(status: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: `t-${status}`, status }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     return ((await res.json()) as { id: string }).id
@@ -35,9 +35,9 @@ describe('covers PROJ-921: ready_at and lead time', () => {
 
   const patch = async function patch(id: string, status: string): Promise<void> {
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ status }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(200)
   }

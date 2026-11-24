@@ -64,8 +64,8 @@ describe('credential confinement for user-level operations', () => {
         const response = await fetchNativeApi(
           `http://localhost/api/workspaces/${fixture.workspace.slug}/connectors${suffix}`,
           {
-            method,
             headers: authHeaders(token, fixture.workspace.slug),
+            method,
           },
         )
         expect(response.status).toBe(403)

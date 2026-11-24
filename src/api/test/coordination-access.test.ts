@@ -29,14 +29,14 @@ const mcpList = async function mcpList(
   workspaceId: string,
 ): Promise<ListResult> {
   const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers: authHeaders(token, slug),
     body: JSON.stringify({
       jsonrpc: '2.0',
       id: 1,
       method: 'tools/call',
       params: { name: tool, arguments: {} },
     }),
+    headers: authHeaders(token, slug),
+    method: 'POST',
   })
   const body = await readNativeJson(res, RpcTextResponse)
   return JSON.parse(body.result.content[0].text) as ListResult

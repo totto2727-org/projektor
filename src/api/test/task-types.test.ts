@@ -57,9 +57,9 @@ describe('task Types API', () => {
 
   test('handles POST /api/task-types creates a new type (owner)', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'epic', name: 'Epic', position: 1 }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, key: Schema.String }))
@@ -70,18 +70,18 @@ describe('task Types API', () => {
   test('handles POST /api/task-types rejects duplicate key', async () => {
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const res = await fetchNativeApi('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'epic', name: 'Epic 2' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(409)
   })
 
   test('handles POST /api/task-types rejects invalid key format', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'Bad Key!', name: 'Bad' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -90,9 +90,9 @@ describe('task Types API', () => {
     await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task' })
 
     await fetchNativeApi('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'story', name: 'Story', isDefault: true }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     const res = await fetchNativeApi('http://localhost/api/task-types', {
@@ -113,9 +113,9 @@ describe('task Types API', () => {
     const memberToken = await seedToken(workspaceId, memberUser.id)
 
     const res = await fetchNativeApi('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: authHeaders(memberToken, slug),
       body: JSON.stringify({ key: 'epic', name: 'Epic' }),
+      headers: authHeaders(memberToken, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -126,9 +126,9 @@ describe('task Types API', () => {
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'Defect' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(200)
 
@@ -144,9 +144,9 @@ describe('task Types API', () => {
 
   test('handles PATCH /api/task-types/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'Ghost' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(404)
   })
@@ -160,9 +160,9 @@ describe('task Types API', () => {
     const { id: bugId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     await fetchNativeApi(`http://localhost/api/task-types/${bugId}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ isDefault: true }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
 
     const res = await fetchNativeApi('http://localhost/api/task-types', {
@@ -244,9 +244,9 @@ describe('task Types — issue integration', () => {
     await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task' })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'No type given' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
@@ -263,9 +263,9 @@ describe('task Types — issue integration', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Bug issue', typeId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
@@ -285,9 +285,9 @@ describe('task Types — issue integration', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Cross-ws type', typeId: foreignTypeId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -297,9 +297,9 @@ describe('task Types — issue integration', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No type' })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ typeId }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(res.status).toBe(200)
 
@@ -315,9 +315,9 @@ describe('task Types — issue integration', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
     await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ typeId: JSON_NULL }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
@@ -382,9 +382,9 @@ describe('task Types — issue integration', () => {
 
   test('handles POST /api/issues has null type_key when no types exist', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Typeless issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)

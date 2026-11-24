@@ -41,9 +41,9 @@ describe('reserved wiki slugs (PROJ-811)', () => {
 
   test('auto-slugs a reserved title with a -page suffix, and the page loads', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'body', title: 'Search' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const page = await readNativeJson(res, SlugResponse)
@@ -57,22 +57,22 @@ describe('reserved wiki slugs (PROJ-811)', () => {
 
   test('rejects choosing a reserved slug explicitly, on create and on rename', async () => {
     const created = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'trash', title: 'Bin' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(created.status).toBe(400)
 
     const ok = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Plain' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const page = await readNativeJson(ok, IdResponse)
     const renamed = await fetchNativeApi(`http://localhost/api/wiki/${page.id}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'tree' }),
+      headers: authHeaders(token, slug),
+      method: 'PUT',
     })
     expect(renamed.status).toBe(400)
   })

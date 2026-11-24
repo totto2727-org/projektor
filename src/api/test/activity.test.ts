@@ -30,9 +30,9 @@ describe('activity audit log', () => {
 
   test('records a created row when an issue is created', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ priority: 'high', projectId, title: 'Activity test issue' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
@@ -47,16 +47,16 @@ describe('activity audit log', () => {
 
   test('records an updated row with diff when an issue is updated', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Before update' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ priority: 'high', status: 'in_progress' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 
@@ -71,9 +71,9 @@ describe('activity audit log', () => {
 
   test('records a created row when a wiki page is created', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'hello', title: 'Activity Wiki Page' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)

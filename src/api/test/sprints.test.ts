@@ -33,9 +33,9 @@ describe('sprints API', () => {
 
   const createSprint = async function createSprint(body: Record<string, unknown>): Promise<Response> {
     return fetchNativeApi('http://localhost/api/sprints', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify(body),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
@@ -97,9 +97,9 @@ describe('sprints API', () => {
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ goal: 'Updated goal', name: 'Sprint 1', status: 'active' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 
@@ -121,9 +121,9 @@ describe('sprints API', () => {
 
     // First make it active
     await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ status: 'active' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
@@ -174,9 +174,9 @@ describe('sprints API', () => {
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue B' })
 
     const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue1.id, issue2.id] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(moveRes.status).toBe(200)
     const result = await readNativeJson(moveRes, Schema.Struct({ count: Schema.Number, ok: Schema.Boolean }))
@@ -203,9 +203,9 @@ describe('sprints API', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Sprint issue' })
 
     await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue.id] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     await fetchNativeApi(`http://localhost/api/sprints/${sprintId}`, {
@@ -242,9 +242,9 @@ describe('sprints API', () => {
     expect(beforeBody.sprint_id).toBeNull()
 
     const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue.id] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(moveRes.status).toBe(200)
 
@@ -263,9 +263,9 @@ describe('sprints API', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Orphan issue' })
 
     const res = await fetchNativeApi(`http://localhost/api/sprints/${crypto.randomUUID()}/move-issues`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue.id] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(404)
   })
@@ -316,9 +316,9 @@ describe('sprints API', () => {
       })
 
       const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ issueIds }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
       vi.restoreAllMocks()
 

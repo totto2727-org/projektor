@@ -51,9 +51,9 @@ const backfill = async function backfill(
   body: Record<string, unknown> = {},
 ): Promise<{ processed: number; nextCursor: { updatedAt: number; id: string } | null }> {
   const res = await fetchNativeApi('http://localhost/api/wiki/backfill-links', {
-    method: 'POST',
-    headers: authHeaders(token, slug),
     body: JSON.stringify(body),
+    headers: authHeaders(token, slug),
+    method: 'POST',
   })
   expect(res.status).toBe(200)
   return res.json() as Promise<{

@@ -1007,9 +1007,9 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     env.PUBLIC_READ_ONLY = 'true'
 
     const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'BLK', name: 'Blocked' }),
+      headers: { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' },
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })

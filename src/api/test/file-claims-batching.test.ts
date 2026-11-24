@@ -141,9 +141,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
         return
       }
       const res = await fetchNativeApi('http://localhost/api/file-claims', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
         body: JSON.stringify({ issueId, paths, force: true }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
 
       expect(res.status).toBe(201)
@@ -187,9 +187,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
         expect(roundTrips).toBeLessThanOrEqual(10)
       } else {
         const res = await fetchNativeApi('http://localhost/api/file-claims', {
-          method: 'POST',
-          headers: authHeaders(token, slug),
           body: JSON.stringify({ issueId, paths }),
+          headers: authHeaders(token, slug),
+          method: 'POST',
         })
         expect(res.status).toBe(409)
       }
@@ -228,9 +228,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     const paths = Array.from({ length: 100 }, (_value, index) => `src/release-${index}.ts`)
 
     const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(claimRes.status).toBe(201)
 
@@ -248,9 +248,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       return
     }
     const res = await fetchNativeApi('http://localhost/api/file-claims/release', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     expect(res.status).toBe(200)
@@ -266,9 +266,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
     const paths = Array.from({ length: 5 }, (_value, index) => `src/race-${index}.ts`)
     const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(claimRes.status).toBe(201)
 
@@ -329,9 +329,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
   test('claiming the same path twice in one request claims it once', async () => {
     const { token, slug, issueId } = await seedIssueFixture()
     const res = await fetchNativeApi('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths: ['src/b.ts', 'src/a.ts', 'src/b.ts'] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const bodyShape = Schema.Struct({
@@ -354,9 +354,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     }
 
     const res = await fetchNativeApi('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths, force: true }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
 

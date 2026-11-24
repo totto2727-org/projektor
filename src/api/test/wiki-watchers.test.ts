@@ -29,9 +29,9 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
 
   const createPage = async function createPage(body: Record<string, unknown>): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(adminToken, slug),
       body: JSON.stringify(body),
+      headers: authHeaders(adminToken, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     return ((await res.json()) as { id: string }).id
@@ -39,9 +39,9 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
 
   const watch = async function watch(pageId: string): Promise<void> {
     const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcherToken, slug),
       body: JSON.stringify({}),
+      headers: authHeaders(watcherToken, slug),
+      method: 'POST',
     })
     expect(res.status).toBeLessThan(300)
   }
@@ -49,9 +49,9 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
   const edit = async function edit(pageId: string, content: string): Promise<void> {
     await resetRateLimits()
     const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}`, {
-      method: 'PUT',
-      headers: authHeaders(adminToken, slug),
       body: JSON.stringify({ content }),
+      headers: authHeaders(adminToken, slug),
+      method: 'PUT',
     })
     expect(res.status).toBe(200)
   }
@@ -102,9 +102,9 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
     const parentId = await createPage({ title: 'Parent', content: 'p', projectId: project.id })
     const res = await fetchNativeApi(`http://localhost/api/wiki/${parentId}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcherToken, slug),
       body: JSON.stringify({ subtree: true }),
+      headers: authHeaders(watcherToken, slug),
+      method: 'POST',
     })
     expect(res.status).toBeLessThan(300)
 

@@ -115,9 +115,9 @@ describe('review targets REST through the real API and Core Workers', () => {
   test('rejects malformed JSON and missing status', async () => {
     for (const body of ['{', JSON.stringify({ issueId: fixture.issueId })]) {
       const response = await fetchNativeApi(`http://localhost/api/files/${attachmentId}/review-status`, {
-        method: 'PATCH',
-        headers: authHeaders(fixture.token, fixture.slug),
         body,
+        headers: authHeaders(fixture.token, fixture.slug),
+        method: 'PATCH',
       })
       expect(response.status).toBe(400)
     }

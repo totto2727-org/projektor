@@ -27,8 +27,8 @@ describe('covers PROJ-856: middleware runs once per request', () => {
     ['GET', '/api/files'],
   ])('%s %s authenticates once', async (method, path) => {
     const res = await fetchNativeApi(`http://localhost${path}`, {
-      method,
       headers: authHeaders(f.token, f.slug),
+      method,
     })
     expect([401, 403]).not.toContain(res.status)
     const result = await getCoreObservations()

@@ -31,9 +31,9 @@ const createIssue = async function createIssue(
   title: string,
 ): Promise<void> {
   const res = await fetchNativeApi('http://localhost/api/issues', {
-    method: 'POST',
-    headers: authHeaders(token, slug),
     body: JSON.stringify({ projectId, title }),
+    headers: authHeaders(token, slug),
+    method: 'POST',
   })
   expect(res.status).toBe(201)
 }
