@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import { KeyListResponse, parseNativeMcpText, IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
@@ -13,16 +13,19 @@ const mcpCall = async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { arguments: args, name },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 
@@ -64,11 +67,10 @@ describe('projects REST', () => {
 
   test('handles POST /api/projects creates a project (owner)', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'ALPHA', name: 'Alpha' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'ALPHA', name: 'Alpha' })),
+    )
     expect(res.status).toBe(201)
     const body = await readNativeJson(
       res,
@@ -81,11 +83,10 @@ describe('projects REST', () => {
 
   test('handles POST /api/projects accepts lowercase key and uppercases it', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'beta', name: 'Beta' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'beta', name: 'Beta' })),
+    )
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ key: Schema.String }))
     expect(body.key).toBe('BETA')
@@ -93,86 +94,79 @@ describe('projects REST', () => {
 
   test('handles POST /api/projects rejects member role (403)', async () => {
     const { memberHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: memberHeaders,
-      body: JSON.stringify({ key: 'GAMMA', name: 'Gamma' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ key: 'GAMMA', name: 'Gamma' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('handles POST /api/projects rejects viewer role (403)', async () => {
     const { viewerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'DELTA', name: 'Delta' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ key: 'DELTA', name: 'Delta' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('handles POST /api/projects returns 409 for duplicate key', async () => {
     const { ownerHeaders } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'DUPL', name: 'First' }),
-    })
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'DUPL', name: 'Second' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DUPL', name: 'First' })),
+    )
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DUPL', name: 'Second' })),
+    )
     expect(res.status).toBe(409)
   })
 
   test('handles POST /api/projects returns 400 for invalid key format', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'BAD KEY!', name: 'Bad' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'BAD KEY!', name: 'Bad' })),
+    )
     expect(res.status).toBe(400)
   })
 
   test('handles POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: '2FA', name: 'Leading digit' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: '2FA', name: 'Leading digit' })),
+    )
     expect(res.status).toBe(400)
   })
 
   test('handles POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'WEB2', name: 'Digit key' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'WEB2', name: 'Digit key' })),
+    )
     expect(res.status).toBe(201)
   })
 
   test('handles POST /api/projects returns 400 for name too long', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'x'.repeat(101), key: 'TOOLONG' }),
-    })
+    const requestOptions = requestOptionsWithBody(
+      'POST',
+      ownerHeaders,
+      JSON.stringify({ name: 'x'.repeat(101), key: 'TOOLONG' }),
+    )
+    const res = await fetchNativeApi('http://localhost/api/projects', requestOptions)
     expect(res.status).toBe(400)
   })
 
   test('handles POST /api/projects stores NULL description by default', async () => {
     const { ownerHeaders } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'NULLD', name: 'NullDesc' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'NULLD', name: 'NullDesc' })),
+    )
     const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const projectsShape = Schema.Array(
       Schema.Struct({ description: Schema.Union([Schema.String, Schema.Null]), key: Schema.String }),
@@ -185,11 +179,10 @@ describe('projects REST', () => {
 
   test('handles GET /api/projects/:id returns the project', async () => {
     const { ownerHeaders } = await seedTestData()
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'GETME', name: 'GetMe' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'GETME', name: 'GetMe' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, { headers: ownerHeaders })
@@ -209,52 +202,46 @@ describe('projects REST', () => {
 
   test('handles PATCH /api/projects/:id updates name (owner)', async () => {
     const { ownerHeaders } = await seedTestData()
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'PATCH1', name: 'OldName' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PATCH1', name: 'OldName' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
-    const patchRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'NewName' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ name: 'NewName' })),
+    )
     expect(patchRes.status).toBe(200)
   })
 
   test('handles PATCH /api/projects/:id rejects member (403)', async () => {
     const { memberHeaders, ownerHeaders } = await seedTestData()
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'PTGT', name: 'PatchTarget' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PTGT', name: 'PatchTarget' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
-    const patchRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: memberHeaders,
-      body: JSON.stringify({ name: 'Hacked' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ name: 'Hacked' })),
+    )
     expect(patchRes.status).toBe(403)
   })
 
   test('handles PATCH /api/projects/:id archives and unarchives a project', async () => {
     const { ownerHeaders } = await seedTestData()
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'ARCH1', name: 'Archivable' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'ARCH1', name: 'Archivable' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
-    const archiveRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ archived: true }),
-    })
+    const archiveRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ archived: true })),
+    )
     expect(archiveRes.status).toBe(200)
 
     const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
@@ -274,11 +261,10 @@ describe('projects REST', () => {
 
     await resetRateLimits()
 
-    const unarchiveRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ archived: false }),
-    })
+    const unarchiveRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ archived: false })),
+    )
     expect(unarchiveRes.status).toBe(200)
 
     const afterUnarchive = await fetchNativeApi('http://localhost/api/projects', {
@@ -290,11 +276,10 @@ describe('projects REST', () => {
 
   test('handles DELETE /api/projects/:id works for owner', async () => {
     const { ownerHeaders } = await seedTestData()
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'DEL1', name: 'ToDelete' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DEL1', name: 'ToDelete' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
@@ -306,11 +291,10 @@ describe('projects REST', () => {
 
   test('handles DELETE /api/projects/:id rejects member (403)', async () => {
     const { memberHeaders, ownerHeaders } = await seedTestData()
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'NODEL', name: 'NoDelete' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'NODEL', name: 'NoDelete' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
@@ -437,11 +421,10 @@ describe('projects MCP', () => {
 
   test('covers REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
     const { ownerHeaders } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'SHAPE', name: 'Shape Check' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'SHAPE', name: 'Shape Check' })),
+    )
 
     const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const projects = await readNativeJson(
@@ -468,11 +451,10 @@ describe('projects MCP', () => {
   test('covers REST and MCP list_projects return the same keys', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
     // Create via REST
-    await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'PARITY', name: 'Parity Test' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PARITY', name: 'Parity Test' })),
+    )
 
     const restRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const restProjects = await readNativeJson(
@@ -531,11 +513,10 @@ describe('projects MCP', () => {
 
   test('covers REST create_project and MCP create_project enforce the same role guard', async () => {
     const { memberHeaders, workspaceId } = await seedTestData()
-    const restRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: memberHeaders,
-      body: JSON.stringify({ key: 'MEMBR', name: 'ByMember' }),
-    })
+    const restRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ key: 'MEMBR', name: 'ByMember' })),
+    )
     const mcpRes = await mcpCall(workspaceId, 'create_project', { name: 'ByMember', key: 'MEMBR' }, memberHeaders)
 
     // Both must reject member

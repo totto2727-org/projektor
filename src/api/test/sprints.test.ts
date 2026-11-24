@@ -11,7 +11,7 @@ import {
   seedProjectFixture,
   seedWorkspaceRoles,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, ItemsResponse, readNativeJson } from './response-json.ts'
 
 /*
@@ -366,11 +366,14 @@ describe('sprints API', () => {
     const otherProject = await seedProject(other.workspace.id, 'OTH')
 
     // Create sprint in other workspace
-    await fetchNativeApi('http://localhost/api/sprints', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ projectId: otherProject.id, name: 'Other Workspace Sprint' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/sprints',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ projectId: otherProject.id, name: 'Other Workspace Sprint' }),
+      ),
+    )
 
     // Our workspace sees none
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
@@ -387,11 +390,14 @@ describe('sprints role guards', () => {
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const res = await fetchNativeApi('http://localhost/api/sprints', {
-      method: 'POST',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, name: 'Viewer Sprint' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/sprints',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, name: 'Viewer Sprint' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -401,11 +407,14 @@ describe('sprints role guards', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const createRes = await fetchNativeApi('http://localhost/api/sprints', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, name: sprintName }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/sprints',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, name: sprintName }),
+      ),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     return { roles, id }
@@ -414,11 +423,14 @@ describe('sprints role guards', () => {
   test('viewer cannot update a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Member Sprint')
 
-    const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ name: 'Hacked' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/sprints/${id}`,
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ name: 'Hacked' }),
+      ),
+    )
     expect(patchRes.status).toBe(403)
   })
 
@@ -434,11 +446,14 @@ describe('sprints role guards', () => {
 
   test('viewer cannot complete a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Sprint')
-    await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ status: 'active' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/sprints/${id}`,
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ status: 'active' }),
+      ),
+    )
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
@@ -454,11 +469,14 @@ describe('sprints role guards', () => {
     // Member has write access to project A only — no grant at all on project B.
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, projectA.id, 'member')
 
-    const createRes = await fetchNativeApi('http://localhost/api/sprints', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: projectA.id, name: 'Sprint A' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/sprints',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ projectId: projectA.id, name: 'Sprint A' }),
+      ),
+    )
     expect(createRes.status).toBe(201)
     const { id: sprintId } = await readNativeJson(createRes, IdResponse)
 
@@ -466,11 +484,14 @@ describe('sprints role guards', () => {
       title: 'Project B issue',
     })
 
-    const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ issueIds: [foreignIssue.id] }),
-    })
+    const moveRes = await fetchNativeApi(
+      `http://localhost/api/sprints/${sprintId}/move-issues`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ issueIds: [foreignIssue.id] }),
+      ),
+    )
     expect(moveRes.status).toBe(404)
 
     // The issue must be untouched — no partial mutation.
@@ -486,20 +507,26 @@ describe('sprints role guards', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const createRes = await fetchNativeApi('http://localhost/api/sprints', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, name: 'Sprint' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/sprints',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, name: 'Sprint' }),
+      ),
+    )
     const { id: sprintId } = await readNativeJson(createRes, IdResponse)
 
     const issue = await seedIssue(roles.workspace.id, project.id, roles.member.user.id)
 
-    const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
-      method: 'POST',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ issueIds: [issue.id] }),
-    })
+    const moveRes = await fetchNativeApi(
+      `http://localhost/api/sprints/${sprintId}/move-issues`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ issueIds: [issue.id] }),
+      ),
+    )
     expect(moveRes.status).toBe(403)
   })
 })

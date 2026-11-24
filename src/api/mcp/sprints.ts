@@ -17,23 +17,19 @@ import type { MCPTool } from './types.ts'
 
 export const sprintsTools: MCPTool[] = [
   {
-    name: 'list_sprints',
-    description: 'List sprints for a project, ordered by creation date',
-    inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: { type: 'string', description: 'Project UUID' },
-    }),
     annotations: READ,
+    description: 'List sprints for a project, ordered by creation date',
     handler(input, ctx) {
       return listSprints(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(['projectId'], {
+      projectId: { type: 'string', description: 'Project UUID' },
+    }),
+    name: 'list_sprints',
   },
   {
-    name: 'get_sprint',
-    description: 'Get a sprint by ID',
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'Sprint UUID' },
-    }),
     annotations: READ,
+    description: 'Get a sprint by ID',
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -41,10 +37,17 @@ export const sprintsTools: MCPTool[] = [
       }
       return getSprint(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string', description: 'Sprint UUID' },
+    }),
+    name: 'get_sprint',
   },
   {
-    name: 'create_sprint',
+    annotations: CREATE,
     description: 'Create a new sprint in a project',
+    handler(input, ctx) {
+      return createSprint(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['projectId', 'name'], {
       projectId: { type: 'string' },
       name: { type: 'string' },
@@ -52,14 +55,18 @@ export const sprintsTools: MCPTool[] = [
       startDate: { type: 'number', description: 'Unix timestamp for sprint start' },
       endDate: { type: 'number', description: 'Unix timestamp for sprint end' },
     }),
-    annotations: CREATE,
-    handler(input, ctx) {
-      return createSprint(ctx, input)
-    },
+    name: 'create_sprint',
   },
   {
-    name: 'update_sprint',
+    annotations: IDEMPOTENT_WRITE,
     description: 'Update sprint fields — name, goal, status, start/end dates',
+    handler(input, ctx) {
+      const { id, ...fields } = input as { id?: string; [k: string]: unknown }
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
+      }
+      return updateSprint(ctx, id, fields)
+    },
     inputSchema: requiredObjectInputSchema(['id'], {
       id: { type: 'string' },
       name: { type: 'string' },
@@ -68,22 +75,11 @@ export const sprintsTools: MCPTool[] = [
       startDate: { type: 'number', nullable: true },
       endDate: { type: 'number', nullable: true },
     }),
-    annotations: IDEMPOTENT_WRITE,
-    handler(input, ctx) {
-      const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError(validationIssues(['id is required'], {}))
-      }
-      return updateSprint(ctx, id, fields)
-    },
+    name: 'update_sprint',
   },
   {
-    name: 'complete_sprint',
-    description: 'Mark an active sprint as completed',
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'Sprint UUID' },
-    }),
     annotations: PLAIN_WRITE,
+    description: 'Mark an active sprint as completed',
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -91,14 +87,14 @@ export const sprintsTools: MCPTool[] = [
       }
       return completeSprint(ctx, id)
     },
-  },
-  {
-    name: 'delete_sprint',
-    description: 'Delete a sprint (issues in the sprint will have their sprint_id cleared)',
     inputSchema: requiredObjectInputSchema(['id'], {
       id: { type: 'string', description: 'Sprint UUID' },
     }),
+    name: 'complete_sprint',
+  },
+  {
     annotations: DESTRUCTIVE,
+    description: 'Delete a sprint (issues in the sprint will have their sprint_id cleared)',
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -106,10 +102,17 @@ export const sprintsTools: MCPTool[] = [
       }
       return deleteSprint(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string', description: 'Sprint UUID' },
+    }),
+    name: 'delete_sprint',
   },
   {
-    name: 'move_issues_to_sprint',
+    annotations: PLAIN_WRITE,
     description: 'Bulk move issues into a sprint by setting their sprint_id',
+    handler(input, ctx) {
+      return moveIssuesToSprint(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['sprintId', 'issueIds'], {
       sprintId: { type: 'string', description: 'Target sprint UUID' },
       issueIds: {
@@ -118,9 +121,6 @@ export const sprintsTools: MCPTool[] = [
         description: 'Issue UUIDs to move (max 500)',
       },
     }),
-    annotations: PLAIN_WRITE,
-    handler(input, ctx) {
-      return moveIssuesToSprint(ctx, input)
-    },
+    name: 'move_issues_to_sprint',
   },
 ]

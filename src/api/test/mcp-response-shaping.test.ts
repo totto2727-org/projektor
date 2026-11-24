@@ -10,7 +10,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { readNativeJson } from './response-json.ts'
 
 interface Rpc {
@@ -200,16 +200,19 @@ describe('covers PROJ-891: MCP tools', () => {
     name: string,
     args: Record<string, unknown> = {},
   ): Promise<T> {
-    const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${f.workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name },
+        }),
+      ),
+    )
     const bodyShape = Schema.Struct({
       result: Schema.optional(
         Schema.Struct({
@@ -272,10 +275,11 @@ describe('covers PROJ-891: MCP tools', () => {
     let cursor: string | undefined
     let truncatedPages = 0
     for (let guard = 0; guard < 10; guard++) {
-      const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const requestUrl = `http://localhost/mcp/${f.workspaceId}`
+      const requestOptions = requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
           id: 1,
           jsonrpc: '2.0',
           method: 'tools/call',
@@ -287,7 +291,8 @@ describe('covers PROJ-891: MCP tools', () => {
             name: 'list_issues',
           },
         }),
-      })
+      )
+      const res = await fetchNativeApi(requestUrl, requestOptions)
       const text = ((await res.json()) as Rpc).result?.content?.[0].text ?? ''
       expect(text.length).toBeLessThanOrEqual(20_000)
       const page = JSON.parse(text) as {

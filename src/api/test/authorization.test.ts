@@ -35,7 +35,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
@@ -48,16 +48,19 @@ const mcpCall = async function mcpCall(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { arguments: args, name },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 
@@ -94,49 +97,44 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
 
   test('viewer cannot POST /api/projects', async () => {
     const { viewerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'PRJ', name: 'Proj' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ key: 'PRJ', name: 'Proj' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('owner CAN POST /api/projects', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'PRJ', name: 'Proj' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PRJ', name: 'Proj' })),
+    )
     expect(res.status).toBe(201)
   })
 
   test('viewer cannot PATCH /api/projects/:id', async () => {
     const { ownerHeaders, viewerHeaders } = await seedTestData()
     // Owner creates, viewer tries to update
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'OP1', name: 'Owner Proj' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'OP1', name: 'Owner Proj' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Renamed' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Renamed' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('viewer cannot DELETE /api/projects/:id', async () => {
     const { ownerHeaders, viewerHeaders } = await seedTestData()
-    const createRes = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'DP1', name: 'Del Proj' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DP1', name: 'Del Proj' })),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
@@ -150,32 +148,29 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
 
   test('viewer cannot POST /api/task-types', async () => {
     const { viewerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'epic', name: 'Epic' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-types',
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ key: 'epic', name: 'Epic' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('owner CAN POST /api/task-types', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'epic', name: 'Epic' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-types',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'epic', name: 'Epic' })),
+    )
     expect(res.status).toBe(201)
   })
 
   test('viewer cannot PATCH /api/task-types/:id', async () => {
     const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
-    const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Renamed Bug' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/task-types/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Renamed Bug' })),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -193,32 +188,33 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
 
   test('viewer cannot POST /api/task-statuses', async () => {
     const { viewerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-statuses',
+      requestOptionsWithBody(
+        'POST',
+        viewerHeaders,
+        JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
   test('owner CAN POST /api/task-statuses', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-statuses',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' })),
+    )
     expect(res.status).toBe(201)
   })
 
   test('viewer cannot PATCH /api/task-statuses/:id', async () => {
     const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskStatus(workspaceId, { key: 'todo-st', name: 'Todo' })
-    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Updated' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/task-statuses/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Updated' })),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -236,32 +232,37 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
 
   test('viewer cannot POST /api/custom-fields', async () => {
     const { viewerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/custom-fields',
+      requestOptionsWithBody(
+        'POST',
+        viewerHeaders,
+        JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
   test('owner CAN POST /api/custom-fields', async () => {
     const { ownerHeaders } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/custom-fields',
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
+      ),
+    )
     expect(res.status).toBe(201)
   })
 
   test('viewer cannot PATCH /api/custom-fields/:id', async () => {
     const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_patch', type: 'text' })
-    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ label: 'Updated' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/custom-fields/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ label: 'Updated' })),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -281,11 +282,10 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   test('viewer cannot DELETE /api/wiki/:slug', async () => {
     const { ownerHeaders, viewerHeaders } = await seedTestData()
     // Owner creates a wiki page; viewer tries to delete it
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ content: 'content', title: 'Protected Page' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ content: 'content', title: 'Protected Page' })),
+    )
     const res = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
       headers: viewerHeaders,
       method: 'DELETE',
@@ -295,11 +295,10 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
 
   test('member CAN DELETE /api/wiki/:slug (only viewer is blocked)', async () => {
     const { ownerHeaders } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ content: 'content', title: 'Member Page' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ content: 'content', title: 'Member Page' })),
+    )
     // Fetch member token from the same fixture
     const roles = await seedWorkspaceRoles() // Second workspace — need same slug
     /*
@@ -337,11 +336,10 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
      */
     await seedGroupGrant(workspaceId, viewerId, project.id, 'viewer')
 
-    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/comments`, {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ body: 'a comment' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/issues/${issue.id}/comments`,
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ body: 'a comment' })),
+    )
     expect(res.status).toBe(403)
   })
 })
@@ -447,49 +445,44 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   // PATCH /:slug — owner-only rename
 
   test('member cannot PATCH /api/workspaces/:slug', async () => {
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
-      method: 'PATCH',
-      headers: memberHeaders,
-      body: JSON.stringify({ name: 'Renamed' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}`,
+      requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ name: 'Renamed' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('viewer cannot PATCH /api/workspaces/:slug', async () => {
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Renamed' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Renamed' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('owner CAN PATCH /api/workspaces/:slug', async () => {
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Renamed By Owner' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ name: 'Renamed By Owner' })),
+    )
     expect(res.status).toBe(200)
   })
 
   // POST /:slug/members — owner-only invite
 
   test('member cannot POST /api/workspaces/:slug/members (invite)', async () => {
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: memberHeaders,
-      body: JSON.stringify({ email: 'newbie@example.com', role: 'viewer' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ email: 'newbie@example.com', role: 'viewer' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('owner CAN POST /api/workspaces/:slug/members', async () => {
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ email: 'newbie@example.com', role: 'viewer' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'newbie@example.com', role: 'viewer' })),
+    )
     expect(res.status).toBe(201)
   })
 
@@ -497,11 +490,10 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
 
   test('member cannot DELETE /api/workspaces/:slug/members/:userId', async () => {
     // Invite someone first so there is a target to remove
-    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ email: 'target@example.com', role: 'viewer' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'target@example.com', role: 'viewer' })),
+    )
     const target = await env.DB.prepare('SELECT id FROM users WHERE email = ?')
       .bind('target@example.com')
       .first<{ id: string }>()
@@ -514,11 +506,10 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('owner CAN DELETE /api/workspaces/:slug/members/:userId', async () => {
-    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ email: 'removal@example.com', role: 'viewer' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'removal@example.com', role: 'viewer' })),
+    )
     const target = await env.DB.prepare('SELECT id FROM users WHERE email = ?')
       .bind('removal@example.com')
       .first<{ id: string }>()
@@ -540,11 +531,10 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
-      method: 'PATCH',
-      headers: memberHeaders,
-      body: JSON.stringify({ role: 'member' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`,
+      requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ role: 'member' })),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -555,11 +545,10 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ role: 'member' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ role: 'member' })),
+    )
     expect(res.status).toBe(200)
   })
 
@@ -607,11 +596,10 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
   const mint = (email: string, name: string, scopes: string[]): Promise<Response> =>
     asHuman(email, () =>
-      fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
-        method: 'POST',
-        headers: humanHeaders(),
-        body: JSON.stringify({ name, scopes }),
-      }),
+      fetchNativeApi(
+        `http://localhost/api/workspaces/${slug}/tokens`,
+        requestOptionsWithBody('POST', humanHeaders(), JSON.stringify({ name, scopes })),
+      ),
     )
   const revoke = (email: string, id: string): Promise<Response> =>
     asHuman(email, () =>

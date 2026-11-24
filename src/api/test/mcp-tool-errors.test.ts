@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-pl
 import { env } from './fixture-api.ts'
 import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './helpers.ts'
 import type { ToolErrorBody } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdListResponse, SlugResponse, parseNativeMcpText } from './response-json.ts'
 
 interface Rpc {
@@ -33,11 +33,14 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   })
 
   const post = async function post(body: unknown, token = f.token): Promise<Response> {
-    return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: Predicate.isString(body) ? body : JSON.stringify(body),
-    })
+    return fetchNativeApi(
+      `http://localhost/mcp/${f.workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        Predicate.isString(body) ? body : JSON.stringify(body),
+      ),
+    )
   }
 
   const call = async function call(name: string, args: unknown, token = f.token): Promise<Rpc> {
@@ -99,16 +102,19 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
 
   test('forbidden: the hint says what role is needed', async () => {
     const viewer = await seedProjectFixture({ role: 'viewer' })
-    const res = await fetchNativeApi(`http://localhost/mcp/${viewer.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${viewer.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: { name: 'Nope', key: 'NOPE' }, name: 'create_project' },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${viewer.workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${viewer.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: { name: 'Nope', key: 'NOPE' }, name: 'create_project' },
+        }),
+      ),
+    )
     const body = (await res.json()) as Rpc
     expect(body.error).toBeUndefined()
     const problem = toolError(body)

@@ -13,7 +13,7 @@ import {
   seedIssueFixture,
   seedProject,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import { TokenLinkResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
@@ -223,11 +223,14 @@ describe('share tokens', () => {
 
   test("covers PROJ-762: GET /api/share/:token includes the owning workspace's brand", async () => {
     const owner = await seedIssueFixture({ role: 'owner' })
-    const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.slug}/brand`, {
-      method: 'PATCH',
-      headers: authHeaders(owner.token, owner.slug),
-      body: JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/workspaces/${owner.slug}/brand`,
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(owner.token, owner.slug),
+        JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
+      ),
+    )
     expect(patchRes.status).toBe(200)
 
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${owner.issueId}/share`, {

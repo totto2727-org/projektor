@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 describe('covers PROJ-856: middleware runs once per request', () => {
   let f: Awaited<ReturnType<typeof seedIssueFixture>>
@@ -53,11 +53,14 @@ describe('covers PROJ-856: middleware runs once per request', () => {
   })
 
   test('handles POST /api/issues authenticates once', async () => {
-    const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ projectId: f.projectId, title: 'once' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(f.token, f.slug),
+        JSON.stringify({ projectId: f.projectId, title: 'once' }),
+      ),
+    )
     expect(res.status).toBe(201)
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })

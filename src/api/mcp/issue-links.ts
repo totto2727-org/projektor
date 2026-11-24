@@ -9,8 +9,11 @@ import type { MCPTool } from './types.ts'
 
 export const issueLinksTools: MCPTool[] = [
   {
-    name: 'create_issue_link',
+    annotations: CREATE,
     description: 'Create a typed link between two issues (blocks, blocked_by, relates_to, duplicates)',
+    handler(input, ctx) {
+      return createLink(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['sourceIssueId', 'targetIssueId', 'type'], {
       sourceIssueId: {
         type: 'string',
@@ -26,18 +29,11 @@ export const issueLinksTools: MCPTool[] = [
         description: "Relationship type from the source issue's perspective",
       },
     }),
-    annotations: CREATE,
-    handler(input, ctx) {
-      return createLink(ctx, input)
-    },
+    name: 'create_issue_link',
   },
   {
-    name: 'delete_issue_link',
-    description: 'Delete an issue link by ID',
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'UUID of the link to delete' },
-    }),
     annotations: DESTRUCTIVE,
+    description: 'Delete an issue link by ID',
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -45,16 +41,20 @@ export const issueLinksTools: MCPTool[] = [
       }
       return deleteLink(ctx, { id })
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string', description: 'UUID of the link to delete' },
+    }),
+    name: 'delete_issue_link',
   },
   {
-    name: 'list_issue_links',
-    description: "List all links for an issue (shows effective type from this issue's perspective)",
-    inputSchema: requiredObjectInputSchema(['issueId'], {
-      issueId: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
-    }),
     annotations: READ,
+    description: "List all links for an issue (shows effective type from this issue's perspective)",
     handler(input, ctx) {
       return listLinksForIssue(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(['issueId'], {
+      issueId: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
+    }),
+    name: 'list_issue_links',
   },
 ]

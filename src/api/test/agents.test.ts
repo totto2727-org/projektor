@@ -7,7 +7,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { parseNativeMcpText, IdResponse, readNativeJson } from './response-json.ts'
 
 describe('agents API', () => {
@@ -228,20 +228,23 @@ describe('agents API', () => {
     }
 
     const mcpCall = async function mcpCall(name: string, args: Record<string, unknown>) {
-      const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'X-Workspace-Slug': slug,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: { arguments: args, name },
-        }),
-      })
+      const res = await fetchNativeApi(
+        `http://localhost/mcp/${workspaceId}`,
+        requestOptionsWithBody(
+          'POST',
+          {
+            Authorization: `Bearer ${token}`,
+            'X-Workspace-Slug': slug,
+            'Content-Type': 'application/json',
+          },
+          JSON.stringify({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'tools/call',
+            params: { arguments: args, name },
+          }),
+        ),
+      )
       const body = (await res.json()) as {
         result?: { content: { text: string }[]; isError?: boolean }
         error?: { message: string }

@@ -12,7 +12,7 @@ import type { AuthInfo, HonoEnv } from '#types'
 
 import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
@@ -20,16 +20,19 @@ describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
     const testFixture = await seedIssueFixture()
     await resetCoreObservations()
 
-    const res = await fetchNativeApi(`http://localhost/mcp/${testFixture.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${testFixture.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: { issueId: testFixture.issueId, body: 'hi' }, name: 'add_comment' },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${testFixture.workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${testFixture.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: { issueId: testFixture.issueId, body: 'hi' }, name: 'add_comment' },
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const rpcShape = Schema.Struct({
       error: Schema.optional(Schema.Unknown),

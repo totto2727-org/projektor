@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedMember, seedToken } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /*
  * PROJ-348: the MCP endpoint (POST /mcp/<workspaceId>) must resolve its workspace
@@ -15,15 +15,18 @@ describe('covers MCP workspace resolution without X-Workspace-Slug (PROJ-348)', 
     token: string,
     extraHeaders?: Record<string, string>,
   ): Promise<Response> {
-    return fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...extraHeaders,
-      },
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
-    })
+    return fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...extraHeaders,
+        },
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    )
   }
 
   test('succeeds with only Authorization when the token matches the path workspace', async () => {

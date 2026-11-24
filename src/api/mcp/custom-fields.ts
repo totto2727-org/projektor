@@ -14,23 +14,26 @@ import type { MCPTool } from './types.ts'
 
 export const customFieldsTools: MCPTool[] = [
   {
-    name: 'list_custom_field_defs',
+    annotations: READ,
     description: 'List all custom field definitions for the workspace',
+    handler(input, ctx) {
+      const { projectId } = (input as { projectId?: string }) ?? {}
+      return listCustomFieldDefs(ctx, projectId)
+    },
     inputSchema: objectInputSchema({
       projectId: {
         type: 'string',
         description: 'Optional project ID to include project-scoped fields alongside workspace-wide fields',
       },
     }),
-    annotations: READ,
-    handler(input, ctx) {
-      const { projectId } = (input as { projectId?: string }) ?? {}
-      return listCustomFieldDefs(ctx, projectId)
-    },
+    name: 'list_custom_field_defs',
   },
   {
-    name: 'create_custom_field_def',
+    annotations: CREATE,
     description: 'Create a new custom field definition (owner/admin only)',
+    handler(input, ctx) {
+      return createCustomFieldDef(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['key', 'label', 'type'], {
       key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
       label: { type: 'string', description: 'Human-readable label' },
@@ -50,20 +53,11 @@ export const customFieldsTools: MCPTool[] = [
         description: 'Scope to a specific project (null = workspace-wide)',
       },
     }),
-    annotations: CREATE,
-    handler(input, ctx) {
-      return createCustomFieldDef(ctx, input)
-    },
+    name: 'create_custom_field_def',
   },
   {
-    name: 'update_custom_field_def',
-    description: 'Update a custom field definition label or options (owner/admin only)',
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string' },
-      label: { type: 'string' },
-      options: { type: 'array', items: { type: 'string' }, nullable: true },
-    }),
     annotations: IDEMPOTENT_WRITE,
+    description: 'Update a custom field definition label or options (owner/admin only)',
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -71,14 +65,16 @@ export const customFieldsTools: MCPTool[] = [
       }
       return updateCustomFieldDef(ctx, id, fields)
     },
-  },
-  {
-    name: 'delete_custom_field_def',
-    description: 'Delete a custom field definition (owner/admin only). Fails if any issues have values for this field.',
     inputSchema: requiredObjectInputSchema(['id'], {
       id: { type: 'string' },
+      label: { type: 'string' },
+      options: { type: 'array', items: { type: 'string' }, nullable: true },
     }),
+    name: 'update_custom_field_def',
+  },
+  {
     annotations: DESTRUCTIVE,
+    description: 'Delete a custom field definition (owner/admin only). Fails if any issues have values for this field.',
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -86,5 +82,9 @@ export const customFieldsTools: MCPTool[] = [
       }
       return deleteCustomFieldDef(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string' },
+    }),
+    name: 'delete_custom_field_def',
   },
 ]

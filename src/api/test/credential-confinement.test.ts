@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedMember, seedProject, seedUserToken, seedWorkspace } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 describe('credential confinement for user-level operations', () => {
   test('workspace credentials see only their workspace in REST catalogs and auth bootstrap', async () => {
@@ -46,11 +46,14 @@ describe('credential confinement for user-level operations', () => {
   test('workspace credentials cannot create an unconfined workspace', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const slug = `confined-${crypto.randomUUID()}`
-    const response = await fetchNativeApi('http://localhost/api/workspaces', {
-      method: 'POST',
-      headers: authHeaders(fixture.token, fixture.workspace.slug),
-      body: JSON.stringify({ name: 'Not authorized', slug }),
-    })
+    const response = await fetchNativeApi(
+      'http://localhost/api/workspaces',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(fixture.token, fixture.workspace.slug),
+        JSON.stringify({ name: 'Not authorized', slug }),
+      ),
+    )
     expect(response.status).toBe(403)
     await expect(env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first()).resolves.toBeNull()
   })

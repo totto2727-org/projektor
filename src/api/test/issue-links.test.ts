@@ -5,7 +5,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
 describe('issue Links API', () => {
@@ -224,11 +224,14 @@ describe('issue Links role guards', () => {
       title: 'B',
     })
 
-    const res = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links`, {
-      method: 'POST',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ targetIssueId: issue2.id, type: 'relates_to' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/issues/${issue1.id}/links`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ targetIssueId: issue2.id, type: 'relates_to' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -242,11 +245,14 @@ describe('issue Links role guards', () => {
       title: 'B',
     })
 
-    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links`, {
-      method: 'POST',
-      headers: authHeaders(roles.owner.token, roles.workspace.slug),
-      body: JSON.stringify({ targetIssueId: issue2.id, type: 'relates_to' }),
-    })
+    const createRes = await fetchNativeApi(
+      `http://localhost/api/issues/${issue1.id}/links`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.owner.token, roles.workspace.slug),
+        JSON.stringify({ targetIssueId: issue2.id, type: 'relates_to' }),
+      ),
+    )
     const { id: linkId } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links/${linkId}`, {
@@ -266,11 +272,14 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const issue = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
     const currentIssue = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
 
-    await fetchNativeApi(`http://localhost/api/issues/${issue.id}/links`, {
-      method: 'POST',
-      headers: authHeaders(fixture.token, slug),
-      body: JSON.stringify({ targetIssueId: currentIssue.id, type: 'blocks' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/issues/${issue.id}/links`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(fixture.token, slug),
+        JSON.stringify({ targetIssueId: currentIssue.id, type: 'blocks' }),
+      ),
+    )
 
     const detail = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(fixture.token, slug),
@@ -301,11 +310,14 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const myProject = await seedProject(mine.workspace.id, 'DUP')
     const issue = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'A' })
     const currentIssue = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'B' })
-    await fetchNativeApi(`http://localhost/api/issues/${issue.id}/links`, {
-      method: 'POST',
-      headers: authHeaders(mine.token, mine.workspace.slug),
-      body: JSON.stringify({ targetIssueId: currentIssue.id, type: 'blocks' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/issues/${issue.id}/links`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(mine.token, mine.workspace.slug),
+        JSON.stringify({ targetIssueId: currentIssue.id, type: 'blocks' }),
+      ),
+    )
 
     const theirs = await seedFixture({ role: 'owner' })
     const theirProject = await seedProject(theirs.workspace.id, 'DUP')
@@ -342,11 +354,14 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
     const issue = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
 
-    const res = await fetchNativeApi(`http://localhost/api/issues/${project.key}-1/links`, {
-      method: 'POST',
-      headers: authHeaders(fixture.token, fixture.workspace.slug),
-      body: JSON.stringify({ targetIssueId: issue.id, type: 'blocks' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/issues/${project.key}-1/links`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(fixture.token, fixture.workspace.slug),
+        JSON.stringify({ targetIssueId: issue.id, type: 'blocks' }),
+      ),
+    )
 
     expect(res.status).toBe(201)
   })
@@ -366,16 +381,22 @@ describe('createLink target-visibility existence oracle', () => {
       title: 'Hidden target',
     })
 
-    const missingRes = await fetchNativeApi(`http://localhost/api/issues/${source.id}/links`, {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ targetIssueId: 'NOPE-1', type: 'blocks' }),
-    })
-    const unwritableRes = await fetchNativeApi(`http://localhost/api/issues/${source.id}/links`, {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ targetIssueId: hiddenTarget.id, type: 'blocks' }),
-    })
+    const missingRes = await fetchNativeApi(
+      `http://localhost/api/issues/${source.id}/links`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ targetIssueId: 'NOPE-1', type: 'blocks' }),
+      ),
+    )
+    const unwritableRes = await fetchNativeApi(
+      `http://localhost/api/issues/${source.id}/links`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ targetIssueId: hiddenTarget.id, type: 'blocks' }),
+      ),
+    )
 
     expect(missingRes.status).toBe(404)
     expect(unwritableRes.status).toBe(404)

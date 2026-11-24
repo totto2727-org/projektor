@@ -19,7 +19,7 @@ import {
   seedUser,
   seedWorkspace,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 describe('listProjectsAcrossWorkspaces: open vs backlog counts (PROJ-849)', () => {
   test('counts open issues correctly and reports backlog separately, within open', async () => {
@@ -70,11 +70,10 @@ describe('update_task_status re-syncs issues.status_category (PROJ-849)', () => 
       .first<{ status_category: string }>()
     expect(before?.status_category).toBe('in_progress')
 
-    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${status.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, ws.slug),
-      body: JSON.stringify({ category: 'done' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/task-statuses/${status.id}`,
+      requestOptionsWithBody('PATCH', authHeaders(token, ws.slug), JSON.stringify({ category: 'done' })),
+    )
     expect(res.status).toBe(200)
 
     const after = await env.DB.prepare('SELECT status_category FROM issues WHERE id = ?')

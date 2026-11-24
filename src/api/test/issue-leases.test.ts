@@ -8,7 +8,7 @@ import { drizzle, schema } from '#db'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { parseNativeMcpText, IdResponse, ItemsResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
 
 describe('issue leases API (PROJ-184)', () => {
@@ -151,18 +151,24 @@ describe('issue leases API (PROJ-184)', () => {
   test('workspace isolation: cannot claim an issue from another workspace', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Mine' })
     const other = await seedFixture()
-    const otherAgentRes = await fetchNativeApi('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ name: 'intruder' }),
-    })
+    const otherAgentRes = await fetchNativeApi(
+      'http://localhost/api/agents',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ name: 'intruder' }),
+      ),
+    )
     const otherAgent = await readNativeJson(otherAgentRes, IdResponse)
 
-    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ agentId: otherAgent.id }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/issues/${issue.id}/claim`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ agentId: otherAgent.id }),
+      ),
+    )
     expect(res.status).toBe(404) // Issue not found in the intruder's workspace
   })
 })
@@ -181,16 +187,19 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
   const callPrioritized = async function callPrioritized(
     args: Record<string, unknown>,
   ): Promise<{ issues: { id: string }[] }> {
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name: 'get_prioritized_issues' },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name: 'get_prioritized_issues' },
+        }),
+      ),
+    )
     const jsonShape = Schema.Struct({
       result: Schema.optional(
         Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),

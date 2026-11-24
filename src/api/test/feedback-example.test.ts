@@ -4,7 +4,7 @@ import { submitFeedback } from '#api/examples/feedback-widget-submit.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /*
  * Proves the maintained client example works against the real API Worker,
@@ -17,11 +17,14 @@ describe('feedback widget example', () => {
 
   test('submitFeedback() submits to a live feedback source', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const created = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources`, {
-      method: 'POST',
-      headers: authHeaders(testFixture.token, testFixture.slug),
-      body: JSON.stringify({ name: 'Docs example source' }),
-    })
+    const created = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback-sources`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ name: 'Docs example source' }),
+      ),
+    )
     const { token } = (await created.json()) as { token: string }
 
     /*

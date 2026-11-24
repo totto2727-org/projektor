@@ -5,3 +5,11 @@ export const fetchNativeApi: Fetcher['fetch'] = (request, init) => {
   const { default: api } = workerExports as { default: Fetcher }
   return api.fetch(request, init)
 }
+
+export const requestOptionsWithBody = function requestOptionsWithBody(
+  method: RequestInit['method'],
+  headers: RequestInit['headers'],
+  body: RequestInit['body'],
+): RequestInit {
+  return { body, headers, method }
+}

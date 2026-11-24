@@ -35,7 +35,7 @@ import {
   seedWorkspaceRoles,
   toolError,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { ErrorMessageResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
@@ -816,14 +816,17 @@ describe('covers PROJ-274: read-scoped token is denied write on every request', 
       scopes: ['read'],
     })
 
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: {
-        ...authHeaders(readOnlyToken, fixture.workspace.slug),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ key: 'BLK', name: 'Blocked' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody(
+        'POST',
+        {
+          ...authHeaders(readOnlyToken, fixture.workspace.slug),
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ key: 'BLK', name: 'Blocked' }),
+      ),
+    )
     expect(res.status).toBe(403)
     const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toMatch(/scope/i)
@@ -835,16 +838,19 @@ describe('covers PROJ-274: read-scoped token is denied write on every request', 
       scopes: ['read'],
     })
 
-    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers: authHeaders(readOnlyToken, fixture.workspace.slug),
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: { name: 'Blocked', key: 'BLK' }, name: 'create_project' },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(readOnlyToken, fixture.workspace.slug),
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: { name: 'Blocked', key: 'BLK' }, name: 'create_project' },
+        }),
+      ),
+    )
     const bodyShape = Schema.Struct({
       error: Schema.optional(Schema.Struct({ code: Schema.Number, message: Schema.String })),
     })
@@ -1220,16 +1226,19 @@ describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes
   })
 
   const mcp = async function mcp(name: string, args: unknown, headers = ownerHeaders, wsId = workspaceId) {
-    const res = await fetchNativeApi(`http://localhost/mcp/${wsId}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${wsId}`,
+      requestOptionsWithBody(
+        'POST',
+        headers,
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name },
+        }),
+      ),
+    )
     return res.json() as Promise<{
       jsonrpc: string
       id: unknown
@@ -1294,16 +1303,19 @@ describe('covers PROJ-79: MCP protocol validation', () => {
 
   test('wrong jsonrpc version returns HTTP 400 with error code -32600', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({
-        jsonrpc: '1.0', // Wrong version
-        id: 1,
-        method: 'tools/list',
-        params: {},
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({
+          jsonrpc: '1.0', // Wrong version
+          id: 1,
+          method: 'tools/list',
+          params: {},
+        }),
+      ),
+    )
     expect(res.status).toBe(400)
     const body = await readNativeJson(res, Schema.Struct({ error: Schema.Struct({ code: Schema.Number }) }))
     expect(body.error.code).toBe(-32_600)
@@ -1311,27 +1323,33 @@ describe('covers PROJ-79: MCP protocol validation', () => {
 
   test('unknown method returns JSON-RPC error -32601', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'foo/bar', params: {} }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'foo/bar', params: {} }),
+      ),
+    )
     const body = await readNativeJson(res, Schema.Struct({ error: Schema.Struct({ code: Schema.Number }) }))
     expect(body.error.code).toBe(-32_601)
   })
 
   test('unknown tool name returns JSON-RPC error -32601 with tool name in message', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({
-        id: 3,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: {}, name: 'no_such_tool' },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({
+          id: 3,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: {}, name: 'no_such_tool' },
+        }),
+      ),
+    )
     const body = await readNativeJson(
       res,
       Schema.Struct({ error: Schema.Struct({ code: Schema.Number, message: Schema.String }) }),
@@ -1343,31 +1361,37 @@ describe('covers PROJ-79: MCP protocol validation', () => {
   test('unknown workspace slug returns 404 from workspaceMiddleware', async () => {
     await seedTestData()
     const fixture = await seedFixture()
-    const res = await fetchNativeApi(`http://localhost/mcp/${crypto.randomUUID()}`, {
-      method: 'POST',
-      headers: {
-        // Valid token but X-Workspace-Slug points to a non-existent workspace
-        Authorization: `Bearer ${fixture.token}`,
-        'X-Workspace-Slug': `nonexistent-${crypto.randomUUID().slice(0, 8)}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${crypto.randomUUID()}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          // Valid token but X-Workspace-Slug points to a non-existent workspace
+          Authorization: `Bearer ${fixture.token}`,
+          'X-Workspace-Slug': `nonexistent-${crypto.randomUUID().slice(0, 8)}`,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    )
     expect(res.status).toBe(404)
   })
 
   test('non-object params on tools/call is handled without crashing', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({
-        id: 4,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: 'not-an-object',
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({
+          id: 4,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: 'not-an-object',
+        }),
+      ),
+    )
     // Any 2xx or 4xx is acceptable — the server must not crash (500)
     expect(res.status).not.toBe(500)
   })

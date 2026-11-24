@@ -4,17 +4,16 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 const mintSource = async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<string> {
-  const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
-    method: 'POST',
-    headers: authHeaders(f.token, f.slug),
-    body: JSON.stringify(body),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/api/projects/${f.projectId}/feedback-sources`,
+    requestOptionsWithBody('POST', authHeaders(f.token, f.slug), JSON.stringify(body)),
+  )
   return ((await res.json()) as { token: string }).token
 }
 

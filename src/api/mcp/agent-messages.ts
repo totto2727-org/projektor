@@ -6,8 +6,11 @@ import type { MCPTool } from './types.ts'
 
 export const agentMessagesTools: MCPTool[] = [
   {
-    name: 'post_message',
+    annotations: PLAIN_WRITE,
     description: 'Post a coordination message to a workspace or issue channel so the agent fleet can communicate',
+    handler(input, ctx) {
+      return postMessage(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['scope', 'body'], {
       scope: {
         type: 'string',
@@ -20,14 +23,14 @@ export const agentMessagesTools: MCPTool[] = [
       },
       body: { type: 'string', description: 'Message body (1–5000 characters)' },
     }),
-    annotations: PLAIN_WRITE,
-    handler(input, ctx) {
-      return postMessage(ctx, input)
-    },
+    name: 'post_message',
   },
   {
-    name: 'list_messages',
+    annotations: READ,
     description: 'List coordination messages for a workspace or issue channel, in chronological order',
+    handler(input, ctx) {
+      return listMessages(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['scope'], {
       scope: {
         type: 'string',
@@ -39,9 +42,6 @@ export const agentMessagesTools: MCPTool[] = [
       },
       limit: { type: 'number', description: 'Max messages to return (1–100, default 50)' },
     }),
-    annotations: READ,
-    handler(input, ctx) {
-      return listMessages(ctx, input)
-    },
+    name: 'list_messages',
   },
 ]

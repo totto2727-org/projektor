@@ -5,7 +5,7 @@ import * as cache from '#commands/cache.ts'
 
 import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   KeyListResponse,
   parseNativeMcpText,
@@ -135,16 +135,19 @@ describe('covers KV caching', () => {
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
       const mcpListProjects = async function mcpListProjects(): Promise<unknown[]> {
-        const res = await fetchNativeApi(mcpUrl, {
-          method: 'POST',
-          headers: hdrs,
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'tools/call',
-            params: { name: 'list_projects', arguments: {} },
-          }),
-        })
+        const res = await fetchNativeApi(
+          mcpUrl,
+          requestOptionsWithBody(
+            'POST',
+            hdrs,
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/call',
+              params: { name: 'list_projects', arguments: {} },
+            }),
+          ),
+        )
         const rpc = await readNativeJson(res, RpcTextResponse)
         return parseNativeMcpText(rpc.result.content[0].text, JsonListResponse)
       }
@@ -166,16 +169,19 @@ describe('covers KV caching', () => {
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
       const mcpListProjects = async function mcpListProjects(): Promise<{ key: string }[]> {
-        const res = await fetchNativeApi(mcpUrl, {
-          method: 'POST',
-          headers: hdrs,
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'tools/call',
-            params: { name: 'list_projects', arguments: {} },
-          }),
-        })
+        const res = await fetchNativeApi(
+          mcpUrl,
+          requestOptionsWithBody(
+            'POST',
+            hdrs,
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/call',
+              params: { name: 'list_projects', arguments: {} },
+            }),
+          ),
+        )
         const rpc = await readNativeJson(res, RpcTextResponse)
         return parseNativeMcpText(rpc.result.content[0].text, KeyListResponse)
       }

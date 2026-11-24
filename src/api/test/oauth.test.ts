@@ -8,7 +8,7 @@ import type { Env } from '#types'
 
 import { env, resetCoreAuthCaches } from './fixture-api.ts'
 import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /*
  * PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.
@@ -183,30 +183,35 @@ const postConsent = async function postConsent(token: string, decision: string, 
  * so a multi-step flow is not throttled by a control that has its own test below.
  */
 const exchange = async function exchange(body: Record<string, string>, ip?: string): Promise<Response> {
-  return fetchNativeApi(`${HOST}/oauth/token`, {
-    method: 'POST',
-    headers: {
+  const requestUrl = `${HOST}/oauth/token`
+  const requestOptions = requestOptionsWithBody(
+    'POST',
+    {
       'CF-Connecting-IP': ip ?? `198.51.100.${Math.floor(Math.random() * 250) + 1}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: new URLSearchParams(body).toString(),
-  })
+    new URLSearchParams(body).toString(),
+  )
+  return fetchNativeApi(requestUrl, requestOptions)
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 const registerClient = function registerClient(metadata: Record<string, unknown> = {}): Promise<Response> {
-  return fetchNativeApi(`${HOST}/oauth/register`, {
-    method: 'POST',
-    headers: browserHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
-      client_name: 'Orca',
-      redirect_uris: [ORCA_REDIRECT],
-      token_endpoint_auth_method: 'none',
-      grant_types: ['authorization_code', 'refresh_token'],
-      response_types: ['code'],
-      ...metadata,
-    }),
-  })
+  return fetchNativeApi(
+    `${HOST}/oauth/register`,
+    requestOptionsWithBody(
+      'POST',
+      browserHeaders({ 'Content-Type': 'application/json' }),
+      JSON.stringify({
+        client_name: 'Orca',
+        redirect_uris: [ORCA_REDIRECT],
+        token_endpoint_auth_method: 'none',
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        ...metadata,
+      }),
+    ),
+  )
 }
 
 type TokenResponse = {
@@ -275,16 +280,19 @@ const mcpCall = function mcpCall(
   name: string,
   args: unknown = {},
 ): Promise<Response> {
-  return fetchNativeApi(`${HOST}/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/call',
-      params: { name, arguments: args },
-    }),
-  })
+  return fetchNativeApi(
+    `${HOST}/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      }),
+    ),
+  )
 }
 
 beforeEach(async () => {
@@ -743,15 +751,18 @@ describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => 
     await seedMember(workspace.id, user.id, 'owner')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await fetchNativeApi(`${HOST}/auth/tokens`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${tokens.access_token}`,
-        'Content-Type': 'application/json',
-        'CF-Connecting-IP': clientIp,
-      },
-      body: JSON.stringify({ name: 'oauth-escape', scopes: ['*'] }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/auth/tokens`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${tokens.access_token}`,
+          'Content-Type': 'application/json',
+          'CF-Connecting-IP': clientIp,
+        },
+        JSON.stringify({ name: 'oauth-escape', scopes: ['*'] }),
+      ),
+    )
     expect(res.status).not.toBe(201)
     expect([401, 403]).toContain(res.status)
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind('oauth-escape').first()
@@ -767,16 +778,19 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
     await seedMember(workspace.id, user.id, 'owner')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await fetchNativeApi(`${HOST}/api/workspaces/${workspace.slug}/tokens`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${tokens.access_token}`,
-        'X-Workspace-Slug': workspace.slug,
-        'Content-Type': 'application/json',
-        'CF-Connecting-IP': clientIp,
-      },
-      body: JSON.stringify({ name: 'oauth-ws-escape', scopes: ['*'] }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/api/workspaces/${workspace.slug}/tokens`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${tokens.access_token}`,
+          'X-Workspace-Slug': workspace.slug,
+          'Content-Type': 'application/json',
+          'CF-Connecting-IP': clientIp,
+        },
+        JSON.stringify({ name: 'oauth-ws-escape', scopes: ['*'] }),
+      ),
+    )
     expect(res.status).not.toBe(201)
     expect([401, 403]).toContain(res.status)
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind('oauth-ws-escape').first()
@@ -1287,20 +1301,23 @@ describe('workspace confinement survives a header that says otherwise', () => {
 
     const { tokens } = await connect({ email, workspaceId: first.id })
 
-    const res = await fetchNativeApi(`${HOST}/mcp/${first.id}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${tokens.access_token}`,
-        'Content-Type': 'application/json',
-        'X-Workspace-Slug': second.slug,
-      },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { name: 'list_projects', arguments: {} },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/mcp/${first.id}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${tokens.access_token}`,
+          'Content-Type': 'application/json',
+          'X-Workspace-Slug': second.slug,
+        },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { name: 'list_projects', arguments: {} },
+        }),
+      ),
+    )
 
     expect(res.status).toBe(403)
   })
@@ -1321,11 +1338,14 @@ describe('existing credentials are untouched by the provider', () => {
 
   test("an unauthenticated MCP request still gets projektor's own 401 challenge", async () => {
     const fixture = await seedFixture()
-    const res = await fetchNativeApi(`${HOST}/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers: browserHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'initialize' }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        browserHeaders({ 'Content-Type': 'application/json' }),
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'initialize' }),
+      ),
+    )
 
     expect(res.status).toBe(401)
     expect(res.headers.get('WWW-Authenticate')).toContain(

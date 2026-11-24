@@ -20,7 +20,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import {
   TitleItemsResponse,
@@ -89,16 +89,19 @@ const mcpCall = async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { arguments: args, name },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 
@@ -246,11 +249,14 @@ describe('wiki API', () => {
   test("covers PROJ-389: another workspace's owner cannot create a wiki page in this project", async () => {
     const project = await seedProject(workspaceId)
     const otherOwner = await seedFixture({ role: 'owner' })
-    const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(otherOwner.token, otherOwner.workspace.slug),
-      body: JSON.stringify({ title: 'Cross ws page', content: 'x', projectId: project.id }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(otherOwner.token, otherOwner.workspace.slug),
+        JSON.stringify({ title: 'Cross ws page', content: 'x', projectId: project.id }),
+      ),
+    )
     expect(res.status).toBe(404)
   })
 
@@ -595,11 +601,14 @@ describe('wiki API', () => {
 
   test("handles GET /api/wiki/search never returns another workspace's pages", async () => {
     const other = await seedFixture()
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ content: 'cross-tenant-term', title: 'Other Workspace Page' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ content: 'cross-tenant-term', title: 'Other Workspace Page' }),
+      ),
+    )
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'cross-tenant-term', title: 'This Workspace Page' }),
       headers: authHeaders(token, slug),
@@ -656,11 +665,14 @@ describe('wiki API', () => {
     test('a deleted page is no longer searchable', async () => {
       // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
       const owner = await seedFixture({ role: 'owner' })
-      const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(owner.token, owner.workspace.slug),
-        body: JSON.stringify({ content: 'sync-delete-term', title: 'Sync Delete Page' }),
-      })
+      const createRes = await fetchNativeApi(
+        'http://localhost/api/wiki',
+        requestOptionsWithBody(
+          'POST',
+          authHeaders(owner.token, owner.workspace.slug),
+          JSON.stringify({ content: 'sync-delete-term', title: 'Sync Delete Page' }),
+        ),
+      )
       const created = await readNativeJson(createRes, SlugResponse)
 
       await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
@@ -676,21 +688,27 @@ describe('wiki API', () => {
 
     test("a cascade-deleted subtree's pages are no longer searchable", async () => {
       const owner = await seedFixture({ role: 'owner' })
-      const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(owner.token, owner.workspace.slug),
-        body: JSON.stringify({ content: 'root', title: 'Sync Cascade Parent' }),
-      })
+      const parentRes = await fetchNativeApi(
+        'http://localhost/api/wiki',
+        requestOptionsWithBody(
+          'POST',
+          authHeaders(owner.token, owner.workspace.slug),
+          JSON.stringify({ content: 'root', title: 'Sync Cascade Parent' }),
+        ),
+      )
       const parent = await readNativeJson(parentRes, IdAndSlugResponse)
-      await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(owner.token, owner.workspace.slug),
-        body: JSON.stringify({
-          title: 'Sync Cascade Child',
-          content: 'sync-cascade-term',
-          parentId: parent.id,
-        }),
-      })
+      await fetchNativeApi(
+        'http://localhost/api/wiki',
+        requestOptionsWithBody(
+          'POST',
+          authHeaders(owner.token, owner.workspace.slug),
+          JSON.stringify({
+            title: 'Sync Cascade Child',
+            content: 'sync-cascade-term',
+            parentId: parent.id,
+          }),
+        ),
+      )
 
       await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
         headers: authHeaders(owner.token, owner.workspace.slug),
@@ -1283,40 +1301,52 @@ describe('wiki role guards', () => {
   test('viewer cannot create a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const res = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ content: 'test', title: 'Viewer Page' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ content: 'test', title: 'Viewer Page' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
   test('viewer cannot update a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ content: 'original', title: 'Member Page' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ content: 'original', title: 'Member Page' }),
+      ),
+    )
     const { slug: pageSlug } = await readNativeJson(createRes, SlugResponse)
 
-    const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
-      method: 'PUT',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ content: 'hacked' }),
-    })
+    const updateRes = await fetchNativeApi(
+      `http://localhost/api/wiki/${pageSlug}`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ content: 'hacked' }),
+      ),
+    )
     expect(updateRes.status).toBe(403)
   })
 
   test('member cannot delete a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ content: 'content', title: 'Member Deletable' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ content: 'content', title: 'Member Deletable' }),
+      ),
+    )
     const { slug: pageSlug } = await readNativeJson(createRes, SlugResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
@@ -1329,11 +1359,14 @@ describe('wiki role guards', () => {
   test('admin can delete a wiki page', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, roles.workspace.slug),
-      body: JSON.stringify({ content: 'content', title: 'Admin Target' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, roles.workspace.slug),
+        JSON.stringify({ content: 'content', title: 'Admin Target' }),
+      ),
+    )
     const { slug: pageSlug } = await readNativeJson(createRes, SlugResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
@@ -1726,11 +1759,14 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     })
     expect(first.status).toBe(201)
 
-    const second = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ content: 'workspace two', title: 'Shared Name' }),
-    })
+    const second = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ content: 'workspace two', title: 'Shared Name' }),
+      ),
+    )
     expect(second.status).toBe(201)
     const secondPage = await readNativeJson(second, SlugResponse)
     expect(secondPage.slug).toBe('shared-name')
@@ -1758,11 +1794,14 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(crossWorkspaceRes.status).toBe(404)
 
     // A page in the other workspace is free to use "isolated" as its own live slug.
-    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ content: 'other workspace', slug: 'isolated', title: 'Isolated' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ content: 'other workspace', slug: 'isolated', title: 'Isolated' }),
+      ),
+    )
     expect(createRes.status).toBe(201)
   })
 
@@ -2444,16 +2483,22 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     await seedWorkspaceFixture()
     // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
     const owner = await seedFixture({ role: 'owner' })
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(owner.token, owner.workspace.slug),
-      body: JSON.stringify({ content: 'v1', title: 'Draft Notes' }),
-    })
-    await fetchNativeApi('http://localhost/api/wiki/draft-notes', {
-      method: 'PUT',
-      headers: authHeaders(owner.token, owner.workspace.slug),
-      body: JSON.stringify({ slug: 'archived-notes' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(owner.token, owner.workspace.slug),
+        JSON.stringify({ content: 'v1', title: 'Draft Notes' }),
+      ),
+    )
+    await fetchNativeApi(
+      'http://localhost/api/wiki/draft-notes',
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(owner.token, owner.workspace.slug),
+        JSON.stringify({ slug: 'archived-notes' }),
+      ),
+    )
     await resetRateLimits()
 
     /*
@@ -3335,24 +3380,30 @@ describe('wiki patch operations (PROJ-490)', () => {
   test('covers REST: viewer role cannot patch a workspace-level page', async () => {
     const roles = await seedWorkspaceRoles()
     await resetRateLimits()
-    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(roles.owner.token, roles.workspace.slug),
-      body: JSON.stringify({ content: TWO_SECTIONS, slug: 'patch-viewer', title: 'Patch Viewer' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.owner.token, roles.workspace.slug),
+        JSON.stringify({ content: TWO_SECTIONS, slug: 'patch-viewer', title: 'Patch Viewer' }),
+      ),
+    )
     expect(createRes.status).toBe(201)
 
     await resetRateLimits()
-    const res = await fetchNativeApi('http://localhost/api/wiki/patch-viewer', {
-      method: 'PATCH',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({
-        baseRevisionId: JSON_NULL,
-        heading: 'Alpha',
-        op: 'append_to_section',
-        text: 'x',
-      }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/wiki/patch-viewer',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({
+          baseRevisionId: JSON_NULL,
+          heading: 'Alpha',
+          op: 'append_to_section',
+          text: 'x',
+        }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -4043,16 +4094,22 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   test('get_backlinks (MCP) returns the same result as REST', async () => {
     const fixture = await seedFixture()
-    const target = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(fixture.token, fixture.workspace.slug),
-      body: JSON.stringify({ content: 'x', title: 'MCP Target' }),
-    }).then((response) => response.json() as Promise<{ slug: string }>)
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(fixture.token, fixture.workspace.slug),
-      body: JSON.stringify({ content: '[[MCP Target]]', title: 'MCP Source' }),
-    })
+    const target = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(fixture.token, fixture.workspace.slug),
+        JSON.stringify({ content: 'x', title: 'MCP Target' }),
+      ),
+    ).then((response) => response.json() as Promise<{ slug: string }>)
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(fixture.token, fixture.workspace.slug),
+        JSON.stringify({ content: '[[MCP Target]]', title: 'MCP Source' }),
+      ),
+    )
 
     const result = await mcpCall<{ content: { text: string }[] }>(
       fixture.workspace.id,
@@ -4066,11 +4123,14 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   test('list_broken_wiki_links (MCP) matches REST', async () => {
     const fixture = await seedFixture()
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(fixture.token, fixture.workspace.slug),
-      body: JSON.stringify({ content: '[[Missing Target]]', title: 'Epsilon' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(fixture.token, fixture.workspace.slug),
+        JSON.stringify({ content: '[[Missing Target]]', title: 'Epsilon' }),
+      ),
+    )
 
     const result = await mcpCall<{ content: { text: string }[] }>(
       fixture.workspace.id,
@@ -4139,16 +4199,22 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   test('handles DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
     const owner = await seedFixture({ role: 'owner' })
-    const target = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(owner.token, owner.workspace.slug),
-      body: JSON.stringify({ content: 'x', title: 'Linked Target' }),
-    }).then((response) => response.json() as Promise<{ slug: string }>)
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(owner.token, owner.workspace.slug),
-      body: JSON.stringify({ content: '[[Linked Target]]', title: 'Linker One' }),
-    })
+    const target = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(owner.token, owner.workspace.slug),
+        JSON.stringify({ content: 'x', title: 'Linked Target' }),
+      ),
+    ).then((response) => response.json() as Promise<{ slug: string }>)
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(owner.token, owner.workspace.slug),
+        JSON.stringify({ content: '[[Linked Target]]', title: 'Linker One' }),
+      ),
+    )
 
     const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}`, {
       headers: authHeaders(owner.token, owner.workspace.slug),
@@ -4179,21 +4245,27 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   test('cascade-deleting a subtree cleans up outgoing links for every deleted page', async () => {
     const owner = await seedFixture({ role: 'owner' })
-    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(owner.token, owner.workspace.slug),
-      body: JSON.stringify({ content: '[[Nonexistent A]]', title: 'Cascade Parent' }),
-    })
+    const parentRes = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(owner.token, owner.workspace.slug),
+        JSON.stringify({ content: '[[Nonexistent A]]', title: 'Cascade Parent' }),
+      ),
+    )
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(owner.token, owner.workspace.slug),
-      body: JSON.stringify({
-        title: 'Cascade Child',
-        content: '[[Nonexistent B]]',
-        parentId: parent.id,
-      }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(owner.token, owner.workspace.slug),
+        JSON.stringify({
+          title: 'Cascade Child',
+          content: '[[Nonexistent B]]',
+          parentId: parent.id,
+        }),
+      ),
+    )
 
     await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       headers: authHeaders(owner.token, owner.workspace.slug),
@@ -4215,16 +4287,22 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const workspaceA = await seedFixture()
     const workspaceB = await seedFixture()
 
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
-      body: JSON.stringify({ content: 'x', title: 'Shared Title' }),
-    })
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(workspaceB.token, workspaceB.workspace.slug),
-      body: JSON.stringify({ content: 'see [[Shared Title]]', title: 'B Source' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(workspaceA.token, workspaceA.workspace.slug),
+        JSON.stringify({ content: 'x', title: 'Shared Title' }),
+      ),
+    )
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(workspaceB.token, workspaceB.workspace.slug),
+        JSON.stringify({ content: 'see [[Shared Title]]', title: 'B Source' }),
+      ),
+    )
 
     /*
      * Workspace B's link can only resolve against workspace B's own pages, so it's
@@ -4624,11 +4702,12 @@ describe('wiki freshness model (PROJ-489)', () => {
   test('handles POST /api/wiki/:slug/verify is rejected for a viewer', async () => {
     await seedTestData()
     const roles = await seedWorkspaceRoles()
-    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(roles.owner.token, roles.workspace.slug),
-      body: JSON.stringify({ title: 'Viewer Guard', content: overdueContent() }),
-    })
+    const requestOptions = requestOptionsWithBody(
+      'POST',
+      authHeaders(roles.owner.token, roles.workspace.slug),
+      JSON.stringify({ title: 'Viewer Guard', content: overdueContent() }),
+    )
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', requestOptions)
     const created = await readNativeJson(createRes, SlugResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {

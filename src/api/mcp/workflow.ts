@@ -6,13 +6,16 @@ import type { MCPTool } from './types.ts'
 
 export const workflowTools: MCPTool[] = [
   {
-    name: 'get_workflow',
+    annotations: READ,
     description:
       'Fetch the canonical agent workflow spec: definition of ready, state machine, human gates, ' +
       'completion report requirements, and WIP limits. Call this before claiming work. Returns a ' +
       'content `version` (a stable hash — unchanged unless the spec content changes). Pass a ' +
       'previously-returned version back as `ifVersion` to skip re-reading an unchanged spec: a ' +
       'match returns just `{ unchanged: true, version }` instead of the full content.',
+    async handler(input, ctx) {
+      return getWorkflow(ctx, input)
+    },
     inputSchema: objectInputSchema({
       ifVersion: {
         type: 'string',
@@ -22,9 +25,6 @@ export const workflowTools: MCPTool[] = [
           'the response is `{ unchanged: true, version }` instead of the full spec.',
       },
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return getWorkflow(ctx, input)
-    },
+    name: 'get_workflow',
   },
 ]

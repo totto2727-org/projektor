@@ -10,7 +10,7 @@ import {
   seedProject,
   seedProjectFixture,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /*
  * PROJ-439: conditional GETs. The ETag is a hash of the response body, so a mutation
@@ -88,11 +88,14 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
       'ETag',
     )
 
-    const patch = await fetchNativeApi(`http://localhost/api/issues/${testFixture.issueId}`, {
-      method: 'PATCH',
-      headers: authHeaders(testFixture.token, testFixture.slug),
-      body: JSON.stringify({ title: 'After' }),
-    })
+    const patch = await fetchNativeApi(
+      `http://localhost/api/issues/${testFixture.issueId}`,
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ title: 'After' }),
+      ),
+    )
     expect(patch.status).toBe(200)
 
     const after = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug, etag)
@@ -107,11 +110,14 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
     const path = `/api/issues/${testFixture.issueId}/comments`
     const etag = (await get(path, testFixture.token, testFixture.slug)).headers.get('ETag')
 
-    const post = await fetchNativeApi(`http://localhost${path}`, {
-      method: 'POST',
-      headers: authHeaders(testFixture.token, testFixture.slug),
-      body: JSON.stringify({ body: 'new comment' }),
-    })
+    const post = await fetchNativeApi(
+      `http://localhost${path}`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ body: 'new comment' }),
+      ),
+    )
     expect(post.status).toBe(201)
 
     const after = await get(path, testFixture.token, testFixture.slug, etag)
@@ -123,11 +129,14 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
     const etag = (await get('/api/task-statuses', testFixture.token, testFixture.slug)).headers.get('ETag')
 
-    const post = await fetchNativeApi('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: authHeaders(testFixture.token, testFixture.slug),
-      body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
-    })
+    const post = await fetchNativeApi(
+      'http://localhost/api/task-statuses',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
+      ),
+    )
     expect(post.status).toBe(201)
 
     const after = await get('/api/task-statuses', testFixture.token, testFixture.slug, etag)

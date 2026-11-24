@@ -5,7 +5,7 @@ import { validateToolArgs } from '#api/mcp/validate-args.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /*
  * PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,
@@ -63,11 +63,10 @@ const rpc = async function rpc(
   method: string,
   params: unknown,
 ): Promise<{ result?: { tools: { name: string; inputSchema: Schema }[] } }> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
   return res.json() as Promise<{
     result?: { tools: { name: string; inputSchema: Schema }[] }
   }>

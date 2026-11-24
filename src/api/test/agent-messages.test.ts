@@ -15,7 +15,7 @@ import {
   seedToken,
   toolError,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import {
   MessageBodiesResponse,
@@ -73,20 +73,23 @@ const seedAgentMessagesFixture = async function seedAgentMessagesFixture(): Prom
     workspaceSlug = slug,
     wsId: string = workspaceId,
   ): Promise<Response> {
-    return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${bearerToken}`,
-        'X-Workspace-Slug': workspaceSlug,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name: method },
-      }),
-    })
+    return fetchNativeApi(
+      `http://localhost/mcp/${wsId}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${bearerToken}`,
+          'X-Workspace-Slug': workspaceSlug,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name: method },
+        }),
+      ),
+    )
   }
 
   const ownSession = async function ownSession(id: string): Promise<void> {
@@ -380,11 +383,14 @@ describe('agent Messages API', () => {
 
     // Post in workspace Y's issue scope
     const token2 = await seedToken(workspaceId, userId)
-    const otherPostRes = await fetchNativeApi('http://localhost/api/agent-messages', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ scope: otherScope, body: 'workspace-Y message' }),
-    })
+    const otherPostRes = await fetchNativeApi(
+      'http://localhost/api/agent-messages',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ scope: otherScope, body: 'workspace-Y message' }),
+      ),
+    )
     expect(otherPostRes.status).toBe(201)
 
     // Workspace X cannot see workspace Y messages

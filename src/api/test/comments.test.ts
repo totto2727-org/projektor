@@ -14,7 +14,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
@@ -23,11 +23,10 @@ const mcpCall = async function mcpCall<T>(
   params: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
   return res.json()
 }
 
@@ -143,18 +142,24 @@ describe('comments REST API', () => {
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const issueRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.owner.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Viewer-visible issue' }),
-    })
+    const issueRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.owner.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, title: 'Viewer-visible issue' }),
+      ),
+    )
     const { id: viewerIssueId } = await readNativeJson(issueRes, IdResponse)
 
-    const res = await fetchNativeApi(`http://localhost/api/issues/${viewerIssueId}/comments`, {
-      method: 'POST',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ body: "Viewers shouldn't be able to post this" }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/issues/${viewerIssueId}/comments`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ body: "Viewers shouldn't be able to post this" }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -228,11 +233,14 @@ describe('comments MCP cross-workspace security', () => {
     const projB = await seedProject(wsB.workspace.id, 'VIC')
     await seedGroupGrant(wsB.workspace.id, wsB.user.id, projB.id)
 
-    const issueRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(wsB.token, wsB.workspace.slug),
-      body: JSON.stringify({ projectId: projB.id, title: 'Secret issue' }),
-    })
+    const issueRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(wsB.token, wsB.workspace.slug),
+        JSON.stringify({ projectId: projB.id, title: 'Secret issue' }),
+      ),
+    )
     const { id: victimIssueId } = await readNativeJson(issueRes, IdResponse)
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
@@ -252,19 +260,25 @@ describe('comments MCP cross-workspace security', () => {
     const projB = await seedProject(wsB.workspace.id, 'SEC')
     await seedGroupGrant(wsB.workspace.id, wsB.user.id, projB.id)
 
-    const issueRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(wsB.token, wsB.workspace.slug),
-      body: JSON.stringify({ projectId: projB.id, title: 'Private issue' }),
-    })
+    const issueRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(wsB.token, wsB.workspace.slug),
+        JSON.stringify({ projectId: projB.id, title: 'Private issue' }),
+      ),
+    )
     const { id: victimIssueId } = await readNativeJson(issueRes, IdResponse)
 
     // Add a comment so there's something to leak if scoping breaks
-    await fetchNativeApi(`http://localhost/api/issues/${victimIssueId}/comments`, {
-      method: 'POST',
-      headers: authHeaders(wsB.token, wsB.workspace.slug),
-      body: JSON.stringify({ body: 'Secret comment content' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/issues/${victimIssueId}/comments`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(wsB.token, wsB.workspace.slug),
+        JSON.stringify({ body: 'Secret comment content' }),
+      ),
+    )
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       wsA.workspace.id,

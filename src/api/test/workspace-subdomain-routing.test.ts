@@ -9,7 +9,7 @@ import type { HonoEnv } from '#types'
 
 import { env } from './fixture-api.ts'
 import { seedFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { ErrorMessageResponse, readNativeJson } from './response-json.ts'
 
 describe('subdomainRoutingEnabled', () => {
@@ -31,15 +31,18 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
 
   test('covers X-Workspace-Slug header works regardless of the flag', async () => {
     const fixture = await seedFixture()
-    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${fixture.token}`,
-        'X-Workspace-Slug': fixture.workspace.slug,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${fixture.token}`,
+          'X-Workspace-Slug': fixture.workspace.slug,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    )
     expect(res.status).toBe(200)
   })
 
@@ -63,30 +66,36 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
   test('flag on + no header + matching Host subdomain resolves the workspace', async () => {
     const fixture = await seedFixture()
     env.WORKSPACE_SUBDOMAIN_ROUTING = 'true'
-    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${fixture.token}`,
-        Host: `${fixture.workspace.slug}.example.com`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${fixture.token}`,
+          Host: `${fixture.workspace.slug}.example.com`,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    )
     expect(res.status).toBe(200)
   })
 
   test('flag "1" (truthy, non-"true") + no header + matching Host subdomain resolves', async () => {
     const fixture = await seedFixture()
     env.WORKSPACE_SUBDOMAIN_ROUTING = '1'
-    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${fixture.token}`,
-        Host: `${fixture.workspace.slug}.example.com`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${fixture.token}`,
+          Host: `${fixture.workspace.slug}.example.com`,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    )
     expect(res.status).toBe(200)
   })
 

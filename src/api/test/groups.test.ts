@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
@@ -12,16 +12,19 @@ const mcpCall = async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { arguments: args, name },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 

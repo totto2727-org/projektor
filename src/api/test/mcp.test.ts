@@ -14,7 +14,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   IssueTitlesResponse,
   RecordItemsResponse,
@@ -35,11 +35,10 @@ const mcpFetch = async function mcpFetch(
   headers: Record<string, string>,
   query = '',
 ): Promise<Response> {
-  return fetchNativeApi(`http://localhost/mcp/${workspaceId}${query}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
+  return fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}${query}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
 }
 
 const mcpCall = async function mcpCall<T>(
@@ -219,11 +218,14 @@ describe('covers MCP endpoint', () => {
 
   test('tools/call search_wiki finds pages', async () => {
     const { headers, workspaceId } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ content: 'How to use the MCP endpoint', title: 'MCP Docs' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        headers,
+        JSON.stringify({ content: 'How to use the MCP endpoint', title: 'MCP Docs' }),
+      ),
+    )
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -238,11 +240,10 @@ describe('covers MCP endpoint', () => {
 
   test('tools/call get_wiki_page retrieves a page', async () => {
     const { headers, workspaceId } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ content: '## Steps', title: 'Runbook' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ content: '## Steps', title: 'Runbook' })),
+    )
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -473,18 +474,20 @@ describe('covers MCP endpoint', () => {
 
   test('covers MCP list_wiki_pages without parentId returns ALL pages', async () => {
     const { headers, workspaceId } = await seedTestData()
-    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ content: 'root', title: 'Parent' }),
-    })
+    const parentRes = await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ content: 'root', title: 'Parent' })),
+    )
     const parent = await readNativeJson(parentRes, IdResponse)
 
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ title: 'Child', content: 'child', parentId: parent.id }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        headers,
+        JSON.stringify({ title: 'Child', content: 'child', parentId: parent.id }),
+      ),
+    )
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -498,11 +501,10 @@ describe('covers MCP endpoint', () => {
 
   test('covers MCP search_wiki with empty query returns []', async () => {
     const { headers, workspaceId } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ content: 'content', title: 'Some Page' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ content: 'content', title: 'Some Page' })),
+    )
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -517,11 +519,10 @@ describe('covers MCP endpoint', () => {
   test('covers MCP search_wiki excerpt is at most 250 chars', async () => {
     const { headers, workspaceId } = await seedTestData()
     const longContent = 'z'.repeat(1000)
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ content: longContent, title: 'Verbose Page' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ content: longContent, title: 'Verbose Page' })),
+    )
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -605,11 +606,10 @@ describe('covers MCP endpoint', () => {
 
   test('covers MCP update_wiki_page by slug works', async () => {
     const { headers, workspaceId } = await seedTestData()
-    await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ content: 'original', title: 'Slug Update' }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ content: 'original', title: 'Slug Update' })),
+    )
 
     await mcpCall(
       workspaceId,
@@ -841,11 +841,10 @@ describe('covers MCP endpoint', () => {
     })
 
     // Target is blocked by blocker → target gets in-degree 1
-    await fetchNativeApi(`http://localhost/api/issues/${blocker.id}/links`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ targetIssueId: target.id, type: 'blocks' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/issues/${blocker.id}/links`,
+      requestOptionsWithBody('POST', headers, JSON.stringify({ targetIssueId: target.id, type: 'blocks' })),
+    )
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,

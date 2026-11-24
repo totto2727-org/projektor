@@ -2,17 +2,16 @@ import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
 const createSource = async function createSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
 ): Promise<string> {
-  const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
-    method: 'POST',
-    headers: authHeaders(f.token, f.slug),
-    body: JSON.stringify({ name: 'Onboarding survey' }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/api/projects/${f.projectId}/feedback-sources`,
+    requestOptionsWithBody('POST', authHeaders(f.token, f.slug), JSON.stringify({ name: 'Onboarding survey' })),
+  )
   const { id } = await readNativeJson(res, IdResponse)
   return id
 }

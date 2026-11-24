@@ -6,7 +6,7 @@ import type { MCPTool } from './types.ts'
 
 export const flowMetricsTools: MCPTool[] = [
   {
-    name: 'get_flow_metrics',
+    annotations: READ,
     description:
       'Time-in-state (leadTime, cycleTime, timeInProgress, reviewLatency, agingWip), ' +
       'collaboration-shape (humanInterventions, autonomyRatio, flowEfficiency — human ' +
@@ -19,6 +19,9 @@ export const flowMetricsTools: MCPTool[] = [
       "bugTypeTracked:false (no 'bug' task type in the workspace) is distinct from a genuine " +
       '0% bug share. Bucketing defaults to weekly (current ISO week plus the preceding 5 ' +
       "weeks); pass granularity: 'day' for daily buckets.",
+    handler(input, ctx) {
+      return getFlowMetrics(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['projectId'], {
       projectId: { type: 'string', description: 'Project UUID' },
       since: {
@@ -35,9 +38,6 @@ export const flowMetricsTools: MCPTool[] = [
         description: "Throughput bucket granularity, 'day' or 'week' (default 'week')",
       },
     }),
-    annotations: READ,
-    handler(input, ctx) {
-      return getFlowMetrics(ctx, input)
-    },
+    name: 'get_flow_metrics',
   },
 ]

@@ -17,7 +17,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import { ErrorMessageResponse, IdAndSlugResponse, IdResponse, readNativeJson } from './response-json.ts'
 
@@ -29,11 +29,10 @@ const mcpCall = async function mcpCall<T>(
   params: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
   return res.json()
 }
 
@@ -431,11 +430,14 @@ describe('files API', () => {
 
   describe('handles POST /api/files/links (wiki_ref and url attachment kinds)', () => {
     const createWikiPage = async function createWikiPage(headers: Record<string, string>): Promise<string> {
-      const res = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: 'hello', title: 'Linked page' }),
-      })
+      const res = await fetchNativeApi(
+        'http://localhost/api/wiki',
+        requestOptionsWithBody(
+          'POST',
+          { ...headers, 'Content-Type': 'application/json' },
+          JSON.stringify({ content: 'hello', title: 'Linked page' }),
+        ),
+      )
       const body = await readNativeJson(res, IdResponse)
       return body.id
     }
@@ -444,16 +446,19 @@ describe('files API', () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
       const wikiPageId = await createWikiPage(headers)
 
-      const res = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          wikiPageId,
-        }),
-      })
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          headers,
+          JSON.stringify({
+            kind: 'wiki_ref',
+            entityType: 'issue',
+            entityId: ENTITY_ID,
+            wikiPageId,
+          }),
+        ),
+      )
       expect(res.status).toBe(201)
       await expect(res.json()).resolves.toMatchObject({ id: expect.any(String), kind: 'wiki_ref' })
 
@@ -476,31 +481,35 @@ describe('files API', () => {
     })
 
     test('rejects a wiki_ref for a non-existent wiki page → 404', async () => {
-      const res = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const requestOptions = requestOptionsWithBody(
+        'POST',
+        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+        JSON.stringify({
           kind: 'wiki_ref',
           entityType: 'issue',
           entityId: ENTITY_ID,
           wikiPageId: crypto.randomUUID(),
         }),
-      })
+      )
+      const res = await fetchNativeApi('http://localhost/api/files/links', requestOptions)
       expect(res.status).toBe(404)
     })
 
     test('attaches a URL with a label and lists it', async () => {
-      const res = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          url: 'https://example.com/doc',
-          label: 'Design doc',
-        }),
-      })
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+          JSON.stringify({
+            kind: 'url',
+            entityType: 'issue',
+            entityId: ENTITY_ID,
+            url: 'https://example.com/doc',
+            label: 'Design doc',
+          }),
+        ),
+      )
       expect(res.status).toBe(201)
       await expect(res.json()).resolves.toMatchObject({ id: expect.any(String), kind: 'url' })
 
@@ -521,48 +530,57 @@ describe('files API', () => {
     })
 
     test.each(['not-a-url', 'https://[broken', '/relative/path'])('rejects a malformed URL → 400: %s', async (url) => {
-      const res = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          url,
-        }),
-      })
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+          JSON.stringify({
+            kind: 'url',
+            entityType: 'issue',
+            entityId: ENTITY_ID,
+            url,
+          }),
+        ),
+      )
       expect(res.status).toBe(400)
     })
 
     test.each(['http://example.com/doc', 'mailto:review@example.com'])(
       'accepts URLs supported by the standard validator: %s',
       async (url) => {
-        const res = await fetchNativeApi('http://localhost/api/files/links', {
-          method: 'POST',
-          headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            kind: 'url',
-            entityType: 'issue',
-            entityId: ENTITY_ID,
-            url,
-          }),
-        })
+        const res = await fetchNativeApi(
+          'http://localhost/api/files/links',
+          requestOptionsWithBody(
+            'POST',
+            { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+            JSON.stringify({
+              kind: 'url',
+              entityType: 'issue',
+              entityId: ENTITY_ID,
+              url,
+            }),
+          ),
+        )
         expect(res.status).toBe(201)
       },
     )
 
     test('handles DELETE removes a link attachment without touching R2', async () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
-      const createRes = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          url: 'https://example.com',
-        }),
-      })
+      const createRes = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          headers,
+          JSON.stringify({
+            kind: 'url',
+            entityType: 'issue',
+            entityId: ENTITY_ID,
+            url: 'https://example.com',
+          }),
+        ),
+      )
       const { id } = await readNativeJson(createRes, IdResponse)
 
       const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
@@ -594,16 +612,19 @@ describe('files API', () => {
       })
       const { id: restrictedPageId } = await readNativeJson(pageRes, IdResponse)
 
-      const res = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          wikiPageId: restrictedPageId,
-        }),
-      })
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+          JSON.stringify({
+            kind: 'wiki_ref',
+            entityType: 'issue',
+            entityId: ENTITY_ID,
+            wikiPageId: restrictedPageId,
+          }),
+        ),
+      )
       expect(res.status).toBe(404)
     })
 
@@ -755,19 +776,20 @@ describe('files API', () => {
 
     test('handles POST /api/files/links rejects a viewer → 403', async () => {
       const { workspace, viewer } = await seedWorkspaceRoles()
-      const res = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: {
+      const viewerRequestOptions = requestOptionsWithBody(
+        'POST',
+        {
           ...authHeaders(viewer.token, workspace.slug),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        JSON.stringify({
           kind: 'url',
           entityType: 'issue',
           entityId: crypto.randomUUID(),
           url: 'https://example.com',
         }),
-      })
+      )
+      const res = await fetchNativeApi('http://localhost/api/files/links', viewerRequestOptions)
       expect(res.status).toBe(403)
     })
 
@@ -1177,16 +1199,19 @@ describe('attachment project visibility', () => {
   })
 
   test('rejects a link attachment onto an issue in an invisible project', async () => {
-    const res = await fetchNativeApi('http://localhost/api/files/links', {
-      method: 'POST',
-      headers: asMember(),
-      body: JSON.stringify({
-        kind: 'url',
-        entityType: 'issue',
-        entityId: hiddenIssueId,
-        url: 'https://example.com',
-      }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/files/links',
+      requestOptionsWithBody(
+        'POST',
+        asMember(),
+        JSON.stringify({
+          kind: 'url',
+          entityType: 'issue',
+          entityId: hiddenIssueId,
+          url: 'https://example.com',
+        }),
+      ),
+    )
     expect(res.status).toBe(404)
   })
 

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 describe('compose_playbook', () => {
@@ -213,11 +213,14 @@ describe('handles POST /api/playbooks/:name/compose', () => {
 
   test('returns 200 for epic-goal with a valid params body', async () => {
     const { epicNumber, slug, token } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal/compose', {
-      method: 'POST',
-      headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ epicRef: `PROJ-${epicNumber}` }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/playbooks/epic-goal/compose',
+      requestOptionsWithBody(
+        'POST',
+        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+        JSON.stringify({ epicRef: `PROJ-${epicNumber}` }),
+      ),
+    )
     expect(res.status).toBe(200)
     const body = await readNativeJson(
       res,
@@ -229,11 +232,14 @@ describe('handles POST /api/playbooks/:name/compose', () => {
 
   test("returns a 4xx via the service's validation for a bad body", async () => {
     const { slug, token } = await seedTestData()
-    const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal/compose', {
-      method: 'POST',
-      headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/playbooks/epic-goal/compose',
+      requestOptionsWithBody(
+        'POST',
+        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+        JSON.stringify({}),
+      ),
+    )
     /*
      * Specifically 400, not a 4xx range: an unregistered route would 404 and satisfy
      * a range assertion, so the loose form cannot tell "validation rejected this"

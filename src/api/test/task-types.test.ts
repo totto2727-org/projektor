@@ -13,7 +13,7 @@ import {
   seedToken,
   seedUser,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   KeyListResponse,
   OkResponse,
@@ -420,11 +420,14 @@ describe('task Types — MCP parity', () => {
     method: string,
     params: unknown,
   ): Promise<{ result?: { content: { text: string }[] }; error?: { message: string } }> {
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceNumericId}`, {
-      method: 'POST',
-      headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceNumericId}`,
+      requestOptionsWithBody(
+        'POST',
+        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+        JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      ),
+    )
     return res.json() as Promise<{
       result?: { content: { text: string }[] }
       error?: { message: string }

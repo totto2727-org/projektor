@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
 describe('activity audit log', () => {
@@ -82,11 +82,14 @@ describe('activity audit log', () => {
     await seedProjectFixture()
     // createProject requires owner or admin role
     const ownerFixture = await seedFixture({ role: 'owner' })
-    const res = await fetchNativeApi('http://localhost/api/projects', {
-      method: 'POST',
-      headers: authHeaders(ownerFixture.token, ownerFixture.workspace.slug),
-      body: JSON.stringify({ key: 'ACTV', name: 'Activity Project' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(ownerFixture.token, ownerFixture.workspace.slug),
+        JSON.stringify({ key: 'ACTV', name: 'Activity Project' }),
+      ),
+    )
     expect(res.status).toBe(201)
     const { id } = await readNativeJson(res, IdResponse)
 

@@ -9,7 +9,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 interface RpcBody {
   result?: { content?: { text: string }[]; isError?: boolean }
@@ -40,16 +40,19 @@ describe('covers PROJ-894: stateless agent identity', () => {
     name: string,
     args: Record<string, unknown>,
   ): Promise<{ ok: boolean; value: Record<string, unknown>; message: string }> {
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name },
+        }),
+      ),
+    )
     const body = (await res.json()) as RpcBody
     /*
      * A failure is either a JSON-RPC error or (PROJ-893) an isError tool result;

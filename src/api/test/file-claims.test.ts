@@ -5,7 +5,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   parseNativeMcpText,
   ErrorMessageResponse,
@@ -70,20 +70,23 @@ describe('file Claims API', () => {
     workspaceSlug = slug,
     wsId = workspaceId,
   ): Promise<Response> {
-    return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${bearerToken}`,
-        'X-Workspace-Slug': workspaceSlug,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name: method },
-      }),
-    })
+    return fetchNativeApi(
+      `http://localhost/mcp/${wsId}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${bearerToken}`,
+          'X-Workspace-Slug': workspaceSlug,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name: method },
+        }),
+      ),
+    )
   }
 
   // B1: claim_files creates active claims; list_file_claims({issueId}) returns them

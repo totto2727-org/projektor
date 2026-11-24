@@ -23,7 +23,7 @@ import {
   seedWorkspaceRoles,
   toolError,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   IssueTitlesResponse,
   JsonRecordResponse,
@@ -46,11 +46,14 @@ const callMcpTool = async function callMcpTool(
   result?: { content: { text: string }[] }
   error?: { code?: number; message: string }
 }> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/call', params }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+      JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/call', params }),
+    ),
+  )
   return res.json()
 }
 
@@ -645,15 +648,18 @@ describe('issues API', () => {
 
     const other = await seedFixture()
     const otherProject = await seedProject(other.workspace.id, 'OTH')
-    await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({
-        projectId: otherProject.id,
-        title: 'Workspace B issue',
-        body: 'unique-sentinel',
-      }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({
+          projectId: otherProject.id,
+          title: 'Workspace B issue',
+          body: 'unique-sentinel',
+        }),
+      ),
+    )
 
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=unique-sentinel', {
       headers: authHeaders(token, slug),
@@ -772,15 +778,18 @@ describe('issues API', () => {
     // Seed the same term in a completely separate workspace
     const other = await seedFixture()
     const otherProject = await seedProject(other.workspace.id, 'OTH')
-    await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({
-        projectId: otherProject.id,
-        title: 'Other workspace fts-sentinel',
-        body: '',
-      }),
-    })
+    await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({
+          projectId: otherProject.id,
+          title: 'Other workspace fts-sentinel',
+          body: '',
+        }),
+      ),
+    )
 
     // Search from the primary workspace must not see the other workspace's issue
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=fts-sentinel', {
@@ -1054,11 +1063,14 @@ describe('issues API', () => {
   test("covers PROJ-389: another workspace's owner cannot create an issue in this project", async () => {
     const { projectId } = await seedScenarioFixture()
     const other = await seedFixture({ role: 'owner' })
-    const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ projectId, title: 'Cross-workspace write' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ projectId, title: 'Cross-workspace write' }),
+      ),
+    )
     expect(res.status).toBe(404)
   })
 
@@ -1768,11 +1780,14 @@ describe('issues MCP — typeId', () => {
 describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
   test('advertises all ListIssuesSchema optional filter keys in its inputSchema', async () => {
     const { slug, token, workspaceId } = await seedOwnerMcpFixture()
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list' }),
+      ),
+    )
     const bodyShape = Schema.Struct({
       result: Schema.Struct({
         tools: Schema.Array(
@@ -1815,15 +1830,18 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
 describe('issues KV cache', () => {
   test('getIssue: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
     const { projectId, slug, token } = await seedProjectFixture()
-    const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'X-Workspace-Slug': slug,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ projectId, title: 'Cache me' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${token}`,
+          'X-Workspace-Slug': slug,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ projectId, title: 'Cache me' }),
+      ),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     // First GET populates KV cache
@@ -1867,15 +1885,18 @@ describe('issues KV cache', () => {
 
   test('updateIssue invalidates the cache so next getIssue re-fetches from D1', async () => {
     const { projectId, slug, token } = await seedProjectFixture()
-    const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'X-Workspace-Slug': slug,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ projectId, title: 'Before update' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${token}`,
+          'X-Workspace-Slug': slug,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ projectId, title: 'Before update' }),
+      ),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     // Warm the cache
@@ -1888,15 +1909,18 @@ describe('issues KV cache', () => {
     })
 
     // PATCH should invalidate the cache
-    await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'X-Workspace-Slug': slug,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ title: 'After update' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/issues/${id}`,
+      requestOptionsWithBody(
+        'PATCH',
+        {
+          Authorization: `Bearer ${token}`,
+          'X-Workspace-Slug': slug,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ title: 'After update' }),
+      ),
+    )
 
     // Next GET must reflect the new value (fetched from D1, not stale cache)
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -1917,15 +1941,18 @@ describe('issues KV cache', () => {
    */
   test('getIssue by ref: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
     const { projectId, slug, token } = await seedProjectFixture()
-    const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'X-Workspace-Slug': slug,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ projectId, title: 'Cache me by ref' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${token}`,
+          'X-Workspace-Slug': slug,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ projectId, title: 'Cache me by ref' }),
+      ),
+    )
     const { id, number } = await readNativeJson(createRes, Schema.Struct({ id: Schema.String, number: Schema.Number }))
     const ref = `PROJ-${number}`
 
@@ -1976,11 +2003,14 @@ describe('issues role guards', () => {
     // PROJ-311: a viewer grant makes the project visible; the write is still denied.
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Should fail' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, title: 'Should fail' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -1989,18 +2019,24 @@ describe('issues role guards', () => {
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.owner.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Issue to patch' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.owner.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, title: 'Issue to patch' }),
+      ),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
-    const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(roles.viewer.token, roles.workspace.slug),
-      body: JSON.stringify({ title: 'Hacked' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/issues/${id}`,
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(roles.viewer.token, roles.workspace.slug),
+        JSON.stringify({ title: 'Hacked' }),
+      ),
+    )
     expect(patchRes.status).toBe(403)
   })
 
@@ -2008,11 +2044,14 @@ describe('issues role guards', () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
 
-    const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.owner.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Issue to delete' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.owner.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, title: 'Issue to delete' }),
+      ),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -2026,11 +2065,14 @@ describe('issues role guards', () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
 
-    const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.owner.token, roles.workspace.slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Issue to delete' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.owner.token, roles.workspace.slug),
+        JSON.stringify({ projectId: project.id, title: 'Issue to delete' }),
+      ),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {

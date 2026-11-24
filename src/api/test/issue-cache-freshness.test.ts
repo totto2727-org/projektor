@@ -5,7 +5,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 /*
  * PROJ-863: GET of an issue never shows stale data about OTHER entities (linked
  * issues, status/type names, project key, sprint) after those change.
@@ -28,11 +28,10 @@ let f: Awaited<ReturnType<typeof seedIssueFixture>>
 let otherId: string
 
 const call = (method: string, path: string, body?: unknown): Promise<Response> =>
-  fetchNativeApi(`http://localhost${path}`, {
-    method,
-    headers: authHeaders(f.token, f.slug),
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+  fetchNativeApi(
+    `http://localhost${path}`,
+    requestOptionsWithBody(method, authHeaders(f.token, f.slug), body === undefined ? undefined : JSON.stringify(body)),
+  )
 const get = async (id: string): Promise<IssueBody> =>
   (await (await call('GET', `/api/issues/${id}`)).json()) as IssueBody
 

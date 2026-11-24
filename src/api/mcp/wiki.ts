@@ -29,10 +29,13 @@ const INCLUDE_WORKSPACE_PAGES_PROPERTY = {
 
 export const wikiTools: MCPTool[] = [
   {
-    name: 'list_wiki_pages',
+    annotations: READ,
     description:
       'List wiki pages in the workspace, optionally filtered by parent, project, ' +
       'frontmatter type/status, or tags (any-of match)',
+    async handler(input, ctx) {
+      return wikiService.listWikiPages(ctx, input)
+    },
     inputSchema: objectInputSchema({
       parentId: { type: 'string', description: 'Filter to children of this page ID' },
       projectId: { type: 'string', description: 'Filter to pages belonging to this project ID' },
@@ -60,13 +63,10 @@ export const wikiTools: MCPTool[] = [
       },
       includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return wikiService.listWikiPages(ctx, input)
-    },
+    name: 'list_wiki_pages',
   },
   {
-    name: 'search_wiki',
+    annotations: READ,
     description:
       'Full-text search over wiki pages (FTS5, BM25-ranked, title weighted above body). ' +
       'Returns match-anchored snippets highlighted with ** markers, plus a computed ' +
@@ -76,6 +76,23 @@ export const wikiTools: MCPTool[] = [
       'each tier) when the page is computed-stale/unverified OR has an explicit ' +
       'status: stale|deprecated (R7). Returns `{items, next?}` — pass `next` back as `cursor`. ' +
       'See /projektor/agents/response-conventions/.',
+    async handler(input, ctx) {
+      const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
+      if (cursor !== undefined) {
+        const offset = Number(cursor)
+        if (!Number.isInteger(offset) || offset < 0) {
+          throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
+        }
+        rest.offset = offset
+      }
+      const items = (await wikiService.searchWiki(ctx, rest)) as unknown[]
+      // A full page means there may be more: the cursor is the next offset.
+      const limit = Predicate.isNumber(rest.limit) ? rest.limit : 10
+      const offset = Predicate.isNumber(rest.offset) ? rest.offset : 0
+      const page = toPage(items, items.length >= limit ? offset + limit : null)
+      // A cut page resumes at the first dropped result.
+      return capPage(page, { cursorOf: (index) => globalThis.String(offset + index + 1) })
+    },
     inputSchema: requiredObjectInputSchema(['query'], {
       query: { type: 'string' },
       limit: { type: 'number', default: 10 },
@@ -106,27 +123,10 @@ export const wikiTools: MCPTool[] = [
       },
       includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
-      if (cursor !== undefined) {
-        const offset = Number(cursor)
-        if (!Number.isInteger(offset) || offset < 0) {
-          throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
-        }
-        rest.offset = offset
-      }
-      const items = (await wikiService.searchWiki(ctx, rest)) as unknown[]
-      // A full page means there may be more: the cursor is the next offset.
-      const limit = Predicate.isNumber(rest.limit) ? rest.limit : 10
-      const offset = Predicate.isNumber(rest.offset) ? rest.offset : 0
-      const page = toPage(items, items.length >= limit ? offset + limit : null)
-      // A cut page resumes at the first dropped result.
-      return capPage(page, { cursorOf: (index) => globalThis.String(offset + index + 1) })
-    },
+    name: 'search_wiki',
   },
   {
-    name: 'get_wiki_page',
+    annotations: READ,
     description:
       'Get a wiki page by slug. Long pages are windowed: `content` is at most `maxChars` ' +
       '(default 8000, max 20000) and `totalChars` is the full length; when `next` is present pass it ' +
@@ -136,20 +136,6 @@ export const wikiTools: MCPTool[] = [
       '`contentTruncated:true` means `content` is only part of the page: NEVER pass it back to ' +
       'update_wiki_page (that would overwrite the page with the fragment) — use patch_wiki_page. ' +
       'See /projektor/agents/response-conventions/.',
-    inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string' },
-      maxChars: {
-        type: 'number',
-        default: WIKI_DEFAULT_MAX_CHARS,
-        description: `Max characters of content per call (1-${WIKI_MAX_CHARS})`,
-      },
-      cursor: { type: 'string', description: "Pass the previous window's `next` unchanged" },
-      section: {
-        type: 'string',
-        description: "Return only this section (a heading's text or slug, from `outline`)",
-      },
-    }),
-    annotations: READ,
     async handler(input, ctx) {
       const { slug, maxChars, cursor, section } = input as {
         slug: string
@@ -194,6 +180,20 @@ export const wikiTools: MCPTool[] = [
         ...(w.next ? { next: w.next } : {}),
       }
     },
+    inputSchema: requiredObjectInputSchema(['slug'], {
+      slug: { type: 'string' },
+      maxChars: {
+        type: 'number',
+        default: WIKI_DEFAULT_MAX_CHARS,
+        description: `Max characters of content per call (1-${WIKI_MAX_CHARS})`,
+      },
+      cursor: { type: 'string', description: "Pass the previous window's `next` unchanged" },
+      section: {
+        type: 'string',
+        description: "Return only this section (a heading's text or slug, from `outline`)",
+      },
+    }),
+    name: 'get_wiki_page',
   },
   {
     name: 'create_wiki_page',
@@ -236,7 +236,7 @@ export const wikiTools: MCPTool[] = [
     },
   },
   {
-    name: 'update_wiki_page',
+    annotations: PLAIN_WRITE,
     description:
       'Update a wiki page by id or slug (saves a revision when content changes). Pass ' +
       'baseRevisionId (the current revision id from list_wiki_revisions/get_wiki_revision, ' +
@@ -251,6 +251,24 @@ export const wikiTools: MCPTool[] = [
       "frontmatter block (see create_wiki_page); it's re-parsed on every content edit, " +
       "replacing the page's previously-stored metadata. Omitting `content` leaves the " +
       "page's existing frontmatter metadata unchanged.",
+    async handler(input, ctx) {
+      const { id, slug, newSlug, ...rest } = input as {
+        id?: string
+        slug?: string
+        newSlug?: string
+        title?: string
+        content?: string
+        parentId?: string | null
+        baseRevisionId?: string | null
+        summary?: string
+      }
+      const idOrSlug = id ?? slug
+      if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
+        throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
+      }
+      const payload = Predicate.isNotNullish(newSlug) ? { ...rest, slug: newSlug } : rest
+      return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
+    },
     inputSchema: objectInputSchema({
       id: { type: 'string', description: 'Page ID' },
       slug: { type: 'string', description: 'Page slug (alternative to id)' },
@@ -279,28 +297,10 @@ export const wikiTools: MCPTool[] = [
         description: 'Optional edit message/changelog note, recorded on the created revision',
       },
     }),
-    annotations: PLAIN_WRITE,
-    async handler(input, ctx) {
-      const { id, slug, newSlug, ...rest } = input as {
-        id?: string
-        slug?: string
-        newSlug?: string
-        title?: string
-        content?: string
-        parentId?: string | null
-        baseRevisionId?: string | null
-        summary?: string
-      }
-      const idOrSlug = id ?? slug
-      if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
-        throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
-      }
-      const payload = Predicate.isNotNullish(newSlug) ? { ...rest, slug: newSlug } : rest
-      return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
-    },
+    name: 'update_wiki_page',
   },
   {
-    name: 'patch_wiki_page',
+    annotations: PLAIN_WRITE,
     description:
       "Section-addressed patch operations on a wiki page's markdown, by id or slug. " +
       'Sections are addressed by exact heading text (a `#`..`######` line and everything ' +
@@ -325,6 +325,14 @@ export const wikiTools: MCPTool[] = [
       'a caller can retry against reality. Creates a revision like update_wiki_page; ' +
       'ops other than set_frontmatter leave frontmatter metadata untouched beyond ' +
       'reparsing it (never stamps verified_at).',
+    async handler(input, ctx) {
+      const { id, slug, ...rest } = input as { id?: string; slug?: string }
+      const idOrSlug = id ?? slug
+      if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
+        throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
+      }
+      return await wikiService.patchWikiPage(ctx, idOrSlug, rest)
+    },
     inputSchema: requiredObjectInputSchema(['op', 'baseRevisionId'], {
       id: { type: 'string', description: 'Page ID' },
       slug: { type: 'string', description: 'Page slug (alternative to id)' },
@@ -357,21 +365,17 @@ export const wikiTools: MCPTool[] = [
         description: 'Optional edit message/changelog note, recorded on the created revision',
       },
     }),
-    annotations: PLAIN_WRITE,
-    async handler(input, ctx) {
-      const { id, slug, ...rest } = input as { id?: string; slug?: string }
-      const idOrSlug = id ?? slug
-      if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
-        throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
-      }
-      return await wikiService.patchWikiPage(ctx, idOrSlug, rest)
-    },
+    name: 'patch_wiki_page',
   },
   {
-    name: 'delete_wiki_page',
+    annotations: DESTRUCTIVE,
     description:
       'Delete a wiki page by slug (not allowed for viewers). By default any child pages are ' +
       "promoted to the deleted page's parent; pass cascade=true to delete the whole subtree instead.",
+    async handler(input, ctx) {
+      const { slug, cascade } = input as { slug: string; cascade?: boolean }
+      return wikiService.deleteWikiPage(ctx, slug, { cascade })
+    },
     inputSchema: requiredObjectInputSchema(['slug'], {
       slug: { type: 'string' },
       cascade: {
@@ -380,65 +384,64 @@ export const wikiTools: MCPTool[] = [
         description: 'Delete all descendant pages too, instead of promoting them',
       },
     }),
-    annotations: DESTRUCTIVE,
-    async handler(input, ctx) {
-      const { slug, cascade } = input as { slug: string; cascade?: boolean }
-      return wikiService.deleteWikiPage(ctx, slug, { cascade })
-    },
+    name: 'delete_wiki_page',
   },
   {
-    name: 'wiki_tree',
+    annotations: READ,
     description:
       'Get the wiki page hierarchy as a nested tree, optionally filtered by project. Returns ' +
       '`{items}` — the root nodes (see /projektor/agents/response-conventions/).',
+    async handler(input, ctx) {
+      return toPage(await wikiService.getWikiTree(ctx, input))
+    },
     inputSchema: objectInputSchema({
       projectId: { type: 'string', description: 'Filter to pages belonging to this project ID' },
       includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return toPage(await wikiService.getWikiTree(ctx, input))
-    },
+    name: 'wiki_tree',
   },
   {
-    name: 'get_backlinks',
+    annotations: READ,
     description:
       'List pages that link to the given page via a resolved [[wikilink]] or same-workspace ' +
       'URL (id-backed, so renames never break a backlink). Each result includes a snippet of ' +
       "the citing text when it can still be located in the source page's current content.",
-    inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string', description: 'Page ID or slug to find backlinks for' },
-    }),
-    annotations: READ,
     async handler(input, ctx) {
       const { slug } = input as { slug: string }
       return wikiService.getWikiBacklinks(ctx, slug)
     },
+    inputSchema: requiredObjectInputSchema(['slug'], {
+      slug: { type: 'string', description: 'Page ID or slug to find backlinks for' },
+    }),
+    name: 'get_backlinks',
   },
   {
-    name: 'list_broken_wiki_links',
+    annotations: READ,
     description:
       'List unresolved wiki links in the workspace — [[Target]]/URL links whose target ' +
       "title or slug didn't match any page at write time. Useful as a maintenance queue. " +
       'A broken link auto-resolves when a page matching its title/slug is created, ' +
       'renamed to match it, or restored from the trash (PROJ-814); backfill_wiki_links ' +
       '(or re-saving the linking page) also still re-resolves it.',
-    inputSchema: objectInputSchema({
-      projectId: { type: 'string', description: 'Restrict to links from pages in this project' },
-    }),
-    annotations: READ,
     async handler(input, ctx) {
       return wikiService.listBrokenWikiLinks(ctx, input)
     },
+    inputSchema: objectInputSchema({
+      projectId: { type: 'string', description: 'Restrict to links from pages in this project' },
+    }),
+    name: 'list_broken_wiki_links',
   },
   {
-    name: 'backfill_wiki_links',
+    annotations: PLAIN_WRITE,
     description:
       'Idempotent, safe-to-re-run recompute of the wiki_links graph for pages in the ' +
       'workspace, one page-budget-sized chunk per call (default 200, max 500) so it can run ' +
       'incrementally and resume after a timeout. Skips trashed pages. Pass back `nextCursor` ' +
       'as `cursor` to continue; call repeatedly until `nextCursor` is null. `updatedSince` ' +
       '(unix seconds) limits the scope to pages touched at/after that time. Owner/admin only.',
+    async handler(input, ctx) {
+      return await wikiService.backfillWikiLinks(ctx, input)
+    },
     inputSchema: objectInputSchema({
       cursor: {
         type: 'object',
@@ -458,51 +461,39 @@ export const wikiTools: MCPTool[] = [
         description: 'Only process pages updated at/after this unix-seconds timestamp',
       },
     }),
-    annotations: PLAIN_WRITE,
-    async handler(input, ctx) {
-      return await wikiService.backfillWikiLinks(ctx, input)
-    },
+    name: 'backfill_wiki_links',
   },
   {
-    name: 'list_wiki_revisions',
-    description: 'List revision history for a wiki page',
-    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string' } }),
     annotations: READ,
+    description: 'List revision history for a wiki page',
     async handler(input, ctx) {
       const { slug } = input as { slug: string }
       return wikiService.listWikiRevisions(ctx, slug)
     },
+    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string' } }),
+    name: 'list_wiki_revisions',
   },
   {
-    name: 'get_wiki_revision',
-    description: 'Get the content of a specific wiki revision by its ID',
-    inputSchema: requiredObjectInputSchema(['slug', 'revisionId'], {
-      slug: { type: 'string' },
-      revisionId: { type: 'string' },
-    }),
     annotations: READ,
+    description: 'Get the content of a specific wiki revision by its ID',
     async handler(input, ctx) {
       const { slug, revisionId } = input as { slug: string; revisionId: string }
       return wikiService.getWikiRevision(ctx, slug, revisionId)
     },
+    inputSchema: requiredObjectInputSchema(['slug', 'revisionId'], {
+      slug: { type: 'string' },
+      revisionId: { type: 'string' },
+    }),
+    name: 'get_wiki_revision',
   },
   {
-    name: 'get_wiki_revision_diff',
+    annotations: READ,
     description:
       'Server-side unified diff between one revision (revisionId) and either another ' +
       "revision or the page's current content. `against` is a revision id or the literal " +
       'string "current" (default when omitted). Same unified diff format as ' +
       "update_wiki_page/patch_wiki_page's conflict responses (--- base / +++ current, " +
       '@@ hunk headers).',
-    inputSchema: requiredObjectInputSchema(['slug', 'revisionId'], {
-      slug: { type: 'string' },
-      revisionId: { type: 'string' },
-      against: {
-        type: 'string',
-        description: 'Another revision id, or "current" (default)',
-      },
-    }),
-    annotations: READ,
     async handler(input, ctx) {
       const { slug, revisionId, against } = input as {
         slug: string
@@ -511,31 +502,43 @@ export const wikiTools: MCPTool[] = [
       }
       return wikiService.getWikiRevisionDiff(ctx, slug, revisionId, { against })
     },
+    inputSchema: requiredObjectInputSchema(['slug', 'revisionId'], {
+      slug: { type: 'string' },
+      revisionId: { type: 'string' },
+      against: {
+        type: 'string',
+        description: 'Another revision id, or "current" (default)',
+      },
+    }),
+    name: 'get_wiki_revision_diff',
   },
   {
-    name: 'verify_wiki_page',
+    annotations: PLAIN_WRITE,
     description:
       'Stamp a wiki page as freshly verified — sets its frontmatter verified_at to now and ' +
       "verified_by to the CALLING user's email (never caller-supplied). Rewrites the page's " +
       'frontmatter block (creating one if it had none) and records a revision, same as any ' +
       'other content edit — including its conflict check, so a concurrent edit racing the ' +
       'stamp is rejected rather than reverted. Not allowed for viewers.',
-    inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string', description: 'Page ID or slug' },
-    }),
-    annotations: PLAIN_WRITE,
     async handler(input, ctx) {
       const { slug } = input as { slug: string }
       return wikiService.verifyWikiPage(ctx, slug)
     },
+    inputSchema: requiredObjectInputSchema(['slug'], {
+      slug: { type: 'string', description: 'Page ID or slug' },
+    }),
+    name: 'verify_wiki_page',
   },
   {
-    name: 'list_stale_pages',
+    annotations: READ,
     description:
       'Maintenance queue of wiki pages that need re-verification: computed-stale ' +
       '(verify_interval elapsed since verified_at), unverified (verify_interval declared but ' +
       'never verified), or explicitly status: stale|deprecated. Same rule search_wiki uses to ' +
       'demote results (R7).',
+    async handler(input, ctx) {
+      return wikiService.listStaleWikiPages(ctx, input)
+    },
     inputSchema: objectInputSchema({
       projectId: {
         type: 'string',
@@ -545,32 +548,29 @@ export const wikiTools: MCPTool[] = [
       offset: { type: 'number', default: 0 },
       includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return wikiService.listStaleWikiPages(ctx, input)
-    },
+    name: 'list_stale_pages',
   },
   {
-    name: 'list_wiki_templates',
+    annotations: READ,
     description:
       'List pages flagged as templates (frontmatter `template: true`) — the picker ' +
       "create_wiki_page's `templateSlug` draws from. Templates are conventionally " +
       "workspace-global (living under a workspace 'Templates' page) but a project-scoped " +
       'template is allowed and follows the same project-visibility rule as any other ' +
       'project-scoped page.',
+    async handler(input, ctx) {
+      return wikiService.listWikiTemplates(ctx, input)
+    },
     inputSchema: objectInputSchema({
       projectId: {
         type: 'string',
         description: 'Restrict to templates belonging to this project ID',
       },
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return wikiService.listWikiTemplates(ctx, input)
-    },
+    name: 'list_wiki_templates',
   },
   {
-    name: 'watch_wiki_page',
+    annotations: PLAIN_WRITE,
     description:
       'Watch a wiki page by id or slug — its changes (create is n/a here since the page ' +
       'already exists, update/patch/verify/restore/delete) will generate a per-user ' +
@@ -580,6 +580,10 @@ export const wikiTools: MCPTool[] = [
       'for the same page updates the subtree flag rather than creating a duplicate watch. ' +
       'Template pages (frontmatter template: true) never generate notifications even if ' +
       'watched directly or via a subtree.',
+    async handler(input, ctx) {
+      const { slug, ...rest } = input as { slug: string; subtree?: boolean }
+      return wikiWatchersService.watchWikiPage(ctx, slug, rest)
+    },
     inputSchema: requiredObjectInputSchema(['slug'], {
       slug: { type: 'string', description: 'Page ID or slug' },
       subtree: {
@@ -588,51 +592,50 @@ export const wikiTools: MCPTool[] = [
         description: "Also watch this page's current and future descendant pages",
       },
     }),
-    annotations: PLAIN_WRITE,
-    async handler(input, ctx) {
-      const { slug, ...rest } = input as { slug: string; subtree?: boolean }
-      return wikiWatchersService.watchWikiPage(ctx, slug, rest)
-    },
+    name: 'watch_wiki_page',
   },
   {
-    name: 'unwatch_wiki_page',
-    description: 'Stop watching a wiki page by id or slug (a no-op if not currently watched).',
-    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
     annotations: PLAIN_WRITE,
+    description: 'Stop watching a wiki page by id or slug (a no-op if not currently watched).',
     async handler(input, ctx) {
       const { slug } = input as { slug: string }
       return wikiWatchersService.unwatchWikiPage(ctx, slug)
     },
+    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
+    name: 'unwatch_wiki_page',
   },
   {
-    name: 'list_wiki_watches',
-    description: 'List the pages the calling user is currently watching.',
-    inputSchema: objectInputSchema({}),
     annotations: READ,
+    description: 'List the pages the calling user is currently watching.',
     async handler(_input, ctx) {
       return wikiWatchersService.listWikiWatches(ctx)
     },
+    inputSchema: objectInputSchema({}),
+    name: 'list_wiki_watches',
   },
   {
-    name: 'list_wiki_notifications',
+    annotations: READ,
     description:
       "List the calling user's wiki watch notifications (newest first). Each entry " +
       'records the page (denormalised slug/title, so a notification about a page ' +
       "that's since been deleted still shows what it was about), the action " +
       "(created|updated|deleted), the actor, and whether it's been read.",
+    async handler(input, ctx) {
+      return wikiWatchersService.listWikiNotifications(ctx, input)
+    },
     inputSchema: objectInputSchema({
       unreadOnly: { type: 'boolean', default: false },
       limit: { type: 'number', default: 50 },
       offset: { type: 'number', default: 0 },
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return wikiWatchersService.listWikiNotifications(ctx, input)
-    },
+    name: 'list_wiki_notifications',
   },
   {
-    name: 'mark_wiki_notifications_read',
+    annotations: PLAIN_WRITE,
     description: 'Mark wiki notifications as read, by id, or all: true for every unread one.',
+    async handler(input, ctx) {
+      return wikiWatchersService.markWikiNotificationsRead(ctx, input)
+    },
     inputSchema: objectInputSchema({
       ids: {
         type: 'array',
@@ -645,13 +648,10 @@ export const wikiTools: MCPTool[] = [
         description: "Mark all of the caller's notifications read",
       },
     }),
-    annotations: PLAIN_WRITE,
-    async handler(input, ctx) {
-      return wikiWatchersService.markWikiNotificationsRead(ctx, input)
-    },
+    name: 'mark_wiki_notifications_read',
   },
   {
-    name: 'list_wiki_changes',
+    annotations: READ,
     description:
       'Cheap delta feed of wiki page changes since a unix-seconds timestamp — for agents ' +
       "polling 'what changed' instead of re-fetching/re-searching the whole wiki. " +
@@ -662,24 +662,6 @@ export const wikiTools: MCPTool[] = [
       'list_wiki_pages/search_wiki) — pass watchedOnly=true to narrow to pages the caller ' +
       "is watching (directly or via a subtree watch). A `deleted` entry's slug/title/" +
       'projectId reflect the page as it was just before deletion (the row itself is gone).',
-    inputSchema: objectInputSchema({
-      since: {
-        type: 'number',
-        description: 'Unix seconds; only changes strictly after this are returned',
-      },
-      cursor: {
-        type: 'string',
-        description: "Pass the previous page's `next` unchanged (replaces `since`)",
-      },
-      limit: { type: 'number', default: 100 },
-      projectId: { type: 'string', description: 'Restrict to changes on pages in this project' },
-      watchedOnly: {
-        type: 'boolean',
-        default: false,
-        description: 'Restrict to pages the caller is watching (directly or via subtree)',
-      },
-    }),
-    annotations: READ,
     async handler(input, ctx) {
       const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
       // Null / "" mean "no cursor", not "since the epoch".
@@ -704,9 +686,27 @@ export const wikiTools: MCPTool[] = [
         canCutAt: (kept) => events[kept - 1].createdAt !== events[kept]?.createdAt,
       })
     },
+    inputSchema: objectInputSchema({
+      since: {
+        type: 'number',
+        description: 'Unix seconds; only changes strictly after this are returned',
+      },
+      cursor: {
+        type: 'string',
+        description: "Pass the previous page's `next` unchanged (replaces `since`)",
+      },
+      limit: { type: 'number', default: 100 },
+      projectId: { type: 'string', description: 'Restrict to changes on pages in this project' },
+      watchedOnly: {
+        type: 'boolean',
+        default: false,
+        description: 'Restrict to pages the caller is watching (directly or via subtree)',
+      },
+    }),
+    name: 'list_wiki_changes',
   },
   {
-    name: 'get_wiki_draft',
+    annotations: READ,
     description:
       "Get the calling user's saved server-side draft for a wiki page by id or slug " +
       '(server-side, so a draft survives a device switch). Returns null if there is no ' +
@@ -715,21 +715,25 @@ export const wikiTools: MCPTool[] = [
       "through to update_wiki_page/patch_wiki_page's own baseRevisionId when publishing, " +
       'so a stale draft hits the normal conflict response instead of silently clobbering ' +
       "someone else's newer edit.",
-    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
-    annotations: READ,
     async handler(input, ctx) {
       const { slug } = input as { slug: string }
       return wikiDraftsService.getWikiDraft(ctx, slug)
     },
+    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
+    name: 'get_wiki_draft',
   },
   {
-    name: 'save_wiki_draft',
+    annotations: PLAIN_WRITE,
     description:
       "Save (upsert) the calling user's draft for a wiki page by id or slug. One draft " +
       'per (page, user) — calling this again overwrites the previous draft rather than ' +
       'creating a new one. Not a revision and not visible to other users. Callers should ' +
       'debounce their own call frequency (e.g. ~1s after the last edit) — this tool does ' +
       'no server-side throttling.',
+    async handler(input, ctx) {
+      const { slug, ...rest } = input as { slug: string; title: string; content: string }
+      return wikiDraftsService.saveWikiDraft(ctx, slug, rest)
+    },
     inputSchema: requiredObjectInputSchema(['slug', 'title', 'content'], {
       slug: { type: 'string', description: 'Page ID or slug' },
       title: { type: 'string' },
@@ -741,33 +745,32 @@ export const wikiTools: MCPTool[] = [
           "The page's latest revision id when this draft was started; null if the " + 'page had no revisions yet',
       },
     }),
-    annotations: PLAIN_WRITE,
-    async handler(input, ctx) {
-      const { slug, ...rest } = input as { slug: string; title: string; content: string }
-      return wikiDraftsService.saveWikiDraft(ctx, slug, rest)
-    },
+    name: 'save_wiki_draft',
   },
   {
-    name: 'discard_wiki_draft',
+    annotations: DESTRUCTIVE,
     description:
       "Delete the calling user's draft for a wiki page by id or slug (a no-op if there " +
       'is none). Call this after a successful publish, or whenever the user explicitly ' +
       'discards unsaved changes.',
-    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
-    annotations: DESTRUCTIVE,
     async handler(input, ctx) {
       const { slug } = input as { slug: string }
       return wikiDraftsService.discardWikiDraft(ctx, slug)
     },
+    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
+    name: 'discard_wiki_draft',
   },
   {
-    name: 'list_wiki_trash',
+    annotations: READ,
     description:
       'List trashed (soft-deleted) wiki pages in the workspace, optionally scoped to a ' +
       'project. Same visibility rule as list_wiki_pages — a project-scoped trashed page ' +
       'only appears for callers who could see that project. Each result includes ' +
       '`purgeAfter` (unix seconds) — the page is permanently removed by purge_wiki_trash ' +
       'once that time passes (30 days after deletion).',
+    async handler(input, ctx) {
+      return wikiService.listWikiTrash(ctx, input)
+    },
     inputSchema: objectInputSchema({
       projectId: {
         type: 'string',
@@ -776,13 +779,10 @@ export const wikiTools: MCPTool[] = [
       limit: { type: 'number', default: 50 },
       offset: { type: 'number', default: 0 },
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return wikiService.listWikiTrash(ctx, input)
-    },
+    name: 'list_wiki_trash',
   },
   {
-    name: 'undelete_wiki_page',
+    annotations: PLAIN_WRITE,
     description:
       'Restore a trashed wiki page by ID (not slug — trashed pages can share a ' +
       'now-recycled slug; use list_wiki_trash to find the ID). Requires the same ' +
@@ -794,15 +794,15 @@ export const wikiTools: MCPTool[] = [
       'conflict names the colliding slug; rename that page first, then retry. The ' +
       "restored page's parent may itself still be trashed; if so the page appears as a " +
       'root until the parent is also restored.',
-    inputSchema: requiredObjectInputSchema(['id'], { id: { type: 'string', description: 'Trashed page ID' } }),
-    annotations: PLAIN_WRITE,
     async handler(input, ctx) {
       const { id } = input as { id: string }
       return wikiService.undeleteWikiPage(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], { id: { type: 'string', description: 'Trashed page ID' } }),
+    name: 'undelete_wiki_page',
   },
   {
-    name: 'purge_wiki_trash',
+    annotations: DESTRUCTIVE,
     description:
       "Permanently remove every wiki page in the workspace that's been trashed for at " +
       'least 30 days — deletes R2 attachment objects, wiki_revisions/wiki_links/' +
@@ -810,10 +810,10 @@ export const wikiTools: MCPTool[] = [
       'any live child left pointing at a purged page. Irreversible. Owner/admin only. Also ' +
       'runs automatically once daily via a Workers Cron Trigger — call this manually only ' +
       'to force an off-cycle purge.',
-    inputSchema: objectInputSchema({}),
-    annotations: DESTRUCTIVE,
     async handler(_input, ctx) {
       return wikiService.purgeExpiredWikiPages(ctx)
     },
+    inputSchema: objectInputSchema({}),
+    name: 'purge_wiki_trash',
   },
 ]

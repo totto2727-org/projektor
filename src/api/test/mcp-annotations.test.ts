@@ -12,7 +12,7 @@ import { coreMCPTools } from '#api/routes/mcp.ts'
 
 import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 describe('covers MCP tool annotations (PROJ-887)', () => {
   test('every core tool declares readOnlyHint and openWorldHint', () => {
@@ -76,11 +76,14 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
   test('returns readOnlyHint/openWorldHint/destructiveHint in the wire payload', async () => {
     const fixture = await seedFixture()
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
-    const res = (await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
-    }).then((response) => response.json())) as JsonRpcResult<{
+    const res = (await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        headers,
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    ).then((response) => response.json())) as JsonRpcResult<{
       tools: { name: string; annotations?: Record<string, unknown> }[]
     }>
 

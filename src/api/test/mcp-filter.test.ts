@@ -5,7 +5,7 @@ import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '#api/mcp/catalog.ts'
 
 import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 const mcpFetch = async function mcpFetch(
   workspaceId: string,
@@ -14,11 +14,10 @@ const mcpFetch = async function mcpFetch(
   headers: Record<string, string>,
   query = '',
 ): Promise<Response> {
-  return fetchNativeApi(`http://localhost/mcp/${workspaceId}${query}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
+  return fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}${query}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
 }
 
 const mcpCall = async function mcpCall<T>(

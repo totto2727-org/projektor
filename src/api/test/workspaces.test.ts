@@ -16,7 +16,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { OkResponse, IdListResponse, IdResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
@@ -25,16 +25,19 @@ const mcpCall = async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { arguments: args, name },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 
@@ -580,11 +583,10 @@ describe('workspace brand (PROJ-761)', () => {
 
   test('owner can PATCH accent/displayName and a member can read the result back', async () => {
     const { memberHeaders, ownerHeaders, slug } = await seedTestData()
-    const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' })),
+    )
     expect(patchRes.status).toBe(200)
     const patched = await readNativeJson(patchRes, Schema.Struct({ accent: Schema.String, displayName: Schema.String }))
     expect(patched.displayName).toBe('Acme Tracker')
@@ -600,36 +602,32 @@ describe('workspace brand (PROJ-761)', () => {
 
   test('a member (non admin/owner) gets 403 on PATCH', async () => {
     const { memberHeaders, slug } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: memberHeaders,
-      body: JSON.stringify({ displayName: 'Should Fail' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ displayName: 'Should Fail' })),
+    )
     expect(res.status).toBe(403)
   })
 
   test('rejects a non-hex accent value with 400', async () => {
     const { ownerHeaders, slug } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ accent: 'orange' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ accent: 'orange' })),
+    )
     expect(res.status).toBe(400)
   })
 
   test('explicit null clears a previously-set field without touching the others', async () => {
     const { ownerHeaders, slug } = await seedTestData()
-    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
-    })
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ accent: JSON_NULL }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' })),
+    )
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ accent: JSON_NULL })),
+    )
     const body = await readNativeJson(
       res,
       Schema.Struct({ accent: Schema.Union([Schema.String, Schema.Null]), displayName: Schema.String }),
@@ -758,31 +756,32 @@ describe('workspace brand (PROJ-761)', () => {
 
   test('review finding 2: rejects a javascript: fontUrl with 400', async () => {
     const { ownerHeaders, slug } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ fontUrl: 'javascript:alert(1)' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ fontUrl: 'javascript:alert(1)' })),
+    )
     expect(res.status).toBe(400)
   })
 
   test('review finding 2: rejects a data: fontUrl with 400', async () => {
     const { ownerHeaders, slug } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ fontUrl: 'data:text/html,<script>alert(1)</script>' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody(
+        'PATCH',
+        ownerHeaders,
+        JSON.stringify({ fontUrl: 'data:text/html,<script>alert(1)</script>' }),
+      ),
+    )
     expect(res.status).toBe(400)
   })
 
   test('review finding 2: accepts an https: fontUrl', async () => {
     const { ownerHeaders, slug } = await seedTestData()
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ fontUrl: 'https://fonts.example.com/font.css' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/brand`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ fontUrl: 'https://fonts.example.com/font.css' })),
+    )
     expect(res.status).toBe(200)
     const body = await readNativeJson(res, Schema.Struct({ fontUrl: Schema.String }))
     expect(body.fontUrl).toBe('https://fonts.example.com/font.css')
@@ -807,11 +806,10 @@ describe('workspace brand (PROJ-761)', () => {
     const { memberHeaders, ownerHeaders, slug } = await seedTestData()
     const other = await seedFixture({ role: 'owner' })
 
-    const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ displayName: 'Header Workspace' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/workspaces/${other.workspace.slug}/brand`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ displayName: 'Header Workspace' })),
+    )
     expect(patchRes.status).toBe(200)
     const patched = await readNativeJson(
       patchRes,

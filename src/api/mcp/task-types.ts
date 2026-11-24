@@ -9,17 +9,20 @@ import type { MCPTool } from './types.ts'
 
 export const taskTypesTools: MCPTool[] = [
   {
-    name: 'list_task_types',
-    description: 'List all task types configured for the workspace',
-    inputSchema: objectInputSchema({}),
     annotations: READ,
+    description: 'List all task types configured for the workspace',
     handler(_input, ctx) {
       return listTaskTypes(ctx)
     },
+    inputSchema: objectInputSchema({}),
+    name: 'list_task_types',
   },
   {
-    name: 'create_task_type',
+    annotations: CREATE,
     description: 'Create a new task type for the workspace (owner/admin only)',
+    handler(input, ctx) {
+      return createTaskType(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['key', 'name'], {
       key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
       name: { type: 'string', description: 'Display name' },
@@ -28,14 +31,18 @@ export const taskTypesTools: MCPTool[] = [
       position: { type: 'number', description: 'Sort order position' },
       isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
     }),
-    annotations: CREATE,
-    handler(input, ctx) {
-      return createTaskType(ctx, input)
-    },
+    name: 'create_task_type',
   },
   {
-    name: 'update_task_type',
+    annotations: IDEMPOTENT_WRITE,
     description: 'Update a task type (owner/admin only)',
+    handler(input, ctx) {
+      const { id, ...fields } = input as { id?: string; [k: string]: unknown }
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
+      }
+      return updateTaskType(ctx, id, fields)
+    },
     inputSchema: requiredObjectInputSchema(['id'], {
       id: { type: 'string' },
       name: { type: 'string' },
@@ -44,22 +51,11 @@ export const taskTypesTools: MCPTool[] = [
       position: { type: 'number' },
       isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
     }),
-    annotations: IDEMPOTENT_WRITE,
-    handler(input, ctx) {
-      const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError(validationIssues(['id is required'], {}))
-      }
-      return updateTaskType(ctx, id, fields)
-    },
+    name: 'update_task_type',
   },
   {
-    name: 'delete_task_type',
-    description: 'Delete a task type (owner/admin only). Fails if the type is in use by any issues.',
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string' },
-    }),
     annotations: DESTRUCTIVE,
+    description: 'Delete a task type (owner/admin only). Fails if the type is in use by any issues.',
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -67,5 +63,9 @@ export const taskTypesTools: MCPTool[] = [
       }
       return deleteTaskType(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string' },
+    }),
+    name: 'delete_task_type',
   },
 ]

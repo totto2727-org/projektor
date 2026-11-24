@@ -260,13 +260,16 @@ export const issuesTools: MCPTool[] = [
     },
   },
   {
-    name: 'create_issue',
+    annotations: CREATE,
     description:
       'Create a new issue in a project. For an issue an agent should be able to pick up ' +
       'autonomously, the body should state acceptance criteria and scope (files/components) ' +
       "— see get_workflow's definition of ready. get_prioritized_issues excludes issues " +
       "missing these by default. Verification isn't part of the readiness bar (PROJ-738) — " +
       "it's required later, in the completionReport when entering review/done.",
+    handler(input, ctx) {
+      return createIssue(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['projectId', 'title'], {
       projectId: {
         type: 'string',
@@ -288,19 +291,23 @@ export const issuesTools: MCPTool[] = [
       },
       typeId: { type: 'string', description: 'UUID of the task type to assign' },
     }),
-    annotations: CREATE,
-    handler(input, ctx) {
-      return createIssue(ctx, input)
-    },
+    name: 'create_issue',
   },
   {
-    name: 'update_issue',
+    annotations: IDEMPOTENT_WRITE,
     description:
       'Update an issue — status, priority, title, body, assignee, or labels. Review gating: ' +
       'pass agentSessionId to identify yourself as an agent; entering in_review as ' +
       'an agent requires completionReport. Agents CAN transition directly to done (no human ' +
       "approval gate) — but if the completionReport.verification isn't externally checkable (no " +
       'CI run/PR/commit link), the issue is flagged needsAudit:true for after-the-fact human review.',
+    handler(input, ctx) {
+      const { id, ...fields } = input as { id?: string; [k: string]: unknown }
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
+      }
+      return updateIssue(ctx, id, fields)
+    },
     inputSchema: requiredObjectInputSchema(['id'], {
       id: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
       title: { type: 'string' },
@@ -337,18 +344,14 @@ export const issuesTools: MCPTool[] = [
         },
       },
     }),
-    annotations: IDEMPOTENT_WRITE,
-    handler(input, ctx) {
-      const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError(validationIssues(['id is required'], {}))
-      }
-      return updateIssue(ctx, id, fields)
-    },
+    name: 'update_issue',
   },
   {
-    name: 'search_issues',
+    annotations: READ,
     description: 'Search issues by keyword in title or body',
+    async handler(input, ctx) {
+      return toPage((await searchIssues(ctx, input)) as unknown[])
+    },
     inputSchema: requiredObjectInputSchema(['query'], {
       query: { type: 'string', minLength: 1 },
       projectId: {
@@ -357,18 +360,11 @@ export const issuesTools: MCPTool[] = [
       },
       limit: { type: 'number', default: 20, description: 'Max 50' },
     }),
-    annotations: READ,
-    async handler(input, ctx) {
-      return toPage((await searchIssues(ctx, input)) as unknown[])
-    },
+    name: 'search_issues',
   },
   {
-    name: 'delete_issue',
-    description: 'Delete an issue by ID or ref (e.g. PROJ-42)',
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
-    }),
     annotations: DESTRUCTIVE,
+    description: 'Delete an issue by ID or ref (e.g. PROJ-42)',
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
@@ -376,9 +372,13 @@ export const issuesTools: MCPTool[] = [
       }
       return deleteIssue(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
+    }),
+    name: 'delete_issue',
   },
   {
-    name: 'get_prioritized_issues',
+    annotations: READ,
     description:
       'Return open issues ranked by a composite score: link-network centrality (in-degree) + priority + ' +
       'inverse story points. Useful for deciding what to work on next. By default, issues that fail the ' +
@@ -386,6 +386,9 @@ export const issuesTools: MCPTool[] = [
       'If none of the open issues pass, the ranked (not-ready) list is returned anyway with ' +
       '`degraded: true` on the response and `needsGrooming`/`missingCriteria` on each issue, rather than ' +
       'an empty array — empty otherwise means "no open work", which would be a lie.',
+    handler(input, ctx) {
+      return getPrioritizedIssues(ctx, input)
+    },
     inputSchema: objectInputSchema({
       limit: {
         type: 'number',
@@ -414,9 +417,6 @@ export const issuesTools: MCPTool[] = [
         description: "Scope ranking to a single project's issues (default: workspace-wide, all visible projects)",
       },
     }),
-    annotations: READ,
-    handler(input, ctx) {
-      return getPrioritizedIssues(ctx, input)
-    },
+    name: 'get_prioritized_issues',
   },
 ]

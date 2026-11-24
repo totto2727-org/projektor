@@ -2,7 +2,7 @@ import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedToken } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /*
  * PROJ-651: RFC 9728 WWW-Authenticate challenges on the MCP endpoint.
@@ -124,11 +124,14 @@ describe('insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
   })
 
   const callAsReadToken = async function callAsReadToken(method: string, params: unknown): Promise<Response> {
-    return fetchNativeApi(mcpUrl(workspaceId), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${readToken}`, 'Content-Type': 'application/json' },
-      body: rpc(method, params),
-    })
+    return fetchNativeApi(
+      mcpUrl(workspaceId),
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${readToken}`, 'Content-Type': 'application/json' },
+        rpc(method, params),
+      ),
+    )
   }
 
   test('returns 403 with error=insufficient_scope on a write tool', async () => {

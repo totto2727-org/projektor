@@ -5,7 +5,7 @@ import { visibleProjectIds } from '#commands/access.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
 /*
@@ -119,11 +119,14 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Written by member grant' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, slug),
+        JSON.stringify({ projectId: project.id, title: 'Written by member grant' }),
+      ),
+    )
     expect(res.status).toBe(201)
   })
 
@@ -139,11 +142,14 @@ describe('covers PROJ-311 group-based project access', () => {
     ).toStrictEqual(['RO'])
 
     // ...but a write is a 403, not a 404 (existence is not hidden once granted).
-    const res = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Should be refused' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, slug),
+        JSON.stringify({ projectId: project.id, title: 'Should be refused' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
@@ -153,11 +159,14 @@ describe('covers PROJ-311 group-based project access', () => {
     const project = await seedProject(roles.workspace.id, 'WORK')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Member task' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, slug),
+        JSON.stringify({ projectId: project.id, title: 'Member task' }),
+      ),
+    )
     expect(createRes.status).toBe(201)
     const { id } = await readNativeJson(createRes, IdResponse)
 

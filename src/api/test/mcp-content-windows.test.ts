@@ -9,7 +9,7 @@ import { outlineOf, sectionOf, windowText } from '#api/mcp/windowing.ts'
 
 import { env } from './fixture-api.ts'
 import { seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 interface Rpc {
   result?: { content?: { text: string }[]; isError?: boolean }
@@ -70,16 +70,19 @@ describe('covers PROJ-892: MCP tools', () => {
   })
 
   const call = async function call(name: string, args: Record<string, unknown> = {}): Promise<Rpc> {
-    const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${f.workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name },
+        }),
+      ),
+    )
     return await res.json()
   }
   const tool = async function tool<T = Record<string, unknown>>(name: string, args = {}): Promise<T> {

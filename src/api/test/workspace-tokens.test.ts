@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedUserToken } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 /*
  * PROJ-917: workspace tokens (POST/DELETE /api/workspaces/:slug/tokens) are minted and
  * revoked only from an interactive human session — the same rule PROJ-903 applied to
@@ -49,11 +49,14 @@ const tokenRow = async function tokenRow(name: string): Promise<{ id: string } |
 describe('covers PROJ-917: workspace tokens require a human session', () => {
   test("an owner's pk_ token cannot mint a workspace token", async () => {
     const testFixture = await seedFixture({ role: 'owner' })
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${testFixture.workspace.slug}/tokens`, {
-      method: 'POST',
-      headers: authHeaders(testFixture.token, testFixture.workspace.slug),
-      body: JSON.stringify({ name: 'sibling', scopes: ['*'] }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${testFixture.workspace.slug}/tokens`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.workspace.slug),
+        JSON.stringify({ name: 'sibling', scopes: ['*'] }),
+      ),
+    )
     expect(res.status).toBe(403)
     expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/u)
     await expect(tokenRow('sibling')).resolves.toBeNull()
@@ -62,11 +65,14 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
   test('a user-scoped PAT cannot mint a workspace token either', async () => {
     const testFixture = await seedFixture({ role: 'owner' })
     const pat = await seedUserToken(testFixture.user.id)
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${testFixture.workspace.slug}/tokens`, {
-      method: 'POST',
-      headers: authHeaders(pat, testFixture.workspace.slug),
-      body: JSON.stringify({ name: 'via-pat', scopes: ['read'] }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${testFixture.workspace.slug}/tokens`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(pat, testFixture.workspace.slug),
+        JSON.stringify({ name: 'via-pat', scopes: ['read'] }),
+      ),
+    )
     expect(res.status).toBe(403)
     await expect(tokenRow('via-pat')).resolves.toBeNull()
   })

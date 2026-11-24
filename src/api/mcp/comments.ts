@@ -7,49 +7,49 @@ import type { MCPTool } from './types.ts'
 
 export const commentsTools: MCPTool[] = [
   {
-    name: 'list_comments',
-    description: 'List comments on an issue. Returns `{items}` (see /projektor/agents/response-conventions/).',
-    inputSchema: requiredObjectInputSchema(['issueId'], { issueId: { type: 'string' } }),
     annotations: READ,
+    description: 'List comments on an issue. Returns `{items}` (see /projektor/agents/response-conventions/).',
     async handler(input, ctx) {
       return toPage(await listComments(ctx, input))
     },
+    inputSchema: requiredObjectInputSchema(['issueId'], { issueId: { type: 'string' } }),
+    name: 'list_comments',
   },
   {
-    name: 'add_comment',
+    annotations: PLAIN_WRITE,
     description: 'Add a comment to an issue',
+    async handler(input, ctx) {
+      return addComment(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['issueId', 'body'], {
       issueId: { type: 'string' },
       body: { type: 'string', minLength: 1, maxLength: 10_000 },
     }),
-    annotations: PLAIN_WRITE,
-    async handler(input, ctx) {
-      return addComment(ctx, input)
-    },
+    name: 'add_comment',
   },
   {
-    name: 'update_comment',
+    annotations: IDEMPOTENT_WRITE,
     description: 'Update the body of a comment (author only)',
+    async handler(input, ctx) {
+      return updateComment(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['issueId', 'commentId', 'body'], {
       issueId: { type: 'string' },
       commentId: { type: 'string' },
       body: { type: 'string', minLength: 1, maxLength: 10_000 },
     }),
-    annotations: IDEMPOTENT_WRITE,
-    async handler(input, ctx) {
-      return updateComment(ctx, input)
-    },
+    name: 'update_comment',
   },
   {
-    name: 'delete_comment',
+    annotations: DESTRUCTIVE,
     description: 'Delete a comment (author, admin, or owner)',
+    async handler(input, ctx) {
+      return deleteComment(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['issueId', 'commentId'], {
       issueId: { type: 'string' },
       commentId: { type: 'string' },
     }),
-    annotations: DESTRUCTIVE,
-    async handler(input, ctx) {
-      return deleteComment(ctx, input)
-    },
+    name: 'delete_comment',
   },
 ]

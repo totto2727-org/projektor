@@ -3,17 +3,16 @@ import { z } from 'zod'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture, seedToken, toolError } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 const ownershipFixture = async function ownershipFixture(role: 'owner' | 'admin') {
   const testFixture = await seedIssueFixture({ role })
   const foreignToken = await seedToken(testFixture.workspaceId, testFixture.userId)
   const send = (path: string, body: unknown, token = testFixture.token, method = 'POST'): Promise<Response> =>
-    fetchNativeApi(`http://localhost${path}`, {
-      method,
-      headers: authHeaders(token, testFixture.slug),
-      body: JSON.stringify(body),
-    })
+    fetchNativeApi(
+      `http://localhost${path}`,
+      requestOptionsWithBody(method, authHeaders(token, testFixture.slug), JSON.stringify(body)),
+    )
   const registered = await send('/api/agents', { name: 'holder', issueId: testFixture.issueId })
   expect(registered.status).toBe(201)
   const session = z.object({ id: z.string() }).parse(await registered.json())

@@ -3,18 +3,17 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { readNativeJson } from './response-json.ts'
 
 const mintSource = async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<void> {
-  await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
-    method: 'POST',
-    headers: authHeaders(f.token, f.slug),
-    body: JSON.stringify(body),
-  })
+  await fetchNativeApi(
+    `http://localhost/api/projects/${f.projectId}/feedback-sources`,
+    requestOptionsWithBody('POST', authHeaders(f.token, f.slug), JSON.stringify(body)),
+  )
 }
 
 const seedFeedbackRow = async function seedFeedbackRow(
@@ -71,11 +70,11 @@ describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-mark-reviewed`,
-      {
-        method: 'POST',
-        headers: authHeaders(testFixture.token, testFixture.slug),
-        body: JSON.stringify({ feedbackIds: [id1, id2] }),
-      },
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ feedbackIds: [id1, id2] }),
+      ),
     )
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toStrictEqual({ updated: 2 })
@@ -95,11 +94,11 @@ describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-mark-reviewed`,
-      {
-        method: 'POST',
-        headers: authHeaders(testFixture.token, testFixture.slug),
-        body: JSON.stringify({ feedbackIds: [foreignId] }),
-      },
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ feedbackIds: [foreignId] }),
+      ),
     )
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toStrictEqual({ updated: 0 })
@@ -114,11 +113,11 @@ describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
     const testFixture = await seedProjectFixture({ role: 'viewer' })
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-mark-reviewed`,
-      {
-        method: 'POST',
-        headers: authHeaders(testFixture.token, testFixture.slug),
-        body: JSON.stringify({ feedbackIds: ['nonexistent'] }),
-      },
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ feedbackIds: ['nonexistent'] }),
+      ),
     )
     expect(res.status).toBe(403)
   })
@@ -142,11 +141,11 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
-      {
-        method: 'POST',
-        headers: authHeaders(testFixture.token, testFixture.slug),
-        body: JSON.stringify({ feedbackIds: [id1, id2] }),
-      },
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ feedbackIds: [id1, id2] }),
+      ),
     )
     expect(res.status).toBe(201)
     const created = await readNativeJson(res, Schema.Struct({ convertedCount: Schema.Number, id: Schema.String }))
@@ -186,11 +185,11 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
-      {
-        method: 'POST',
-        headers: authHeaders(testFixture.token, testFixture.slug),
-        body: JSON.stringify({ feedbackIds: [freshId, convertedId] }),
-      },
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ feedbackIds: [freshId, convertedId] }),
+      ),
     )
     expect(res.status).toBe(409)
 
@@ -214,11 +213,11 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
-      {
-        method: 'POST',
-        headers: authHeaders(testFixture.token, testFixture.slug),
-        body: JSON.stringify({ feedbackIds: [id1, 'nonexistent-id'] }),
-      },
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ feedbackIds: [id1, 'nonexistent-id'] }),
+      ),
     )
     expect(res.status).toBe(404)
   })
@@ -227,11 +226,11 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
     const testFixture = await seedProjectFixture({ role: 'viewer' })
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
-      {
-        method: 'POST',
-        headers: authHeaders(testFixture.token, testFixture.slug),
-        body: JSON.stringify({ feedbackIds: ['nonexistent'] }),
-      },
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ feedbackIds: ['nonexistent'] }),
+      ),
     )
     expect(res.status).toBe(403)
   })

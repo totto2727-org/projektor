@@ -23,7 +23,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProject, seedToken, seedUser, seedWorkspace } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /**
  * Seed a workspace + owner + a project in it, for scope-enforcement tests.
@@ -117,11 +117,10 @@ describe('covers PROJ-17: REST scope enforcement', () => {
     const getRes = await fetchNativeApi('http://localhost/api/issues', { headers })
     expect(getRes.status).toBe(200)
 
-    const postRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ projectId, title: 'should be blocked' }),
-    })
+    const postRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ projectId, title: 'should be blocked' })),
+    )
     expect(postRes.status).toBe(403)
     await expect(postRes.json()).resolves.toMatchObject({ error: expect.stringContaining('write') })
   })
@@ -144,11 +143,10 @@ describe('covers PROJ-17: REST scope enforcement', () => {
 
     const response = await fetchNativeApi('http://localhost/api/issues', { headers })
     expect(response.status).toBe(200)
-    const postRes = await fetchNativeApi('http://localhost/api/issues', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ projectId, title: 'written by wildcard token' }),
-    })
+    const postRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ projectId, title: 'written by wildcard token' })),
+    )
     expect(postRes.status).toBe(201)
   })
 
@@ -173,16 +171,19 @@ const mcpCall = async function mcpCall(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
-  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { arguments: args, name },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 

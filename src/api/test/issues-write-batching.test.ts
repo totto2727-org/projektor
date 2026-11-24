@@ -29,7 +29,7 @@ import {
   seedTaskStatus,
   seedTaskType,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 const trackD1RoundTrips = function trackD1RoundTrips() {
   let count = 0
@@ -258,14 +258,16 @@ describe('covers PROJ-870 review: completion report comment limit', () => {
       title: 'Long report',
     })
 
-    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(testFixture.token, testFixture.slug),
-      body: JSON.stringify({
+    const requestUrl = `http://localhost/api/issues/${issue.id}`
+    const requestOptions = requestOptionsWithBody(
+      'PATCH',
+      authHeaders(testFixture.token, testFixture.slug),
+      JSON.stringify({
         status: 'in_review',
         completionReport: { summary: 's'.repeat(6000), verification: 'v'.repeat(4000) },
       }),
-    })
+    )
+    const res = await fetchNativeApi(requestUrl, requestOptions)
     expect(res.status).toBe(400)
     expect(JSON.stringify(await res.json())).toMatch(/Completion report is too long/u)
 

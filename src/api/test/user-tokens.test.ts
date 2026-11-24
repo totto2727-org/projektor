@@ -11,7 +11,7 @@ import {
   seedUserToken,
   seedWorkspace,
 } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 /**
  * PROJ-91 — User-scoped API tokens
  *
@@ -222,11 +222,14 @@ describe('covers PROJ-91: POST /auth/tokens — user-scoped minting', () => {
 describe('covers PROJ-903: only a human session can mint or revoke a PAT', () => {
   test('a workspace-confined pk_ token cannot mint a PAT (no confinement escape)', async () => {
     const fixture = await seedFixture()
-    const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'escape', scopes: ['*'] }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/auth/tokens',
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({ name: 'escape', scopes: ['*'] }),
+      ),
+    )
     expect(res.status).toBe(403)
     expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/u)
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind('escape').first()
@@ -236,11 +239,14 @@ describe('covers PROJ-903: only a human session can mint or revoke a PAT', () =>
   test('a user-scoped PAT cannot mint another PAT either', async () => {
     const fixture = await seedFixture()
     const pat = await seedUserToken(fixture.user.id)
-    const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'chain', scopes: ['*'] }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/auth/tokens',
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json' },
+        JSON.stringify({ name: 'chain', scopes: ['*'] }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 

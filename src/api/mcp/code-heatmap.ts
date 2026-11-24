@@ -6,7 +6,7 @@ import type { MCPTool } from './types.ts'
 
 export const codeHeatmapTools: MCPTool[] = [
   {
-    name: 'get_code_heatmap',
+    annotations: READ,
     description:
       'Where work lands in the codebase, from file-claim history — no git ' +
       'integration needed. Aggregates claims one path segment below `prefix` (omit for the ' +
@@ -17,6 +17,9 @@ export const codeHeatmapTools: MCPTool[] = [
       'file path, not a directory. Defaults to the current ISO week plus the preceding 5 weeks, ' +
       'matching get_flow_metrics. `mode` switches sizing between claim volume and claim ' +
       'contention (claim_conflicts).',
+    handler(input, ctx) {
+      return getCodeHeatmap(ctx, input)
+    },
     inputSchema: requiredObjectInputSchema(['projectId'], {
       projectId: { type: 'string', description: 'Project UUID' },
       since: {
@@ -40,9 +43,6 @@ export const codeHeatmapTools: MCPTool[] = [
           'queued up.',
       },
     }),
-    annotations: READ,
-    handler(input, ctx) {
-      return getCodeHeatmap(ctx, input)
-    },
+    name: 'get_code_heatmap',
   },
 ]
