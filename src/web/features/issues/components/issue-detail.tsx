@@ -1,6 +1,7 @@
 'use client'
 import { Array } from 'effect'
 import { useState } from 'react'
+import type { JSX } from 'react'
 
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
 import { updateIssue } from '@/features/issues/actions.ts'
@@ -85,7 +86,13 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
   }
 }
 
-const IssueBreadcrumb = function IssueBreadcrumb({ issue, backHref }: { issue: IssueData; backHref: string | null }) {
+const IssueBreadcrumb = function IssueBreadcrumb({
+  issue,
+  backHref,
+}: {
+  issue: IssueData
+  backHref: string | null
+}): JSX.Element {
   return (
     <nav className='text-sm text-text-muted mb-5'>
       {issue.type_key === 'epic' ? (
@@ -133,7 +140,7 @@ const IssueDetailView = function IssueDetailView(
     changeAssignee: (assigneeId: string) => void
     changeType: (typeId: string) => void
   }>,
-) {
+): JSX.Element {
   const { issue, issueId, workspaceSlug } = props
   return (
     <article className='max-w-[900px] mx-auto'>
@@ -244,7 +251,7 @@ export default function IssueDetail({
 }: {
   workspaceSlug: string
   initialData: IssueDetailInitialData
-}) {
+}): JSX.Element {
   const issue = initialData.issue
   const comments = [...initialData.comments]
   const links = [...initialData.links]

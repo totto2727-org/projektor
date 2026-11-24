@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
+import type { JSX } from 'react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../lazy-markdown-editor.tsx', () => ({ default: () => <textarea aria-label='Description' /> }))
 
 import CreateIssueModal from './create-issue-modal.tsx'
 
-function CreateHarness() {
+function CreateHarness(): JSX.Element {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')

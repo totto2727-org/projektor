@@ -1,7 +1,7 @@
 'use client'
 import { Predicate } from 'effect'
 import { useId, useMemo } from 'react'
-import type { ComponentProps, ReactNode } from 'react'
+import type { JSX, ComponentProps, ReactNode } from 'react'
 import {
   Area,
   AreaChart,
@@ -41,7 +41,7 @@ export const formatFullDate = function formatFullDate(iso: string): string {
     ? iso
     : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
-export const EmptyChartState = function EmptyChartState({ message }: { message: string }) {
+export const EmptyChartState = function EmptyChartState({ message }: { message: string }): JSX.Element {
   return <div className='flex items-center justify-center h-[220px] text-sm text-text-muted'>{message}</div>
 }
 const accent = 'var(--accent)'
@@ -62,7 +62,7 @@ const FlowChart = function FlowChart({
   name: string
   config: ChartConfig
   children: ReactNode
-}) {
+}): JSX.Element {
   const id = useId()
   return (
     <ChartContainer
@@ -75,12 +75,12 @@ const FlowChart = function FlowChart({
     </ChartContainer>
   )
 }
-const DateAxis = function DateAxis() {
+const DateAxis = function DateAxis(): JSX.Element {
   return (
     <XAxis dataKey='bucketStart' tickFormatter={formatShortDate} tickLine={false} axisLine={false} minTickGap={24} />
   )
 }
-const CountAxis = function CountAxis() {
+const CountAxis = function CountAxis(): JSX.Element {
   return <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={42} />
 }
 const valueFormatter = function valueFormatter(
@@ -104,7 +104,7 @@ const DateTooltip = function DateTooltip({
 }: {
   config?: ChartConfig
   formatValue?: (value: number) => string
-}) {
+}): JSX.Element {
   return (
     <ChartTooltip
       content={
@@ -121,7 +121,7 @@ export const ThroughputChart = function ThroughputChart({
   data,
 }: {
   data: Readonly<FlowMetrics['throughputOverTime'][number][]>
-}) {
+}): JSX.Element {
   if (!data.length || data.every((point) => point.count === 0)) {
     return <EmptyChartState message='No completed issues yet' />
   }
@@ -149,7 +149,7 @@ const cfdConfig = {
   inReview: { label: 'In review', color: sequential.inReview },
   done: { label: 'Done', color: sequential.done },
 } satisfies ChartConfig
-export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][number][]> }) {
+export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][number][]> }): JSX.Element {
   if (!data.length || data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === 0)) {
     return <EmptyChartState message='No issues in this window yet' />
   }
@@ -196,7 +196,7 @@ export function BugShareChart({
 }: {
   data: FlowMetrics['bugShareOverTime']
   bugTypeTracked: boolean
-}) {
+}): JSX.Element {
   if (!bugTypeTracked) {
     return <EmptyChartState message={'Not tracked: no task type keyed "bug" exists in this workspace'} />
   }
@@ -224,7 +224,7 @@ export function BugShareChart({
   )
 }
 const reviewConfig = { p50: { label: 'Review latency (p50)', color: accent } } satisfies ChartConfig
-export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyOverTime'] }) {
+export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyOverTime'] }): JSX.Element {
   if (!data.length || data.every((point) => Predicate.isNullish(point.p50))) {
     return <EmptyChartState message='No review-latency data yet' />
   }
@@ -250,7 +250,7 @@ export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyO
 }
 const wipConfig = { count: { label: 'WIP', color: accent } } satisfies ChartConfig
 const timestampDate = (value: number): string => new Date(value).toISOString().slice(0, 10)
-export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }) {
+export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.Element {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])
   if (!data.length || data.every((point) => point.count === 0)) {
     return <EmptyChartState message='No WIP data yet' />
@@ -298,7 +298,7 @@ const arrivalConfig = {
   completed: { label: 'Completed', color: accent },
   net: { label: 'Net (created − completed)', color: muted },
 } satisfies ChartConfig
-export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalVsCompletionOverTime'] }) {
+export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalVsCompletionOverTime'] }): JSX.Element {
   if (!data.length || data.every((point) => point.created === 0 && point.completed === 0)) {
     return <EmptyChartState message='No arrivals or completions yet' />
   }
@@ -359,7 +359,7 @@ export function AgingWipScatter({
   data: FlowMetrics['agingWip']
   p50: number | null
   p90: number | null
-}) {
+}): JSX.Element {
   const points = useMemo(
     () =>
       data

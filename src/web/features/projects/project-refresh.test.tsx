@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { JSX } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
@@ -60,7 +61,7 @@ const emptyIssues: Readonly<RecentIssue[]> = []
 const emptyWiki: Readonly<RecentWikiPage[]> = []
 const emptyFlow: FlowMetrics = { throughputOverTime: [], cfdOverTime: [] }
 
-function withRuntime(node: React.ReactNode) {
+function withRuntime(node: React.ReactNode): JSX.Element {
   return (
     <RuntimeProvider scope={null} url='https://frontend.test/projects/view?projectId=project-1'>
       {node}

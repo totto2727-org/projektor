@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
-import type { FormEventHandler, ReactNode } from 'react'
+import type { JSX, FormEventHandler, ReactNode } from 'react'
 
 import { uploadAttachment } from '@/attachment-actions.ts'
 
@@ -22,7 +22,7 @@ export const AttachmentUpload = function AttachmentUpload({
   className,
   children,
   onSubmit,
-}: AttachmentUploadProps) {
+}: AttachmentUploadProps): JSX.Element {
   const [result, formAction, pending] = useActionState(uploadAttachment, null)
   return (
     <form action={formAction} className={className} onSubmit={onSubmit}>

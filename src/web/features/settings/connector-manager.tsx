@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { JSX } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
@@ -30,7 +31,7 @@ interface RevokeState {
   cancel: () => void
   confirm: (id: string) => void
 }
-function RevokeControl({ id, state }: { id: string; state: RevokeState }) {
+function RevokeControl({ id, state }: { id: string; state: RevokeState }): JSX.Element {
   if (state.id === id) {
     return (
       <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
@@ -67,7 +68,7 @@ export function ConnectorManager({
 }: {
   workspaceSlug: string
   initialGrants: ConnectorGrant[]
-}) {
+}): JSX.Element {
   const [revokeId, setRevokeId] = useState<string | null>(null)
   const [revoking, setRevoking] = useState(false)
   const [error, setError] = useState<string | null>(null)

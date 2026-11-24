@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties, ReactNode } from 'react'
+import type { JSX, CSSProperties, ReactNode } from 'react'
 
 import { Badge as PrimitiveBadge } from '@/components/generated/badge.tsx'
 
@@ -11,7 +11,7 @@ export interface BadgeProps {
   children: ReactNode
 }
 /** Priority and status colour remain caller-supplied through style. */
-export const Badge = function Badge({ class: legacyClass, className, style, children }: BadgeProps) {
+export const Badge = function Badge({ class: legacyClass, className, style, children }: BadgeProps): JSX.Element {
   return (
     <PrimitiveBadge
       variant='outline'

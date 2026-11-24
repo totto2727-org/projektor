@@ -3,7 +3,7 @@
 import { useForm, useStore } from '@tanstack/react-form'
 import { String, Array, Predicate, Schema } from 'effect'
 import { useOptimistic, useState, useTransition } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { JSX, Dispatch, SetStateAction } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
@@ -90,7 +90,7 @@ const FeedbackContext = function FeedbackContext({
   row: Feedback
   expanded: boolean
   onToggle: () => void
-}) {
+}): undefined | JSX.Element {
   const context = parseContext(row.sourceUrl)
   if (!context) {
     return undefined
@@ -124,7 +124,7 @@ const FeedbackRowActions = function FeedbackRowActions({
   row: Feedback
   onMarkReviewed: (id: string) => void
   onConvert: (id: string) => void
-}) {
+}): JSX.Element {
   return (
     <div className='flex gap-2 flex-wrap'>
       {row.status === 'new' && (
@@ -161,7 +161,7 @@ const FeedbackMobileCards = function FeedbackMobileCards({
   onToggleExpanded,
   onMarkReviewed,
   onConvert,
-}: FeedbackMobileCardsProps) {
+}: FeedbackMobileCardsProps): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
       {rows.map((row) => (
@@ -214,7 +214,7 @@ const FeedbackTable = function FeedbackTable({
   onToggleExpanded,
   onMarkReviewed,
   onConvert,
-}: FeedbackTableProps) {
+}: FeedbackTableProps): JSX.Element {
   return (
     <div className='overflow-x-auto max-sm:hidden'>
       <table className='w-full border-collapse text-[0.9rem]'>
@@ -369,7 +369,13 @@ const useSelectedFeedback = function useSelectedFeedback() {
   return [selected, toggle, setSelected] as const
 }
 
-export default function FeedbackList({ workspaceSlug, projectId, sourceId, initialRows, initialStatus = '' }: Props) {
+export default function FeedbackList({
+  workspaceSlug,
+  projectId,
+  sourceId,
+  initialRows,
+  initialStatus = '',
+}: Props): JSX.Element {
   const status = initialStatus
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()

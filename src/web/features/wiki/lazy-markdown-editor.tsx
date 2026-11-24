@@ -1,6 +1,6 @@
 'use client'
 
-import type { ComponentType } from 'react'
+import type { JSX, ComponentType } from 'react'
 import { useEffect, useState } from 'react'
 
 import type { Props } from './markdown-editor.tsx'
@@ -17,7 +17,7 @@ const EditorFallback = function EditorFallback({
   minHeight,
   ariaLabel = 'Markdown editor',
   onFocus,
-}: Props & { onFocus: () => void }) {
+}: Props & { onFocus: () => void }): JSX.Element {
   return (
     <div className='flex flex-col border border-border rounded overflow-hidden bg-bg normal-case font-normal'>
       <div
@@ -43,7 +43,7 @@ const EditorFallback = function EditorFallback({
   )
 }
 
-export default function LazyMarkdownEditor(props: Props) {
+export default function LazyMarkdownEditor(props: Props): JSX.Element {
   const [Editor, setEditor] = useState<ComponentType<Props> | null>(null)
   const [fallbackInteracted, setFallbackInteracted] = useState(false)
 

@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
+import type { JSX, AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 
 import { Button as PrimitiveButton, buttonVariants } from '@/components/generated/button.tsx'
 
@@ -28,7 +28,7 @@ export const Button = function Button({
   style,
   children,
   ...rest
-}: ButtonProps) {
+}: ButtonProps): JSX.Element {
   const classes = [
     as !== 'button' &&
       buttonVariants({

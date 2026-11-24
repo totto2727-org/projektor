@@ -1,6 +1,7 @@
 'use client'
 
 import { Array } from 'effect'
+import type { JSX } from 'react'
 
 import { SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapEntry, CodeHeatmapResponse, HeatmapMode } from './types.ts'
@@ -31,7 +32,7 @@ const HeatmapRow = function HeatmapRow({
   mode: HeatmapMode
   ratio: number
   href: string
-}) {
+}): JSX.Element {
   const count = mode === 'contention' ? (entry.distinctRejectedIssueCount ?? 0) : (entry.distinctIssueCount ?? 0)
   const content = (
     <>
@@ -77,7 +78,7 @@ export const CodeHeatmap = function CodeHeatmap({
   mode: HeatmapMode
   initialUrl: string
   error?: string | null
-}) {
+}): JSX.Element {
   const countField = mode === 'contention' ? 'distinctRejectedIssueCount' : 'distinctIssueCount'
   const maxCount = data ? Math.max(1, ...data.entries.map((entry) => entry[countField] ?? 0)) : 1
   const segments = data?.prefix ? data.prefix.split('/') : []

@@ -1,11 +1,17 @@
 'use client'
 
+import type { JSX } from 'react'
+
 import { CfdChart, ThroughputChart } from '@/features/planning/flow-charts.tsx'
 
 import type { FlowMetrics } from './schemas.ts'
 
 /** Overview and Metrics share the same chart geometry and raw-count semantics. */
-export const ProjectFlowCharts = function ProjectFlowCharts({ flow }: { flow: FlowMetrics | null }) {
+export const ProjectFlowCharts = function ProjectFlowCharts({
+  flow,
+}: {
+  flow: FlowMetrics | null
+}): null | JSX.Element {
   if (!flow) {
     return null
   }

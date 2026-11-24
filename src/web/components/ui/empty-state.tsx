@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import {
   Empty,
@@ -24,7 +24,7 @@ export const EmptyState = function EmptyState({
   icon,
   class: legacyClass,
   className,
-}: EmptyStateProps) {
+}: EmptyStateProps): JSX.Element {
   return (
     <Empty className={['py-12', legacyClass, className].filter(Boolean).join(' ')}>
       <EmptyHeader>

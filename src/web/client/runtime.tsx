@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import { ViewErrorBoundary } from '@/components/view-error-boundary.tsx'
 import type { RequestScope } from '@/server/request-context.ts'
@@ -17,7 +17,7 @@ export interface RuntimeContext {
 const Runtime = createContext<RuntimeContext | null>(null)
 
 /** Display-only request context. Effront owns navigation, refresh and history. */
-export function RuntimeProvider({ children, scope, url }: RuntimeContext & { children: ReactNode }) {
+export function RuntimeProvider({ children, scope, url }: RuntimeContext & { children: ReactNode }): JSX.Element {
   return (
     <Runtime.Provider value={{ scope, url }}>
       <ViewErrorBoundary key={url}>{children}</ViewErrorBoundary>

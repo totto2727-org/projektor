@@ -1,4 +1,6 @@
 'use client'
+import type { JSX } from 'react'
+
 import IssueList from '@/features/issues/components/issue-list.tsx'
 import type { SprintDetail } from '@/features/issues/components/issue-list/sprint-banner-section.tsx'
 import type { Issue, IssuePage, Status, TaskType } from '@/features/issues/types.ts'
@@ -33,7 +35,7 @@ export const IssuesPage = function IssuesPage({
   route: IssuesRoute
   workspaceSlug: string
   initialData: IssuesInitialData | null
-}) {
+}): JSX.Element {
   if (!initialData) {
     return <SelectionRequired scope={scope} label='Issues' />
   }

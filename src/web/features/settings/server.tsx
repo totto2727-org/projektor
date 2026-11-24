@@ -1,4 +1,5 @@
 import { Effect, Schema } from 'effect'
+import type { JSX } from 'react'
 
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { browserRequest, coreResult } from '@/core.ts'
@@ -39,7 +40,7 @@ const TokenSettings = function TokenSettings({
   mcpCommandTemplate: string | null
   tokensDenied: boolean
   connectorsDenied: boolean
-}) {
+}): JSX.Element {
   return (
     <div>
       <header className='mb-6'>

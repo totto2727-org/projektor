@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import { Dialog as PrimitiveDialog, DialogContent, DialogTitle } from '@/components/generated/dialog.tsx'
 
@@ -23,7 +23,7 @@ export const Dialog = function Dialog({
   class: legacyClass,
   className,
   children,
-}: DialogProps) {
+}: DialogProps): JSX.Element {
   return (
     <PrimitiveDialog
       open={open}

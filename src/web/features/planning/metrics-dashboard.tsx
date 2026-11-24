@@ -3,7 +3,7 @@
 import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
 import { useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
 import { Select } from '@/components/ui/select.tsx'
@@ -26,7 +26,7 @@ import type { MetricId } from './metric-definitions.ts'
 import { MetricHelp, SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapResponse, Distribution, FlowMetrics, HeatmapMode, RangeState } from './types.ts'
 
-const StatTile = function StatTile({ label, value }: { label: string; value: string }) {
+const StatTile = function StatTile({ label, value }: { label: string; value: string }): JSX.Element {
   return (
     <div className='px-4 py-3 bg-surface border border-border rounded-lg min-w-0'>
       <p className='m-0 mb-1 text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>{label}</p>
@@ -48,7 +48,7 @@ const DistributionTiles = function DistributionTiles({
   dist: Distribution
   format?: (value: number | null) => string
   showHeading?: boolean
-}) {
+}): JSX.Element {
   return (
     <div className='mb-8'>
       {showHeading && (
@@ -67,7 +67,7 @@ const DistributionTiles = function DistributionTiles({
     </div>
   )
 }
-const HealthTile = function HealthTile({ metricId, value }: { metricId: MetricId; value: number }) {
+const HealthTile = function HealthTile({ metricId, value }: { metricId: MetricId; value: number }): JSX.Element {
   const flagged = value > 0
   return (
     <div
@@ -87,7 +87,7 @@ const HealthTile = function HealthTile({ metricId, value }: { metricId: MetricId
     </div>
   )
 }
-const SectionBand = function SectionBand({ title, children }: { title?: string; children: ReactNode }) {
+const SectionBand = function SectionBand({ title, children }: { title?: string; children: ReactNode }): JSX.Element {
   return (
     <section className='mb-10'>
       {title && <h2 className='m-0 mb-4 pb-2 text-lg font-bold text-text-base border-b border-border'>{title}</h2>}
@@ -103,7 +103,7 @@ const ChartSection = function ChartSection({
   id: MetricId
   caption?: string
   children: ReactNode
-}) {
+}): JSX.Element {
   return (
     <div className='mb-8'>
       <SectionHeading metricId={id} caption={caption} />
@@ -111,7 +111,7 @@ const ChartSection = function ChartSection({
     </div>
   )
 }
-const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }) {
+const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }): JSX.Element {
   return (
     <SectionBand title='Flow'>
       <DistributionTiles metricId='lead-time' dist={metrics.leadTime} />
@@ -157,7 +157,7 @@ const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }) {
     </SectionBand>
   )
 }
-const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetrics }) {
+const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetrics }): JSX.Element {
   return (
     <SectionBand title='Efficiency & collaboration'>
       <DistributionTiles
@@ -183,7 +183,11 @@ const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetri
     </SectionBand>
   )
 }
-const FactoryHealthBand = function FactoryHealthBand({ health }: { health: FlowMetrics['factoryHealth'] }) {
+const FactoryHealthBand = function FactoryHealthBand({
+  health,
+}: {
+  health: FlowMetrics['factoryHealth']
+}): JSX.Element {
   return (
     <SectionBand title='Factory health'>
       <div className='mb-8'>
@@ -220,7 +224,7 @@ export const MetricsDashboard = function MetricsDashboard({
   initialHeatmap?: CodeHeatmapResponse | null
   heatmapMode?: HeatmapMode
   heatmapError?: string | null
-}) {
+}): JSX.Element {
   const [defaults] = useState(() => ({
     workspaceSlug,
     projectId,

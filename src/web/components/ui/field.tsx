@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import { Field as PrimitiveField, FieldLabel, FieldDescription, FieldError } from '@/components/generated/field.tsx'
 
@@ -24,7 +24,7 @@ export const Field = function Field({
   class: legacyClass,
   className,
   children,
-}: FieldProps) {
+}: FieldProps): JSX.Element {
   return (
     <PrimitiveField
       data-invalid={!!error || undefined}

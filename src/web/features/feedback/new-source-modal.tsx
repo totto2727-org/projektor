@@ -3,6 +3,7 @@
 import { useForm, useStore } from '@tanstack/react-form'
 import { String, Predicate, Schema } from 'effect'
 import { useActionState, useEffect } from 'react'
+import type { JSX } from 'react'
 
 import { FormErrors } from '@/components/form-errors.tsx'
 import { Button } from '@/components/ui/button.tsx'
@@ -49,7 +50,7 @@ const NewSourceForm = function NewSourceForm({
   projectId: string
   workspaceSlug?: string
   onCancel: () => void
-}) {
+}): JSX.Element {
   return (
     <form action={action}>
       <input type='hidden' name='projectId' value={projectId} />
@@ -118,7 +119,7 @@ const NewSourceForm = function NewSourceForm({
   )
 }
 
-export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCreated }: Props) {
+export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCreated }: Props): JSX.Element {
   const [result, action, creating] = useActionState(createFeedbackSource, null)
   const newToken = result?.ok === true ? result.value.token : null
   const error = result && !result.ok ? result.message : null

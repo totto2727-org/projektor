@@ -2,6 +2,7 @@
 
 import { Array } from 'effect'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { JSX } from 'react'
 
 import type { RequestScope } from '@/server/request-context.ts'
 import { scopedHref } from '@/urls.ts'
@@ -56,7 +57,7 @@ const visibleCount = function visibleCount(width: number, tabs: Readonly<number[
 }
 
 /** Project-family header navigation. Server scope is authoritative, and no client project lookup occurs. */
-export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps) {
+export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): JSX.Element {
   const [width, setWidth] = useState(0)
   const [tabWidths, setTabWidths] = useState<number[] | null>(null)
   const [moreOpen, setMoreOpen] = useState(false)

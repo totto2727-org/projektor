@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import type { JSX } from 'react'
 
 import { renderMarkdownDocument } from './render.ts'
 import type { MarkdownOptions, RenderedMarkdown } from './render.ts'
@@ -65,7 +66,7 @@ export const MarkdownPreview = function MarkdownPreview({
   readonly initial?: RenderedMarkdown
   readonly className?: string
   readonly options?: MarkdownOptions
-}) {
+}): JSX.Element {
   const { html } = useMarkdownPreview(content, options, initial)
   return (
     <div

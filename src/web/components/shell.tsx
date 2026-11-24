@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import pkg from '#package-metadata'
 import type { BrandConfig } from '@/brand.ts'
@@ -103,7 +103,7 @@ const savePrefs = function savePrefs(prefs: Prefs): void {
     /* Cosmetic preference storage is optional. */
   }
 }
-const Icon = function Icon({ children }: { children: ReactNode }) {
+const Icon = function Icon({ children }: { children: ReactNode }): JSX.Element {
   return (
     <svg
       width='16'
@@ -124,7 +124,7 @@ const initials = function initials(name: string, email: string): string {
   const words = (name.trim() || email).split(/\s+/u).filter(Boolean)
   return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : (words[0] ?? '?').slice(0, 2).toUpperCase()
 }
-const ThemeIcon = function ThemeIcon({ theme }: { theme: Theme }) {
+const ThemeIcon = function ThemeIcon({ theme }: { theme: Theme }): JSX.Element {
   return (
     <Icon>
       {theme === 'light' ? (
@@ -144,7 +144,7 @@ const ThemeIcon = function ThemeIcon({ theme }: { theme: Theme }) {
   )
 }
 
-const GlossaryHelp = function GlossaryHelp({ term }: { term: keyof typeof glossary }) {
+const GlossaryHelp = function GlossaryHelp({ term }: { term: keyof typeof glossary }): JSX.Element {
   const info = glossary[term]
   return (
     <Popover>
@@ -158,7 +158,7 @@ const GlossaryHelp = function GlossaryHelp({ term }: { term: keyof typeof glossa
     </Popover>
   )
 }
-const OfflineBanner = function OfflineBanner() {
+const OfflineBanner = function OfflineBanner(): null | JSX.Element {
   const [online, setOnline] = useState(true)
   useEffect(() => {
     const update = (): void => {
@@ -179,7 +179,13 @@ const OfflineBanner = function OfflineBanner() {
   )
 }
 
-const Preferences = function Preferences({ prefs, update }: { prefs: Prefs; update: (patch: Partial<Prefs>) => void }) {
+const Preferences = function Preferences({
+  prefs,
+  update,
+}: {
+  prefs: Prefs
+  update: (patch: Partial<Prefs>) => void
+}): JSX.Element {
   const { open, setOpen } = useSidebar()
   return (
     <>
@@ -219,7 +225,7 @@ const AccountMenu = function AccountMenu({
   returnTo: string
   prefs: Prefs
   update: (patch: Partial<Prefs>) => void
-}) {
+}): JSX.Element {
   const refreshId = useId()
   const logoutId = useId()
   const user = scope?.user
@@ -351,7 +357,7 @@ function ShellContent({
   brand,
   prefs,
   update,
-}: ShellProps & { prefs: Prefs; update: (patch: Partial<Prefs>) => void }) {
+}: ShellProps & { prefs: Prefs; update: (patch: Partial<Prefs>) => void }): JSX.Element {
   const { isMobile, setOpenMobile } = useSidebar()
   const brandName = brand?.name ?? 'Projektor'
   const brandMark = brand?.mark ?? 'P'
@@ -463,7 +469,7 @@ function ShellContent({
 }
 
 /** Request-local scope stays in props. Generated Base UI owns drawer, menu positioning and sidebar controls. */
-export function Shell(props: ShellProps) {
+export function Shell(props: ShellProps): JSX.Element {
   const [prefs, setPrefs] = useState(DEFAULT_PREFS)
   useEffect(() => {
     const next = readPrefs()

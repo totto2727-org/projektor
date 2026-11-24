@@ -1,7 +1,7 @@
 'use client'
 import { Array } from 'effect'
 import { createContext, useContext, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
@@ -13,7 +13,11 @@ const Selection = createContext<{
   selected: ReadonlySet<string>
   toggle: (id: string, checked: boolean) => void
 } | null>(null)
-export function IssueSelectionControl({ issue }: { issue: Pick<Issue, 'id' | 'number' | 'project_key' | 'title'> }) {
+export function IssueSelectionControl({
+  issue,
+}: {
+  issue: Pick<Issue, 'id' | 'number' | 'project_key' | 'title'>
+}): null | JSX.Element {
   const selection = useContext(Selection)
   if (!selection) {
     return null
@@ -40,7 +44,7 @@ export function IssueBulkProvider({
   issues: Readonly<Issue[]>
   statuses: Readonly<TaskStatus[]>
   workspaceSlug: string
-}) {
+}): JSX.Element {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)

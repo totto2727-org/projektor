@@ -1,3 +1,5 @@
+import type { JSX } from 'react'
+
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 
@@ -18,7 +20,7 @@ const STATUS_LABELS = {
 }
 
 /** One native link keeps review context visible in every issue layout, including empty selection. */
-export const ReviewTargetsSummary = function ReviewTargetsSummary({ issue }: { issue: ReviewableIssue }) {
+export const ReviewTargetsSummary = function ReviewTargetsSummary({ issue }: { issue: ReviewableIssue }): JSX.Element {
   const targets = issue.reviewTargets.filter((entry) => entry.status !== 'done')
   const target = targets.find((entry) => entry.status === 'in_review') ?? targets[0]
   const needsReview = target?.status === 'in_review'

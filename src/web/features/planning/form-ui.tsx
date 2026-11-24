@@ -1,5 +1,5 @@
 import { Predicate } from 'effect'
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 const messages = function messages(value: unknown): string[] {
   if (Predicate.isString(value)) {
@@ -23,7 +23,7 @@ export const FormErrors = function FormErrors({
 }: {
   errors: Readonly<unknown[]>
   children?: ReactNode
-}) {
+}): null | JSX.Element {
   const text = [...new Set(errors.flatMap(messages))]
   return text.length ? (
     <div role='alert' className='text-danger-text text-[0.8rem] mb-3'>

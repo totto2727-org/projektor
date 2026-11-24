@@ -1,6 +1,6 @@
 'use client'
 import { Predicate } from 'effect'
-import type { CSSProperties } from 'react'
+import type { JSX, CSSProperties } from 'react'
 
 import {
   Select as PrimitiveSelect,
@@ -42,7 +42,7 @@ export function Select({
   placeholder,
   class: legacyClass,
   className,
-}: SelectProps) {
+}: SelectProps): JSX.Element {
   const label = options.find((option) => option.value === value)?.label ?? (value || placeholder || '')
   return (
     <div className={[legacyClass, className].filter(Boolean).join(' ')}>

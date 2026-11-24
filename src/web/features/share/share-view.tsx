@@ -2,6 +2,7 @@
 
 import { Array } from 'effect'
 import { Fragment } from 'react'
+import type { JSX } from 'react'
 
 import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import { MarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
@@ -48,7 +49,7 @@ const formatDate = function formatDate(unixSeconds: number): string {
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 
-export const ErrorState = function ErrorState({ error }: { error: string }) {
+export const ErrorState = function ErrorState({ error }: { error: string }): JSX.Element {
   const isExpired = error === 'not_found'
   return (
     <div className='p-8 text-center'>
@@ -66,7 +67,7 @@ export const ErrorState = function ErrorState({ error }: { error: string }) {
   )
 }
 
-const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }) {
+const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }): JSX.Element {
   const priorityStyle = PRIORITY_COLORS[issue.priority] ?? PRIORITY_COLORS.none
   return (
     <header className='mb-6'>
@@ -96,7 +97,11 @@ const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }) {
   )
 }
 
-const CustomFieldsSection = function CustomFieldsSection({ fields }: { fields: SharedIssue['customFields'] }) {
+const CustomFieldsSection = function CustomFieldsSection({
+  fields,
+}: {
+  fields: SharedIssue['customFields']
+}): undefined | JSX.Element {
   if (Array.isReadonlyArrayEmpty(fields)) {
     return undefined
   }
@@ -121,7 +126,7 @@ export default function ShareView({
 }: {
   readonly issue: SharedIssue
   readonly renderedBody?: RenderedMarkdown
-}) {
+}): JSX.Element {
   return (
     <div className='p-8'>
       {/* Banner */}

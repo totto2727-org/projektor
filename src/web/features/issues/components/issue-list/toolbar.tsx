@@ -1,6 +1,6 @@
 'use client'
 import { Array } from 'effect'
-import type { Dispatch, RefObject, SetStateAction } from 'react'
+import type { JSX, Dispatch, RefObject, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
 import Select from '@/components/ui/select.tsx'
@@ -45,7 +45,7 @@ const FilterSelects = function FilterSelects({
   setFilterEpicId,
   hideEpics,
   setHideEpics,
-}: FilterSelectsProps) {
+}: FilterSelectsProps): JSX.Element {
   return (
     <>
       {Array.isArrayNonEmpty(uniqueProjects) && (
@@ -132,7 +132,7 @@ const SortControls = function SortControls({
   setSortBy: (v: SortKey) => void
   sortDir: 'asc' | 'desc'
   setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
-}) {
+}): JSX.Element {
   return (
     <span className='ml-auto max-sm:ml-0 max-sm:w-full flex gap-2 items-center flex-wrap'>
       <span className='text-sm text-text-muted'>Sort:</span>
@@ -190,7 +190,7 @@ interface ToolbarProps extends FilterSelectsProps {
   setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
 }
 
-export default function Toolbar(props: ToolbarProps) {
+export default function Toolbar(props: ToolbarProps): JSX.Element {
   const {
     searchQuery,
     setSearchQuery,

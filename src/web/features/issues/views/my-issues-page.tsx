@@ -1,4 +1,6 @@
 'use client'
+import type { JSX } from 'react'
+
 import MyIssues from '@/features/issues/components/my-issues.tsx'
 import type { Issue } from '@/features/issues/types.ts'
 import type { RequestScope, WorkspaceMembership } from '@/server/request-context.ts'
@@ -12,7 +14,7 @@ export const MyIssuesPage = function MyIssuesPage({
 }: {
   scope: RequestScope
   initialData: MyIssuesInitialData
-}) {
+}): JSX.Element {
   return (
     <section>
       <h1 className='text-2xl font-bold mb-6'>My Issues</h1>

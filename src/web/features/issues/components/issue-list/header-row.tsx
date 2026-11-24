@@ -1,5 +1,6 @@
 'use client'
 import { Predicate } from 'effect'
+import type { JSX } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
 import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
@@ -43,7 +44,7 @@ export default function HeaderRow({
   totalIssues,
   projectsCount,
   openCreateModal,
-}: HeaderRowProps) {
+}: HeaderRowProps): JSX.Element {
   const label =
     isSearchActive && Predicate.isNotNullish(searchResults)
       ? searchCountLabel(searchResults, searchQuery)

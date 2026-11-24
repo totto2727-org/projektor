@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import type { JSX } from 'react'
 
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
 import type { ReviewFilter } from '#contracts/review-targets.ts'
@@ -23,7 +24,7 @@ export const IssueReviewNavigation = function IssueReviewNavigation({
   route: IssuesRoute
   workspaceSlug: string
   project: ProjectSummary | null
-}) {
+}): JSX.Element {
   const params = new URLSearchParams(route.search)
   const requestedReview = params.get('review')
   const currentReview = Schema.is(ReviewFilterSchema)(requestedReview) ? requestedReview : null

@@ -1,4 +1,6 @@
 'use client'
+import type { JSX } from 'react'
+
 import type { Issue } from '@/features/issues/components/board-utils.ts'
 
 import { IssueBulkProvider } from './bulk-actions.tsx'
@@ -40,7 +42,7 @@ const IssueListTop = function IssueListTop({
   data,
   saved,
   createModal,
-}: IssueListLayoutProps) {
+}: IssueListLayoutProps): JSX.Element {
   return (
     <>
       {/* Project description banner — shown when filtering by a specific project */}
@@ -131,7 +133,7 @@ const IssueListMain = function IssueListMain({
   data,
   filters,
   createModal,
-}: IssueListLayoutProps) {
+}: IssueListLayoutProps): JSX.Element {
   return (
     <>
       <MainContent
@@ -182,7 +184,7 @@ const IssueListMain = function IssueListMain({
 }
 
 /** Assembles the toolbar, header, main content, and modals from the parent list's hook state. */
-export default function IssueListLayout(props: IssueListLayoutProps) {
+export default function IssueListLayout(props: IssueListLayoutProps): JSX.Element {
   return (
     <div>
       <IssueListTop {...props} />

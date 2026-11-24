@@ -1,6 +1,6 @@
 'use client'
 import { Schema } from 'effect'
-import type { Dispatch, SetStateAction } from 'react'
+import type { JSX, Dispatch, SetStateAction } from 'react'
 import { useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -45,7 +45,7 @@ const sprintStatusStyle = function sprintStatusStyle(status: SprintDetail['statu
   return { background: 'var(--surface)', color: 'var(--text-muted)', borderColor: 'var(--border)' }
 }
 
-const SprintProgress = function SprintProgress({ issues }: { issues: Issue[] }) {
+const SprintProgress = function SprintProgress({ issues }: { issues: Issue[] }): undefined | JSX.Element {
   const doneCount = issues.filter((issue) => issue.status_category === 'done').length
   const totalCount = issues.length
   if (totalCount === 0) {
@@ -113,7 +113,7 @@ function SprintEditFields({
   | 'setSprintEditStart'
   | 'sprintEditEnd'
   | 'setSprintEditEnd'
->) {
+>): JSX.Element {
   return (
     <div className='flex gap-3 flex-wrap items-end'>
       <div className='flex-1 min-w-[160px]'>
@@ -192,7 +192,10 @@ function SprintEditForm({
   sprintEditError,
   saveSprintEdit,
   setSprintEditing,
-}: Omit<SprintBannerProps, 'sprintDetail' | 'openSprintEdit' | 'setFilterSprintId' | 'issues' | 'sprintEditing'>) {
+}: Omit<
+  SprintBannerProps,
+  'sprintDetail' | 'openSprintEdit' | 'setFilterSprintId' | 'issues' | 'sprintEditing'
+>): JSX.Element {
   return (
     <form onSubmit={saveSprintEdit}>
       {sprintEditError && (
@@ -244,7 +247,7 @@ function SprintBannerView({
   openSprintEdit,
   setFilterSprintId,
   issues,
-}: Pick<SprintBannerProps, 'sprintDetail' | 'openSprintEdit' | 'setFilterSprintId' | 'issues'>) {
+}: Pick<SprintBannerProps, 'sprintDetail' | 'openSprintEdit' | 'setFilterSprintId' | 'issues'>): JSX.Element {
   return (
     <>
       <div className='flex items-center gap-2 flex-wrap'>
@@ -288,7 +291,7 @@ function SprintBannerView({
   )
 }
 
-function SprintBanner(props: SprintBannerProps) {
+function SprintBanner(props: SprintBannerProps): JSX.Element {
   return (
     <div className='mb-4 px-[0.875rem] py-[0.625rem] bg-surface border border-border rounded-md'>
       {props.sprintEditing ? <SprintEditForm {...props} /> : <SprintBannerView {...props} />}
@@ -311,7 +314,7 @@ export default function SprintBannerSection({
   setFilterSprintId,
   workspaceSlug,
   issues,
-}: SprintBannerSectionProps) {
+}: SprintBannerSectionProps): null | JSX.Element {
   const [sprintEditing, setSprintEditing] = useState(false)
   const sprintForm = useIssueForm(
     {

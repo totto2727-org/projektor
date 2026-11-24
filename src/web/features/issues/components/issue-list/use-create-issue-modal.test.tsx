@@ -3,6 +3,7 @@ import '@/features/issues/test/browser.ts'
 // Native ActionState keeps typed server failures in the open form without discarding its TanStack draft.
 // Unexpected browser transport failures belong to the root React error boundary.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { JSX } from 'react'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { createIssue } from '@/features/issues/actions.ts'
@@ -12,7 +13,7 @@ import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
 
-const Harness = function Harness() {
+const Harness = function Harness(): JSX.Element {
   const modal = useCreateIssueModal({
     filterProject: '',
     projects: PROJECTS,

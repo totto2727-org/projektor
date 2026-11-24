@@ -3,6 +3,7 @@
 import { useForm } from '@tanstack/react-form'
 import { Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
+import type { JSX } from 'react'
 
 import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds } from '#contracts/time.ts'
 import { unwrapResult } from '@/client/functions.ts'
@@ -53,7 +54,7 @@ const NewTokenPanel = function NewTokenPanel({
   token: NewTokenResult
   template: string | null
   onDone: () => void
-}) {
+}): JSX.Element {
   const command = template?.replace('{{TOKEN}}', token.token) ?? ''
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
   async function copy(value: string): Promise<void> {
@@ -109,7 +110,13 @@ interface RevokeState {
   cancel: () => void
   confirm: (id: string) => void
 }
-const TokenRevokeControl = function TokenRevokeControl({ token, state }: { token: Token; state: RevokeState }) {
+const TokenRevokeControl = function TokenRevokeControl({
+  token,
+  state,
+}: {
+  token: Token
+  state: RevokeState
+}): JSX.Element {
   if (state.id === token.id) {
     return (
       <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
@@ -140,7 +147,7 @@ const TokenRevokeControl = function TokenRevokeControl({ token, state }: { token
     </Button>
   )
 }
-const TokenTable = function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) {
+const TokenTable = function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }): JSX.Element {
   if (!tokens.length) {
     return (
       <EmptyState
@@ -219,7 +226,7 @@ export const TokenManager = function TokenManager({
   initialTokens: Token[]
   mcpUrl: string | null
   mcpCommandTemplate?: string | null
-}) {
+}): JSX.Element {
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [newToken, setNewToken] = useState<NewTokenResult | null>(null)

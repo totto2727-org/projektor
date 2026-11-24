@@ -2,6 +2,7 @@
 
 import { String, Predicate } from 'effect'
 import { useState } from 'react'
+import type { JSX } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
 
@@ -13,7 +14,7 @@ export const ConnectAgentGuide = function ConnectAgentGuide({
 }: {
   workspaceSlug: string
   mcpUrl: string | null
-}) {
+}): JSX.Element {
   const [message, setMessage] = useState<string | null>(null)
   async function copy(): Promise<void> {
     if (Predicate.isNullish(mcpUrl) || String.isEmpty(mcpUrl)) {

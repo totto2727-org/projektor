@@ -1,10 +1,18 @@
+import type { JSX } from 'react'
+
 import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
 
 export const projectHref = function projectHref(project: ProjectSummary, path: 'issues' | 'epics'): string {
   return `/${path}?projectId=${encodeURIComponent(project.id)}&workspace=${encodeURIComponent(project.workspace_slug)}`
 }
 
-export const SelectionRequired = function SelectionRequired({ scope, label }: { scope: RequestScope; label: string }) {
+export const SelectionRequired = function SelectionRequired({
+  scope,
+  label,
+}: {
+  scope: RequestScope
+  label: string
+}): JSX.Element {
   return (
     <section className='page-container'>
       <h1>{label}</h1>

@@ -3,6 +3,7 @@
 import { useForm } from '@tanstack/react-form'
 import { Array, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { useRuntime } from '@/client/runtime.tsx'
@@ -40,7 +41,7 @@ export const ProjectLanding = function ProjectLanding({
   initialFlow: FlowMetrics | null
   workspaceSlug: string
   canEdit: boolean
-}) {
+}): JSX.Element {
   const runtime = useRuntime()
   const project = initialProject
   const [editing, setEditing] = useState(false)

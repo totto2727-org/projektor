@@ -1,6 +1,7 @@
 'use client'
 import { String, Predicate, Array } from 'effect'
 import { useState } from 'react'
+import type { JSX } from 'react'
 
 import {
   assigneeInitials,
@@ -28,7 +29,7 @@ const BoardCard = function BoardCard({
   dragIssueId: string | null
   setDragIssueId: (id: string | null) => void
   changeStatus: (issueId: string, statusId: string) => void
-}) {
+}): JSX.Element {
   const pts = getStoryPoints(issue)
   return (
     <div
@@ -105,7 +106,7 @@ export default function BoardView({
   issues: Issue[]
   statuses: TaskStatus[]
   changeStatus: (issueId: string, statusId: string) => void
-}) {
+}): JSX.Element {
   const [dragIssueId, setDragIssueId] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
 

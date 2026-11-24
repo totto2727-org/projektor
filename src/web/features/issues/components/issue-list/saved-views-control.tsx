@@ -1,5 +1,6 @@
 'use client'
 import { Array } from 'effect'
+import type { JSX } from 'react'
 
 import { Button } from '@/components/generated/button.tsx'
 import {
@@ -18,7 +19,7 @@ type Saved = ReturnType<typeof useSavedViews>
  * Standard menu items keep selection and deletion keyboard-accessible without
  * nesting action buttons inside a Select option or maintaining a custom menu.
  */
-const ViewsMenu = function ViewsMenu({ saved }: { saved: Saved }) {
+const ViewsMenu = function ViewsMenu({ saved }: { saved: Saved }): undefined | JSX.Element {
   const { savedViews, activeViewName, applyView, deleteView } = saved
   if (Array.isArrayEmpty(savedViews)) {
     return undefined
@@ -46,7 +47,7 @@ const ViewsMenu = function ViewsMenu({ saved }: { saved: Saved }) {
   )
 }
 
-const SaveViewControl = function SaveViewControl({ saved }: { saved: Saved }) {
+const SaveViewControl = function SaveViewControl({ saved }: { saved: Saved }): JSX.Element {
   const { showSaveInput, setShowSaveInput, saveViewName, setSaveViewName, doSaveView } = saved
 
   if (!showSaveInput) {
@@ -108,7 +109,7 @@ const SaveViewControl = function SaveViewControl({ saved }: { saved: Saved }) {
 }
 
 /** Views dropdown (apply/delete saved views) + the "Save view" button/input. */
-export default function SavedViewsControl({ saved }: { saved: Saved }) {
+export default function SavedViewsControl({ saved }: { saved: Saved }): JSX.Element {
   return (
     <>
       <ViewsMenu saved={saved} />

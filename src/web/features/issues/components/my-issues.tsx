@@ -1,6 +1,7 @@
 'use client'
 
 import { Array } from 'effect'
+import type { JSX } from 'react'
 
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
 import { statusDisplayName } from '@/features/issues/lib/status.ts'
@@ -45,7 +46,7 @@ function getStoryPoints(issue: Issue): string | null {
   return field?.value ?? null
 }
 
-function spBadge(pts: string) {
+function spBadge(pts: string): JSX.Element {
   return (
     <span
       className='text-[0.68rem] text-text-muted bg-surface border border-border rounded-[3px]
@@ -56,7 +57,7 @@ function spBadge(pts: string) {
   )
 }
 
-function priorityBadge(issue: Issue) {
+function priorityBadge(issue: Issue): JSX.Element {
   return (
     <span
       className='inline-flex items-center px-1.5 py-0.5 rounded text-[0.7rem] font-semibold capitalize whitespace-nowrap'
@@ -70,7 +71,7 @@ function priorityBadge(issue: Issue) {
   )
 }
 
-function statusBadge(issue: Issue) {
+function statusBadge(issue: Issue): JSX.Element {
   return (
     <span className='font-medium text-sm' style={{ color: categoryColor(issue.status_category) }}>
       {statusDisplayName(issue.status_name, issue.status_key)}
@@ -78,7 +79,7 @@ function statusBadge(issue: Issue) {
   )
 }
 
-function IssuesTable({ issues }: { issues: ScopedIssue[] }) {
+function IssuesTable({ issues }: { issues: ScopedIssue[] }): JSX.Element {
   return (
     <section>
       {/* Desktop table */}
@@ -164,7 +165,7 @@ function IssuesTable({ issues }: { issues: ScopedIssue[] }) {
   )
 }
 
-export default function MyIssues({ initialData }: { initialData: MyIssuesInitialData }) {
+export default function MyIssues({ initialData }: { initialData: MyIssuesInitialData }): JSX.Element {
   const visible = initialData.issues
     .filter((issue) => OPEN_CATEGORIES.has(issue.status_category ?? ''))
     .sort(compareIssues)

@@ -1,6 +1,7 @@
 'use client'
 import { String, Predicate } from 'effect'
 import { useRef } from 'react'
+import type { JSX } from 'react'
 
 import Select from '@/components/ui/select.tsx'
 import { navigateFeature } from '@/features/wiki/navigation.ts'
@@ -53,7 +54,7 @@ const FeedbackSourceHeader = function FeedbackSourceHeader({
   sources: Readonly<FeedbackSource[]>
   projectId: string
   workspaceSlug: string
-}) {
+}): JSX.Element {
   return (
     <div className='flex flex-wrap items-center justify-between gap-3 mb-4'>
       <div className='flex items-center gap-2'>
@@ -94,7 +95,7 @@ const FeedbackTabPanels = function FeedbackTabPanels({
   initialRows: Readonly<Feedback[]>
   initialSummary: SourceSummary | null
   initialStatus?: string
-}) {
+}): JSX.Element {
   return (
     <>
       {tab === 'items' && (
@@ -137,7 +138,7 @@ const FeedbackTabBar = function FeedbackTabBar({
   tabRefs: { current: Partial<Record<TabId, HTMLAnchorElement | null>> }
   onTabKeyDown: (selectedEvent: React.KeyboardEvent<HTMLDivElement>) => void
   hrefForTab: (id: TabId) => string
-}) {
+}): JSX.Element {
   return (
     <div role='tablist' aria-label='Feedback source' className={TAB_LIST} onKeyDown={onTabKeyDown}>
       {TABS.map((id) => (
@@ -170,7 +171,7 @@ export default function FeedbackSourceDetail({
   initialSummary,
   initialStatus,
   initialTab = 'items',
-}: FeedbackDetailProps) {
+}: FeedbackDetailProps): JSX.Element {
   const sourceId = initialSource.id
   const sources = initialSources
   const tab = initialTab

@@ -2,7 +2,7 @@
 import { query as serverQuery } from '@effront/core/query'
 import { String, Array, Predicate, Effect, Schema } from 'effect'
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { JSX, ReactNode } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { AttachmentUpload } from '@/components/attachment-upload.tsx'
@@ -51,7 +51,7 @@ import {
 } from './issue-detail-helpers.ts'
 import MarkdownEditor from './lazy-markdown-editor.tsx'
 
-const PencilIcon = () => (
+const PencilIcon = (): JSX.Element => (
   <svg
     width='14'
     height='14'
@@ -68,7 +68,7 @@ const PencilIcon = () => (
   </svg>
 )
 
-const SectionDivider = function SectionDivider({ title }: { title: string }) {
+const SectionDivider = function SectionDivider({ title }: { title: string }): JSX.Element {
   return (
     <div className='flex items-center gap-3 mb-4'>
       <span className='text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted whitespace-nowrap'>
@@ -79,7 +79,7 @@ const SectionDivider = function SectionDivider({ title }: { title: string }) {
   )
 }
 
-const SidebarField = function SidebarField({ label, children }: { label: string; children: ReactNode }) {
+const SidebarField = function SidebarField({ label, children }: { label: string; children: ReactNode }): JSX.Element {
   return (
     <div className='flex items-start gap-2 py-2'>
       <span className='text-[0.7rem] font-medium uppercase tracking-wider text-text-muted w-[4.5rem] shrink-0 pt-[0.2rem]'>
@@ -90,7 +90,7 @@ const SidebarField = function SidebarField({ label, children }: { label: string;
   )
 }
 
-export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: string }) {
+export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: string }): JSX.Element {
   const [copiedRef, setCopiedRef] = useState(false)
 
   function copyLink(): void {
@@ -151,7 +151,7 @@ export const ShareButton = function ShareButton({
 }: {
   issueId: string
   workspaceSlug?: string
-}) {
+}): JSX.Element {
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharingLoading, setSharingLoading] = useState(false)
   const [copiedShare, setCopiedShare] = useState(false)
@@ -216,7 +216,7 @@ export const ShareButton = function ShareButton({
   )
 }
 
-export const ParentBadge = function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }) {
+export const ParentBadge = function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }): null | JSX.Element {
   if (!parentEpic) {
     return null
   }
@@ -251,7 +251,7 @@ export const TitleSection = function TitleSection({
   issue: IssueData
   issueId: string
   workspaceSlug?: string
-}) {
+}): JSX.Element {
   const [editingTitle, setEditingTitle] = useState(false)
   const titleForm = useIssueForm({ title: '' }, Schema.Struct({ title: TitleText }))
   const [editTitle, setEditTitle] = titleForm.field('title')
@@ -467,7 +467,7 @@ const BodyEditForm = function BodyEditForm({
   saveBody: () => void
   cancelEditBody: () => void
   savingBody: boolean
-}) {
+}): JSX.Element {
   return (
     <div>
       <div className='mb-2'>
@@ -495,7 +495,7 @@ export const BodySection = function BodySection({
   issueId: string
   workspaceSlug?: string
   currentUserId: string | null
-}) {
+}): JSX.Element {
   const {
     editingBody,
     editBody,
@@ -573,7 +573,7 @@ export const ChildIssuesSection = function ChildIssuesSection({
 }: {
   issue: IssueData
   childIssues: IssueData[]
-}) {
+}): null | JSX.Element {
   if (issue.type_key !== 'epic') {
     return null
   }
@@ -645,7 +645,7 @@ const LinkItem = function LinkItem({
   link: IssueLink
   onRemove: () => void
   workspaceSlug?: string
-}) {
+}): JSX.Element {
   const ref = formatIssueRef(link.linkedIssueProjectKey, link.linkedIssueNumber)
   return (
     <span
@@ -705,7 +705,7 @@ const LinkForm = function LinkForm({
   addingLink: boolean
   onAdd: () => void
   onCancel: () => void
-}) {
+}): JSX.Element {
   return (
     <div className='flex flex-wrap gap-2 items-start max-sm:flex-col'>
       <Select ariaLabel='Link type' value={linkFormType} onChange={setLinkFormType} options={LINK_TYPE_OPTIONS} />
@@ -752,7 +752,7 @@ export const RelationsSection = function RelationsSection({
   issueId: string
   workspaceSlug?: string
   links: IssueLink[]
-}) {
+}): JSX.Element {
   const [linkFormOpen, setLinkFormOpen] = useState(false)
   const relationForm = useIssueForm(
     { type: 'relates_to', ref: '' },
@@ -870,7 +870,7 @@ export const RelationsSection = function RelationsSection({
   )
 }
 
-const FileIcon = () => (
+const FileIcon = (): JSX.Element => (
   <svg
     width='14'
     height='14'
@@ -888,7 +888,7 @@ const FileIcon = () => (
   </svg>
 )
 
-const WikiIcon = () => (
+const WikiIcon = (): JSX.Element => (
   <svg
     width='14'
     height='14'
@@ -906,7 +906,7 @@ const WikiIcon = () => (
   </svg>
 )
 
-const LinkIcon = () => (
+const LinkIcon = (): JSX.Element => (
   <svg
     width='14'
     height='14'
@@ -982,7 +982,7 @@ const AttachmentRow = function AttachmentRow({
   attachment: Attachment
   workspaceSlug?: string
   onDelete: () => void
-}) {
+}): JSX.Element {
   const qs =
     Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug) ? `?workspace=${workspaceSlug}` : ''
   const { icon, href, label, meta, external } = resolveAttachmentDisplay(attachment, qs)
@@ -1022,7 +1022,7 @@ const AttachmentUploadForm = function AttachmentUploadForm({
   issueId: string
   workspaceSlug?: string
   onCancel: () => void
-}) {
+}): JSX.Element {
   const selectionForm = useIssueForm({ filename: '' }, Schema.Struct({ filename: Text }))
   const [filename, setFilename] = selectionForm.field('filename')
   return (
@@ -1082,7 +1082,7 @@ const WikiPageLinkForm = function WikiPageLinkForm({
   setLinkError: (error: string | null) => void
   onLink: (wikiPageId: string) => void
   onCancel: () => void
-}) {
+}): JSX.Element {
   const wikiSearchForm = useIssueForm({ query: '' }, Schema.Struct({ query: Text }))
   const [query, setQuery] = wikiSearchForm.field('query')
   const [results, setResults] = useState<WikiSearchResult[]>([])
@@ -1199,7 +1199,7 @@ const UrlLinkForm = function UrlLinkForm({
   linking: boolean
   onAdd: () => void
   onCancel: () => void
-}) {
+}): JSX.Element {
   return (
     <div className='flex flex-wrap gap-2 items-start max-sm:flex-col'>
       <input
@@ -1369,7 +1369,7 @@ export const AttachmentsSection = function AttachmentsSection({
   issueId: string
   workspaceSlug?: string
   attachments: Attachment[]
-}) {
+}): JSX.Element {
   const { mode, setMode, links, resetForms, deleteAttachment, deleteError } = useAttachmentForms(issueId, workspaceSlug)
   const [canAddAttachment, setCanAddAttachment] = useState(false)
   useEffect(() => {
@@ -1491,7 +1491,7 @@ const CommentItem = function CommentItem({
   onChangeBody: (v: string) => void
   onSave: () => void
   onDelete: () => void
-}) {
+}): JSX.Element {
   return (
     <div className='px-4 py-3 border border-border rounded-lg mb-3 bg-surface shadow-elevation-sm'>
       <div className='flex justify-between mb-[0.375rem]'>
@@ -1681,7 +1681,7 @@ export const CommentsSection = function CommentsSection({
   workspaceSlug?: string
   comments: Comment[]
   currentUserId: string | null
-}) {
+}): JSX.Element {
   const {
     editingCommentId,
     editCommentBody,
@@ -1773,7 +1773,7 @@ const StatusField = function StatusField({
   statuses: TaskStatus[]
   updatingStatus: boolean
   changeStatus: (statusId: string) => void
-}) {
+}): JSX.Element {
   if (Array.isArrayNonEmpty(statuses)) {
     return (
       <Select
@@ -1808,7 +1808,7 @@ const TypeField = function TypeField({
   updatingType: boolean
   typeChangeError: string | null
   changeType: (typeId: string) => void
-}) {
+}): JSX.Element {
   if (Array.isArrayNonEmpty(taskTypes)) {
     return (
       <>
@@ -1846,7 +1846,7 @@ const PointsField = function PointsField({
   issueId: string
   workspaceSlug?: string
   storyPointsValue: string
-}) {
+}): JSX.Element {
   const [editingPoints, setEditingPoints] = useState(false)
   const pointsForm = useIssueForm({ points: '' }, Schema.Struct({ points: PointsText }))
   const [pointsValue, setPointsValue] = pointsForm.field('points')
@@ -1955,7 +1955,7 @@ export const SidebarPanel = function SidebarPanel({
   changePriority: (priority: string) => void
   changeAssignee: (assigneeId: string) => void
   changeType: (typeId: string) => void
-}) {
+}): JSX.Element {
   const priorityStyle = PRIORITY_COLORS[issue.priority] ?? PRIORITY_COLORS.none
   const storyPointsField = (issue.customFields ?? []).find((f) => f.key === 'story_points')
 

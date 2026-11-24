@@ -9,6 +9,7 @@ import { render, screen } from '@testing-library/react'
 import '@/features/issues/test/browser.ts'
 // @vitest-environment jsdom
 import { Iterable } from 'effect'
+import type { JSX } from 'react'
 import { describe, expect, test } from 'vite-plus/test'
 
 import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
@@ -18,7 +19,7 @@ import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
 
-const Harness = function Harness() {
+const Harness = function Harness(): JSX.Element {
   const modal = useCreateIssueModal({
     filterProject: '',
     projects: PROJECTS,
@@ -53,7 +54,7 @@ const TWO_PROJECTS = [
 const TASK_TYPES = [{ id: 't1', key: 'BUG', name: 'Bug' }]
 const STATUSES: TaskStatus[] = [{ id: 's1', key: 'todo', name: 'To do', category: 'todo', color: null }]
 
-function FieldsHarness() {
+function FieldsHarness(): JSX.Element {
   const modal = useCreateIssueModal({
     filterProject: '',
     projects: TWO_PROJECTS,

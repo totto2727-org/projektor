@@ -1,5 +1,5 @@
 'use client'
-import type { Dispatch, SetStateAction } from 'react'
+import type { JSX, Dispatch, SetStateAction } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { categoryColor } from '@/features/issues/components/board-utils.ts'
@@ -51,7 +51,7 @@ const StatusPills = function StatusPills({
   derivedStatuses: Readonly<TaskStatus[]>
   filterStatuses: string[]
   setFilterStatuses: Dispatch<SetStateAction<string[]>>
-}) {
+}): JSX.Element {
   return (
     <div className='flex flex-wrap gap-1 mb-3'>
       {derivedStatuses.map((selectedStatus) => {
@@ -88,7 +88,7 @@ const PriorityPills = function PriorityPills({
 }: {
   filterPriorities: string[]
   setFilterPriorities: Dispatch<SetStateAction<string[]>>
-}) {
+}): JSX.Element {
   return (
     <div className='flex flex-wrap gap-1'>
       {(['urgent', 'high', 'medium', 'low'] as const).map((p) => {
@@ -132,7 +132,7 @@ const DateRangeFilter = function DateRangeFilter({
   setFilterDateFrom: Dispatch<SetStateAction<string>>
   filterDateTo: string
   setFilterDateTo: Dispatch<SetStateAction<string>>
-}) {
+}): JSX.Element {
   return (
     <>
       {/* Date range (PROJ-212) — bound a chosen timestamp column server-side */}
@@ -208,7 +208,7 @@ const FiltersToggleButton = function FiltersToggleButton({
   isSearchActive: boolean
   activeFilterCount: number
   onToggle: () => void
-}) {
+}): JSX.Element {
   const activeStyle =
     activeFilterCount > 0
       ? { border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600 }
@@ -252,7 +252,7 @@ const FiltersPopoverContent = function FiltersPopoverContent(
     | 'filterDateTo'
     | 'setFilterDateTo'
   > & { activeFilterCount: number },
-) {
+): JSX.Element {
   const {
     derivedStatuses,
     filterStatuses,
@@ -313,7 +313,7 @@ export default function FiltersPopover({
   filterDateTo,
   setFilterDateTo,
   isSearchActive,
-}: FiltersPopoverProps) {
+}: FiltersPopoverProps): JSX.Element {
   const [showFiltersPopover, setShowFiltersPopover] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)

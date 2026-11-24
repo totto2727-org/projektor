@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
+import type { JSX } from 'react'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { RuntimeProvider, useRuntime } from './runtime.tsx'
 
-const CurrentPage = function CurrentPage() {
+const CurrentPage = function CurrentPage(): JSX.Element {
   const { url } = useRuntime()
   return <output>{url}</output>
 }

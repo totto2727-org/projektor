@@ -1,4 +1,6 @@
 'use client'
+import type { JSX } from 'react'
+
 import IssueDetail from '@/features/issues/components/issue-detail.tsx'
 import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } from '@/features/issues/types.ts'
 import type { RequestScope } from '@/server/request-context.ts'
@@ -25,7 +27,7 @@ export const IssueDetailPage = function IssueDetailPage({
   scope: RequestScope
   workspaceSlug: string
   initialData: IssueDetailInitialData | null
-}) {
+}): JSX.Element {
   if (!initialData) {
     return <SelectionRequired scope={scope} label='Issue' />
   }

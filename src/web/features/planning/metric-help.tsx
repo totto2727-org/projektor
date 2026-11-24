@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import type { JSX } from 'react'
 
 import { Popover } from '@/components/ui/popover.tsx'
 
@@ -18,7 +19,7 @@ export const computeMetricHelpPosition = function computeMetricHelpPosition(rect
   return { top, left }
 }
 /** Original viewport-clamped toggletip, dismissed by Escape, outside clicks and scroll. */
-export const MetricHelp = function MetricHelp({ id }: { id: MetricId }) {
+export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Element {
   const definition = METRIC_DEFINITIONS[id]
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
@@ -113,7 +114,13 @@ export const MetricHelp = function MetricHelp({ id }: { id: MetricId }) {
     </span>
   )
 }
-export const SectionHeading = function SectionHeading({ metricId, caption }: { metricId: MetricId; caption?: string }) {
+export const SectionHeading = function SectionHeading({
+  metricId,
+  caption,
+}: {
+  metricId: MetricId
+  caption?: string
+}): JSX.Element {
   return (
     <>
       <h2 className='m-0 mb-1 text-base font-semibold text-text-base inline-flex items-center gap-1.5'>

@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from 'react'
+import type { JSX, AnchorHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from 'react'
 
 import { Card as PrimitiveCard } from '@/components/generated/card.tsx'
 
@@ -31,7 +31,7 @@ export const Card = function Card({
   style,
   children,
   ...rest
-}: CardProps) {
+}: CardProps): JSX.Element {
   const classes = [
     'p-4',
     as === 'a' && 'no-underline',

@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { RefObject } from 'react'
+import type { JSX, RefObject } from 'react'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { uploadInlineImage as uploadEditorImage } from '@/attachment-actions.ts'
@@ -277,7 +277,7 @@ const WIKI_STATUS_PILL_STYLE: Record<string, { bg: string; color: string }> = {
   deprecated: { bg: 'var(--danger-bg)', color: 'var(--danger-text)' },
 }
 
-function WikiStatusPill({ status }: { status: string }) {
+function WikiStatusPill({ status }: { status: string }): JSX.Element {
   const style = WIKI_STATUS_PILL_STYLE[status] ?? {
     bg: 'var(--priority-low-bg)',
     color: 'var(--priority-low-text)',
@@ -306,7 +306,7 @@ const WIKI_FRESHNESS_BADGE_STYLE: Record<string, { bg: string; color: string; la
   },
 }
 
-function WikiFreshnessBadge({ state }: { state: WikiFreshness['state'] }) {
+function WikiFreshnessBadge({ state }: { state: WikiFreshness['state'] }): undefined | JSX.Element {
   const style = WIKI_FRESHNESS_BADGE_STYLE[state]
   if (!style) {
     return undefined
@@ -325,7 +325,7 @@ const WIKI_TAG_CHIP_CLASS =
   'inline-flex items-center px-2 py-[0.1rem] mr-1 mb-1 rounded-full text-[0.72rem] ' +
   'bg-bg border border-border text-text-base'
 
-function TagChips({ tags }: { tags: string[] | undefined | null }) {
+function TagChips({ tags }: { tags: string[] | undefined | null }): undefined | JSX.Element {
   if (!globalThis.Array.isArray(tags) || Array.isArrayEmpty(tags)) {
     return undefined
   }
@@ -349,7 +349,7 @@ function TagChips({ tags }: { tags: string[] | undefined | null }) {
  * into verification tracking (a verify_interval or a status set) — a page with neither
  * has freshness: null and nothing meaningful to verify against.
  */
-function WikiMetadataBadges({ page }: { page: WikiPageData }) {
+function WikiMetadataBadges({ page }: { page: WikiPageData }): JSX.Element {
   return (
     <>
       {page.type && (
@@ -388,7 +388,7 @@ function WikiVerifyControls({
   verifying: boolean
   verifyError: string | null
   isPublicViewer: boolean
-}) {
+}): JSX.Element {
   return (
     <>
       {hasVerificationSignal && !isPublicViewer && (
@@ -417,7 +417,7 @@ function WikiMetadataCard({
   verifying: boolean
   verifyError: string | null
   isPublicViewer: boolean
-}) {
+}): undefined | JSX.Element {
   const hasMetadata =
     Boolean(page.type) ||
     Boolean(page.status) ||
@@ -598,7 +598,7 @@ function TreeNodeItem({
   currentSlug: string
   depth: number
   onNavigate: (slug: string) => void
-}) {
+}): JSX.Element {
   const isActive = currentSlug === node.slug
   return (
     <li>
@@ -658,7 +658,7 @@ const SEARCH_RESULT_BUTTON_CLASS = [
   'focus-visible:outline-accent focus-visible:outline-offset-2',
 ].join(' ')
 
-function SearchResultMetaLine({ r }: { r: SearchResult }) {
+function SearchResultMetaLine({ r }: { r: SearchResult }): undefined | JSX.Element {
   const isStale = r.freshness && r.freshness.state !== 'fresh'
   const show = r.type || r.status || (r.tags?.length ?? 0) > 0 || isStale
   if (!show) {
@@ -673,7 +673,7 @@ function SearchResultMetaLine({ r }: { r: SearchResult }) {
   )
 }
 
-function SearchResultButton({ r, onSelect }: { r: SearchResult; onSelect: (slug: string) => void }) {
+function SearchResultButton({ r, onSelect }: { r: SearchResult; onSelect: (slug: string) => void }): JSX.Element {
   return (
     <button
       type='button'
@@ -699,7 +699,7 @@ function SearchResultsList({
   loading: boolean
   results: SearchResult[]
   onSelect: (slug: string) => void
-}) {
+}): JSX.Element {
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Searching…</p>
   }
@@ -730,7 +730,7 @@ function StalePagesList({
   loading: boolean
   results: StalePageItem[]
   onSelect: (slug: string) => void
-}) {
+}): JSX.Element {
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
   }
@@ -775,7 +775,7 @@ function FilteredPagesList({
   loading: boolean
   results: WikiListItem[]
   onSelect: (slug: string) => void
-}) {
+}): JSX.Element {
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
   }
@@ -817,7 +817,7 @@ function PageTreeList({
   tree: TreeNode[]
   slug: string
   onNavigate: (slug: string) => void
-}) {
+}): JSX.Element {
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
   }
@@ -843,7 +843,13 @@ function useWikiTemplates(_workspaceSlug: string | undefined): TemplateOption[] 
   return useWikiSeed().templates
 }
 
-function ScopeControl({ workspaceSlug, projectId }: { workspaceSlug: string | undefined; projectId: string }) {
+function ScopeControl({
+  workspaceSlug,
+  projectId,
+}: {
+  workspaceSlug: string | undefined
+  projectId: string
+}): JSX.Element {
   const seed = useWikiSeed()
   const projects = useProjects(workspaceSlug)
   const options: SelectOption[] = [
@@ -886,7 +892,7 @@ function WikiFilterBar({
   onFilterStatusChange: (v: string) => void
   filterTags: string
   onFilterTagsChange: (v: string) => void
-}) {
+}): JSX.Element {
   return (
     <div className='mb-3 flex flex-col gap-1.5'>
       <input type='hidden' name='type' value={filterType} />
@@ -984,7 +990,7 @@ function WikiSidebar({
    */
   isMobile: boolean
   sidebarRef: RefObject<HTMLElement | null>
-}) {
+}): JSX.Element {
   const asideClass = [
     'w-[240px] shrink-0 bg-surface border-r border-border p-4 overflow-y-auto',
     'wiki-sidebar',
@@ -1098,7 +1104,7 @@ function CreatePageForm({
   onTemplateChange: (value: string) => void
   onSubmit: () => void
   onCancel: () => void
-}) {
+}): JSX.Element {
   const templateOptions: SelectOption[] = [
     { value: '', label: 'No template (blank page)' },
     ...templates.map((template) => ({ value: template.slug, label: template.title })),
@@ -1194,7 +1200,7 @@ function PageBreadcrumbs({
 }: {
   breadcrumbs: FlatEntry[]
   onNavigate: (slug: string) => void
-}) {
+}): undefined | JSX.Element {
   if (breadcrumbs.length <= 1) {
     return undefined
   }
@@ -1255,7 +1261,7 @@ function MovePageForm({
   onChange: (value: string) => void
   onSubmit: () => void
   onCancel: () => void
-}) {
+}): JSX.Element {
   return (
     <div className='mb-4 p-3 border border-border rounded bg-surface'>
       <p className='m-0 mb-2 text-sm font-medium text-text-base'>Move to a new parent page</p>
@@ -1283,7 +1289,15 @@ const TOC_LINK_BASE_CLASS = 'block py-[0.2rem] no-underline border-l-2 transitio
 const TOC_LINK_ACTIVE_CLASS = 'text-accent border-accent font-medium'
 const TOC_LINK_INACTIVE_CLASS = 'text-text-muted border-border hover:text-accent hover:border-accent'
 
-function TocList({ toc, activeHeadingId, onClick }: { toc: TocItem[]; activeHeadingId: string; onClick?: () => void }) {
+function TocList({
+  toc,
+  activeHeadingId,
+  onClick,
+}: {
+  toc: TocItem[]
+  activeHeadingId: string
+  onClick?: () => void
+}): JSX.Element {
   return (
     <>
       {toc.map((item) => {
@@ -1339,7 +1353,7 @@ function PageActionOverflowMenu({
   onStartCreateChild: (pageId: string) => void
   onStartMove: () => void
   onDelete: () => void
-}) {
+}): JSX.Element {
   const { duplicate, duplicating } = useDuplicateWikiPage()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
@@ -1528,7 +1542,7 @@ function PageHeader({
   onStartMove: () => void
   onDelete: () => void
   isPublicViewer: boolean
-}) {
+}): JSX.Element {
   const isMobile = useIsMobileViewport()
   const { duplicate, duplicating } = useDuplicateWikiPage()
   return (
@@ -1612,7 +1626,7 @@ function DraftRestoreBanner({
   busy: boolean
   onRestore: () => void
   onDiscard: () => void
-}) {
+}): JSX.Element {
   const bannerClass = [
     'mb-3 px-3 py-2 border border-border rounded bg-surface text-sm flex items-center',
     'justify-between gap-3 flex-wrap',
@@ -1644,7 +1658,7 @@ function DraftRestoreBanner({
  * hunks, +/- lines) with per-line coloring. An empty diff means the two sides are
  * identical (services/wiki.ts#buildUnifiedDiff returns "" in that case).
  */
-function RevisionDiffView({ diff }: { diff: string }) {
+function RevisionDiffView({ diff }: { diff: string }): JSX.Element {
   if (diff === '') {
     return <p className='mt-2 mb-1 text-[0.75rem] text-text-muted italic'>No changes.</p>
   }
@@ -1692,7 +1706,7 @@ function RevisionRow({
   onRestore: (revision: WikiRevision) => void
   restoring: boolean
   editing: boolean
-}) {
+}): JSX.Element {
   const [diffOpen, setDiffOpen] = useState(false)
   const [diff, setDiff] = useState<string | null>(null)
   const [diffError, setDiffError] = useState<string | null>(null)
@@ -1775,7 +1789,7 @@ function RevisionsHistory({
   onRestore: (revision: WikiRevision) => void
   restoringId: string | null
   editing: boolean
-}) {
+}): undefined | JSX.Element {
   if (Array.isArrayEmpty(revisions)) {
     return undefined
   }
@@ -1829,7 +1843,7 @@ function AttachmentEntry({
   referenced: boolean
   onDelete: (attachmentId: string) => void
   isPublicViewer: boolean
-}) {
+}): JSX.Element {
   const qs =
     Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug) ? `?workspace=${workspaceSlug}` : ''
   return (
@@ -1867,7 +1881,13 @@ function AttachmentEntry({
   )
 }
 
-function AttachmentUploadForm({ uploadError, onCancel }: { uploadError: string | null; onCancel: () => void }) {
+function AttachmentUploadForm({
+  uploadError,
+  onCancel,
+}: {
+  uploadError: string | null
+  onCancel: () => void
+}): undefined | JSX.Element {
   const seed = useWikiSeed()
   const form = useForm({
     defaultValues: { file: null as File | null },
@@ -1954,7 +1974,7 @@ function AttachmentsPanel({
   onToggleUploadForm: (open: boolean) => void
   onCancelUpload: () => void
   onDeleteAttachment: (attachmentId: string) => void
-}) {
+}): JSX.Element {
   const isPublicViewer = usePublicViewer(workspaceSlug)
   return (
     <div className='mt-8'>
@@ -2097,7 +2117,7 @@ function PageArticleMeta(
     | 'onDiscardDraft'
     | 'workspaceSlug'
   >,
-) {
+): JSX.Element {
   const isPublicViewer = usePublicViewer(props.workspaceSlug)
   return (
     <>
@@ -2192,7 +2212,7 @@ function PageArticleMeta(
   )
 }
 
-function PageArticle(props: PageArticleProps) {
+function PageArticle(props: PageArticleProps): JSX.Element {
   const { page, setContentRef, renderedHtml } = props
   // PROJ-860: memoise the rendered-content vnode itself, keyed on the already-memoised
   // Keep the sanitized article element stable across unrelated sidebar and scroll updates.
@@ -2295,7 +2315,7 @@ function WikiMainContent(
     page: WikiPageData | null
     articleProps: Omit<PageArticleProps, 'page'>
   }>,
-) {
+): undefined | JSX.Element {
   if (props.creating) {
     return <CreatePageForm {...props.createProps} />
   }
@@ -4042,7 +4062,7 @@ function WikiPageShell(
       articleProps: Omit<PageArticleProps, 'page'>
     }
   }>,
-) {
+): JSX.Element {
   const { close, open, setOpen, triggerRef, sidebarRef } = useWikiSidebarDrawer()
   const { onNavigate, onCreate } = props
   const isMobile = useIsMobileViewport()
@@ -4493,14 +4513,20 @@ const UNDO_TOAST_TIMEOUT_MS = 8000
  * focus state always starts fresh — no reset effect that could race a hover or focus
  * arriving before it runs.
  */
-function UndoToastView({ toast, onDismiss }: { toast: UndoToast | null; onDismiss: () => void }) {
+function UndoToastView({
+  toast,
+  onDismiss,
+}: {
+  toast: UndoToast | null
+  onDismiss: () => void
+}): undefined | JSX.Element {
   if (!toast) {
     return undefined
   }
   return <UndoToastBar key={toast.id} toast={toast} onDismiss={onDismiss} />
 }
 
-function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () => void }) {
+function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () => void }): JSX.Element {
   const [undoing, setUndoing] = useState(false)
   const [undoError, setUndoError] = useState<string | null>(null)
   const [hovered, setHovered] = useState(false)
@@ -4582,7 +4608,7 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
   )
 }
 
-export function WikiPageClient({ initial }: { readonly initial: WikiSeed }) {
+export function WikiPageClient({ initial }: { readonly initial: WikiSeed }): JSX.Element {
   return (
     <SeedContext.Provider value={initial}>
       <WikiPageContent
@@ -4596,7 +4622,7 @@ export function WikiPageClient({ initial }: { readonly initial: WikiSeed }) {
 }
 export default WikiPageClient
 
-function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugProp }: Props) {
+function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugProp }: Props): JSX.Element {
   const seed = useWikiSeed()
   const state = useWikiPageState(workspaceSlug, projectIdProp, slugProp)
   const {

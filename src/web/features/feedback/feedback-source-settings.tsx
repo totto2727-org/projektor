@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import type { JSX } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
@@ -39,7 +40,13 @@ const formatDate = function formatDate(ts: number): string {
   return formatTimestampDate(ts)
 }
 
-const NewTokenReveal = function NewTokenReveal({ token, onDismiss }: { token: string; onDismiss: () => void }) {
+const NewTokenReveal = function NewTokenReveal({
+  token,
+  onDismiss,
+}: {
+  token: string
+  onDismiss: () => void
+}): JSX.Element {
   return (
     <div className='bg-surface border border-border rounded-md p-4'>
       <p className='text-danger-text text-[0.8rem] my-1'>⚠ Copy this token now — you won't be able to see it again.</p>
@@ -67,7 +74,7 @@ const DangerZone = function DangerZone({
   onRotateCancel: () => void
   onRotateConfirm: () => void
   onRevoke: () => void
-}) {
+}): JSX.Element {
   return (
     <div className='flex flex-col gap-2'>
       <span className='text-[0.8rem] font-semibold text-text-muted'>Danger zone</span>
@@ -95,7 +102,7 @@ const DangerZone = function DangerZone({
   )
 }
 
-export default function FeedbackSourceSettings({ source, projectId, workspaceSlug, onChanged }: Props) {
+export default function FeedbackSourceSettings({ source, projectId, workspaceSlug, onChanged }: Props): JSX.Element {
   const rotationInFlight = useRef(false)
   const [rotationBusy, setRotationBusy] = useState(false)
   const [rotating, setRotating] = useState(false)

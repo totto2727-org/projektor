@@ -1,4 +1,6 @@
 'use client'
+import type { JSX } from 'react'
+
 import EpicList from '@/features/issues/components/epic-list.tsx'
 import type { IssuePage, Status, TaskType } from '@/features/issues/types.ts'
 import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
@@ -20,7 +22,7 @@ export const EpicsPage = function EpicsPage({
   scope: RequestScope
   workspaceSlug: string
   initialData: EpicsInitialData | null
-}) {
+}): JSX.Element {
   if (!initialData) {
     return <SelectionRequired scope={scope} label='Epics' />
   }

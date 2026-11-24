@@ -1,5 +1,6 @@
 'use client'
 import { Array } from 'effect'
+import type { JSX } from 'react'
 
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { ReviewTargetsSummary } from '@/features/issues/components/review-targets-summary.tsx'
@@ -51,7 +52,7 @@ const DesktopTable = function DesktopTable({
   sortBy,
   sortDir,
   onSort,
-}: RowsProps & { sortBy: SortKey; sortDir: 'asc' | 'desc'; onSort: (key: SortKey) => void }) {
+}: RowsProps & { sortBy: SortKey; sortDir: 'asc' | 'desc'; onSort: (key: SortKey) => void }): JSX.Element {
   return (
     <div className='overflow-x-auto max-sm:hidden'>
       <table className='w-full border-collapse text-[0.9rem]'>
@@ -124,7 +125,7 @@ const DesktopTable = function DesktopTable({
   )
 }
 
-const MobileCards = function MobileCards({ issues, updatingPriorityId, changePriority }: RowsProps) {
+const MobileCards = function MobileCards({ issues, updatingPriorityId, changePriority }: RowsProps): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
       {issues.map((issue) => (
@@ -168,7 +169,7 @@ export default function ListSection({
   sortDir,
   onSort,
   pagination,
-}: ListSectionProps) {
+}: ListSectionProps): JSX.Element {
   // PROJ-862: render ONE layout (Tailwind's max-sm breakpoint), not both hidden by CSS.
   const isMobile = useMediaQuery('(max-width: 639.98px)')
 

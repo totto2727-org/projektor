@@ -1,4 +1,6 @@
 'use client'
+import type { JSX } from 'react'
+
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
 
 import BacklogView from './backlog-view.tsx'
@@ -41,7 +43,7 @@ export default function MainContent({
   sortDir,
   onSort,
   pagination,
-}: MainContentProps) {
+}: MainContentProps): JSX.Element {
   if (isSearchActive) {
     return <SearchResultsSection searchLoading={false} searchResults={searchResults} searchQuery={searchQuery} />
   }

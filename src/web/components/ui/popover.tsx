@@ -1,12 +1,12 @@
 'use client'
 
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
-import type { CSSProperties, ReactNode, Ref } from 'react'
+import type { JSX, CSSProperties, ReactNode, Ref } from 'react'
 
 import { Popover as PrimitivePopover } from '@/components/generated/popover.tsx'
 
 /** Compatibility entry point backed by the framework portal, not app portal logic. */
-export const Portal = function Portal({ into, vnode }: { into: HTMLElement; vnode: ReactNode }) {
+export const Portal = function Portal({ into, vnode }: { into: HTMLElement; vnode: ReactNode }): JSX.Element {
   return (
     <PrimitivePopover open>
       <PopoverPrimitive.Portal container={into}>{vnode}</PopoverPrimitive.Portal>
@@ -42,7 +42,7 @@ export const Popover = function Popover({
   strategy,
   position,
   children,
-}: PopoverProps) {
+}: PopoverProps): JSX.Element {
   if (strategy === 'portal-fixed' && !position) {
     throw new Error("Popover: `position` is required when strategy is 'portal-fixed'")
   }

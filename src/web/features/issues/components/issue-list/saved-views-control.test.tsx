@@ -3,6 +3,7 @@
 
 import '@/features/issues/test/browser.ts'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { JSX } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { SavedViewFilters } from '@/features/issues/components/saved-views.ts'
@@ -32,7 +33,7 @@ function seedViews(names: string[]): void {
   )
 }
 
-function Harness({ onApply }: { onApply: (filters: SavedViewFilters) => void }) {
+function Harness({ onApply }: { onApply: (filters: SavedViewFilters) => void }): JSX.Element {
   const saved = useSavedViews('PROJ', EMPTY_FILTERS, onApply, 'workspace', 'user-a')
   return <SavedViewsControl saved={saved} />
 }

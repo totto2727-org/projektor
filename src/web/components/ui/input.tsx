@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, Ref, TextareaHTMLAttributes } from 'react'
+import type { JSX, InputHTMLAttributes, Ref, TextareaHTMLAttributes } from 'react'
 
 import { Input as PrimitiveInput } from '@/components/generated/input.tsx'
 import { Textarea as PrimitiveTextarea } from '@/components/generated/textarea.tsx'
@@ -11,9 +11,14 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   class?: string
   inputRef?: Ref<HTMLTextAreaElement>
 }
-export const Input = function Input({ class: legacyClass, className, inputRef, ...props }: InputProps) {
+export const Input = function Input({ class: legacyClass, className, inputRef, ...props }: InputProps): JSX.Element {
   return <PrimitiveInput {...props} ref={inputRef} className={[legacyClass, className].filter(Boolean).join(' ')} />
 }
-export const Textarea = function Textarea({ class: legacyClass, className, inputRef, ...props }: TextareaProps) {
+export const Textarea = function Textarea({
+  class: legacyClass,
+  className,
+  inputRef,
+  ...props
+}: TextareaProps): JSX.Element {
   return <PrimitiveTextarea {...props} ref={inputRef} className={[legacyClass, className].filter(Boolean).join(' ')} />
 }

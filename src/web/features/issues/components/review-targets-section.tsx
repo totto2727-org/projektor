@@ -1,6 +1,7 @@
 'use client'
 import { String, Array, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
+import type { JSX } from 'react'
 
 import type { ReviewStatus } from '#contracts/review-targets.ts'
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
@@ -22,7 +23,7 @@ const ReviewTargetRow = function ReviewTargetRow({
   attachment: Attachment
   workspaceSlug: string
   issueId: string
-}) {
+}): JSX.Element {
   const status = attachment.reviewStatus
   const [pending, setPending] = useState<{ attachment: Attachment; saved: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -151,7 +152,7 @@ export const ReviewTargetsSection = function ReviewTargetsSection({
   issueId: string
   issueHref: string
   focused?: boolean
-}) {
+}): JSX.Element {
   const eligible = attachments.filter((attachment) => attachment.kind === 'file' || attachment.kind === 'url')
   const selected = eligible
     .filter((attachment) => Predicate.isNotNullish(attachment.reviewStatus) && attachment.reviewStatus !== 'done')
@@ -164,7 +165,7 @@ export const ReviewTargetsSection = function ReviewTargetsSection({
   const reviewUrl = new URL(issueHref, 'https://frontend.invalid')
   reviewUrl.searchParams.set('tab', 'review-targets')
   const reviewHref = `${reviewUrl.pathname}${reviewUrl.search}${reviewUrl.hash}`
-  const rows = (items: Readonly<Attachment[]>, label: string) => (
+  const rows = (items: Readonly<Attachment[]>, label: string): JSX.Element => (
     <ul aria-label={label} className='list-none p-0 m-0 flex flex-col gap-2'>
       {items.map((attachment) => (
         <ReviewTargetRow key={attachment.id} attachment={attachment} workspaceSlug={workspaceSlug} issueId={issueId} />

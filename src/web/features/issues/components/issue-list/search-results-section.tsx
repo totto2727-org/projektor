@@ -1,5 +1,6 @@
 'use client'
 import { Array, Predicate } from 'effect'
+import type { JSX } from 'react'
 
 import { ReviewTargetsSummary } from '@/features/issues/components/review-targets-summary.tsx'
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
@@ -7,7 +8,7 @@ import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 
 import type { SearchResult } from './use-issue-search.ts'
 
-const priorityBadge = function priorityBadge(result: SearchResult) {
+const priorityBadge = function priorityBadge(result: SearchResult): JSX.Element {
   return (
     <span
       className='inline-flex items-center px-1.5 py-0.5 rounded text-[0.7rem] font-semibold capitalize whitespace-nowrap'
@@ -21,11 +22,11 @@ const priorityBadge = function priorityBadge(result: SearchResult) {
   )
 }
 
-const statusBadge = function statusBadge(result: SearchResult) {
+const statusBadge = function statusBadge(result: SearchResult): JSX.Element {
   return <span className='font-medium text-sm text-text-muted'>{result.status.replace(/_/gu, ' ')}</span>
 }
 
-const SearchResultsTable = function SearchResultsTable({ results }: { results: SearchResult[] }) {
+const SearchResultsTable = function SearchResultsTable({ results }: { results: SearchResult[] }): JSX.Element {
   return (
     <div className='overflow-x-auto max-sm:hidden'>
       <table className='w-full border-collapse text-[0.9rem]'>
@@ -70,7 +71,11 @@ const SearchResultsTable = function SearchResultsTable({ results }: { results: S
   )
 }
 
-const SearchResultsMobileCards = function SearchResultsMobileCards({ results }: { results: SearchResult[] }) {
+const SearchResultsMobileCards = function SearchResultsMobileCards({
+  results,
+}: {
+  results: SearchResult[]
+}): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
       {results.map((result) => (
@@ -103,7 +108,7 @@ export default function SearchResultsSection({
   searchLoading: boolean
   searchResults: SearchResult[] | null
   searchQuery: string
-}) {
+}): null | JSX.Element {
   if (searchLoading) {
     return (
       <p aria-live='polite' className='text-text-muted'>

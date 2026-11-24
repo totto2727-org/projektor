@@ -1,5 +1,6 @@
 'use client'
 import { Array, Predicate } from 'effect'
+import type { JSX } from 'react'
 
 import type { SourceSummary } from './feedback-source-grid.tsx'
 import type { FeedbackVersionSummary } from './feedback-source-settings.tsx'
@@ -22,7 +23,7 @@ const versionMetric = function versionMetric(version: FeedbackVersionSummary): s
   return Array.isArrayEmpty(parts) ? 'No ratings' : parts.join(' · ')
 }
 
-export default function FeedbackSummary({ initialSummary: summary }: Props) {
+export default function FeedbackSummary({ initialSummary: summary }: Props): JSX.Element {
   if (!summary || Array.isArrayEmpty(summary.versions)) {
     return (
       <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>No feedback yet.</div>

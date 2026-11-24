@@ -3,6 +3,7 @@
 import { useForm } from '@tanstack/react-form'
 import { String, Array, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useEffectEvent, useState } from 'react'
+import type { JSX } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Badge } from '@/components/ui/badge.tsx'
@@ -33,7 +34,7 @@ const fromSprint = (sprint: Sprint): Draft => ({
   end: unixToDateInput(sprint.endDate),
 })
 
-const StatusBadge = function StatusBadge({ status }: { status: Sprint['status'] }) {
+const StatusBadge = function StatusBadge({ status }: { status: Sprint['status'] }): JSX.Element {
   const style = {
     planned: { background: 'var(--surface)', color: 'var(--text-muted)' },
     active: { background: 'var(--sprint-active-bg)', color: 'var(--status-in-progress)' },
@@ -64,7 +65,7 @@ export const SprintManager = function SprintManager({
   allSprints?: Sprint[]
   mode?: SprintListMode
   project?: ProjectIdentity
-}) {
+}): JSX.Element {
   const [showCreate, setShowCreate] = useState(false)
   const [completeId, setCompleteId] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
@@ -238,7 +239,7 @@ function SprintForm({
   onSuccess: () => void
   onCancel: () => void
   submitLabel: string
-}) {
+}): JSX.Element {
   const [defaults] = useState(() => initialValues)
   const [result, formAction, busy] = useActionState<ActionResult<{ id: string } | { ok: true }> | null, FormData>(
     Predicate.isNotNullish(sprintId) && String.isNonEmpty(sprintId) ? editSprint : createSprint,
@@ -402,7 +403,7 @@ function SprintRow({
   onStartComplete,
   onConfirmComplete,
   onCancelComplete,
-}: RowProps) {
+}: RowProps): JSX.Element {
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -607,7 +608,7 @@ function MoveIssuesForm({
   workspaceSlug: string
   projectId: string
   onClose: () => void
-}) {
+}): JSX.Element {
   const [defaults] = useState(() => ({
     workspaceSlug,
     projectId,
@@ -736,7 +737,7 @@ function CompletionSummaryPanel({
   summary: { sprint: Sprint; issues: SprintIssue[] }
   workspaceSlug: string
   onClose: () => void
-}) {
+}): JSX.Element {
   const { sprint, issues } = summary
   const done = issues.filter((issue) => issue.status_category === 'done')
   const totalSP = issues.reduce((sum, issue) => sum + getStoryPoints(issue), 0)
@@ -789,7 +790,7 @@ function CompletionSummaryPanel({
     </div>
   )
 }
-function VelocityChart({ sprints, issues }: { sprints: Sprint[]; issues: SprintIssue[] }) {
+function VelocityChart({ sprints, issues }: { sprints: Sprint[]; issues: SprintIssue[] }): JSX.Element {
   const data = sprints.map((sprint) => {
     const rows = issues.filter((issue) => issue.sprint_id === sprint.id)
     return {

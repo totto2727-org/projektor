@@ -1,6 +1,7 @@
 'use client'
 import { Array } from 'effect'
 import { useState } from 'react'
+import type { JSX } from 'react'
 
 import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
@@ -42,7 +43,7 @@ const BacklogTableHead = function BacklogTableHead({
   sortBy: SortKey
   sortDir: 'asc' | 'desc'
   onSort: (key: SortKey) => void
-}) {
+}): JSX.Element {
   return (
     <thead>
       <tr className='bg-surface'>
@@ -92,7 +93,7 @@ const BacklogRow = function BacklogRow({
   onDragOver,
   onDrop,
   onDragEnd,
-}: RowProps) {
+}: RowProps): JSX.Element {
   const pts = getStoryPoints(issue)
   return (
     <tr
@@ -174,7 +175,7 @@ const BacklogMobileCards = function BacklogMobileCards({
   issues: Readonly<Issue[]>
   updatingPriorityId: string | null
   changePriority: (issueId: string, priority: string) => void
-}) {
+}): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
       {issues.map((issue) => (
@@ -229,7 +230,7 @@ export default function BacklogView({
   sortBy,
   sortDir,
   onSort,
-}: BacklogViewProps) {
+}: BacklogViewProps): JSX.Element {
   const [backlogOrder, setBacklogOrder] = useState<string[]>([])
   const [backlogDragId, setBacklogDragId] = useState<string | null>(null)
   const [backlogDragOverId, setBacklogDragOverId] = useState<string | null>(null)

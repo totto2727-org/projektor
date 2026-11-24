@@ -1,4 +1,5 @@
 import { Predicate } from 'effect'
+import type { JSX } from 'react'
 
 import { queryFields } from '@/features/issues/utils/query-fields.ts'
 import type { IssuesRoute } from '@/features/issues/views/issues-page.tsx'
@@ -9,7 +10,7 @@ export interface IssuePagination {
 }
 
 /** Native GET controls keep pagination shareable and owned by Effront's public navigation. */
-export const PageNavigation = function PageNavigation({ route, nextCursor }: IssuePagination) {
+export const PageNavigation = function PageNavigation({ route, nextCursor }: IssuePagination): null | JSX.Element {
   const params = new URLSearchParams(route.search)
   const hasCursor = params.has('cursor')
   params.delete('cursor')

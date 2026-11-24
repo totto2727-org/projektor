@@ -6,6 +6,7 @@ import { EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { Array, Iterable } from 'effect'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { JSX } from 'react'
 
 import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 
@@ -162,7 +163,7 @@ function EditorToolbar({
   onCodeBlock,
   onBulletList,
   onNumberedList,
-}: EditorToolbarProps) {
+}: EditorToolbarProps): JSX.Element {
   return (
     <div className='flex gap-[2px] px-[6px] py-1 bg-surface border-b border-border flex-wrap items-center'>
       <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onBold)} title='Bold (Ctrl+B)'>
@@ -203,7 +204,7 @@ function EditorToolbar({
   )
 }
 
-function PreviewPane({ preview, mobilePreview }: { preview: string; mobilePreview: boolean }) {
+function PreviewPane({ preview, mobilePreview }: { preview: string; mobilePreview: boolean }): JSX.Element {
   return (
     <div
       className={
@@ -463,7 +464,7 @@ export default function MarkdownEditor({
   minHeight = '240px',
   onImageFile,
   ariaLabel = 'Markdown editor',
-}: Props) {
+}: Props): JSX.Element {
   const [mobilePreview, setMobilePreview] = useState(false)
   const { html: preview } = useMarkdownPreview(value)
 

@@ -3,6 +3,7 @@
 import { useForm } from '@tanstack/react-form'
 import { Array, Schema } from 'effect'
 import { useActionState, useEffect, useRef } from 'react'
+import type { JSX } from 'react'
 
 import { useRuntime } from '@/client/runtime.tsx'
 import { FormErrors } from '@/components/form-errors.tsx'
@@ -29,7 +30,7 @@ const deriveKey = (name: string): string =>
     .replace(/[^A-Z0-9]/g, '')
     .slice(0, 10)
 
-const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary }) {
+const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary }): JSX.Element {
   const open = project.open_issue_count
   const backlog = project.backlog_issue_count
   const active = open - backlog
@@ -63,7 +64,7 @@ export const ProjectList = function ProjectList({
   initialProjects: Readonly<ProjectSummary[]>
   memberships: Readonly<Membership[]>
   showArchived?: boolean
-}) {
+}): JSX.Element {
   const runtime = useRuntime()
   const url = new URL(runtime.url)
   const disclosure = useRef<HTMLDetailsElement>(null)

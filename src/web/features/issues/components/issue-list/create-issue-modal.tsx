@@ -1,6 +1,6 @@
 'use client'
 import { Array } from 'effect'
-import type { Dispatch, SetStateAction } from 'react'
+import type { JSX, Dispatch, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
 import { Dialog } from '@/components/ui/dialog.tsx'
@@ -67,7 +67,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
   | 'createValid'
   | 'workspaceSlug'
   | 'setShowCreateModal'
->) {
+>): JSX.Element {
   return (
     <div className='flex gap-3 mb-5 flex-wrap items-end'>
       {projects.length > 1 && (
@@ -136,7 +136,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
   )
 }
 
-export default function CreateIssueModal(props: CreateIssueModalProps) {
+export default function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
   const {
     createTitle,
     setCreateTitle,

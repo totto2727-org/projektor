@@ -3,7 +3,7 @@
 import { useForm } from '@tanstack/react-form'
 import { Array, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { JSX, KeyboardEvent } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Badge } from '@/components/ui/badge.tsx'
@@ -78,7 +78,7 @@ const MemberGroupsCell = function MemberGroupsCell({
 }: {
   member: WorkspaceMember
   groups: { id: string; name: string }[]
-}) {
+}): JSX.Element {
   if (adminRole(member.role)) {
     return <span className='text-[0.78rem] text-text-muted'>All projects (bypasses groups)</span>
   }
@@ -101,7 +101,7 @@ const MembersOverview = function MembersOverview({
 }: {
   members: WorkspaceMember[]
   memberGroups: MemberGroupsRow[]
-}) {
+}): JSX.Element {
   const byUser = new Map(memberGroups.map((row) => [row.userId, row.groups]))
   return (
     <section className={CARD}>
@@ -153,9 +153,9 @@ interface GroupListProps {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }
-const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps) {
+const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps): JSX.Element {
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const name = (group: GroupSummary) =>
+  const name = (group: GroupSummary): JSX.Element =>
     admin ? (
       <button
         type='button'
@@ -169,7 +169,7 @@ const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete
     ) : (
       <span className='font-medium text-text-base'>{group.name}</span>
     )
-  const remove = (group: GroupSummary) =>
+  const remove = (group: GroupSummary): JSX.Element =>
     deleteId === group.id ? (
       <span className='inline-flex gap-2 items-center'>
         <span className='text-xs text-text-muted'>Delete group?</span>
@@ -256,7 +256,7 @@ const GroupDetailEditor = function GroupDetailEditor({
   members: WorkspaceMember[]
   projects: ProjectLite[]
   onClose: () => void
-}) {
+}): JSX.Element {
   const [operationBusy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [nameResult, nameAction, namePending] = useActionState(renameGroup, null)
@@ -623,7 +623,7 @@ function GrantRoleForm({
   busy: boolean
   onBusy: (busy: boolean) => void
   onError: (error: string | null) => void
-}) {
+}): JSX.Element {
   const [defaults] = useState(() => ({
     workspaceSlug,
     groupId,
@@ -688,7 +688,7 @@ export const GroupManager = function GroupManager({
   workspaceSlug: string
   initialData: GroupData
   view?: GroupView
-}) {
+}): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [operationBusy, setBusy] = useState(false)

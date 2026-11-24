@@ -1,5 +1,6 @@
 'use client'
 import { Array } from 'effect'
+import type { JSX } from 'react'
 
 import Select from '@/components/ui/select.tsx'
 import { categoryColor } from '@/features/issues/components/board-utils.ts'
@@ -13,7 +14,7 @@ export const getStoryPoints = function getStoryPoints(issue: Issue): string | nu
   return field?.value ?? null
 }
 
-export const spBadge = function spBadge(pts: string) {
+export const spBadge = function spBadge(pts: string): JSX.Element {
   return (
     <span
       className={[
@@ -26,7 +27,7 @@ export const spBadge = function spBadge(pts: string) {
   )
 }
 
-export const priorityBadge = function priorityBadge(issue: Issue) {
+export const priorityBadge = function priorityBadge(issue: Issue): JSX.Element {
   return (
     <span
       className='inline-flex items-center px-1.5 py-0.5 rounded text-[0.7rem] font-semibold capitalize whitespace-nowrap'
@@ -40,7 +41,7 @@ export const priorityBadge = function priorityBadge(issue: Issue) {
   )
 }
 
-export const statusBadge = function statusBadge(issue: Issue) {
+export const statusBadge = function statusBadge(issue: Issue): JSX.Element {
   return (
     <span className='font-medium text-sm' style={{ color: categoryColor(issue.status_category) }}>
       {statusDisplayName(issue.status_name, issue.status_key)}
@@ -56,7 +57,7 @@ export const PrioritySelect = function PrioritySelect({
   issue: Issue
   busy: boolean
   onChange: (value: string) => void
-}) {
+}): JSX.Element {
   const ref = issue.project_key ? `${issue.project_key}-${issue.number}` : issue.number
   return (
     <Select
@@ -86,7 +87,7 @@ export const StatusSelect = function StatusSelect({
   statuses: TaskStatus[]
   busy: boolean
   onChange: (value: string) => void
-}) {
+}): JSX.Element {
   if (Array.isArrayEmpty(statuses)) {
     return statusBadge(issue)
   }
@@ -119,7 +120,7 @@ export const SortableHeader = function SortableHeader({
   sortDir: 'asc' | 'desc'
   onSort: (key: SortKey) => void
   extraClass?: string
-}) {
+}): JSX.Element {
   const active = sortBy === sortKey
   return (
     <th

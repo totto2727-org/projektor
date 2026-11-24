@@ -1,5 +1,5 @@
 'use client'
-import type { RefObject } from 'react'
+import type { JSX, RefObject } from 'react'
 
 import { queryFields } from '@/features/issues/utils/query-fields.ts'
 import type { IssuesRoute } from '@/features/issues/views/issues-page.tsx'
@@ -16,7 +16,7 @@ export default function SearchBox({
   isSearchActive: boolean
   searchInputRef: RefObject<HTMLInputElement | null>
   route: IssuesRoute
-}) {
+}): JSX.Element {
   return (
     <form action={route.pathname} method='get' className='flex items-center gap-1 max-sm:w-full'>
       {queryFields(route.search, ['q', 'cursor']).map(({ name, value, key }) => (

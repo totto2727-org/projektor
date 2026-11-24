@@ -1,9 +1,15 @@
 import { Array } from 'effect'
+import type { JSX } from 'react'
 
 import type { RequestScope } from './server/server-context.ts'
 
+interface ScopeSelectionProps {
+  scope: RequestScope
+  url: URL
+}
+
 /** Native GET forms also work without JavaScript and preserve explicit URL scope. */
-export const ScopeSelection = function ScopeSelection({ scope, url }: { scope: RequestScope; url: URL }) {
+export const ScopeSelection = function ScopeSelection({ scope, url }: ScopeSelectionProps): JSX.Element | null {
   const selection = scope.selection
   if (selection.kind !== 'selection-required') {
     return null

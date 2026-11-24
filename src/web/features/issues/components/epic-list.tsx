@@ -1,6 +1,7 @@
 'use client'
 import { String, Array, Iterable, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
 import { Card } from '@/components/ui/card.tsx'
@@ -72,7 +73,11 @@ const computeDerivedStatuses = function computeDerivedStatuses(epics: Readonly<I
   return derived
 }
 
-const sortIndicator = function sortIndicator(key: SortKey, sortBy: SortKey, sortDir: 'asc' | 'desc') {
+const sortIndicator = function sortIndicator(
+  key: SortKey,
+  sortBy: SortKey,
+  sortDir: 'asc' | 'desc',
+): null | JSX.Element {
   if (sortBy !== key) {
     return null
   }
@@ -95,7 +100,7 @@ interface EpicListHeaderProps {
   onOpenCreate: () => void
 }
 
-const EpicListHeader = function EpicListHeader(props: EpicListHeaderProps) {
+const EpicListHeader = function EpicListHeader(props: EpicListHeaderProps): JSX.Element {
   return (
     <div className='flex items-center justify-between mb-4 gap-2 flex-wrap'>
       <FiltersPopover
@@ -180,7 +185,7 @@ export default function EpicList({
 }: {
   workspaceSlug: string
   initialData: EpicsInitialData
-}) {
+}): JSX.Element {
   const {
     filterStatuses,
     setFilterStatuses,
@@ -286,7 +291,7 @@ interface EpicsTableProps {
   toggleSort: (key: SortKey) => void
 }
 
-function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: EpicsTableProps) {
+function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: EpicsTableProps): JSX.Element {
   if (Array.isArrayEmpty(epics)) {
     return <EmptyState title='No epics found. Use the button above to create one.' />
   }
@@ -331,7 +336,7 @@ function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: Epics
   )
 }
 
-function EpicMobileCard({ ep, rollup }: EpicRowProps) {
+function EpicMobileCard({ ep, rollup }: EpicRowProps): JSX.Element {
   const statusColor = CATEGORY_COLORS[ep.status_category ?? ''] ?? 'var(--text-muted)'
   return (
     <Card>
@@ -359,7 +364,7 @@ interface EpicRowProps {
   rollup: EpicRollup | undefined
 }
 
-function EpicRow({ ep, rollup }: EpicRowProps) {
+function EpicRow({ ep, rollup }: EpicRowProps): JSX.Element {
   const statusColor = CATEGORY_COLORS[ep.status_category ?? ''] ?? 'var(--text-muted)'
   return (
     <tr className='group'>
@@ -428,7 +433,7 @@ function CreateEpicModal({
   workspaceSlug,
   epicTypeId,
   submitCreate,
-}: CreateEpicModalProps) {
+}: CreateEpicModalProps): undefined | JSX.Element {
   if (!showCreate) {
     return undefined
   }

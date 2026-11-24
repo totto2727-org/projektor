@@ -1,6 +1,7 @@
 'use client'
 import { Predicate } from 'effect'
 import { useState } from 'react'
+import type { JSX } from 'react'
 
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
@@ -53,7 +54,7 @@ function SourceCard({
   summary?: SourceSummary
   workspaceSlug: string
   projectId: string
-}) {
+}): JSX.Element {
   const total = summary?.totalCount ?? 0
   const lastSeenAt = summary?.versions.reduce((max, version) => Math.max(max, version.lastSeenAt), 0) ?? 0
   return (
@@ -75,7 +76,7 @@ function SourceCard({
   )
 }
 
-function NewSourceCard({ onClick }: { onClick: () => void }) {
+function NewSourceCard({ onClick }: { onClick: () => void }): JSX.Element {
   return (
     <button
       type='button'
@@ -87,7 +88,12 @@ function NewSourceCard({ onClick }: { onClick: () => void }) {
   )
 }
 
-export default function FeedbackSourceGrid({ workspaceSlug, projectId, initialSources, initialSummaries }: Props) {
+export default function FeedbackSourceGrid({
+  workspaceSlug,
+  projectId,
+  initialSources,
+  initialSummaries,
+}: Props): JSX.Element {
   const sources = initialSources
   const summaries = initialSummaries
   const [showCreate, setShowCreate] = useState(false)

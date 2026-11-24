@@ -1,4 +1,6 @@
 'use client'
+import type { JSX } from 'react'
+
 import { navigateIssues } from '@/features/issues/utils/navigation.ts'
 import type { IssuesInitialData, IssuesRoute } from '@/features/issues/views/issues-page.tsx'
 
@@ -18,7 +20,7 @@ interface Props {
   route: IssuesRoute
 }
 
-export default function IssueList({ workspaceSlug, initialData, route }: Props) {
+export default function IssueList({ workspaceSlug, initialData, route }: Props): JSX.Element {
   /*
    * The URL owns the view and its SSR-loaded working set. Browser preferences
    * cannot change the initial tree or replace primary data after hydration.

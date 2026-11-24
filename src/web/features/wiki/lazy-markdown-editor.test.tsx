@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
+import type { JSX } from 'react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 import type { Props } from './markdown-editor.tsx'
@@ -14,7 +15,7 @@ afterEach(cleanup)
 
 test('commits fallback input before blur and preserves it when the editor chunk resolves', async () => {
   const changed = vi.fn()
-  function Editor() {
+  function Editor(): JSX.Element {
     const [value, setValue] = useState('')
     return (
       <LazyMarkdownEditor

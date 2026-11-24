@@ -1,4 +1,5 @@
 import { String, Predicate, Effect } from 'effect'
+import type { JSX } from 'react'
 
 import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { browserRequest, coreResult } from '@/core.ts'
@@ -10,7 +11,7 @@ import { FeedbackDetailClient } from './feedback-detail-client.tsx'
 import { FeedbackGridClient } from './feedback-grid-client.tsx'
 import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas.ts'
 
-const NeedProject = function NeedProject() {
+const NeedProject = function NeedProject(): JSX.Element {
   return (
     <section className='p-6 bg-surface border border-border rounded-lg'>
       <h1 className='m-0'>Choose a project</h1>
@@ -18,7 +19,7 @@ const NeedProject = function NeedProject() {
     </section>
   )
 }
-const NotFound = function NotFound() {
+const NotFound = function NotFound(): JSX.Element {
   return (
     <section className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>
       Feedback source not found.
