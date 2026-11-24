@@ -14,7 +14,7 @@ describe('covers PROJ-857: issue list cursor', () => {
     const testFixture = await seedIssueFixture()
     // The fixture issue plus 34 more, all stamped with the same created_at.
     const createdAt = currentEpochSeconds()
-    for (let n = 2; n <= 35; n++) {
+    for (let n = 2; n <= 35; n += 1) {
       await env.DB.prepare(
         `INSERT INTO issues (id, workspace_id, project_id, number, title, status, priority, labels, created_by_id, created_at, updated_at)
 				 VALUES (?, ?, ?, ?, ?, 'todo', 'none', '[]', ?, ?, ?)`,
@@ -61,7 +61,7 @@ describe('covers PROJ-857: issue list cursor', () => {
       } // Count only on the first page
       seen.push(...body.items.map((item) => item.id))
       cursor = body.nextCursor
-      pages++
+      pages += 1
     } while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) && pages < 10)
 
     expect(firstTotal).toBe(35)

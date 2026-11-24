@@ -250,10 +250,10 @@ describe('covers PROJ-866: D1 query bound at scale', () => {
       return id
     }
     const longAgo = since - 20 * WEEK
-    for (let index = 0; index < 1000; index++) {
+    for (let index = 0; index < 1000; index += 1) {
       insertIssue(index + 1, longAgo, longAgo + 100, longAgo + 200)
     }
-    for (let index = 0; index < IN_WINDOW; index++) {
+    for (let index = 0; index < IN_WINDOW; index += 1) {
       const claimedAt = since + 60 * index
       const id = insertIssue(1001 + index, since - 86_400, claimedAt, claimedAt + 1000)
       /*
@@ -291,7 +291,7 @@ describe('covers PROJ-866: D1 query bound at scale', () => {
     let queries = 0
     const orig = env.DB.prepare.bind(env.DB)
     vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
-      queries++
+      queries += 1
       return orig(sql)
     })
 

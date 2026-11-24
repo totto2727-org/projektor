@@ -48,7 +48,7 @@ export const ProjectLanding = function ProjectLanding({
   const [editing, setEditing] = useState(false)
   const [result, formAction, pending] = useActionState(updateDescription, null)
   const [archiveBusy, setArchiveBusy] = useState(false)
-  const [requestError, setRequestError] = useState<string | null>(null)
+  const [requestError, setRequestError] = useState<string>()
   const isPublicViewer = runtime.scope?.user.email === 'public-viewer@projektor.local'
   const canMutate = canEdit && !isPublicViewer
   const effectiveSlug =
@@ -73,7 +73,7 @@ export const ProjectLanding = function ProjectLanding({
 
   async function toggleArchived(): Promise<void> {
     setArchiveBusy(true)
-    setRequestError(null)
+    setRequestError(undefined)
     const archived = !Predicate.isNotNullish(project.archivedAt)
     try {
       unwrapResult(await archiveProject({ workspaceSlug: effectiveSlug, projectId: project.id, archived }))
@@ -86,7 +86,7 @@ export const ProjectLanding = function ProjectLanding({
   }
 
   function startEditing(): void {
-    setRequestError(null)
+    setRequestError(undefined)
     form.reset({
       workspaceSlug: effectiveSlug,
       projectId: project.id,

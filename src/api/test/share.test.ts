@@ -147,7 +147,7 @@ describe('share tokens', () => {
     })
     const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < 3; index += 1) {
       const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
       expect(res.status).toBe(200)
     }

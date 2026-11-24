@@ -47,7 +47,7 @@ export function IssueBulkProvider({
 }): JSX.Element {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   function toggle(id: string, checked: boolean): void {
     setSelected((current) => {
       const next = new Set(current)
@@ -62,7 +62,7 @@ export function IssueBulkProvider({
   async function change(changes: { statusId: string } | { priority: string }): Promise<void> {
     const ids = [...selected]
     setBusy(true)
-    setError(null)
+    setError(undefined)
     try {
       for (const id of ids) {
         unwrapResult(await updateIssue({ workspaceSlug, issueId: id, patch: changes }))

@@ -387,7 +387,7 @@ function WikiVerifyControls({
   hasVerificationSignal: boolean
   onVerify: () => void
   verifying: boolean
-  verifyError: string | null
+  verifyError: string | undefined
   isPublicViewer: boolean
 }): JSX.Element {
   return (
@@ -416,7 +416,7 @@ function WikiMetadataCard({
   page: WikiPageData
   onVerify: () => void
   verifying: boolean
-  verifyError: string | null
+  verifyError: string | undefined
   isPublicViewer: boolean
 }): undefined | JSX.Element {
   const hasMetadata =
@@ -1085,7 +1085,7 @@ function CreatePageForm({
   title: string
   slug: string
   content: string
-  error: string | null
+  error: string | undefined
   saving: boolean
   templates: TemplateOption[]
   templateSlug: string
@@ -1248,7 +1248,7 @@ function MovePageForm({
   options: SelectOption[]
   value: string
   saving: boolean
-  error: string | null
+  error: string | undefined
   onChange: (value: string) => void
   onSubmit: () => void
   onCancel: () => void
@@ -1347,7 +1347,7 @@ function PageActionOverflowMenu({
 }): JSX.Element {
   const { duplicate, duplicating } = useDuplicateWikiPage()
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; right: number }>()
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -1699,8 +1699,8 @@ function RevisionRow({
   editing: boolean
 }): JSX.Element {
   const [diffOpen, setDiffOpen] = useState(false)
-  const [diff, setDiff] = useState<string | null>(null)
-  const [diffError, setDiffError] = useState<string | null>(null)
+  const [diff, setDiff] = useState<string>()
+  const [diffError, setDiffError] = useState<string>()
   const [diffLoading, setDiffLoading] = useState(false)
 
   async function toggleDiff(): Promise<void> {
@@ -1713,7 +1713,7 @@ function RevisionRow({
       return
     }
     setDiffLoading(true)
-    setDiffError(null)
+    setDiffError(undefined)
     try {
       const result = unwrapResult(
         await Effect.runPromise(query(getWikiRevisionDiff)({ workspaceSlug, slug: pageSlug, revisionId: revision.id })),
@@ -1778,7 +1778,7 @@ function RevisionsHistory({
   workspaceSlug: string | undefined
   pageSlug: string
   onRestore: (revision: WikiRevision) => void
-  restoringId: string | null
+  restoringId: string | undefined
   editing: boolean
 }): undefined | JSX.Element {
   if (Array.isArrayEmpty(revisions)) {
@@ -1876,7 +1876,7 @@ function AttachmentUploadForm({
   uploadError,
   onCancel,
 }: {
-  uploadError: string | null
+  uploadError: string | undefined
   onCancel: () => void
 }): undefined | JSX.Element {
   const seed = useWikiSeed()
@@ -1961,7 +1961,7 @@ function AttachmentsPanel({
   workspaceSlug?: string
   content: string
   uploadFormOpen: boolean
-  uploadError: string | null
+  uploadError: string | undefined
   onToggleUploadForm: (open: boolean) => void
   onCancelUpload: () => void
   onDeleteAttachment: (attachmentId: string) => void
@@ -2032,22 +2032,22 @@ interface PageArticleProps {
   // PROJ-489 (R7): the metadata header card's Verify button.
   onVerify: () => void
   verifying: boolean
-  verifyError: string | null
+  verifyError: string | undefined
   moving: boolean
   moveOptions: SelectOption[]
   moveTargetId: string
   moveSaving: boolean
-  moveError: string | null
+  moveError: string | undefined
   onStartMove: () => void
   onMoveTargetChange: (value: string) => void
   onSubmitMove: () => void
   onCancelMove: () => void
   latestRevision: WikiRevision | null
-  saveError: string | null
+  saveError: string | undefined
   // PROJ-797: set only after a 409 — rebases the user's text onto the current revision.
   onOverwriteWithMine: (() => void) | null
   draftBanner: ServerDraft | null
-  draftWarning: string | null
+  draftWarning: string | undefined
   onRestoreDraft: () => void
   onDiscardDraft: () => void
   editContent: string
@@ -2058,11 +2058,11 @@ interface PageArticleProps {
   showHistory: boolean
   onToggleHistory: () => void
   onRestoreRevision: (revision: WikiRevision) => void
-  restoringRevisionId: string | null
+  restoringRevisionId: string | undefined
   attachments: Attachment[]
   workspaceSlug?: string
   uploadFormOpen: boolean
-  uploadError: string | null
+  uploadError: string | undefined
   onToggleUploadForm: (open: boolean) => void
   onCancelUpload: () => void
   onDeleteAttachment: (attachmentId: string) => void
@@ -2284,7 +2284,7 @@ interface CreateFormProps {
   title: string
   slug: string
   content: string
-  error: string | null
+  error: string | undefined
   saving: boolean
   templates: TemplateOption[]
   templateSlug: string
@@ -2666,7 +2666,7 @@ function useHashScroll(
 function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const seed = useWikiSeed()
   const [uploadFormOpen, setUploadFormOpen] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string>()
   const [inlineAttachments, setInlineAttachments] = useState<Attachment[]>([])
   const attachments = [
     ...seed.attachments,
@@ -2674,13 +2674,13 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
   ]
   function cancelUpload(): void {
     setUploadFormOpen(false)
-    setUploadError(null)
+    setUploadError(undefined)
   }
   async function deleteAttachment(attachmentId: string): Promise<void> {
     if (!page) {
       return
     }
-    setUploadError(null)
+    setUploadError(undefined)
     try {
       unwrapResult(await deleteWikiAttachment({ workspaceSlug, attachmentId }))
       setInlineAttachments((files) => files.filter((file) => file.id !== attachmentId))
@@ -2795,7 +2795,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   const drainingRef = useRef(false)
   const blockedRef = useRef(false)
   const suspendedRef = useRef(false)
-  const [writeWarning, setWriteWarning] = useState<string | null>(null)
+  const [writeWarning, setWriteWarning] = useState<string>()
 
   /*
    * One page-local chain orders autosave, explicit discard and publication. Only
@@ -2842,7 +2842,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
             }
             // Failed or unacknowledged writes never mark a fingerprint persisted.
             lastPersistedRef.current = fingerprint
-            setWriteWarning(null)
+            setWriteWarning(undefined)
           } catch {
             blockedRef.current = true
             setWriteWarning('Autosave did not complete. Your text is still here. Save before leaving this page.')
@@ -2870,7 +2870,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     blockedRef.current = false
     serverHasDraftRef.current = Predicate.isNotNullish(state.draft)
     lastPersistedRef.current = null
-    setWriteWarning(null)
+    setWriteWarning(undefined)
   }
 
   function discardDraftNow(p: WikiPageData, title: string, content: string): Promise<void> {
@@ -3137,7 +3137,7 @@ function useWikiEditing(
   }
   const setBaseRevisionId = (value: string | null | undefined): void => editForm.setFieldValue('baseRevisionId', value)
   const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string>()
   // PROJ-797: the last save hit a 409 (someone else saved first).
   const [conflict, setConflict] = useState(false)
   const [draftBanner, setDraftBanner] = useState<ServerDraft | null>(
@@ -3200,7 +3200,7 @@ function useWikiEditing(
       return
     }
     const session = ++sessionRef.current
-    setSaveError(null)
+    setSaveError(undefined)
     setDraftBanner(null)
     setDraftStatus('loading')
     serverHasDraftRef.current = false
@@ -3303,7 +3303,7 @@ function useWikiEditing(
       skipLeaveFlushRef.current = true
     }
     setEditing(false)
-    setSaveError(null)
+    setSaveError(undefined)
     setConflict(false)
     setDraftBanner(null)
   }
@@ -3322,7 +3322,7 @@ function useWikiEditing(
       base: baseOverride !== undefined ? baseOverride : baseRevisionId,
     }
     setSaving(true)
-    setSaveError(null)
+    setSaveError(undefined)
     setConflict(false)
     await (async () => {
       try {
@@ -3457,7 +3457,7 @@ function useWikiRestore(
   latestRevisionId: string | null | undefined,
   editing: boolean,
 ) {
-  const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [restoringId, setRestoringId] = useState<string>()
 
   async function restore(revision: WikiRevision): Promise<void> {
     if (!page) {
@@ -3496,7 +3496,7 @@ function useWikiRestore(
         alert(`Restore failed: ${globalThis.String(caughtError)}`)
       }
     }
-    setRestoringId(null)
+    setRestoringId(undefined)
   }
 
   return { restoringId, restore }
@@ -3515,20 +3515,20 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
   const moveTargetId = useStore(moveForm.store, (state) => state.values.parentId)
   const setMoveTargetId = (value: string): void => moveForm.setFieldValue('parentId', value)
   const [moveSaving, setMoveSaving] = useState(false)
-  const [moveError, setMoveError] = useState<string | null>(null)
+  const [moveError, setMoveError] = useState<string>()
 
   function startMove(): void {
     if (!page) {
       return
     }
     setMoveTargetId(page.parent_id ?? '')
-    setMoveError(null)
+    setMoveError(undefined)
     setMoving(true)
   }
 
   function cancelMove(): void {
     setMoving(false)
-    setMoveError(null)
+    setMoveError(undefined)
   }
 
   async function submitMove(): Promise<void> {
@@ -3536,7 +3536,7 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
       return
     }
     setMoveSaving(true)
-    setMoveError(null)
+    setMoveError(undefined)
     try {
       unwrapResult(await moveWikiPage({ workspaceSlug, slug: page.slug, parentId: moveTargetId || null }))
       setMoving(false)
@@ -3565,14 +3565,14 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
  */
 function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const [verifying, setVerifying] = useState(false)
-  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const [verifyError, setVerifyError] = useState<string>()
 
   async function verifyPage(): Promise<void> {
     if (!page) {
       return
     }
     setVerifying(true)
-    setVerifyError(null)
+    setVerifyError(undefined)
     try {
       unwrapResult(await verifyWikiPage({ workspaceSlug, slug: page.slug }))
     } catch (caughtError) {
@@ -3609,7 +3609,7 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
   const setCreateContent = (value: string): void => createForm.setFieldValue('content', value)
   const setCreateParentId = (value: string | null): void => createForm.setFieldValue('parentId', value)
   const setCreateTemplateSlug = (value: string): void => createForm.setFieldValue('templateSlug', value)
-  const [createError, setCreateError] = useState<string | null>(null)
+  const [createError, setCreateError] = useState<string>()
   const [createSaving, setCreateSaving] = useState(false)
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   /*
@@ -3624,14 +3624,14 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
     setCreateSlug('')
     setCreateContent('')
     setCreateParentId(parentId)
-    setCreateError(null)
+    setCreateError(undefined)
     setSlugManuallyEdited(false)
     setCreateTemplateSlug('')
   }
 
   function cancelCreate(): void {
     setCreating(false)
-    setCreateError(null)
+    setCreateError(undefined)
   }
 
   function onCreateTitleChange(title: string): void {
@@ -3669,7 +3669,7 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
       return
     }
     setCreateSaving(true)
-    setCreateError(null)
+    setCreateError(undefined)
     try {
       const created = unwrapResult(
         await createWikiPage({
@@ -4184,7 +4184,7 @@ function buildCreateFormProps(
     createTitle: string
     createSlug: string
     createContent: string
-    createError: string | null
+    createError: string | undefined
     createSaving: boolean
     templates: TemplateOption[]
     createTemplateSlug: string
@@ -4233,12 +4233,12 @@ function buildArticleProps(
     deletePage: () => void
     onVerify: () => void
     verifying: boolean
-    verifyError: string | null
+    verifyError: string | undefined
     latestRevision: WikiRevision | null
-    saveError: string | null
+    saveError: string | undefined
     overwriteWithMine: (() => void) | null
     draftBanner: ServerDraft | null
-    draftWarning: string | null
+    draftWarning: string | undefined
     restoreDraft: () => void
     discardDraft: () => void
     editContent: string
@@ -4248,7 +4248,7 @@ function buildArticleProps(
     showHistory: boolean
     setShowHistory: (updater: (h: boolean) => boolean) => void
     onRestoreRevision: (revision: WikiRevision) => void
-    restoringRevisionId: string | null
+    restoringRevisionId: string | undefined
     attach: ReturnType<typeof useWikiAttachments>
     workspaceSlug: string | undefined
     move: ReturnType<typeof useMovePage>
@@ -4524,7 +4524,7 @@ function UndoToastView({
 
 function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () => void }): JSX.Element {
   const [undoing, setUndoing] = useState(false)
-  const [undoError, setUndoError] = useState<string | null>(null)
+  const [undoError, setUndoError] = useState<string>()
   const [hovered, setHovered] = useState(false)
   const [focusWithin, setFocusWithin] = useState(false)
   /*
@@ -4546,7 +4546,7 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
 
   async function handleUndo(): Promise<void> {
     setUndoing(true)
-    setUndoError(null)
+    setUndoError(undefined)
     let result: string
     try {
       result = await current.undo()

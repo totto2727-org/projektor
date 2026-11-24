@@ -27,7 +27,7 @@ const ReviewTargetRow = function ReviewTargetRow({
 }): JSX.Element {
   const status = attachment.reviewStatus
   const [pending, setPending] = useState<{ attachment: Attachment; saved: boolean } | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const busy = useRef(false)
   const name = attachment.filename || attachment.url || 'Attachment'
   const option = STATUS_OPTIONS.find((entry) => entry.value === status)
@@ -49,7 +49,7 @@ const ReviewTargetRow = function ReviewTargetRow({
     }
     busy.current = true
     setPending({ attachment, saved: false })
-    setError(null)
+    setError(undefined)
     try {
       unwrapResult(
         await setAttachmentReviewStatus({ workspaceSlug, issueId, attachmentId: attachment.id, status: nextStatus }),

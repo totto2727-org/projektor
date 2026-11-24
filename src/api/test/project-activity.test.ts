@@ -315,7 +315,7 @@ describe('list_project_activity MCP tool', () => {
 
   test('respects the limit parameter', async () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
-    for (let index = 0; index < 5; index++) {
+    for (let index = 0; index < 5; index += 1) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
 
@@ -474,7 +474,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
 
   test('respects the limit query param', async () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
-    for (let index = 0; index < 5; index++) {
+    for (let index = 0; index < 5; index += 1) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
 

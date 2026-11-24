@@ -229,7 +229,7 @@ describe('covers PROJ-891: MCP tools', () => {
   }
 
   test('list_issues: summary view, {items,next} pagination, and cursor continuation', async () => {
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < 3; index += 1) {
       await seedIssue(f.workspaceId, f.projectId, f.userId, {
         title: `Item ${index}`,
         createdAt: 1000 + index,
@@ -269,7 +269,7 @@ describe('covers PROJ-891: MCP tools', () => {
 
   test('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
     const pad = 'y'.repeat(400)
-    for (let index = 0; index < 60; index++) {
+    for (let index = 0; index < 60; index += 1) {
       await seedIssue(f.workspaceId, f.projectId, f.userId, {
         title: `${pad} ${index}`,
         createdAt: 2000 + index,
@@ -278,7 +278,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const seen = new Set<string>()
     let cursor: string | undefined
     let truncatedPages = 0
-    for (let guard = 0; guard < 10; guard++) {
+    for (let guard = 0; guard < 10; guard += 1) {
       const requestUrl = `http://localhost/mcp/${f.workspaceId}`
       const requestOptions = requestOptionsWithBody(
         'POST',
@@ -305,7 +305,7 @@ describe('covers PROJ-891: MCP tools', () => {
         truncated?: boolean
       }
       if (page.truncated === true) {
-        truncatedPages++
+        truncatedPages += 1
       }
       Iterable.forEach(page.items, (item) => {
         seen.add(item.ref)
@@ -368,7 +368,7 @@ describe('covers PROJ-891: MCP tools', () => {
 
   test('list_comments is never cut: every comment is returned', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Chatty' })
-    for (let index = 0; index < 30; index++) {
+    for (let index = 0; index < 30; index += 1) {
       await tool('add_comment', { issueId: issue.id, body: `${index} ${'c'.repeat(1000)}` })
     }
     const res = await tool<{ items: unknown[]; truncated?: boolean }>('list_comments', {

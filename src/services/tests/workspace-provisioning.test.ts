@@ -26,7 +26,7 @@ const fixture = function fixture() {
         return Reflect.get(target, key)
       }
       return async (statements: D1PreparedStatement[]) => {
-        batches++
+        batches += 1
         database.sqlite.exec('BEGIN')
         try {
           const results = []

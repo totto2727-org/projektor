@@ -77,7 +77,7 @@ const request = (headers: HeadersInit = {}): Request<unknown, CfProperties> =>
   new Request('https://example.test/api/issues', { headers })
 
 const consume = async function consume(count: number, req: Request, env: RequestRateLimitEnv): Promise<void> {
-  for (let index = 0; index < count; index++) {
+  for (let index = 0; index < count; index += 1) {
     await expect(checkRateLimit(req, env)).resolves.toBeUndefined()
   }
 }

@@ -34,14 +34,14 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
 
     // 80 pages linked by their current slug.
     const direct: string[] = []
-    for (let index = 0; index < 80; index++) {
+    for (let index = 0; index < 80; index += 1) {
       const id = crypto.randomUUID()
       direct.push(id)
       await insertPage(id, `direct-${index}`, `Direct ${index}`)
     }
     // 40 pages linked by an old slug (redirect) — 5 of them trashed, so unresolved.
     const redirected: string[] = []
-    for (let index = 0; index < 40; index++) {
+    for (let index = 0; index < 40; index += 1) {
       const id = crypto.randomUUID()
       redirected.push(id)
       await insertPage(id, `renamed-${index}`, `Renamed ${index}`, index < 5 ? now : null)

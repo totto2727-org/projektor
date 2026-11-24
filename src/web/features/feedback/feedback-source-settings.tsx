@@ -110,7 +110,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
   const [rotationBusy, setRotationBusy] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [newToken, setNewToken] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
 
   async function toggleActive(): Promise<void> {
     try {
@@ -134,7 +134,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
     }
     rotationInFlight.current = true
     setRotationBusy(true)
-    setError(null)
+    setError(undefined)
     try {
       const result = unwrapResult(await rotateFeedbackSourceToken({ workspaceSlug, projectId, sourceId: source.id }))
       setRotating(false)

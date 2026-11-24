@@ -112,7 +112,7 @@ describe('project pages read named shared queries against migrated D1', () => {
     const insert = database.sqlite.prepare(
       "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at) VALUES (?,'w1','p1',?,?,'u1',?,?)",
     )
-    for (let index = 0; index < 40; index++) {
+    for (let index = 0; index < 40; index += 1) {
       insert.run(`recent-${index}`, index + 1, `Issue ${index}`, index + 100, index + 100)
     }
     insert.run('old-edited', 41, 'Old edited issue', 1, 1000)

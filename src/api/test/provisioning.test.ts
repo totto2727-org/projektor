@@ -407,9 +407,9 @@ const countingDb = function countingDb(db: D1Database): {
   const proxy = new Proxy(db, {
     get(target, prop, receiver) {
       if (prop === 'prepare') {
-        counts.prepare++
+        counts.prepare += 1
       } else if (prop === 'batch') {
-        counts.batch++
+        counts.batch += 1
       }
       const value = Reflect.get(target, prop, receiver)
       return Predicate.isFunction(value) ? value.bind(target) : value

@@ -44,7 +44,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
         }
         if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
-            count++
+            count += 1
             return (value as (...a: unknown[]) => unknown).apply(target, args)
           }
         }
@@ -54,7 +54,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
 
   vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => wrapStmt(origPrepare(sql)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
-    count++
+    count += 1
     return origBatch(stmts)
   })
 

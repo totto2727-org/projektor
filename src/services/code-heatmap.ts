@@ -107,7 +107,7 @@ const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { pat
       group.isLeaf = false
     }
     group.ids.add(getId(item))
-    group.count++
+    group.count += 1
   })
 
   return groups

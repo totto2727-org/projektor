@@ -175,7 +175,7 @@ describe('sprint and feedback database read models', () => {
     const cause = new Error('database unavailable')
     const broken = {
       prepare: () => {
-        calls++
+        calls += 1
         throw cause
       },
     } as unknown as D1Database

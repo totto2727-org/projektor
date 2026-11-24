@@ -408,7 +408,7 @@ function SprintRow({
 }: RowProps): JSX.Element {
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const [archive, setArchive] = useState(false)
   const [moving, setMoving] = useState(false)
   const sprintIssues = issues.filter((issue) => issue.sprint_id === sprint.id)
@@ -418,7 +418,7 @@ function SprintRow({
       return
     }
     setBusy(true)
-    setError(null)
+    setError(undefined)
     try {
       unwrapResult(await setSprintStatus({ workspaceSlug, projectId, sprintId: sprint.id, status }))
     } catch (currentError) {
@@ -431,7 +431,7 @@ function SprintRow({
       return
     }
     setBusy(true)
-    setError(null)
+    setError(undefined)
     try {
       unwrapResult(await archiveSprint({ workspaceSlug, projectId, sprintId: sprint.id }))
       setArchive(false)
@@ -493,7 +493,7 @@ function SprintRow({
             disabled={busy}
             onClick={() => {
               setEditing(true)
-              setError(null)
+              setError(undefined)
             }}
           >
             Edit
@@ -619,12 +619,12 @@ function MoveIssuesForm({
     issueIds: issues.filter((issue) => issue.status_category !== 'done').map((issue) => issue.id),
   }))
   const standard = Schema.toStandardSchemaV1(MoveSprintIssuesSchema)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const form = useForm({
     defaultValues: defaults,
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
     onSubmit: async ({ value }) => {
-      setError(null)
+      setError(undefined)
       try {
         unwrapResult(await moveSprintIssues(value))
         onClose()

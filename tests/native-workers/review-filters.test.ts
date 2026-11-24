@@ -71,7 +71,7 @@ beforeEach(async () => {
   const statements: D1PreparedStatement[] = []
   selected = []
   const states = ['fixing', 'in_review', 'changes_requested'] as const
-  for (let index = 0; index < 62; index++) {
+  for (let index = 0; index < 62; index += 1) {
     const active = index < 35
     const ownerWorkspace = index === 61 ? foreignWorkspaceId : workspaceId
     const projectId =

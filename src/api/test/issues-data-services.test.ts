@@ -70,7 +70,7 @@ describe('shared issue queries over the API D1 pool', () => {
   })
 
   test('keeps cursor tie-breaking, first-page totals, optional body/rollups and assignee metadata', async () => {
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < 3; index += 1) {
       await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
         createdAt: 100,
         assigneeId: fixture.userId,

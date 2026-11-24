@@ -812,7 +812,7 @@ describe('covers MCP endpoint', () => {
   test('get_prioritized_issues respects limit parameter', async () => {
     const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
-    for (let index = 0; index < 5; index++) {
+    for (let index = 0; index < 5; index += 1) {
       await seedIssue(workspaceId, projectId, user.id, { title: `Issue ${index}` })
     }
 

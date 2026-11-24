@@ -232,7 +232,7 @@ export const TokenManager = function TokenManager({
   mcpCommandTemplate?: string | null
 }): JSX.Element {
   const [showCreate, setShowCreate] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const [newToken, setNewToken] = useState<NewTokenResult | null>(null)
   const [revokeId, setRevokeId] = useState<string | null>(null)
   const [revoking, setRevoking] = useState(false)
@@ -244,7 +244,7 @@ export const TokenManager = function TokenManager({
     }
     if (createResult.ok) {
       setNewToken(createResult.value)
-      setError(null)
+      setError(undefined)
     } else {
       setError(createResult.message)
     }
@@ -264,14 +264,14 @@ export const TokenManager = function TokenManager({
   function open(): void {
     setShowCreate(true)
     form.reset()
-    setError(null)
+    setError(undefined)
     setNewToken(null)
     setTimeout(() => inputRef.current?.focus(), 0)
   }
   function close(): void {
     setShowCreate(false)
     setNewToken(null)
-    setError(null)
+    setError(undefined)
   }
   async function revoke(id: string): Promise<void> {
     if (revoking) {

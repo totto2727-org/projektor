@@ -213,7 +213,7 @@ describe('project/workspace pure queries', () => {
     const cause = new Error('database unavailable')
     const broken = {
       prepare: () => {
-        calls++
+        calls += 1
         throw cause
       },
     } as unknown as D1Database

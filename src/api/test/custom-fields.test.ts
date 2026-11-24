@@ -353,7 +353,7 @@ describe('custom Fields — resolved on read', () => {
       type: 'number',
     })
 
-    for (let index = 1; index <= 3; index++) {
+    for (let index = 1; index <= 3; index += 1) {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
       await seedCustomFieldValue(issue.id, fieldId, String(index * 3))
     }
@@ -643,7 +643,7 @@ describe('covers PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
 
     const COUNT = 95 // > CHUNK_SIZE (90), so ids span two queries
     const issueIds: string[] = []
-    for (let index = 0; index < COUNT; index++) {
+    for (let index = 0; index < COUNT; index += 1) {
       const issue = await seedIssue(ws.workspace.id, proj.id, ws.user.id)
       await seedCustomFieldValue(issue.id, def.id, String(index))
       issueIds.push(issue.id)
@@ -652,7 +652,7 @@ describe('covers PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
     const loaded = await batchLoadCustomFields(env.DB, ws.workspace.id, issueIds)
 
     expect(Object.keys(loaded)).toHaveLength(COUNT)
-    for (let index = 0; index < COUNT; index++) {
+    for (let index = 0; index < COUNT; index += 1) {
       expect(loaded[issueIds[index]]).toHaveLength(1)
       expect(loaded[issueIds[index]][0].value).toBe(String(index))
     }

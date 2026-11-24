@@ -42,7 +42,7 @@ const interleaveBeforeNextBatch = function interleaveBeforeNextBatch(
   let remaining = times
   vi.spyOn(env.DB, 'batch').mockImplementation(async (stmts) => {
     if (remaining > 0) {
-      remaining--
+      remaining -= 1
       await concurrent()
     }
     return orig(stmts)
@@ -131,7 +131,7 @@ describe('covers PROJ-810: guarded writes', () => {
     const { revisionId } = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
     let n = 0
     interleaveBeforeNextBatch(10, async () => {
-      n++
+      n += 1
       await env.DB.prepare('UPDATE wiki_pages SET content = ? WHERE slug = ?').bind(`churn ${n}`, slug).run()
     })
     await expect(

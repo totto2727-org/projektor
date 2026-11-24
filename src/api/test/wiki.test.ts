@@ -510,7 +510,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/search supports limit/offset pagination', async () => {
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < 3; index += 1) {
       await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({ title: `Paginated Page ${index}`, content: 'shared-search-term' }),
         headers: authHeaders(token, slug),
@@ -540,7 +540,7 @@ describe('wiki API', () => {
      * slug-collision 409s; the rate_limit reset avoids tripping the 5-req/window cap
      * (RATE_LIMIT_API_MAX) across the create + fetch calls below.
      */
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < 3; index += 1) {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
           title: `Tie Rank Page ${index}`,
@@ -898,7 +898,7 @@ describe('wiki API', () => {
   test('handles POST /api/wiki rejects when max nesting depth (5) is exceeded', async () => {
     let parentId: string | null = null
     // Create 5 levels deep (root → L1 → L2 → L3 → L4 → L5)
-    for (let index = 0; index < 5; index++) {
+    for (let index = 0; index < 5; index += 1) {
       const body: Record<string, unknown> = { title: `Level ${index}`, content: '' }
       if (Predicate.isNotNullish(parentId) && String.isNonEmpty(parentId)) {
         body.parentId = parentId
@@ -934,7 +934,7 @@ describe('wiki API', () => {
     // Build a 4-level chain: L0 -> L1 -> L2 -> L3 (L3 sits at depth 3).
     let chainParentId: string | null = null
     let l3Id = ''
-    for (let index = 0; index < 4; index++) {
+    for (let index = 0; index < 4; index += 1) {
       const body: Record<string, unknown> = { title: `Chain ${index}`, content: '' }
       if (Predicate.isNotNullish(chainParentId) && String.isNonEmpty(chainParentId)) {
         body.parentId = chainParentId

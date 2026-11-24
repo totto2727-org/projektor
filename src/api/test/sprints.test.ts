@@ -291,7 +291,7 @@ describe('sprints API', () => {
       const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
       const issueIds: string[] = []
-      for (let index = 0; index < 500; index++) {
+      for (let index = 0; index < 500; index += 1) {
         const issue = await seedIssue(workspaceId, projectId, userId, { title: `Bulk ${index}` })
         issueIds.push(issue.id)
       }
@@ -311,7 +311,7 @@ describe('sprints API', () => {
       let kvDeletes = 0
       const origDelete = env.KV.delete.bind(env.KV)
       vi.spyOn(env.KV, 'delete').mockImplementation((...args: Parameters<typeof origDelete>) => {
-        kvDeletes++
+        kvDeletes += 1
         return origDelete(...args)
       })
 

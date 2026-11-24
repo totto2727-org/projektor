@@ -263,18 +263,18 @@ export const TitleSection = function TitleSection({
   const titleForm = useIssueForm({ title: '' }, Schema.Struct({ title: TitleText }))
   const [editTitle, setEditTitle] = titleForm.field('title')
   const [savingTitle, setSavingTitle] = useState(false)
-  const [saveTitleError, setSaveTitleError] = useState<string | null>(null)
+  const [saveTitleError, setSaveTitleError] = useState<string>()
   useUnsavedUnloadGuard(editingTitle && editTitle !== issue.title)
 
   function startEditTitle(): void {
     setEditTitle(issue.title)
-    setSaveTitleError(null)
+    setSaveTitleError(undefined)
     setEditingTitle(true)
   }
 
   function cancelEditTitle(): void {
     setEditingTitle(false)
-    setSaveTitleError(null)
+    setSaveTitleError(undefined)
   }
 
   async function saveTitle(): Promise<void> {
@@ -283,7 +283,7 @@ export const TitleSection = function TitleSection({
       return
     }
     setSavingTitle(true)
-    setSaveTitleError(null)
+    setSaveTitleError(undefined)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { title: editTitle.trim() } }))
       setEditingTitle(false)

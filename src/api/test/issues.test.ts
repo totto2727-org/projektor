@@ -429,7 +429,7 @@ describe('issues API', () => {
   test('defaults to 30 rows per page when no limit is given (PROJ-201)', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const base = 1_700_000_000
-    for (let index = 0; index < 35; index++) {
+    for (let index = 0; index < 35; index += 1) {
       await seedIssue(workspaceId, projectId, userId, {
         title: `Issue ${index}`,
         createdAt: base + index,
@@ -449,7 +449,7 @@ describe('issues API', () => {
   test('reports the real total match count, not just the loaded page size (PROJ-303)', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const base = 1_700_000_000
-    for (let index = 0; index < 35; index++) {
+    for (let index = 0; index < 35; index += 1) {
       await seedIssue(workspaceId, projectId, userId, {
         title: `Issue ${index}`,
         createdAt: base + index,
@@ -486,14 +486,14 @@ describe('issues API', () => {
     // Seed a second project with many newer issues so workspace-wide listing would return them first
     const newerProject = await seedProject(workspaceId, 'NEW')
     const base = currentEpochSeconds()
-    for (let index = 0; index < 55; index++) {
+    for (let index = 0; index < 55; index += 1) {
       await seedIssue(workspaceId, newerProject.id, userId, {
         title: `Newer issue ${index}`,
         createdAt: base + index + 1,
       })
     }
     // Seed issues in projectId with older timestamps — would be cut off by workspace-wide limit=50
-    for (let index = 0; index < 10; index++) {
+    for (let index = 0; index < 10; index += 1) {
       await seedIssue(workspaceId, projectId, userId, {
         title: `Older issue ${index}`,
         createdAt: base - 1000 + index,
@@ -2159,7 +2159,7 @@ describe('get_prioritized_issues MCP tool', () => {
     // are ~100 open issues; this guards the inChunks split and that results merge across
     // chunk boundaries. (SQLite's cap is higher, so this asserts correctness, not the cap.)
     const COUNT = 105
-    for (let index = 0; index < COUNT; index++) {
+    for (let index = 0; index < COUNT; index += 1) {
       await seedIssue(workspaceId, projectId, userId, { title: `Open ${index}`, priority: 'medium' })
     }
 
@@ -2381,7 +2381,7 @@ describe('handles GET /api/issues/prioritized', () => {
    */
   test('limit is honoured', async () => {
     const { getPrioritized, projectId, userId, workspaceId } = await seedPrioritizedApiFixture()
-    for (let index = 0; index < 5; index++) {
+    for (let index = 0; index < 5; index += 1) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
 

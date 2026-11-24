@@ -180,10 +180,10 @@ describe('covers PROJ-432: the D1 fallback counter costs one round trip', () => 
     const proxy = new Proxy(db, {
       get(target, prop, receiver) {
         if (prop === 'prepare') {
-          counts.prepare++
+          counts.prepare += 1
         }
         if (prop === 'batch') {
-          counts.batch++
+          counts.batch += 1
         }
         const value = Reflect.get(target, prop, receiver)
         return Predicate.isFunction(value) ? value.bind(target) : value
@@ -222,7 +222,7 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
 
   test('handles GET requests write nothing to D1', async () => {
     const fixture = await seedFixture()
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < 3; index += 1) {
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
@@ -235,7 +235,7 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
   test('still enforces the token limit (API max 5) from the Durable Object counter', async () => {
     const fixture = await seedFixture()
     const statuses: number[] = []
-    for (let index = 0; index < API_LIMIT + 1; index++) {
+    for (let index = 0; index < API_LIMIT + 1; index += 1) {
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
@@ -253,7 +253,7 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
     try {
       const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`
       let res: Response | undefined
-      for (let index = 0; index < AUTH_LIMIT + 1; index++) {
+      for (let index = 0; index < AUTH_LIMIT + 1; index += 1) {
         res = await fetchNativeApi(ENDPOINT, { headers: { 'CF-Connecting-IP': ip } })
       }
       expect(res?.status).toBe(429)

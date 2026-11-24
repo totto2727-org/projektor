@@ -24,7 +24,7 @@ import { IdAndSlugResponse, readNativeJson } from './response-json.ts'
 const countSubrequests = function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
   let used = 0
   const bump = (): void => {
-    used++
+    used += 1
   }
   const wrapD1 = (db: D1Database): D1Database =>
     new Proxy(db, {
@@ -285,14 +285,14 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   test('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
     const creator = await seedUser(`cron-purge-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const workspaceIds: string[] = []
-    for (let index = 0; index < 50; index++) {
+    for (let index = 0; index < 50; index += 1) {
       const ws = await seedWorkspace(`cron-purge-ws-${index}-${crypto.randomUUID().slice(0, 6)}`)
       workspaceIds.push(ws.id)
     }
 
     const pageIds: string[] = []
     const workspaceIdByPageId = new Map<string, string>()
-    for (let index = 0; index < 300; index++) {
+    for (let index = 0; index < 300; index += 1) {
       const workspaceId = workspaceIds[index % workspaceIds.length]
       const id = crypto.randomUUID()
       workspaceIdByPageId.set(id, workspaceId)
@@ -319,7 +319,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
       pageIds.push(id)
     }
 
-    for (let index = 0; index < 100; index++) {
+    for (let index = 0; index < 100; index += 1) {
       const pageId = pageIds[index * 3] // Spread across ~1/3 of the pages
       const workspaceId = workspaceIdByPageId.get(pageId)
       if (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId)) {
@@ -353,7 +353,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
       const { env: countedEnv, count } = countSubrequests(env)
       await purgeAllWorkspacesExpiredWikiPages(countedEnv)
       expect(count()).toBeLessThanOrEqual(100)
-      iterations++
+      iterations += 1
 
       const row = await env.DB.prepare(
         'SELECT COUNT(*) AS n FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?',
@@ -393,7 +393,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     const ws = await seedWorkspace(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 6)}`)
 
     const pageIds: string[] = []
-    for (let index = 0; index < 500; index++) {
+    for (let index = 0; index < 500; index += 1) {
       const id = crypto.randomUUID()
       await env.DB.prepare(
         `INSERT INTO wiki_pages
@@ -424,7 +424,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
       const { env: countedEnv, count } = countSubrequests(env)
       await purgeAllWorkspacesExpiredWikiPages(countedEnv)
       expect(count()).toBeLessThanOrEqual(100)
-      iterations++
+      iterations += 1
 
       const row = await env.DB.prepare(
         'SELECT COUNT(*) AS n FROM wiki_pages WHERE workspace_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?',
@@ -466,7 +466,7 @@ describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
           if (prop === 'prepare') {
             return (sql: string) => {
               if (sql.includes('DELETE FROM wiki_fts WHERE rowid NOT IN')) {
-                ran++
+                ran += 1
               }
               return originalPrepare(sql)
             }

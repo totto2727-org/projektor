@@ -50,7 +50,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
         }
         if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
-            count++
+            count += 1
             return (value as (...a: unknown[]) => unknown).apply(target, args)
           }
         }
@@ -60,7 +60,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
 
   vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => wrapStmt(origPrepare(sql)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
-    count++
+    count += 1
     return origBatch(stmts)
   })
 
@@ -93,7 +93,7 @@ const formErrorOf = async function formErrorOf(p: Promise<unknown>): Promise<str
 const seedChain = async function seedChain(f: Fixture, length: number): Promise<string[]> {
   const ids: string[] = []
   let parentId: string | undefined
-  for (let index = 0; index < length; index++) {
+  for (let index = 0; index < length; index += 1) {
     const { id } = await seedIssue(f.workspaceId, f.projectId, f.userId, {
       title: `L${index}`,
       parentId,

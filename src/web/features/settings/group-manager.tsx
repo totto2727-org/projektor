@@ -695,7 +695,7 @@ export const GroupManager = function GroupManager({
   view?: GroupView
 }): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const [operationBusy, setBusy] = useState(false)
   const [createResult, createAction, createPending] = useActionState(createGroup, null)
   const busy = operationBusy || createPending
@@ -720,7 +720,7 @@ export const GroupManager = function GroupManager({
       return
     }
     setBusy(true)
-    setError(null)
+    setError(undefined)
     try {
       unwrapResult(await deleteGroup({ workspaceSlug, groupId: id }))
       if (selected === id) {

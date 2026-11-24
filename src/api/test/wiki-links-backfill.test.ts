@@ -89,7 +89,7 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
 
   test('bounds D1 calls for 200 pages regardless of page count', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
-    for (let index = 0; index < 200; index++) {
+    for (let index = 0; index < 200; index += 1) {
       await insertPage(workspace.id, user.id, {
         slug: `page-${index}`,
         title: `Page ${index}`,
@@ -129,7 +129,7 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const now = currentEpochSeconds()
     const ids: string[] = []
-    for (let index = 0; index < 10; index++) {
+    for (let index = 0; index < 10; index += 1) {
       ids.push(
         await insertPage(workspace.id, user.id, {
           slug: `p${index}`,

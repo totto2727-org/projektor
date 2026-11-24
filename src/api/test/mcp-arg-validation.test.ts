@@ -107,7 +107,7 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
         name: tool.name,
         arguments: args,
       })
-      checked++
+      checked += 1
       const err = toolError(res)
       if (err?.code !== 'validation' || !err.fields || !(target in err.fields)) {
         failures.push(`${tool.name}.${target}: ${err?.code ?? 'ok'} ${err?.message ?? ''}`)

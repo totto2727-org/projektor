@@ -55,7 +55,7 @@ function issueRows(database: ReturnType<typeof featureDatabase>, count: number):
   const statement = database.sqlite.prepare(
     "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at,sprint_id,status) VALUES (?, 'w1', 'p1', ?, ?, 'u1', 1, 1, 's1', 'done')",
   )
-  for (let index = 0; index < count; index++) {
+  for (let index = 0; index < count; index += 1) {
     statement.run(`i${String(index).padStart(3, '0')}`, index + 1, `Completed task ${index}`)
   }
 }

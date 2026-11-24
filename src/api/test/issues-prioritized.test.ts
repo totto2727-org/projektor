@@ -25,7 +25,7 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
   const now = currentEpochSeconds()
   const ids: string[] = []
   const stmts: D1PreparedStatement[] = []
-  for (let index = 0; index < n; index++) {
+  for (let index = 0; index < n; index += 1) {
     const id = crypto.randomUUID()
     ids.push(id)
     // A deterministic spread: every 7th closed, every 5th in backlog, ~60% ready.
@@ -51,7 +51,7 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
     )
   }
   // Links: issue j points at issue (j*7 mod n) for the first third — uneven in-degrees.
-  for (let j = 0; j < Math.floor(n / 3); j++) {
+  for (let j = 0; j < Math.floor(n / 3); j += 1) {
     stmts.push(
       env.DB.prepare(
         `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
@@ -183,7 +183,7 @@ describe('covers PROJ-859: bounded query count', () => {
     let prepares = 0
     const orig = env.DB.prepare.bind(env.DB)
     vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
-      prepares++
+      prepares += 1
       return orig(sql)
     })
     const res = (await getPrioritizedIssues(ctx, { limit: 10 })) as { issues: unknown[] }

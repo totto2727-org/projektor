@@ -41,7 +41,7 @@ describe('deferred image uploads', () => {
     const upload = deferred()
     let calls = 0
     const pending = insertUploadedImages(view, [new File(['x'], 'a.png'), new File(['x'], 'b.png')], 7, () => {
-      calls++
+      calls += 1
       return upload.promise
     })
     view.destroy()
