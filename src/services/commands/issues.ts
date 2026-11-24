@@ -308,11 +308,12 @@ export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
     throw new ValidationError(z.flattenError(result.error))
   }
   for (const ref of result.data.refs ?? []) {
-    if (!ISSUE_REF_PATTERN.test(ref))
+    if (!ISSUE_REF_PATTERN.test(ref)) {
       throw new ValidationError({
         formErrors: [`Invalid ref: ${ref} (expected KEY-NUMBER)`],
         fieldErrors: {},
       })
+    }
   }
   const page = await Effect.runPromise(
     issueQueries.getIssuesBatch(

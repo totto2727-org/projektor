@@ -27,7 +27,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
     env.WORKSPACE_SUBDOMAIN_ROUTING = undefined
   })
 
-  test('X-Workspace-Slug header works regardless of the flag', async () => {
+  test('covers X-Workspace-Slug header works regardless of the flag', async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',

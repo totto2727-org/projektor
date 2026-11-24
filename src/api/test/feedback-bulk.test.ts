@@ -59,7 +59,7 @@ const firstSourceId = async function firstSourceId(projectId: string): Promise<s
   return row!.id
 }
 
-describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
+describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
   test('marks all selected rows reviewed regardless of starting status', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
@@ -113,7 +113,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
   })
 })
 
-describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
+describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
   test('creates one combined issue and links all selected rows', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)

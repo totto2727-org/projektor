@@ -19,7 +19,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  * stamped on a real transition. PROJ-375 removed the old block on an agent (live lease)
  * transitioning to done — agents can close freely now; see the needsAudit tests below.
  */
-describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
+describe('review gating (PROJ-254/287/289/292/293/375)', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -264,7 +264,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- REST/MCP parity (PROJ-301/375) ---
 
-  test('MCP parity: update_issue lets an agent close directly to done and flags weak evidence', async () => {
+  test('covers MCP parity: update_issue lets an agent close directly to done and flags weak evidence', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'MCP done' })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 

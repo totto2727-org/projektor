@@ -48,7 +48,7 @@ const fixture = async function fixture() {
   return { ...database, env, request, bytes, get, cancel, buffer }
 }
 
-describe('Core shared logo binary delivery', () => {
+describe('core shared logo binary delivery', () => {
   test('streams the exact body and forwards cancellation without buffering', async () => {
     const f = await fixture()
     const response = await handleSharedLogoRequest(f.request(), f.env)

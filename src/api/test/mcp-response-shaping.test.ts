@@ -12,7 +12,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
 
-describe('PROJ-891: serializer (unit)', () => {
+describe('covers PROJ-891: serializer (unit)', () => {
   const raw = {
     id: 'i1',
     workspace_id: 'w',
@@ -135,7 +135,7 @@ describe('PROJ-891: serializer (unit)', () => {
   })
 })
 
-describe('PROJ-891 review fixes (unit)', () => {
+describe('covers PROJ-891 review fixes (unit)', () => {
   test('capPage backs off to a cut the tool allows (no splitting a shared timestamp)', () => {
     const ts = [1, 1, 2, 2, 2, 3, 3, 4]
     const items = ts.map((t) => ({ t, pad: 'x'.repeat(100) }))
@@ -174,7 +174,7 @@ describe('PROJ-891 review fixes (unit)', () => {
   })
 })
 
-describe('PROJ-891: MCP tools', () => {
+describe('covers PROJ-891: MCP tools', () => {
   const prevApiMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
     env.RATE_LIMIT_API_MAX = '1000'

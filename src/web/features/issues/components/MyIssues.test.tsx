@@ -24,7 +24,7 @@ function titles() {
     .map((row) => within(within(row).getAllByRole('cell')[1]).getAllByRole('link')[0].textContent)
 }
 
-describe('My Issues focus order', () => {
+describe('my Issues focus order', () => {
   test('uses one four-column table across projects and workspaces with scoped issue references', () => {
     show([
       scoped({ id: 'a', title: 'First issue', project_name: 'First project' }),

@@ -64,7 +64,7 @@ const seedFloatingAgent = async function seedFloatingAgent(workspaceId: string, 
   return id
 }
 
-describe('PROJ-316 coordination data respects project visibility', () => {
+describe('covers PROJ-316 coordination data respects project visibility', () => {
   let ws: Awaited<ReturnType<typeof seedWorkspaceRoles>>
   let slug: string
   let issueA: string

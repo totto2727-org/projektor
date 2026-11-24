@@ -9,7 +9,7 @@ import { coreFailure, coreReply } from './contract.ts'
 
 const Success = Schema.Struct({ id: Schema.String })
 
-describe('Core native RPC public boundary', () => {
+describe('core native RPC public boundary', () => {
   test('round trips a validated success through the SDK native envelope', async () => {
     const binding = {
       load: async () => runTestEffect(coreReply('load', Success, Effect.succeed({ id: 'project' }))),

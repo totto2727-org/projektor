@@ -37,12 +37,15 @@ const fixture = function fixture(concurrentBatches = 1) {
           const statement = target.prepare(query)
           return new Proxy(statement, {
             get(prepared, property) {
-              if (property === 'bind')
+              if (property === 'bind') {
                 return (...values: unknown[]) => {
                   binds.push(values.length)
-                  if (values.length > 100) throw new Error('D1 bind budget exceeded')
+                  if (values.length > 100) {
+                    throw new Error('D1 bind budget exceeded')
+                  }
                   return prepared.bind(...values)
                 }
+              }
               return Reflect.get(prepared, property)
             },
           })

@@ -13,7 +13,7 @@ import {
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-describe('Share tokens', () => {
+describe('share tokens', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -26,7 +26,7 @@ describe('Share tokens', () => {
     }))
   })
 
-  test('POST /api/issues/:id/share creates a token and returns { token, url }', async () => {
+  test('handles POST /api/issues/:id/share creates a token and returns { token, url }', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -38,7 +38,7 @@ describe('Share tokens', () => {
     expect(body.url).toBe(`/share/${body.token}`)
   })
 
-  test('GET /api/share/:token returns issue data without auth', async () => {
+  test('handles GET /api/share/:token returns issue data without auth', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -57,7 +57,7 @@ describe('Share tokens', () => {
     expect(Array.isArray(data.customFields)).toBe(true)
   })
 
-  test('GET /api/share/<expired-token> returns 404', async () => {
+  test('handles GET /api/share/<expired-token> returns 404', async () => {
     const now = Math.floor(Date.now() / 1000)
     const expiredToken = '00000000000000000000000000000001'
     const { env } = await import('./fixture-api.ts')
@@ -87,12 +87,12 @@ describe('Share tokens', () => {
     expect(row?.id).toBe(await hashToken(shareToken))
   })
 
-  test('GET /api/share/<unknown-token> returns 404', async () => {
+  test('handles GET /api/share/<unknown-token> returns 404', async () => {
     const res = await fetchNativeApi('http://localhost/api/share/ffffffffffffffffffffffffffffffff')
     expect(res.status).toBe(404)
   })
 
-  test('POST /api/issues/:id/share returns 404 for issue in another workspace', async () => {
+  test('handles POST /api/issues/:id/share returns 404 for issue in another workspace', async () => {
     const other = await seedFixture()
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(other.token, other.workspace.slug),
@@ -101,7 +101,7 @@ describe('Share tokens', () => {
     expect(res.status).toBe(404)
   })
 
-  test('POST /api/issues/:id/share returns 404 for a nonexistent issue ID', async () => {
+  test('handles POST /api/issues/:id/share returns 404 for a nonexistent issue ID', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues/00000000-0000-0000-0000-000000000000/share', {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -109,7 +109,7 @@ describe('Share tokens', () => {
     expect(res.status).toBe(404)
   })
 
-  test('GET /api/share/:token returns project_key, project_name, and status_name', async () => {
+  test('handles GET /api/share/:token returns project_key, project_name, and status_name', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -130,7 +130,7 @@ describe('Share tokens', () => {
     expect(typeof data.expires_at).toBe('number')
   })
 
-  test('GET /api/share/:token is reusable — multiple requests all return 200', async () => {
+  test('handles GET /api/share/:token is reusable — multiple requests all return 200', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -143,7 +143,7 @@ describe('Share tokens', () => {
     }
   })
 
-  test('PROJ-240: viewer role cannot create a share link', async () => {
+  test('covers PROJ-240: viewer role cannot create a share link', async () => {
     const viewerFixture = await seedIssueFixture({ role: 'viewer' })
     const res = await fetchNativeApi(`http://localhost/api/issues/${viewerFixture.issueId}/share`, {
       headers: authHeaders(viewerFixture.token, viewerFixture.slug),
@@ -152,7 +152,7 @@ describe('Share tokens', () => {
     expect(res.status).toBe(403)
   })
 
-  test('PROJ-241: public share payload excludes internal custom fields, includes non-internal ones', async () => {
+  test('covers PROJ-241: public share payload excludes internal custom fields, includes non-internal ones', async () => {
     const { env } = await import('./fixture-api.ts')
     const now = Math.floor(Date.now() / 1000)
 
@@ -193,7 +193,7 @@ describe('Share tokens', () => {
     expect(data.customFields.some((f) => f.key === 'public_note')).toBe(true)
   })
 
-  test('PROJ-242: revokes a share token so it no longer resolves', async () => {
+  test('covers PROJ-242: revokes a share token so it no longer resolves', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -210,7 +210,7 @@ describe('Share tokens', () => {
     expect(res.status).toBe(404)
   })
 
-  test("PROJ-762: GET /api/share/:token includes the owning workspace's brand", async () => {
+  test("covers PROJ-762: GET /api/share/:token includes the owning workspace's brand", async () => {
     const owner = await seedIssueFixture({ role: 'owner' })
     const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.slug}/brand`, {
       method: 'PATCH',
@@ -235,7 +235,7 @@ describe('Share tokens', () => {
     expect(data.brand.logoUrl).toBeNull()
   })
 
-  test('PROJ-762: GET /api/share/:token returns a null-fielded brand when the workspace has none set', async () => {
+  test('covers PROJ-762: GET /api/share/:token returns a null-fielded brand when the workspace has none set', async () => {
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -296,7 +296,7 @@ describe('Share tokens', () => {
     expect(res.status).toBe(404)
   })
 
-  test('PROJ-242: viewer role cannot revoke a share link', async () => {
+  test('covers PROJ-242: viewer role cannot revoke a share link', async () => {
     const viewerFixture = await seedIssueFixture({ role: 'viewer' })
     const { env } = await import('./fixture-api.ts')
     const now = Math.floor(Date.now() / 1000)
@@ -320,7 +320,7 @@ describe('Share tokens', () => {
     expect(res.status).toBe(403)
   })
 
-  describe('PROJ-792: share create/revoke honour project-level access', () => {
+  describe('covers PROJ-792: share create/revoke honour project-level access', () => {
     const restrictedIssue = async function restrictedIssue(
       grant: 'none' | 'viewer' | 'member',
       workspaceRole = 'member',
@@ -397,7 +397,7 @@ describe('Share tokens', () => {
    * PROJ-794: a share link dies with its issue, its project's archival, or its
    * creator's access — checked every time the link is read.
    */
-  describe("PROJ-794: share links stop resolving when the issue or the creator's access goes", () => {
+  describe("covers PROJ-794: share links stop resolving when the issue or the creator's access goes", () => {
     const sharedIssue = async function sharedIssue(workspaceRole: string, grant: 'none' | 'member') {
       const { workspace, user, token } = await seedFixture({ role: workspaceRole })
       const project = await seedProject(workspace.id)

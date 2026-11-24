@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('GET /health', () => {
+describe('handles GET /health', () => {
   test('returns 200 ok', async () => {
     const res = await fetchNativeApi('http://localhost/health')
     expect(res.status).toBe(200)
@@ -44,7 +44,7 @@ describe('auth middleware', () => {
  * catch-all and 404, (c) issue pretty-URL paths also hit the catch-all and 404.
  */
 
-describe('SPA catch-all (ASSETS absent in test env)', () => {
+describe('covers SPA catch-all (ASSETS absent in test env)', () => {
   test('returns 404 for unmatched non-API paths', async () => {
     const res = await fetchNativeApi('http://localhost/some-random-path')
     expect(res.status).toBe(404)
@@ -85,7 +85,7 @@ describe('SPA catch-all (ASSETS absent in test env)', () => {
  * (ASSETS is absent, see the describe block above), so this asserts the regex itself
  * directly — kept in sync with the literal in worker.ts.
  */
-describe('SSR wiki-path regex (worker.ts wikiSlugMatch, PROJ-517 finding 4)', () => {
+describe('covers SSR wiki-path regex (worker.ts wikiSlugMatch, PROJ-517 finding 4)', () => {
   const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/
 
   test('matches a bare single-segment slug', () => {

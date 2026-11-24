@@ -161,21 +161,23 @@ const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: Subre
           const statement = Reflect.get(target, 'prepare', receiver).call(target, sql)
           return new Proxy(statement, {
             get(statementTarget, statementProperty, statementReceiver) {
-              if (statementProperty === 'bind')
+              if (statementProperty === 'bind') {
                 return (...args: unknown[]) => {
                   const bound = Reflect.get(statementTarget, 'bind', statementReceiver).call(statementTarget, ...args)
                   return new Proxy(bound, {
                     get(boundTarget, boundProperty, boundReceiver) {
                       const original = Reflect.get(boundTarget, boundProperty, boundReceiver)
-                      if (Predicate.isString(boundProperty) && reads.has(boundProperty))
+                      if (Predicate.isString(boundProperty) && reads.has(boundProperty)) {
                         return async (...values: unknown[]) => {
                           budget.spend()
                           return original.apply(boundTarget, values)
                         }
+                      }
                       return Predicate.isFunction(original) ? original.bind(boundTarget) : original
                     },
                   })
                 }
+              }
               const original = Reflect.get(statementTarget, statementProperty, statementReceiver)
               return Predicate.isFunction(original) ? original.bind(statementTarget) : original
             },

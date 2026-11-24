@@ -6,7 +6,7 @@ import { describe, expect, expectTypeOf, test } from 'vite-plus/test'
 
 import { PointsText, TitleText, useIssueForm } from './forms.ts'
 
-describe('TanStack issue forms with Effect Standard Schema validators', () => {
+describe('covers TanStack issue forms with Effect Standard Schema validators', () => {
   test('requires the schema encoded shape to match the editable fields', () => {
     type TitleSchema = Parameters<typeof useIssueForm<{ title: string }>>[1]
     expectTypeOf(Schema.Struct({ title: TitleText })).toExtend<TitleSchema>()

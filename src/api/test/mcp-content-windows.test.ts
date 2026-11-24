@@ -12,7 +12,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
 
-describe('PROJ-892: windowing (unit)', () => {
+describe('covers PROJ-892: windowing (unit)', () => {
   test('never splits a surrogate pair at the window edge, and the cursor continues losslessly', () => {
     const text = `ab${'😀'.repeat(5)}cd` // 😀 is two UTF-16 units
     const first = windowText(text, { max: 3 }) // would land mid-pair
@@ -52,7 +52,7 @@ describe('PROJ-892: windowing (unit)', () => {
   })
 })
 
-describe('PROJ-892: MCP tools', () => {
+describe('covers PROJ-892: MCP tools', () => {
   const prevApiMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
     env.RATE_LIMIT_API_MAX = '1000'

@@ -14,7 +14,7 @@ const execute = function execute(request: Request, fetch: (request: Request) => 
   })
 }
 
-describe('Web same-binding binary transport', () => {
+describe('web same-binding binary transport', () => {
   test('preserves response streams and forwards only raw Access proof, never claimed identity headers', async () => {
     const stream = new ReadableStream<Uint8Array>()
     const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => new Response(stream))

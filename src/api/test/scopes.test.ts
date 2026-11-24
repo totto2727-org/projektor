@@ -40,7 +40,7 @@ const seedScopeFixture = async function seedScopeFixture() {
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-describe('PROJ-17: scope helpers', () => {
+describe('covers PROJ-17: scope helpers', () => {
   test("tokenAllows: '*' grants everything", () => {
     expect(tokenAllows(['*'], 'read')).toBe(true)
     expect(tokenAllows(['*'], 'write')).toBe(true)
@@ -102,7 +102,7 @@ describe('PROJ-17: scope helpers', () => {
 // REST enforcement
 // ---------------------------------------------------------------------------
 
-describe('PROJ-17: REST scope enforcement', () => {
+describe('covers PROJ-17: REST scope enforcement', () => {
   let slug: string
   let projectId: string
   let userId: string
@@ -188,7 +188,7 @@ const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is Js
   return 'error' in r
 }
 
-describe('PROJ-17: MCP scope enforcement', () => {
+describe('covers PROJ-17: MCP scope enforcement', () => {
   let slug: string
   let projectId: string
   let userId: string
@@ -229,7 +229,7 @@ describe('PROJ-17: MCP scope enforcement', () => {
 // Token creation: scope validation + membership (POST /auth/tokens)
 // ---------------------------------------------------------------------------
 
-describe('PROJ-17: POST /auth/tokens', () => {
+describe('covers PROJ-17: POST /auth/tokens', () => {
   let workspaceId: string
   let userId: string
   let prevDevEmail: string | undefined
@@ -290,7 +290,7 @@ describe('PROJ-17: POST /auth/tokens', () => {
  * URL across every user of an instance. Pinning them in a test makes a rename a
  * deliberate act rather than a refactor's collateral damage.
  */
-describe('OAuth wire scope names (PROJ-655)', () => {
+describe('covers OAuth wire scope names (PROJ-655)', () => {
   test('advertises exactly the two namespaced scopes', () => {
     expect([...OAUTH_SCOPES_SUPPORTED]).toEqual(['projektor:read', 'projektor:write'])
   })

@@ -29,7 +29,7 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-describe('Comments REST API', () => {
+describe('comments REST API', () => {
   let token: string
   let slug: string
   let userId: string
@@ -48,7 +48,7 @@ describe('Comments REST API', () => {
     issueId = body.id
   })
 
-  test('GET /:issueId/comments returns empty list', async () => {
+  test('handles GET /:issueId/comments returns empty list', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
@@ -58,7 +58,7 @@ describe('Comments REST API', () => {
     expect(data).toHaveLength(0)
   })
 
-  test('POST /:issueId/comments creates a comment', async () => {
+  test('handles POST /:issueId/comments creates a comment', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -89,7 +89,7 @@ describe('Comments REST API', () => {
     expect(row?.author_kind).toBe('agent')
   })
 
-  test('GET after POST returns the comment', async () => {
+  test('handles GET after POST returns the comment', async () => {
     await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -104,7 +104,7 @@ describe('Comments REST API', () => {
     expect(data[0].body).toBe('First comment')
   })
 
-  test('POST rejects body that exceeds 10000 chars', async () => {
+  test('handles POST rejects body that exceeds 10000 chars', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -113,7 +113,7 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST rejects empty body', async () => {
+  test('handles POST rejects empty body', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -126,7 +126,7 @@ describe('Comments REST API', () => {
    * PROJ-374: addComment was missing the viewer-role guard every other write path
    * enforces (comments.ts:76) — a workspace/project viewer could post comments.
    */
-  test('POST returns 403 for a project viewer', async () => {
+  test('handles POST returns 403 for a project viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
@@ -146,7 +146,7 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(403)
   })
 
-  test('GET returns 404 for issue in another workspace', async () => {
+  test('handles GET returns 404 for issue in another workspace', async () => {
     const other = await seedFixture()
     // issueId belongs to the first workspace; use other workspace's token+slug
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
@@ -155,7 +155,7 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('PATCH updates own comment', async () => {
+  test('handles PATCH updates own comment', async () => {
     const comment = await seedComment(issueId, userId)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
@@ -172,7 +172,7 @@ describe('Comments REST API', () => {
     expect(data[0].body).toBe('Updated text')
   })
 
-  test("PATCH returns 403 when editing another user's comment", async () => {
+  test("handles PATCH returns 403 when editing another user's comment", async () => {
     const other = await seedFixture()
     // Seed a comment by a different user on the same issue (cross-user test within same ws)
     const comment = await seedComment(issueId, other.user.id)
@@ -185,7 +185,7 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(403)
   })
 
-  test('DELETE removes own comment', async () => {
+  test('handles DELETE removes own comment', async () => {
     const comment = await seedComment(issueId, userId)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
@@ -202,8 +202,8 @@ describe('Comments REST API', () => {
   })
 })
 
-describe('Comments MCP cross-workspace security', () => {
-  test('MCP add_comment rejects issueId belonging to another workspace', async () => {
+describe('comments MCP cross-workspace security', () => {
+  test('covers MCP add_comment rejects issueId belonging to another workspace', async () => {
     const wsA = await seedFixture({ slug: `ws-a-${crypto.randomUUID().slice(0, 6)}` })
     const wsB = await seedFixture({ slug: `ws-b-${crypto.randomUUID().slice(0, 6)}` })
     const projB = await seedProject(wsB.workspace.id, 'VIC')
@@ -227,7 +227,7 @@ describe('Comments MCP cross-workspace security', () => {
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  test('MCP list_comments rejects issueId belonging to another workspace', async () => {
+  test('covers MCP list_comments rejects issueId belonging to another workspace', async () => {
     const wsA = await seedFixture({ slug: `ws-c-${crypto.randomUUID().slice(0, 6)}` })
     const wsB = await seedFixture({ slug: `ws-d-${crypto.randomUUID().slice(0, 6)}` })
     const projB = await seedProject(wsB.workspace.id, 'SEC')
@@ -264,8 +264,8 @@ describe('Comments MCP cross-workspace security', () => {
  * before it can ask for comments put a whole round trip of dead time on the critical
  * path. These reads now take either identifier.
  */
-describe('PROJ-438 — comments accept an issue ref', () => {
-  test('GET /:ref/comments returns the same comments as GET /:uuid/comments', async () => {
+describe('covers PROJ-438 — comments accept an issue ref', () => {
+  test('handles GET /:ref/comments returns the same comments as GET /:uuid/comments', async () => {
     const fixture = await seedProjectFixture({ role: 'owner' })
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       title: 'Referenced issue',

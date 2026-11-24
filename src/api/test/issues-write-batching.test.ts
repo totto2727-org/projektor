@@ -104,7 +104,7 @@ const seedChain = async function seedChain(f: Fixture, length: number): Promise<
   return ids
 }
 
-describe('PROJ-870: issue write batching', () => {
+describe('covers PROJ-870: issue write batching', () => {
   let f: Fixture
   let ctx: ServiceCtx
 
@@ -250,7 +250,7 @@ describe('PROJ-870: issue write batching', () => {
   })
 })
 
-describe('PROJ-870 review: completion report comment limit', () => {
+describe('covers PROJ-870 review: completion report comment limit', () => {
   test('400s a completion report whose formatted comment exceeds the comment limit, writing nothing', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
@@ -281,7 +281,7 @@ describe('PROJ-870 review: completion report comment limit', () => {
   })
 })
 
-describe('PROJ-870: recursive-CTE ancestor walk', () => {
+describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
   let f: Fixture
   let ctx: ServiceCtx
 

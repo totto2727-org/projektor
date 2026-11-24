@@ -14,7 +14,7 @@ import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('MCP tool annotations (PROJ-887)', () => {
+describe('covers MCP tool annotations (PROJ-887)', () => {
   test('every core tool declares readOnlyHint and openWorldHint', () => {
     const missing = coreMCPTools.filter(
       (t) => Predicate.isNullish(t.annotations?.readOnlyHint) || Predicate.isNullish(t.annotations?.openWorldHint),

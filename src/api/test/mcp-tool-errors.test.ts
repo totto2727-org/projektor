@@ -16,7 +16,7 @@ type Rpc = {
   result?: { isError?: boolean; content?: { text: string }[] }
 }
 
-describe('PROJ-893: MCP tool failures are isError results', () => {
+describe('covers PROJ-893: MCP tool failures are isError results', () => {
   // This suite makes more calls per token than vite.config.ts's RATE_LIMIT_API_MAX.
   const prevApiMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
@@ -143,7 +143,7 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     expect(res.result?.isError).toBeUndefined()
   })
 
-  describe('JSON-RPC errors stay reserved for protocol faults', () => {
+  describe('covers JSON-RPC errors stay reserved for protocol faults', () => {
     test('an unknown tool is a -32601 protocol error, not an isError result', async () => {
       const res = await call('no_such_tool', {})
       expect(res.error?.code).toBe(-32_601)

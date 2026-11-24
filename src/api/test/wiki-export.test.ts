@@ -87,7 +87,7 @@ const entryText = function entryText(entries: Record<string, Uint8Array>, path: 
   return new TextDecoder().decode(entries[path])
 }
 
-describe('Wiki export (PROJ-497)', () => {
+describe('wiki export (PROJ-497)', () => {
   let token: string
   let slug: string
   let workspaceId: string

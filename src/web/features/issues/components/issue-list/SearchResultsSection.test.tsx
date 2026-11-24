@@ -30,7 +30,7 @@ const RESULTS: SearchResult[] = [
   },
 ]
 
-describe('SearchResultsSection — mobile viewport', () => {
+describe('covers SearchResultsSection — mobile viewport', () => {
   test('renders mobile cards for non-empty results at narrow widths', () => {
     setViewportWidth(MOBILE_WIDTH)
     render(<SearchResultsSection searchLoading={false} searchResults={RESULTS} searchQuery='fix' />)

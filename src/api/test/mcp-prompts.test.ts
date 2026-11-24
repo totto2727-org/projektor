@@ -5,7 +5,7 @@ import { authHeaders, seedIssueFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('MCP prompts', () => {
+describe('covers MCP prompts', () => {
   let token: string
   let slug: string
   let workspaceId: string

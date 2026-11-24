@@ -121,7 +121,7 @@ afterEach(() => {
   })
   vi.mocked(discardWikiDraft).mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } })
 })
-describe('Wiki delayed draft lifecycle', () => {
+describe('wiki delayed draft lifecycle', () => {
   async function debounce(): Promise<void> {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1100)
@@ -315,7 +315,7 @@ describe('Wiki delayed draft lifecycle', () => {
     )
   })
 })
-describe('Wiki server prop adoption', () => {
+describe('wiki server prop adoption', () => {
   test('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
     const { container } = render(<WikiPageClient initial={seed()} />)
     const stylesheet = container.querySelector('style')?.sheet

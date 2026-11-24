@@ -12,7 +12,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  * stamped only when an issue actually enters a ready status (including on create), and
  * issues that never did are excluded from lead time and counted separately.
  */
-describe('PROJ-921: ready_at and lead time', () => {
+describe('covers PROJ-921: ready_at and lead time', () => {
   let token: string
   let slug: string
   let projectId: string
@@ -90,7 +90,7 @@ describe('PROJ-921: ready_at and lead time', () => {
   })
 })
 
-describe('PROJ-921: migration 0062 clears zero lead times', () => {
+describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
   test('nulls ready_at only where it equals done_at', async () => {
     const { workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' })
     const rows = [

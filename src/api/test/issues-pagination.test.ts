@@ -5,7 +5,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('PROJ-857: issue list cursor', () => {
+describe('covers PROJ-857: issue list cursor', () => {
   test('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
     const f = await seedIssueFixture()
     // The fixture issue plus 34 more, all stamped with the same created_at.
@@ -65,7 +65,7 @@ describe('PROJ-857: issue list cursor', () => {
   })
 })
 
-describe('PROJ-857: hot queries use an index (no table scan, no temp sort)', () => {
+describe('covers PROJ-857: hot queries use an index (no table scan, no temp sort)', () => {
   const plan = async function plan(q: string, ...binds: unknown[]): Promise<string> {
     const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${q}`)
       .bind(...binds)

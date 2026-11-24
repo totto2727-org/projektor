@@ -69,7 +69,7 @@ function dropOnInProgress(dataTransfer: ReturnType<typeof fakeDataTransfer>): vo
   fireEvent.drop(inProgressColumn, { dataTransfer })
 }
 
-describe('BoardView — mobile viewport', () => {
+describe('covers BoardView — mobile viewport', () => {
   test('blocks drag-and-drop status changes below 640px', () => {
     const changeStatus = vi.fn()
     setViewportWidth(MOBILE_WIDTH)
@@ -110,7 +110,7 @@ describe('BoardView — mobile viewport', () => {
   })
 })
 
-describe('BoardView — mobile status menu (PROJ-416)', () => {
+describe('covers BoardView — mobile status menu (PROJ-416)', () => {
   test('renders a tap-to-open status menu on each card', () => {
     const changeStatus = vi.fn()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)

@@ -82,7 +82,9 @@ export function filteredIssueQuery(
     [...taskTypes],
   )
   for (const key of ['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId', 'review']) {
-    if (p.has(key)) query.set(key, p.get(key) ?? '')
+    if (p.has(key)) {
+      query.set(key, p.get(key) ?? '')
+    }
   }
   if (!query.has('limit')) {
     query.set('limit', '30')

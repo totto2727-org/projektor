@@ -65,7 +65,7 @@ const signTestJwt = async function signTestJwt(
 // PROJ-79 §1: Token expiry
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: token expiry', () => {
+describe('covers PROJ-79: token expiry', () => {
   test('expired api_token (expires_at < now) returns 401', async () => {
     const fixture = await seedFixture()
     // Seed a second token for the same user/workspace that is already expired
@@ -107,7 +107,7 @@ describe('PROJ-79: token expiry', () => {
 // PROJ-79 §2: CF Access JWT — verifyJwtPayload (injectable keys, no network)
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', () => {
+describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', () => {
   // Generate RSA key pair once for the whole describe block
   let privateKey: CryptoKey
   let publicJwk: JsonWebKey
@@ -157,7 +157,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  test('JWT with wrong audience is rejected', async () => {
+  test('covers JWT with wrong audience is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -170,7 +170,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  test('JWT with wrong issuer is rejected', async () => {
+  test('covers JWT with wrong issuer is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -183,7 +183,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  test('JWT with wrong signature (corrupt last segment) is rejected', async () => {
+  test('covers JWT with wrong signature (corrupt last segment) is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const validJwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -199,7 +199,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  test('JWT with no matching key in the keyset is rejected', async () => {
+  test('covers JWT with no matching key in the keyset is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -218,7 +218,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  test('JWT with non-RS256 algorithm header is rejected', async () => {
+  test('covers JWT with non-RS256 algorithm header is rejected', async () => {
     // Manually craft a JWT with alg: HS256 to bypass the alg check
     const now = Math.floor(Date.now() / 1000)
     const header = encodeJwtPart({ alg: 'HS256', typ: 'JWT' })
@@ -238,7 +238,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
   })
 
   // PROJ-879: the payload is schema-validated, not cast.
-  describe('PROJ-879: payload validation', () => {
+  describe('covers PROJ-879: payload validation', () => {
     const now = (): number => Math.floor(Date.now() / 1000)
 
     test('missing exp is rejected (previously never expired)', async () => {
@@ -300,7 +300,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
  * ---------------------------------------------------------------------------
  */
 
-describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
+describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
   test('malformed Cf-Access-Jwt-Assertion header returns 401', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
@@ -311,7 +311,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  test('JWT with only two segments returns 401', async () => {
+  test('covers JWT with only two segments returns 401', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': 'eyJhbGciOiJSUzI1NiJ9.eyJlbWFpbCI6InRlc3QifQ',
@@ -321,7 +321,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  test('JWT with non-RS256 alg header returns 401', async () => {
+  test('covers JWT with non-RS256 alg header returns 401', async () => {
     // Header: {"alg":"HS256"}, payload: {"exp": far-future, "email":"x"}, bogus sig
     const header = btoa(JSON.stringify({ alg: 'HS256' }))
       .replace(/\+/g, '-')
@@ -359,7 +359,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  test('PROJ-879: a JWT without email returns 401, not 500', async () => {
+  test('covers PROJ-879: a JWT without email returns 401, not 500', async () => {
     const aud = 'http-879-aud'
     const domain = 'http-879.cloudflareaccess.com'
     const prev = { a: env.CF_ACCESS_AUDIENCE, d: env.CF_ACCESS_TEAM_DOMAIN }
@@ -395,7 +395,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
  * ---------------------------------------------------------------------------
  */
 
-describe('PROJ-354: CF Access auth caches are isolate-local', () => {
+describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
   test('second CF Access login succeeds after both KV cache entries are deleted', async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
@@ -524,7 +524,7 @@ describe('native Core authentication invocation isolation', () => {
 })
 
 // A stale signing key forces one refresh, with a cooldown for invalid signatures.
-describe('PROJ-358: JWKS force-refresh on signature verification failure', () => {
+describe('covers PROJ-358: JWKS force-refresh on signature verification failure', () => {
   test("uncached-key token authenticates via forced refresh; bad sig within cooldown doesn't refetch again", async () => {
     const genKeyPair = () =>
       crypto.subtle.generateKey(
@@ -603,7 +603,7 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
   })
 })
 
-describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
+describe("covers PROJ-730: JWKS cache write failure doesn't fail auth", () => {
   test('a successful JWKS fetch still authenticates when caching it in KV fails', async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
@@ -652,7 +652,7 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
   })
 })
 
-describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => {
+describe('covers PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => {
   test("a KV read error doesn't fail auth — falls through to fetching fresh certs", async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
@@ -701,7 +701,7 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
   })
 })
 
-describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert', () => {
+describe('covers PROJ-746: user-by-email cache read failure falls back to the DB upsert', () => {
   test("a KV read error on the user cache doesn't fail auth — falls through to the DB", async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
@@ -751,7 +751,7 @@ describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert
   })
 })
 
-describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
+describe('covers PROJ-360: api_tokens.last_used_at write throttling', () => {
   test('a request within the throttle window does not rewrite a recent last_used_at', async () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
@@ -798,7 +798,7 @@ describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
 // PROJ-274 (C1): no cached auth path can bypass scope enforcement
 // ---------------------------------------------------------------------------
 
-describe('PROJ-274: read-scoped token is denied write on every request', () => {
+describe('covers PROJ-274: read-scoped token is denied write on every request', () => {
   test('read-only token gets 403 on POST /api/projects, never a cached bypass', async () => {
     const fixture = await seedFixture()
     const readOnlyToken = await seedToken(fixture.workspace.id, fixture.user.id, {
@@ -874,7 +874,7 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
 // PROJ-660: the dev bypass must not cover the MCP endpoint
 // ---------------------------------------------------------------------------
 
-describe('PROJ-660: dev bypass and /mcp/', () => {
+describe('covers PROJ-660: dev bypass and /mcp/', () => {
   afterEach(() => {
     env.DEV_USER_EMAIL = ''
   })
@@ -912,7 +912,7 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
 // PROJ-373: opt-in anonymous public-viewer fallback
 // ---------------------------------------------------------------------------
 
-describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
+describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
   /*
    * Every test in this block flips PUBLIC_READ_ONLY/DEFAULT_WORKSPACE_SLUG on the shared
    * worker env — reset them so later describe blocks (which assume the defaults) don't
@@ -1004,7 +1004,7 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
 // PROJ-79 §3: /auth endpoints
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: GET /auth/me', () => {
+describe('covers PROJ-79: GET /auth/me', () => {
   test('returns 401 without any authentication', async () => {
     const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(401)
@@ -1062,7 +1062,7 @@ const humanFetch = async function humanFetch(email: string, url: string, init: R
   }
 }
 
-describe('PROJ-79: POST /auth/tokens', () => {
+describe('covers PROJ-79: POST /auth/tokens', () => {
   test('creates a personal token and returns it', async () => {
     const fixture = await seedFixture()
     const res = await humanFetch(fixture.user.email, 'http://localhost/auth/tokens', {
@@ -1117,7 +1117,7 @@ describe('PROJ-79: POST /auth/tokens', () => {
   })
 })
 
-describe('PROJ-79: DELETE /auth/tokens/:id', () => {
+describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
   test('deletes a token the user owns and returns ok', async () => {
     const fixture = await seedFixture()
 
@@ -1188,7 +1188,7 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
 // PROJ-79 §4: MCP error contract
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () => {
+describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes', () => {
   let workspaceId: string
   let slug: string
   let ownerHeaders: Record<string, string>
@@ -1228,19 +1228,19 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
     return err
   }
 
-  test('ValidationError (e.g. empty wiki title) maps to a validation tool error', async () => {
+  test('covers ValidationError (e.g. empty wiki title) maps to a validation tool error', async () => {
     const resp = await mcp('create_wiki_page', { title: '', content: 'body' })
     expectToolError(resp, 'validation')
   })
 
-  test('NotFoundError (unknown issue id) maps to a not_found tool error', async () => {
+  test('covers NotFoundError (unknown issue id) maps to a not_found tool error', async () => {
     const resp = await mcp('get_issue', { id: crypto.randomUUID() })
     const err = expectToolError(resp, 'not_found')
     expect(err?.message).toMatch(/not found/i)
   })
 
   // ForbiddenError (triggered by viewer calling a restricted tool)
-  test('ForbiddenError maps to a forbidden tool error', async () => {
+  test('covers ForbiddenError maps to a forbidden tool error', async () => {
     const roles = await seedWorkspaceRoles()
     const viewerHeaders = authHeaders(roles.viewer.token, roles.workspace.slug)
     const resp = await mcp('create_task_type', { key: 'epic', name: 'Epic' }, viewerHeaders, roles.workspace.id)
@@ -1248,7 +1248,7 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
   })
 
   // ConflictError (duplicate workspace slug)
-  test('ConflictError (duplicate workspace slug) maps to a conflict tool error', async () => {
+  test('covers ConflictError (duplicate workspace slug) maps to a conflict tool error', async () => {
     // Create workspace with a slug
     await mcp('create_workspace', { slug: 'conflict-slug', name: 'First' })
     // Create again with same slug → ConflictError
@@ -1258,7 +1258,7 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
   })
 })
 
-describe('PROJ-79: MCP protocol validation', () => {
+describe('covers PROJ-79: MCP protocol validation', () => {
   let workspaceId: string
   let slug: string
   let ownerHeaders: Record<string, string>
@@ -1366,7 +1366,7 @@ describe('PROJ-79: MCP protocol validation', () => {
  * ---------------------------------------------------------------------------
  */
 
-describe('PROJ-430: CF Access certs fetch failure', () => {
+describe('covers PROJ-430: CF Access certs fetch failure', () => {
   test('returns 503, not 401 or 500, when the JWKS endpoint is unreachable', async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
@@ -1415,7 +1415,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
     }
   })
 
-  describe('GET /auth/login', () => {
+  describe('handles GET /auth/login', () => {
     test('redirects to default root / with 302 when redirect_url query is omitted', async () => {
       const res = await fetchNativeApi('http://localhost/auth/login', {
         redirect: 'manual',

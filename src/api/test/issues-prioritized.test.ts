@@ -120,7 +120,9 @@ const reference = async function reference(ctx: ServiceCtx, includeBacklog: bool
   }
   const storyPoints: Record<string, number> = {}
   for (const s of sps) {
-    if (s.sp > 0) storyPoints[s.issue_id] = s.sp
+    if (s.sp > 0) {
+      storyPoints[s.issue_id] = s.sp
+    }
   }
   const maxIn = Math.max(...open.map((o) => inDegree[o.id] ?? 0), 1)
 
@@ -135,7 +137,7 @@ const reference = async function reference(ctx: ServiceCtx, includeBacklog: bool
     .sort((left, right) => right.score - left.score)
 }
 
-describe('PROJ-859: prioritization parity with the in-memory algorithm', () => {
+describe('covers PROJ-859: prioritization parity with the in-memory algorithm', () => {
   test.each([
     { includeNotReady: false, includeBacklog: true },
     { includeNotReady: true, includeBacklog: true },
@@ -160,7 +162,7 @@ describe('PROJ-859: prioritization parity with the in-memory algorithm', () => {
   })
 })
 
-describe('PROJ-859: bounded query count', () => {
+describe('covers PROJ-859: bounded query count', () => {
   afterEach(() => vi.restoreAllMocks())
 
   test('limit=10 over 1,000 open issues takes <= 10 D1 queries once rows are healed', async () => {
@@ -203,7 +205,7 @@ describe('PROJ-859: bounded query count', () => {
  * ("false", "5"), so get_prioritized_issues must read them the same way — not treat the
  * string "false" as true.
  */
-describe('PROJ-920: string flags and limit are coerced like BooleanQueryParam / z.coerce', () => {
+describe('covers PROJ-920: string flags and limit are coerced like BooleanQueryParam / z.coerce', () => {
   test('includeBacklog: "false" and limit: "3" behave like false and 3', async () => {
     const { ctx } = await seedWorkspaceWithIssues(40)
     const asBool = (await getPrioritizedIssues(ctx, {

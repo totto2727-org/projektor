@@ -32,7 +32,7 @@ const expectAppsGroup = function expectAppsGroup<E extends { path: string; isLea
   return apps as E
 }
 
-describe('Code heatmap (PROJ-332)', () => {
+describe('code heatmap (PROJ-332)', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -167,7 +167,7 @@ describe('Code heatmap (PROJ-332)', () => {
     expect(body.totalDistinctIssues).toBe(0)
   })
 
-  test('MCP get_code_heatmap matches REST', async () => {
+  test('covers MCP get_code_heatmap matches REST', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Parity check' })
     await seedClaim(issue.id, 'apps/api/src/services/code-heatmap.ts', now - 100)

@@ -73,7 +73,7 @@ const makeUploadRequest = function makeUploadRequest(
   })
 }
 
-describe('Files API', () => {
+describe('files API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -87,7 +87,7 @@ describe('Files API', () => {
     userId = fixture.user.id
   })
 
-  test('GET /api/files lists attachments for an entity', async () => {
+  test('handles GET /api/files lists attachments for an entity', async () => {
     // Upload two files for the same entity
     await makeUploadRequest(token, slug, 'content a', 'a.txt')
     await makeUploadRequest(token, slug, 'content b', 'b.txt')
@@ -108,14 +108,14 @@ describe('Files API', () => {
     expect(list[0]).toMatchObject({ contentType: 'text/plain' })
   })
 
-  test('GET /api/files returns 400 for missing entityId', async () => {
+  test('handles GET /api/files returns 400 for missing entityId', async () => {
     const res = await fetchNativeApi('http://localhost/api/files?entityType=issue', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
-  test('GET /api/files returns empty array when no attachments exist', async () => {
+  test('handles GET /api/files returns empty array when no attachments exist', async () => {
     const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
@@ -123,7 +123,7 @@ describe('Files API', () => {
     await expect(res.json()).resolves.toStrictEqual([])
   })
 
-  test('POST /api/files uploads and returns file metadata', async () => {
+  test('handles POST /api/files uploads and returns file metadata', async () => {
     const res = await makeUploadRequest(token, slug)
     expect(res.status).toBe(201)
     const body = (await res.json()) as {
@@ -138,7 +138,7 @@ describe('Files API', () => {
     expect(body.size).toBe('hello world'.length)
   })
 
-  test('GET /api/files/:id returns the uploaded content', async () => {
+  test('handles GET /api/files/:id returns the uploaded content', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'round-trip content', 'data.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -154,7 +154,7 @@ describe('Files API', () => {
     expect(text).toBe('round-trip content')
   })
 
-  test('GET /api/files/:id serves images inline with their original content type', async () => {
+  test('handles GET /api/files/:id serves images inline with their original content type', async () => {
     const form = new FormData()
     // 1x1 transparent GIF
     const gifBytes = new Uint8Array([
@@ -180,7 +180,7 @@ describe('Files API', () => {
     expect(getRes.headers.get('Content-Disposition')).toContain('inline')
   })
 
-  test('GET /api/files/:id/metadata returns the attachment metadata', async () => {
+  test('handles GET /api/files/:id/metadata returns the attachment metadata', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'meta content', 'meta.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -194,14 +194,14 @@ describe('Files API', () => {
     expect(body.contentType).toBe('text/plain')
   })
 
-  test('GET /api/files/:id/metadata returns 404 for an unknown id', async () => {
+  test('handles GET /api/files/:id/metadata returns 404 for an unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/files/${crypto.randomUUID()}/metadata`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  test('DELETE /api/files/:id removes the file', async () => {
+  test('handles DELETE /api/files/:id removes the file', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -221,7 +221,7 @@ describe('Files API', () => {
    * PROJ-494: an inline <img> tag rendering an attachment in wiki content can't set a
    * custom X-Workspace-Slug header, so GET falls back to a `?workspace=` query param.
    */
-  test('GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
+  test('handles GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'query-param content', 'q.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -232,7 +232,7 @@ describe('Files API', () => {
     await expect(getRes.text()).resolves.toBe('query-param content')
   })
 
-  test('GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
+  test('handles GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'content', 'q2.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -243,7 +243,7 @@ describe('Files API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  test('POST /api/files does not honor ?workspace= — the header is still required', async () => {
+  test('handles POST /api/files does not honor ?workspace= — the header is still required', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
@@ -256,7 +256,7 @@ describe('Files API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('GET /api/files/:id returns 404 for a different workspace', async () => {
+  test('handles GET /api/files/:id returns 404 for a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -269,7 +269,7 @@ describe('Files API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  test('DELETE /api/files/:id returns 404 when accessed from a different workspace', async () => {
+  test('handles DELETE /api/files/:id returns 404 when accessed from a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -282,7 +282,7 @@ describe('Files API', () => {
     expect(delRes.status).toBe(404)
   })
 
-  test('POST /api/files rejects unauthenticated requests', async () => {
+  test('handles POST /api/files rejects unauthenticated requests', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
@@ -291,7 +291,7 @@ describe('Files API', () => {
     expect(res.status).toBe(401)
   })
 
-  test('POST /api/files rejects invalid entityType', async () => {
+  test('handles POST /api/files rejects invalid entityType', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'project')
@@ -307,7 +307,7 @@ describe('Files API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/files rejects disallowed content type (text/html) → 415', async () => {
+  test('handles POST /api/files rejects disallowed content type (text/html) → 415', async () => {
     const form = new FormData()
     form.append('file', new File(['<html>evil</html>'], 'evil.html', { type: 'text/html' }))
     form.append('entityType', 'issue')
@@ -322,7 +322,7 @@ describe('Files API', () => {
     expect(body.error).toBe('File type not allowed')
   })
 
-  test('POST /api/files rejects empty content type → 415', async () => {
+  test('handles POST /api/files rejects empty content type → 415', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'noext', { type: '' }))
     form.append('entityType', 'issue')
@@ -337,7 +337,7 @@ describe('Files API', () => {
     expect(body.error).toBe('File type not allowed')
   })
 
-  test('POST /api/files rejects a file over 50 MB → 413', async () => {
+  test('handles POST /api/files rejects a file over 50 MB → 413', async () => {
     const big = new Uint8Array(50 * 1024 * 1024 + 1)
     const form = new FormData()
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
@@ -353,7 +353,7 @@ describe('Files API', () => {
     expect(body.error).toBe('File too large (max 50 MB)')
   })
 
-  test('POST /api/files accepts wiki_page entityType', async () => {
+  test('handles POST /api/files accepts wiki_page entityType', async () => {
     const wikiPageId = crypto.randomUUID()
     const form = new FormData()
     form.append('file', new File(['wiki content'], 'wiki.txt', { type: 'text/plain' }))
@@ -378,7 +378,7 @@ describe('Files API', () => {
     expect(list[0].filename).toBe('wiki.txt')
   })
 
-  test('POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
+  test('handles POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
     const QUOTA = 1024 * 1024 * 1024 // 1 GB
     const now = Math.floor(Date.now() / 1000)
     // Insert a fake attachment that consumes all but 1 byte of the quota
@@ -416,7 +416,7 @@ describe('Files API', () => {
     expect(body.error).toBe('Workspace storage quota exceeded (1024 MB)')
   })
 
-  describe('POST /api/files/links (wiki_ref and url attachment kinds)', () => {
+  describe('handles POST /api/files/links (wiki_ref and url attachment kinds)', () => {
     const createWikiPage = async function createWikiPage(headers: Record<string, string>): Promise<string> {
       const res = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
@@ -529,7 +529,7 @@ describe('Files API', () => {
       },
     )
 
-    test('DELETE removes a link attachment without touching R2', async () => {
+    test('handles DELETE removes a link attachment without touching R2', async () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
       const createRes = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
@@ -708,8 +708,8 @@ describe('Files API', () => {
     })
   })
 
-  describe('PROJ-425: viewer role is denied write access', () => {
-    test('POST /api/files rejects a viewer upload → 403', async () => {
+  describe('covers PROJ-425: viewer role is denied write access', () => {
+    test('handles POST /api/files rejects a viewer upload → 403', async () => {
       const { workspace, viewer } = await seedWorkspaceRoles()
       const form = new FormData()
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
@@ -723,7 +723,7 @@ describe('Files API', () => {
       expect(res.status).toBe(403)
     })
 
-    test('POST /api/files/links rejects a viewer → 403', async () => {
+    test('handles POST /api/files/links rejects a viewer → 403', async () => {
       const { workspace, viewer } = await seedWorkspaceRoles()
       const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
@@ -741,7 +741,7 @@ describe('Files API', () => {
       expect(res.status).toBe(403)
     })
 
-    test('DELETE /api/files/:id rejects a viewer → 403', async () => {
+    test('handles DELETE /api/files/:id rejects a viewer → 403', async () => {
       const { workspace, owner, viewer } = await seedWorkspaceRoles()
       const form = new FormData()
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
@@ -768,7 +768,7 @@ describe('Files API', () => {
  * are metadata-only (no binary), so they get full MCP parity; upload/download remain
  * REST-only (AGENTS.md exception).
  */
-describe('Files MCP tools', () => {
+describe('files MCP tools', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -932,7 +932,7 @@ describe('Files MCP tools', () => {
  * that are default-deny. Nothing resolved that chain, so workspace membership alone got
  * you the filename, size and bytes of every attachment in the workspace.
  */
-describe('Attachment project visibility', () => {
+describe('attachment project visibility', () => {
   let slug: string
   let workspaceId: string
   let memberToken: string

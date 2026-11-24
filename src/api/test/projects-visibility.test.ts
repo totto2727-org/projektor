@@ -25,7 +25,7 @@ const ids = async function ids(p: Promise<unknown>): Promise<string[]> {
   return ((await p) as { id: string }[]).map((r) => r.id).sort()
 }
 
-describe('PROJ-581: viewers see projects only through grants, consistently on both lists', () => {
+describe('covers PROJ-581: viewers see projects only through grants, consistently on both lists', () => {
   test('a bare viewer sees no projects in either list; a granted one sees exactly the granted project', async () => {
     const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
     const viewer = await seedUser(`v-${crypto.randomUUID().slice(0, 8)}@example.com`)

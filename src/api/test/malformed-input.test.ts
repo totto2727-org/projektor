@@ -18,7 +18,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('REST: invalid JSON bodies → 400', () => {
+describe('covers REST: invalid JSON bodies → 400', () => {
   test.each([
     ['POST', '/api/issues'],
     ['PATCH', '/api/issues/:issueId'],
@@ -49,7 +49,7 @@ describe('REST: invalid JSON bodies → 400', () => {
   })
 })
 
-describe('MCP: parse and envelope errors', () => {
+describe('covers MCP: parse and envelope errors', () => {
   const mcp = function mcp(body: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',

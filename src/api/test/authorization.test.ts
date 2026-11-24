@@ -65,7 +65,7 @@ const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is Js
 // PROJ-78a: Permission matrix – same-workspace viewer gets 403
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () => {
+describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes', () => {
   let slug: string
   let workspaceId: string
   let ownerHeaders: Record<string, string>
@@ -324,7 +324,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 // PROJ-78b: MCP tool viewer restrictions
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: MCP tools – viewer role → error', () => {
+describe('covers PROJ-78: MCP tools – viewer role → error', () => {
   let workspaceId: string
   let slug: string
   let ownerHeaders: Record<string, string>
@@ -383,7 +383,7 @@ describe('PROJ-78: MCP tools – viewer role → error', () => {
 // PROJ-78c: Workspace routes – owner-only operations
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () => {
+describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed', () => {
   let workspaceId: string
   let slug: string
   let ownerToken: string
@@ -617,7 +617,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 // PROJ-78d: Restricted scope token scaffolding
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: seedToken scopes parameter', () => {
+describe('covers PROJ-78: seedToken scopes parameter', () => {
   test("seedToken defaults to ['*'] scopes", async () => {
     const fixture = await seedFixture()
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')

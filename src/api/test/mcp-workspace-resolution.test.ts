@@ -9,7 +9,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  * Connectors UI can't send custom headers. The token-workspace-scope check stays the
  * security boundary: a token minted for another workspace is still rejected.
  */
-describe('MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
+describe('covers MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
   const mcpRequest = function mcpRequest(
     workspaceId: string,
     token: string,
@@ -77,7 +77,7 @@ describe('MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
  * must keep requiring X-Workspace-Slug (subdomain routing off by default).
  */
 describe('non-MCP routes still require X-Workspace-Slug (PROJ-348 scope guard)', () => {
-  test('REST route without the header 400s naming the missing header', async () => {
+  test('covers REST route without the header 400s naming the missing header', async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: { Authorization: `Bearer ${fixture.token}` },
@@ -87,7 +87,7 @@ describe('non-MCP routes still require X-Workspace-Slug (PROJ-348 scope guard)',
     expect(body.error).toContain('X-Workspace-Slug')
   })
 
-  test('REST route with the header still resolves the workspace', async () => {
+  test('covers REST route with the header still resolves the workspace', async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: {

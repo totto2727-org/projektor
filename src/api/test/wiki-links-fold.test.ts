@@ -41,7 +41,7 @@ const targetOf = async function targetOf(sourceId: string): Promise<null | strin
   return row?.t ?? null
 }
 
-describe('PROJ-818: accented Latin titles fold on both sides', () => {
+describe('covers PROJ-818: accented Latin titles fold on both sides', () => {
   test("[[über uns]] resolves to a page titled 'Über uns'", async () => {
     const { token, workspace } = await seedFixture({ role: 'owner' })
     const target = await createPage(token, workspace.slug, { title: 'Über uns' })
@@ -80,7 +80,7 @@ describe('PROJ-818: accented Latin titles fold on both sides', () => {
   })
 })
 
-describe("PROJ-818: link reads don't reveal pages in hidden projects", () => {
+describe("covers PROJ-818: link reads don't reveal pages in hidden projects", () => {
   test('a link to a page in a hidden project is reported broken, as written', async () => {
     const { workspace, owner, member } = await seedWorkspaceRoles()
     const hidden = await seedProject(workspace.id, 'HID')
@@ -106,7 +106,7 @@ describe("PROJ-818: link reads don't reveal pages in hidden projects", () => {
   })
 })
 
-describe("PROJ-818: legacy link rows don't leak a hidden page's title", () => {
+describe("covers PROJ-818: legacy link rows don't leak a hidden page's title", () => {
   test('a pre-0063 resolved row (no target_text) into a hidden project shows no title', async () => {
     const { workspace, owner, member } = await seedWorkspaceRoles()
     const hidden = await seedProject(workspace.id, 'HID')

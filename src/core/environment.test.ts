@@ -15,7 +15,7 @@ const fixture = function fixture() {
   }
 }
 
-describe('Core native environment admission', () => {
+describe('core native environment admission', () => {
   test('admits only concrete storage capabilities and scalar configuration', () => {
     expect(isCoreEnvironment(fixture())).toBe(true)
     expect(isCoreEnvironment({ ...fixture(), invocation: { waitUntil: () => undefined } })).toBe(true)

@@ -28,7 +28,7 @@ const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is Js
   return 'error' in r
 }
 
-describe('Projects REST', () => {
+describe('projects REST', () => {
   let ownerToken: string
   let memberToken: string
   let viewerToken: string
@@ -48,7 +48,7 @@ describe('Projects REST', () => {
     viewerHeaders = authHeaders(viewerToken, slug)
   })
 
-  test('GET /api/projects returns empty list initially', async () => {
+  test('handles GET /api/projects returns empty list initially', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     expect(res.status).toBe(200)
     const body = (await res.json()) as unknown[]
@@ -56,7 +56,7 @@ describe('Projects REST', () => {
     expect(body).toHaveLength(0)
   })
 
-  test('POST /api/projects creates a project (owner)', async () => {
+  test('handles POST /api/projects creates a project (owner)', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -69,7 +69,7 @@ describe('Projects REST', () => {
     expect(body.key).toBe('ALPHA')
   })
 
-  test('POST /api/projects accepts lowercase key and uppercases it', async () => {
+  test('handles POST /api/projects accepts lowercase key and uppercases it', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -80,7 +80,7 @@ describe('Projects REST', () => {
     expect(body.key).toBe('BETA')
   })
 
-  test('POST /api/projects rejects member role (403)', async () => {
+  test('handles POST /api/projects rejects member role (403)', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
@@ -89,7 +89,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(403)
   })
 
-  test('POST /api/projects rejects viewer role (403)', async () => {
+  test('handles POST /api/projects rejects viewer role (403)', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
@@ -98,7 +98,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(403)
   })
 
-  test('POST /api/projects returns 409 for duplicate key', async () => {
+  test('handles POST /api/projects returns 409 for duplicate key', async () => {
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -112,7 +112,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(409)
   })
 
-  test('POST /api/projects returns 400 for invalid key format', async () => {
+  test('handles POST /api/projects returns 400 for invalid key format', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -121,7 +121,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
+  test('handles POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -130,7 +130,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
+  test('handles POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -139,7 +139,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(201)
   })
 
-  test('POST /api/projects returns 400 for name too long', async () => {
+  test('handles POST /api/projects returns 400 for name too long', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -148,7 +148,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/projects stores NULL description by default', async () => {
+  test('handles POST /api/projects stores NULL description by default', async () => {
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -161,7 +161,7 @@ describe('Projects REST', () => {
     expect(proj!.description).toBeNull()
   })
 
-  test('GET /api/projects/:id returns the project', async () => {
+  test('handles GET /api/projects/:id returns the project', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -176,14 +176,14 @@ describe('Projects REST', () => {
     expect(proj.key).toBe('GETME')
   })
 
-  test('GET /api/projects/:id returns 404 for missing project', async () => {
+  test('handles GET /api/projects/:id returns 404 for missing project', async () => {
     const res = await fetchNativeApi(`http://localhost/api/projects/${crypto.randomUUID()}`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(404)
   })
 
-  test('PATCH /api/projects/:id updates name (owner)', async () => {
+  test('handles PATCH /api/projects/:id updates name (owner)', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -199,7 +199,7 @@ describe('Projects REST', () => {
     expect(patchRes.status).toBe(200)
   })
 
-  test('PATCH /api/projects/:id rejects member (403)', async () => {
+  test('handles PATCH /api/projects/:id rejects member (403)', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -215,7 +215,7 @@ describe('Projects REST', () => {
     expect(patchRes.status).toBe(403)
   })
 
-  test('PATCH /api/projects/:id archives and unarchives a project', async () => {
+  test('handles PATCH /api/projects/:id archives and unarchives a project', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -261,7 +261,7 @@ describe('Projects REST', () => {
     expect(afterKeys).toContain('ARCH1')
   })
 
-  test('DELETE /api/projects/:id works for owner', async () => {
+  test('handles DELETE /api/projects/:id works for owner', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -276,7 +276,7 @@ describe('Projects REST', () => {
     expect(delRes.status).toBe(200)
   })
 
-  test('DELETE /api/projects/:id rejects member (403)', async () => {
+  test('handles DELETE /api/projects/:id rejects member (403)', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -292,7 +292,7 @@ describe('Projects REST', () => {
   })
 })
 
-describe('Projects MCP', () => {
+describe('projects MCP', () => {
   let ownerToken: string
   let slug: string
   let workspaceId: string
@@ -389,7 +389,7 @@ describe('Projects MCP', () => {
     expect(proj!.description).toBeNull()
   })
 
-  test('REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
+  test('covers REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -413,7 +413,7 @@ describe('Projects MCP', () => {
     expect(proj!.open_issue_count).toBe(0)
   })
 
-  test('REST and MCP list_projects return the same keys', async () => {
+  test('covers REST and MCP list_projects return the same keys', async () => {
     // Create via REST
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
@@ -471,7 +471,7 @@ describe('Projects MCP', () => {
     expect(includeArchivedKeys).toContain('MARCH')
   })
 
-  test('REST create_project and MCP create_project enforce the same role guard', async () => {
+  test('covers REST create_project and MCP create_project enforce the same role guard', async () => {
     const restRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
@@ -485,7 +485,7 @@ describe('Projects MCP', () => {
   })
 })
 
-describe('GET /api/projects cross-workspace', () => {
+describe('handles GET /api/projects cross-workspace', () => {
   test('returns projects from all workspaces the user belongs to', async () => {
     const { seedFixture, seedProject, seedWorkspace, seedMember, seedGroupGrant, seedUserToken } =
       await import('./helpers.ts')

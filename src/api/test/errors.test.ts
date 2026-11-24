@@ -4,7 +4,7 @@ import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { toMcpError } from '#api/mcp/error-adapter.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ServiceError, ValidationError } from '#commands/errors.ts'
 
-describe('ValidationError', () => {
+describe('covers ValidationError', () => {
   test('carries the zod-flattened issues and a fixed message', () => {
     const issues = { formErrors: ['bad'], fieldErrors: { title: ['required'] } }
     const err = new ValidationError(issues)
@@ -15,7 +15,7 @@ describe('ValidationError', () => {
   })
 })
 
-describe('NotFoundError', () => {
+describe('covers NotFoundError', () => {
   test('defaults to a generic message', () => {
     const err = new NotFoundError()
     expect(err.kind).toBe('not_found')
@@ -28,7 +28,7 @@ describe('NotFoundError', () => {
   })
 })
 
-describe('ForbiddenError', () => {
+describe('covers ForbiddenError', () => {
   test('defaults to a generic message', () => {
     const err = new ForbiddenError()
     expect(err.kind).toBe('forbidden')
@@ -41,7 +41,7 @@ describe('ForbiddenError', () => {
   })
 })
 
-describe('ConflictError', () => {
+describe('covers ConflictError', () => {
   test('defaults to a generic message', () => {
     const err = new ConflictError()
     expect(err.kind).toBe('conflict')

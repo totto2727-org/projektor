@@ -18,7 +18,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  * viewer's writes are still refused (read-only), not merely hidden.
  */
 
-describe('Sprints API', () => {
+describe('sprints API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -37,14 +37,14 @@ describe('Sprints API', () => {
     })
   }
 
-  test('POST /api/sprints creates a sprint', async () => {
+  test('handles POST /api/sprints creates a sprint', async () => {
     const res = await createSprint({ projectId, name: 'Sprint 1' })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { id: string }
     expect(body.id).toBeTruthy()
   })
 
-  test('GET /api/sprints?projectId= returns empty list initially', async () => {
+  test('handles GET /api/sprints?projectId= returns empty list initially', async () => {
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
@@ -54,7 +54,7 @@ describe('Sprints API', () => {
     expect(body.items).toHaveLength(0)
   })
 
-  test('POST then GET lists the sprint', async () => {
+  test('handles POST then GET lists the sprint', async () => {
     await createSprint({ projectId, name: 'Sprint 1', goal: 'Ship the feature' })
 
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
@@ -67,7 +67,7 @@ describe('Sprints API', () => {
     expect(body.items[0].status).toBe('planned')
   })
 
-  test('GET /api/sprints/:id returns the sprint', async () => {
+  test('handles GET /api/sprints/:id returns the sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'Sprint 2' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -80,14 +80,14 @@ describe('Sprints API', () => {
     expect(sprint.status).toBe('planned')
   })
 
-  test('GET /api/sprints/:id returns 404 for unknown id', async () => {
+  test('handles GET /api/sprints/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/sprints/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  test('PATCH /api/sprints/:id updates sprint fields', async () => {
+  test('handles PATCH /api/sprints/:id updates sprint fields', async () => {
     const createRes = await createSprint({ projectId, name: 'Draft Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -107,7 +107,7 @@ describe('Sprints API', () => {
     expect(sprint.goal).toBe('Updated goal')
   })
 
-  test('POST /api/sprints/:id/complete marks active sprint completed', async () => {
+  test('handles POST /api/sprints/:id/complete marks active sprint completed', async () => {
     const createRes = await createSprint({ projectId, name: 'Active Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -131,7 +131,7 @@ describe('Sprints API', () => {
     expect(sprint.status).toBe('completed')
   })
 
-  test('POST /api/sprints/:id/complete rejects planned sprint', async () => {
+  test('handles POST /api/sprints/:id/complete rejects planned sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'Planned Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -142,7 +142,7 @@ describe('Sprints API', () => {
     expect(completeRes.status).toBe(400)
   })
 
-  test('DELETE /api/sprints/:id removes the sprint', async () => {
+  test('handles DELETE /api/sprints/:id removes the sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'To delete' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -158,7 +158,7 @@ describe('Sprints API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  test('POST /api/sprints/:id/move-issues bulk moves issues to sprint', async () => {
+  test('handles POST /api/sprints/:id/move-issues bulk moves issues to sprint', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Target Sprint' })
     const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
@@ -185,7 +185,7 @@ describe('Sprints API', () => {
     expect(titles).toEqual(['Issue A', 'Issue B'])
   })
 
-  test('DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async () => {
+  test('handles DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Sprint to delete' })
     const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
@@ -211,7 +211,7 @@ describe('Sprints API', () => {
     expect(issueData.sprint_id).toBeNull()
   })
 
-  test('PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async () => {
+  test('covers PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Cache Target Sprint' })
     const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
@@ -239,7 +239,7 @@ describe('Sprints API', () => {
     expect(afterBody.sprint_id).toBe(sprintId)
   })
 
-  test('POST /api/sprints/:id/move-issues returns 404 for unknown sprint', async () => {
+  test('handles POST /api/sprints/:id/move-issues returns 404 for unknown sprint', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Orphan issue' })
 
     const res = await fetchNativeApi(`http://localhost/api/sprints/${crypto.randomUUID()}/move-issues`, {
@@ -257,7 +257,7 @@ describe('Sprints API', () => {
    * getIssue/listIssues), so that invalidation loop was invalidating a field the cache
    * doesn't hold — it's deleted outright rather than chunked/deferred.
    */
-  describe('PROJ-871: moving many issues stays within the KV subrequest budget', () => {
+  describe('covers PROJ-871: moving many issues stays within the KV subrequest budget', () => {
     const prevApiMax = env.RATE_LIMIT_API_MAX
     beforeAll(() => {
       env.RATE_LIMIT_API_MAX = '1000'
@@ -356,7 +356,7 @@ describe('Sprints API', () => {
   })
 })
 
-describe('Sprints role guards', () => {
+describe('sprints role guards', () => {
   test('viewer cannot create a sprint (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
@@ -422,7 +422,7 @@ describe('Sprints role guards', () => {
     expect(completeRes.status).toBe(403)
   })
 
-  test("PROJ-357: write access only on the sprint's project can't move an issue from an ungranted one", async () => {
+  test("covers PROJ-357: write access only on the sprint's project can't move an issue from an ungranted one", async () => {
     const roles = await seedWorkspaceRoles()
     const projectA = await seedProject(roles.workspace.id, 'PJA')
     const projectB = await seedProject(roles.workspace.id, 'PJB')

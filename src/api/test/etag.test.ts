@@ -32,7 +32,7 @@ const get = async function get(
   })
 }
 
-describe('PROJ-439 — ETag / conditional GET', () => {
+describe('covers PROJ-439 — ETag / conditional GET', () => {
   test('tags a 200 and answers a matching If-None-Match with an empty 304', async () => {
     const f = await seedIssueFixture({ role: 'owner' })
 
@@ -72,7 +72,7 @@ describe('PROJ-439 — ETag / conditional GET', () => {
 
   // ---- a mutation must never leave a stale 304 behind ----
 
-  test('PATCH to an issue makes the next conditional GET a 200 with the new content', async () => {
+  test('handles PATCH to an issue makes the next conditional GET a 200 with the new content', async () => {
     const f = await seedIssueFixture({ role: 'owner', issueTitle: 'Before' })
     const etag = (await get(`/api/issues/${f.issueId}`, f.token, f.slug)).headers.get('ETag')
 

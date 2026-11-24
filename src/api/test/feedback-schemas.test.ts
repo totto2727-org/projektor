@@ -6,7 +6,7 @@ import {
   UpdateFeedbackSourceSchema,
 } from '#contracts/inputs/feedback.ts'
 
-describe('SubmitFeedbackSchema', () => {
+describe('covers SubmitFeedbackSchema', () => {
   test('accepts a body-only submission', () => {
     expect(SubmitFeedbackSchema.safeParse({ body: 'great' }).success).toBe(true)
   })
@@ -49,14 +49,14 @@ describe('SubmitFeedbackSchema', () => {
   })
 })
 
-describe('CreateFeedbackSourceSchema', () => {
+describe('covers CreateFeedbackSourceSchema', () => {
   test('requires a name', () => {
     expect(CreateFeedbackSourceSchema.safeParse({ projectId: 'p', name: 'Onboarding' }).success).toBe(true)
     expect(CreateFeedbackSourceSchema.safeParse({ projectId: 'p' }).success).toBe(false)
   })
 })
 
-describe('UpdateFeedbackSourceSchema', () => {
+describe('covers UpdateFeedbackSourceSchema', () => {
   test('requires at least one mutable field', () => {
     expect(UpdateFeedbackSourceSchema.safeParse({ sourceId: 's' }).success).toBe(false)
     expect(UpdateFeedbackSourceSchema.safeParse({ sourceId: 's', isActive: false }).success).toBe(true)

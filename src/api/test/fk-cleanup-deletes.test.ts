@@ -37,7 +37,7 @@ const ownerCtx = async function ownerCtx() {
   return { ...f, ctx }
 }
 
-describe('PROJ-923: explicit cleanup on delete', () => {
+describe('covers PROJ-923: explicit cleanup on delete', () => {
   test("deleteGroup removes the group's members and grants", async () => {
     const { ctx, workspace, user } = await ownerCtx()
     const project = await seedProject(workspace.id, 'GRP')

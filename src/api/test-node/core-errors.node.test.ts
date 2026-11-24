@@ -7,7 +7,7 @@ import { coreFailure } from '#core/contract.ts'
 import type { HonoEnv } from '#types'
 
 /** Exercise the public adapters with the validated native envelope's error type. */
-describe('Core failures at public protocol boundaries', () => {
+describe('core failures at public protocol boundaries', () => {
   test('preserves REST validation fields without serializing error diagnostics', async () => {
     const app = new Hono<HonoEnv>()
     app.get('/', (c) =>

@@ -183,7 +183,9 @@ export const readIssuePage = EFFRONT.ServerFn.make({
         'updatedBefore',
         'cursor',
       ] as const) {
-        if (input[name]) params.set(name, input[name])
+        if (input[name]) {
+          params.set(name, input[name])
+        }
       }
       params.set('limit', String(input.limit ?? 30))
       if (input.includeRollups) {

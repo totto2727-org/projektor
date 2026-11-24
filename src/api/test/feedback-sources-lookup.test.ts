@@ -15,7 +15,7 @@ const createSource = async function createSource(
   return id
 }
 
-describe('GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
+describe('handles GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
   test('returns the source including projectId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const sourceId = await createSource(f)

@@ -12,7 +12,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Task Statuses API', () => {
+describe('task Statuses API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -25,7 +25,7 @@ describe('Task Statuses API', () => {
 
   // ---- list ----
 
-  test('GET /api/task-statuses returns empty list initially', async () => {
+  test('handles GET /api/task-statuses returns empty list initially', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
@@ -35,7 +35,7 @@ describe('Task Statuses API', () => {
     expect(list).toHaveLength(0)
   })
 
-  test('GET /api/task-statuses returns seeded statuses ordered by position', async () => {
+  test('handles GET /api/task-statuses returns seeded statuses ordered by position', async () => {
     await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done', position: 2 })
     await seedTaskStatus(workspaceId, { key: 'todo', name: 'Todo', category: 'todo', position: 1 })
 
@@ -50,7 +50,7 @@ describe('Task Statuses API', () => {
 
   // ---- create ----
 
-  test('POST /api/task-statuses creates a new status (owner)', async () => {
+  test('handles POST /api/task-statuses creates a new status (owner)', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -67,7 +67,7 @@ describe('Task Statuses API', () => {
     expect(body.key).toBe('in_progress')
   })
 
-  test('POST /api/task-statuses rejects duplicate key', async () => {
+  test('handles POST /api/task-statuses rejects duplicate key', async () => {
     await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done' })
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
@@ -77,7 +77,7 @@ describe('Task Statuses API', () => {
     expect(res.status).toBe(409)
   })
 
-  test('POST /api/task-statuses rejects invalid key format', async () => {
+  test('handles POST /api/task-statuses rejects invalid key format', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -86,7 +86,7 @@ describe('Task Statuses API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/task-statuses clears other defaults when isDefault=true', async () => {
+  test('handles POST /api/task-statuses clears other defaults when isDefault=true', async () => {
     await seedTaskStatus(workspaceId, {
       key: 'todo',
       name: 'Todo',
@@ -109,7 +109,7 @@ describe('Task Statuses API', () => {
     expect(defaults[0].key).toBe('backlog')
   })
 
-  test('POST /api/task-statuses returns 403 for member role', async () => {
+  test('handles POST /api/task-statuses returns 403 for member role', async () => {
     const memberUser = await seedUser('member@example.com')
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
@@ -124,7 +124,7 @@ describe('Task Statuses API', () => {
 
   // ---- update ----
 
-  test('PATCH /api/task-statuses/:id updates name', async () => {
+  test('handles PATCH /api/task-statuses/:id updates name', async () => {
     const { id } = await seedTaskStatus(workspaceId, {
       key: 'todo',
       name: 'Todo',
@@ -145,7 +145,7 @@ describe('Task Statuses API', () => {
     expect(list.find((s) => s.key === 'todo')?.name).toBe('To Do')
   })
 
-  test('PATCH /api/task-statuses/:id returns 404 for unknown id', async () => {
+  test('handles PATCH /api/task-statuses/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -154,7 +154,7 @@ describe('Task Statuses API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('PATCH /api/task-statuses/:id with isDefault=true clears others', async () => {
+  test('handles PATCH /api/task-statuses/:id with isDefault=true clears others', async () => {
     const { id: todoId } = await seedTaskStatus(workspaceId, {
       key: 'todo',
       name: 'Todo',
@@ -185,7 +185,7 @@ describe('Task Statuses API', () => {
 
   // ---- delete ----
 
-  test('DELETE /api/task-statuses/:id removes a status', async () => {
+  test('handles DELETE /api/task-statuses/:id removes a status', async () => {
     const { id } = await seedTaskStatus(workspaceId, {
       key: 'cancelled',
       name: 'Cancelled',
@@ -205,7 +205,7 @@ describe('Task Statuses API', () => {
     expect(list).toHaveLength(0)
   })
 
-  test('DELETE /api/task-statuses/:id returns 404 for unknown id', async () => {
+  test('handles DELETE /api/task-statuses/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
       method: 'DELETE',
@@ -213,7 +213,7 @@ describe('Task Statuses API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('DELETE /api/task-statuses/:id returns 409 when status is in use', async () => {
+  test('handles DELETE /api/task-statuses/:id returns 409 when status is in use', async () => {
     const { id: statusId } = await seedTaskStatus(workspaceId, {
       key: 'done',
       name: 'Done',
@@ -228,7 +228,7 @@ describe('Task Statuses API', () => {
     expect(res.status).toBe(409)
   })
 
-  test('DELETE /api/task-statuses/:id returns 409 when deleting the default', async () => {
+  test('handles DELETE /api/task-statuses/:id returns 409 when deleting the default', async () => {
     const { id } = await seedTaskStatus(workspaceId, {
       key: 'backlog',
       name: 'Backlog',
@@ -245,7 +245,7 @@ describe('Task Statuses API', () => {
 
   // ---- workspace scoping ----
 
-  test('GET /api/task-statuses is workspace-scoped', async () => {
+  test('handles GET /api/task-statuses is workspace-scoped', async () => {
     await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done' })
     const other = await seedFixture({ role: 'owner' })
 
@@ -257,7 +257,7 @@ describe('Task Statuses API', () => {
   })
 })
 
-describe('Task Statuses — issue integration', () => {
+describe('task Statuses — issue integration', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -268,7 +268,7 @@ describe('Task Statuses — issue integration', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  test('POST /api/issues uses workspace default status when no statusId given', async () => {
+  test('handles POST /api/issues uses workspace default status when no statusId given', async () => {
     await seedTaskStatus(workspaceId, {
       key: 'backlog',
       name: 'Backlog',
@@ -297,7 +297,7 @@ describe('Task Statuses — issue integration', () => {
     expect(issue.status_category).toBe('todo')
   })
 
-  test('POST /api/issues with statusId sets the status_id', async () => {
+  test('handles POST /api/issues with statusId sets the status_id', async () => {
     const { id: statusId } = await seedTaskStatus(workspaceId, {
       key: 'done',
       name: 'Done',
@@ -320,7 +320,7 @@ describe('Task Statuses — issue integration', () => {
     expect(issue.status_id).toBe(statusId)
   })
 
-  test('POST /api/issues with legacy status string sets status_id via key lookup', async () => {
+  test('handles POST /api/issues with legacy status string sets status_id via key lookup', async () => {
     await seedTaskStatus(workspaceId, {
       key: 'in_progress',
       name: 'In Progress',
@@ -343,7 +343,7 @@ describe('Task Statuses — issue integration', () => {
     expect(issue.status_key).toBe('in_progress')
   })
 
-  test('POST /api/issues rejects statusId from another workspace', async () => {
+  test('handles POST /api/issues rejects statusId from another workspace', async () => {
     const other = await seedFixture({ role: 'owner' })
     const { id: foreignStatusId } = await seedTaskStatus(other.workspace.id, {
       key: 'done',
@@ -359,7 +359,7 @@ describe('Task Statuses — issue integration', () => {
     expect(res.status).toBe(400)
   })
 
-  test('PATCH /api/issues/:id updates statusId', async () => {
+  test('handles PATCH /api/issues/:id updates statusId', async () => {
     const { id: statusId } = await seedTaskStatus(workspaceId, {
       key: 'done',
       name: 'Done',
@@ -384,7 +384,7 @@ describe('Task Statuses — issue integration', () => {
     expect(updated.status_key).toBe('done')
   })
 
-  test('GET /api/issues?statusId= filters by statusId', async () => {
+  test('handles GET /api/issues?statusId= filters by statusId', async () => {
     const { id: doneId } = await seedTaskStatus(workspaceId, {
       key: 'done',
       name: 'Done',
@@ -408,7 +408,7 @@ describe('Task Statuses — issue integration', () => {
     expect(page.items.every((i) => i.title.startsWith('Done'))).toBe(true)
   })
 
-  test('GET /api/issues?category= filters by category', async () => {
+  test('handles GET /api/issues?category= filters by category', async () => {
     const { id: doneId } = await seedTaskStatus(workspaceId, {
       key: 'done',
       name: 'Done',
@@ -440,7 +440,7 @@ describe('Task Statuses — issue integration', () => {
     expect(page.items[0].title).toBe('Todo issue')
   })
 
-  test('GET /api/issues?status= (legacy) still works', async () => {
+  test('handles GET /api/issues?status= (legacy) still works', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Backlog issue', status: 'backlog' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Done issue', status: 'done' })
 
@@ -452,7 +452,7 @@ describe('Task Statuses — issue integration', () => {
     expect(page.items[0].title).toBe('Backlog issue')
   })
 
-  test('GET /api/issues returns status_key, status_name, status_category in list', async () => {
+  test('handles GET /api/issues returns status_key, status_name, status_category in list', async () => {
     const { id: statusId } = await seedTaskStatus(workspaceId, {
       key: 'done',
       name: 'Done',
@@ -471,7 +471,7 @@ describe('Task Statuses — issue integration', () => {
     expect(page.items[0].status_category).toBe('done')
   })
 
-  test('GET /api/issues/:id returns status_key, status_name, status_category', async () => {
+  test('handles GET /api/issues/:id returns status_key, status_name, status_category', async () => {
     const { id: statusId } = await seedTaskStatus(workspaceId, {
       key: 'in_progress',
       name: 'In Progress',
@@ -492,7 +492,7 @@ describe('Task Statuses — issue integration', () => {
     expect(body.status_category).toBe('in_progress')
   })
 
-  test('GET /api/issues/:id has null status_key when no status_id set', async () => {
+  test('handles GET /api/issues/:id has null status_key when no status_id set', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No status_id' })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
@@ -504,7 +504,7 @@ describe('Task Statuses — issue integration', () => {
   })
 })
 
-describe('Task Statuses — MCP parity', () => {
+describe('task Statuses — MCP parity', () => {
   let token: string
   let slug: string
   let workspaceId: string

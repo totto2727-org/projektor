@@ -44,7 +44,7 @@ const tokenRow = async function tokenRow(name: string) {
   }>()
 }
 
-describe('PROJ-917: workspace tokens require a human session', () => {
+describe('covers PROJ-917: workspace tokens require a human session', () => {
   test("an owner's pk_ token cannot mint a workspace token", async () => {
     const f = await seedFixture({ role: 'owner' })
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {

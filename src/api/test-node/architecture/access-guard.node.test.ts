@@ -225,7 +225,7 @@ const isTarget = function isTarget(fn: FnInfo): boolean {
   return PROJECT_SCOPED_FILES.has(fn.file) && rest.some((p) => GENERIC_ID_PARAM.test(p))
 }
 
-describe('PROJ-837: project-scoped service operations reach the access guard', () => {
+describe('covers PROJ-837: project-scoped service operations reach the access guard', () => {
   const fns = collect()
   const guarded = guardedSet(fns)
   const targets = [...fns.entries()].filter(([, fn]) => isTarget(fn))

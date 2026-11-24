@@ -53,10 +53,10 @@ const withoutLimiterBinding = function withoutLimiterBinding(): void {
   })
 }
 
-describe('PROJ-19: rate limiting', () => {
+describe('covers PROJ-19: rate limiting', () => {
   const ENDPOINT = 'http://localhost/api/workspaces'
 
-  describe('IP-keyed (no bearer token)', () => {
+  describe('covers IP-keyed (no bearer token)', () => {
     test('allows a request within the limit', async () => {
       // No CF-Connecting-IP → middleware falls back to '127.0.0.1'
       const res = await fetchNativeApi(ENDPOINT)
@@ -75,7 +75,7 @@ describe('PROJ-19: rate limiting', () => {
       expect(retryAfter).toBeLessThanOrEqual(WINDOW_SECS)
     })
 
-    test('IP-keyed and token-keyed buckets are independent', async () => {
+    test('covers IP-keyed and token-keyed buckets are independent', async () => {
       // Exhaust the IP bucket; authenticated requests must not be affected
       await seedCounter('ip:127.0.0.1', AUTH_LIMIT)
 
@@ -127,7 +127,7 @@ describe('PROJ-19: rate limiting', () => {
   })
 })
 
-describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
+describe('covers PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
   const ENDPOINT = 'http://localhost/api/workspaces'
   const AUTH_FAIL_LIMIT = 3 // RATE_LIMIT_AUTH_FAIL_MAX in vite.config.ts
 
@@ -169,7 +169,7 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
  * PROJ-432: the limiter runs on every request, and its upsert + read-back used to be two
  * sequential awaits. They're one D1 batch now — same statements, same order, one round trip.
  */
-describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
+describe('covers PROJ-432: the D1 fallback counter costs one round trip', () => {
   const d1Only = (db: D1Database): Env => ({ ...env, DB: db, RATE_LIMITER: undefined })
   const countingDb = function countingDb(db: D1Database) {
     const counts = { prepare: 0, batch: 0 }
@@ -208,7 +208,7 @@ describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
   })
 })
 
-describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', () => {
+describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not D1', () => {
   const ENDPOINT = 'http://localhost/api/workspaces'
 
   const rateLimitRows = async function rateLimitRows(): Promise<number> {
@@ -216,7 +216,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     return row?.n ?? 0
   }
 
-  test('GET requests write nothing to D1', async () => {
+  test('handles GET requests write nothing to D1', async () => {
     const fixture = await seedFixture()
     for (let index = 0; index < 3; index++) {
       const res = await fetchNativeApi(ENDPOINT, {
@@ -242,7 +242,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     await expect(rateLimitRows()).resolves.toBe(0)
   })
 
-  test('Retry-After is the seconds left in the fixed window, as before', async () => {
+  test('covers Retry-After is the seconds left in the fixed window, as before', async () => {
     const slotStartMs = currentSlot() * 1000
     env.RATE_LIMIT_TEST_NOW_MS = String(slotStartMs + 20_000) // 20s into the window
     await configureCore()

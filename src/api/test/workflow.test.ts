@@ -20,7 +20,7 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-describe('Workflow spec', () => {
+describe('workflow spec', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -32,7 +32,7 @@ describe('Workflow spec', () => {
     workspaceId = fixture.workspace.id
   })
 
-  test('GET /api/workflow returns the spec content plus a version', async () => {
+  test('handles GET /api/workflow returns the spec content plus a version', async () => {
     const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -58,7 +58,7 @@ describe('Workflow spec', () => {
     expect(body.version.length).toBeGreaterThan(0)
   })
 
-  test('MCP get_workflow returns the same content as REST', async () => {
+  test('covers MCP get_workflow returns the same content as REST', async () => {
     const restRes = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })

@@ -260,7 +260,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
  * from ANOTHER workspace must be a 404 that touches nothing — not a silent wipe of that
  * workspace's comments/links/attachments by an admin of this one.
  */
-describe("PROJ-922: deleteIssue refuses another workspace's issue", () => {
+describe("covers PROJ-922: deleteIssue refuses another workspace's issue", () => {
   test("404s and leaves the other workspace's rows intact", async () => {
     const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers.ts')
     const a = await seedProjectFixture({ role: 'owner' })

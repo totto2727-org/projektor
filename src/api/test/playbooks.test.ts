@@ -4,7 +4,7 @@ import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Playbooks', () => {
+describe('playbooks', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -16,7 +16,7 @@ describe('Playbooks', () => {
     workspaceId = fixture.workspace.id
   })
 
-  test('GET /api/playbooks lists the registry', async () => {
+  test('handles GET /api/playbooks lists the registry', async () => {
     const res = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
@@ -32,7 +32,7 @@ describe('Playbooks', () => {
    * whole /api/playbooks prefix to get it would make these two 400 without a slug.
    * Every other test here sends one, so only this asserts the prefix stays global.
    */
-  test('GET /api/playbooks and /:name work without an X-Workspace-Slug header', async () => {
+  test('handles GET /api/playbooks and /:name work without an X-Workspace-Slug header', async () => {
     const auth = { Authorization: `Bearer ${token}` }
 
     const list = await fetchNativeApi('http://localhost/api/playbooks', { headers: auth })
@@ -42,7 +42,7 @@ describe('Playbooks', () => {
     expect(one.status).toBe(200)
   })
 
-  test('MCP list_playbooks returns the same content as REST', async () => {
+  test('covers MCP list_playbooks returns the same content as REST', async () => {
     const restRes = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
@@ -64,7 +64,7 @@ describe('Playbooks', () => {
     expect(mcpBody).toEqual(restBody)
   })
 
-  test('GET /api/playbooks/:name returns the full playbook', async () => {
+  test('handles GET /api/playbooks/:name returns the full playbook', async () => {
     const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
@@ -76,7 +76,7 @@ describe('Playbooks', () => {
     expect(body.content).toContain('Audit first')
   })
 
-  test('GET /api/playbooks/idea-discovery returns the full playbook', async () => {
+  test('handles GET /api/playbooks/idea-discovery returns the full playbook', async () => {
     const res = await fetchNativeApi('http://localhost/api/playbooks/idea-discovery', {
       headers: authHeaders(token, slug),
     })
@@ -88,7 +88,7 @@ describe('Playbooks', () => {
     expect(body.content).toContain('Free/open data sources only')
   })
 
-  test('MCP get_playbook returns the same content as REST', async () => {
+  test('covers MCP get_playbook returns the same content as REST', async () => {
     const restRes = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
@@ -110,7 +110,7 @@ describe('Playbooks', () => {
     expect(mcpBody).toEqual(restBody)
   })
 
-  test('GET /api/playbooks/:name 404s on an unknown name', async () => {
+  test('handles GET /api/playbooks/:name 404s on an unknown name', async () => {
     const res = await fetchNativeApi('http://localhost/api/playbooks/does-not-exist', {
       headers: authHeaders(token, slug),
     })
@@ -120,7 +120,7 @@ describe('Playbooks', () => {
     expect(body.validNames).toContain('epic-goal')
   })
 
-  test('MCP get_playbook errors on an unknown name, naming valid options', async () => {
+  test('covers MCP get_playbook errors on an unknown name, naming valid options', async () => {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),

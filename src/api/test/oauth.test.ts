@@ -709,7 +709,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
 })
 
 describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => {
-  test('POST /auth/tokens with an OAuth access token is refused and mints nothing', async () => {
+  test('handles POST /auth/tokens with an OAuth access token is refused and mints nothing', async () => {
     const workspace = await seedWorkspace()
     const email = `pat-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -733,7 +733,7 @@ describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => 
 })
 
 describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', () => {
-  test('POST /api/workspaces/:slug/tokens with an OAuth access token is refused', async () => {
+  test('handles POST /api/workspaces/:slug/tokens with an OAuth access token is refused', async () => {
     const workspace = await seedWorkspace()
     const email = `wstok-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -756,7 +756,7 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
     expect(row).toBeNull()
   })
 
-  test('DELETE /api/workspaces/:slug/tokens/:id with an OAuth access token is refused', async () => {
+  test('handles DELETE /api/workspaces/:slug/tokens/:id with an OAuth access token is refused', async () => {
     const workspace = await seedWorkspace()
     const email = `wsrev-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -982,7 +982,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
   })
 })
 
-describe('Settings lists and withdraws connectors (PROJ-659)', () => {
+describe('settings lists and withdraws connectors (PROJ-659)', () => {
   const settings = function settings(slug: string, jwt: string, path = '', init: RequestInit = {}): Promise<Response> {
     return fetchNativeApi(`${HOST}/api/workspaces/${slug}/connectors${path}`, {
       ...init,

@@ -102,7 +102,7 @@ async function fixture(currentScope: RequestScope = scope) {
   return { ...database, calls, effect }
 }
 
-describe('Wiki direct request-owned queries', () => {
+describe('wiki direct request-owned queries', () => {
   test('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
     const test = await fixture()
     const reopen = async () => initialData(await runTestEffect(test.effect('https://app.test/wiki/guide/edit')))

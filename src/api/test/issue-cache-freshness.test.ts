@@ -55,7 +55,7 @@ beforeEach(async () => {
 })
 afterEach(() => vi.restoreAllMocks())
 
-describe('PROJ-863: no stale embedded data', () => {
+describe('covers PROJ-863: no stale embedded data', () => {
   test('renaming the linked issue', async () => {
     await call('PATCH', `/api/issues/${otherId}`, { title: 'Other (renamed)' })
     expect((await get(f.issueId)).links[0].linkedIssueTitle).toBe('Other (renamed)')
@@ -105,7 +105,7 @@ describe('PROJ-863: no stale embedded data', () => {
   })
 })
 
-describe('PROJ-863: a cache hit stays cheap', () => {
+describe('covers PROJ-863: a cache hit stays cheap', () => {
   test('getIssue by ref makes <= 5 D1 queries on a hit', async () => {
     const ctx: ServiceCtx = {
       db: env.DB,

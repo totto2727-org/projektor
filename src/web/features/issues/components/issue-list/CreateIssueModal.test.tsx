@@ -24,7 +24,7 @@ function Harness() {
   return <CreateIssueModal {...modal} projects={PROJECTS} taskTypes={[]} statuses={[]} />
 }
 
-describe('CreateIssueModal — Description caption (PROJ-566)', () => {
+describe('covers CreateIssueModal — Description caption (PROJ-566)', () => {
   test('renders the Description label as a caption with no implicit control', () => {
     render(<Harness />)
 
@@ -65,7 +65,7 @@ function FieldsHarness() {
  * descendant — Select's trigger <button> — and forwards clicks from every
  * non-interactive descendant to it, including the menu's own <li> options.
  */
-describe('CreateIssueModal — Select field captions (PROJ-566)', () => {
+describe('covers CreateIssueModal — Select field captions (PROJ-566)', () => {
   for (const caption of ['Project', 'Priority', 'Type', 'Status']) {
     test(`renders the ${caption} label as a caption with no implicit control`, () => {
       render(<FieldsHarness />)

@@ -10,7 +10,7 @@ import { getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('PROJ-856: middleware runs once per request', () => {
+describe('covers PROJ-856: middleware runs once per request', () => {
   let f: Awaited<ReturnType<typeof seedIssueFixture>>
   beforeEach(async () => {
     f = await seedIssueFixture()
@@ -34,7 +34,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
-  test('GET /api/issues/:id authenticates once', async () => {
+  test('handles GET /api/issues/:id authenticates once', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}`, {
       headers: authHeaders(f.token, f.slug),
     })
@@ -42,7 +42,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
-  test('GET /api/workspaces/:slug authenticates once', async () => {
+  test('handles GET /api/workspaces/:slug authenticates once', async () => {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.slug}`, {
       headers: authHeaders(f.token, f.slug),
     })
@@ -50,7 +50,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
-  test('POST /api/issues authenticates once', async () => {
+  test('handles POST /api/issues authenticates once', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),

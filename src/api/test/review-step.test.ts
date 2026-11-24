@@ -8,7 +8,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-749: a status is a review step because the workspace flagged it
 // (task_statuses.is_review_step), not because its key contains "review".
-describe('PROJ-749: review steps are explicit, not inferred from the status key', () => {
+describe('covers PROJ-749: review steps are explicit, not inferred from the status key', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -116,7 +116,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
   })
 })
 
-describe("PROJ-749: migration 0061 backfill preserves today's behaviour", () => {
+describe("covers PROJ-749: migration 0061 backfill preserves today's behaviour", () => {
   test("flags every existing status whose key contains 'review', and nothing else", async () => {
     const ws = `ws-${crypto.randomUUID().slice(0, 8)}`
     await env.DB.prepare('INSERT INTO workspaces (id, slug, name, created_at) VALUES (?, ?, ?, 0)')

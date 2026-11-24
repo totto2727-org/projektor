@@ -163,26 +163,32 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
             const name = args[0]
             if (Predicate.isString(name)) {
               observation.authCacheGets.push(name)
-              if (matches(name, settings.FIXTURE_AUTH_KV_GET_FAILURE))
+              if (matches(name, settings.FIXTURE_AUTH_KV_GET_FAILURE)) {
                 return Promise.reject(new Error('Fixture auth KV read unavailable'))
+              }
             }
             const get: unknown = Reflect.get(target, 'get')
-            if (!Predicate.isFunction(get)) throw new Error('Missing native KV get')
+            if (!Predicate.isFunction(get)) {
+              throw new Error('Missing native KV get')
+            }
             return Reflect.apply(get, target, args)
           }
         }
         if (key === 'put') {
           return (...args: Parameters<typeof target.put>) => {
             observation.authCachePuts.push(args[0])
-            if (matches(args[0], settings.FIXTURE_AUTH_KV_PUT_FAILURE))
+            if (matches(args[0], settings.FIXTURE_AUTH_KV_PUT_FAILURE)) {
               return Promise.reject(new Error('Fixture auth KV write unavailable'))
+            }
             return target.put(...args)
           }
         }
         if (key === 'delete') {
           return async (name: string) => {
             observation.cacheDeletes.push(name)
-            if (rejectDelete) throw new Error('10048: your account has reached the free usage limit')
+            if (rejectDelete) {
+              throw new Error('10048: your account has reached the free usage limit')
+            }
             return target.delete(name)
           }
         }
@@ -199,12 +205,13 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
               const stub = target.get(...args)
               return new Proxy(stub, {
                 get(inner, member): unknown {
-                  if (member === 'fetch')
+                  if (member === 'fetch') {
                     return async (...fetchArgs: Parameters<typeof inner.fetch>) => {
                       const request = new Request(...fetchArgs)
                       observation.broadcasts.push({ url: request.url, body: await request.clone().text() })
                       return inner.fetch(request)
                     }
+                  }
                   const value: unknown = Reflect.get(inner, member)
                   return Predicate.isFunction(value) ? value.bind(inner) : value
                 },

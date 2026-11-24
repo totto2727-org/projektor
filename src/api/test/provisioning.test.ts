@@ -93,7 +93,7 @@ describe('login provisioning', () => {
     expect(ws).toBeNull()
   })
 
-  test('AUTO_JOIN_ROLE=none leaves non-admins without a membership (invite-only)', async () => {
+  test('covers AUTO_JOIN_ROLE=none leaves non-admins without a membership (invite-only)', async () => {
     const slug = 'prov-invite-only'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('no-autojoin@example.com')
@@ -110,7 +110,7 @@ describe('login provisioning', () => {
     await expect(memberRole(ws.id, user.id)).resolves.toBeNull()
   })
 
-  test('PROJ-193: defaults to invite-only (no auto-join) when AUTO_JOIN_ROLE is unset', async () => {
+  test('covers PROJ-193: defaults to invite-only (no auto-join) when AUTO_JOIN_ROLE is unset', async () => {
     const slug = 'prov-default-invite-only'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('unset-autojoin@example.com')
@@ -231,7 +231,7 @@ describe('login provisioning', () => {
  * respect it across all three re-add paths, without affecting workspaces the user wasn't
  * removed from.
  */
-describe('PROJ-436: removal tombstone', () => {
+describe('covers PROJ-436: removal tombstone', () => {
   test('a tombstoned admin is not re-owned of that workspace, but still owns others', async () => {
     const removedFrom = await seedWorkspace('prov-436-admin-removed')
     const stillOwns = await seedWorkspace('prov-436-admin-other')
@@ -294,7 +294,7 @@ describe('PROJ-436: removal tombstone', () => {
  * the short-circuit the way it's actually observable: delete what provisioning wrote, call
  * again, and see whether it comes back.
  */
-describe('PROJ-433: provisioning runs once per user, not per request', () => {
+describe('covers PROJ-433: provisioning runs once per user, not per request', () => {
   const dropMembership = async function dropMembership(workspaceId: string, userId: string): Promise<void> {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, userId)
@@ -414,7 +414,7 @@ const countingDb = function countingDb(db: D1Database) {
   return { counts, proxy }
 }
 
-describe('PROJ-433: provisioning query count', () => {
+describe('covers PROJ-433: provisioning query count', () => {
   test('costs one query for an already-owning admin, regardless of workspace count', async () => {
     const admin = await seedUser('count-admin@example.com')
     const slug = 'prov-count-default'

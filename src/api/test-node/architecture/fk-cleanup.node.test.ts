@@ -68,7 +68,7 @@ const camel = function camel(snake: string): string {
   return snake.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
 }
 
-describe('PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {
+describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {
   const declared = declaredFkActions()
 
   test('parses the migrations (sanity)', () => {
@@ -97,7 +97,9 @@ describe('PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {
       const child = key.split(' -> ')[0]
       const sources = entry.cleanedBy.map((ref) => ({ ref, src: declarationSource(ref) }))
       for (const { ref, src } of sources) {
-        if (Predicate.isNullish(src)) problems.push(`${key}: ${ref} not found`)
+        if (Predicate.isNullish(src)) {
+          problems.push(`${key}: ${ref} not found`)
+        }
       }
       const mentions = sources.every(
         ({ src }) =>

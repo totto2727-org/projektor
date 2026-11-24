@@ -399,7 +399,7 @@ describe('list_project_activity MCP tool', () => {
   })
 })
 
-describe('GET /api/projects/:id/activity (PROJ-245)', () => {
+describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
   let token: string
   let slug: string
   let workspaceId: string

@@ -45,7 +45,7 @@ const fixture = async function fixture() {
   return { ...database, actor, env, waitUntil }
 }
 
-describe('Core persistent authorization', () => {
+describe('core persistent authorization', () => {
   test('rechecks membership and role for each named domain operation', async () => {
     const f = await fixture()
     const first = await resolveCoreServiceCtx(f.actor, 'w', 'write', f.env)

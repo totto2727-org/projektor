@@ -224,8 +224,9 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
     }
     if (ts.isVariableStatement(node)) {
       for (const declaration of node.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.initializer)
+        if (ts.isIdentifier(declaration.name) && declaration.initializer) {
           functions.set(declaration.name.text, declaration.initializer)
+        }
       }
     }
   }
@@ -430,7 +431,9 @@ const domainOperations = function domainOperations(
     }
     if (binary && ts.isBlock(child)) {
       for (const statement of child.statements) {
-        if (visit(statement, method)) return true
+        if (visit(statement, method)) {
+          return true
+        }
       }
       return false
     }
@@ -600,7 +603,7 @@ const runtimeToolNames = coreMCPTools.map((t) => t.name)
 
 // ---------------------------------------------------------------------------
 
-describe('MCP surface parity (PROJ-623)', () => {
+describe('covers MCP surface parity (PROJ-623)', () => {
   test('traces qualified aliases and namespace facade calls to their actual Core commands', () => {
     const module = sourceModule(
       join(SRC, 'routes', 'parity-alias-fixture.ts'),

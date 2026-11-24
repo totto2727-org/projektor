@@ -9,7 +9,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('PROJ-858: batched slug link resolution on save', () => {
+describe('covers PROJ-858: batched slug link resolution on save', () => {
   afterEach(() => vi.restoreAllMocks())
 
   test('200 distinct slug links (direct, redirected, missing) resolve correctly in O(1) reads', async () => {

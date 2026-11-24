@@ -14,7 +14,7 @@ type RpcBody = {
   error?: { code: number; message: string; data?: unknown }
 }
 
-describe('PROJ-894: stateless agent identity', () => {
+describe('covers PROJ-894: stateless agent identity', () => {
   let token: string
   let workspaceId: string
   let projectId: string

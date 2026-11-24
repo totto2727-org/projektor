@@ -15,7 +15,7 @@ import {
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-describe('Agent Messages API', () => {
+describe('agent Messages API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -77,7 +77,7 @@ describe('Agent Messages API', () => {
    * C1: post_message to issue scope; list_messages returns it; cursor pagination stable
    * token: POST×3 (3/5); token2: GET all (1/5) + GET page2 (2/5); token3: GET page1 (1/5); token4: MCP (1/5)
    */
-  test('C1: post_message({scope:issue}) and list_messages with cursor pagination (no dupes/gaps)', async () => {
+  test('c1: post_message({scope:issue}) and list_messages with cursor pagination (no dupes/gaps)', async () => {
     const scope = `issue:${issueId}`
 
     // Post 3 messages so we can page with limit=2
@@ -162,7 +162,7 @@ describe('Agent Messages API', () => {
 
   // C2: workspace scope; messages visible via workspace scope; not returned under issue scope
   // 3 requests (post, list workspace scope, list issue scope) — within RATE_LIMIT_API_MAX=5
-  test('C2: workspace-scoped post_message visible under workspace scope; not under issue scope', async () => {
+  test('c2: workspace-scoped post_message visible under workspace scope; not under issue scope', async () => {
     const wsScope = 'workspace'
     const issueScope = `issue:${issueId}`
 
@@ -188,7 +188,7 @@ describe('Agent Messages API', () => {
 
   // C3: CAPSTONE — spans agents + file-claims + agent-messages
   // Uses multiple tokens to stay within rate limit (5 per token)
-  test('C3: capstone — two agents coordinate via messages; force-claim posts override notice', async () => {
+  test('c3: capstone — two agents coordinate via messages; force-claim posts override notice', async () => {
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Agent Issue' })
     const scope = `issue:${issue2.id}`
 
@@ -323,7 +323,7 @@ describe('Agent Messages API', () => {
 
   // C4: workspace isolation; issue-scope isolation; cursor stability
   // 4 requests (post, list from other ws, post other-issue, list-ws scope) within limit
-  test('C4: workspace isolation and issue-scope isolation', async () => {
+  test('c4: workspace isolation and issue-scope isolation', async () => {
     const scope = `issue:${issueId}`
 
     // Post a message in workspace X

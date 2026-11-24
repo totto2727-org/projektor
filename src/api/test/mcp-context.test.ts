@@ -12,7 +12,7 @@ import { env, getCoreObservations, resetCoreObservations } from './fixture-api.t
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('PROJ-889: MCP mutations broadcast like REST', () => {
+describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
   test('add_comment over MCP posts a realtime event to the workspace hub', async () => {
     const f = await seedIssueFixture()
     await resetCoreObservations()
@@ -46,7 +46,7 @@ describe('PROJ-889: MCP mutations broadcast like REST', () => {
   })
 })
 
-describe('PROJ-889: auth middleware records method + credential', () => {
+describe('covers PROJ-889: auth middleware records method + credential', () => {
   const app = new Hono<HonoEnv>()
   app.use('*', authMiddleware)
   app.get('/whoami', (httpContext) => httpContext.json(httpContext.get('auth')))

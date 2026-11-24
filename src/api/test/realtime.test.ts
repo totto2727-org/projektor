@@ -44,7 +44,7 @@ const hubFor = function hubFor(sockets: Socket[] = []) {
   return { hub, state }
 }
 
-describe('Realtime WebSockets (Opt-In)', () => {
+describe('realtime WebSockets (Opt-In)', () => {
   let roles: Awaited<ReturnType<typeof seedWorkspaceRoles>>
   let projectId: string
   let otherProjectId: string
@@ -366,7 +366,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
   })
 })
 
-describe('WorkspaceHub native WebSocket close handling', () => {
+describe('covers WorkspaceHub native WebSocket close handling', () => {
   test.each([
     [1000, 1000],
     [1001, 1001],

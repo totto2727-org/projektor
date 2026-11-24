@@ -17,7 +17,7 @@ const fixture = function fixture(origin = 'https://front.example') {
   return test
 }
 
-describe('Feedback concrete ServerFn shared commands', () => {
+describe('feedback concrete ServerFn shared commands', () => {
   test('parses original origins form and persists only known source configuration fields', async () => {
     const test = fixture()
     await expect(

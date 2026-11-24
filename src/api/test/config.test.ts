@@ -4,7 +4,7 @@ import { deriveBrandMark } from '#api/routes/config.ts'
 
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('GET /api/config/brand', () => {
+describe('handles GET /api/config/brand', () => {
   test('reflects configured BRAND_* vars, deriving the mark and defaulting unset fields (open, no auth)', async () => {
     const res = await fetchNativeApi('http://localhost/api/config/brand')
     expect(res.status).toBe(200)

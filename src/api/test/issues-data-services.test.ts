@@ -24,7 +24,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Shared issue queries over the API D1 pool', () => {
+describe('shared issue queries over the API D1 pool', () => {
   let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
   beforeEach(async () => {
     fixture = await seedProjectFixture({ role: 'owner' })

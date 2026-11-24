@@ -20,7 +20,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 // ─── Definition CRUD ──────────────────────────────────────────────────────────
 
-describe('Custom Field Definitions API', () => {
+describe('custom Field Definitions API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -32,7 +32,7 @@ describe('Custom Field Definitions API', () => {
     workspaceId = fixture.workspace.id
   })
 
-  test('GET /api/custom-fields returns empty list initially', async () => {
+  test('handles GET /api/custom-fields returns empty list initially', async () => {
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(token, slug),
     })
@@ -42,7 +42,7 @@ describe('Custom Field Definitions API', () => {
     expect(list).toHaveLength(0)
   })
 
-  test('POST /api/custom-fields creates a text field (owner)', async () => {
+  test('handles POST /api/custom-fields creates a text field (owner)', async () => {
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -54,7 +54,7 @@ describe('Custom Field Definitions API', () => {
     expect(body.key).toBe('sprint')
   })
 
-  test('POST /api/custom-fields creates a number field', async () => {
+  test('handles POST /api/custom-fields creates a number field', async () => {
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -63,7 +63,7 @@ describe('Custom Field Definitions API', () => {
     expect(res.status).toBe(201)
   })
 
-  test('POST /api/custom-fields creates a select field with options', async () => {
+  test('handles POST /api/custom-fields creates a select field with options', async () => {
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -77,7 +77,7 @@ describe('Custom Field Definitions API', () => {
     expect(res.status).toBe(201)
   })
 
-  test('POST /api/custom-fields rejects duplicate key', async () => {
+  test('handles POST /api/custom-fields rejects duplicate key', async () => {
     await seedCustomFieldDef(workspaceId, { key: 'sprint', type: 'text' })
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
@@ -87,7 +87,7 @@ describe('Custom Field Definitions API', () => {
     expect(res.status).toBe(409)
   })
 
-  test('POST /api/custom-fields rejects invalid key format', async () => {
+  test('handles POST /api/custom-fields rejects invalid key format', async () => {
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -96,7 +96,7 @@ describe('Custom Field Definitions API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/custom-fields returns 403 for member role', async () => {
+  test('handles POST /api/custom-fields returns 403 for member role', async () => {
     const memberUser = await seedUser('member@example.com')
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
@@ -109,7 +109,7 @@ describe('Custom Field Definitions API', () => {
     expect(res.status).toBe(403)
   })
 
-  test('PATCH /api/custom-fields/:id updates label', async () => {
+  test('handles PATCH /api/custom-fields/:id updates label', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, {
       key: 'sp',
       label: 'Story Points',
@@ -130,7 +130,7 @@ describe('Custom Field Definitions API', () => {
     expect(list.find((f) => f.key === 'sp')?.label).toBe('Points')
   })
 
-  test('PATCH /api/custom-fields/:id updates options for select field', async () => {
+  test('handles PATCH /api/custom-fields/:id updates options for select field', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, {
       key: 'size',
       type: 'select',
@@ -145,7 +145,7 @@ describe('Custom Field Definitions API', () => {
     expect(res.status).toBe(200)
   })
 
-  test('PATCH /api/custom-fields/:id returns 404 for unknown id', async () => {
+  test('handles PATCH /api/custom-fields/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${crypto.randomUUID()}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -154,7 +154,7 @@ describe('Custom Field Definitions API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('DELETE /api/custom-fields/:id removes a field', async () => {
+  test('handles DELETE /api/custom-fields/:id removes a field', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'sprint', type: 'text' })
 
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
@@ -170,7 +170,7 @@ describe('Custom Field Definitions API', () => {
     expect(list).toHaveLength(0)
   })
 
-  test('DELETE /api/custom-fields/:id returns 409 when in use', async () => {
+  test('handles DELETE /api/custom-fields/:id returns 409 when in use', async () => {
     const { id: fieldId } = await seedCustomFieldDef(workspaceId, { key: 'sprint', type: 'text' })
     const project = await seedProject(workspaceId)
     const user = await seedUser('u2@example.com')
@@ -199,7 +199,7 @@ describe('Custom Field Definitions API', () => {
 
 // ─── Value validation ─────────────────────────────────────────────────────────
 
-describe('Custom Field Values — validation', () => {
+describe('custom Field Values — validation', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -292,7 +292,7 @@ describe('Custom Field Values — validation', () => {
 
 // ─── Resolved-on-read & batch-load ───────────────────────────────────────────
 
-describe('Custom Fields — resolved on read', () => {
+describe('custom Fields — resolved on read', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -303,7 +303,7 @@ describe('Custom Fields — resolved on read', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  test('GET /api/issues/:id returns customFields array', async () => {
+  test('handles GET /api/issues/:id returns customFields array', async () => {
     await seedCustomFieldDef(workspaceId, {
       key: 'sp',
       label: 'Story Points',
@@ -325,7 +325,7 @@ describe('Custom Fields — resolved on read', () => {
     expect(sp?.value).toBe('8')
   })
 
-  test('GET /api/issues list returns customFields per issue (batch-loaded, no N+1)', async () => {
+  test('handles GET /api/issues list returns customFields per issue (batch-loaded, no N+1)', async () => {
     const { id: fieldId } = await seedCustomFieldDef(workspaceId, {
       key: 'sp',
       label: 'SP',
@@ -351,7 +351,7 @@ describe('Custom Fields — resolved on read', () => {
     }
   })
 
-  test('PATCH /api/issues/:id updates a custom field value', async () => {
+  test('handles PATCH /api/issues/:id updates a custom field value', async () => {
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -388,7 +388,7 @@ describe('Custom Fields — resolved on read', () => {
 
 // ─── Filter by custom field ───────────────────────────────────────────────────
 
-describe('Custom Fields — list_issues filter', () => {
+describe('custom Fields — list_issues filter', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -399,7 +399,7 @@ describe('Custom Fields — list_issues filter', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  test('GET /api/issues?cfKey=sp&cfOp=eq&cfValue=5 returns matching issues', async () => {
+  test('handles GET /api/issues?cfKey=sp&cfOp=eq&cfValue=5 returns matching issues', async () => {
     const { id: fieldId } = await seedCustomFieldDef(workspaceId, {
       key: 'sp',
       label: 'SP',
@@ -419,7 +419,7 @@ describe('Custom Fields — list_issues filter', () => {
     expect(page.items[0].title).toBe('SP5')
   })
 
-  test('GET /api/issues?cfKey=sp&cfOp=gt&cfValue=5 returns numeric comparison', async () => {
+  test('handles GET /api/issues?cfKey=sp&cfOp=gt&cfValue=5 returns numeric comparison', async () => {
     const { id: fieldId } = await seedCustomFieldDef(workspaceId, {
       key: 'sp',
       label: 'SP',
@@ -442,7 +442,7 @@ describe('Custom Fields — list_issues filter', () => {
     expect(titles).toEqual(['SP13', 'SP8'])
   })
 
-  test('GET /api/issues with unknown cfKey returns 400', async () => {
+  test('handles GET /api/issues with unknown cfKey returns 400', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues?cfKey=nonexistent&cfOp=eq&cfValue=x', {
       headers: authHeaders(token, slug),
     })
@@ -452,7 +452,7 @@ describe('Custom Fields — list_issues filter', () => {
 
 // ─── Story points seed ────────────────────────────────────────────────────────
 
-describe('Custom Fields — story_points seed', () => {
+describe('custom Fields — story_points seed', () => {
   test('seedDefaultCustomFields creates story_points for new workspace', async () => {
     const { seedDefaultCustomFields } = await import('#commands/custom-fields.ts')
     const ws = crypto.randomUUID()
@@ -496,7 +496,7 @@ describe('Custom Fields — story_points seed', () => {
 
 // ─── MCP parity ──────────────────────────────────────────────────────────────
 
-describe('Custom Fields — MCP parity', () => {
+describe('custom Fields — MCP parity', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -567,7 +567,7 @@ describe('Custom Fields — MCP parity', () => {
 
 // ─── PROJ-197: batchLoadCustomFields workspace scoping ─────────────────────────
 
-describe('PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
+describe('covers PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
   test('never returns custom field values from another workspace, even for foreign issue IDs', async () => {
     const wsA = await seedFixture({ role: 'owner' })
     const wsB = await seedFixture({ role: 'owner' })
@@ -620,7 +620,7 @@ describe('PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
   }, 15_000) // seeds 95 issues sequentially; coverage instrumentation pushes this past the 5s default
 })
 
-describe('PROJ-837: custom field definitions respect project access', () => {
+describe('covers PROJ-837: custom field definitions respect project access', () => {
   test('a member only sees definitions for projects they are granted (plus workspace-level ones)', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'member' })
     const granted = await seedProject(workspace.id, 'OPEN')

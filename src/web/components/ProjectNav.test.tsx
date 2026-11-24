@@ -38,7 +38,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('ProjectNav SSR width fallback', () => {
+describe('covers ProjectNav SSR width fallback', () => {
   test('keeps all scoped native links scrollable before JavaScript runs', () => {
     const container = document.createElement('div')
     container.innerHTML = renderToString(<ProjectNav scope={scope} url={url} />)

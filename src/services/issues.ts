@@ -275,7 +275,9 @@ export function getChildRollups(db: D1Database, workspaceId: string, parentIds: 
     )
     const grouped: Record<string, { status: string; count: number }[]> = {}
     for (const row of rows) {
-      if (row.parent_id) (grouped[row.parent_id] ??= []).push(row)
+      if (row.parent_id) {
+        ;(grouped[row.parent_id] ??= []).push(row)
+      }
     }
     return Object.fromEntries(parentIds.map((id) => [id, computeChildRollup(grouped[id] ?? [])]))
   })

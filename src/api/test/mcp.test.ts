@@ -46,7 +46,7 @@ type IssuePage = {
   nextCursor?: number | null
 }
 
-describe('MCP endpoint', () => {
+describe('covers MCP endpoint', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -278,7 +278,7 @@ describe('MCP endpoint', () => {
 
   // --- Issues: REST/MCP parity tests ---
 
-  test('MCP create_issue with assigneeId and labels persists them', async () => {
+  test('covers MCP create_issue with assigneeId and labels persists them', async () => {
     const assignee = await seedUser('mcp-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -305,7 +305,7 @@ describe('MCP endpoint', () => {
     expect(JSON.parse(issue.labels)).toEqual(['mcp', 'test'])
   })
 
-  test('MCP update_issue with assigneeId and labels updates them', async () => {
+  test('covers MCP update_issue with assigneeId and labels updates them', async () => {
     const assignee = await seedUser('mcp-upd-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -333,7 +333,7 @@ describe('MCP endpoint', () => {
     expect(JSON.parse(issue.labels)).toEqual(['updated'])
   })
 
-  test('MCP list_issues with assignee filter returns same subset as REST', async () => {
+  test('covers MCP list_issues with assignee filter returns same subset as REST', async () => {
     const assignee = await seedUser('mcp-list-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -377,7 +377,7 @@ describe('MCP endpoint', () => {
     expect((restData.items[0] as { title: string }).title).toBe('Assigned')
   })
 
-  test('MCP list_issues returns { items, next } (PROJ-891); REST keeps { items, nextCursor }', async () => {
+  test('covers MCP list_issues returns { items, next } (PROJ-891); REST keeps { items, nextCursor }', async () => {
     const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -395,7 +395,7 @@ describe('MCP endpoint', () => {
     expect('nextCursor' in restData).toBe(true)
   })
 
-  test('MCP get_issue by ref returns issue', async () => {
+  test('covers MCP get_issue by ref returns issue', async () => {
     // Create via MCP; project key is 'PROJ', first issue = PROJ-1
     await mcpCall(
       workspaceId,
@@ -417,7 +417,7 @@ describe('MCP endpoint', () => {
     expect(issue.title).toBe('Ref via MCP')
   })
 
-  test('MCP get_issue for unknown id returns error', async () => {
+  test('covers MCP get_issue for unknown id returns error', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -431,7 +431,7 @@ describe('MCP endpoint', () => {
 
   // --- wiki parity tests ---
 
-  test('MCP list_wiki_pages without parentId returns ALL pages', async () => {
+  test('covers MCP list_wiki_pages without parentId returns ALL pages', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -455,7 +455,7 @@ describe('MCP endpoint', () => {
     expect(pages).toHaveLength(2)
   })
 
-  test('MCP search_wiki with empty query returns []', async () => {
+  test('covers MCP search_wiki with empty query returns []', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -472,7 +472,7 @@ describe('MCP endpoint', () => {
     expect(results).toEqual({ items: [] })
   })
 
-  test('MCP search_wiki excerpt is at most 250 chars', async () => {
+  test('covers MCP search_wiki excerpt is at most 250 chars', async () => {
     const longContent = 'z'.repeat(1000)
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -491,7 +491,7 @@ describe('MCP endpoint', () => {
     expect(results[0].excerpt.length).toBeLessThanOrEqual(250)
   })
 
-  test('MCP create_wiki_page without slug auto-generates from title', async () => {
+  test('covers MCP create_wiki_page without slug auto-generates from title', async () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -502,7 +502,7 @@ describe('MCP endpoint', () => {
     expect(created.slug).toBe('auto-slug-page')
   })
 
-  test('MCP update_wiki_page by id creates a revision when content changes', async () => {
+  test('covers MCP update_wiki_page by id creates a revision when content changes', async () => {
     const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -528,7 +528,7 @@ describe('MCP endpoint', () => {
     expect(revisions).toHaveLength(1)
   })
 
-  test('MCP update_wiki_page title-only update does not create a revision', async () => {
+  test('covers MCP update_wiki_page title-only update does not create a revision', async () => {
     const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
@@ -554,7 +554,7 @@ describe('MCP endpoint', () => {
     expect(revisions).toHaveLength(0)
   })
 
-  test('MCP update_wiki_page by slug works', async () => {
+  test('covers MCP update_wiki_page by slug works', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -576,7 +576,7 @@ describe('MCP endpoint', () => {
     expect(page.content).toBe('updated')
   })
 
-  test('MCP create_wiki_page with invalid title returns a validation tool error', async () => {
+  test('covers MCP create_wiki_page with invalid title returns a validation tool error', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -587,7 +587,7 @@ describe('MCP endpoint', () => {
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  test('MCP delete_wiki_page cascade=true removes the page and its subtree (PROJ-238)', async () => {
+  test('covers MCP delete_wiki_page cascade=true removes the page and its subtree (PROJ-238)', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -623,7 +623,7 @@ describe('MCP endpoint', () => {
     expect(childRes2.status).toBe(404)
   })
 
-  test('MCP delete_wiki_page default promotes children instead of deleting them', async () => {
+  test('covers MCP delete_wiki_page default promotes children instead of deleting them', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 

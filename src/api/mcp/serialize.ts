@@ -253,7 +253,9 @@ export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {})
     delete out.needs_audit
   }
   for (const key of NULLABLE_DEFAULT_KEYS) {
-    if (out[key] == null || out[key] === '') delete out[key]
+    if (out[key] == null || out[key] === '') {
+      delete out[key]
+    }
   }
   for (const key of INTERNAL_ID_KEYS) {
     delete out[key]

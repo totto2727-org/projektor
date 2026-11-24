@@ -8,7 +8,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Issue leases API (PROJ-184)', () => {
+describe('issue leases API (PROJ-184)', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -122,7 +122,7 @@ describe('Issue leases API (PROJ-184)', () => {
     expect((await claim(issue.id, a2)).status).toBe(201)
   })
 
-  test('GET /:id/leases lists the active lease with a live flag', async () => {
+  test('handles GET /:id/leases lists the active lease with a live flag', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Listed' })
     const a1 = await registerAgent('a1')
     await claim(issue.id, a1)
@@ -282,7 +282,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * fetchAgentWipCap (exported), not retyped as a literal, so the assertion
    * stays honest if DEFAULT_AGENT_WIP_LIMIT ever changes.
    */
-  test('PROJ-624: claim at the cap succeeds; the (cap+1)th is rejected and the error names the cap', async () => {
+  test('covers PROJ-624: claim at the cap succeeds; the (cap+1)th is rejected and the error names the cap', async () => {
     const orm = drizzle(env.DB, { schema })
     const cap = await fetchAgentWipCap(orm, { workspaceId } as ServiceCtx, projectId)
 
@@ -330,7 +330,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     expect(row?.agent_session_id).toBe(agent)
   })
 
-  test('TOCTOU: N concurrent claims never push a project over the cap (PROJ-290)', async () => {
+  test('covers TOCTOU: N concurrent claims never push a project over the cap (PROJ-290)', async () => {
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
       Array.from({ length: 8 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `C${i}` })),
@@ -366,7 +366,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
   // --- REST/MCP parity (PROJ-301) ---
 
-  test('MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
+  test('covers MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -382,7 +382,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     await expectWipCapBlocksSecondClaim()
   })
 
-  test('MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
+  test('covers MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -418,7 +418,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * "issue_closed") so a closed issue doesn't keep blocking the fleet's WIP cap on a
    * lease no one is still working.
    */
-  describe('PROJ-928: issue close releases its lease', () => {
+  describe('covers PROJ-928: issue close releases its lease', () => {
     const patchStatus = function patchStatus(id: string, status: string, completionReport?: object): Promise<Response> {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
@@ -491,7 +491,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
  * issueRef. Visibility (PROJ-316) is covered by coordination-access.test.ts, which
  * exercises this same query.
  */
-describe('PROJ-932: list_issue_leases live-only default', () => {
+describe('covers PROJ-932: list_issue_leases live-only default', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -609,7 +609,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect(byUuid.items.map((i) => i.issueId)).toEqual([issueA.id])
   })
 
-  test('REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {
+  test('covers REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST parity' })
     const agent = await registerAgent('rest-holder')
     expect((await claim(issue.id, agent)).status).toBe(201)
@@ -635,7 +635,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
    * (bypassing register/claim API calls) so the five GET calls below stay within the
    * test environment's per-token rate limit (RATE_LIMIT_API_MAX=5).
    */
-  test('REST parity: GET /api/issue-leases accepts issueId, agentId, projectId and includeStale', async () => {
+  test('covers REST parity: GET /api/issue-leases accepts issueId, agentId, projectId and includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Workspace-wide REST' })
     const { agentSessionId: agent } = await seedAgentLease(workspaceId, issue.id, {
       name: 'workspace-rest-holder',
@@ -688,7 +688,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
  * that project's key or uuid — not just fewer results, none at all — proving the
  * projectId filter composes with (rather than bypasses) PROJ-316 visibility.
  */
-describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin member', () => {
+describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-admin member', () => {
   test("a hidden project's key or uuid returns no leases", async () => {
     const { token, slug, workspaceId, userId } = await seedProjectFixture({
       role: 'member',

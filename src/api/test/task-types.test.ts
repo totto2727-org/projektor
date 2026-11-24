@@ -12,7 +12,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Task Types API', () => {
+describe('task Types API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -26,7 +26,7 @@ describe('Task Types API', () => {
 
   // ---- list ----
 
-  test('GET /api/task-types returns empty list initially', async () => {
+  test('handles GET /api/task-types returns empty list initially', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
@@ -36,7 +36,7 @@ describe('Task Types API', () => {
     expect(list).toHaveLength(0)
   })
 
-  test('GET /api/task-types returns seeded types ordered by position', async () => {
+  test('handles GET /api/task-types returns seeded types ordered by position', async () => {
     await seedTaskType(workspaceId, { key: 'bug', name: 'Bug', position: 2 })
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', position: 1, isDefault: true })
 
@@ -51,7 +51,7 @@ describe('Task Types API', () => {
 
   // ---- create ----
 
-  test('POST /api/task-types creates a new type (owner)', async () => {
+  test('handles POST /api/task-types creates a new type (owner)', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -63,7 +63,7 @@ describe('Task Types API', () => {
     expect(body.key).toBe('epic')
   })
 
-  test('POST /api/task-types rejects duplicate key', async () => {
+  test('handles POST /api/task-types rejects duplicate key', async () => {
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
@@ -73,7 +73,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(409)
   })
 
-  test('POST /api/task-types rejects invalid key format', async () => {
+  test('handles POST /api/task-types rejects invalid key format', async () => {
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -82,7 +82,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/task-types clears other defaults when isDefault=true', async () => {
+  test('handles POST /api/task-types clears other defaults when isDefault=true', async () => {
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
 
     await fetchNativeApi('http://localhost/api/task-types', {
@@ -100,7 +100,7 @@ describe('Task Types API', () => {
     expect(defaults[0].key).toBe('story')
   })
 
-  test('POST /api/task-types returns 403 for member role', async () => {
+  test('handles POST /api/task-types returns 403 for member role', async () => {
     const memberUser = await seedUser('member@example.com')
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
@@ -115,7 +115,7 @@ describe('Task Types API', () => {
 
   // ---- update ----
 
-  test('PATCH /api/task-types/:id updates name', async () => {
+  test('handles PATCH /api/task-types/:id updates name', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
@@ -132,7 +132,7 @@ describe('Task Types API', () => {
     expect(list.find((t) => t.key === 'bug')?.name).toBe('Defect')
   })
 
-  test('PATCH /api/task-types/:id returns 404 for unknown id', async () => {
+  test('handles PATCH /api/task-types/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -141,7 +141,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('PATCH /api/task-types/:id with isDefault=true clears others', async () => {
+  test('handles PATCH /api/task-types/:id with isDefault=true clears others', async () => {
     const { id: taskId } = await seedTaskType(workspaceId, {
       key: 'task',
       name: 'Task',
@@ -167,7 +167,7 @@ describe('Task Types API', () => {
 
   // ---- delete ----
 
-  test('DELETE /api/task-types/:id removes a type', async () => {
+  test('handles DELETE /api/task-types/:id removes a type', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
@@ -183,7 +183,7 @@ describe('Task Types API', () => {
     expect(list).toHaveLength(0)
   })
 
-  test('DELETE /api/task-types/:id returns 404 for unknown id', async () => {
+  test('handles DELETE /api/task-types/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
       method: 'DELETE',
@@ -191,7 +191,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('DELETE /api/task-types/:id returns 409 when type is in use', async () => {
+  test('handles DELETE /api/task-types/:id returns 409 when type is in use', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -204,7 +204,7 @@ describe('Task Types API', () => {
 
   // ---- workspace scoping ----
 
-  test('GET /api/task-types is workspace-scoped', async () => {
+  test('handles GET /api/task-types is workspace-scoped', async () => {
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const other = await seedFixture({ role: 'owner' })
 
@@ -216,7 +216,7 @@ describe('Task Types API', () => {
   })
 })
 
-describe('Task Types — issue integration', () => {
+describe('task Types — issue integration', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -227,7 +227,7 @@ describe('Task Types — issue integration', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  test('POST /api/issues uses workspace default type when no typeId given', async () => {
+  test('handles POST /api/issues uses workspace default type when no typeId given', async () => {
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -246,7 +246,7 @@ describe('Task Types — issue integration', () => {
     expect(issue.type_name).toBe('Task')
   })
 
-  test('POST /api/issues with typeId sets the type', async () => {
+  test('handles POST /api/issues with typeId sets the type', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -264,7 +264,7 @@ describe('Task Types — issue integration', () => {
     expect(issue.type_key).toBe('bug')
   })
 
-  test('POST /api/issues rejects typeId from another workspace', async () => {
+  test('handles POST /api/issues rejects typeId from another workspace', async () => {
     const other = await seedFixture({ role: 'owner' })
     const { id: foreignTypeId } = await seedTaskType(other.workspace.id, {
       key: 'epic',
@@ -279,7 +279,7 @@ describe('Task Types — issue integration', () => {
     expect(res.status).toBe(400)
   })
 
-  test('PATCH /api/issues/:id updates typeId', async () => {
+  test('handles PATCH /api/issues/:id updates typeId', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No type' })
 
@@ -297,7 +297,7 @@ describe('Task Types — issue integration', () => {
     expect(updated.type_key).toBe('story')
   })
 
-  test('PATCH /api/issues/:id clears typeId with null', async () => {
+  test('handles PATCH /api/issues/:id clears typeId with null', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -315,7 +315,7 @@ describe('Task Types — issue integration', () => {
     expect(updated.type_key).toBeNull()
   })
 
-  test('GET /api/issues?typeId= filters by type', async () => {
+  test('handles GET /api/issues?typeId= filters by type', async () => {
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -331,7 +331,7 @@ describe('Task Types — issue integration', () => {
     expect(page.items.every((i) => i.title.startsWith('Bug'))).toBe(true)
   })
 
-  test('GET /api/issues returns type_key and type_name in list', async () => {
+  test('handles GET /api/issues returns type_key and type_name in list', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Typed issue', typeId })
 
@@ -343,7 +343,7 @@ describe('Task Types — issue integration', () => {
     expect(page.items[0].type_name).toBe('Epic')
   })
 
-  test('GET /api/issues/:id returns type_key and type_name', async () => {
+  test('handles GET /api/issues/:id returns type_key and type_name', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -355,7 +355,7 @@ describe('Task Types — issue integration', () => {
     expect(body.type_name).toBe('Bug')
   })
 
-  test('POST /api/issues has null type_key when no types exist', async () => {
+  test('handles POST /api/issues has null type_key when no types exist', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -373,7 +373,7 @@ describe('Task Types — issue integration', () => {
   })
 })
 
-describe('Task Types — MCP parity', () => {
+describe('task Types — MCP parity', () => {
   let token: string
   let slug: string
   let workspaceNumericId: string

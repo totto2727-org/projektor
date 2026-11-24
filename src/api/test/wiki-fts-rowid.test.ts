@@ -31,7 +31,7 @@ const plan = async function plan(sql: string, ...params: unknown[]): Promise<str
   return rows.results.map((r) => r.detail).join(' | ')
 }
 
-describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
+describe("covers PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
   test('re-indexing deletes by rowid — the plan is a rowid lookup, not a full-index scan', async () => {
     const fullScan = await plan('DELETE FROM wiki_fts WHERE page_id = ?', 'x')
     const byRowid = await plan(

@@ -32,7 +32,7 @@ const count = async function count(sql: string, ...params: unknown[]): Promise<n
   return row?.n ?? 0
 }
 
-describe('PROJ-819: deleteProject cleans up explicitly', () => {
+describe('covers PROJ-819: deleteProject cleans up explicitly', () => {
   test("removes the project's issues, wiki pages and their dependents; detaches outside references", async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const ctx: ServiceCtx = {

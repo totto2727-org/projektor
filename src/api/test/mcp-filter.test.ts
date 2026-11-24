@@ -31,7 +31,7 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-describe('MCP tools/list domain filtering (PROJ-716)', () => {
+describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   let workspaceId: string
   let headers: Record<string, string>
 

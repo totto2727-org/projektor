@@ -29,7 +29,7 @@ describe('feedback migration', () => {
   })
 })
 
-describe('Feedback sources REST', () => {
+describe('feedback sources REST', () => {
   test('creates a source (owner) and returns a one-time token', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
@@ -140,7 +140,7 @@ const mintSource = async function mintSource(
   return ((await res.json()) as { token: string }).token
 }
 
-describe('Feedback submit (public)', () => {
+describe('feedback submit (public)', () => {
   test('fails open (201, not 500) when the rate limiter is unavailable (PROJ-867)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
@@ -343,8 +343,8 @@ const seedFeedbackRow = async function seedFeedbackRow(
   return id
 }
 
-describe('Feedback triage read/patch', () => {
-  test('GET lists feedback with the source name, filtered by status', async () => {
+describe('feedback triage read/patch', () => {
+  test('handles GET lists feedback with the source name, filtered by status', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f, { name: 'Onboarding' })
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -368,7 +368,7 @@ describe('Feedback triage read/patch', () => {
     expect(rows[0].status).toBe('new')
   })
 
-  test('GET 404s for a caller with no project access', async () => {
+  test('handles GET 404s for a caller with no project access', async () => {
     const owner = await seedProjectFixture({ role: 'owner' })
     await mintSource(owner)
     const stranger = await seedProjectFixture({ role: 'owner' }) // different workspace
@@ -378,7 +378,7 @@ describe('Feedback triage read/patch', () => {
     expect(res.status).toBe(404)
   })
 
-  test('PATCH updates status for member+, 403 for viewer', async () => {
+  test('handles PATCH updates status for member+, 403 for viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'TRI')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, proj.id, 'member')
@@ -411,7 +411,7 @@ describe('Feedback triage read/patch', () => {
     expect(row?.status).toBe('reviewed')
   })
 
-  test('GET is readable by a viewer (read visibility, not a write action)', async () => {
+  test('handles GET is readable by a viewer (read visibility, not a write action)', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
     await mintSource(f)
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback`, {
@@ -439,7 +439,7 @@ describe('Feedback triage read/patch', () => {
     expect(rows[0].sourceId).toBe(srcA.id)
   })
 
-  test('PATCH rejects an invalid status value', async () => {
+  test('handles PATCH rejects an invalid status value', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -479,7 +479,7 @@ const mcpText = function mcpText<T>(r: JsonRpcResult<{ content: { text: string }
   return JSON.parse(r.result.content[0].text) as T
 }
 
-describe('Feedback source MCP tools', () => {
+describe('feedback source MCP tools', () => {
   test('create_feedback_source returns a one-time token (owner)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const res = (await mcpCall<{ content: { text: string }[] }>(
@@ -615,7 +615,7 @@ describe('Feedback source MCP tools', () => {
   })
 })
 
-describe('Feedback convert-to-issue', () => {
+describe('feedback convert-to-issue', () => {
   test('creates an issue, links it, marks feedback actioned (member+)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
@@ -740,8 +740,8 @@ describe('Feedback convert-to-issue', () => {
   })
 })
 
-describe('PROJ-390: path params win over body-supplied ids', () => {
-  test('PATCH feedback status ignores a body-supplied projectId/feedbackId', async () => {
+describe('covers PROJ-390: path params win over body-supplied ids', () => {
+  test('handles PATCH feedback status ignores a body-supplied projectId/feedbackId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -763,7 +763,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
     expect(row?.status).toBe('reviewed')
   })
 
-  test('POST feedback-sources ignores a body-supplied projectId', async () => {
+  test('handles POST feedback-sources ignores a body-supplied projectId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
@@ -778,7 +778,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
     expect(row?.project_id).toBe(f.projectId)
   })
 
-  test('PATCH feedback-sources ignores a body-supplied projectId/sourceId', async () => {
+  test('handles PATCH feedback-sources ignores a body-supplied projectId/sourceId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const source = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -803,7 +803,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
   })
 })
 
-describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
+describe('covers PROJ-390: cross-project feedback source mutation is rejected', () => {
   const seedTwoProjectsSameWorkspace = async function seedTwoProjectsSameWorkspace() {
     const roles = await seedWorkspaceRoles()
     const projA = await seedProject(roles.workspace.id, 'PA')
@@ -817,7 +817,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
     return { roles, projA, projB, sourceId }
   }
 
-  test("PATCH via project B's path 404s on project A's source", async () => {
+  test("handles PATCH via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
     const res = await fetchNativeApi(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
       method: 'PATCH',
@@ -846,7 +846,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
   })
 })
 
-describe('PROJ-390: mutating a revoked feedback source', () => {
+describe('covers PROJ-390: mutating a revoked feedback source', () => {
   const seedRevokedSource = async function seedRevokedSource(
     f: Readonly<{ projectId: string; token: string; slug: string }>,
   ): Promise<string> {
@@ -863,7 +863,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
     return id
   }
 
-  test('PATCH on an already-revoked source 409s', async () => {
+  test('handles PATCH on an already-revoked source 409s', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
     const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
@@ -895,7 +895,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
   })
 })
 
-describe('Feedback read/triage MCP tools', () => {
+describe('feedback read/triage MCP tools', () => {
   test('list_feedback matches REST shape and supports status/sourceId filters', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f, { name: 'Onboarding' })

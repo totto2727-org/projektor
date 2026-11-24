@@ -55,7 +55,7 @@ const seedOwnerProjectFixture = async function seedOwnerProjectFixture(): Promis
   }
 }
 
-describe('Issues API', () => {
+describe('issues API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -77,7 +77,7 @@ describe('Issues API', () => {
     return { res, page: (await res.json()) as IssuesPage }
   }
 
-  test('GET /api/issues returns empty list initially', async () => {
+  test('handles GET /api/issues returns empty list initially', async () => {
     const { res, page } = await listIssues()
     expect(res.status).toBe(200)
     expect(Array.isArray(page.items)).toBe(true)
@@ -85,7 +85,7 @@ describe('Issues API', () => {
     expect(page.nextCursor).toBeNull()
   })
 
-  test('POST /api/issues creates an issue', async () => {
+  test('handles POST /api/issues creates an issue', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -116,7 +116,7 @@ describe('Issues API', () => {
     expect(row?.author_kind).toBe('agent')
   })
 
-  test('PROJ-712: rejects an unrecognized field (e.g. a spoofed authorKind) instead of silently ignoring it', async () => {
+  test('covers PROJ-712: rejects an unrecognized field (e.g. a spoofed authorKind) instead of silently ignoring it', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -125,7 +125,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST then GET returns the created issue', async () => {
+  test('handles POST then GET returns the created issue', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -188,7 +188,7 @@ describe('Issues API', () => {
     expect(n1).not.toBe(n2)
   })
 
-  test('PATCH /api/issues/:id updates status', async () => {
+  test('handles PATCH /api/issues/:id updates status', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -210,7 +210,7 @@ describe('Issues API', () => {
     expect(issue.status).toBe('in_progress')
   })
 
-  test('DELETE /api/issues/:id removes the issue', async () => {
+  test('handles DELETE /api/issues/:id removes the issue', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -260,7 +260,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(403)
   })
 
-  test('POST with assigneeId and labels persists them', async () => {
+  test('handles POST with assigneeId and labels persists them', async () => {
     const assignee = await seedUser('assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -285,7 +285,7 @@ describe('Issues API', () => {
     expect(JSON.parse(issue.labels)).toEqual(['bug', 'urgent'])
   })
 
-  test('PATCH with assigneeId (camelCase) updates the assignee', async () => {
+  test('handles PATCH with assigneeId (camelCase) updates the assignee', async () => {
     const assignee = await seedUser('patch-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -310,7 +310,7 @@ describe('Issues API', () => {
     expect(issue.assignee_id).toBe(assignee.id)
   })
 
-  test('PATCH with labels updates labels', async () => {
+  test('handles PATCH with labels updates labels', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -448,14 +448,14 @@ describe('Issues API', () => {
     expect(scoped.items.every((i) => (i as { title: string }).title.startsWith('Older issue'))).toBe(true)
   }, 15_000) // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
 
-  test('GET /api/issues/:id returns 404 for unknown id', async () => {
+  test('handles GET /api/issues/:id returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  test('GET /api/issues/KEY-NUMBER looks up by ref', async () => {
+  test('handles GET /api/issues/KEY-NUMBER looks up by ref', async () => {
     // beforeEach seeds a project with key='PROJ'; first issue in it is PROJ-1
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -473,7 +473,7 @@ describe('Issues API', () => {
     expect(issue.project_key).toBe('PROJ')
   })
 
-  test('GET /api/issues/KEY-NUMBER resolves for a project key containing digits (PROJ-440)', async () => {
+  test('handles GET /api/issues/KEY-NUMBER resolves for a project key containing digits (PROJ-440)', async () => {
     const digitProject = await seedProject(workspaceId, 'WEB2')
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -502,14 +502,14 @@ describe('Issues API', () => {
     expect(linksRes.status).toBe(200)
   })
 
-  test('GET /api/issues/:ref with an absurdly long number is a 404, not a 500 (PROJ-440)', async () => {
+  test('handles GET /api/issues/:ref with an absurdly long number is a 404, not a 500 (PROJ-440)', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/PROJ-${'9'.repeat(400)}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  test('GET /api/issues/:id includes project_key (PROJ-226 tab title regression)', async () => {
+  test('handles GET /api/issues/:id includes project_key (PROJ-226 tab title regression)', async () => {
     const created = await seedIssue(workspaceId, projectId, userId, { title: 'By id' })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, {
@@ -520,7 +520,7 @@ describe('Issues API', () => {
     expect(issue.project_key).toBe('PROJ')
   })
 
-  test('GET /api/issues/search finds issues by title keyword', async () => {
+  test('handles GET /api/issues/search finds issues by title keyword', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -549,7 +549,7 @@ describe('Issues API', () => {
     expect(results[0].title).toBe('Authentication bug')
   })
 
-  test('GET /api/issues/search finds issues by body keyword', async () => {
+  test('handles GET /api/issues/search finds issues by body keyword', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -569,7 +569,7 @@ describe('Issues API', () => {
     expect(results[0].title).toBe('Some issue')
   })
 
-  test('GET /api/issues/search respects workspace scoping', async () => {
+  test('handles GET /api/issues/search respects workspace scoping', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -596,7 +596,7 @@ describe('Issues API', () => {
     expect(results[0].title).toBe('Workspace A issue')
   })
 
-  test('GET /api/issues/search with projectId filters to that project', async () => {
+  test('handles GET /api/issues/search with projectId filters to that project', async () => {
     const otherProject = await seedProject(workspaceId, 'SEC')
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -621,7 +621,7 @@ describe('Issues API', () => {
     expect(results[0].title).toBe('Alpha project issue')
   })
 
-  test('GET /api/issues/search returns project fields in results', async () => {
+  test('handles GET /api/issues/search returns project fields in results', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -646,14 +646,14 @@ describe('Issues API', () => {
     expect(results[0].number).toBeDefined()
   })
 
-  test('GET /api/issues/search returns 400 when query is missing', async () => {
+  test('handles GET /api/issues/search returns 400 when query is missing', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues/search', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
-  test('GET /api/issues/search ranks by bm25 (title+body match scores higher than body-only)', async () => {
+  test('handles GET /api/issues/search ranks by bm25 (title+body match scores higher than body-only)', async () => {
     // Issue with the term in both title AND body — higher bm25 score
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -684,7 +684,7 @@ describe('Issues API', () => {
     expect(results[0].title).toBe('Authentication bug')
   })
 
-  test('GET /api/issues/search FTS workspace isolation prevents cross-tenant results', async () => {
+  test('handles GET /api/issues/search FTS workspace isolation prevents cross-tenant results', async () => {
     // Seed an issue in the primary workspace
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -714,7 +714,7 @@ describe('Issues API', () => {
     expect(results[0].title).toBe('Primary workspace fts-sentinel')
   })
 
-  test('GET /api/issues/search returns empty results for whitespace-only query', async () => {
+  test('handles GET /api/issues/search returns empty results for whitespace-only query', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -728,7 +728,7 @@ describe('Issues API', () => {
     expect(results).toHaveLength(0)
   })
 
-  test('GET /api/issues/search returns empty results for punctuation-only query', async () => {
+  test('handles GET /api/issues/search returns empty results for punctuation-only query', async () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -744,7 +744,7 @@ describe('Issues API', () => {
 
   // ---- Hierarchy (parent_id) tests ----
 
-  test('POST creates a child issue with parentId', async () => {
+  test('handles POST creates a child issue with parentId', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -767,7 +767,7 @@ describe('Issues API', () => {
     expect(child.parent_id).toBe(parentId)
   })
 
-  test('GET issue includes rollup of child status counts', async () => {
+  test('handles GET issue includes rollup of child status counts', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -791,7 +791,7 @@ describe('Issues API', () => {
     expect(issue.rollup.byStatus.done).toBe(1)
   })
 
-  test('GET issue with no children returns empty rollup', async () => {
+  test('handles GET issue with no children returns empty rollup', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -809,7 +809,7 @@ describe('Issues API', () => {
     expect(issue.rollup.byStatus).toEqual({})
   })
 
-  test('PATCH sets parentId on an existing issue', async () => {
+  test('handles PATCH sets parentId on an existing issue', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -838,7 +838,7 @@ describe('Issues API', () => {
     expect(issue.parent_id).toBe(parentId)
   })
 
-  test('PATCH clears parentId by setting it to null', async () => {
+  test('handles PATCH clears parentId by setting it to null', async () => {
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -866,7 +866,7 @@ describe('Issues API', () => {
     expect(issue.parent_id).toBeNull()
   })
 
-  test('POST rejects self as parent', async () => {
+  test('handles POST rejects self as parent', async () => {
     // Create issue first, then try to set itself as parent via PATCH
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -883,7 +883,7 @@ describe('Issues API', () => {
     expect(patchRes.status).toBe(400)
   })
 
-  test('PATCH rejects a parentId that would create a cycle', async () => {
+  test('handles PATCH rejects a parentId that would create a cycle', async () => {
     // A → B → C; try to set A.parentId = C (cycle: A is ancestor of C)
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: a.id })
@@ -897,7 +897,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST rejects parent that would exceed depth cap of 5', async () => {
+  test('handles POST rejects parent that would exceed depth cap of 5', async () => {
     // Build a chain root → L1 → L2 → L3 → L4 → L5 (L5 is at depth 5)
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
     const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
@@ -915,7 +915,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST accepts parent at depth 4 (child at depth 5 is allowed)', async () => {
+  test('handles POST accepts parent at depth 4 (child at depth 5 is allowed)', async () => {
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
     const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
     const l2 = await seedIssue(workspaceId, projectId, userId, { title: 'L2', parentId: l1.id })
@@ -931,7 +931,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(201)
   })
 
-  test('GET /api/issues?parentId= filters to direct children', async () => {
+  test('handles GET /api/issues?parentId= filters to direct children', async () => {
     const parent = await seedIssue(workspaceId, projectId, userId, { title: 'Parent' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Child 1', parentId: parent.id })
     await seedIssue(workspaceId, projectId, userId, { title: 'Child 2', parentId: parent.id })
@@ -944,7 +944,7 @@ describe('Issues API', () => {
     expect(titles).toContain('Child 2')
   })
 
-  test('POST rejects parentId from a different workspace', async () => {
+  test('handles POST rejects parentId from a different workspace', async () => {
     const other = await seedFixture()
     const otherProject = await seedProject(other.workspace.id, 'OTH')
     const otherIssue = await seedIssue(other.workspace.id, otherProject.id, other.user.id, {
@@ -959,7 +959,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(404)
   })
 
-  test("PROJ-389: another workspace's owner cannot create an issue in this project", async () => {
+  test("covers PROJ-389: another workspace's owner cannot create an issue in this project", async () => {
     const other = await seedFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -1282,7 +1282,7 @@ describe('Issues API', () => {
 })
 
 // ─── PROJ-441/442/444: list-endpoint perf sweep ──────────────────────────────
-describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', () => {
+describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -1442,7 +1442,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 })
 
-describe('Issues MCP — typeId', () => {
+describe('issues MCP — typeId', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -1456,7 +1456,7 @@ describe('Issues MCP — typeId', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  test('MCP create_issue with typeId persists the type', async () => {
+  test('covers MCP create_issue with typeId persists the type', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const createResp = await mcpCall({
@@ -1479,7 +1479,7 @@ describe('Issues MCP — typeId', () => {
    * (not dashed UUIDs). The typeId schema must accept them, or the seeded Epic
    * type can never be assigned to an issue.
    */
-  test('MCP create_issue accepts a seeded-style 32-hex (non-UUID) typeId', async () => {
+  test('covers MCP create_issue accepts a seeded-style 32-hex (non-UUID) typeId', async () => {
     const hashId = 'ea3df70345804c3d26ebf139816cae8f'
     const { id: typeId } = await seedTaskType(workspaceId, {
       id: hashId,
@@ -1502,7 +1502,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(hashId)
   })
 
-  test('MCP update_issue sets typeId on an existing issue', async () => {
+  test('covers MCP update_issue sets typeId on an existing issue', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
     const createResp = await mcpCall({
@@ -1521,7 +1521,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(typeId)
   })
 
-  test('MCP update_issue clears typeId with null', async () => {
+  test('covers MCP update_issue clears typeId with null', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const createResp = await mcpCall({
@@ -1544,7 +1544,7 @@ describe('Issues MCP — typeId', () => {
    * silently orphans them from the epic UI/rollups — block it at the service layer
    * so both REST and MCP callers get the guard.
    */
-  test('MCP update_issue rejects demoting an epic that still has children', async () => {
+  test('covers MCP update_issue rejects demoting an epic that still has children', async () => {
     const { id: epicTypeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1574,7 +1574,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(epicTypeId)
   })
 
-  test('MCP update_issue allows retyping a non-epic parent that still has children', async () => {
+  test('covers MCP update_issue allows retyping a non-epic parent that still has children', async () => {
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
@@ -1602,7 +1602,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(bugTypeId)
   })
 
-  test("MCP update_issue allows changing an epic's type once it has no children", async () => {
+  test("covers MCP update_issue allows changing an epic's type once it has no children", async () => {
     const { id: epicTypeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1625,7 +1625,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(storyTypeId)
   })
 
-  test('MCP list_issues typeId filter returns only matching issues', async () => {
+  test('covers MCP list_issues typeId filter returns only matching issues', async () => {
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1649,7 +1649,7 @@ describe('Issues MCP — typeId', () => {
   })
 })
 
-describe('Issues MCP — list_issues filter parity (PROJ-243)', () => {
+describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
   let token: string, slug: string, workspaceId: string, projectId: string
 
   beforeEach(async () => {
@@ -1700,7 +1700,7 @@ describe('Issues MCP — list_issues filter parity (PROJ-243)', () => {
   })
 })
 
-describe('Issues KV cache', () => {
+describe('issues KV cache', () => {
   let token: string
   let slug: string
   let projectId: string
@@ -1856,7 +1856,7 @@ describe('Issues KV cache', () => {
   })
 })
 
-describe('Issues role guards', () => {
+describe('issues role guards', () => {
   test('viewer cannot create an issue (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
@@ -2143,7 +2143,7 @@ describe('get_prioritized_issues MCP tool', () => {
 })
 
 // PROJ-633: REST parity for get_prioritized_issues
-describe('GET /api/issues/prioritized', () => {
+describe('handles GET /api/issues/prioritized', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -2203,7 +2203,7 @@ describe('GET /api/issues/prioritized', () => {
   })
 })
 
-describe('PROJ-712 — unrecognized MCP params are rejected, not silently dropped', () => {
+describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently dropped', () => {
   let token: string, slug: string, workspaceId: string, projectId: string, userId: string
 
   beforeEach(async () => {
@@ -2250,7 +2250,7 @@ describe('PROJ-712 — unrecognized MCP params are rejected, not silently droppe
   })
 })
 
-describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
+describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => {
   let token: string, slug: string, workspaceId: string, projectId: string, userId: string, projectKey: string
 
   beforeEach(async () => {
@@ -2452,7 +2452,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
 })
 
 // PROJ-785: assigneeId must reference a member of the issue's workspace.
-describe('Issues — assignee workspace membership (PROJ-785)', () => {
+describe('issues — assignee workspace membership (PROJ-785)', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -2466,7 +2466,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  test('REST POST rejects an assigneeId from another workspace with 400', async () => {
+  test('covers REST POST rejects an assigneeId from another workspace with 400', async () => {
     const otherFixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -2478,7 +2478,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(body.error.fieldErrors.assigneeId).toBeDefined()
   })
 
-  test('REST POST accepts an assigneeId that is a real workspace member', async () => {
+  test('covers REST POST accepts an assigneeId that is a real workspace member', async () => {
     const assignee = await seedUser('proj785-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -2489,7 +2489,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(res.status).toBe(201)
   })
 
-  test('REST PATCH rejects reassigning to a user from another workspace with 400', async () => {
+  test('covers REST PATCH rejects reassigning to a user from another workspace with 400', async () => {
     const otherFixture = await seedFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -2506,7 +2506,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(patchRes.status).toBe(400)
   })
 
-  test('REST PATCH null clears the assignee without a membership check', async () => {
+  test('covers REST PATCH null clears the assignee without a membership check', async () => {
     const assignee = await seedUser('proj785-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
@@ -2530,7 +2530,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(issue.assignee_id).toBeNull()
   })
 
-  test('MCP create_issue rejects an assigneeId from another workspace', async () => {
+  test('covers MCP create_issue rejects an assigneeId from another workspace', async () => {
     const otherFixture = await seedFixture()
     const res = await mcpCall({
       name: 'create_issue',
@@ -2541,7 +2541,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(toolError(res)?.fields?.assigneeId).toBeDefined()
   })
 
-  test('MCP create_issue accepts a real workspace member as assignee', async () => {
+  test('covers MCP create_issue accepts a real workspace member as assignee', async () => {
     const assignee = await seedUser('proj785-mcp-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await mcpCall({
@@ -2551,7 +2551,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(res.error).toBeUndefined()
   })
 
-  test('MCP update_issue rejects reassigning to a user from another workspace', async () => {
+  test('covers MCP update_issue rejects reassigning to a user from another workspace', async () => {
     const otherFixture = await seedFixture()
     const createResp = await mcpCall({
       name: 'create_issue',
@@ -2568,7 +2568,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(toolError(res)?.fields?.assigneeId).toBeDefined()
   })
 
-  test('MCP update_issue null clears the assignee without a membership check', async () => {
+  test('covers MCP update_issue null clears the assignee without a membership check', async () => {
     const assignee = await seedUser('proj785-mcp-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createResp = await mcpCall({
@@ -2591,7 +2591,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
   })
 })
 
-describe('PROJ-931 — compact MCP responses', () => {
+describe('covers PROJ-931 — compact MCP responses', () => {
   let token: string, slug: string, workspaceId: string, projectId: string, userId: string
 
   beforeEach(async () => {
@@ -2604,7 +2604,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  test('MCP tool result text is minified (no pretty-printing whitespace)', async () => {
+  test('covers MCP tool result text is minified (no pretty-printing whitespace)', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Minified check' })
     const res = await mcpCall({ name: 'list_issues', arguments: {} })
     expect(res.error).toBeUndefined()
@@ -2614,7 +2614,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(JSON.parse(text)).toBeTruthy()
   })
 
-  test('REST get_issue is still pretty-shaped (unaffected) and keeps null/empty fields', async () => {
+  test('covers REST get_issue is still pretty-shaped (unaffected) and keeps null/empty fields', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'REST unaffected' })
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -2801,7 +2801,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(errorCode(badFieldsList)).toBe('validation')
   })
 
-  test('REST GET /api/issues/batch has parity with the MCP get_issues tool', async () => {
+  test('covers REST GET /api/issues/batch has parity with the MCP get_issues tool', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch B' })
     const res = await fetchNativeApi(`http://localhost/api/issues/batch?ids=${a.id},${b.id}`, {
@@ -2812,7 +2812,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(data.items.map((i) => i.title).sort()).toEqual(['REST Batch A', 'REST Batch B'])
   })
 
-  test('PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {
+  test('covers PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {
     /*
      * A "typical" seeded issue per the ticket: no assignee, no custom fields, no
      * children/parent, no links — exactly the empty/default fields PROJ-931 targets.
@@ -2893,7 +2893,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(toolError(proto)?.code).toBe('validation')
   })
 
-  test('REST /api/issues/batch: refs with spaces, missing in request order, 400 over 50', async () => {
+  test('covers REST /api/issues/batch: refs with spaces, missing in request order, 400 over 50', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'REST ref A' })
     const key = await projectKey()
     const gone = `${key}-999999`
@@ -2914,7 +2914,7 @@ describe('PROJ-931 — compact MCP responses', () => {
   })
 })
 
-describe('PROJ-931 — get_issues project visibility', () => {
+describe('covers PROJ-931 — get_issues project visibility', () => {
   test('a member without a grant gets refs and ids from a hidden project as missing (MCP + REST)', async () => {
     const roles = await seedWorkspaceRoles()
     const granted = await seedProject(roles.workspace.id, 'SEEN')

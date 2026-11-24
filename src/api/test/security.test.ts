@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import { seedFixture, seedMember } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('PROJ-16: API token workspace scope', () => {
+describe('covers PROJ-16: API token workspace scope', () => {
   test('rejects a token for workspace A used against workspace B, even when the user is a member of both', async () => {
     const wsA = await seedFixture()
     const wsB = await seedFixture()
@@ -36,7 +36,7 @@ describe('PROJ-16: API token workspace scope', () => {
  * Tests cover the secret-validation path; the "non-development env → 403" invariant is
  * enforced by the `!== 'development'` guard in worker.ts (fail-closed, not opt-in-to-block).
  */
-describe('PROJ-18: /bootstrap fail-closed', () => {
+describe('covers PROJ-18: /bootstrap fail-closed', () => {
   const CORRECT_SECRET = 'test-bootstrap-secret-do-not-use-in-production'
 
   test('returns 403 when no setup secret is provided', async () => {

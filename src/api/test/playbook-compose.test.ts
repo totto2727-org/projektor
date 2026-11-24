@@ -189,7 +189,7 @@ describe('compose_playbook', () => {
 })
 
 // PROJ-633: REST parity for compose_playbook
-describe('POST /api/playbooks/:name/compose', () => {
+describe('handles POST /api/playbooks/:name/compose', () => {
   let token: string
   let slug: string
   let epicNumber: number

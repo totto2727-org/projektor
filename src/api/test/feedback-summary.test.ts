@@ -50,7 +50,7 @@ const seedFeedbackRow = async function seedFeedbackRow(
   return id
 }
 
-describe('GET /api/projects/:id/feedback/summary', () => {
+describe('handles GET /api/projects/:id/feedback/summary', () => {
   test('aggregates thumbs %, five-star avg, and comment counts per source+version', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f, { name: 'Widget A' })

@@ -56,7 +56,7 @@ const backfill = async function backfill(token: string, slug: string, body: Reco
   }>
 }
 
-describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', () => {
+describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', () => {
   afterEach(() => vi.restoreAllMocks())
 
   test('skips trashed pages', async () => {

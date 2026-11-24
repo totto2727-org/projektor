@@ -5,7 +5,7 @@ import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('File Claims API', () => {
+describe('file Claims API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -74,7 +74,7 @@ describe('File Claims API', () => {
 
   // B1: claim_files creates active claims; list_file_claims({issueId}) returns them
   // REST: 3 requests (claim, list, MCP list) — within RATE_LIMIT_API_MAX=5
-  test('B1: POST /api/file-claims creates active claims; GET list by issueId returns them', async () => {
+  test('b1: POST /api/file-claims creates active claims; GET list by issueId returns them', async () => {
     const paths = ['src/foo.ts', 'src/bar.ts']
     const res = await claimFiles({ issueId, paths })
     expect(res.status).toBe(201)
@@ -107,7 +107,7 @@ describe('File Claims API', () => {
 
   // B2: conflict on held path (force false) -> 409; batch does NOT partially claim
   // 4 requests (claim, conflict-claim, list other, MCP conflict) — within limit
-  test('B2: second claim on held path (force=false) returns 409 naming holder; batch stays atomic', async () => {
+  test('b2: second claim on held path (force=false) returns 409 naming holder; batch stays atomic', async () => {
     // Claim one path in issue A
     await claimFiles({ issueId, paths: ['src/held.ts'] })
 
@@ -136,7 +136,7 @@ describe('File Claims API', () => {
 
   // B3: force:true steals — prior released, new active, overridden list non-empty
   // 3 requests (claim, force-claim, list) — within limit
-  test('B3: force:true releases prior claim and creates new; overridden list contains prior claim', async () => {
+  test('b3: force:true releases prior claim and creates new; overridden list contains prior claim', async () => {
     // Claim path in issue A
     await claimFiles({ issueId, paths: ['src/steal.ts'] })
 
@@ -164,7 +164,7 @@ describe('File Claims API', () => {
 
   // B4a: release_files sets released_at; path becomes re-claimable
   // 3 requests (claim, release, re-claim) — within limit
-  test('B4a: release_files sets released_at and path becomes re-claimable', async () => {
+  test('b4a: release_files sets released_at and path becomes re-claimable', async () => {
     await claimFiles({ issueId, paths: ['src/release-me.ts'] })
 
     const releaseRes = await releaseFiles({ paths: ['src/release-me.ts'], issueId })
@@ -183,7 +183,7 @@ describe('File Claims API', () => {
 
   // B4b: ending an agent session auto-releases that agent's claims; path becomes re-claimable
   // 5 requests (register-agent, claim, end-agent, list, re-claim) — at limit of 5
-  test('B4b: endAgent auto-releases agent file claims; path becomes re-claimable', async () => {
+  test('b4b: endAgent auto-releases agent file claims; path becomes re-claimable', async () => {
     // Register an agent session
     const agentRes = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
@@ -221,7 +221,7 @@ describe('File Claims API', () => {
 
   // B5: list_file_claims({path}) returns holder across issues; tenant isolation
   // 3 requests (claim, list by path, list from other workspace) — within limit
-  test('B5: list_file_claims({path}) returns holder; claims in workspace X not visible from workspace Y', async () => {
+  test('b5: list_file_claims({path}) returns holder; claims in workspace X not visible from workspace Y', async () => {
     await claimFiles({ issueId, paths: ['src/shared.ts'] })
 
     // List by path — should identify the holder
@@ -241,7 +241,7 @@ describe('File Claims API', () => {
 
   // PROJ-337: rejecting a conflicting claim inserts a claim_conflicts row (forced=0)
   // 1 request (claim) + setup claim already counted below — within limit
-  test('PROJ-337: rejecting a conflicting claim inserts a claim_conflicts row with forced=0', async () => {
+  test('covers PROJ-337: rejecting a conflicting claim inserts a claim_conflicts row with forced=0', async () => {
     await claimFiles({ issueId, paths: ['src/conflict-log.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Rejected issue' })
@@ -259,7 +259,7 @@ describe('File Claims API', () => {
   })
 
   // PROJ-337: rejecting a call where multiple paths are held records one row per contended path
-  test('PROJ-337: rejecting a multi-path claim records one row per contended path', async () => {
+  test('covers PROJ-337: rejecting a multi-path claim records one row per contended path', async () => {
     await claimFiles({ issueId, paths: ['src/multi-a.ts', 'src/multi-b.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Multi rejected' })
@@ -286,7 +286,7 @@ describe('File Claims API', () => {
   })
 
   // PROJ-337: force:true override inserts a claim_conflicts row (forced=1)
-  test('PROJ-337: force:true override inserts a claim_conflicts row with forced=1', async () => {
+  test('covers PROJ-337: force:true override inserts a claim_conflicts row with forced=1', async () => {
     await claimFiles({ issueId, paths: ['src/force-log.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Forcing issue' })
@@ -308,7 +308,7 @@ describe('File Claims API', () => {
   })
 
   // PROJ-337: a non-conflicting claim inserts no claim_conflicts rows
-  test('PROJ-337: a non-conflicting claim inserts no claim_conflicts rows', async () => {
+  test('covers PROJ-337: a non-conflicting claim inserts no claim_conflicts rows', async () => {
     const res = await claimFiles({ issueId, paths: ['src/no-conflict.ts'] })
     expect(res.status).toBe(201)
 
@@ -330,7 +330,7 @@ describe('File Claims API', () => {
    * PROJ-624: rejection (force=false) must not post any agent message — this was
    * previously mis-stated in the project's own docs as a message-posting path.
    */
-  test('PROJ-624: a rejected claim (force=false) posts no agent message to any scope', async () => {
+  test('covers PROJ-624: a rejected claim (force=false) posts no agent message to any scope', async () => {
     await claimFiles({ issueId, paths: ['src/no-message-on-reject.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, {
@@ -346,7 +346,7 @@ describe('File Claims API', () => {
     expect(rejectedMessages.items).toHaveLength(0)
   })
 
-  test('PROJ-635/624: force:true override posts a message to both the now-holding and the displaced issue', async () => {
+  test('covers PROJ-635/624: force:true override posts a message to both the now-holding and the displaced issue', async () => {
     await claimFiles({ issueId, paths: ['src/message-on-force.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Force claims' })
@@ -368,7 +368,7 @@ describe('File Claims API', () => {
     expect(priorHolderMessages.items[0].body).toContain(issue2.id)
   })
 
-  test('PROJ-635: force:true override on multiple paths held by the same issue posts one message per side, not one per path', async () => {
+  test('covers PROJ-635: force:true override on multiple paths held by the same issue posts one message per side, not one per path', async () => {
     await claimFiles({
       issueId,
       paths: ['src/multi-a.ts', 'src/multi-b.ts', 'src/multi-c.ts'],
@@ -403,7 +403,7 @@ describe('File Claims API', () => {
    * stale heartbeat, because status only becomes 'ended' when it calls end_agent — which by
    * definition it didn't. B4b above covers the clean-exit path; none of these do.
    */
-  describe('PROJ-636: stale-holder reclaim', () => {
+  describe('covers PROJ-636: stale-holder reclaim', () => {
     const seedSession = async function seedSession(
       opts: Readonly<{ status?: string; heartbeatAgeSecs?: number; name?: string }> = {},
     ): Promise<string> {
@@ -617,7 +617,7 @@ describe('File Claims API', () => {
      * by claim age against a configurable TTL (FILE_CLAIM_TTL_SECONDS, default 24h) instead —
      * same reclaim path as a claim whose agent session went stale.
      */
-    describe('PROJ-928: agentless claim TTL', () => {
+    describe('covers PROJ-928: agentless claim TTL', () => {
       const backdateClaim = async function backdateClaim(path: string, secondsAgo: number): Promise<void> {
         const claimedAt = Math.floor(Date.now() / 1000) - secondsAgo
         await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
@@ -639,7 +639,7 @@ describe('File Claims API', () => {
         expect(body.reclaimed[0].releaseReason).toBe('expired')
       })
 
-      test('FILE_CLAIM_TTL_SECONDS overrides the default', async () => {
+      test('covers FILE_CLAIM_TTL_SECONDS overrides the default', async () => {
         const previous = env.FILE_CLAIM_TTL_SECONDS
         env.FILE_CLAIM_TTL_SECONDS = '60'
         await configureCore({ FILE_CLAIM_TTL_SECONDS: '60' })
@@ -663,7 +663,7 @@ describe('File Claims API', () => {
    * "issue_closed") so a closed issue doesn't keep blocking the fleet on paths no one is
    * still working.
    */
-  describe('PROJ-928: issue close releases file claims', () => {
+  describe('covers PROJ-928: issue close releases file claims', () => {
     const patchStatus = async function patchStatus(id: string, status: string): Promise<Response> {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
@@ -724,7 +724,7 @@ describe('File Claims API', () => {
    * PROJ-932: list_file_claims defaults to live entries only; projectId scopes to one
    * project (key or uuid); every item carries the linked issue's ref.
    */
-  describe('PROJ-932: projectId filter and issueRef', () => {
+  describe('covers PROJ-932: projectId filter and issueRef', () => {
     const projectKey = 'PROJ' // seedProject's default key
 
     test("every item carries the issue's issueRef", async () => {
@@ -763,7 +763,7 @@ describe('File Claims API', () => {
       expect(byUuidPaths).not.toContain('src/in-other.ts')
     })
 
-    test('REST parity: GET /api/file-claims accepts includeStale and projectId', async () => {
+    test('covers REST parity: GET /api/file-claims accepts includeStale and projectId', async () => {
       await claimFiles({ issueId, paths: ['src/rest-parity.ts'] })
 
       const byKey = await listFileClaims({ projectId: projectKey })
@@ -778,7 +778,7 @@ describe('File Claims API', () => {
   // PROJ-932: default listing excludes a stale-holder claim regardless of holder shape
   // (agent-linked vs agentless); includeStale restores it. Both cases fail if the
   // `if (!includeStale)` filter in listFileClaims is removed.
-  describe('PROJ-932: default excludes stale/expired claims; includeStale includes them', () => {
+  describe('covers PROJ-932: default excludes stale/expired claims; includeStale includes them', () => {
     const seedStaleAgentSession = async function seedStaleAgentSession(): Promise<string> {
       const id = crypto.randomUUID()
       const now = Math.floor(Date.now() / 1000)
@@ -841,7 +841,7 @@ describe('File Claims API', () => {
  * that project's key or uuid — not just fewer results, none at all — proving the
  * projectId filter composes with (rather than bypasses) PROJ-316 visibility.
  */
-describe('PROJ-932: list_file_claims projectId + visibility for a non-admin member', () => {
+describe('covers PROJ-932: list_file_claims projectId + visibility for a non-admin member', () => {
   test("a hidden project's key or uuid returns no claims", async () => {
     const { token, slug, workspaceId, userId } = await seedIssueFixture({ role: 'member' })
     const hidden = await seedProject(workspaceId, 'HIDN')

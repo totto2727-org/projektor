@@ -40,7 +40,7 @@ function Harness({ onApply }: { onApply: (f: SavedViewFilters) => void }) {
 beforeEach(() => sessionStorage.clear())
 
 // Standard Base UI menus own pointer, focus and keyboard interaction.
-describe('SavedViewsControl — generated menu', () => {
+describe('covers SavedViewsControl — generated menu', () => {
   test('renders nothing when there are no saved views', () => {
     render(<Harness onApply={() => {}} />)
     expect(screen.queryByRole('button', { name: 'Saved views' })).toBeNull()

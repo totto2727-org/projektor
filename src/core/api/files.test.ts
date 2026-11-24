@@ -52,7 +52,7 @@ const fixture = function fixture() {
   return { ...database, env, get, cancel, bytes, request }
 }
 
-describe('API Core binary workspace logos', () => {
+describe('covers API Core binary workspace logos', () => {
   test('streams bytes without buffering and propagates consumer cancellation', async () => {
     const f = fixture()
     const response = await handleApiBinaryRequest(f.request(), f.env)

@@ -6,7 +6,7 @@ import { configureCore, env, getCoreObservations, resetCoreObservations } from '
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('KV caching', () => {
+describe('covers KV caching', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -228,7 +228,7 @@ describe('KV caching', () => {
     })
   })
 
-  describe('KV operation failures (PROJ-730)', () => {
+  describe('covers KV operation failures (PROJ-730)', () => {
     const throwingKv = function throwingKv(err: unknown): KVNamespace {
       return {
         get: () => Promise.reject(err),

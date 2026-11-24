@@ -47,7 +47,7 @@ const postIssue = async function postIssue(
 // §1: User-scoped token access for member workspaces
 // ---------------------------------------------------------------------------
 
-describe('PROJ-91: user-scoped token — member workspace', () => {
+describe('covers PROJ-91: user-scoped token — member workspace', () => {
   let slug: string
   let userId: string
   let userToken: string
@@ -90,7 +90,7 @@ describe('PROJ-91: user-scoped token — member workspace', () => {
 // §2: User-scoped token rejected for non-member workspaces
 // ---------------------------------------------------------------------------
 
-describe('PROJ-91: user-scoped token — non-member workspace', () => {
+describe('covers PROJ-91: user-scoped token — non-member workspace', () => {
   test('returns 403 when user is not a member of the target workspace', async () => {
     const ws1 = await seedWorkspace(`ws1-${crypto.randomUUID().slice(0, 8)}`)
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
@@ -109,7 +109,7 @@ describe('PROJ-91: user-scoped token — non-member workspace', () => {
 // §3: Workspace-scoped token regression — still confined to its workspace
 // ---------------------------------------------------------------------------
 
-describe('PROJ-91: workspace-scoped token regression', () => {
+describe('covers PROJ-91: workspace-scoped token regression', () => {
   test('workspace-scoped token is blocked from a different workspace even if user is a member', async () => {
     const fixture = await seedFixture() // token is scoped to fixture.workspace
 
@@ -157,7 +157,7 @@ const mintAsHuman = function mintAsHuman(email: string, body: unknown): Promise<
   )
 }
 
-describe('PROJ-91: POST /auth/tokens — user-scoped minting', () => {
+describe('covers PROJ-91: POST /auth/tokens — user-scoped minting', () => {
   test('omitting workspaceId creates a token with null workspace_id', async () => {
     const fixture = await seedFixture()
     const res = await mintAsHuman(fixture.user.email, {
@@ -210,7 +210,7 @@ describe('PROJ-91: POST /auth/tokens — user-scoped minting', () => {
   })
 })
 
-describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
+describe('covers PROJ-903: only a human session can mint or revoke a PAT', () => {
   test('a workspace-confined pk_ token cannot mint a PAT (no confinement escape)', async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/auth/tokens', {

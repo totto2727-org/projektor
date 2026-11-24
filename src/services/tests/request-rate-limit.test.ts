@@ -174,7 +174,7 @@ describe('shared request rate-limit policy', () => {
   test.each([
     { roll: 0, pruned: true },
     { roll: 0.5, pruned: false },
-  ])('PROJ-361: prunes only stale D1 rows when the Core probability roll is $roll', async ({ roll, pruned }) => {
+  ])('covers PROJ-361: prunes only stale D1 rows when the Core probability roll is $roll', async ({ roll, pruned }) => {
     const f = fixture()
     delete f.env.RATE_LIMITER
     vi.spyOn(console, 'warn').mockImplementation(() => {})

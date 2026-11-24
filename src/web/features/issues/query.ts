@@ -22,7 +22,9 @@ export function issueListQuery(url: URL, extra: Readonly<Record<string, string>>
   ]
   const params = new URLSearchParams()
   for (const key of allowed) {
-    for (const value of url.searchParams.getAll(key)) params.append(key, value)
+    for (const value of url.searchParams.getAll(key)) {
+      params.append(key, value)
+    }
   }
   for (const [key, value] of Object.entries(extra)) {
     params.set(key, value)

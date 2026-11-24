@@ -38,7 +38,7 @@ const mcpData = function mcpData<T>(r: JsonRpcResult<{ content: { text: string }
   return JSON.parse(r.result.content[0].text) as T
 }
 
-describe('Groups REST', () => {
+describe('groups REST', () => {
   let roles: Awaited<ReturnType<typeof seedWorkspaceRoles>>
   let slug: string
   let ownerHeaders: Record<string, string>
@@ -247,7 +247,7 @@ describe('Groups REST', () => {
   })
 })
 
-describe('Groups MCP parity', () => {
+describe('groups MCP parity', () => {
   let roles: Awaited<ReturnType<typeof seedWorkspaceRoles>>
   let workspaceId: string
   let ownerHeaders: Record<string, string>

@@ -36,7 +36,7 @@ const parseChallenge = function parseChallenge(header: string | null): Record<st
   return out
 }
 
-describe('MCP 401 carries an RFC 9728 challenge', () => {
+describe('covers MCP 401 carries an RFC 9728 challenge', () => {
   let workspaceId: string
 
   beforeEach(async () => {

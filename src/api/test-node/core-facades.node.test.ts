@@ -32,7 +32,7 @@ const clientFor = function clientFor(wire: () => Promise<string>) {
 
 const issue = { id: 'issue', title: 'Public issue', links: [{ id: 'linked', title: 'Linked issue' }] }
 
-describe('API facade reply boundary', () => {
+describe('covers API facade reply boundary', () => {
   test('runs actual named Core handlers with fresh credential checks and human-only token controls', async () => {
     const database = createTestDatabase()
     try {

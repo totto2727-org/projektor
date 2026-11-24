@@ -26,7 +26,7 @@ const listIssues = async function listIssues(token: string, slug: string) {
   return (await res.json()) as { items: { id: string }[] }
 }
 
-describe('PROJ-311 group-based project access', () => {
+describe('covers PROJ-311 group-based project access', () => {
   test("a new member with no groups sees an empty 'pending' state", async () => {
     const roles = await seedWorkspaceRoles()
     const slug = roles.workspace.slug

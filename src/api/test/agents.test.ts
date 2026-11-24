@@ -7,7 +7,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Agents API', () => {
+describe('agents API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -27,7 +27,7 @@ describe('Agents API', () => {
   }
 
   // A1: register -> active, appears in list_active_agents by issueId
-  test('A1: POST /api/agents registers a session and it appears in GET list filtered by issueId', async () => {
+  test('a1: POST /api/agents registers a session and it appears in GET list filtered by issueId', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Test Issue' })
 
     const res = await registerAgent({ name: 'test-agent', issueId: issue.id })
@@ -45,7 +45,7 @@ describe('Agents API', () => {
   })
 
   // A2: heartbeat bumps last_heartbeat_at; stale session excluded from list
-  test('A2: heartbeat updates last_heartbeat_at; stale session is excluded from list', async () => {
+  test('a2: heartbeat updates last_heartbeat_at; stale session is excluded from list', async () => {
     const res = await registerAgent({ name: 'heartbeat-agent' })
     expect(res.status).toBe(201)
     const session = (await res.json()) as { id: string }
@@ -73,7 +73,7 @@ describe('Agents API', () => {
   })
 
   // A3: end -> status='ended', excluded from active list
-  test('A3: POST /:id/end sets status=ended and excludes session from active list', async () => {
+  test('a3: POST /:id/end sets status=ended and excludes session from active list', async () => {
     const res = await registerAgent({ name: 'end-agent' })
     expect(res.status).toBe(201)
     const session = (await res.json()) as { id: string }
@@ -99,7 +99,7 @@ describe('Agents API', () => {
    * A4 (PROJ-336): kind is deprecated — still accepted for MCP compatibility but
    * ignored, and no longer present in register/list responses as a trust signal.
    */
-  test('A4: caller-supplied kind is accepted but ignored, and absent from responses', async () => {
+  test('a4: caller-supplied kind is accepted but ignored, and absent from responses', async () => {
     const agentRes = await registerAgent({ name: 'bot' })
     const agentSession = (await agentRes.json()) as Record<string, unknown>
     expect(agentSession.kind).toBeUndefined()
@@ -119,7 +119,7 @@ describe('Agents API', () => {
   })
 
   // A5: tenant isolation
-  test('A5: session in workspace X is not visible from workspace Y; heartbeat/end from Y -> 404', async () => {
+  test('a5: session in workspace X is not visible from workspace Y; heartbeat/end from Y -> 404', async () => {
     const other = await seedFixture()
 
     // Register session in our workspace (X)
@@ -148,17 +148,17 @@ describe('Agents API', () => {
     expect(endRes.status).toBe(404)
   })
 
-  test('POST /api/agents returns 400 for missing name', async () => {
+  test('handles POST /api/agents returns 400 for missing name', async () => {
     const res = await registerAgent({})
     expect(res.status).toBe(400)
   })
 
-  test('POST /api/agents returns 404 for unknown issueId', async () => {
+  test('handles POST /api/agents returns 404 for unknown issueId', async () => {
     const res = await registerAgent({ name: 'orphan', issueId: crypto.randomUUID() })
     expect(res.status).toBe(404)
   })
 
-  test('POST /:id/heartbeat returns 404 for unknown id', async () => {
+  test('handles POST /:id/heartbeat returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/heartbeat`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -166,7 +166,7 @@ describe('Agents API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('POST /:id/end returns 404 for unknown id', async () => {
+  test('handles POST /:id/end returns 404 for unknown id', async () => {
     const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/end`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -174,7 +174,7 @@ describe('Agents API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('GET /api/agents returns all active sessions in workspace', async () => {
+  test('handles GET /api/agents returns all active sessions in workspace', async () => {
     await registerAgent({ name: 'agent-1' })
     await registerAgent({ name: 'agent-2' })
 
@@ -188,7 +188,7 @@ describe('Agents API', () => {
   })
 
   // PROJ-929: start_work / finish_work replace the 5-call fleet routine.
-  describe('PROJ-929: start_work / finish_work', () => {
+  describe('covers PROJ-929: start_work / finish_work', () => {
     const startWork = function startWork(body: Record<string, unknown>): Promise<Response> {
       return fetchNativeApi('http://localhost/api/agents/start-work', {
         method: 'POST',
@@ -458,7 +458,7 @@ describe('Agents API', () => {
       expect(session?.last_heartbeat_at).toBeGreaterThanOrEqual(before)
     })
 
-    test('MCP parity: start_work and finish_work work the same over MCP', async () => {
+    test('covers MCP parity: start_work and finish_work work the same over MCP', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'MCP path' })
 
       const started = await mcpCall('start_work', { issue: issue.id, name: 'mcp-worker' })
@@ -508,7 +508,7 @@ describe('Agents API', () => {
    * (key or uuid) via the linked issue; every item carries `live`, and a linked item
    * carries issueRef.
    */
-  describe('PROJ-932: live-only default, includeStale, projectId, issueRef, live flag', () => {
+  describe('covers PROJ-932: live-only default, includeStale, projectId, issueRef, live flag', () => {
     const projectKey = 'PROJ' // seedProject's default key
 
     const backdateHeartbeat = function backdateHeartbeat(agentId: string, secondsAgo = 200) {

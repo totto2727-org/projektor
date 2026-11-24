@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixture) > produces the pinned output for a representative multi-stage fixture 1`] = `
+exports[`covers PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixture) > produces the pinned output for a representative multi-stage fixture 1`] = `
 {
   "agingWip": [],
   "arrivalVsCompletionOverTime": [

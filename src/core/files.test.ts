@@ -63,7 +63,7 @@ const fixture = function fixture() {
   return { ...database, env, request, get, head, cancel, bytes }
 }
 
-describe('Core narrow same-binding binary transfer', () => {
+describe('core narrow same-binding binary transfer', () => {
   test('streams exact binary bytes from an authorized archived owner without buffering', async () => {
     const f = fixture()
     const response = await handleCoreFileRequest(f.request(), f.env)

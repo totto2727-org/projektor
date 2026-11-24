@@ -53,7 +53,7 @@ const contentOf = async function contentOf(ctx: ServiceCtx, slug: string): Promi
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('PROJ-809: get_wiki_page returns the revision it read', () => {
+describe('covers PROJ-809: get_wiki_page returns the revision it read', () => {
   test("a stale reader using the GET's revisionId gets a 409, not a silent overwrite", async () => {
     const { ctx, slug } = await setup()
     const readByA = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
@@ -71,7 +71,7 @@ describe('PROJ-809: get_wiki_page returns the revision it read', () => {
     await expect(contentOf(ctx, slug)).resolves.toBe("B's edit")
   })
 
-  test('REST GET carries revisionId in the body and as the ETag', async () => {
+  test('covers REST GET carries revisionId in the body and as the ETag', async () => {
     const { slug, token, wsSlug } = await setup()
     const res = await fetchNativeApi(`http://localhost/api/wiki/${slug}`, {
       headers: authHeaders(token, wsSlug),
@@ -82,7 +82,7 @@ describe('PROJ-809: get_wiki_page returns the revision it read', () => {
   })
 })
 
-describe('PROJ-810: guarded writes', () => {
+describe('covers PROJ-810: guarded writes', () => {
   test('update_wiki_page without a base: a write landing between read and write → 409', async () => {
     const { ctx, slug } = await setup()
     interleaveBeforeNextBatch(1, async () => {
@@ -139,7 +139,7 @@ describe('PROJ-810: guarded writes', () => {
   })
 })
 
-describe('PROJ-919: metadata-only writes are guarded too', () => {
+describe('covers PROJ-919: metadata-only writes are guarded too', () => {
   test('two interleaved title-only updates → one 409, the first title survives', async () => {
     const { ctx, slug } = await setup()
     interleaveBeforeNextBatch(1, async () => {

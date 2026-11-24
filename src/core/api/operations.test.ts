@@ -58,7 +58,7 @@ const reply = function reply<S extends Schema.Top & { readonly DecodingServices:
   return runTestEffect(decodeCoreReply(schema, invocation))
 }
 
-describe('API Core authorization and presentation boundaries', () => {
+describe('covers API Core authorization and presentation boundaries', () => {
   test('filters both workspace catalogs and auth bootstrap by the original credential audience', async () => {
     const f = await fixture()
     const workspaces = await reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))

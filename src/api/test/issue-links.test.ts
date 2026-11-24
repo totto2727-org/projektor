@@ -4,7 +4,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Issue Links API', () => {
+describe('issue Links API', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -204,7 +204,7 @@ describe('Issue Links API', () => {
   })
 })
 
-describe('Issue Links role guards', () => {
+describe('issue Links role guards', () => {
   test('viewer cannot create a link (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
@@ -249,8 +249,8 @@ describe('Issue Links role guards', () => {
 })
 
 // PROJ-438: same as comments — the URL carries a ref, so the read takes one.
-describe('PROJ-438 — links accept an issue ref', () => {
-  test('GET /:ref/links returns the same links as GET /:uuid/links', async () => {
+describe('covers PROJ-438 — links accept an issue ref', () => {
+  test('handles GET /:ref/links returns the same links as GET /:uuid/links', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const slug = fixture.workspace.slug
     const project = await seedProject(fixture.workspace.id)
@@ -324,7 +324,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
     expect(res.status).toBe(404)
   })
 
-  test('POST /:ref/links accepts a ref (PROJ-713: write tools resolve refs too)', async () => {
+  test('handles POST /:ref/links accepts a ref (PROJ-713: write tools resolve refs too)', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const project = await seedProject(fixture.workspace.id)
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })

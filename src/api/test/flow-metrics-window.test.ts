@@ -20,7 +20,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('PROJ-866: flow-metrics window validation', () => {
+describe('covers PROJ-866: flow-metrics window validation', () => {
   let token: string
   let slug: string
   let projectId: string
@@ -91,7 +91,7 @@ describe('PROJ-866: flow-metrics window validation', () => {
   })
 })
 
-describe('PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixture)', () => {
+describe('covers PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixture)', () => {
   /*
    * A fixture exercising every bucketed series (WIP, throughput, bug share, review
    * latency, CFD, arrival/completion) with issues at different lifecycle stages,
@@ -210,7 +210,7 @@ describe('PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
   })
 })
 
-describe('PROJ-866: D1 query bound at scale', () => {
+describe('covers PROJ-866: D1 query bound at scale', () => {
   test('2,000 in-window issues (plus 1,000 long-closed): <=10 D1 queries, same numbers', async () => {
     const { workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' })
     const WEEK = 7 * 86_400
@@ -312,7 +312,7 @@ describe('PROJ-866: D1 query bound at scale', () => {
   })
 })
 
-describe('PROJ-866 review: window defaults and aging WIP', () => {
+describe('covers PROJ-866 review: window defaults and aging WIP', () => {
   let token: string
   let slug: string
   let workspaceId: string

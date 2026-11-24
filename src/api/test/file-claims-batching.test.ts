@@ -62,7 +62,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
   }
 }
 
-describe('PROJ-864: claim_files/release_files write batching', () => {
+describe('covers PROJ-864: claim_files/release_files write batching', () => {
   afterEach(() => vi.restoreAllMocks())
 
   const seedStaleClaim = async function seedStaleClaim(

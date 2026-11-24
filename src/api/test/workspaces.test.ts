@@ -39,7 +39,7 @@ const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is Js
   return 'error' in r
 }
 
-describe('Workspaces MCP', () => {
+describe('workspaces MCP', () => {
   let workspaceId: string
   let slug: string
   let userId: string
@@ -221,7 +221,7 @@ describe('Workspaces MCP', () => {
     expect(toolError(res)?.code).toBe('conflict')
   })
 
-  describe('PROJ-884: delete_workspace cannot cross tenants', () => {
+  describe('covers PROJ-884: delete_workspace cannot cross tenants', () => {
     const workspaceExists = async function workspaceExists(id: string): Promise<boolean> {
       const row = await env.DB.prepare('SELECT id FROM workspaces WHERE id = ?').bind(id).first()
       return Predicate.isNotNullish(row)
@@ -327,7 +327,7 @@ describe('Workspaces MCP', () => {
   })
 })
 
-describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
+describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
   let workspaceId: string
   let slug: string
   let ownerToken: string
@@ -389,7 +389,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     expect(res.status).toBe(409)
   })
 
-  test('URL slug mismatched with X-Workspace-Slug header → 404, neither workspace is deleted (PROJ-437)', async () => {
+  test('covers URL slug mismatched with X-Workspace-Slug header → 404, neither workspace is deleted (PROJ-437)', async () => {
     /*
      * Ctx.workspaceId (and thus the actual delete target) is resolved from the header,
      * not the URL. Naming a *different* workspace in the URL must not silently delete
@@ -409,7 +409,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
   })
 })
 
-describe('Member removal tombstone (PROJ-436)', () => {
+describe('member removal tombstone (PROJ-436)', () => {
   const tombstoneRow = async function tombstoneRow(workspaceId: string, userId: string) {
     return env.DB.prepare('SELECT removed_at FROM provisioning_removals WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, userId)
@@ -439,7 +439,7 @@ describe('Member removal tombstone (PROJ-436)', () => {
   })
 })
 
-describe('GET /api/workspaces/:slug (currentUserRole)', () => {
+describe('handles GET /api/workspaces/:slug (currentUserRole)', () => {
   test("returns members and the caller's own role for an owner", async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${fixture.workspace.slug}`, {
@@ -462,7 +462,7 @@ describe('GET /api/workspaces/:slug (currentUserRole)', () => {
   })
 })
 
-describe('GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
+describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
   let workspaceId: string
   let slug: string
   let memberToken: string
@@ -510,7 +510,7 @@ describe('GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
   })
 })
 
-describe('Workspace brand (PROJ-761)', () => {
+describe('workspace brand (PROJ-761)', () => {
   let slug: string
   let ownerHeaders: Record<string, string>
   let memberHeaders: Record<string, string>
@@ -526,7 +526,7 @@ describe('Workspace brand (PROJ-761)', () => {
     memberHeaders = authHeaders(memberToken, slug)
   })
 
-  test('GET /:slug/brand returns all-null defaults for a workspace with no brand set', async () => {
+  test('handles GET /:slug/brand returns all-null defaults for a workspace with no brand set', async () => {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
@@ -664,7 +664,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(403)
   })
 
-  test('GET logo → 404 when no logo has been uploaded', async () => {
+  test('handles GET logo → 404 when no logo has been uploaded', async () => {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       headers: memberHeaders,
     })
@@ -773,7 +773,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 })
 
-describe('Workspace brand R2 cleanup (review finding 5)', () => {
+describe('workspace brand R2 cleanup (review finding 5)', () => {
   test('deleting a workspace removes its uploaded logo from R2', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)

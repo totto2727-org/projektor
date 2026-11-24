@@ -76,7 +76,7 @@ const backlinks = async function backlinks(token: string, wsSlug: string, pageSl
   return res.json() as Promise<{ pageId: string; slug: string }[]>
 }
 
-describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => {
+describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links", () => {
   test('create: an unresolved link resolves once the matching page is created', async () => {
     const { workspace, token } = await seedFixture({ role: 'owner' })
     const linker = await createPage(token, workspace.slug, 'Linker', 'See [[Onboarding]].')

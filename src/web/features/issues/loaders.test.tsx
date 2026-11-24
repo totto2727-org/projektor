@@ -216,7 +216,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(qs.has('completedBefore')).toBe(true)
   })
 
-  test('SSR-renders original rows, selectors, story points, and modal trigger before effects', async () => {
+  test('covers SSR-renders original rows, selectors, story points, and modal trigger before effects', async () => {
     const data = fixture()
     const html = renderToString(await data.run(renderIssues(scope, listUrl)))
     expect(html).toContain('Original issue')
@@ -360,7 +360,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     },
   )
 
-  test('SSR-renders later-page review work first while excluding closed and unassigned work', async () => {
+  test('covers SSR-renders later-page review work first while excluding closed and unassigned work', async () => {
     const data = fixture()
     data.sqlite.exec(
       "INSERT INTO task_statuses (id,workspace_id,key,name,category,position,is_default) VALUES ('review','workspace-a','in_review','In Review','in_progress',2,0)",

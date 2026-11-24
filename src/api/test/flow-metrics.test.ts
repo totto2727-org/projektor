@@ -47,7 +47,7 @@ interface FlowMetrics {
   }
 }
 
-describe('Flow metrics (PROJ-252)', () => {
+describe('flow metrics (PROJ-252)', () => {
   let token: string
   let slug: string
   let workspaceId: string
@@ -131,7 +131,7 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(Array.isArray(metrics.wipOverTime)).toBe(true)
   })
 
-  test('MCP get_flow_metrics matches REST', async () => {
+  test('covers MCP get_flow_metrics matches REST', async () => {
     const restRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
@@ -777,7 +777,7 @@ describe('Flow metrics (PROJ-252)', () => {
  * when the fault EVENT happened (released_at/occurred_at), not by issue doneAt like the
  * distribution tiles above.
  */
-describe('Factory health tiles (PROJ-334)', () => {
+describe('factory health tiles (PROJ-334)', () => {
   let token: string
   let slug: string
   let workspaceId: string

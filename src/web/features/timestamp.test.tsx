@@ -80,7 +80,7 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('SSR timestamp hydration', () => {
+describe('covers SSR timestamp hydration', () => {
   test.each([
     [0, '1970-01-01', '00:00:00'],
     [timestamp, '2026-10-04', '08:48:46'],

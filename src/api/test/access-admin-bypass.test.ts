@@ -34,7 +34,7 @@ const createIssue = async function createIssue(
   expect(res.status).toBe(201)
 }
 
-describe('PROJ-319 admin bypass pinning', () => {
+describe('covers PROJ-319 admin bypass pinning', () => {
   test("owner's search sees issues across projects they hold no group grant on", async () => {
     const roles = await seedWorkspaceRoles()
     const slug = roles.workspace.slug

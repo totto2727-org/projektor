@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { FormErrors } from './FormErrors.tsx'
 
-describe('FormErrors', () => {
+describe('covers FormErrors', () => {
   test('renders deduplicated Standard Schema and TanStack error messages accessibly', () => {
     render(
       <FormErrors

@@ -17,7 +17,7 @@ const WORKSPACE_ID = 'ws-projektor'
 const PRM_URL = `${HOST}/.well-known/oauth-protected-resource/mcp/${WORKSPACE_ID}`
 const AS_URL = `${HOST}/.well-known/oauth-authorization-server`
 
-describe('RFC 9728 protected resource metadata', () => {
+describe('covers RFC 9728 protected resource metadata', () => {
   test('names the full per-workspace MCP URL as the resource, derived from the request host', async () => {
     const res = await fetchNativeApi(PRM_URL)
     expect(res.status).toBe(200)
@@ -115,7 +115,7 @@ describe('unmatched OAuth discovery paths 404 as JSON, never the SPA shell', () 
   })
 })
 
-describe('RFC 8414 authorization server metadata', () => {
+describe('covers RFC 8414 authorization server metadata', () => {
   test('advertises the OAuth 2.1 endpoints and grants', async () => {
     const res = await fetchNativeApi(AS_URL)
     expect(res.status).toBe(200)

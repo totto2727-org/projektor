@@ -7,7 +7,7 @@ import { runTestEffect } from '#tests/run-effect.ts'
 import { applyDateRangeParams } from './IssueList-helpers.ts'
 
 // Both initial SSR and client pagination use this exact calendar conversion.
-describe('UTC calendar issue filters', () => {
+describe('covers UTC calendar issue filters', () => {
   test('keeps inclusive UTC bounds through daylight-saving transition days', () => {
     const query = new URLSearchParams()
     applyDateRangeParams(query, 'updated', '2026-03-08', '2026-03-08')

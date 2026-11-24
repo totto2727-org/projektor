@@ -58,7 +58,7 @@ const source: FeedbackSource = {
   createdAt: 1,
   revokedAt: null,
 }
-describe('Feedback hydrated original controls', () => {
+describe('feedback hydrated original controls', () => {
   test('creates a source through native action-state FormData and retains its one-time token across refresh', async () => {
     vi.mocked(createFeedbackSource).mockResolvedValue({
       ok: true,

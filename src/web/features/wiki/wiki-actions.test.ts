@@ -144,7 +144,7 @@ const fixture = async function fixture(
   }
   return { run, invalidate, sqlite: database.sqlite, resources }
 }
-describe('Wiki semantic ServerFn contracts', () => {
+describe('wiki semantic ServerFn contracts', () => {
   test('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
     const test = await fixture()
     await expect(

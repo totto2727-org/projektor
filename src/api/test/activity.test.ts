@@ -4,7 +4,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Activity audit log', () => {
+describe('activity audit log', () => {
   let token: string
   let slug: string
   let workspaceId: string

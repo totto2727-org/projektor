@@ -23,7 +23,9 @@ const fixture = async function fixture(concurrentBatches = 1) {
     get(target, key) {
       if (key === 'batch') {
         return async (statements: D1PreparedStatement[]) => {
-          if (++arrivals >= concurrentBatches) release()
+          if (++arrivals >= concurrentBatches) {
+            release()
+          }
           await barrier
           return target.batch(statements)
         }
