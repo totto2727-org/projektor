@@ -1,5 +1,7 @@
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { sqliteRowFields } from '#tests/sqlite-records.ts'
+
 import { actionFixture, formData } from './features/planning/action-test-fixture.ts'
 
 const { uploadAttachment, uploadInlineImage } = await import('./attachment-actions.ts')
@@ -69,7 +71,11 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
         httpMetadata: { contentType: 'image/png' },
       })
       expect(new Uint8Array([...fixture.objects.values()][0])).toStrictEqual(bytes)
-      expect(fixture.sqlite.prepare('SELECT workspace_id,entity_type,entity_id,size FROM attachments').get()).toEqual({
+      expect(
+        sqliteRowFields(
+          fixture.sqlite.prepare('SELECT workspace_id,entity_type,entity_id,size FROM attachments').get(),
+        ),
+      ).toStrictEqual({
         workspace_id: 'w1',
         entity_type: 'wiki_page',
         entity_id: 'wiki-1',

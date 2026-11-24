@@ -110,7 +110,8 @@ describe('native Core authenticated Web file delivery', () => {
     const resolvedValue = await testFixture.execute('/api/files/a1')
     expect(resolvedValue.status).toBe(403)
     expect(testFixture.get).not.toHaveBeenCalled()
-    expect((await testFixture.execute('/api/files/a1?workspace=alpha&projectId=foreign')).status).toBe(200)
+    const response = await testFixture.execute('/api/files/a1?workspace=alpha&projectId=foreign')
+    expect(response.status).toBe(200)
   })
 
   test('rejects foreign workspace, ambiguous hint and malformed identifier before R2', async () => {
@@ -121,7 +122,8 @@ describe('native Core authenticated Web file delivery', () => {
       ['/api/files/%ZZ?workspace=alpha', 400],
       ['/api/files/missing?workspace=alpha', 404],
     ] as const) {
-      expect((await testFixture.execute(path)).status).toBe(status)
+      const response = await testFixture.execute(path)
+      expect(response.status).toBe(status)
     }
     expect(testFixture.get).not.toHaveBeenCalled()
   })
@@ -129,28 +131,33 @@ describe('native Core authenticated Web file delivery', () => {
   test('rejects a foreign attachment even for an owner and does not look up its object', async () => {
     const testFixture = fixture()
     testFixture.sqlite.exec("UPDATE attachments SET workspace_id = 'w2' WHERE id = 'a1'")
-    expect((await testFixture.execute()).status).toBe(404)
+    const response = await testFixture.execute()
+    expect(response.status).toBe(404)
     expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('default-denies an ungranted member but permits the archived granted owner project', async () => {
     const testFixture = fixture()
     testFixture.sqlite.exec("UPDATE workspace_members SET role = 'member' WHERE workspace_id = 'w1' AND user_id = 'u1'")
-    expect((await testFixture.execute()).status).toBe(404)
+    const response = await testFixture.execute()
+    expect(response.status).toBe(404)
     expect(testFixture.get).not.toHaveBeenCalled()
     testFixture.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
-    expect((await testFixture.execute()).status).toBe(200)
+    const apiResponse = await testFixture.execute()
+    expect(apiResponse.status).toBe(200)
     expect(testFixture.transport).not.toHaveBeenCalled()
   })
 
   test('rejects bearer and invalid Access credentials rather than falling back to development auth', async () => {
     const testFixture = fixture()
-    expect((await testFixture.execute(undefined, 'GET', { authorization: 'Bearer token' })).status).toBe(403)
-    expect((await testFixture.execute(undefined, 'GET', { cookie: 'CF_Authorization=invalid' })).status).toBe(401)
+    const response = await testFixture.execute(undefined, 'GET', { authorization: 'Bearer token' })
+    expect(response.status).toBe(403)
+    const apiResponse = await testFixture.execute(undefined, 'GET', { cookie: 'CF_Authorization=invalid' })
+    expect(apiResponse.status).toBe(401)
     expect(testFixture.get).not.toHaveBeenCalled()
   })
 
@@ -171,7 +178,8 @@ describe('native Core authenticated Web file delivery', () => {
   test('maps a missing R2 object to 404 and refuses mutation verbs on the read route', async () => {
     const testFixture = fixture()
     testFixture.get.mockResolvedValueOnce(null)
-    expect((await testFixture.execute()).status).toBe(404)
+    const apiResponse = await testFixture.execute()
+    expect(apiResponse.status).toBe(404)
     const response = await testFixture.execute(undefined, 'POST')
     expect(response.status).toBe(405)
     expect(response.headers.get('allow')).toBe('GET, HEAD')

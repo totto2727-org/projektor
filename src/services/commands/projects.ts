@@ -377,17 +377,16 @@ export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: s
    * constant however large the project is; the whole thing is one atomic batch. R2
    * objects are listed first and deleted only after the batch commits.
    */
-  const r2Keys = (
-    await ctx.db
-      .prepare(
-        `SELECT r2_key AS k FROM attachments
+  const queryResult = await ctx.db
+    .prepare(
+      `SELECT r2_key AS k FROM attachments
 				 WHERE workspace_id = ?2 AND kind = 'file' AND r2_key IS NOT NULL AND (
 				   (entity_type = 'issue' AND entity_id IN (${ISSUES_OF_PROJECT}))
 				   OR (entity_type = 'wiki_page' AND entity_id IN (${PAGES_OF_PROJECT})))`,
-      )
-      .bind(id, ctx.workspaceId)
-      .all<{ k: string }>()
-  ).results.map((result) => result.k)
+    )
+    .bind(id, ctx.workspaceId)
+    .all<{ k: string }>()
+  const r2Keys = queryResult.results.map((result) => result.k)
 
   await ctx.db.batch(
     PROJECT_CLEANUP_SQL.map((sql) =>

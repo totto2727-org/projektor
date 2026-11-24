@@ -2,6 +2,7 @@ import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
+import { sqliteRowFields } from '#tests/sqlite-records.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { inMemoryKV, inMemoryR2, testEnvironment } from '@/server/test/resources.ts'
 
@@ -94,7 +95,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
     )
     const input = { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'review-file', status: 'fixing' }
     await expect(invoke(setAttachmentReviewStatus, input)).resolves.toStrictEqual({ ok: true, value: { ok: true } })
-    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()),
+    ).toStrictEqual({
       review_status: 'fixing',
     })
     await expect(
@@ -107,7 +110,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: true,
       value: { ok: true },
     })
-    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()),
+    ).toStrictEqual({
       review_status: null,
     })
     expect(invalidated).toHaveBeenCalledTimes(3)
@@ -144,7 +149,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: true,
       value: { ok: true },
     })
-    expect(database.sqlite.prepare("SELECT name,goal,status FROM sprints WHERE id = 'sprint-a'").get()).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT name,goal,status FROM sprints WHERE id = 'sprint-a'").get()),
+    ).toStrictEqual({
       goal: 'Direct command',
       name: 'Updated',
       status: 'active',
@@ -183,7 +190,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: true,
       value: { ok: true },
     })
-    expect(database.sqlite.prepare('SELECT body FROM issue_comments WHERE id = ?').get(comment.id)).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare('SELECT body FROM issue_comments WHERE id = ?').get(comment.id)),
+    ).toStrictEqual({
       body: 'Edited directly',
     })
     await expect(invoke(deleteComment, { ...identity, commentId: comment.id })).resolves.toMatchObject({
@@ -217,10 +226,14 @@ describe('individual issue ServerFn authorization and contracts', () => {
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
     }
-    expect(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'foreign-comment'").get()).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'foreign-comment'").get()),
+    ).toStrictEqual({
       body: 'Unchanged',
     })
-    expect(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'other-comment'").get()).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'other-comment'").get()),
+    ).toStrictEqual({
       body: 'Other issue',
     })
     expect(invalidated).toHaveBeenCalledTimes(4)
@@ -270,10 +283,12 @@ describe('individual issue ServerFn authorization and contracts', () => {
       }),
     ).resolves.toMatchObject({ ok: true, value: { id: expect.any(globalThis.String), kind: 'url' } })
     expect(
-      database.sqlite
-        .prepare("SELECT entity_type,entity_id,url FROM attachments WHERE url = 'https://example.test/direct'")
-        .get(),
-    ).toEqual({ entity_type: 'issue', entity_id: 'issue-a', url: 'https://example.test/direct' })
+      sqliteRowFields(
+        database.sqlite
+          .prepare("SELECT entity_type,entity_id,url FROM attachments WHERE url = 'https://example.test/direct'")
+          .get(),
+      ),
+    ).toStrictEqual({ entity_type: 'issue', entity_id: 'issue-a', url: 'https://example.test/direct' })
     expect(invalidated).toHaveBeenCalledTimes(2)
   })
 
@@ -288,7 +303,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
           link: { kind: 'url', url },
         }),
       ).resolves.toMatchObject({ ok: true, value: { id: expect.any(globalThis.String), kind: 'url' } })
-      expect(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)).toEqual({ url })
+      expect(
+        sqliteRowFields(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)),
+      ).toStrictEqual({ url })
     },
   )
 
@@ -304,7 +321,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
           link: { kind: 'url', url },
         }),
       ).rejects.toThrow()
-      expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toEqual(before)
+      expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toStrictEqual(before)
       expect(invalidated).not.toHaveBeenCalled()
     },
   )
@@ -327,12 +344,20 @@ describe('individual issue ServerFn authorization and contracts', () => {
     await expect(
       invoke(addAttachmentLink, { ...identity, link: { kind: 'url', url: 'https://example.test/denied' } }),
     ).resolves.toMatchObject({ ok: false, status: 403 })
-    expect(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()),
+    ).toStrictEqual({
       title: 'Original issue',
     })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issue_links').get()).toEqual({ count: 0 })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM share_tokens').get()).toEqual({ count: 0 })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM attachments').get()).toEqual({ count: 1 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issue_links').get())).toStrictEqual({
+      count: 0,
+    })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM share_tokens').get())).toStrictEqual({
+      count: 0,
+    })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM attachments').get())).toStrictEqual({
+      count: 1,
+    })
     expect(invalidated).toHaveBeenCalledTimes(4)
   })
 
@@ -353,7 +378,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
         patch: { title: 'Changed' },
       }),
     ).resolves.toMatchObject({ ok: false, status: 404 })
-    expect(hidden.database.sqlite.prepare("SELECT title FROM issues WHERE id = 'hidden-issue'").get()).toEqual({
+    expect(
+      sqliteRowFields(hidden.database.sqlite.prepare("SELECT title FROM issues WHERE id = 'hidden-issue'").get()),
+    ).toStrictEqual({
       title: 'Hidden secret',
     })
     expect(hidden.invalidated).toHaveBeenCalledOnce()
@@ -375,7 +402,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
         query: 'Original',
       }),
     ).resolves.toMatchObject({ ok: true, value: [{ id: 'issue-a', project_id: project.id }] })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).not.toHaveBeenCalled()
   })
 
@@ -434,7 +463,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
         patch: { title: 'Changed' },
       }),
     ).resolves.toMatchObject({ ok: true })
-    expect(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()).toEqual({ title: 'Changed' })
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()),
+    ).toStrictEqual({ title: 'Changed' })
   })
 
   test('independently authorizes comments, links, attachments and wiki searches before direct reads', async () => {
@@ -471,7 +502,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
     }
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).not.toHaveBeenCalled()
   })
 
@@ -481,7 +514,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: false,
       status: 400,
     })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
   })
 
   test('rejects cross-origin writes before any backend read and invalidates expected failures', async () => {
@@ -491,7 +526,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
     data.set('projectId', project.id)
     data.set('title', 'Created')
     await expect(invoke(createIssue, [null, data])).resolves.toMatchObject({ ok: false, status: 403 })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).toHaveBeenCalledOnce()
   })
 
@@ -506,11 +543,15 @@ describe('individual issue ServerFn authorization and contracts', () => {
     formData.set('path', '/api/workspaces/other')
     await expect(native.invoke(createIssue, [null, formData])).resolves.toMatchObject({ ok: true })
     expect(
-      native.database.sqlite
-        .prepare("SELECT project_id,title,priority FROM issues WHERE title = 'Created natively'")
-        .get(),
-    ).toEqual({ project_id: project.id, title: 'Created natively', priority: 'medium' })
-    expect(native.database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 5 })
+      sqliteRowFields(
+        native.database.sqlite
+          .prepare("SELECT project_id,title,priority FROM issues WHERE title = 'Created natively'")
+          .get(),
+      ),
+    ).toStrictEqual({ project_id: project.id, title: 'Created natively', priority: 'medium' })
+    expect(sqliteRowFields(native.database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual(
+      { count: 5 },
+    )
     expect(native.invalidated).toHaveBeenCalledOnce()
     const { invoke, database, invalidated } = fixture()
     await expect(
@@ -521,8 +562,12 @@ describe('individual issue ServerFn authorization and contracts', () => {
         method: 'DELETE',
       }),
     ).resolves.toMatchObject({ ok: true })
-    expect(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()).toEqual({ title: 'Changed' })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()),
+    ).toStrictEqual({ title: 'Changed' })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).toHaveBeenCalledOnce()
   })
 
@@ -543,14 +588,18 @@ describe('individual issue ServerFn authorization and contracts', () => {
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
     }
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(
-      database.sqlite
-        .prepare(
-          "SELECT COUNT(*) AS count FROM attachments WHERE id IN ('foreign-attachment','foreign-workspace','wiki-attachment')",
-        )
-        .get(),
-    ).toEqual({ count: 3 })
+      sqliteRowFields(
+        database.sqlite
+          .prepare(
+            "SELECT COUNT(*) AS count FROM attachments WHERE id IN ('foreign-attachment','foreign-workspace','wiki-attachment')",
+          )
+          .get(),
+      ),
+    ).toStrictEqual({ count: 3 })
   })
 
   test('deletes an issue-owned attachment through shared storage command after direct retrieval', async () => {
@@ -579,7 +628,9 @@ describe('individual issue ServerFn authorization and contracts', () => {
           attachmentId: 'file-a',
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
-      expect(database.sqlite.prepare("SELECT entity_id FROM attachments WHERE id = 'file-a'").get()).toEqual({
+      expect(
+        sqliteRowFields(database.sqlite.prepare("SELECT entity_id FROM attachments WHERE id = 'file-a'").get()),
+      ).toStrictEqual({
         entity_id: 'issue-a',
       })
       expect(invalidated).toHaveBeenCalledOnce()

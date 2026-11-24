@@ -623,7 +623,8 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('member cannot DELETE /api/workspaces/:slug/tokens/:id', async () => {
-    const { id } = (await (await mint(ownerEmail, 'to-revoke', ['read'])).json()) as {
+    const response = await mint(ownerEmail, 'to-revoke', ['read'])
+    const { id } = (await response.json()) as {
       id: string
     }
     const res = await revoke(memberEmail, id)
@@ -631,7 +632,8 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('owner CAN DELETE /api/workspaces/:slug/tokens/:id', async () => {
-    const { id } = (await (await mint(ownerEmail, 'revocable', ['read'])).json()) as {
+    const response = await mint(ownerEmail, 'revocable', ['read'])
+    const { id } = (await response.json()) as {
       id: string
     }
     const res = await revoke(ownerEmail, id)

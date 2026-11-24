@@ -83,8 +83,10 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
     // The member can see project A only.
     await seedGroupGrant(ws.workspace.id, ws.member.user.id, projectA.id, 'member')
 
-    const issueA = (await seedIssue(ws.workspace.id, projectA.id, ws.owner.user.id, { title: 'A' })).id
-    const issueB = (await seedIssue(ws.workspace.id, projectB.id, ws.owner.user.id, { title: 'B' })).id
+    const issueAResult = await seedIssue(ws.workspace.id, projectA.id, ws.owner.user.id, { title: 'A' })
+    const issueA = issueAResult.id
+    const issueBResult = await seedIssue(ws.workspace.id, projectB.id, ws.owner.user.id, { title: 'B' })
+    const issueB = issueBResult.id
 
     /*
      * A live lease + agent on each issue, a file claim on each, and one agent

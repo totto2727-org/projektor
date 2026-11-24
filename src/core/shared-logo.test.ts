@@ -84,8 +84,10 @@ describe('core shared logo binary delivery', () => {
   test('refuses revoked or archived share sources and unsupported methods', async () => {
     const testFixture = await fixture()
     testFixture.sqlite.exec('UPDATE projects SET archived_at = 2')
-    expect((await handleSharedLogoRequest(testFixture.request(), testFixture.env))?.status).toBe(404)
-    expect((await handleSharedLogoRequest(testFixture.request('POST'), testFixture.env))?.status).toBe(405)
+    const result = await handleSharedLogoRequest(testFixture.request(), testFixture.env)
+    expect(result?.status).toBe(404)
+    const resolvedValue = await handleSharedLogoRequest(testFixture.request('POST'), testFixture.env)
+    expect(resolvedValue?.status).toBe(405)
     await expect(
       handleSharedLogoRequest(new Request('https://core.internal/unrelated'), testFixture.env),
     ).resolves.toBeUndefined()

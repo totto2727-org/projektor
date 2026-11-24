@@ -72,12 +72,14 @@ describe('covers PROJ-921: ready_at and lead time', () => {
 
     const fastTracked = await create('backlog')
     await patch(fastTracked, 'in_progress')
-    expect((await stamps(fastTracked))?.ready_at).not.toBeNull()
+    const result = await stamps(fastTracked)
+    expect(result?.ready_at).not.toBeNull()
   })
 
   test('an issue created already done never was ready', async () => {
     const id = await create('done')
-    expect((await stamps(id))?.ready_at).toBeNull()
+    const result = await stamps(id)
+    expect(result?.ready_at).toBeNull()
   })
 
   test('flow metrics exclude skipped-ready issues from lead time and report how many', async () => {

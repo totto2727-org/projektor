@@ -3,6 +3,8 @@ import { DatabaseSync } from 'node:sqlite'
 
 import { expect, test } from 'vite-plus/test'
 
+import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
+
 import { loadMigrations } from './helpers.ts'
 
 test('appends review status without selecting or changing populated historical attachments', () => {
@@ -29,11 +31,11 @@ test('appends review status without selecting or changing populated historical a
     `)
     const before = db.prepare('SELECT * FROM attachments ORDER BY id').all()
     db.exec(migration)
-    expect(db.prepare('SELECT * FROM attachments ORDER BY id').all()).toEqual(
+    expect(sqliteRowsFields(db.prepare('SELECT * FROM attachments ORDER BY id').all())).toStrictEqual(
       before.map((row) => ({ ...row, review_status: null })),
     )
     expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
-    expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
+    expect(sqliteRowFields(db.prepare('PRAGMA integrity_check').get())).toStrictEqual({ integrity_check: 'ok' })
   } finally {
     db.close()
   }

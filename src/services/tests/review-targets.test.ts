@@ -7,6 +7,7 @@ import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { findAttachment, listIssueReviewTargets } from '#services/files.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
+import { sqliteRowFields } from '#tests/sqlite-records.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
@@ -88,9 +89,8 @@ describe('issue attachment review target storage and authorization', () => {
       ]),
     )
     await testFixture.set('b', 'done')
-    expect(
-      (await runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))).get('i')?.map((target) => target.id),
-    ).toStrictEqual(['a', 'b'])
+    const result = await runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))
+    expect(result.get('i')?.map((target) => target.id)).toStrictEqual(['a', 'b'])
   })
 
   test.each([
@@ -104,8 +104,10 @@ describe('issue attachment review target storage and authorization', () => {
     const testFixture = fixture()
     await expect(testFixture.set(attachmentId, 'fixing', issueId)).rejects.toBeInstanceOf(NotFoundError)
     expect(
-      testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments WHERE review_status IS NOT NULL').get(),
-    ).toEqual({
+      sqliteRowFields(
+        testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments WHERE review_status IS NOT NULL').get(),
+      ),
+    ).toStrictEqual({
       n: 0,
     })
   })
@@ -163,7 +165,7 @@ describe('issue attachment review target storage and authorization', () => {
       await expect(runTestEffect(findAttachment(testFixture.db, 'other', 'other'))).resolves.toMatchObject({
         reviewStatus: 'fixing',
       })
-      expect(testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()).toEqual(attachmentCount)
+      expect(testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()).toStrictEqual(attachmentCount)
       await updateIssue(testFixture.ctx, 'i', { status: 'todo' })
       await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
         reviewStatus: expected,
@@ -219,7 +221,8 @@ describe('issue attachment review target storage and authorization', () => {
       },
     })
     const ids = ['i', ...Array.from({ length: 205 }, (_value, index) => `missing-${index}`), 'i']
-    expect((await runTestEffect(listIssueReviewTargets(bounded, 'w', ids))).get('i')).toHaveLength(1)
+    const result = await runTestEffect(listIssueReviewTargets(bounded, 'w', ids))
+    expect(result.get('i')).toHaveLength(1)
     expect(bindings).toStrictEqual([100, 100, 9])
     await expect(runTestEffect(listIssueReviewTargets(bounded, 'w', []))).resolves.toStrictEqual(new Map())
     expect(bindings).toStrictEqual([100, 100, 9])

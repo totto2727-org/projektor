@@ -122,7 +122,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const res = await patch(issue.id, { status: 'in_review', completionReport: report })
     expect(res.status).toBe(200)
     await expect(completionReportAtOf(issue.id)).resolves.toStrictEqual(expect.any(Number))
-    expect((await commentBodies(issue.id)).some((body) => body.includes('Did the thing'))).toBe(true)
+    const result = await commentBodies(issue.id)
+    expect(result.some((body) => body.includes('Did the thing'))).toBe(true)
   })
 
   test('accepts a completion report with a non-URL prLink placeholder, dropping just that field', async () => {
@@ -149,7 +150,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
       completionReport: { ...report, prLink },
     })
     expect(res.status).toBe(200)
-    expect((await commentBodies(issue.id)).some((body) => body.includes(prLink))).toBe(true)
+    const result = await commentBodies(issue.id)
+    expect(result.some((body) => body.includes(prLink))).toBe(true)
   })
 
   test('drops a protocol-less prLink the same as any other invalid URL', async () => {
@@ -163,7 +165,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
       completionReport: { ...report, prLink: 'github.com/TAJD/projektor/pull/99' },
     })
     expect(res.status).toBe(200)
-    expect((await commentBodies(issue.id)).some((body) => body.includes('**PR:**'))).toBe(false)
+    const result = await commentBodies(issue.id)
+    expect(result.some((body) => body.includes('**PR:**'))).toBe(false)
   })
 
   // --- PROJ-375: agents close to done directly, no block ---
@@ -267,8 +270,10 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
       name: 'Code Review',
     })
 
-    expect((await patch(issue.id, { statusId: custom.id })).status).toBe(400)
-    expect((await patch(issue.id, { statusId: custom.id, completionReport: report })).status).toBe(200)
+    const response = await patch(issue.id, { statusId: custom.id })
+    expect(response.status).toBe(400)
+    const apiResponse = await patch(issue.id, { statusId: custom.id, completionReport: report })
+    expect(apiResponse.status).toBe(200)
   })
 
   // --- REST/MCP parity (PROJ-301/375) ---
@@ -339,7 +344,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const res = await patch(issue.id, { title: 'Renamed', completionReport: report })
     expect(res.status).toBe(200)
     await expect(completionReportAtOf(issue.id)).resolves.toBeNull()
-    expect((await commentBodies(issue.id)).some((body) => body.includes('Did the thing'))).toBe(false)
+    const result = await commentBodies(issue.id)
+    expect(result.some((body) => body.includes('Did the thing'))).toBe(false)
   })
 
   // --- Heartbeat refresh on a live agentSessionId (PROJ-929) ---

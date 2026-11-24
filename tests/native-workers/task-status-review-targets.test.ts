@@ -78,7 +78,8 @@ describe('native custom status category review-target resync', () => {
       await env.DB.prepare("UPDATE attachments SET review_status='fixing' WHERE id=?").bind(testFixture.selected).run()
       const resolvedValue = await testFixture.patch({ category })
       expect(resolvedValue.status).toBe(200)
-      expect((await testFixture.patch({ category: 'todo' })).status).toBe(200)
+      const apiResponse = await testFixture.patch({ category: 'todo' })
+      expect(apiResponse.status).toBe(200)
       await expect(
         env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(testFixture.selected).first(),
       ).resolves.toStrictEqual({ review_status: 'fixing' })
@@ -93,7 +94,8 @@ describe('native custom status category review-target resync', () => {
     await env.DB.prepare(`CREATE TRIGGER ${trigger} BEFORE UPDATE OF review_status ON attachments
       WHEN OLD.id = '${testFixture.selected}' BEGIN SELECT RAISE(ABORT, 'injected review write failure'); END`).run()
     try {
-      expect((await testFixture.patch({ category: 'done', isDefault: true })).status).toBe(500)
+      const response = await testFixture.patch({ category: 'done', isDefault: true })
+      expect(response.status).toBe(500)
       await expect(
         env.DB.prepare('SELECT category,is_default FROM task_statuses WHERE id=?').bind(testFixture.status.id).first(),
       ).resolves.toStrictEqual({ category: 'in_progress', is_default: 0 })
@@ -105,7 +107,8 @@ describe('native custom status category review-target resync', () => {
       ).resolves.toStrictEqual({
         status_category: 'in_progress',
       })
-      expect((await testFixture.attachments()).results).toStrictEqual(before.results)
+      const queryResult = await testFixture.attachments()
+      expect(queryResult.results).toStrictEqual(before.results)
     } finally {
       await env.DB.prepare(`DROP TRIGGER ${trigger}`).run()
     }

@@ -98,7 +98,8 @@ describe('cross-project review filters at the Core data boundary', () => {
       const page = await testFixture.page(`review=${review}&limit=100`)
       expect(page.total).toBe(expected.length)
       expect(page.items.map((entry) => entry.id).sort()).toStrictEqual(expected)
-      expect((await testFixture.search(review)).map((entry) => entry.id).sort()).toStrictEqual(expected)
+      const result = await testFixture.search(review)
+      expect(result.map((entry) => entry.id).sort()).toStrictEqual(expected)
     },
   )
 
@@ -119,7 +120,8 @@ describe('cross-project review filters at the Core data boundary', () => {
     const page = await testFixture.page('review=active&project=project-b&limit=100')
     expect(page.total).toBe(expected.length)
     expect(page.items.map((row) => row.id).sort()).toStrictEqual(expected)
-    expect((await testFixture.search('active', 'project-b')).map((row) => row.id).sort()).toStrictEqual(expected)
+    const result = await testFixture.search('active', 'project-b')
+    expect(result.map((row) => row.id).sort()).toStrictEqual(expected)
   })
 
   test('does not multiply issue counts when multiple attachments match the same filter', async () => {
@@ -129,9 +131,8 @@ describe('cross-project review filters at the Core data boundary', () => {
       VALUES ('second-target','workspace-a','file','w/file','Spec','text/plain',1,'fixing','issue','active-00','user-a',1)`)
     const result = await testFixture.page('review=active&limit=100')
     expect(result.total).toBe(35)
-    expect(
-      (await testFixture.page('review=fixing&limit=100')).items.filter((row) => row.id === 'active-00'),
-    ).toHaveLength(1)
+    const resolvedValue = await testFixture.page('review=fixing&limit=100')
+    expect(resolvedValue.items.filter((row) => row.id === 'active-00')).toHaveLength(1)
   })
 
   test('rejects invalid review filters at the Core boundary rather than ignoring them', async () => {
@@ -146,6 +147,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     const testFixture = fixture()
     const resolvedValue = await testFixture.page('limit=100')
     expect(resolvedValue.total).toBe(62)
-    expect((await testFixture.search()).some((row) => row.id.startsWith('unselected-'))).toBe(true)
+    const result = await testFixture.search()
+    expect(result.some((row) => row.id.startsWith('unselected-'))).toBe(true)
   })
 })

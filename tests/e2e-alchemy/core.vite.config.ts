@@ -21,12 +21,11 @@ export const makeCoreFixtureConfig = async function makeCoreFixtureConfig(
   main: string,
   outDir: string,
 ): Promise<UserConfig> {
-  const migrations = (await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))).map(
-    (migration) => ({
-      ...migration,
-      hash: createHash('sha256').update(JSON.stringify(migration.queries)).digest('hex'),
-    }),
-  )
+  const migrationsResult = await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))
+  const migrations = migrationsResult.map((migration) => ({
+    ...migration,
+    hash: createHash('sha256').update(JSON.stringify(migration.queries)).digest('hex'),
+  }))
   return {
     root: fileURLToPath(new URL('.', import.meta.url)),
     publicDir: false,

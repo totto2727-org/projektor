@@ -127,7 +127,9 @@ describe('agent session ownership at shared command boundaries', () => {
     for (const action of actions) {
       await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
     }
-    expect(testFixture.sqlite.prepare('SELECT * FROM agent_sessions WHERE id = ?').get(session.id)).toEqual(before)
+    expect(testFixture.sqlite.prepare('SELECT * FROM agent_sessions WHERE id = ?').get(session.id)).toStrictEqual(
+      before,
+    )
     expect(testFixture.sqlite.prepare('SELECT title FROM issues WHERE id = ?').get(testFixture.issueId)).toMatchObject({
       title: 'Original',
     })

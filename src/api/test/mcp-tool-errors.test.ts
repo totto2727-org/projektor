@@ -160,7 +160,8 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     })
 
     test('an unknown method is -32601', async () => {
-      const res = (await (await post({ jsonrpc: '2.0', id: 1, method: 'nope/nope' })).json()) as Rpc
+      const resResponse = await post({ jsonrpc: '2.0', id: 1, method: 'nope/nope' })
+      const res = (await resResponse.json()) as Rpc
       expect(res.error?.code).toBe(-32_601)
     })
 
@@ -177,7 +178,8 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     })
 
     test('a tools/call with no tool name is a -32602 invalid-params protocol error', async () => {
-      const res = (await (await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {} })).json()) as Rpc
+      const resResponse = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {} })
+      const res = (await resResponse.json()) as Rpc
       expect(res.error?.code).toBe(-32_602)
     })
   })

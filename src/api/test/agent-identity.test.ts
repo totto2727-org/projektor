@@ -191,7 +191,8 @@ describe('covers PROJ-894: stateless agent identity', () => {
     const beat = await call(token, 'heartbeat_agent', { agentId: sessionId })
     expect(beat.ok).toBe(true)
     expect(beat.value.id).toBe(sessionId)
-    expect((await call(token, 'end_agent', { agentId: sessionId })).ok).toBe(true)
+    const result = await call(token, 'end_agent', { agentId: sessionId })
+    expect(result.ok).toBe(true)
   })
 
   test("an abandoned stale session does not make a lone live agent's id-less heartbeat ambiguous", async () => {

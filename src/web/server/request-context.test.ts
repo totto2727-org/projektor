@@ -287,7 +287,8 @@ describe('server scope loading', () => {
   })
 
   test('uses actual membership roles and refreshes grant visibility each request', async () => {
-    expect((await load()).projects.map((item) => item.id)).toStrictEqual(['project-a'])
+    const result = await load()
+    expect(result.projects.map((item) => item.id)).toStrictEqual(['project-a'])
     sqlite.exec(
       "DELETE FROM group_project_grants; UPDATE workspace_members SET role='admin' WHERE workspace_id='workspace-b'",
     )

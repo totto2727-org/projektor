@@ -63,7 +63,8 @@ describe('covers PROJ-91: user-scoped token — member workspace', () => {
     const userId = user.id
     await seedMember(ws.id, userId, 'member')
     const userToken = await seedUserToken(userId)
-    const projectId = (await seedProject(ws.id)).id
+    const projectIdResult = await seedProject(ws.id)
+    const projectId = projectIdResult.id
     await seedGroupGrant(ws.id, userId, projectId)
     return { projectId, slug, userId, userToken }
   }

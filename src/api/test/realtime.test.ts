@@ -52,8 +52,10 @@ describe('realtime WebSockets (Opt-In)', () => {
 
   beforeEach(async () => {
     roles = await seedWorkspaceRoles()
-    projectId = (await seedProject(roles.workspace.id, 'SEEN')).id
-    otherProjectId = (await seedProject(roles.workspace.id, 'OTHER')).id
+    const result = await seedProject(roles.workspace.id, 'SEEN')
+    projectId = result.id
+    const resolvedValue = await seedProject(roles.workspace.id, 'OTHER')
+    otherProjectId = resolvedValue.id
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, projectId, 'member')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, otherProjectId, 'viewer')
   })
@@ -213,7 +215,8 @@ describe('realtime WebSockets (Opt-In)', () => {
       .bind(await hashToken(roles.member.token))
       .run()
     const { hub, state } = hubFor()
-    expect((await hub.fetch(upgradeRequest(roles.member.token))).status).toBe(401)
+    const response = await hub.fetch(upgradeRequest(roles.member.token))
+    expect(response.status).toBe(401)
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 

@@ -98,11 +98,8 @@ describe('sprint and feedback database read models', () => {
       status: 'new',
       submitter_label: null,
     })
-    expect(
-      (await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))).map(
-        (row) => row.id,
-      ),
-    ).toStrictEqual(['f4', 'f1'])
+    const result = await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))
+    expect(result.map((row) => row.id)).toStrictEqual(['f4', 'f1'])
     await expect(runTestEffect(listFeedback(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
   })
 

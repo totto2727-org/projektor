@@ -113,7 +113,8 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
             testFixture.foreignToken,
           )
           expect(response.status).toBe(200)
-          expect((await coordinationState(testFixture)).lease).toMatchObject({ released_at: expect.any(Number) })
+          const result = await coordinationState(testFixture)
+          expect(result.lease).toMatchObject({ released_at: expect.any(Number) })
           break
         }
         case 'files': {
@@ -124,7 +125,8 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
           )
           expect(response.status).toBe(200)
           await expect(response.json()).resolves.toMatchObject({ count: 1 })
-          expect((await coordinationState(testFixture)).claims).toStrictEqual([
+          const result = await coordinationState(testFixture)
+          expect(result.claims).toStrictEqual([
             expect.objectContaining({ path: 'src/held.ts', released_at: expect.any(Number) }),
           ])
           break

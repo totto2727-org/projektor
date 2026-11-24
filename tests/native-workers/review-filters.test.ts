@@ -161,7 +161,8 @@ describe('cross-project review filters through actual named Core bindings', () =
       const result = await page(`review=${review}&limit=100`)
       expect(result.total).toBe(expected.length)
       expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
-      expect((await search(review)).map((row) => row.id).sort()).toStrictEqual(expected)
+      const resolvedValue = await search(review)
+      expect(resolvedValue.map((row) => row.id).sort()).toStrictEqual(expected)
     },
   )
 
@@ -177,10 +178,10 @@ describe('cross-project review filters through actual named Core bindings', () =
       .filter((row) => row.projectId === secondProject)
       .map((row) => row.id)
       .sort()
-    expect(
-      (await page(`review=active&project=${secondProject}&limit=100`)).items.map((row) => row.id).sort(),
-    ).toStrictEqual(expected)
-    expect((await search('active', secondProject)).map((row) => row.id).sort()).toStrictEqual(expected)
+    const result = await page(`review=active&project=${secondProject}&limit=100`)
+    expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
+    const resolvedValue = await search('active', secondProject)
+    expect(resolvedValue.map((row) => row.id).sort()).toStrictEqual(expected)
     await expect(page(`review=active&project=${hiddenProject}`)).rejects.toMatchObject({ status: 404 })
     await expect(search('active', hiddenProject)).rejects.toMatchObject({ status: 404 })
     await expect(page('review=active', foreignWorkspaceId)).rejects.toMatchObject({ status: 403 })
@@ -198,7 +199,8 @@ describe('cross-project review filters through actual named Core bindings', () =
     const result = await page('review=active&limit=100')
     expect(result.total).toBe(expected.length)
     expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
-    expect((await search('active')).map((row) => row.id).sort()).toStrictEqual(expected)
+    const resolvedValue = await search('active')
+    expect(resolvedValue.map((row) => row.id).sort()).toStrictEqual(expected)
   })
 
   test('rejects malformed review query values at the native Core boundary', async () => {

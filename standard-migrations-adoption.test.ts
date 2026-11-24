@@ -10,6 +10,7 @@ import { Iterable, Effect } from 'effect'
 import { expect, test } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
+import { sqliteRowsFields } from '#tests/sqlite-records.ts'
 
 type SQLiteRows = ReturnType<ReturnType<DatabaseSync['prepare']>['all']>
 type SQLiteColumn = SQLiteRows[number][string]
@@ -57,7 +58,7 @@ test.each([
   const users = (): SQLiteRows => db.prepare('SELECT * FROM users ORDER BY id').all()
   const attachments = (): SQLiteRows => db.prepare('SELECT * FROM attachments ORDER BY id').all()
   const checkIntegrity = (): void => {
-    expect(db.prepare('PRAGMA integrity_check').all()).toEqual([{ integrity_check: 'ok' }])
+    expect(sqliteRowsFields(db.prepare('PRAGMA integrity_check').all())).toStrictEqual([{ integrity_check: 'ok' }])
     expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
   }
   const draftHeads = (): SQLiteColumn[] =>

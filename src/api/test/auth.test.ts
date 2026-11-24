@@ -607,7 +607,8 @@ describe('covers PROJ-358: JWKS force-refresh on signature verification failure'
         headers: { 'Cf-Access-Jwt-Assertion': badJwt },
       })
       expect(stillBad.status).toBe(401)
-      expect((await getCoreObservations()).jwksFetches).toHaveLength(1)
+      const jwksObservations = await getCoreObservations()
+      expect(jwksObservations.jwksFetches).toHaveLength(1)
     } finally {
       await configureCore()
     }
@@ -655,7 +656,8 @@ describe("covers PROJ-730: JWKS cache write failure doesn't fail auth", () => {
       })
 
       expect(res.status).toBe(200)
-      expect((await getCoreObservations()).authCachePuts).toContain('cf-access-certs')
+      const authObservations = await getCoreObservations()
+      expect(authObservations.authCachePuts).toContain('cf-access-certs')
       await expect(env.KV.get('cf-access-certs')).resolves.toBeNull()
     } finally {
       await configureCore()
@@ -755,7 +757,8 @@ describe('covers PROJ-746: user-by-email cache read failure falls back to the DB
       expect(res.status).toBe(200)
       const row = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
       expect(row).not.toBeNull()
-      expect((await getCoreObservations()).authCacheGets).toContain(`user-by-email:${email}`)
+      const authObservations = await getCoreObservations()
+      expect(authObservations.authCacheGets).toContain(`user-by-email:${email}`)
     } finally {
       await configureCore()
     }
@@ -1461,7 +1464,8 @@ describe('covers PROJ-430: CF Access certs fetch failure', () => {
       })
 
       expect(res.status).toBe(503)
-      expect((await getCoreObservations()).jwksFetches).toStrictEqual([`https://${domain}/cdn-cgi/access/certs`])
+      const jwksObservations = await getCoreObservations()
+      expect(jwksObservations.jwksFetches).toStrictEqual([`https://${domain}/cdn-cgi/access/certs`])
       expect((await res.json()) as { error: string }).toStrictEqual({
         error: 'Authentication temporarily unavailable',
       })

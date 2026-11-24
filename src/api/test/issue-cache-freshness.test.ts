@@ -46,7 +46,8 @@ afterAll(() => {
 
 beforeEach(async () => {
   f = await seedIssueFixture({ role: 'owner' })
-  otherId = (await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Other' })).id
+  const result = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Other' })
+  otherId = result.id
   const link = await call('POST', `/api/issues/${f.issueId}/links`, {
     targetIssueId: otherId,
     type: 'blocks',
@@ -72,20 +73,24 @@ describe('covers PROJ-863: no stale embedded data', () => {
     const resolvedValue = await get(f.issueId)
     expect(resolvedValue.links[0].linkedIssueStatusCategory).toBe('todo')
     await call('PATCH', `/api/issues/${otherId}`, { statusId: done.id })
-    expect((await get(f.issueId)).links[0].linkedIssueStatusCategory).toBe('done')
+    const response = await get(f.issueId)
+    expect(response.links[0].linkedIssueStatusCategory).toBe('done')
   })
 
   test('deleting the linked issue', async () => {
     await call('DELETE', `/api/issues/${otherId}`)
-    expect((await get(f.issueId)).links).toStrictEqual([])
+    const response = await get(f.issueId)
+    expect(response.links).toStrictEqual([])
   })
 
   test("renaming the issue's status", async () => {
     const st = await seedTaskStatus(f.workspaceId, { name: 'Doing' })
     await env.DB.prepare('UPDATE issues SET status_id = ? WHERE id = ?').bind(st.id, f.issueId).run()
-    expect((await get(f.issueId)).status_name).toBe('Doing')
+    const response = await get(f.issueId)
+    expect(response.status_name).toBe('Doing')
     await call('PATCH', `/api/task-statuses/${st.id}`, { name: 'In flight' })
-    expect((await get(f.issueId)).status_name).toBe('In flight')
+    const apiResponse = await get(f.issueId)
+    expect(apiResponse.status_name).toBe('In flight')
   })
 
   test('changing the project key', async () => {
@@ -100,7 +105,8 @@ describe('covers PROJ-863: no stale embedded data', () => {
     const sprint = await readNativeJson(created, IdResponse)
     expect(created.status, JSON.stringify(sprint)).toBe(201)
     await env.DB.prepare('UPDATE issues SET sprint_id = ? WHERE id = ?').bind(sprint.id, f.issueId).run()
-    expect((await get(f.issueId)).sprint_id).toBe(sprint.id)
+    const response = await get(f.issueId)
+    expect(response.sprint_id).toBe(sprint.id)
     const del = await call('DELETE', `/api/sprints/${sprint.id}`)
     expect(del.status, await del.text()).toBe(200)
     const after = await get(f.issueId)

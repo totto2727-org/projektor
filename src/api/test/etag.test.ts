@@ -58,9 +58,8 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
 
   test('accepts a weak validator and a comma-separated If-None-Match list', async () => {
     const testFixture = await seedIssueFixture({ role: 'owner' })
-    const etag = (await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)).headers.get(
-      'ETag',
-    )
+    const etagResponse = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)
+    const etag = etagResponse.headers.get('ETag')
 
     const weak = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug, `W/${etag}`)
     expect(weak.status).toBe(304)
@@ -84,9 +83,8 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
 
   test('handles PATCH to an issue makes the next conditional GET a 200 with the new content', async () => {
     const testFixture = await seedIssueFixture({ issueTitle: 'Before', role: 'owner' })
-    const etag = (await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)).headers.get(
-      'ETag',
-    )
+    const etagResponse = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)
+    const etag = etagResponse.headers.get('ETag')
 
     const patch = await fetchNativeApi(
       `http://localhost/api/issues/${testFixture.issueId}`,
@@ -108,7 +106,8 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
   test('a new comment makes the next conditional GET of the comment list a 200', async () => {
     const testFixture = await seedIssueFixture({ role: 'owner' })
     const path = `/api/issues/${testFixture.issueId}/comments`
-    const etag = (await get(path, testFixture.token, testFixture.slug)).headers.get('ETag')
+    const etagResponse = await get(path, testFixture.token, testFixture.slug)
+    const etag = etagResponse.headers.get('ETag')
 
     const post = await fetchNativeApi(
       `http://localhost${path}`,
@@ -127,7 +126,8 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
 
   test('creating a task status makes the next conditional GET of the list a 200', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const etag = (await get('/api/task-statuses', testFixture.token, testFixture.slug)).headers.get('ETag')
+    const etagResponse = await get('/api/task-statuses', testFixture.token, testFixture.slug)
+    const etag = etagResponse.headers.get('ETag')
 
     const post = await fetchNativeApi(
       'http://localhost/api/task-statuses',
@@ -154,7 +154,8 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
 
   test('a non-member replaying a valid ETag gets 403, not 304', async () => {
     const owner = await seedIssueFixture({ role: 'owner' })
-    const etag = (await get(`/api/issues/${owner.issueId}`, owner.token, owner.slug)).headers.get('ETag')
+    const etagResponse = await get(`/api/issues/${owner.issueId}`, owner.token, owner.slug)
+    const etag = etagResponse.headers.get('ETag')
 
     // A user with a token of their own, but no membership of the owner's workspace.
     const outsider = await seedFixture({ role: 'owner' })
@@ -166,7 +167,8 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
 
   test('a cross-workspace token replaying a valid ETag gets 403, not 304', async () => {
     const owner = await seedIssueFixture({ role: 'owner' })
-    const etag = (await get(`/api/issues/${owner.issueId}`, owner.token, owner.slug)).headers.get('ETag')
+    const etagResponse = await get(`/api/issues/${owner.issueId}`, owner.token, owner.slug)
+    const etag = etagResponse.headers.get('ETag')
 
     /*
      * API tokens are workspace-scoped (PROJ-16). Pointing one at another workspace's

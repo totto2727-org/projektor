@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { loadMigrations } from '#db/test/helpers.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
+import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { createTestResources, testEnvironment } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -46,6 +47,13 @@ vi.mock('../../effront', () => ({
     },
   },
 }))
+const readGuideContent = function readGuideContent(
+  sqlite: ReturnType<typeof createTestDatabase>['sqlite'],
+): ReturnType<typeof sqliteRowFields> {
+  const row = sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get()
+  return sqliteRowFields(row)
+}
+
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   Iterable.forEach(databases.splice(0), (database) => {
@@ -154,7 +162,9 @@ describe('wiki semantic ServerFn contracts', () => {
     await expect(
       test.run(saveWikiDraft, { workspaceSlug: 'team', slug: 'guide', title: 'Missing token', content: 'No write' }),
     ).rejects.toThrow()
-    expect(test.sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get()).toEqual({ count: 0 })
+    expect(sqliteRowFields(test.sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get())).toStrictEqual({
+      count: 0,
+    })
     await expect(test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
       value: { draft: null, revision: null },
@@ -184,10 +194,12 @@ describe('wiki semantic ServerFn contracts', () => {
       value: { revision: head, draft: { content: 'Keep B' } },
     })
     expect(
-      test.sqlite
-        .prepare('SELECT content FROM wiki_pages WHERE slug = ? AND workspace_id = ?')
-        .get('guide', 'workspace'),
-    ).toEqual({ content: 'Body' })
+      sqliteRowFields(
+        test.sqlite
+          .prepare('SELECT content FROM wiki_pages WHERE slug = ? AND workspace_id = ?')
+          .get('guide', 'workspace'),
+      ),
+    ).toStrictEqual({ content: 'Body' })
   })
 
   test.each(['owner', 'admin', 'member'] as const)(
@@ -214,7 +226,9 @@ describe('wiki semantic ServerFn contracts', () => {
         ok: true,
         value: null,
       })
-      expect(test.sqlite.prepare('SELECT COUNT(*) AS count FROM wiki_pages').get()).toEqual({ count: 2 })
+      expect(sqliteRowFields(test.sqlite.prepare('SELECT COUNT(*) AS count FROM wiki_pages').get())).toStrictEqual({
+        count: 2,
+      })
       expect(test.invalidate).not.toHaveBeenCalled()
     },
   )
@@ -241,10 +255,12 @@ describe('wiki semantic ServerFn contracts', () => {
       }),
     ).resolves.toStrictEqual({ message: expect.any(String), ok: false, status: 403 })
     expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
+      sqliteRowFields(
+        test.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
       title: 'Guide',
     })
@@ -263,10 +279,12 @@ describe('wiki semantic ServerFn contracts', () => {
       }),
     ).resolves.toStrictEqual({ message: expect.any(String), ok: false, status: 403 })
     expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
+      sqliteRowFields(
+        test.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
       title: 'Guide',
     })
@@ -294,12 +312,12 @@ describe('wiki semantic ServerFn contracts', () => {
       ok: false,
       status: 409,
     })
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({
+    expect(readGuideContent(test.sqlite)).toStrictEqual({
       content: 'Concurrent edit',
     })
-    expect(test.sqlite.prepare("SELECT content FROM wiki_drafts WHERE id = 'mine'").get()).toEqual({ content: 'Mine' })
+    expect(
+      sqliteRowFields(test.sqlite.prepare("SELECT content FROM wiki_drafts WHERE id = 'mine'").get()),
+    ).toStrictEqual({ content: 'Mine' })
     expect(test.invalidate).toHaveBeenCalledOnce()
   })
 
@@ -319,10 +337,12 @@ describe('wiki semantic ServerFn contracts', () => {
       value: { id: expect.any(String), slug: expect.stringMatching(/^guide-copy-/u) },
     })
     expect(
-      test.sqlite
-        .prepare("SELECT title, content, project_id, parent_id FROM wiki_pages WHERE slug LIKE 'guide-copy-%'")
-        .get(),
-    ).toEqual({
+      sqliteRowFields(
+        test.sqlite
+          .prepare("SELECT title, content, project_id, parent_id FROM wiki_pages WHERE slug LIKE 'guide-copy-%'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
       parent_id: null,
       project_id: '00000000-0000-4000-8000-000000000002',
@@ -356,10 +376,12 @@ describe('wiki semantic ServerFn contracts', () => {
       })
     }
     expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
+      sqliteRowFields(
+        test.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
       title: 'Guide',
     })
@@ -388,9 +410,7 @@ describe('wiki semantic ServerFn contracts', () => {
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
     }
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({
+    expect(readGuideContent(test.sqlite)).toStrictEqual({
       content: 'Current',
     })
     await expect(
@@ -401,16 +421,16 @@ describe('wiki semantic ServerFn contracts', () => {
         baseRevisionId: 'revision',
       }),
     ).resolves.toStrictEqual({ ok: true, value: { ok: true } })
+    expect(readGuideContent(test.sqlite)).toStrictEqual({ content: 'Body' })
     expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({ content: 'Body' })
-    expect(
-      test.sqlite
-        .prepare(
-          "SELECT summary FROM wiki_revisions WHERE page_id = '00000000-0000-4000-8000-000000000001' ORDER BY rowid DESC LIMIT 1",
-        )
-        .get(),
-    ).toEqual({
+      sqliteRowFields(
+        test.sqlite
+          .prepare(
+            "SELECT summary FROM wiki_revisions WHERE page_id = '00000000-0000-4000-8000-000000000001' ORDER BY rowid DESC LIMIT 1",
+          )
+          .get(),
+      ),
+    ).toStrictEqual({
       summary: 'Restored from revision dated 1970-01-01T00:00:01.000Z',
     })
   })
@@ -437,12 +457,14 @@ describe('wiki semantic ServerFn contracts', () => {
       status: 403,
     })
     expect(
-      test.sqlite
-        .prepare(
-          "SELECT title, content, deleted_at, version FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'",
-        )
-        .get(),
-    ).toEqual({ content: 'Body', deleted_at: null, title: 'Guide', version: 0 })
+      sqliteRowFields(
+        test.sqlite
+          .prepare(
+            "SELECT title, content, deleted_at, version FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'",
+          )
+          .get(),
+      ),
+    ).toStrictEqual({ content: 'Body', deleted_at: null, title: 'Guide', version: 0 })
     expect(test.invalidate).toHaveBeenCalledOnce()
   })
 
@@ -459,9 +481,7 @@ describe('wiki semantic ServerFn contracts', () => {
           content: 'New',
         }),
       ).resolves.toMatchObject({ ok: false, status: 403 })
-      expect(
-        test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-      ).toEqual({ content: 'Body' })
+      expect(readGuideContent(test.sqlite)).toStrictEqual({ content: 'Body' })
     },
   )
 
@@ -498,7 +518,7 @@ describe('wiki semantic ServerFn contracts', () => {
       ok: true,
       value: { content: '## Canonical\n\n**Body**', revisionId: expect.any(String), title: 'Published' },
     })
-    expect(test.sqlite.prepare('SELECT user_id, content FROM wiki_drafts').all()).toEqual([
+    expect(sqliteRowsFields(test.sqlite.prepare('SELECT user_id, content FROM wiki_drafts').all())).toStrictEqual([
       { content: 'Private', user_id: 'other-user' },
     ])
     expect(fetch).not.toHaveBeenCalled()
@@ -522,7 +542,9 @@ describe('wiki semantic ServerFn contracts', () => {
       ok: true,
       value: { ok: true },
     })
-    expect(test.sqlite.prepare("SELECT parent_id FROM wiki_pages WHERE slug = 'child'").get()).toEqual({
+    expect(
+      sqliteRowFields(test.sqlite.prepare("SELECT parent_id FROM wiki_pages WHERE slug = 'child'").get()),
+    ).toStrictEqual({
       parent_id: null,
     })
     await expect(
@@ -539,9 +561,7 @@ describe('wiki semantic ServerFn contracts', () => {
       ok: true,
       value: { ok: true, verifiedAt: expect.any(Number), verifiedBy: 'alice@example.test' },
     })
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({
+    expect(readGuideContent(test.sqlite)).toStrictEqual({
       content: expect.stringContaining('verified_by: alice@example.test'),
     })
     await expect(test.run(trashWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
@@ -611,7 +631,7 @@ describe('wiki semantic ServerFn contracts', () => {
       value: { ok: true },
     })
     expect(remove).toHaveBeenCalledWith('objects/mine')
-    expect(test.sqlite.prepare('SELECT id FROM attachments').all()).toEqual([{ id: 'foreign' }])
+    expect(sqliteRowsFields(test.sqlite.prepare('SELECT id FROM attachments').all())).toStrictEqual([{ id: 'foreign' }])
     const hidden = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     hidden.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('hidden','workspace','objects/hidden','hidden.txt','text/plain',4,'wiki_page','00000000-0000-4000-8000-000000000001','user',1)",
@@ -622,7 +642,9 @@ describe('wiki semantic ServerFn contracts', () => {
       ok: false,
       status: 404,
     })
-    expect(hidden.sqlite.prepare('SELECT id FROM attachments').all()).toEqual([{ id: 'hidden' }])
+    expect(sqliteRowsFields(hidden.sqlite.prepare('SELECT id FROM attachments').all())).toStrictEqual([
+      { id: 'hidden' },
+    ])
   })
 
   test('rejects mutually-exclusive template/content before reaching the request handler', async () => {
@@ -637,10 +659,12 @@ describe('wiki semantic ServerFn contracts', () => {
       }),
     ).rejects.toThrow()
     expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
+      sqliteRowFields(
+        test.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
       title: 'Guide',
     })

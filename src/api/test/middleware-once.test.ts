@@ -49,7 +49,8 @@ describe('covers PROJ-856: middleware runs once per request', () => {
       headers: authHeaders(f.token, f.slug),
     })
     expect([401, 403]).not.toContain(res.status)
-    expect((await getCoreObservations()).authenticateCalls).toBe(1)
+    const observations = await getCoreObservations()
+    expect(observations.authenticateCalls).toBe(1)
   })
 
   test('handles POST /api/issues authenticates once', async () => {
@@ -62,7 +63,8 @@ describe('covers PROJ-856: middleware runs once per request', () => {
       ),
     )
     expect(res.status).toBe(201)
-    expect((await getCoreObservations()).authenticateCalls).toBe(1)
+    const observations = await getCoreObservations()
+    expect(observations.authenticateCalls).toBe(1)
   })
 
   test.each(['/api/issues', '/api/wiki', '/api/files', '/api/sprints'])(

@@ -4,6 +4,8 @@ import { DatabaseSync } from 'node:sqlite'
 import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
+
 import { loadMigrations } from './helpers.ts'
 
 /*
@@ -40,7 +42,7 @@ const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>):
 
 const checkIntegrity = function checkIntegrity(db: DatabaseSync): void {
   expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
-  expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
+  expect(sqliteRowFields(db.prepare('PRAGMA integrity_check').get())).toStrictEqual({ integrity_check: 'ok' })
 }
 
 const pages = function pages(db: DatabaseSync) {
@@ -62,7 +64,9 @@ const cases = [
       )
     },
     verify(this: void, db: DatabaseSync) {
-      expect(db.prepare('SELECT id,workspace_id,name,slug FROM projects ORDER BY id').all()).toEqual([
+      expect(
+        sqliteRowsFields(db.prepare('SELECT id,workspace_id,name,slug FROM projects ORDER BY id').all()),
+      ).toStrictEqual([
         { id: 'first', name: 'Foo', slug: 'foo', workspace_id: 'w' },
         { id: 'natural', name: 'Foo-2', slug: 'foo-2', workspace_id: 'w' },
         { id: 'second', name: 'Foo legacy 2', slug: 'foo-legacy-2', workspace_id: 'w' },
@@ -114,7 +118,7 @@ const cases = [
         { id: 'other-1', slug: 'a-b', version: 0, workspace_id: 'w' },
         { id: 'other-2', slug: 'a-b-abcdef12', version: 0, workspace_id: 'w' },
       ])
-      expect(db.prepare('SELECT * FROM wiki_redirects').all()).toEqual([
+      expect(sqliteRowsFields(db.prepare('SELECT * FROM wiki_redirects').all())).toStrictEqual([
         { created_at: 0, id: 'prior', old_slug: 'a/b', page_id: pageId, workspace_id: 'w' },
       ])
     },
@@ -164,25 +168,29 @@ describe('offline populated historical upgrades with approved fixture mappings',
         Iterable.forEach(migrations.slice(position), (sql) => {
           db.exec(sql)
         })
-        expect(db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()).toEqual(originalPages)
-        expect(db.prepare('SELECT id,workspace_id FROM projects ORDER BY id').all()).toEqual(originalProjects)
+        expect(db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()).toStrictEqual(originalPages)
+        expect(db.prepare('SELECT id,workspace_id FROM projects ORDER BY id').all()).toStrictEqual(originalProjects)
         expect(
           db.prepare('SELECT id,page_id,content,author_id,created_at FROM wiki_revisions ORDER BY id').all(),
-        ).toEqual(originalRevisions)
+        ).toStrictEqual(originalRevisions)
         verify(db)
         expect(
-          db.prepare("SELECT page_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle' ORDER BY page_id").all(),
-        ).toEqual(originalPages.map(({ id }) => ({ page_id: id })))
-        expect(db.prepare('SELECT page_id FROM wiki_fts ORDER BY page_id').all()).toEqual(
+          sqliteRowsFields(
+            db.prepare("SELECT page_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle' ORDER BY page_id").all(),
+          ),
+        ).toStrictEqual(originalPages.map(({ id }) => ({ page_id: id })))
+        expect(sqliteRowsFields(db.prepare('SELECT page_id FROM wiki_fts ORDER BY page_id').all())).toStrictEqual(
           originalPages.map(({ id }) => ({ page_id: id })),
         )
         expect(
-          db
-            .prepare(
-              'SELECT p.id FROM wiki_pages p JOIN wiki_fts f ON f.rowid=p.search_rowid AND f.page_id=p.id ORDER BY p.id',
-            )
-            .all(),
-        ).toEqual(originalPages.map(({ id }) => ({ id })))
+          sqliteRowsFields(
+            db
+              .prepare(
+                'SELECT p.id FROM wiki_pages p JOIN wiki_fts f ON f.rowid=p.search_rowid AND f.page_id=p.id ORDER BY p.id',
+              )
+              .all(),
+          ),
+        ).toStrictEqual(originalPages.map(({ id }) => ({ id })))
         checkIntegrity(db)
       } finally {
         db.close()
@@ -205,11 +213,15 @@ describe('offline populated historical upgrades with approved fixture mappings',
         db.exec(sql)
       })
       expect(
-        db.prepare("SELECT issue_id,workspace_id FROM issues_fts WHERE issues_fts MATCH 'issueneedle'").all(),
-      ).toEqual([{ issue_id: 'issue', workspace_id: 'w' }])
-      expect(db.prepare("SELECT page_id,workspace_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle'").all()).toEqual(
-        [{ page_id: pageId, workspace_id: 'w' }],
-      )
+        sqliteRowsFields(
+          db.prepare("SELECT issue_id,workspace_id FROM issues_fts WHERE issues_fts MATCH 'issueneedle'").all(),
+        ),
+      ).toStrictEqual([{ issue_id: 'issue', workspace_id: 'w' }])
+      expect(
+        sqliteRowsFields(
+          db.prepare("SELECT page_id,workspace_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle'").all(),
+        ),
+      ).toStrictEqual([{ page_id: pageId, workspace_id: 'w' }])
       checkIntegrity(db)
     } finally {
       db.close()

@@ -364,12 +364,11 @@ export const deleteWorkspace = async function deleteWorkspace(
    * FK at all. Projects are already gone (checked above), so this is workspace-level
    * data only. Set-based, constant statement count, one atomic batch; R2 after commit.
    */
-  const r2Keys = (
-    await ctx.db
-      .prepare("SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL")
-      .bind(ctx.workspaceId)
-      .all<{ k: string }>()
-  ).results.map((result) => result.k)
+  const queryResult = await ctx.db
+    .prepare("SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL")
+    .bind(ctx.workspaceId)
+    .all<{ k: string }>()
+  const r2Keys = queryResult.results.map((result) => result.k)
   await ctx.db.batch(WORKSPACE_CLEANUP_SQL.map((sql) => ctx.db.prepare(sql).bind(ctx.workspaceId)))
   for (let index = 0; index < r2Keys.length; index += 1000) {
     try {
@@ -464,7 +463,8 @@ export const getWorkspaceBrandLogoR2Key = async function getWorkspaceBrandLogoR2
   db: D1Database,
   workspaceId: string,
 ): Promise<string | null> {
-  return (await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId))).logoR2Key ?? null
+  const workspaceBrand = await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId))
+  return workspaceBrand.logoR2Key ?? null
 }
 
 const BRAND_FIELDS = ['displayName', 'accent', 'onAccent', 'fontFamily', 'fontUrl'] as const

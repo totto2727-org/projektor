@@ -158,7 +158,8 @@ describe('review targets REST through the real API and Core Workers', () => {
       VALUES (?,?,'file','other/key','Other','text/plain',1,'issue',?,?,1)`)
       .bind(foreignAttachmentId, other.workspaceId, other.issueId, other.userId)
       .run()
-    expect((await update('fixing', { issueId: other.issueId, id: foreignAttachmentId })).status).toBe(404)
+    const response = await update('fixing', { issueId: other.issueId, id: foreignAttachmentId })
+    expect(response.status).toBe(404)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(foreignAttachmentId).first(),
     ).resolves.toStrictEqual({ review_status: null })
@@ -168,9 +169,11 @@ describe('review targets REST through the real API and Core Workers', () => {
     await env.DB.prepare("UPDATE group_project_grants SET role='viewer' WHERE project_id=?")
       .bind(fixture.projectId)
       .run()
-    expect((await update('fixing')).status).toBe(403)
+    const response = await update('fixing')
+    expect(response.status).toBe(403)
     await env.DB.prepare('DELETE FROM group_project_grants WHERE project_id=?').bind(fixture.projectId).run()
-    expect((await update('fixing')).status).toBe(404)
+    const apiResponse = await update('fixing')
+    expect(apiResponse.status).toBe(404)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
     ).resolves.toStrictEqual({ review_status: null })
@@ -178,7 +181,8 @@ describe('review targets REST through the real API and Core Workers', () => {
 
   test('rejects read-only credentials without writing', async () => {
     const readOnly = await seedToken(fixture.workspaceId, fixture.userId, { scopes: ['projektor:read'] })
-    expect((await update('fixing', { token: readOnly })).status).toBe(403)
+    const response = await update('fixing', { token: readOnly })
+    expect(response.status).toBe(403)
     await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
   })
 
@@ -186,7 +190,8 @@ describe('review targets REST through the real API and Core Workers', () => {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id=? AND user_id=?')
       .bind(fixture.workspaceId, fixture.userId)
       .run()
-    expect((await update('fixing')).status).toBe(403)
+    const response = await update('fixing')
+    expect(response.status).toBe(403)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
     ).resolves.toStrictEqual({ review_status: null })
@@ -194,13 +199,15 @@ describe('review targets REST through the real API and Core Workers', () => {
 
   test('does not select Wiki references for review', async () => {
     await env.DB.prepare("UPDATE attachments SET kind='wiki_ref' WHERE id=?").bind(attachmentId).run()
-    expect((await update('fixing')).status).toBe(404)
+    const response = await update('fixing')
+    expect(response.status).toBe(404)
     await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
   })
 
   test('does not mutate archived projects', async () => {
     await env.DB.prepare('UPDATE projects SET archived_at=2 WHERE id=?').bind(fixture.projectId).run()
-    expect((await update('fixing')).status).toBe(404)
+    const response = await update('fixing')
+    expect(response.status).toBe(404)
     await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
   })
 })

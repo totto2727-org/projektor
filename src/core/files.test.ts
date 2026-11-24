@@ -104,9 +104,8 @@ describe('core narrow same-binding binary transfer', () => {
 
   test('never becomes a generic internal HTTP proxy', async () => {
     const testFixture = fixture()
-    expect((await handleCoreFileRequest(new Request('https://core.internal/api/issues'), testFixture.env)).status).toBe(
-      404,
-    )
+    const response = await handleCoreFileRequest(new Request('https://core.internal/api/issues'), testFixture.env)
+    expect(response.status).toBe(404)
     expect(testFixture.get).not.toHaveBeenCalled()
   })
 })

@@ -90,9 +90,8 @@ describe('covers PROJ-311 group-based project access', () => {
     const project = await seedProject(roles.workspace.id, 'TOGGLE')
     const { groupId } = await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    expect(
-      (await listProjects(roles.member.token, slug)).body.map((selectedProject) => selectedProject.key),
-    ).toStrictEqual(['TOGGLE'])
+    const resolvedValue = await listProjects(roles.member.token, slug)
+    expect(resolvedValue.body.map((selectedProject) => selectedProject.key)).toStrictEqual(['TOGGLE'])
 
     /*
      * Admin removes the member from the group; access is per-request, so the next
@@ -137,9 +136,8 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
 
     // Visible in the list...
-    expect(
-      (await listProjects(roles.member.token, slug)).body.map((selectedProject) => selectedProject.key),
-    ).toStrictEqual(['RO'])
+    const result = await listProjects(roles.member.token, slug)
+    expect(result.body.map((selectedProject) => selectedProject.key)).toStrictEqual(['RO'])
 
     // ...but a write is a 403, not a 404 (existence is not hidden once granted).
     const res = await fetchNativeApi(
@@ -196,7 +194,8 @@ describe('visibleProjectIds helper', () => {
     expect(ids.sort()).toStrictEqual([p1.id, p2.id].toSorted())
 
     const adminCtx = { ...ownerCtx, userId: roles.owner.user.id, role: 'admin' as const }
-    expect((await visibleProjectIds(adminCtx)).sort()).toStrictEqual([p1.id, p2.id].toSorted())
+    const result = await visibleProjectIds(adminCtx)
+    expect(result.sort()).toStrictEqual([p1.id, p2.id].toSorted())
   })
 
   test('returns only granted projects for a non-admin member', async () => {

@@ -152,11 +152,10 @@ describe('groups REST', () => {
     })
     expect(bad.status).toBe(400)
 
-    const detail = await (
-      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
-        headers: ownerHeaders,
-      })
-    ).json()
+    const detailResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
+      headers: ownerHeaders,
+    })
+    const detail = await detailResponse.json()
     expect((detail as { members: unknown[] }).members).toHaveLength(1)
 
     const rm = await fetchNativeApi(
@@ -184,11 +183,10 @@ describe('groups REST', () => {
       headers: ownerHeaders,
       method: 'PUT',
     })
-    const detail = (await (
-      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
-        headers: ownerHeaders,
-      })
-    ).json()) as { grants: { projectId: string; role: string }[] }
+    const detailResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
+      headers: ownerHeaders,
+    })
+    const detail = (await detailResponse.json()) as { grants: { projectId: string; role: string }[] }
     expect(detail.grants).toHaveLength(1)
     expect(detail.grants[0].role).toBe('admin')
 
@@ -220,14 +218,16 @@ describe('groups REST', () => {
       method: 'POST',
     })
 
-    const memberList = (await (
-      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, { headers: memberHeaders })
-    ).json()) as { name: string }[]
+    const memberListResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
+      headers: memberHeaders,
+    })
+    const memberList = (await memberListResponse.json()) as { name: string }[]
     expect(memberList.map((g) => g.name)).toStrictEqual(['Mine'])
 
-    const ownerList = (await (
-      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, { headers: ownerHeaders })
-    ).json()) as { name: string }[]
+    const ownerListResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
+      headers: ownerHeaders,
+    })
+    const ownerList = (await ownerListResponse.json()) as { name: string }[]
     expect(ownerList.map((g) => g.name).sort()).toStrictEqual(['Mine', 'Theirs'])
   })
 
