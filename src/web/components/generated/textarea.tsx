@@ -4,10 +4,8 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-export const Textarea = function Textarea({
-  className,
-  ...props
-}: React.ComponentProps<'textarea'>): React.JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The application React rule requires component declarations.
+export function Textarea({ className, ...props }: React.ComponentProps<'textarea'>): React.JSX.Element {
   return (
     <textarea
       data-slot='textarea'
@@ -15,6 +13,7 @@ export const Textarea = function Textarea({
         'flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller’s native textarea attributes, value and events.
       {...props}
     />
   )

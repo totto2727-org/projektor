@@ -78,7 +78,7 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
     const res = (await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
     }).then((response) => response.json())) as JsonRpcResult<{
       tools: { name: string; annotations?: Record<string, unknown> }[]
     }>

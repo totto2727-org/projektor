@@ -38,7 +38,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
         'X-Workspace-Slug': fixture.workspace.slug,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
     })
     expect(res.status).toBe(200)
   })
@@ -70,7 +70,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
         Host: `${fixture.workspace.slug}.example.com`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
     })
     expect(res.status).toBe(200)
   })
@@ -85,7 +85,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
         Host: `${fixture.workspace.slug}.example.com`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
     })
     expect(res.status).toBe(200)
   })

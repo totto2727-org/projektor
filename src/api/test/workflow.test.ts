@@ -71,8 +71,8 @@ describe('workflow spec', () => {
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'get_workflow', arguments: {} },
       }),

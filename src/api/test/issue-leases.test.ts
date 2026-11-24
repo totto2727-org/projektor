@@ -393,8 +393,8 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   test('covers MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'update_project', arguments: { id: projectId, agentWipLimit: 1 } },
       }),
@@ -409,8 +409,8 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   test('covers MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: {
           name: 'create_project',

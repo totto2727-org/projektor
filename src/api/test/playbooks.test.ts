@@ -55,8 +55,8 @@ describe('playbooks', () => {
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'list_playbooks', arguments: {} },
       }),
@@ -101,8 +101,8 @@ describe('playbooks', () => {
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'get_playbook', arguments: { name: 'epic-goal' } },
       }),
@@ -131,8 +131,8 @@ describe('playbooks', () => {
   test('covers MCP get_playbook errors on an unknown name, naming valid options', async () => {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'get_playbook', arguments: { name: 'does-not-exist' } },
       }),

@@ -1686,7 +1686,7 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list' }),
     })
     const bodyShape = Schema.Struct({
       result: Schema.Struct({

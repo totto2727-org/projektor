@@ -102,8 +102,8 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${viewer.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'create_project', arguments: { name: 'Nope', key: 'NOPE' } },
       }),

@@ -1470,7 +1470,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     const res = await mcpCall(
       workspaceId,
       'create_wiki_page',
-      { title: 'Nested', content: 'v1', slug: 'a/b' },
+      { content: 'v1', slug: 'a/b', title: 'Nested' },
       authHeaders(token, slug),
     )
     expect(isMcpError(res)).toBe(false)
@@ -1479,7 +1479,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test("covers MCP update_wiki_page rejects renaming to a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
     const created = mcpData<{ slug: string }>(
-      await mcpCall(workspaceId, 'create_wiki_page', { title: 'Delta MCP', content: 'd' }, authHeaders(token, slug)),
+      await mcpCall(workspaceId, 'create_wiki_page', { content: 'd', title: 'Delta MCP' }, authHeaders(token, slug)),
     )
 
     const res = await mcpCall(
@@ -1732,7 +1732,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   test('covers MCP update_wiki_page newSlug renames the slug and old slug resolves via redirect (parity with REST)', async () => {
     const created = mcpData<{ slug: string }>(
-      await mcpCall(workspaceId, 'create_wiki_page', { title: 'Handbook', content: 'v1' }, authHeaders(token, slug)),
+      await mcpCall(workspaceId, 'create_wiki_page', { content: 'v1', title: 'Handbook' }, authHeaders(token, slug)),
     )
     expect(created.slug).toBe('handbook')
 
@@ -1740,7 +1740,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       await mcpCall(
         workspaceId,
         'update_wiki_page',
-        { slug: 'handbook', newSlug: 'team-handbook' },
+        { newSlug: 'team-handbook', slug: 'handbook' },
         authHeaders(token, slug),
       ),
     )
@@ -1828,7 +1828,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       await mcpCall(
         workspaceId,
         'create_wiki_page',
-        { title: 'Oncall Runbook', content: RUNBOOK_CONTENT },
+        { content: RUNBOOK_CONTENT, title: 'Oncall Runbook' },
         authHeaders(token, slug),
       ),
     )
@@ -1879,7 +1879,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       await mcpCall(
         workspaceId,
         'create_wiki_page',
-        { title: 'Freeform Type Mcp', content: '---\ntype: whitepaper\n---\nbody' },
+        { content: '---\ntype: whitepaper\n---\nbody', title: 'Freeform Type Mcp' },
         authHeaders(token, slug),
       ),
     )
@@ -2029,7 +2029,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       await mcpCall(
         workspaceId,
         'create_wiki_page',
-        { title: 'Evolving Doc', content: RUNBOOK_CONTENT },
+        { content: RUNBOOK_CONTENT, title: 'Evolving Doc' },
         authHeaders(token, slug),
       ),
     )
@@ -2054,7 +2054,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       await mcpCall(
         workspaceId,
         'create_wiki_page',
-        { title: 'Stable Doc', content: RUNBOOK_CONTENT },
+        { content: RUNBOOK_CONTENT, title: 'Stable Doc' },
         authHeaders(token, slug),
       ),
     )
@@ -2079,7 +2079,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       await mcpCall(
         workspaceId,
         'create_wiki_page',
-        { title: 'Will Fail Update', content: RUNBOOK_CONTENT },
+        { content: RUNBOOK_CONTENT, title: 'Will Fail Update' },
         authHeaders(token, slug),
       ),
     )
@@ -2156,13 +2156,13 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     await mcpCall(
       workspaceId,
       'create_wiki_page',
-      { title: 'Mcp Tagged Ops', content: '---\ntags: [ops]\n---\nbody' },
+      { content: '---\ntags: [ops]\n---\nbody', title: 'Mcp Tagged Ops' },
       authHeaders(token, slug),
     )
     await mcpCall(
       workspaceId,
       'create_wiki_page',
-      { title: 'Mcp Untagged', content: 'no frontmatter' },
+      { content: 'no frontmatter', title: 'Mcp Untagged' },
       authHeaders(token, slug),
     )
 
@@ -2239,13 +2239,13 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     await mcpCall(
       workspaceId,
       'create_wiki_page',
-      { title: 'Widget Runbook', content: '---\ntype: runbook\n---\nwidget steps' },
+      { content: '---\ntype: runbook\n---\nwidget steps', title: 'Widget Runbook' },
       authHeaders(token, slug),
     )
     await mcpCall(
       workspaceId,
       'create_wiki_page',
-      { title: 'Widget Spec', content: '---\ntype: spec\n---\nwidget spec' },
+      { content: '---\ntype: spec\n---\nwidget spec', title: 'Widget Spec' },
       authHeaders(token, slug),
     )
 
@@ -2343,7 +2343,7 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
 
   test('covers MCP: list_wiki_revisions and get_wiki_revision resolve via an old (pre-rename) slug', async () => {
     const created = mcpData<{ slug: string }>(
-      await mcpCall(workspaceId, 'create_wiki_page', { title: 'Charter', content: 'v1' }, authHeaders(token, slug)),
+      await mcpCall(workspaceId, 'create_wiki_page', { content: 'v1', title: 'Charter' }, authHeaders(token, slug)),
     )
     await mcpCall(workspaceId, 'update_wiki_page', { slug: created.slug, content: 'v2' }, authHeaders(token, slug))
     await resetRateLimits()
@@ -4773,7 +4773,7 @@ describe('wiki page templates (PROJ-491)', () => {
       await mcpCall(
         workspaceId,
         'create_wiki_page',
-        { title: 'MCP Deploy Runbook', templateSlug: 'runbook-template' },
+        { templateSlug: 'runbook-template', title: 'MCP Deploy Runbook' },
         authHeaders(token, slug),
       ),
     )
@@ -4932,7 +4932,7 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
     const newSlug = `seed-test-${crypto.randomUUID().slice(0, 8)}`
 
     const created = mcpData<{ id: string; slug: string }>(
-      await mcpCall(fixture.workspace.id, 'create_workspace', { slug: newSlug, name: 'Seed Test' }, ownerHeaders),
+      await mcpCall(fixture.workspace.id, 'create_workspace', { name: 'Seed Test', slug: newSlug }, ownerHeaders),
     )
 
     const newToken = await seedToken(created.id, fixture.user.id)
@@ -4988,7 +4988,7 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
     const newSlug = `seed-fts-test-${crypto.randomUUID().slice(0, 8)}`
 
     const created = mcpData<{ id: string; slug: string }>(
-      await mcpCall(fixture.workspace.id, 'create_workspace', { slug: newSlug, name: 'Seed FTS Test' }, ownerHeaders),
+      await mcpCall(fixture.workspace.id, 'create_workspace', { name: 'Seed FTS Test', slug: newSlug }, ownerHeaders),
     )
     const newToken = await seedToken(created.id, fixture.user.id)
     const newHeaders = authHeaders(newToken, created.slug)

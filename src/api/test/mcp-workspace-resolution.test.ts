@@ -22,7 +22,7 @@ describe('covers MCP workspace resolution without X-Workspace-Slug (PROJ-348)', 
         'Content-Type': 'application/json',
         ...extraHeaders,
       },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
     })
   }
 

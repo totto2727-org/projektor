@@ -1267,8 +1267,8 @@ describe('workspace confinement survives a header that says otherwise', () => {
         'X-Workspace-Slug': second.slug,
       },
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'list_projects', arguments: {} },
       }),
@@ -1296,7 +1296,7 @@ describe('existing credentials are untouched by the provider', () => {
     const res = await fetchNativeApi(`${HOST}/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers: browserHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'initialize' }),
     })
 
     expect(res.status).toBe(401)

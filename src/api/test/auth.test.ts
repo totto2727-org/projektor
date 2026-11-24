@@ -839,8 +839,8 @@ describe('covers PROJ-274: read-scoped token is denied write on every request', 
       method: 'POST',
       headers: authHeaders(readOnlyToken, fixture.workspace.slug),
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'create_project', arguments: { name: 'Blocked', key: 'BLK' } },
       }),
@@ -903,7 +903,7 @@ describe('covers PROJ-660: dev bypass and /mcp/', () => {
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
     const res = await fetchNativeApi(`http://localhost/mcp/${ws.id}`, {
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list' }),
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })
@@ -1320,8 +1320,8 @@ describe('covers PROJ-79: MCP protocol validation', () => {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 3,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: { name: 'no_such_tool', arguments: {} },
       }),
@@ -1344,7 +1344,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
         'X-Workspace-Slug': `nonexistent-${crypto.randomUUID().slice(0, 8)}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
     })
     expect(res.status).toBe(404)
   })
@@ -1354,8 +1354,8 @@ describe('covers PROJ-79: MCP protocol validation', () => {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 4,
+        jsonrpc: '2.0',
         method: 'tools/call',
         params: 'not-an-object',
       }),
