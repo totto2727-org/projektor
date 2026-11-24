@@ -23,6 +23,8 @@ import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import {
+  TitleItemsResponse,
+  parseNativeMcpText,
   IdAndSlugResponse,
   IdListResponse,
   IdResponse,
@@ -104,11 +106,19 @@ const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is Js
   return 'error' in r
 }
 
-const mcpData = function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError): T {
-  if (isMcpError(r)) {
-    throw new Error(`MCP error: ${r.error.message}`)
+const WikiTags = Schema.Array(Schema.String).pipe(Schema.mutable)
+const WikiFrontmatterResponse = Schema.Struct({ status: Schema.String, tags: WikiTags, type: Schema.String })
+const WikiPageLinks = Schema.Array(Schema.Struct({ pageId: Schema.String })).pipe(Schema.mutable)
+const OptionalWikiDraftResponse = Schema.Union([Schema.Struct({ content: Schema.String }), Schema.Null])
+
+const mcpData = function mcpData<S extends Schema.Constraint>(
+  rpc: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError,
+  shape: S,
+): S['Type'] {
+  if (isMcpError(rpc)) {
+    throw new Error(`MCP error: ${rpc.error.message}`)
   }
-  return JSON.parse(r.result.content[0].text) as T
+  return parseNativeMcpText(rpc.result.content[0].text, shape)
 }
 
 /*
@@ -1478,8 +1488,9 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("covers MCP update_wiki_page rejects renaming to a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcpCall(workspaceId, 'create_wiki_page', { content: 'd', title: 'Delta MCP' }, authHeaders(token, slug)),
+      SlugResponse,
     )
 
     const res = await mcpCall(
@@ -1531,8 +1542,9 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
      * (not a URL path segment) — sidesteps any router-level handling of an
      * encoded "/" and tests the redirect-fallback resolution itself.
      */
-    const oldPage = mcpData<{ slug: string }>(
+    const oldPage = mcpData(
       await mcpCall(workspaceId, 'get_wiki_page', { slug: 'operations/admin-allow-list' }, authHeaders(token, slug)),
+      SlugResponse,
     )
     expect(oldPage.slug).toBe('operations-admin-allow-list')
   })
@@ -1731,23 +1743,26 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('covers MCP update_wiki_page newSlug renames the slug and old slug resolves via redirect (parity with REST)', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcpCall(workspaceId, 'create_wiki_page', { content: 'v1', title: 'Handbook' }, authHeaders(token, slug)),
+      SlugResponse,
     )
     expect(created.slug).toBe('handbook')
 
-    const updatedResult = mcpData<{ url: string }>(
+    const updatedResult = mcpData(
       await mcpCall(
         workspaceId,
         'update_wiki_page',
         { newSlug: 'team-handbook', slug: 'handbook' },
         authHeaders(token, slug),
       ),
+      Schema.Struct({ url: Schema.String }),
     )
     expect(updatedResult.url).toBe('/wiki/team-handbook')
 
-    const oldPage = mcpData<{ slug: string }>(
+    const oldPage = mcpData(
       await mcpCall(workspaceId, 'get_wiki_page', { slug: 'handbook' }, authHeaders(token, slug)),
+      SlugResponse,
     )
     expect(oldPage.slug).toBe('team-handbook')
   })
@@ -1824,13 +1839,14 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers MCP create_wiki_page parses valid frontmatter into denormalized fields (parity with REST)', async () => {
-    const result = mcpData<{ type: string; tags: string[]; status: string }>(
+    const result = mcpData(
       await mcpCall(
         workspaceId,
         'create_wiki_page',
         { content: RUNBOOK_CONTENT, title: 'Oncall Runbook' },
         authHeaders(token, slug),
       ),
+      WikiFrontmatterResponse,
     )
     expect(result.type).toBe('runbook')
     expect(result.tags).toStrictEqual(['ops', 'oncall'])
@@ -1875,13 +1891,14 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('covers MCP create_wiki_page accepts a `type` value outside the well-known set, parity with REST (PROJ-513)', async () => {
-    const created = mcpData<{ type: string | null }>(
+    const created = mcpData(
       await mcpCall(
         workspaceId,
         'create_wiki_page',
         { content: '---\ntype: whitepaper\n---\nbody', title: 'Freeform Type Mcp' },
         authHeaders(token, slug),
       ),
+      Schema.Struct({ type: Schema.Union([Schema.String, Schema.Null]) }),
     )
     expect(created.type).toBe('whitepaper')
   })
@@ -1920,8 +1937,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const found = await readNativeJson(searchRes, TitleListResponse)
     expect(found.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
 
-    const mcpListed = mcpData<{ title: string }[]>(
+    const mcpListed = mcpData(
       await mcpCall(workspaceId, 'list_wiki_pages', { type: 'whitepaper' }, authHeaders(token, slug)),
+      TitleListResponse,
     )
     expect(mcpListed.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
   })
@@ -2025,13 +2043,14 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('update_wiki_page reparses frontmatter when content changes', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcpCall(
         workspaceId,
         'create_wiki_page',
         { content: RUNBOOK_CONTENT, title: 'Evolving Doc' },
         authHeaders(token, slug),
       ),
+      SlugResponse,
     )
 
     await mcpCall(
@@ -2041,8 +2060,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       authHeaders(token, slug),
     )
 
-    const page = mcpData<{ type: string; status: string; tags: string[] }>(
+    const page = mcpData(
       await mcpCall(workspaceId, 'get_wiki_page', { slug: created.slug }, authHeaders(token, slug)),
+      WikiFrontmatterResponse,
     )
     expect(page.type).toBe('adr')
     expect(page.status).toBe('deprecated')
@@ -2050,13 +2070,14 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('update_wiki_page leaves existing frontmatter metadata unchanged when content is omitted', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcpCall(
         workspaceId,
         'create_wiki_page',
         { content: RUNBOOK_CONTENT, title: 'Stable Doc' },
         authHeaders(token, slug),
       ),
+      SlugResponse,
     )
 
     await mcpCall(
@@ -2066,8 +2087,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       authHeaders(token, slug),
     )
 
-    const page = mcpData<{ type: string; status: string; tags: string[] }>(
+    const page = mcpData(
       await mcpCall(workspaceId, 'get_wiki_page', { slug: created.slug }, authHeaders(token, slug)),
+      WikiFrontmatterResponse,
     )
     expect(page.type).toBe('runbook')
     expect(page.status).toBe('current')
@@ -2075,13 +2097,14 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('update_wiki_page rejects invalid frontmatter on a content edit', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcpCall(
         workspaceId,
         'create_wiki_page',
         { content: RUNBOOK_CONTENT, title: 'Will Fail Update' },
         authHeaders(token, slug),
       ),
+      SlugResponse,
     )
     const res = await mcpCall(
       workspaceId,
@@ -2166,8 +2189,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       authHeaders(token, slug),
     )
 
-    const result = mcpData<{ title: string }[]>(
+    const result = mcpData(
       await mcpCall(workspaceId, 'list_wiki_pages', { tags: ['ops'] }, authHeaders(token, slug)),
+      TitleListResponse,
     )
     expect(result.map((r) => r.title)).toStrictEqual(['Mcp Tagged Ops'])
   })
@@ -2249,8 +2273,9 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       authHeaders(token, slug),
     )
 
-    const result = mcpData<{ items: { title: string }[] }>(
+    const result = mcpData(
       await mcpCall(workspaceId, 'search_wiki', { query: 'widget', type: 'spec' }, authHeaders(token, slug)),
+      TitleItemsResponse,
     )
     expect(result.items.map((item) => item.title)).toStrictEqual(['Widget Spec'])
   })
@@ -2342,8 +2367,9 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   })
 
   test('covers MCP: list_wiki_revisions and get_wiki_revision resolve via an old (pre-rename) slug', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcpCall(workspaceId, 'create_wiki_page', { content: 'v1', title: 'Charter' }, authHeaders(token, slug)),
+      SlugResponse,
     )
     await mcpCall(workspaceId, 'update_wiki_page', { slug: created.slug, content: 'v2' }, authHeaders(token, slug))
     await resetRateLimits()
@@ -2355,19 +2381,21 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     )
     await resetRateLimits()
 
-    const revisions = mcpData<{ id: string; title: string }[]>(
+    const revisions = mcpData(
       await mcpCall(workspaceId, 'list_wiki_revisions', { slug: created.slug }, authHeaders(token, slug)),
+      Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String })).pipe(Schema.mutable),
     )
     expect(revisions).toHaveLength(1)
     expect(revisions[0].title).toBe('Charter')
 
-    const revision = mcpData<{ id: string; content: string }>(
+    const revision = mcpData(
       await mcpCall(
         workspaceId,
         'get_wiki_revision',
         { slug: created.slug, revisionId: revisions[0].id },
         authHeaders(token, slug),
       ),
+      Schema.Struct({ content: Schema.String, id: Schema.String }),
     )
     expect(revision.content).toBe('v1')
   })
@@ -2586,10 +2614,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
   })
 
   test('covers MCP: update_wiki_page — matching baseRevisionId succeeds, stale is rejected with a conflict', async () => {
-    const created = mcpData<{ slug: string }>(await mcp('create_wiki_page', { title: 'MCP Locked Doc', content: 'v1' }))
+    const created = mcpData(await mcp('create_wiki_page', { title: 'MCP Locked Doc', content: 'v1' }), SlugResponse)
 
     await mcp('update_wiki_page', { slug: created.slug, content: 'v2' })
-    const revisionsAfterFirstEdit = mcpData<{ id: string }[]>(await mcp('list_wiki_revisions', { slug: created.slug }))
+    const revisionsAfterFirstEdit = mcpData(await mcp('list_wiki_revisions', { slug: created.slug }), IdListResponse)
     const [staleRevision] = revisionsAfterFirstEdit
 
     // Matching baseRevisionId succeeds.
@@ -2601,8 +2629,11 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     })
     expect(isMcpError(okResult)).toBe(false)
 
-    const revisionsAfterSecondEdit = mcpData<{ id: string; summary: string | null }[]>(
+    const revisionsAfterSecondEdit = mcpData(
       await mcp('list_wiki_revisions', { slug: created.slug }),
+      Schema.Array(Schema.Struct({ id: Schema.String, summary: Schema.Union([Schema.String, Schema.Null]) })).pipe(
+        Schema.mutable,
+      ),
     )
     const [currentLatest] = revisionsAfterSecondEdit
     expect(currentLatest.id).not.toBe(staleRevision.id)
@@ -2770,14 +2801,13 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('covers MCP: get_wiki_revision_diff parity with REST', async () => {
-    const created = mcpData<{ slug: string }>(
-      await mcp('create_wiki_page', { title: 'MCP Diff Doc', content: 'alpha' }),
-    )
+    const created = mcpData(await mcp('create_wiki_page', { title: 'MCP Diff Doc', content: 'alpha' }), SlugResponse)
     await mcp('update_wiki_page', { slug: created.slug, content: 'beta' })
-    const [latest] = mcpData<{ id: string }[]>(await mcp('list_wiki_revisions', { slug: created.slug }))
+    const [latest] = mcpData(await mcp('list_wiki_revisions', { slug: created.slug }), IdListResponse)
 
-    const result = mcpData<{ from: string; to: string; diff: string }>(
+    const result = mcpData(
       await mcp('get_wiki_revision_diff', { slug: created.slug, revisionId: latest.id }),
+      Schema.Struct({ diff: Schema.String, from: Schema.String, to: Schema.String }),
     )
     expect(result.to).toBe('current')
     expect(result.diff).toContain('-alpha')
@@ -3493,11 +3523,12 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers MCP: set_frontmatter parity — sets a key, preserves others, over MCP', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcp('create_wiki_page', {
         title: 'MCP Frontmatter Doc',
         content: `---\ntype: runbook\n---\n${TWO_SECTIONS}`,
       }),
+      SlugResponse,
     )
 
     const ok = await mcp('patch_wiki_page', {
@@ -3517,14 +3548,18 @@ describe('wiki patch operations (PROJ-490)', () => {
     expect(isMcpError(invalid)).toBe(false)
     expect(toolError(invalid)?.code).toBe('validation')
 
-    const page = mcpData<{ type: string; status: string }>(await mcp('get_wiki_page', { slug: created.slug }))
+    const page = mcpData(
+      await mcp('get_wiki_page', { slug: created.slug }),
+      Schema.Struct({ status: Schema.String, type: Schema.String }),
+    )
     expect(page.type).toBe('runbook')
     expect(page.status).toBe('deprecated')
   })
 
   test("covers MCP: patch_wiki_page parity — disjoint sections don't conflict, same section does", async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcp('create_wiki_page', { title: 'MCP Patch Doc', content: TWO_SECTIONS }),
+      SlugResponse,
     )
 
     const okA = await mcp('patch_wiki_page', {
@@ -3577,11 +3612,12 @@ describe('wiki patch operations (PROJ-490)', () => {
    * got via body.error.formErrors. Twin of the REST test below.
    */
   test('covers MCP: patch_wiki_page rejects an ambiguous heading with formErrors as the tool error message', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcp('create_wiki_page', {
         title: 'MCP Patch Ambiguous',
         content: '# Notes\nOne.\n\n## Other\nx\n\n## Notes\nTwo.\n',
       }),
+      SlugResponse,
     )
 
     const result = await mcp('patch_wiki_page', {
@@ -3951,7 +3987,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       { slug: target.slug },
       authHeaders(fixture.token, fixture.workspace.slug),
     )
-    const backlinks = mcpData<{ slug: string }[]>(result)
+    const backlinks = mcpData(result, SlugListResponse)
     expect(backlinks).toEqual([expect.objectContaining({ slug: 'mcp-source' })])
   })
 
@@ -3969,7 +4005,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       {},
       authHeaders(fixture.token, fixture.workspace.slug),
     )
-    const broken = mcpData<{ targetTitle: string }[]>(result)
+    const broken = mcpData(result, Schema.Array(Schema.Struct({ targetTitle: Schema.String })).pipe(Schema.mutable))
     expect(broken).toContainEqual(expect.objectContaining({ targetTitle: 'Missing Target' }))
   })
 
@@ -4172,7 +4208,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       {},
       authHeaders(owner.token, owner.workspace.slug),
     )
-    const backfillResult = mcpData<{ pagesProcessed: number }>(result)
+    const backfillResult = mcpData(result, Schema.Struct({ pagesProcessed: Schema.Number }))
     expect(backfillResult.pagesProcessed).toBeGreaterThanOrEqual(2)
 
     const postBacklinks = await fetchNativeApi('http://localhost/api/wiki/legacy-target/backlinks', {
@@ -4517,17 +4553,19 @@ describe('wiki freshness model (PROJ-489)', () => {
   })
 
   test('covers MCP verify_wiki_page stamps verified_at/verified_by, parity with REST', async () => {
-    const created = mcpData<{ slug: string }>(
+    const created = mcpData(
       await mcpCall(
         workspaceId,
         'create_wiki_page',
         { title: 'MCP Verify Target', content: overdueContent() },
         authHeaders(token, slug),
       ),
+      SlugResponse,
     )
 
-    const result = mcpData<{ verifiedBy: string; freshness: { state: string } }>(
+    const result = mcpData(
       await mcpCall(workspaceId, 'verify_wiki_page', { slug: created.slug }, authHeaders(token, slug)),
+      Schema.Struct({ freshness: Schema.Struct({ state: Schema.String }), verifiedBy: Schema.String }),
     )
     expect(result.verifiedBy).toBe(userEmail)
     expect(result.freshness.state).toBe('fresh')
@@ -4688,8 +4726,9 @@ describe('wiki freshness model (PROJ-489)', () => {
       authHeaders(token, slug),
     )
 
-    const result = mcpData<{ title: string }[]>(
+    const result = mcpData(
       await mcpCall(workspaceId, 'list_stale_pages', {}, authHeaders(token, slug)),
+      TitleListResponse,
     )
     expect(result.map((r) => r.title)).toContain('MCP Overdue Page')
     expect(result.map((r) => r.title)).not.toContain('MCP Fresh Page')
@@ -4771,13 +4810,14 @@ describe('wiki page templates (PROJ-491)', () => {
   test('covers MCP: create_wiki_page with templateSlug has parity with REST', async () => {
     await createTemplate()
 
-    const result = mcpData<{ isTemplate: boolean; type: string }>(
+    const result = mcpData(
       await mcpCall(
         workspaceId,
         'create_wiki_page',
         { templateSlug: 'runbook-template', title: 'MCP Deploy Runbook' },
         authHeaders(token, slug),
       ),
+      Schema.Struct({ isTemplate: Schema.Boolean, type: Schema.String }),
     )
     expect(result.isTemplate).toBe(false)
     expect(result.type).toBe('runbook')
@@ -4915,8 +4955,9 @@ describe('wiki page templates (PROJ-491)', () => {
   test('covers MCP list_wiki_templates has parity with REST', async () => {
     await createTemplate()
 
-    const result = mcpData<{ title: string }[]>(
+    const result = mcpData(
       await mcpCall(workspaceId, 'list_wiki_templates', {}, authHeaders(token, slug)),
+      TitleListResponse,
     )
     expect(result.map((r) => r.title)).toStrictEqual(['Runbook Template'])
   })
@@ -4933,8 +4974,9 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
     const ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), fixture.workspace.slug)
     const newSlug = `seed-test-${crypto.randomUUID().slice(0, 8)}`
 
-    const created = mcpData<{ id: string; slug: string }>(
+    const created = mcpData(
       await mcpCall(fixture.workspace.id, 'create_workspace', { name: 'Seed Test', slug: newSlug }, ownerHeaders),
+      IdAndSlugResponse,
     )
 
     const newToken = await seedToken(created.id, fixture.user.id)
@@ -4989,8 +5031,9 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
     const ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), fixture.workspace.slug)
     const newSlug = `seed-fts-test-${crypto.randomUUID().slice(0, 8)}`
 
-    const created = mcpData<{ id: string; slug: string }>(
+    const created = mcpData(
       await mcpCall(fixture.workspace.id, 'create_workspace', { name: 'Seed FTS Test', slug: newSlug }, ownerHeaders),
+      IdAndSlugResponse,
     )
     const newToken = await seedToken(created.id, fixture.user.id)
     const newHeaders = authHeaders(newToken, created.slug)
@@ -5576,16 +5619,20 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const watchRes = await mcp('watch_wiki_page', { slug: page.slug })
     expect(isMcpError(watchRes)).toBe(false)
 
-    const watches = mcpData<{ pageId: string }[]>(await mcp('list_wiki_watches', {}))
+    const watches = mcpData(await mcp('list_wiki_watches', {}), WikiPageLinks)
     expect(watches.some((watch) => watch.pageId === page.id)).toBe(true)
 
     const unwatchRes = await mcp('unwatch_wiki_page', { slug: page.slug })
     expect(isMcpError(unwatchRes)).toBe(false)
-    const watchesAfter = mcpData<{ pageId: string }[]>(await mcp('list_wiki_watches', {}))
+    const watchesAfter = mcpData(await mcp('list_wiki_watches', {}), WikiPageLinks)
     expect(watchesAfter.some((w) => w.pageId === page.id)).toBe(false)
 
-    const changes = mcpData<{ items: { pageId: string; action: string }[]; next: string }>(
+    const changes = mcpData(
       await mcp('list_wiki_changes', { since: t0 }),
+      Schema.Struct({
+        items: Schema.Array(Schema.Struct({ action: Schema.String, pageId: Schema.String })).pipe(Schema.mutable),
+        next: Schema.String,
+      }),
     )
     expect(changes.items.some((item) => item.pageId === page.id && item.action === 'created')).toBe(true)
   })
@@ -5864,13 +5911,13 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     })
     expect(isMcpError(saveRes)).toBe(false)
 
-    const draft = mcpData<{ content: string } | null>(await mcp('get_wiki_draft', { slug: page.slug }))
+    const draft = mcpData(await mcp('get_wiki_draft', { slug: page.slug }), OptionalWikiDraftResponse)
     expect(draft).toMatchObject({ content: 'mcp draft content' })
 
     const discardRes = await mcp('discard_wiki_draft', { slug: page.slug })
     expect(isMcpError(discardRes)).toBe(false)
 
-    const afterDiscard = mcpData<{ content: string } | null>(await mcp('get_wiki_draft', { slug: page.slug }))
+    const afterDiscard = mcpData(await mcp('get_wiki_draft', { slug: page.slug }), OptionalWikiDraftResponse)
     expect(afterDiscard).toBeNull()
   })
 })
@@ -6214,15 +6261,24 @@ describe('wiki trash (PROJ-496)', () => {
     const page = await createPage('MCP Trash Page', 'content')
     await trashPage(page.slug)
 
-    const trashList = mcpData<{ id: string; purgeAfter: number }[]>(await mcp('list_wiki_trash', {}))
+    const trashList = mcpData(
+      await mcp('list_wiki_trash', {}),
+      Schema.Array(Schema.Struct({ id: Schema.String, purgeAfter: Schema.Number })).pipe(Schema.mutable),
+    )
     expect(trashList.some((r) => r.id === page.id)).toBe(true)
 
-    const restored = mcpData<{ ok: boolean; id: string }>(await mcp('undelete_wiki_page', { id: page.id }))
+    const restored = mcpData(
+      await mcp('undelete_wiki_page', { id: page.id }),
+      Schema.Struct({ id: Schema.String, ok: Schema.Boolean }),
+    )
     expect(restored).toMatchObject({ ok: true, id: page.id })
 
     await trashPage(page.slug)
     await backdateTrash()
-    const purged = mcpData<{ purgedCount: number; purgedIds: string[] }>(await mcp('purge_wiki_trash', {}))
+    const purged = mcpData(
+      await mcp('purge_wiki_trash', {}),
+      Schema.Struct({ purgedCount: Schema.Number, purgedIds: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(purged.purgedIds).toContain(page.id)
   })
 

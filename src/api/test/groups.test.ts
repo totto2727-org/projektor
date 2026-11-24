@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
+import { IdResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -29,15 +29,18 @@ const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is Js
   return 'error' in r
 }
 
-const mcpData = function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError): T {
-  if (isMcpError(r)) {
-    throw new Error(`MCP error: ${r.error.message}`)
+const mcpData = function mcpData<S extends Schema.Constraint>(
+  rpc: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError,
+  shape: S,
+): S['Type'] {
+  if (isMcpError(rpc)) {
+    throw new Error(`MCP error: ${rpc.error.message}`)
   }
-  const te = toolError(r)
+  const te = toolError(rpc)
   if (te) {
     throw new Error(`MCP tool error (${te.code}): ${te.message}`)
   }
-  return JSON.parse(r.result.content[0].text) as T
+  return parseNativeMcpText(rpc.result.content[0].text, shape)
 }
 
 describe('groups REST', () => {
@@ -275,7 +278,7 @@ describe('groups MCP parity', () => {
     const list = (await mcpCall(workspaceId, 'list_groups', {}, ownerHeaders)) as JsonRpcResult<{
       content: { text: string }[]
     }>
-    const groups = mcpData<{ name: string }[]>(list)
+    const groups = mcpData(list, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
     expect(groups.map((group) => group.name)).toContain('MCPGroup')
   })
 
@@ -285,10 +288,11 @@ describe('groups MCP parity', () => {
   })
 
   test('list_groups via MCP: member sees only their own groups; owner sees all (PROJ-319)', async () => {
-    const g1 = mcpData<{ id: string }>(
+    const g1 = mcpData(
       (await mcpCall(workspaceId, 'create_group', { name: 'G1' }, ownerHeaders)) as JsonRpcResult<{
         content: { text: string }[]
       }>,
+      IdResponse,
     )
     await mcpCall(workspaceId, 'create_group', { name: 'G2' }, ownerHeaders)
     await mcpCall(workspaceId, 'add_group_member', { groupId: g1.id, userId: roles.member.user.id }, ownerHeaders)
@@ -296,22 +300,23 @@ describe('groups MCP parity', () => {
     const memberList = (await mcpCall(workspaceId, 'list_groups', {}, memberHeaders)) as JsonRpcResult<{
       content: { text: string }[]
     }>
-    const memberGroups = mcpData<{ name: string }[]>(memberList)
+    const memberGroups = mcpData(memberList, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
     expect(memberGroups.map((g) => g.name)).toStrictEqual(['G1'])
 
     const ownerList = (await mcpCall(workspaceId, 'list_groups', {}, ownerHeaders)) as JsonRpcResult<{
       content: { text: string }[]
     }>
-    const ownerGroups = mcpData<{ name: string }[]>(ownerList)
+    const ownerGroups = mcpData(ownerList, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
     expect(ownerGroups.map((g) => g.name).sort()).toStrictEqual(['G1', 'G2'])
   })
 
   test('full admin loop over MCP: group -> grant -> member', async () => {
     const project = await seedProject(workspaceId, 'LOOP')
-    const created = mcpData<{ id: string }>(
+    const created = mcpData(
       (await mcpCall(workspaceId, 'create_group', { name: 'LoopGroup' }, ownerHeaders)) as JsonRpcResult<{
         content: { text: string }[]
       }>,
+      IdResponse,
     )
     const grant = await mcpCall(
       workspaceId,
@@ -328,10 +333,14 @@ describe('groups MCP parity', () => {
     )
     expect(isMcpError(addMember)).toBe(false)
 
-    const detail = mcpData<{ members: unknown[]; grants: unknown[] }>(
+    const detail = mcpData(
       (await mcpCall(workspaceId, 'get_group', { id: created.id }, ownerHeaders)) as JsonRpcResult<{
         content: { text: string }[]
       }>,
+      Schema.Struct({
+        grants: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
+        members: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
+      }),
     )
     expect(detail.members).toHaveLength(1)
     expect(detail.grants).toHaveLength(1)
