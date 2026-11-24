@@ -1,10 +1,11 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Hono } from 'hono'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 
 import { jsonBody } from '#api/http/body.ts'
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { authMiddleware, requireInteractiveHuman } from '#api/middleware/auth.ts'
+import { apiReply } from '#api/services/reply.ts'
 import { ApiUserBootstrap } from '#contracts/api-auth.ts'
 import { HTTP_CREATED, HTTP_FOUND } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
@@ -23,11 +24,9 @@ authRouter.get('/login', (httpContext) => {
 authRouter.get('/me', authMiddleware, async (httpContext) => {
   try {
     return httpContext.json(
-      await Effect.runPromise(
-        decodeCoreReply(
-          ApiUserBootstrap,
-          makeCoreClient(httpContext.env.CORE).apiUserBootstrap(httpContext.get('coreActor')),
-        ),
+      await apiReply(
+        ApiUserBootstrap,
+        makeCoreClient(httpContext.env.CORE).apiUserBootstrap(httpContext.get('coreActor')),
       ),
     )
   } catch (error) {
@@ -44,13 +43,11 @@ authRouter.post('/tokens', authMiddleware, async (httpContext) => {
     return denied
   }
   try {
-    const result = await Effect.runPromise(
-      decodeCoreReply(
-        Schema.Struct({ token: Schema.String }),
-        makeCoreClient(httpContext.env.CORE).apiCreateUserToken(
-          httpContext.get('coreActor'),
-          await jsonBody(httpContext),
-        ),
+    const result = await apiReply(
+      Schema.Struct({ token: Schema.String }),
+      makeCoreClient(httpContext.env.CORE).apiCreateUserToken(
+        httpContext.get('coreActor'),
+        await jsonBody(httpContext),
       ),
     )
     return httpContext.json(result, HTTP_CREATED)
@@ -66,13 +63,11 @@ authRouter.delete('/tokens/:id', authMiddleware, async (httpContext) => {
   }
   try {
     return httpContext.json(
-      await Effect.runPromise(
-        decodeCoreReply(
-          Schema.Struct({ ok: Schema.Boolean }),
-          makeCoreClient(httpContext.env.CORE).apiDeleteUserToken(
-            httpContext.get('coreActor'),
-            httpContext.req.param('id') ?? '',
-          ),
+      await apiReply(
+        Schema.Struct({ ok: Schema.Boolean }),
+        makeCoreClient(httpContext.env.CORE).apiDeleteUserToken(
+          httpContext.get('coreActor'),
+          httpContext.req.param('id') ?? '',
         ),
       ),
     )

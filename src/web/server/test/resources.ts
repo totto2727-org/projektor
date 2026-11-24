@@ -8,6 +8,7 @@ import { handleCoreFileRequest } from '#core/files.ts'
 import { makeWebCoreHandlers } from '#core/web/operations.ts'
 import type { WebCoreRpcShape } from '#core/web/operations.ts'
 import type { WebRequest, ScopeOptions } from '#core/web/scope.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import type { Env } from '@/request.ts'
 export type TestEnvironment = CoreEnvironment &
   Omit<Env, 'CORE'> & {
@@ -157,154 +158,154 @@ export const testEnvironment = function testEnvironment(
     ...env,
     CORE: overrides.CORE ?? {
       webSettingsGroups: (...args: Parameters<WebCoreRpcShape['webSettingsGroups']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsGroups(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSettingsGroups(...args)),
       webSettingsTokens: (...args: Parameters<WebCoreRpcShape['webSettingsTokens']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsTokens(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSettingsTokens(...args)),
       webSettingsConnectors: (...args: Parameters<WebCoreRpcShape['webSettingsConnectors']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsConnectors(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSettingsConnectors(...args)),
       webSettingsMcp: (...args: Parameters<WebCoreRpcShape['webSettingsMcp']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsMcp(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSettingsMcp(...args)),
       webCreateGroup: (...args: Parameters<WebCoreRpcShape['webCreateGroup']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateGroup(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateGroup(...args)),
       webUpdateGroup: (...args: Parameters<WebCoreRpcShape['webUpdateGroup']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateGroup(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateGroup(...args)),
       webDeleteGroup: (...args: Parameters<WebCoreRpcShape['webDeleteGroup']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteGroup(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDeleteGroup(...args)),
       webAddGroupMember: (...args: Parameters<WebCoreRpcShape['webAddGroupMember']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webAddGroupMember(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webAddGroupMember(...args)),
       webRemoveGroupMember: (...args: Parameters<WebCoreRpcShape['webRemoveGroupMember']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRemoveGroupMember(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webRemoveGroupMember(...args)),
       webSetGroupGrant: (...args: Parameters<WebCoreRpcShape['webSetGroupGrant']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSetGroupGrant(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSetGroupGrant(...args)),
       webRemoveGroupGrant: (...args: Parameters<WebCoreRpcShape['webRemoveGroupGrant']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRemoveGroupGrant(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webRemoveGroupGrant(...args)),
       webCreateToken: (...args: Parameters<WebCoreRpcShape['webCreateToken']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateToken(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateToken(...args)),
       webRevokeToken: (...args: Parameters<WebCoreRpcShape['webRevokeToken']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRevokeToken(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webRevokeToken(...args)),
       webDisconnectConnector: (...args: Parameters<WebCoreRpcShape['webDisconnectConnector']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDisconnectConnector(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDisconnectConnector(...args)),
       apiCheckRateLimit: (
         ...args: Parameters<ReturnType<typeof makeApiRateLimitHandlers<never>>['apiCheckRateLimit']>
-      ) => Effect.runPromise(makeApiRateLimitHandlers(Effect.succeed(result)).apiCheckRateLimit(...args)),
+      ) => runTestEffect(makeApiRateLimitHandlers(Effect.succeed(result)).apiCheckRateLimit(...args)),
       fetch: async (request: Request) =>
         (await handleApiBinaryRequest(request, result)) ?? handleCoreFileRequest(request, result),
       browserWorkspaceBrand: (...args: Parameters<WebCoreRpcShape['browserWorkspaceBrand']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).browserWorkspaceBrand(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).browserWorkspaceBrand(...args)),
       webFeedbackIndex: (...args: Parameters<WebCoreRpcShape['webFeedbackIndex']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webFeedbackIndex(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webFeedbackIndex(...args)),
       webFeedbackDetail: (...args: Parameters<WebCoreRpcShape['webFeedbackDetail']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webFeedbackDetail(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webFeedbackDetail(...args)),
       webCreateFeedbackSource: (...args: Parameters<WebCoreRpcShape['webCreateFeedbackSource']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateFeedbackSource(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateFeedbackSource(...args)),
       webUpdateFeedbackSource: (...args: Parameters<WebCoreRpcShape['webUpdateFeedbackSource']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateFeedbackSource(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateFeedbackSource(...args)),
       webRotateFeedbackSourceToken: (...args: Parameters<WebCoreRpcShape['webRotateFeedbackSourceToken']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRotateFeedbackSourceToken(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webRotateFeedbackSourceToken(...args)),
       webRevokeFeedbackSource: (...args: Parameters<WebCoreRpcShape['webRevokeFeedbackSource']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRevokeFeedbackSource(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webRevokeFeedbackSource(...args)),
       webUpdateFeedbackStatus: (...args: Parameters<WebCoreRpcShape['webUpdateFeedbackStatus']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateFeedbackStatus(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateFeedbackStatus(...args)),
       webConvertFeedback: (...args: Parameters<WebCoreRpcShape['webConvertFeedback']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webConvertFeedback(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webConvertFeedback(...args)),
       webBulkReviewFeedback: (...args: Parameters<WebCoreRpcShape['webBulkReviewFeedback']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webBulkReviewFeedback(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webBulkReviewFeedback(...args)),
       webBulkConvertFeedback: (...args: Parameters<WebCoreRpcShape['webBulkConvertFeedback']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webBulkConvertFeedback(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webBulkConvertFeedback(...args)),
       webSharedIssue: (...args: Parameters<WebCoreRpcShape['webSharedIssue']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSharedIssue(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSharedIssue(...args)),
       webWikiPage: (...args: Parameters<WebCoreRpcShape['webWikiPage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiPage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webWikiPage(...args)),
       webWikiDiff: (...args: Parameters<WebCoreRpcShape['webWikiDiff']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiDiff(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webWikiDiff(...args)),
       webWikiDraft: (...args: Parameters<WebCoreRpcShape['webWikiDraft']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiDraft(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webWikiDraft(...args)),
       webCreateWikiPage: (...args: Parameters<WebCoreRpcShape['webCreateWikiPage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateWikiPage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateWikiPage(...args)),
       webUpdateWikiPage: (...args: Parameters<WebCoreRpcShape['webUpdateWikiPage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateWikiPage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateWikiPage(...args)),
       webPublishWikiPage: (...args: Parameters<WebCoreRpcShape['webPublishWikiPage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webPublishWikiPage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webPublishWikiPage(...args)),
       webSaveWikiDraft: (...args: Parameters<WebCoreRpcShape['webSaveWikiDraft']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSaveWikiDraft(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSaveWikiDraft(...args)),
       webDiscardWikiDraft: (...args: Parameters<WebCoreRpcShape['webDiscardWikiDraft']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDiscardWikiDraft(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDiscardWikiDraft(...args)),
       webVerifyWikiPage: (...args: Parameters<WebCoreRpcShape['webVerifyWikiPage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webVerifyWikiPage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webVerifyWikiPage(...args)),
       webDeleteWikiPage: (...args: Parameters<WebCoreRpcShape['webDeleteWikiPage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteWikiPage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDeleteWikiPage(...args)),
       webUndeleteWikiPage: (...args: Parameters<WebCoreRpcShape['webUndeleteWikiPage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUndeleteWikiPage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUndeleteWikiPage(...args)),
       webRestoreWikiRevision: (...args: Parameters<WebCoreRpcShape['webRestoreWikiRevision']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRestoreWikiRevision(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webRestoreWikiRevision(...args)),
       webWikiSeed: (...args: Parameters<WebCoreRpcShape['webWikiSeed']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiSeed(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webWikiSeed(...args)),
       webProjectCatalog: (...args: Parameters<WebCoreRpcShape['webProjectCatalog']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webProjectCatalog(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webProjectCatalog(...args)),
       webProjectOverview: (...args: Parameters<WebCoreRpcShape['webProjectOverview']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webProjectOverview(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webProjectOverview(...args)),
       webCreateProject: (...args: Parameters<WebCoreRpcShape['webCreateProject']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateProject(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateProject(...args)),
       webUpdateProject: (...args: Parameters<WebCoreRpcShape['webUpdateProject']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateProject(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateProject(...args)),
       webFlowMetrics: (...args: Parameters<WebCoreRpcShape['webFlowMetrics']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webFlowMetrics(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webFlowMetrics(...args)),
       webCodeHeatmap: (...args: Parameters<WebCoreRpcShape['webCodeHeatmap']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCodeHeatmap(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCodeHeatmap(...args)),
       webCreateSprint: (...args: Parameters<WebCoreRpcShape['webCreateSprint']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateSprint(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateSprint(...args)),
       webDeleteSprint: (...args: Parameters<WebCoreRpcShape['webDeleteSprint']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteSprint(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDeleteSprint(...args)),
       webMoveSprintIssues: (...args: Parameters<WebCoreRpcShape['webMoveSprintIssues']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webMoveSprintIssues(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webMoveSprintIssues(...args)),
       webCreateIssue: (...args: Parameters<WebCoreRpcShape['webCreateIssue']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateIssue(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateIssue(...args)),
       webUpdateIssue: (...args: Parameters<WebCoreRpcShape['webUpdateIssue']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateIssue(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateIssue(...args)),
       webAddComment: (...args: Parameters<WebCoreRpcShape['webAddComment']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webAddComment(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webAddComment(...args)),
       webUpdateComment: (...args: Parameters<WebCoreRpcShape['webUpdateComment']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateComment(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateComment(...args)),
       webDeleteComment: (...args: Parameters<WebCoreRpcShape['webDeleteComment']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteComment(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDeleteComment(...args)),
       webCreateIssueLink: (...args: Parameters<WebCoreRpcShape['webCreateIssueLink']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateIssueLink(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateIssueLink(...args)),
       webDeleteIssueLink: (...args: Parameters<WebCoreRpcShape['webDeleteIssueLink']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteIssueLink(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDeleteIssueLink(...args)),
       webCreateShareToken: (...args: Parameters<WebCoreRpcShape['webCreateShareToken']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateShareToken(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateShareToken(...args)),
       webCreateLinkAttachment: (...args: Parameters<WebCoreRpcShape['webCreateLinkAttachment']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateLinkAttachment(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webCreateLinkAttachment(...args)),
       webDeleteStoredAttachment: (...args: Parameters<WebCoreRpcShape['webDeleteStoredAttachment']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteStoredAttachment(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webDeleteStoredAttachment(...args)),
       webSetAttachmentReviewStatus: (...args: Parameters<WebCoreRpcShape['webSetAttachmentReviewStatus']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSetAttachmentReviewStatus(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSetAttachmentReviewStatus(...args)),
       webUpdateSprint: (...args: Parameters<WebCoreRpcShape['webUpdateSprint']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateSprint(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webUpdateSprint(...args)),
       webIssue: (...args: Parameters<WebCoreRpcShape['webIssue']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssue(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssue(...args)),
       webIssuePage: (...args: Parameters<WebCoreRpcShape['webIssuePage']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssuePage(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssuePage(...args)),
       webIssueSearch: (...args: Parameters<WebCoreRpcShape['webIssueSearch']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueSearch(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssueSearch(...args)),
       webIssueComments: (...args: Parameters<WebCoreRpcShape['webIssueComments']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueComments(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssueComments(...args)),
       webIssueLinks: (...args: Parameters<WebCoreRpcShape['webIssueLinks']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueLinks(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssueLinks(...args)),
       webIssueAttachments: (...args: Parameters<WebCoreRpcShape['webIssueAttachments']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueAttachments(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssueAttachments(...args)),
       webWikiAttachmentSearch: (...args: Parameters<WebCoreRpcShape['webWikiAttachmentSearch']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiAttachmentSearch(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webWikiAttachmentSearch(...args)),
       webIssueLookups: (...args: Parameters<WebCoreRpcShape['webIssueLookups']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueLookups(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssueLookups(...args)),
       webIssueMembers: (...args: Parameters<WebCoreRpcShape['webIssueMembers']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueMembers(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webIssueMembers(...args)),
       webSprints: (...args: Parameters<WebCoreRpcShape['webSprints']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSprints(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSprints(...args)),
       webSprint: (...args: Parameters<WebCoreRpcShape['webSprint']>) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSprint(...args)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).webSprint(...args)),
       browserScope: (request: WebRequest, options: ScopeOptions = {}) =>
-        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).browserScope(request, options)),
+        runTestEffect(makeWebCoreHandlers(Effect.succeed(result)).browserScope(request, options)),
     },
   }
   return result

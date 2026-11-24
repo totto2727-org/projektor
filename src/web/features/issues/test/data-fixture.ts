@@ -4,6 +4,7 @@ import { vi } from 'vite-plus/test'
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -118,7 +119,7 @@ export const issueDataFixture = function issueDataFixture() {
     )
   }
   const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>): Promise<A> {
-    return Effect.runPromise(
+    return runTestEffect(
       Effect.gen(function* () {
         const native = yield* services()
         yield* native.scope()

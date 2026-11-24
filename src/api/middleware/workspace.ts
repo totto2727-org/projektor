@@ -1,8 +1,9 @@
-import { String, Predicate, Effect } from 'effect'
+import { String, Predicate } from 'effect'
 import type { Context, Next } from 'hono'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
 
+import { apiReply } from '#api/services/reply.ts'
 import { ApiWorkspace } from '#contracts/api-auth.ts'
 import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
@@ -36,14 +37,12 @@ const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
     return
   }
   try {
-    await Effect.runPromise(
-      decodeCoreReply(
-        ApiWorkspace,
-        makeCoreClient(httpContext.env.CORE).apiResolveWorkspace(httpContext.get('coreActor'), {
-          kind: 'slug',
-          value: labels[0],
-        }),
-      ),
+    await apiReply(
+      ApiWorkspace,
+      makeCoreClient(httpContext.env.CORE).apiResolveWorkspace(httpContext.get('coreActor'), {
+        kind: 'slug',
+        value: labels[0],
+      }),
     )
     console.warn(
       'An authorized workspace subdomain was ignored because WORKSPACE_SUBDOMAIN_ROUTING is off; rejecting request',
@@ -82,11 +81,9 @@ export const workspaceMiddleware = async function workspaceMiddleware(
       ? { kind: 'slug' as const, value: slug }
       : { kind: 'id' as const, value: workspaceId ?? '' }
   try {
-    const workspace = await Effect.runPromise(
-      decodeCoreReply(
-        ApiWorkspace,
-        makeCoreClient(httpContext.env.CORE).apiResolveWorkspace(httpContext.get('coreActor'), target),
-      ),
+    const workspace = await apiReply(
+      ApiWorkspace,
+      makeCoreClient(httpContext.env.CORE).apiResolveWorkspace(httpContext.get('coreActor'), target),
     )
     httpContext.set('workspace', { id: workspace.id, name: workspace.name, slug: workspace.slug })
     httpContext.set('role', workspace.role)

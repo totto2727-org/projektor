@@ -7,5 +7,6 @@ export const apiReply = function apiReply<S extends Schema.Top & { readonly Deco
   schema: S,
   invocation: Effect.Effect<string, E>,
 ): Promise<S['Type']> {
+  // oxlint-disable-next-line rules/no-effect-runtime-run -- Hono and the Worker runtime await this promise at their request boundaries.
   return Effect.runPromise(decodeCoreReply(schema, invocation))
 }

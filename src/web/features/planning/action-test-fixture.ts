@@ -2,6 +2,7 @@ import { Iterable, Effect, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { afterEach, vi } from 'vite-plus/test'
 
+import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { inMemoryKV, inMemoryR2, testEnvironment } from '@/server/test/resources.ts'
 import type { TestEnvironment } from '@/server/test/resources.ts'
@@ -98,7 +99,7 @@ export const actionFixture = function actionFixture(
     if (!definition) {
       throw new Error('Unregistered feature ServerFn.')
     }
-    return Effect.runPromise(
+    return runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(
           new Request('https://front.example/_effront/functions', {

@@ -6,6 +6,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { CommandOkSchema } from '#core/web/command-contract.ts'
 import type { BrowserCommand } from '#core/web/command-contract.ts'
 import { makeWebCoreHandlers } from '#core/web/operations.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 import { browserRequest } from '@/core.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 
@@ -30,10 +31,11 @@ const fixture = function fixture() {
     workspaceSlug: 'workspace',
     projectId: 'project-a',
   }
-  const invoke = (input: BrowserCommand) =>
-    Effect.runPromiseExit(
-      decodeCoreReply(CommandOkSchema, handlers.webUpdateIssue(input, 'issue-a', { title: 'From Core' })),
-    )
+  const invoke = (input: BrowserCommand) => {
+    const reply = handlers.webUpdateIssue(input, 'issue-a', { title: 'From Core' })
+    const decoded = decodeCoreReply(CommandOkSchema, reply)
+    return runTestEffect(Effect.exit(decoded))
+  }
   return { database, env, proof, invoke }
 }
 

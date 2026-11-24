@@ -1,9 +1,10 @@
-import { String, Predicate, Effect } from 'effect'
+import { String, Predicate } from 'effect'
 import type { Context } from 'hono'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 
 import { authMiddleware } from '#api/middleware/auth.ts'
 import { subdomainRoutingEnabled } from '#api/middleware/workspace.ts'
+import { apiReply } from '#api/services/reply.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import { getWikiPage } from '#api/services/wiki.ts'
 import { ApiWorkspace } from '#contracts/api-auth.ts'
@@ -38,14 +39,12 @@ const resolveWikiWorkspaceContext = async function resolveWikiWorkspaceContext(
   }
 
   try {
-    return await Effect.runPromise(
-      decodeCoreReply(
-        ApiWorkspace,
-        makeCoreClient(httpContext.env.CORE).apiResolveWorkspace(httpContext.get('coreActor'), {
-          kind: 'slug',
-          value: slug,
-        }),
-      ),
+    return await apiReply(
+      ApiWorkspace,
+      makeCoreClient(httpContext.env.CORE).apiResolveWorkspace(httpContext.get('coreActor'), {
+        kind: 'slug',
+        value: slug,
+      }),
     )
   } catch {
     return null

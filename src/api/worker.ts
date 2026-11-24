@@ -1,11 +1,12 @@
-import { String, Predicate, Effect, Schema } from 'effect'
+import { String, Predicate, Schema } from 'effect'
 import type { Context, Next } from 'hono'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
 
+import { apiReply } from '#api/services/reply.ts'
 import { ApiDevelopmentBootstrap } from '#contracts/api-auth.ts'
 import { ApiResults } from '#contracts/api-results.ts'
 import { ServiceError } from '#contracts/errors.ts'
@@ -96,13 +97,11 @@ app.route('/oauth', oauthRouter)
 
 app.get('/bootstrap', async (httpContext) => {
   try {
-    const result = await Effect.runPromise(
-      decodeCoreReply(
-        ApiDevelopmentBootstrap,
-        makeCoreClient(httpContext.env.CORE).apiBootstrap(
-          httpContext.req.header('X-Bootstrap-Secret') ?? httpContext.req.query('setup_secret'),
-          httpContext.req.url,
-        ),
+    const result = await apiReply(
+      ApiDevelopmentBootstrap,
+      makeCoreClient(httpContext.env.CORE).apiBootstrap(
+        httpContext.req.header('X-Bootstrap-Secret') ?? httpContext.req.query('setup_secret'),
+        httpContext.req.url,
       ),
     )
     return httpContext.json(result)
@@ -113,23 +112,19 @@ app.get('/bootstrap', async (httpContext) => {
 app.route('/api/share', sharePublicRouter)
 app.route('/auth', authRouter)
 app.get('/api/workspaces', authMiddleware, async (httpContext) => {
-  const result = await Effect.runPromise(
-    decodeCoreReply(
-      ApiResults.apiListWorkspaces,
-      makeCoreClient(httpContext.env.CORE).apiListWorkspaces(httpContext.get('coreActor')),
-    ),
+  const result = await apiReply(
+    ApiResults.apiListWorkspaces,
+    makeCoreClient(httpContext.env.CORE).apiListWorkspaces(httpContext.get('coreActor')),
   )
   return httpContext.json(result)
 })
 app.post('/api/workspaces', authMiddleware, async (httpContext) => {
   try {
-    const result = await Effect.runPromise(
-      decodeCoreReply(
-        ApiResults.apiCreateWorkspace,
-        makeCoreClient(httpContext.env.CORE).apiCreateWorkspace(
-          httpContext.get('coreActor'),
-          await jsonBody(httpContext),
-        ),
+    const result = await apiReply(
+      ApiResults.apiCreateWorkspace,
+      makeCoreClient(httpContext.env.CORE).apiCreateWorkspace(
+        httpContext.get('coreActor'),
+        await jsonBody(httpContext),
       ),
     )
     return httpContext.json(result, HTTP_CREATED)
@@ -140,13 +135,11 @@ app.post('/api/workspaces', authMiddleware, async (httpContext) => {
 app.use('/api/workspaces/:slug/*', authMiddleware, workspaceMiddleware)
 app.get('/api/projects', authMiddleware, etagMiddleware, async (httpContext) => {
   try {
-    const result = await Effect.runPromise(
-      decodeCoreReply(
-        ApiResults.apiListProjects,
-        makeCoreClient(httpContext.env.CORE).apiListProjects(
-          httpContext.get('coreActor'),
-          httpContext.req.query('includeArchived') === 'true',
-        ),
+    const result = await apiReply(
+      ApiResults.apiListProjects,
+      makeCoreClient(httpContext.env.CORE).apiListProjects(
+        httpContext.get('coreActor'),
+        httpContext.req.query('includeArchived') === 'true',
       ),
     )
     return httpContext.json(result)
@@ -258,7 +251,7 @@ export const scheduled = async function scheduled(
   env: ApiEnv,
   ctx: ExecutionContext,
 ): Promise<void> {
-  ctx.waitUntil(Effect.runPromise(decodeCoreReply(Schema.Null, makeCoreClient(env.CORE).apiMaintenance())))
+  ctx.waitUntil(apiReply(Schema.Null, makeCoreClient(env.CORE).apiMaintenance()))
 }
 
 /*

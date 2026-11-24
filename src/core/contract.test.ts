@@ -149,9 +149,11 @@ describe('core native RPC public boundary', () => {
   )
 
   test('preserves interruption rather than returning an application failure', async () => {
-    const reply = await Effect.runPromiseExit(coreReply('load', Success, Effect.interrupt))
+    const replyEffect = coreReply('load', Success, Effect.interrupt)
+    const reply = await runTestEffect(Effect.exit(replyEffect))
     expect(Exit.isFailure(reply) && Cause.hasInterruptsOnly(reply.cause)).toBe(true)
-    const decoded = await Effect.runPromiseExit(decodeCoreReply(Success, Effect.interrupt))
+    const decodeEffect = decodeCoreReply(Success, Effect.interrupt)
+    const decoded = await runTestEffect(Effect.exit(decodeEffect))
     expect(Exit.isFailure(decoded) && Cause.hasInterruptsOnly(decoded.cause)).toBe(true)
   })
 

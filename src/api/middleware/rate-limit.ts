@@ -1,7 +1,8 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import type { Context, Next } from 'hono'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 
+import { apiReply } from '#api/services/reply.ts'
 import { HTTP_TOO_MANY_REQUESTS } from '#contracts/http-status.ts'
 import { RateLimitResult, rateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
 import type { ApiEnv, HonoEnv } from '#types'
@@ -10,15 +11,13 @@ export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-ra
 
 /** Auth failures share the same Core-owned counter backend as normal requests. */
 export const bumpRateCounter = function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): Promise<number> {
-  return Effect.runPromise(
-    decodeCoreReply(
-      Schema.Number,
-      makeCoreClient(env.CORE).apiBumpRateCounter({
-        key,
-        windowSecs,
-        testPolicy: rateLimitTestPolicy(env),
-      }),
-    ),
+  return apiReply(
+    Schema.Number,
+    makeCoreClient(env.CORE).apiBumpRateCounter({
+      key,
+      windowSecs,
+      testPolicy: rateLimitTestPolicy(env),
+    }),
   )
 }
 
@@ -29,15 +28,13 @@ export const rateLimitMiddleware = async function rateLimitMiddleware(
 ): Promise<Response | undefined> {
   let limited: typeof RateLimitResult.Type = null
   try {
-    limited = await Effect.runPromise(
-      decodeCoreReply(
-        RateLimitResult,
-        makeCoreClient(httpContext.env.CORE).apiCheckRateLimit({
-          authorization: httpContext.req.header('Authorization'),
-          ip: httpContext.req.header('CF-Connecting-IP'),
-          testPolicy: rateLimitTestPolicy(httpContext.env),
-        }),
-      ),
+    limited = await apiReply(
+      RateLimitResult,
+      makeCoreClient(httpContext.env.CORE).apiCheckRateLimit({
+        authorization: httpContext.req.header('Authorization'),
+        ip: httpContext.req.header('CF-Connecting-IP'),
+        testPolicy: rateLimitTestPolicy(httpContext.env),
+      }),
     )
   } catch {
     // Preserve fail-open outage policy without logging credentials or remote diagnostics.

@@ -1,9 +1,10 @@
-import { String, Predicate, Effect, Schema } from 'effect'
+import { String, Predicate, Schema } from 'effect'
 import type { Context, Next } from 'hono'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
 
 import { unauthorizedChallenge } from '#api/auth/challenge.ts'
+import { apiReply } from '#api/services/reply.ts'
 import { ApiPrincipal, VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
 import type { ApiUser } from '#contracts/api-auth.ts'
 import { capabilityForMethod, tokenAllows } from '#contracts/auth-scopes.ts'
@@ -75,9 +76,7 @@ export const authMiddleware = async function authMiddleware(
 ): Promise<void | Response> {
   const actor = requestActor(httpContext)
   try {
-    const principal = await Effect.runPromise(
-      decodeCoreReply(ApiPrincipal, makeCoreClient(httpContext.env.CORE).apiAuthenticate(actor)),
-    )
+    const principal = await apiReply(ApiPrincipal, makeCoreClient(httpContext.env.CORE).apiAuthenticate(actor))
     const scopes = principal.tokenScopes
     if (Predicate.isNotNullish(scopes) && !httpContext.req.path.startsWith('/mcp/')) {
       const required = capabilityForMethod(httpContext.req.method)
