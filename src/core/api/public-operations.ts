@@ -10,6 +10,7 @@ import {
   ApiSharedIssue,
   ApiSubmittedFeedback,
 } from '#contracts/api-public.ts'
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
@@ -34,7 +35,7 @@ export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
           const principal = await resolveCorePrincipal(actor, env)
           requireCoreCapability(principal, 'read')
           if (principal.auth.kind !== 'human' || !['access', 'dev'].includes(principal.auth.method)) {
-            throw coreFailure(403, 'Connector authorization requires a signed-in browser session')
+            throw coreFailure(HTTP_FORBIDDEN, 'Connector authorization requires a signed-in browser session')
           }
           return lookupConsentWorkspace(env.DB, principal.user.id, workspaceId)
         }),

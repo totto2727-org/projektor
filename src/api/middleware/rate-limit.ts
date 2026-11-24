@@ -2,6 +2,7 @@ import { Effect, Schema } from 'effect'
 import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
+import { HTTP_TOO_MANY_REQUESTS } from '#contracts/http-status.ts'
 import { RateLimitResult, rateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
 import type { ApiEnv, HonoEnv } from '#types'
 
@@ -44,7 +45,7 @@ export const rateLimitMiddleware = async function rateLimitMiddleware(
   }
   if (limited) {
     httpContext.header('Retry-After', String(limited.retryAfter))
-    return httpContext.json({ error: 'Too Many Requests' }, 429)
+    return httpContext.json({ error: 'Too Many Requests' }, HTTP_TOO_MANY_REQUESTS)
   }
   await next()
   return undefined

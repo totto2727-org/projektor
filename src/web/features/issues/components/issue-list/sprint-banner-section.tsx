@@ -83,7 +83,7 @@ interface SprintBannerProps {
   setSprintEditEnd: Dispatch<SetStateAction<string>>
   sprintEditSaving: boolean
   sprintEditError: string | null
-  saveSprintEdit: (e: import('react').FormEvent<HTMLFormElement>) => void
+  saveSprintEdit: (selectedEvent: import('react').FormEvent<HTMLFormElement>) => void
   openSprintEdit: () => void
   setFilterSprintId: Dispatch<SetStateAction<string>>
   issues: Issue[]

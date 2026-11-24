@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import * as commands from '#commands/projects.ts'
+import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import {
   CreatedProjectSchema,
   ProjectMutationResultSchema,
@@ -64,7 +65,7 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
               yield* checked(() => requireDataProject(scope, projectId, workspaceId))
               const project = yield* findProjectById(env.DB, workspaceId, projectId)
               if (!project) {
-                return yield* coreFailure(404, 'Selected project is not accessible.')
+                return yield* coreFailure(HTTP_NOT_FOUND, 'Selected project is not accessible.')
               }
               const orm = drizzle(env.DB, { schema })
               const [issues, wiki, flow] = yield* Effect.all(

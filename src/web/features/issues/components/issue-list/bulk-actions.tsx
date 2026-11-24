@@ -64,8 +64,8 @@ export function IssueBulkProvider({
         unwrapResult(await updateIssue({ workspaceSlug, issueId: id, patch: changes }))
       }
       setSelected(new Set())
-    } catch (cause) {
-      setError(`Bulk update failed: ${cause instanceof Error ? cause.message : String(cause)}`)
+    } catch (currentError) {
+      setError(`Bulk update failed: ${currentError instanceof Error ? currentError.message : String(currentError)}`)
     }
     setBusy(false)
   }

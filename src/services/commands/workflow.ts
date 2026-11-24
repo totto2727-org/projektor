@@ -42,9 +42,9 @@ let cachedVersion: Promise<string> | undefined
 
 const getWorkflowVersion = function getWorkflowVersion(): Promise<string> {
   if (!cachedVersion) {
-    cachedVersion = hashWorkflowContent(JSON.stringify(WORKFLOW_PAYLOAD)).catch((e) => {
+    cachedVersion = hashWorkflowContent(JSON.stringify(WORKFLOW_PAYLOAD)).catch((error) => {
       cachedVersion = undefined
-      throw e
+      throw error
     })
   }
   return cachedVersion

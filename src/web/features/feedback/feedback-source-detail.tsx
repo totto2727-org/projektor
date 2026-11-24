@@ -27,8 +27,8 @@ type TabId = 'items' | 'summary' | 'settings'
 const TABS: TabId[] = ['items', 'summary', 'settings']
 const TAB_LABELS: Record<TabId, string> = {
   items: 'Items',
-  summary: 'Summary',
   settings: 'Settings',
+  summary: 'Summary',
 }
 
 const TAB_LIST = 'flex gap-1 border-b border-border mb-4'
@@ -135,7 +135,7 @@ function FeedbackTabBar({
 }: {
   tab: TabId
   tabRefs: { current: Partial<Record<TabId, HTMLAnchorElement | null>> }
-  onTabKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void
+  onTabKeyDown: (selectedEvent: React.KeyboardEvent<HTMLDivElement>) => void
   hrefForTab: (id: TabId) => string
 }) {
   return (

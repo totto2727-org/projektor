@@ -4,6 +4,7 @@ import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
 
 import { ApiWorkspace } from '#contracts/api-auth.ts'
+import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 export const subdomainRoutingEnabled = function subdomainRoutingEnabled(value: string | undefined): boolean {
@@ -70,7 +71,7 @@ export const workspaceMiddleware = async function workspaceMiddleware(httpContex
       {
         error: routingEnabled ? 'Workspace not specified' : 'Workspace not specified: missing X-Workspace-Slug header',
       },
-      400,
+      HTTP_BAD_REQUEST,
     )
   }
   const target =

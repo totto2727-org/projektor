@@ -328,7 +328,7 @@ describe('task Types — issue integration', () => {
     })
     const page = (await res.json()) as { items: { title: string }[] }
     expect(page.items).toHaveLength(2)
-    expect(page.items.every((i) => i.title.startsWith('Bug'))).toBe(true)
+    expect(page.items.every((item) => item.title.startsWith('Bug'))).toBe(true)
   })
 
   test('handles GET /api/issues returns type_key and type_name in list', async () => {

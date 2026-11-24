@@ -68,7 +68,7 @@ export const useCreateIssueModal = function useCreateIssueModal({ workspaceSlug,
 
   const openCreateModal = function openCreateModal(): void {
     const targetProjectId = filterProject
-      ? (projects.find((p) => p.key === filterProject)?.id ?? projects[0]?.id ?? '')
+      ? (projects.find((project) => project.key === filterProject)?.id ?? projects[0]?.id ?? '')
       : (projects[0]?.id ?? '')
     setCreateProjectId(targetProjectId)
     setCreateTitle('')

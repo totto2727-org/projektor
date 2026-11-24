@@ -187,7 +187,7 @@ describe('bounded and atomic shared mutations', () => {
     const insert = testFixture.sqlite.prepare(`INSERT INTO wiki_notifications
       (id,workspace_id,user_id,page_id,page_slug,page_title,action,summary,created_at)
       VALUES (?, ?, ?, 'page','page','Page','updated','Changed',1)`)
-    const ids = Array.from({ length: count }, (_, i) => `n${i}`)
+    const ids = Array.from({ length: count }, (_value, index) => `n${index}`)
     Iterable.forEach(ids, (id) => {
       insert.run(id, 'w', 'u')
     })

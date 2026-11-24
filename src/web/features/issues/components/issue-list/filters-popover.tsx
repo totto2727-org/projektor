@@ -54,25 +54,27 @@ function StatusPills({
 }) {
   return (
     <div className='flex flex-wrap gap-1 mb-3'>
-      {derivedStatuses.map((s) => {
-        const active = filterStatuses.includes(s.id)
+      {derivedStatuses.map((selectedStatus) => {
+        const active = filterStatuses.includes(selectedStatus.id)
         return (
           <button
             type='button'
-            key={s.id}
+            key={selectedStatus.id}
             aria-pressed={active}
             onClick={() => {
-              setFilterStatuses((prev) => (active ? prev.filter((id) => id !== s.id) : [...prev, s.id]))
+              setFilterStatuses((prev) =>
+                active ? prev.filter((id) => id !== selectedStatus.id) : [...prev, selectedStatus.id],
+              )
             }}
             className='py-1 px-[0.625rem] rounded-full cursor-pointer text-[0.8rem]'
             style={{
               border: active ? 'none' : '1px solid var(--border)',
-              background: active ? categoryColor(s.category) : 'var(--bg)',
+              background: active ? categoryColor(selectedStatus.category) : 'var(--bg)',
               color: active ? 'var(--on-accent)' : 'var(--text)',
               fontWeight: active ? 600 : 400,
             }}
           >
-            {s.name}
+            {selectedStatus.name}
           </button>
         )
       })}

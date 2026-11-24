@@ -4,6 +4,7 @@ import { jsonBody } from '#api/http/body.ts'
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { createProject, deleteProject, getProject, getProjectBySlug, updateProject } from '#api/services/projects.ts'
 import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -14,7 +15,7 @@ router.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
-    return httpContext.json(await createProject(ctx, body), 201)
+    return httpContext.json(await createProject(ctx, body), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

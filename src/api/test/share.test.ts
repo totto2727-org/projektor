@@ -189,8 +189,8 @@ describe('share tokens', () => {
     const data = (await res.json()) as {
       customFields: { key: string; value: string }[]
     }
-    expect(data.customFields.some((f) => f.key === 'secret_notes')).toBe(false)
-    expect(data.customFields.some((f) => f.key === 'public_note')).toBe(true)
+    expect(data.customFields.some((field) => field.key === 'secret_notes')).toBe(false)
+    expect(data.customFields.some((field) => field.key === 'public_note')).toBe(true)
   })
 
   test('covers PROJ-242: revokes a share token so it no longer resolves', async () => {

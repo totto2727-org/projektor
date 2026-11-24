@@ -11,6 +11,7 @@ import {
   startWork,
 } from '#api/services/agents.ts'
 import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -19,7 +20,7 @@ const router = new Hono<HonoEnv>()
 router.post('/start-work', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
-    return httpContext.json(await startWork(ctx, await jsonBody(httpContext)), 201)
+    return httpContext.json(await startWork(ctx, await jsonBody(httpContext)), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }
@@ -47,7 +48,7 @@ router.get('/', async (httpContext) => {
 router.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
-    return httpContext.json(await registerAgent(ctx, await jsonBody(httpContext)), 201)
+    return httpContext.json(await registerAgent(ctx, await jsonBody(httpContext)), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

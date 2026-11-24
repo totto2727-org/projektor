@@ -55,7 +55,7 @@ describe('covers PROJ-857: issue list cursor', () => {
       } else {
         expect(body.total).toBeNull()
       } // count only on the first page
-      seen.push(...body.items.map((i) => i.id))
+      seen.push(...body.items.map((item) => item.id))
       cursor = body.nextCursor
       pages++
     } while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) && pages < 10)

@@ -254,16 +254,16 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const fixture = await seedFixture({ role: 'owner' })
     const slug = fixture.workspace.slug
     const project = await seedProject(fixture.workspace.id)
-    const a = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
+    const issue = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
     const b = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
 
-    await fetchNativeApi(`http://localhost/api/issues/${a.id}/links`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issue.id}/links`, {
       method: 'POST',
       headers: authHeaders(fixture.token, slug),
       body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
     })
 
-    const detail = await fetchNativeApi(`http://localhost/api/issues/${a.id}`, {
+    const detail = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(fixture.token, slug),
     })
     const { project_key: key, number } = (await detail.json()) as {
@@ -274,7 +274,7 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const byRef = await fetchNativeApi(`http://localhost/api/issues/${key}-${number}/links`, {
       headers: authHeaders(fixture.token, slug),
     })
-    const byUuid = await fetchNativeApi(`http://localhost/api/issues/${a.id}/links`, {
+    const byUuid = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/links`, {
       headers: authHeaders(fixture.token, slug),
     })
 
@@ -290,9 +290,9 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
   test("resolves a colliding ref inside the caller's own workspace", async () => {
     const mine = await seedFixture({ role: 'owner' })
     const myProject = await seedProject(mine.workspace.id, 'DUP')
-    const a = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'A' })
+    const issue = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'A' })
     const b = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'B' })
-    await fetchNativeApi(`http://localhost/api/issues/${a.id}/links`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issue.id}/links`, {
       method: 'POST',
       headers: authHeaders(mine.token, mine.workspace.slug),
       body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
@@ -308,7 +308,7 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
 
     expect(res.status).toBe(200)
     const links = (await res.json()) as { linkedIssueId: string }[]
-    expect(links.map((l) => l.linkedIssueId)).toEqual([b.id])
+    expect(links.map((link) => link.linkedIssueId)).toEqual([b.id])
   })
 
   test('a ref that exists only in another workspace is 404', async () => {
@@ -328,12 +328,12 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const fixture = await seedFixture({ role: 'owner' })
     const project = await seedProject(fixture.workspace.id)
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
-    const b = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
+    const issue = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${project.key}-1/links`, {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
-      body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
+      body: JSON.stringify({ targetIssueId: issue.id, type: 'blocks' }),
     })
 
     expect(res.status).toBe(201)

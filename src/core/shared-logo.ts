@@ -1,4 +1,5 @@
 import { getSharedLogo } from '#commands/share.ts'
+import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 
 import { coreFailure, CorePublicError } from './contract.ts'
 import { publicDomainFailure } from './domain-errors.ts'
@@ -21,11 +22,11 @@ export const handleSharedLogoRequest = async function handleSharedLogoRequest(
     try {
       token = decodeURIComponent(match[1])
     } catch {
-      throw coreFailure(400, 'Invalid logo address.')
+      throw coreFailure(HTTP_BAD_REQUEST, 'Invalid logo address.')
     }
     const object = await getSharedLogo(env.DB, env.R2, token)
     if (!object) {
-      throw coreFailure(404, 'No logo set')
+      throw coreFailure(HTTP_NOT_FOUND, 'No logo set')
     }
     if (request.method === 'HEAD') {
       await object.body.cancel()
@@ -39,7 +40,10 @@ export const handleSharedLogoRequest = async function handleSharedLogoRequest(
     })
   } catch (error) {
     const selected = publicDomainFailure(error)
-    const problem = selected instanceof CorePublicError ? selected : coreFailure(500, 'An unexpected error occurred.')
+    const problem =
+      selected instanceof CorePublicError
+        ? selected
+        : coreFailure(HTTP_INTERNAL_SERVER_ERROR, 'An unexpected error occurred.')
     if (!(selected instanceof CorePublicError)) {
       console.error('[core]', { operation: 'shareLogo', occurrenceId: problem.occurrenceId, cause: error })
     }

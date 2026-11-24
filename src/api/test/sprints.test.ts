@@ -181,7 +181,7 @@ describe('sprints API', () => {
     })
     const page = (await listRes.json()) as { items: { title: string }[] }
     expect(page.items).toHaveLength(2)
-    const titles = page.items.map((i) => i.title).sort()
+    const titles = page.items.map((item) => item.title).sort()
     expect(titles).toEqual(['Issue A', 'Issue B'])
   })
 

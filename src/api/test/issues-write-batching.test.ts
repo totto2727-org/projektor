@@ -355,11 +355,11 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
      */
     const other = await seedProjectFixture({ role: 'owner' })
     const foreignChain = await seedChain(other, 6)
-    const p = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'P' })
-    await env.DB.prepare('UPDATE issues SET parent_id = ? WHERE id = ?').bind(foreignChain[5], p.id).run()
+    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'P' })
+    await env.DB.prepare('UPDATE issues SET parent_id = ? WHERE id = ?').bind(foreignChain[5], issue.id).run()
 
     await expect(
-      createIssue(ctx, { projectId: f.projectId, title: 'child of P', parentId: p.id }),
+      createIssue(ctx, { projectId: f.projectId, title: 'child of P', parentId: issue.id }),
     ).resolves.toMatchObject({ number: expect.any(Number) })
   })
 })

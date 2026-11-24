@@ -48,9 +48,9 @@ const accent = 'var(--accent)'
 const muted = 'var(--text-muted)'
 const sequential = {
   backlogTodo: 'var(--chart-seq-1)',
+  done: 'var(--chart-seq-4)',
   inProgress: 'var(--chart-seq-2)',
   inReview: 'var(--chart-seq-3)',
-  done: 'var(--chart-seq-4)',
 }
 const margin = { top: 12, right: 12, bottom: 0, left: 0 }
 

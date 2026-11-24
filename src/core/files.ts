@@ -1,6 +1,7 @@
 import { Predicate, Schema } from 'effect'
 
 import { getAttachmentForDownload, storageQuotaBytes, uploadStoredAttachment } from '#commands/files.ts'
+import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 
 import { CoreActor, resolveCoreServiceCtx } from './authorization.ts'
 import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from './contract.ts'
@@ -26,29 +27,29 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
     try {
       actor = Schema.decodeUnknownSync(Schema.fromJsonString(CoreActor))(request.headers.get(CORE_ACTOR_HEADER))
     } catch {
-      throw coreFailure(400, 'Invalid file request')
+      throw coreFailure(HTTP_BAD_REQUEST, 'Invalid file request')
     }
     const workspaceIds = url.searchParams.getAll('workspaceId')
     if (workspaceIds.length !== 1 || !workspaceIds[0]) {
-      throw coreFailure(400, 'Workspace not specified')
+      throw coreFailure(HTTP_BAD_REQUEST, 'Workspace not specified')
     }
     const ctx = await resolveCoreServiceCtx(actor, workspaceIds[0], upload ? 'write' : 'read', env)
     if (upload) {
       const form = await request.formData().catch(() => null)
       if (!form) {
-        throw coreFailure(400, 'Expected multipart/form-data')
+        throw coreFailure(HTTP_BAD_REQUEST, 'Expected multipart/form-data')
       }
       const file = form.get('file')
       const entityType = form.get('entity_type') ?? form.get('entityType')
       const entityId = form.get('entity_id') ?? form.get('entityId')
       if (!(file instanceof File)) {
-        throw coreFailure(400, 'Missing file field')
+        throw coreFailure(HTTP_BAD_REQUEST, 'Missing file field')
       }
       if (entityType !== 'issue' && entityType !== 'wiki_page') {
-        throw coreFailure(400, 'entityType must be issue or wiki_page')
+        throw coreFailure(HTTP_BAD_REQUEST, 'entityType must be issue or wiki_page')
       }
       if (!Predicate.isString(entityId) || !entityId) {
-        throw coreFailure(400, 'entityId is required')
+        throw coreFailure(HTTP_BAD_REQUEST, 'entityId is required')
       }
       return Response.json(await uploadStoredAttachment(ctx, { file, entityType, entityId }, storageQuotaBytes(env)), {
         status: 201,
@@ -58,7 +59,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
     try {
       id = decodeURIComponent(download![1])
     } catch {
-      throw coreFailure(400, 'Invalid attachment identifier')
+      throw coreFailure(HTTP_BAD_REQUEST, 'Invalid attachment identifier')
     }
     const metadata = await getAttachmentForDownload(ctx, id)
     const headers = {
@@ -72,13 +73,16 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
     }
     const object = await env.R2.get(metadata.r2Key)
     if (!object) {
-      throw coreFailure(404, 'Object missing from storage')
+      throw coreFailure(HTTP_NOT_FOUND, 'Object missing from storage')
     }
     // The native binding transports the R2 stream with cancellation and backpressure intact.
     return new Response(object.body, { headers })
   } catch (error) {
     const selected = publicDomainFailure(error)
-    const problem = selected instanceof CorePublicError ? selected : coreFailure(500, 'An unexpected error occurred.')
+    const problem =
+      selected instanceof CorePublicError
+        ? selected
+        : coreFailure(HTTP_INTERNAL_SERVER_ERROR, 'An unexpected error occurred.')
     if (!(selected instanceof CorePublicError)) {
       console.error('[core]', { operation: 'fileTransfer', occurrenceId: problem.occurrenceId, cause: error })
     }

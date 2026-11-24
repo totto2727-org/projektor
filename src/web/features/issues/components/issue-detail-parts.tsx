@@ -758,7 +758,7 @@ export function RelationsSection({
     .map((type) => ({
       type,
       label: LINK_TYPE_LABELS[type],
-      items: links.filter((l) => l.type === type),
+      items: links.filter((link) => link.type === type),
     }))
     .filter((g) => Array.isArrayNonEmpty(g.items))
 
@@ -1067,7 +1067,7 @@ function WikiPageLinkForm({
   workspaceSlug?: string
   linking: boolean
   linkError: string | null
-  setLinkError: (e: string | null) => void
+  setLinkError: (error: string | null) => void
   onLink: (wikiPageId: string) => void
   onCancel: () => void
 }) {
@@ -1130,18 +1130,18 @@ function WikiPageLinkForm({
       {searching && <p className='text-xs text-text-muted m-0'>Searching…</p>}
       {Array.isArrayNonEmpty(results) && (
         <ul className='list-none m-0 p-0 flex flex-col gap-1 max-h-56 overflow-y-auto'>
-          {results.map((r) => (
-            <li key={r.id}>
+          {results.map((result) => (
+            <li key={result.id}>
               <button
                 type='button'
                 disabled={linking}
                 onClick={() => {
-                  onLink(r.id)
+                  onLink(result.id)
                 }}
                 className='w-full text-left px-[0.625rem] py-2 border border-border rounded text-sm
 									bg-surface hover:bg-bg transition-colors min-h-[44px]'
               >
-                {r.title}
+                {result.title}
               </button>
             </li>
           ))}
@@ -1183,7 +1183,7 @@ function UrlLinkForm({
   labelValue: string
   setLabelValue: (v: string) => void
   linkError: string | null
-  setLinkError: (e: string | null) => void
+  setLinkError: (error: string | null) => void
   linking: boolean
   onAdd: () => void
   onCancel: () => void
@@ -1371,12 +1371,12 @@ export function AttachmentsSection({
       )}
       {Array.isArrayNonEmpty(attachments) && (
         <div className='mb-4 flex flex-col gap-2'>
-          {attachments.map((a) => (
+          {attachments.map((attachment) => (
             <AttachmentRow
-              key={a.id}
-              attachment={a}
+              key={attachment.id}
+              attachment={attachment}
               workspaceSlug={workspaceSlug}
-              onDelete={() => deleteAttachment(a.id)}
+              onDelete={() => deleteAttachment(attachment.id)}
             />
           ))}
         </div>
@@ -1688,22 +1688,23 @@ export function CommentsSection({
         <p className='text-text-muted mb-4'>No comments yet.</p>
       ) : (
         <div className='mb-6'>
-          {comments.map((c) => (
+          {comments.map((comment) => (
             <CommentItem
-              key={c.id}
-              comment={c}
-              isEditing={editingCommentId === c.id}
+              key={comment.id}
+              comment={comment}
+              isEditing={editingCommentId === comment.id}
               editBody={editCommentBody}
               editError={editCommentError}
               saving={savingComment}
               canModify={
-                !(Predicate.isNullish(currentUserId) || String.isEmpty(currentUserId)) && c.author_id === currentUserId
+                !(Predicate.isNullish(currentUserId) || String.isEmpty(currentUserId)) &&
+                comment.author_id === currentUserId
               }
-              onStartEdit={() => startEditComment(c)}
+              onStartEdit={() => startEditComment(comment)}
               onCancelEdit={cancelEditComment}
               onChangeBody={setEditCommentBody}
-              onSave={() => saveEditComment(c.id)}
-              onDelete={() => doDeleteComment(c.id)}
+              onSave={() => saveEditComment(comment.id)}
+              onDelete={() => doDeleteComment(comment.id)}
             />
           ))}
         </div>
@@ -1760,7 +1761,7 @@ function StatusField({
         value={issue.status_id ?? ''}
         disabled={updatingStatus}
         onChange={(v) => changeStatus(v)}
-        options={statuses.map((s) => ({ value: s.id, label: s.name }))}
+        options={statuses.map((selectedStatus) => ({ value: selectedStatus.id, label: selectedStatus.name }))}
         buttonStyle={{ color: categoryColor(issue.status_category), fontWeight: 500 }}
       />
     )

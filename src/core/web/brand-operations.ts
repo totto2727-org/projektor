@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 
 import { getWorkspaceBrandForShare } from '#commands/workspaces.ts'
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { WorkspaceBrand } from '#contracts/web-brand.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -21,7 +22,7 @@ export const makeBrandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, n
           requireWorkspace: true,
         })
         if (scope.selection.kind !== 'workspace' && scope.selection.kind !== 'project') {
-          return yield* coreFailure(403, 'Selected workspace is not accessible.')
+          return yield* coreFailure(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
         }
         const workspace = scope.selection.workspace
         return yield* Effect.tryPromise(() => getWorkspaceBrandForShare(env.DB, workspace.id, workspace.slug))

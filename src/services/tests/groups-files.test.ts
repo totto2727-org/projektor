@@ -101,7 +101,7 @@ describe('groups and attachment pure retrieval', () => {
 
   test('maps file/link/wiki metadata, orders by creation and filters entity type/id/workspace', async () => {
     const rows = await runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'same' }))
-    expect(rows.map((a) => a.id)).toEqual(['a2', 'a3', 'a6', 'a1'])
+    expect(rows.map((row) => row.id)).toEqual(['a2', 'a3', 'a6', 'a1'])
     expect(rows[0]).toEqual({
       contentType: '',
       createdAt: 10,
@@ -143,8 +143,8 @@ describe('groups and attachment pure retrieval', () => {
         linkedWikiVisibility: { sql: 'w.project_id = ?', params: ['hidden'] },
       }),
     )
-    expect(rows.map((a) => a.id)).toEqual(['a2', 'a3', 'a6'])
-    expect(rows.every((a) => Predicate.isNullish(a.wikiPage))).toBe(true)
+    expect(rows.map((row) => row.id)).toEqual(['a2', 'a3', 'a6'])
+    expect(rows.every((row) => Predicate.isNullish(row.wikiPage))).toBe(true)
     await expect(
       runTestEffect(findAttachment(db, 'wa', 'a1', { ownerVisibility: { sql: 'a.id != ?', params: ['a1'] } })),
     ).resolves.toBeNull()

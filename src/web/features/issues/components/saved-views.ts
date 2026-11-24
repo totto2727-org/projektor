@@ -102,11 +102,11 @@ export const parseSavedViews = function parseSavedViews(raw: string | null): Sav
 
 /** Insert or replace a view by name (names are unique within a bucket). */
 export const upsertView = function upsertView(views: Readonly<SavedView[]>, view: SavedView): SavedView[] {
-  return [...views.filter((v) => v.name !== view.name), view]
+  return [...views.filter((selectedView) => selectedView.name !== view.name), view]
 }
 
 export const removeView = function removeView(views: Readonly<SavedView[]>, name: string): SavedView[] {
-  return views.filter((v) => v.name !== name)
+  return views.filter((view) => view.name !== name)
 }
 
 /** Order-insensitive equality for the two list-valued filters. */
@@ -115,17 +115,17 @@ const sameSet = function sameSet(a: Readonly<string[]>, b: Readonly<string[]>): 
 }
 
 /** True when two filter sets are equivalent (drives the active-view indicator). */
-export const filtersMatch = function filtersMatch(a: SavedViewFilters, b: SavedViewFilters): boolean {
+export const filtersMatch = function filtersMatch(filters: SavedViewFilters, b: SavedViewFilters): boolean {
   return (
-    sameSet(a.statuses, b.statuses) &&
-    sameSet(a.priorities, b.priorities) &&
-    a.project === b.project &&
-    a.type === b.type &&
-    a.epicId === b.epicId &&
-    a.sprintId === b.sprintId &&
-    a.hideEpics === b.hideEpics &&
-    a.dateField === b.dateField &&
-    a.dateFrom === b.dateFrom &&
-    a.dateTo === b.dateTo
+    sameSet(filters.statuses, b.statuses) &&
+    sameSet(filters.priorities, b.priorities) &&
+    filters.project === b.project &&
+    filters.type === b.type &&
+    filters.epicId === b.epicId &&
+    filters.sprintId === b.sprintId &&
+    filters.hideEpics === b.hideEpics &&
+    filters.dateField === b.dateField &&
+    filters.dateFrom === b.dateFrom &&
+    filters.dateTo === b.dateTo
   )
 }

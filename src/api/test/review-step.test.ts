@@ -145,7 +145,7 @@ describe("covers PROJ-749: migration 0061 backfill preserves today's behaviour",
     )
       .bind(ws)
       .all<{ key: string; f: number }>()
-    expect(Object.fromEntries(rows.results.map((r) => [r.key, r.f]))).toEqual({
+    expect(Object.fromEntries(rows.results.map((result) => [result.key, result.f]))).toEqual({
       code_review: 1,
       contract_review: 1,
       done: 0,

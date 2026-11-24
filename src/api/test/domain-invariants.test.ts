@@ -31,14 +31,14 @@ describe('native D1 domain invariants', () => {
     const testFixture = await fixture()
     testFixture.ctx.role = 'owner'
     for (let offset = 0; offset < 1001; offset += 100) {
-      const statements = Array.from({ length: Math.min(100, 1001 - offset) }, (_, i) => {
+      const statements = Array.from({ length: Math.min(100, 1001 - offset) }, (_value, index) => {
         const id = crypto.randomUUID()
         return env.DB.prepare(`INSERT INTO attachments
           (id,workspace_id,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at)
           VALUES (?, ?, ?, 'file','text/plain',1,'issue', ?, ?, 1)`).bind(
           id,
           testFixture.workspace.id,
-          `${testFixture.workspace.id}/key-${offset + i}`,
+          `${testFixture.workspace.id}/key-${offset + index}`,
           testFixture.issue.id,
           testFixture.user.id,
         )

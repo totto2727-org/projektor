@@ -6,6 +6,7 @@ import { apiReply } from '#api/services/reply.ts'
 import { createShareToken, revokeShareToken } from '#api/services/share.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import { ApiSharedIssue } from '#contracts/api-public.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 // Authenticated router — POST/DELETE /api/issues/:id/share
@@ -16,7 +17,7 @@ authedRouter.post('/:id/share', async (httpContext) => {
   const issueId = httpContext.req.param('id')
   try {
     const result = await createShareToken(ctx, issueId)
-    return httpContext.json(result, 201)
+    return httpContext.json(result, HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

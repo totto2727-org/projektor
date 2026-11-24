@@ -15,6 +15,7 @@ import {
   updateIssue,
 } from '#api/services/issues.ts'
 import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
 import type { HonoEnv } from '#types'
 
@@ -139,7 +140,7 @@ router.get('/:id', async (httpContext) => {
 router.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
-    return httpContext.json(await createIssue(ctx, await jsonBody(httpContext)), 201)
+    return httpContext.json(await createIssue(ctx, await jsonBody(httpContext)), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }
@@ -169,7 +170,10 @@ router.post('/:id/claim', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const body = (await jsonBody(httpContext).catch(() => ({}))) as { agentId?: string }
   try {
-    return httpContext.json(await claimIssue(ctx, { issueId: httpContext.req.param('id'), agentId: body.agentId }), 201)
+    return httpContext.json(
+      await claimIssue(ctx, { issueId: httpContext.req.param('id'), agentId: body.agentId }),
+      HTTP_CREATED,
+    )
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

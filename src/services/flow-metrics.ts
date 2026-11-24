@@ -147,13 +147,13 @@ const buildWipOverTime = function buildWipOverTime(
    * buckets loop and the event list are each walked once.
    */
   const events: [number, number][] = []
-  for (const i of issues) {
-    if (Predicate.isNullish(i.claimedAt)) {
+  for (const issue of issues) {
+    if (Predicate.isNullish(issue.claimedAt)) {
       continue
     }
-    events.push([i.claimedAt, 1])
-    if (Predicate.isNotNullish(i.doneAt)) {
-      events.push([i.doneAt, -1])
+    events.push([issue.claimedAt, 1])
+    if (Predicate.isNotNullish(issue.doneAt)) {
+      events.push([issue.doneAt, -1])
     }
   }
   events.sort((left, right) => left[0] - right[0])
@@ -180,7 +180,9 @@ const buildThroughputOverTime = function buildThroughputOverTime(
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
-  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => Predicate.isNotNullish(i.doneAt))
+  const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
+    Predicate.isNotNullish(issue.doneAt),
+  )
   const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => ({ bucketStart: dateLabel(t), count: groups[idx].length }))
 }
@@ -201,7 +203,9 @@ const buildBugShareOverTime = function buildBugShareOverTime(
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
-  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => Predicate.isNotNullish(i.doneAt))
+  const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
+    Predicate.isNotNullish(issue.doneAt),
+  )
   const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => {
     const group = groups[idx]
@@ -229,8 +233,8 @@ const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
   const reviewed = issues.filter(
-    (i): i is FlowIssueRow & { doneAt: number; inReviewAt: number } =>
-      Predicate.isNotNullish(i.doneAt) && Predicate.isNotNullish(i.inReviewAt),
+    (issue): issue is FlowIssueRow & { doneAt: number; inReviewAt: number } =>
+      Predicate.isNotNullish(issue.doneAt) && Predicate.isNotNullish(issue.inReviewAt),
   )
   const groups = groupBySortedRanges(reviewed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => ({
@@ -254,7 +258,9 @@ const buildArrivalVsCompletion = function buildArrivalVsCompletion(
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
   const createdGroups = groupBySortedRanges(issues, (i) => i.createdAt, ranges)
-  const completed = issues.filter((i): i is FlowIssueRow & { doneAt: number } => Predicate.isNotNullish(i.doneAt))
+  const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
+    Predicate.isNotNullish(issue.doneAt),
+  )
   const completedGroups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
   return starts.map((t, idx) => {
     const created = createdGroups[idx].length
@@ -401,7 +407,7 @@ const fetchHumanCommentCounts = async function fetchHumanCommentCounts(
     .innerJoin(schema.issues, eq(schema.issueComments.issueId, schema.issues.id))
     .where(and(issueScope, eq(schema.issueComments.authorKind, 'human')))
     .groupBy(schema.issueComments.issueId)
-  return new Map(rows.map((r) => [r.issueId, Number(r.n)]))
+  return new Map(rows.map((row) => [row.issueId, Number(row.n)]))
 }
 
 /*
@@ -449,21 +455,33 @@ const computeCoreDistributions = function computeCoreDistributions(
   timeInProgress: number[]
 } {
   const leadTimes = issues
-    .filter((i) => Predicate.isNotNullish(i.readyAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
+    .filter(
+      (issue) =>
+        Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+    )
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => i.doneAt! - i.readyAt!)
   const cycleTimes = issues
-    .filter((i) => Predicate.isNotNullish(i.claimedAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
+    .filter(
+      (issue) =>
+        Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+    )
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => i.doneAt! - i.claimedAt!)
   const reviewLatencies = issues
-    .filter((i) => Predicate.isNotNullish(i.inReviewAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
+    .filter(
+      (issue) =>
+        Predicate.isNotNullish(issue.inReviewAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+    )
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => i.doneAt! - i.inReviewAt!)
   // PROJ-329: time in in_progress = claimed -> the issue's next recorded stage
   // (entering review, or done directly for issues that skipped review).
   const timeInProgress = issues
-    .filter((i) => Predicate.isNotNullish(i.claimedAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
+    .filter(
+      (issue) =>
+        Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+    )
     // biome-ignore lint/style/noNonNullAssertion: filtered above
     .map((i) => (i.inReviewAt ?? i.doneAt!) - i.claimedAt!)
   return { leadTimes, cycleTimes, reviewLatencies, timeInProgress }
@@ -479,7 +497,7 @@ const computeHumanInterventions = function computeHumanInterventions(
   inWindow: (t: number) => boolean,
 ): number[] {
   return issues
-    .filter((i) => Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
+    .filter((issue) => Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt))
     .map((i) => (humanCommentCounts.get(i.id) ?? 0) + i.reviewBounceCount)
 }
 
@@ -493,7 +511,10 @@ const computeAutonomyRatios = function computeAutonomyRatios(
   inWindow: (t: number) => boolean,
 ): number[] {
   return issues
-    .filter((i) => Predicate.isNotNullish(i.claimedAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
+    .filter(
+      (issue) =>
+        Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+    )
     .map((i) => {
       // biome-ignore lint/style/noNonNullAssertion: filtered above
       const cycle = i.doneAt! - i.claimedAt!
@@ -519,7 +540,10 @@ const computeFlowEfficiencies = function computeFlowEfficiencies(
   inWindow: (t: number) => boolean,
 ): number[] {
   return issues
-    .filter((i) => Predicate.isNotNullish(i.readyAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt))
+    .filter(
+      (issue) =>
+        Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+    )
     .map((i) => {
       // biome-ignore lint/style/noNonNullAssertion: filtered above
       const leadTime = i.doneAt! - i.readyAt!
@@ -545,8 +569,8 @@ const buildAgingWip = function buildAgingWip(
 ): { id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }[] {
   return issues
     .filter(
-      (i): i is FlowIssueRow & { claimedAt: number } =>
-        Predicate.isNotNullish(i.claimedAt) && (i.status === 'in_progress' || i.status === 'in_review'),
+      (issue): issue is FlowIssueRow & { claimedAt: number } =>
+        Predicate.isNotNullish(issue.claimedAt) && (issue.status === 'in_progress' || issue.status === 'in_review'),
     )
     .map((i) => ({
       id: i.id,
@@ -823,7 +847,7 @@ const readFlowMetrics = async function readFlowMetrics(
      * sample (leadTime.count); reported so a small or skewed sample is visible.
      */
     leadTimeExcluded: issues.filter(
-      (i) => Predicate.isNullish(i.readyAt) && Predicate.isNotNullish(i.doneAt) && inWindow(i.doneAt),
+      (issue) => Predicate.isNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     ).length,
     cycleTime: summarize(cycleTimes),
     wipOverTime,

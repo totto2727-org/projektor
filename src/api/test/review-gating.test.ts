@@ -70,7 +70,7 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
       headers: authHeaders(token, slug),
     })
     const comments = (await res.json()) as { body: string }[]
-    return comments.map((c) => c.body)
+    return comments.map((comment) => comment.body)
   }
 
   const report = { summary: 'Did the thing', verification: 'pnpm test' }
@@ -298,7 +298,7 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
       headers: authHeaders(token, slug),
     })
     const { items } = (await res.json()) as { items: { id: string }[] }
-    const ids = items.map((i) => i.id)
+    const ids = items.map((item) => item.id)
     expect(ids).toContain(flagged.id)
     expect(ids).not.toContain(clean.id)
   })
@@ -314,7 +314,7 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
       headers: authHeaders(token, slug),
     })
     const { items } = (await res.json()) as { items: { id: string }[] }
-    const ids = items.map((i) => i.id)
+    const ids = items.map((item) => item.id)
     expect(ids).toContain(clean.id)
     expect(ids).not.toContain(flagged.id)
   })

@@ -1,6 +1,7 @@
 'use server'
 import { Iterable, Effect, Schema } from 'effect'
 
+import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
 import { ReviewStatusSchema } from '#contracts/review-targets.ts'
 import { EFFRONT } from '@/effront.ts'
 import { RequestServices } from '@/request.ts'
@@ -103,7 +104,9 @@ export const createIssue = EFFRONT.ServerFn.make({
         const value = yield* Schema.decodeUnknownEffect(Schema.Struct({ id: Schema.String, number: Schema.Number }))(
           created,
         ).pipe(
-          Effect.mapError((cause) => new ApiError('schema', 502, 'The operation returned an invalid result.', cause)),
+          Effect.mapError(
+            (cause) => new ApiError('schema', HTTP_BAD_GATEWAY, 'The operation returned an invalid result.', cause),
+          ),
         )
         return { ok: true as const, value }
       }).pipe(
@@ -129,7 +132,9 @@ export const updateIssue = EFFRONT.ServerFn.make({
         }
         const updated = yield* runCommand(ctx, (command) => issues.updateIssue(command, input.issueId, input.patch))
         const value = yield* Schema.decodeUnknownEffect(OkSchema)(updated).pipe(
-          Effect.mapError((cause) => new ApiError('schema', 502, 'The operation returned an invalid result.', cause)),
+          Effect.mapError(
+            (cause) => new ApiError('schema', HTTP_BAD_GATEWAY, 'The operation returned an invalid result.', cause),
+          ),
         )
         return { ok: true as const, value }
       }).pipe(
@@ -369,7 +374,9 @@ export const deleteIssueLink = EFFRONT.ServerFn.make({
         }
         const deleted = yield* runCommand(ctx, (command) => links.deleteLink(command, { id: input.linkId }))
         const value = yield* Schema.decodeUnknownEffect(OkSchema)(deleted).pipe(
-          Effect.mapError((cause) => new ApiError('schema', 502, 'The operation returned an invalid result.', cause)),
+          Effect.mapError(
+            (cause) => new ApiError('schema', HTTP_BAD_GATEWAY, 'The operation returned an invalid result.', cause),
+          ),
         )
         return { ok: true as const, value }
       }).pipe(
@@ -515,7 +522,9 @@ export const updateSprint = EFFRONT.ServerFn.make({
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const updated = yield* runCommand(ctx, (command) => sprints.updateSprint(command, input.sprintId, input.patch))
         const value = yield* Schema.decodeUnknownEffect(OkSchema)(updated).pipe(
-          Effect.mapError((cause) => new ApiError('schema', 502, 'The operation returned an invalid result.', cause)),
+          Effect.mapError(
+            (cause) => new ApiError('schema', HTTP_BAD_GATEWAY, 'The operation returned an invalid result.', cause),
+          ),
         )
         return { ok: true as const, value }
       }).pipe(

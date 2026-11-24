@@ -189,7 +189,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
   }
 
   test('excludes live-leased issues only when excludeClaimed is true', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'A', priority: 'high' })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A', priority: 'high' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', priority: 'high' })
 
     const agentRes = await fetchNativeApi('http://localhost/api/agents', {
@@ -198,14 +198,14 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
       body: JSON.stringify({ name: 'worker' }),
     })
     const agent = (await agentRes.json()) as { id: string }
-    await fetchNativeApi(`http://localhost/api/issues/${a.id}/claim`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId: agent.id }),
     })
 
     const withoutFlag = await callPrioritized({ limit: 50, includeNotReady: true })
-    expect(withoutFlag.issues.map((i) => i.id).sort()).toEqual([a.id, b.id].toSorted())
+    expect(withoutFlag.issues.map((i) => i.id).sort()).toEqual([issue.id, b.id].toSorted())
 
     const withFlag = await callPrioritized({
       limit: 50,
@@ -214,7 +214,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     })
     const ids = withFlag.issues.map((i) => i.id)
     expect(ids).toContain(b.id)
-    expect(ids).not.toContain(a.id)
+    expect(ids).not.toContain(issue.id)
   })
 })
 
@@ -266,7 +266,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   test('blocks the 4th concurrent agent-held lease at the default cap of 3', async () => {
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
-      Array.from({ length: 4 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })),
+      Array.from({ length: 4 }, (_value, index) =>
+        seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` }),
+      ),
     )
 
     for (const issue of issues.slice(0, 3)) {
@@ -291,7 +293,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
-      Array.from({ length: cap + 1 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `Cap ${i}` })),
+      Array.from({ length: cap + 1 }, (_value, index) =>
+        seedIssue(workspaceId, projectId, userId, { title: `Cap ${index}` }),
+      ),
     )
 
     for (const issue of issues.slice(0, cap)) {
@@ -312,7 +316,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   test('records a wip_cap_denials event when a claim is rejected over-cap (PROJ-342)', async () => {
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
-      Array.from({ length: 4 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `Denial ${i}` })),
+      Array.from({ length: 4 }, (_value, index) =>
+        seedIssue(workspaceId, projectId, userId, { title: `Denial ${index}` }),
+      ),
     )
 
     for (const issue of issues.slice(0, 3)) {
@@ -336,7 +342,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   test('covers TOCTOU: N concurrent claims never push a project over the cap (PROJ-290)', async () => {
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
-      Array.from({ length: 8 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `C${i}` })),
+      Array.from({ length: 8 }, (_value, index) => seedIssue(workspaceId, projectId, userId, { title: `C${index}` })),
     )
 
     /*
@@ -603,10 +609,10 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     await seedAgentLease(workspaceId, issueB.id, { name: 'b' })
 
     const byKey = await mcpLeases({ projectId: projectKey })
-    expect(byKey.items.map((i) => i.issueId)).toEqual([issueA.id])
+    expect(byKey.items.map((item) => item.issueId)).toEqual([issueA.id])
 
     const byUuid = await mcpLeases({ projectId })
-    expect(byUuid.items.map((i) => i.issueId)).toEqual([issueA.id])
+    expect(byUuid.items.map((item) => item.issueId)).toEqual([issueA.id])
   })
 
   test('covers REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {
@@ -656,20 +662,20 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
       headers: authHeaders(token, slug),
     })
     const byAgentBody = (await byAgent.json()) as { items: { agentSessionId: string }[] }
-    expect(byAgentBody.items.some((i) => i.agentSessionId === agent)).toBe(true)
+    expect(byAgentBody.items.some((item) => item.agentSessionId === agent)).toBe(true)
 
     const byProjectKey = await fetchNativeApi(`http://localhost/api/issue-leases?projectId=${projectKey}`, {
       headers: authHeaders(token, slug),
     })
     const byProjectKeyBody = (await byProjectKey.json()) as { items: { issueId: string }[] }
-    expect(byProjectKeyBody.items.some((i) => i.issueId === issue.id)).toBe(true)
+    expect(byProjectKeyBody.items.some((item) => item.issueId === issue.id)).toBe(true)
 
     await backdateHeartbeat(agent)
     const defaultRes = await fetchNativeApi('http://localhost/api/issue-leases', {
       headers: authHeaders(token, slug),
     })
     const defaultBody = (await defaultRes.json()) as { items: { issueId: string }[] }
-    expect(defaultBody.items.some((i) => i.issueId === issue.id)).toBe(false)
+    expect(defaultBody.items.some((item) => item.issueId === issue.id)).toBe(false)
 
     const staleRes = await fetchNativeApi('http://localhost/api/issue-leases?includeStale=true', {
       headers: authHeaders(token, slug),
@@ -677,7 +683,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     const staleBody = (await staleRes.json()) as {
       items: { issueId: string; live: boolean }[]
     }
-    const staleItem = staleBody.items.find((i) => i.issueId === issue.id)
+    const staleItem = staleBody.items.find((item) => item.issueId === issue.id)
     expect(staleItem).toBeDefined()
     expect(staleItem?.live).toBe(false)
   })

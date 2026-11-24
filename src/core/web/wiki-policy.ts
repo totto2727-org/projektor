@@ -2,6 +2,7 @@ import { and, sql } from 'drizzle-orm'
 import { Array, Predicate, Effect } from 'effect'
 
 import { ApiError, ScopeError } from '#contracts/errors.ts'
+import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { listProjects } from '#services/projects.ts'
 import * as wikiData from '#services/wiki.ts'
@@ -22,7 +23,7 @@ export const readAuthorizedWikiPage = function readAuthorizedWikiPage(
     })
     const page = yield* wikiData.findWikiPage(db, workspace.id, ref).pipe(Effect.mapError(dataError))
     if (!page) {
-      return yield* new ApiError('http', 404, 'Wiki page not found.')
+      return yield* new ApiError('http', HTTP_NOT_FOUND, 'Wiki page not found.')
     }
     if (
       Predicate.isNotNullish(page.project_id) &&

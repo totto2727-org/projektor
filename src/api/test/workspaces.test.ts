@@ -169,7 +169,7 @@ describe('workspaces MCP', () => {
       id: string
       role: string
     }[]
-    const newWs = workspaces.find((w) => w.id === created.id)
+    const newWs = workspaces.find((workspace) => workspace.id === created.id)
     expect(newWs).toBeDefined()
     expect(newWs?.role).toBe('owner')
   })
@@ -246,18 +246,18 @@ describe('workspaces MCP', () => {
 
     test("owner of A and B, using a token confined to A, cannot delete B via A's MCP URL", async () => {
       const testFixture = await seedFixture({ role: 'owner' })
-      const b = await seedWorkspace(`both-${crypto.randomUUID().slice(0, 8)}`)
-      await seedMember(b.id, testFixture.user.id, 'owner')
+      const workspace = await seedWorkspace(`both-${crypto.randomUUID().slice(0, 8)}`)
+      await seedMember(workspace.id, testFixture.user.id, 'owner')
 
       const res = await mcpCall(
         testFixture.workspace.id,
         'delete_workspace',
-        { workspaceSlug: b.slug },
+        { workspaceSlug: workspace.slug },
         authHeaders(testFixture.token, testFixture.workspace.slug),
       )
 
       expect(toolError(res)?.code).toBe('not_found')
-      await expect(workspaceExists(b.id)).resolves.toBe(true)
+      await expect(workspaceExists(workspace.id)).resolves.toBe(true)
     })
   })
 

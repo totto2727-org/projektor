@@ -1,6 +1,7 @@
 import { Effect, Schema } from 'effect'
 
 import * as sprints from '#commands/sprints.ts'
+import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import { requireDataProject } from '#contracts/web-data.ts'
 import { MAX_METRICS_DAYS } from '#contracts/web-limits.ts'
 import { HeatmapSchema, MetricsSchema } from '#contracts/web-schemas/planning.ts'
@@ -42,7 +43,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             Effect.gen(function* () {
               const query = yield* Schema.decodeUnknownEffect(MetricsQuerySchema)(input).pipe(
                 Effect.mapError(() =>
-                  coreFailure(400, `Choose a valid metrics range of at most ${MAX_METRICS_DAYS} days.`),
+                  coreFailure(HTTP_BAD_REQUEST, `Choose a valid metrics range of at most ${MAX_METRICS_DAYS} days.`),
                 ),
               )
               yield* Effect.try({
@@ -68,7 +69,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             Effect.gen(function* () {
               const query = yield* Schema.decodeUnknownEffect(MetricsQuerySchema)(input).pipe(
                 Effect.mapError(() =>
-                  coreFailure(400, `Choose a valid metrics range of at most ${MAX_METRICS_DAYS} days.`),
+                  coreFailure(HTTP_BAD_REQUEST, `Choose a valid metrics range of at most ${MAX_METRICS_DAYS} days.`),
                 ),
               )
               yield* Effect.try({

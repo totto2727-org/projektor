@@ -352,7 +352,7 @@ export const bulkConvertToIssue = async function bulkConvertToIssue(
       )
       .bind(...chunk, projectId, ctx.workspaceId)
       .all<BulkConvertFeedbackRow>()
-      .then((r) => r.results)
+      .then((result) => result.results)
   })
   if (rows.length !== feedbackIds.length) {
     throw new NotFoundError('Feedback not found')
@@ -361,20 +361,20 @@ export const bulkConvertToIssue = async function bulkConvertToIssue(
    * All-or-nothing: any row already converted rejects the whole batch rather than
    * partially converting or silently re-linking.
    */
-  if (rows.some((r) => r.linked_issue_id)) {
+  if (rows.some((row) => row.linked_issue_id)) {
     throw new ConflictError('One or more selected items are already linked to an issue')
   }
 
-  const byId = new Map(rows.map((r) => [r.id, r]))
+  const byId = new Map(rows.map((row) => [row.id, row]))
   const orderedRows = feedbackIds
     .map((id) => byId.get(id))
     .filter((r): r is BulkConvertFeedbackRow => Predicate.isNotNullish(r))
   const body = orderedRows
-    .map((fb, i) => {
+    .map((fb, index) => {
       const footer =
         `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
         (Predicate.isNotNullish(fb.rating) ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
-      return [`${i + 1}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? '', footer].join('\n')
+      return [`${index + 1}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? '', footer].join('\n')
     })
     .join('\n\n')
 

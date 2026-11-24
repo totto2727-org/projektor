@@ -24,12 +24,22 @@ const seedManyPages = async function seedManyPages(
   projectId: string | null = null,
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000)
-  const statements = Array.from({ length: count }, (_, i) =>
+  const statements = Array.from({ length: count }, (_value, index) =>
     env.DB.prepare(
       `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 			 parent_id, created_by_id, updated_by_id, created_at, updated_at)
 			 VALUES (?, ?, ?, ?, ?, '', NULL, ?, ?, ?, ?)`,
-    ).bind(crypto.randomUUID(), workspaceId, projectId, `bulk-page-${i}`, `Bulk Page ${i}`, userId, userId, now, now),
+    ).bind(
+      crypto.randomUUID(),
+      workspaceId,
+      projectId,
+      `bulk-page-${index}`,
+      `Bulk Page ${index}`,
+      userId,
+      userId,
+      now,
+      now,
+    ),
   )
   await env.DB.batch(statements)
 }
@@ -300,12 +310,22 @@ describe('wiki export (PROJ-497)', () => {
      * content for MAX_EXPORT_PAGES+1 rows.
      */
     const now = Math.floor(Date.now() / 1000)
-    const statements = Array.from({ length: MAX_EXPORT_PAGES + 1 }, (_, i) =>
+    const statements = Array.from({ length: MAX_EXPORT_PAGES + 1 }, (_value, index) =>
       env.DB.prepare(
         `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 				 parent_id, created_by_id, updated_by_id, created_at, updated_at)
 				 VALUES (?, ?, NULL, ?, ?, '', ?, ?, ?, ?, ?)`,
-      ).bind(crypto.randomUUID(), workspaceId, `bulk-child-${i}`, `Bulk Child ${i}`, root.id, userId, userId, now, now),
+      ).bind(
+        crypto.randomUUID(),
+        workspaceId,
+        `bulk-child-${index}`,
+        `Bulk Child ${index}`,
+        root.id,
+        userId,
+        userId,
+        now,
+        now,
+      ),
     )
     await env.DB.batch(statements)
 

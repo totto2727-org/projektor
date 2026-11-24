@@ -357,7 +357,7 @@ export const deleteWorkspace = async function deleteWorkspace(
       .prepare("SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL")
       .bind(ctx.workspaceId)
       .all<{ k: string }>()
-  ).results.map((r) => r.k)
+  ).results.map((result) => result.k)
   await ctx.db.batch(WORKSPACE_CLEANUP_SQL.map((sql) => ctx.db.prepare(sql).bind(ctx.workspaceId)))
   for (let index = 0; index < r2Keys.length; index += 1000) {
     try {

@@ -31,11 +31,11 @@ type EpicRollup = { done: number; remaining: number; total: number }
 type EpicItem = Issue & { rollup?: EpicRollup }
 
 const PRIORITY_LABEL: Record<string, string> = {
-  urgent: 'Urgent',
   high: 'High',
-  medium: 'Medium',
   low: 'Low',
+  medium: 'Medium',
   none: 'None',
+  urgent: 'Urgent',
 }
 
 const TH_CLASS =
@@ -46,7 +46,7 @@ const MODAL_CLASS = 'bg-bg border border-border rounded-lg p-6 w-full sm:max-w-[
 
 function defaultCreateProjectId(projectId: string | null, projects: Readonly<ProjectMeta[]>): string {
   if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
-    return projects.find((p) => p.id === projectId)?.id ?? projects[0]?.id ?? ''
+    return projects.find((project) => project.id === projectId)?.id ?? projects[0]?.id ?? ''
   }
   return projects[0]?.id ?? ''
 }
@@ -470,7 +470,7 @@ function CreateEpicModal({
                 ariaLabel='Select project'
                 value={createProjectId}
                 onChange={setCreateProjectId}
-                options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                options={projects.map((project) => ({ value: project.id, label: project.name }))}
               />
             </div>
           )}

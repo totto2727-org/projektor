@@ -1,6 +1,7 @@
 import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
+import { HTTP_OK } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -28,7 +29,7 @@ router.get('/brand', (httpContext) => {
       onAccent: httpContext.env.BRAND_ON_ACCENT?.trim() || null,
       logoUrl: httpContext.env.BRAND_LOGO_URL?.trim() || null,
     },
-    200,
+    HTTP_OK,
     { 'Cache-Control': 'public, max-age=300' },
   )
 })

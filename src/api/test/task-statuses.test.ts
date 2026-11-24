@@ -405,7 +405,7 @@ describe('task Statuses — issue integration', () => {
     })
     const page = (await res.json()) as { items: { title: string }[] }
     expect(page.items).toHaveLength(2)
-    expect(page.items.every((i) => i.title.startsWith('Done'))).toBe(true)
+    expect(page.items.every((item) => item.title.startsWith('Done'))).toBe(true)
   })
 
   test('handles GET /api/issues?category= filters by category', async () => {

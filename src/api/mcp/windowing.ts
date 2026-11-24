@@ -88,9 +88,9 @@ const headings = function headings(content: string): Heading[] {
     if (Predicate.isNotNullish(fence) && String.isNonEmpty(fence)) {
       continue
     }
-    const m = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)
-    if (m) {
-      out.push({ level: m[1].length, text: m[2], start: lineStart })
+    const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)
+    if (match) {
+      out.push({ level: match[1].length, text: match[2], start: lineStart })
     }
   }
   return out

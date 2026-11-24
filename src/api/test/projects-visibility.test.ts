@@ -30,16 +30,16 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
     const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
     const viewer = await seedUser(`v-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, viewer.id, 'viewer')
-    const a = await seedProject(ws.id, 'AAA')
+    const project = await seedProject(ws.id, 'AAA')
     await seedProject(ws.id, 'BBB')
     const ctx = viewerCtx(ws.id, viewer.id)
 
     await expect(ids(listProjects(ctx))).resolves.toEqual([])
     await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toEqual([])
 
-    await seedGroupGrant(ws.id, viewer.id, a.id, 'viewer')
-    await expect(ids(listProjects(ctx))).resolves.toEqual([a.id])
-    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toEqual([a.id])
+    await seedGroupGrant(ws.id, viewer.id, project.id, 'viewer')
+    await expect(ids(listProjects(ctx))).resolves.toEqual([project.id])
+    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toEqual([project.id])
   })
 
   test("the public viewer is put in the 'Public viewers' group; granting that group publishes a project", async () => {
@@ -103,6 +103,6 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
     )
       .bind(ws.id, pub.id)
       .all<{ id: string }>()
-    expect(rows.results.map((r) => r.id)).toEqual([existing])
+    expect(rows.results.map((result) => result.id)).toEqual([existing])
   })
 })

@@ -5,6 +5,7 @@ import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { addComment, deleteComment, listComments, updateComment } from '#api/services/comments.ts'
 import { resolveIssueIdParam } from '#api/services/issues.ts'
 import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -29,7 +30,7 @@ router.post('/:issueId/comments', async (httpContext) => {
   const issueId = httpContext.req.param('issueId')
   const raw = await jsonBody(httpContext)
   try {
-    return httpContext.json(await addComment(ctx, { issueId, ...raw }), 201)
+    return httpContext.json(await addComment(ctx, { issueId, ...raw }), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

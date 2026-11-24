@@ -129,7 +129,7 @@ describe('list_project_activity MCP tool', () => {
       created_at: number
     }[]
 
-    const created = events.filter((e) => e.type === 'issue_created')
+    const created = events.filter((selectedEvent) => selectedEvent.type === 'issue_created')
     expect(created).toHaveLength(1)
     expect(created[0].summary).toBe('My Issue')
     expect(created[0].entity_type).toBe('issue')
@@ -152,7 +152,7 @@ describe('list_project_activity MCP tool', () => {
       actor: string | null
     }[]
 
-    const commented = events.filter((e) => e.type === 'issue_commented')
+    const commented = events.filter((selectedEvent) => selectedEvent.type === 'issue_commented')
     expect(commented).toHaveLength(1)
     expect(commented[0].actor).toBe(userId)
   })
@@ -173,7 +173,7 @@ describe('list_project_activity MCP tool', () => {
       entity_ref: string
     }[]
 
-    const wikiCreated = events.filter((e) => e.type === 'wiki_page_created')
+    const wikiCreated = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_created')
     expect(wikiCreated).toHaveLength(1)
     expect(wikiCreated[0].summary).toBe('Design Doc')
     expect(wikiCreated[0].entity_type).toBe('wiki_page')
@@ -196,7 +196,7 @@ describe('list_project_activity MCP tool', () => {
       type: string
     }[]
 
-    const edited = events.filter((e) => e.type === 'wiki_page_edited')
+    const edited = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_edited')
     expect(edited).toHaveLength(1)
   })
 
@@ -213,7 +213,7 @@ describe('list_project_activity MCP tool', () => {
       type: string
     }[]
 
-    const edited = events.filter((e) => e.type === 'wiki_page_edited')
+    const edited = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_edited')
     expect(edited).toHaveLength(0)
   })
 
@@ -234,8 +234,8 @@ describe('list_project_activity MCP tool', () => {
       type: string
     }[]
 
-    expect(events.some((e) => e.type === 'wiki_page_created')).toBe(false)
-    expect(events.some((e) => e.type === 'wiki_page_edited')).toBe(false)
+    expect(events.some((selectedEvent) => selectedEvent.type === 'wiki_page_created')).toBe(false)
+    expect(events.some((selectedEvent) => selectedEvent.type === 'wiki_page_edited')).toBe(false)
   })
 
   test('returns sprint_started events for active sprints with a start_date', async () => {
@@ -258,7 +258,7 @@ describe('list_project_activity MCP tool', () => {
       entity_type: string
     }[]
 
-    const started = events.filter((e) => e.type === 'sprint_started')
+    const started = events.filter((selectedEvent) => selectedEvent.type === 'sprint_started')
     expect(started).toHaveLength(1)
     expect(started[0].summary).toContain('Sprint Alpha')
     expect(started[0].entity_type).toBe('sprint')
@@ -284,11 +284,11 @@ describe('list_project_activity MCP tool', () => {
       summary: string
     }[]
 
-    const completed = events.filter((e) => e.type === 'sprint_completed')
+    const completed = events.filter((selectedEvent) => selectedEvent.type === 'sprint_completed')
     expect(completed).toHaveLength(1)
     expect(completed[0].summary).toContain('Sprint Beta')
 
-    const started = events.filter((e) => e.type === 'sprint_started')
+    const started = events.filter((selectedEvent) => selectedEvent.type === 'sprint_started')
     expect(started).toHaveLength(1)
   })
 
@@ -322,7 +322,7 @@ describe('list_project_activity MCP tool', () => {
       summary: string
     }[]
 
-    const titles = events.map((e) => e.summary)
+    const titles = events.map((selectedEvent) => selectedEvent.summary)
     expect(titles).toContain('New issue')
     expect(titles).not.toContain('Old issue')
   })
@@ -343,7 +343,9 @@ describe('list_project_activity MCP tool', () => {
       created_at: number
     }[]
 
-    const created = events.filter((e) => e.summary === 'Older' || e.summary === 'Newer')
+    const created = events.filter(
+      (selectedEvent) => selectedEvent.summary === 'Older' || selectedEvent.summary === 'Newer',
+    )
     expect(created[0].summary).toBe('Newer')
     expect(created[1].summary).toBe('Older')
   })
@@ -363,7 +365,7 @@ describe('list_project_activity MCP tool', () => {
       summary: string
     }[]
 
-    const summaries = events.map((e) => e.summary)
+    const summaries = events.map((selectedEvent) => selectedEvent.summary)
     expect(summaries).toContain('This project issue')
     expect(summaries).not.toContain('Other project issue')
   })
@@ -429,7 +431,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
     })
     expect(res.status).toBe(200)
     const events = (await res.json()) as { type: string; summary: string }[]
-    const created = events.filter((e) => e.type === 'issue_created')
+    const created = events.filter((selectedEvent) => selectedEvent.type === 'issue_created')
     expect(created).toHaveLength(1)
     expect(created[0].summary).toBe('REST activity issue')
   })

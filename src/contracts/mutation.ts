@@ -1,8 +1,7 @@
 import { Effect } from 'effect'
 
 import { ApiError } from './errors.ts'
-
-const FORBIDDEN_STATUS = 403
+import { HTTP_FORBIDDEN } from './http-status.ts'
 
 /**
  * Native browser mutations require an explicit same-origin request.
@@ -16,7 +15,7 @@ export const assertSameOriginMutation = function assertSameOriginMutation(reques
     request.headers.get('origin') !== new URL(request.url).origin ||
     request.headers.get('sec-fetch-site') === 'cross-site'
   ) {
-    throw new ApiError('request', FORBIDDEN_STATUS, 'A same-origin mutation request is required.')
+    throw new ApiError('request', HTTP_FORBIDDEN, 'A same-origin mutation request is required.')
   }
 }
 

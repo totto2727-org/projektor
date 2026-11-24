@@ -4,6 +4,7 @@ import { jsonBody } from '#api/http/body.ts'
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { claimFiles, listFileClaims, releaseFiles } from '#api/services/file-claims.ts'
 import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -21,7 +22,7 @@ router.get('/', async (httpContext) => {
 router.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
-    return httpContext.json(await claimFiles(ctx, await jsonBody(httpContext)), 201)
+    return httpContext.json(await claimFiles(ctx, await jsonBody(httpContext)), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

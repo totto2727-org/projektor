@@ -944,7 +944,7 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
       workspaces: { slug: string; role: string }[]
     }
     expect(body.user.email).toBe('public-viewer@projektor.local')
-    const membership = body.workspaces.find((w) => w.slug === slug)
+    const membership = body.workspaces.find((workspace) => workspace.slug === slug)
     expect(membership?.role).toBe('viewer')
   })
 
@@ -1046,7 +1046,7 @@ describe('covers PROJ-79: GET /auth/me', () => {
       headers: { Authorization: `Bearer ${token}` },
     })
     const body = (await res.json()) as { workspaces: { id: string }[] }
-    const ids = body.workspaces.map((w) => w.id)
+    const ids = body.workspaces.map((workspace) => workspace.id)
     expect(ids).toContain(fixture.workspace.id)
     expect(ids).toContain(ws2.id)
   })

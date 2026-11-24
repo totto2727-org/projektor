@@ -5,6 +5,7 @@ import * as groups from '#commands/groups.ts'
 import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import * as workspaces from '#commands/workspaces.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import {
   ConnectorsSchema,
   CreatedGroupSchema,
@@ -36,7 +37,7 @@ const admin = (role: string | undefined): boolean => role === 'owner' || role ==
 const readContext = function readContext(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
     const input = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(proof).pipe(
-      Effect.mapError(() => coreFailure(400, 'Invalid browser request.')),
+      Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
     )
     const scope = yield* loadBrowserScope(env, input.request, {
       workspaceHint: input.workspaceSlug,
@@ -46,7 +47,7 @@ const readContext = function readContext(env: CoreEnvironment, proof: BrowserCom
     const workspace = yield* checked(() => requireDataWorkspace(scope))
     const auth = scope.auth
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
-      return yield* coreFailure(403, 'An interactive browser session is required.')
+      return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }
     const ctx: ServiceCtx = {
       db: env.DB,
@@ -74,7 +75,7 @@ const authorizeGrantProject = function authorizeGrantProject(
     )
     const [project] = yield* listProjects(env.DB, workspaceId, { includeArchived: true, visibility })
     if (!project) {
-      return yield* coreFailure(404, 'Project not found in the selected workspace.')
+      return yield* coreFailure(HTTP_NOT_FOUND, 'Project not found in the selected workspace.')
     }
   })
 }

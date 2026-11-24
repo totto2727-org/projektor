@@ -522,7 +522,7 @@ export const listWikiPages = async function listWikiPages(ctx: ServiceCtx, input
       visibility: wikiReadVisibility(ctx),
     }),
   )
-  return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
+  return rows.map((row) => ({ ...row, url: wikiPagePath(row.slug) }))
 }
 
 export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unknown) {
@@ -555,12 +555,12 @@ export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unkn
       visibilitySql: visible ? { sql: `p.project_id IS NULL OR ${visible.sql}`, params: visible.params } : undefined,
     }),
   )
-  return rows.map((r) => ({
-    ...r,
+  return rows.map((row) => ({
+    ...row,
     freshness: computeFreshness({
-      verifiedAt: r.verified_at,
-      verifyInterval: r.verify_interval,
-      status: r.status,
+      verifiedAt: row.verified_at,
+      verifyInterval: row.verify_interval,
+      status: row.status,
       now,
     }),
   }))
@@ -1562,13 +1562,13 @@ export const listStaleWikiPages = async function listStaleWikiPages(ctx: Service
           : undefined,
     }),
   )
-  return rows.map((r) => ({
-    ...r,
-    url: wikiPagePath(r.slug),
+  return rows.map((row) => ({
+    ...row,
+    url: wikiPagePath(row.slug),
     freshness: computeFreshness({
-      verifiedAt: r.verified_at,
-      verifyInterval: r.verify_interval,
-      status: r.status,
+      verifiedAt: row.verified_at,
+      verifyInterval: row.verify_interval,
+      status: row.status,
       now,
     }),
   }))
@@ -1622,16 +1622,16 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
       fence = fenceMatch[1]
       return
     }
-    const m = ATX_HEADING_RE.exec(line)
-    if (m) {
-      headings.push({ level: m[1].length, heading: m[2].trim(), startLine: idx })
+    const match = ATX_HEADING_RE.exec(line)
+    if (match) {
+      headings.push({ level: match[1].length, heading: match[2].trim(), startLine: idx })
     }
   })
-  return headings.map((h, i) => ({
+  return headings.map((h, index) => ({
     heading: h.heading,
     level: h.level,
     startLine: h.startLine,
-    endLine: i + 1 < headings.length ? headings[i + 1].startLine : lines.length,
+    endLine: index + 1 < headings.length ? headings[index + 1].startLine : lines.length,
   }))
 }
 
@@ -1968,7 +1968,7 @@ export const listWikiTemplates = async function listWikiTemplates(ctx: ServiceCt
         Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? undefined : wikiReadVisibility(ctx),
     }),
   )
-  return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
+  return rows.map((row) => ({ ...row, url: wikiPagePath(row.slug) }))
 }
 
 const DEFAULT_WIKI_TEMPLATES: { slug: string; title: string; type: string; body: string }[] = [
@@ -2162,7 +2162,7 @@ const collectDescendantIds = async function collectDescendantIds(
           ),
         ),
     )
-    frontier = children.map((c) => c.id)
+    frontier = children.map((child) => child.id)
     descendants.push(...frontier)
   }
   return descendants
@@ -2203,7 +2203,7 @@ const collectCascadeTrashedDescendantIds = async function collectCascadeTrashedD
           ),
         ),
     )
-    frontier = children.map((c) => c.id)
+    frontier = children.map((child) => child.id)
     descendants.push(...frontier)
   }
   return descendants
@@ -2627,11 +2627,11 @@ export const listWikiTrash = async function listWikiTrash(ctx: ServiceCtx, input
         Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? undefined : wikiReadVisibility(ctx),
     }),
   )
-  return rows.map((r) => ({
-    ...r,
+  return rows.map((row) => ({
+    ...row,
     // PROJ-496: purge is due 30 days after deletedAt — surfaced so a UI/agent can show
     // "N days left" without re-deriving the retention constant.
-    purgeAfter: (r.deleted_at ?? 0) + WIKI_TRASH_RETENTION_SECONDS,
+    purgeAfter: (row.deleted_at ?? 0) + WIKI_TRASH_RETENTION_SECONDS,
   }))
 }
 

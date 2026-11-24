@@ -23,7 +23,7 @@ function applyBacklogOrder(issues: Readonly<Issue[]>, backlogOrder: string[]): R
     return issues
   }
   const inOrder = backlogOrder.flatMap((id) => {
-    const issue = issues.find((i) => i.id === id)
+    const issue = issues.find((selectedIssue) => selectedIssue.id === id)
     return issue ? [issue] : []
   })
   const orderedIds = new Set(backlogOrder)
@@ -70,9 +70,9 @@ interface RowProps {
   changePriority: (issueId: string, priority: string) => void
   isDragging: boolean
   isOver: boolean
-  onDragStart: (e: import('react').DragEvent<HTMLElement>, issueId: string) => void
-  onDragOver: (e: import('react').DragEvent<HTMLElement>, issueId: string) => void
-  onDrop: (e: import('react').DragEvent<HTMLElement>, issueId: string) => void
+  onDragStart: (selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string) => void
+  onDragOver: (selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string) => void
+  onDrop: (selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string) => void
   onDragEnd: () => void
 }
 
@@ -96,14 +96,14 @@ function BacklogRow({
       key={issue.id}
       className='border-b border-border group'
       draggable={true}
-      onDragStart={(e: import('react').DragEvent<HTMLElement>) => {
-        onDragStart(e, issue.id)
+      onDragStart={(selectedEvent: import('react').DragEvent<HTMLElement>) => {
+        onDragStart(selectedEvent, issue.id)
       }}
-      onDragOver={(e: import('react').DragEvent<HTMLElement>) => {
-        onDragOver(e, issue.id)
+      onDragOver={(selectedEvent: import('react').DragEvent<HTMLElement>) => {
+        onDragOver(selectedEvent, issue.id)
       }}
-      onDrop={(e: import('react').DragEvent<HTMLElement>) => {
-        onDrop(e, issue.id)
+      onDrop={(selectedEvent: import('react').DragEvent<HTMLElement>) => {
+        onDrop(selectedEvent, issue.id)
       }}
       onDragEnd={onDragEnd}
       style={{
@@ -237,8 +237,8 @@ export default function BacklogView({
   }
   const orderedIssues = applyBacklogOrder(backlogIssues, backlogOrder)
 
-  function onBacklogDragStart(e: import('react').DragEvent<HTMLElement>, issueId: string): void {
-    e.dataTransfer?.setData('text/plain', issueId)
+  function onBacklogDragStart(selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string): void {
+    selectedEvent.dataTransfer?.setData('text/plain', issueId)
     setBacklogDragId(issueId)
   }
 

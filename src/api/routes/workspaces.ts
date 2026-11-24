@@ -21,6 +21,7 @@ import {
   updateWorkspace,
   updateWorkspaceBrand,
 } from '#api/services/workspaces.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -49,7 +50,7 @@ router.patch('/:slug', async (httpContext) => {
 router.post('/:slug/members', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
-    return httpContext.json(await inviteMember(ctx, await jsonBody(httpContext)), 201)
+    return httpContext.json(await inviteMember(ctx, await jsonBody(httpContext)), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }
@@ -92,7 +93,7 @@ router.post('/:slug/tokens', async (httpContext) => {
   }
   const ctx = ctxFromHono(httpContext)
   try {
-    return httpContext.json(await createToken(ctx, await jsonBody(httpContext)), 201)
+    return httpContext.json(await createToken(ctx, await jsonBody(httpContext)), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

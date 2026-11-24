@@ -4,6 +4,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 import * as drafts from '#commands/wiki-drafts.ts'
 import * as wiki from '#commands/wiki.ts'
 import { ApiError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '#contracts/inputs/wiki.ts'
 import {
   Created,
@@ -71,7 +72,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
           const revision = yield* data.getWikiRevision(env.DB, workspace.id, page.id, revisionId)
           if (!revision) {
-            return yield* new ApiError('http', 404, 'Revision not found.')
+            return yield* new ApiError('http', HTTP_NOT_FOUND, 'Revision not found.')
           }
           return { diff: data.buildUnifiedDiff(revision.content, page.content) }
         }),
@@ -81,7 +82,8 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         Effect.gen(function* () {
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
           return yield* Effect.tryPromise({
-            catch: (cause) => new ApiError('network', 500, 'Could not read the saved draft.', cause),
+            catch: (cause) =>
+              new ApiError('network', HTTP_INTERNAL_SERVER_ERROR, 'Could not read the saved draft.', cause),
             try: () => drafts.readWikiDraftState(env.DB, workspace.id, page.id, scope.user.id),
           })
         }),
@@ -103,7 +105,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
       mutation('webSaveWikiDraft', SavedDraft, proof, (ctx) => {
         const parsed = VersionedWikiDraftInputSchema.safeParse(input)
         if (!parsed.success) {
-          throw coreFailure(400, 'A draft revision precondition is required.')
+          throw coreFailure(HTTP_BAD_REQUEST, 'A draft revision precondition is required.')
         }
         return drafts.saveWikiDraft(ctx, slug, parsed.data)
       }),
@@ -111,7 +113,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
       mutation('webDiscardWikiDraft', DraftRevision, proof, (ctx) => {
         const parsed = WikiDraftRevisionInputSchema.safeParse(input)
         if (!parsed.success) {
-          throw coreFailure(400, 'A draft revision precondition is required.')
+          throw coreFailure(HTTP_BAD_REQUEST, 'A draft revision precondition is required.')
         }
         return drafts.discardWikiDraft(ctx, slug, parsed.data)
       }),
@@ -125,11 +127,11 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
       mutation('webRestoreWikiRevision', Ok, proof, async (ctx) => {
         const page = await Effect.runPromise(data.findWikiPage(ctx.db, ctx.workspaceId, slug))
         if (!page) {
-          throw coreFailure(404, 'Wiki page not found.')
+          throw coreFailure(HTTP_NOT_FOUND, 'Wiki page not found.')
         }
         const revision = await Effect.runPromise(data.getWikiRevision(ctx.db, ctx.workspaceId, page.id, revisionId))
         if (!revision) {
-          throw coreFailure(404, 'Revision not found.')
+          throw coreFailure(HTTP_NOT_FOUND, 'Revision not found.')
         }
         return wiki.updateWikiPage(ctx, slug, {
           content: revision.content,

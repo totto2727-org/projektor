@@ -304,9 +304,9 @@ function GroupDetailEditor({
     setError(null)
     try {
       unwrapResult(await removeGroupMember({ workspaceSlug: slug, groupId: detail.id, userId }))
-    } catch (cause) {
+    } catch (currentError) {
       setBusy(false)
-      setError(String(cause))
+      setError(String(currentError))
       return
     }
     setBusy(false)
@@ -319,9 +319,9 @@ function GroupDetailEditor({
     setError(null)
     try {
       unwrapResult(await removeGroupGrant({ workspaceSlug: slug, groupId: detail.id, projectId }))
-    } catch (cause) {
+    } catch (currentError) {
       setBusy(false)
-      setError(String(cause))
+      setError(String(currentError))
       return
     }
     setBusy(false)
@@ -709,9 +709,9 @@ export function GroupManager({
       if (selected === id) {
         setSelected(null)
       }
-    } catch (cause) {
+    } catch (currentError) {
       setBusy(false)
-      setError(String(cause))
+      setError(String(currentError))
       return
     }
     setBusy(false)

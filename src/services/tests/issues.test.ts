@@ -137,7 +137,7 @@ describe('issue and related pure data queries', () => {
         customField: { id: 'f', op: 'gte', value: '5' },
       }),
     )
-    expect(page.items.map((r) => r.id)).toEqual(['i1'])
+    expect(page.items.map((item) => item.id)).toEqual(['i1'])
     await expect(runTestEffect(issues.findIssueCustomField(db, 'wa', 'size'))).resolves.toEqual({
       id: 'f',
       type: 'number',
@@ -158,7 +158,7 @@ describe('issue and related pure data queries', () => {
         eq(schema.issues.projectId, 'pa'),
       ),
     )
-    expect(page.items.map((r) => r.id)).toEqual(['i2', 'i1'])
+    expect(page.items.map((item) => item.id)).toEqual(['i2', 'i1'])
     expect(page.missing).toEqual(['A-999', 'H-1', 'other'])
     expect(page.items[0]).not.toHaveProperty('assignee_name')
   })
@@ -243,12 +243,12 @@ describe('issue and related pure data queries', () => {
       },
     ])
     const fields = await runTestEffect(listCustomFieldDefs(db, 'wa'))
-    expect(fields.find((r) => r.key === 'choice')?.options).toEqual(['A', 'B'])
-    expect(fields.map((r) => r.workspaceId)).toEqual(['wa', 'wa'])
+    expect(fields.find((field) => field.key === 'choice')?.options).toEqual(['A', 'B'])
+    expect(fields.map((field) => field.workspaceId)).toEqual(['wa', 'wa'])
   })
 
   test("chunks variable-length field, rollup and link metadata loads below D1's bind cap", async () => {
-    const ids = Array.from({ length: 195 }, (_, i) => `missing-${i}`)
+    const ids = Array.from({ length: 195 }, (_value, index) => `missing-${index}`)
     await expect(runTestEffect(batchLoadCustomFields(db, 'wa', [...ids, 'i1']))).resolves.toHaveProperty('i1')
     const rollups = await runTestEffect(issues.getChildRollups(db, 'wa', [...ids, 'i1']))
     expect(Object.keys(rollups)).toHaveLength(196)
@@ -272,7 +272,7 @@ describe('issue and related pure data queries', () => {
     sqlite.exec(
       "INSERT INTO task_statuses(id,workspace_id,key,name,category,position,is_default,is_review_step) VALUES ('s','wa','todo','Todo','todo',0,1,0); UPDATE issues SET status_id='s' WHERE id='i1';",
     )
-    const ids = Array.from({ length: 195 }, (_, index) => `unknown-${index}`)
+    const ids = Array.from({ length: 195 }, (_value, index) => `unknown-${index}`)
     const page = await runTestEffect(
       issues.listIssues(db, 'wa', {
         limit: 30,

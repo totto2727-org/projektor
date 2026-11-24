@@ -11,13 +11,13 @@ interface Props {
   initialSummary: SourceSummary | null
 }
 
-function versionMetric(v: FeedbackVersionSummary): string {
+function versionMetric(version: FeedbackVersionSummary): string {
   const parts: string[] = []
-  if (Predicate.isNotNullish(v.thumbsUpPct)) {
-    parts.push(`👍 ${v.thumbsUpPct}%`)
+  if (Predicate.isNotNullish(version.thumbsUpPct)) {
+    parts.push(`👍 ${version.thumbsUpPct}%`)
   }
-  if (Predicate.isNotNullish(v.avgFiveStar)) {
-    parts.push(`${v.avgFiveStar.toFixed(1)}★ avg`)
+  if (Predicate.isNotNullish(version.avgFiveStar)) {
+    parts.push(`${version.avgFiveStar.toFixed(1)}★ avg`)
   }
   return Array.isArrayEmpty(parts) ? 'No ratings' : parts.join(' · ')
 }
@@ -36,11 +36,14 @@ export default function FeedbackSummary({ initialSummary: summary }: Props) {
           <span className='text-[0.8rem] text-text-muted'>{summary.totalCount} total</span>
         </div>
         <ul className='flex flex-col gap-1'>
-          {summary.versions.map((v) => (
-            <li key={v.appVersion ?? 'unknown'} className='flex flex-wrap gap-x-3 text-[0.875rem] text-text-muted'>
-              <span className='font-medium text-text-base'>{v.appVersion ?? 'Unknown version'}</span>
-              <span>{versionMetric(v)}</span>
-              {v.withCommentCount > 0 && <span>{v.withCommentCount} with comments</span>}
+          {summary.versions.map((version) => (
+            <li
+              key={version.appVersion ?? 'unknown'}
+              className='flex flex-wrap gap-x-3 text-[0.875rem] text-text-muted'
+            >
+              <span className='font-medium text-text-base'>{version.appVersion ?? 'Unknown version'}</span>
+              <span>{versionMetric(version)}</span>
+              {version.withCommentCount > 0 && <span>{version.withCommentCount} with comments</span>}
             </li>
           ))}
         </ul>

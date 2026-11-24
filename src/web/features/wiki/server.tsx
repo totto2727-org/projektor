@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 import type React from 'react'
 
+import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import { loadBrand } from '@/brand.ts'
 import { renderMarkdownEffect } from '@/components/markdown/effect.ts'
 import { browserRequest, coreResult } from '@/core.ts'
@@ -47,7 +48,7 @@ export function renderWiki(
       pages: wikiPages(data.tree),
       workspaceSlug: data.workspaceSlug,
       projectId: data.projectId,
-    }).pipe(Effect.mapError((cause) => new ApiError('request', 500, cause.message, cause.cause)))
+    }).pipe(Effect.mapError((cause) => new ApiError('request', HTTP_INTERNAL_SERVER_ERROR, cause.message, cause.cause)))
     const brand = yield* loadBrand(services.env, scope, services.request)
     const initial: WikiSeed = { ...data, renderedMarkdown, brandName: brand.name }
     return <WikiPageClient initial={initial} />

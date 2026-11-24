@@ -1,5 +1,6 @@
 import { Effect } from 'effect'
 
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import type { CoreRpcShape } from '#core/contract.ts'
 import type { BrowserCommand } from '#core/web/command-contract.ts'
 import { browserRequest } from '@/core.ts'
@@ -27,7 +28,9 @@ export const runBrowserCommand = function runBrowserCommand<A, E, R>(
     }
     const workspace = yield* Effect.try({
       catch: (cause) =>
-        cause instanceof ScopeError ? cause : new ApiError('request', 403, 'Selected workspace is not accessible.'),
+        cause instanceof ScopeError
+          ? cause
+          : new ApiError('request', HTTP_FORBIDDEN, 'Selected workspace is not accessible.'),
       try: () => requireDataWorkspace(context.scope),
     })
     return yield* operation({

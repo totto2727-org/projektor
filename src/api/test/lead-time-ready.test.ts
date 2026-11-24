@@ -101,12 +101,12 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
       { id: crypto.randomUUID(), ready: 50, done: null }, // still open
     ]
     let n = 1000
-    for (const r of rows) {
+    for (const row of rows) {
       await env.DB.prepare(
         `INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, created_by_id, created_at, updated_at, ready_at, done_at)
 				 VALUES (?, ?, ?, ?, 't', '', 'todo', ?, 0, 0, ?, ?)`,
       )
-        .bind(r.id, workspaceId, projectId, n++, userId, r.ready, r.done)
+        .bind(row.id, workspaceId, projectId, n++, userId, row.ready, row.done)
         .run()
     }
     const repair = m0062
@@ -117,8 +117,8 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
     await env.DB.prepare(repair as string).run()
 
     const after = await Promise.all(
-      rows.map((r) =>
-        env.DB.prepare('SELECT ready_at FROM issues WHERE id = ?').bind(r.id).first<{ ready_at: number | null }>(),
+      rows.map((row) =>
+        env.DB.prepare('SELECT ready_at FROM issues WHERE id = ?').bind(row.id).first<{ ready_at: number | null }>(),
       ),
     )
     expect(after.map((a) => a?.ready_at)).toEqual([null, 50, 50])

@@ -41,7 +41,7 @@ describe('listProjectsAcrossWorkspaces: open vs backlog counts (PROJ-849)', () =
     await seedIssue(ws.id, project.id, user.id, { status: 'triage' })
 
     const rows = await listProjectsAcrossWorkspaces(user.id, env.DB)
-    const row = rows.find((r) => r.id === project.id)
+    const row = rows.find((selectedRow) => selectedRow.id === project.id)
     expect(row?.open_issue_count).toBe(4) // backlog, todo, in_progress, triage
     expect(row?.backlog_issue_count).toBe(1)
   })

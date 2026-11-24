@@ -36,6 +36,7 @@ import { pluginRegistry } from '#api/plugins/registry.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import { getWorkflow } from '#api/services/workflow.ts'
 import { ValidationError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 /*
@@ -124,16 +125,16 @@ router.post('/:workspaceId', async (httpContext) => {
   try {
     raw = await httpContext.req.json()
   } catch {
-    return httpContext.json(jsonRpcError(null, -32_700, 'Parse error'), 400)
+    return httpContext.json(jsonRpcError(null, -32_700, 'Parse error'), HTTP_BAD_REQUEST)
   }
   if (!isPlainObject(raw) || !Predicate.isString(raw.method)) {
     const id = isPlainObject(raw) ? (raw.id ?? null) : null
-    return httpContext.json(jsonRpcError(id, -32_600, 'Invalid Request'), 400)
+    return httpContext.json(jsonRpcError(id, -32_600, 'Invalid Request'), HTTP_BAD_REQUEST)
   }
   const body = raw as { jsonrpc: '2.0'; id: unknown; method: string; params?: unknown }
 
   if (body.jsonrpc !== '2.0') {
-    return httpContext.json(jsonRpcError(body.id, -32_600, 'Invalid Request'), 400)
+    return httpContext.json(jsonRpcError(body.id, -32_600, 'Invalid Request'), HTTP_BAD_REQUEST)
   }
 
   /*
@@ -183,7 +184,7 @@ router.post('/:workspaceId', async (httpContext) => {
                 -32_602,
                 `Unknown domain slug(s): ${invalid.join(', ')}. Valid domains: ${TOOL_DOMAIN_SLUGS.join(', ')}`,
               ),
-              400,
+              HTTP_BAD_REQUEST,
             )
           }
           const allowed = toolNamesForDomains(requested)
@@ -336,7 +337,7 @@ router.post('/:workspaceId', async (httpContext) => {
  */
 function insufficientScope(httpContext: Context<HonoEnv>, workspaceId: string, id: unknown, required: Capability) {
   httpContext.header('WWW-Authenticate', insufficientScopeChallenge(httpContext.req.url, workspaceId))
-  return httpContext.json(jsonRpcError(id, -32_003, `Token lacks '${required}' scope`), 403)
+  return httpContext.json(jsonRpcError(id, -32_003, `Token lacks '${required}' scope`), HTTP_FORBIDDEN)
 }
 
 function dedupe(values: string[]): string[] {

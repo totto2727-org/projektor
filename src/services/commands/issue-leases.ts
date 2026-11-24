@@ -403,7 +403,7 @@ export const liveLeasedIssueIds = async function liveLeasedIssueIds(ctx: Service
         gt(schema.agentSessions.lastHeartbeatAt, liveCutoff()),
       ),
     )
-  return new Set(rows.map((r) => r.issueId))
+  return new Set(rows.map((row) => row.issueId))
 }
 
 /**
@@ -561,14 +561,14 @@ export const listIssueLeases = async function listIssueLeases(ctx: ServiceCtx, r
     .where(and(...conditions))
     .orderBy(schema.issueLeases.claimedAt)
 
-  const items = rows.map((r) => ({
-    id: r.id,
-    issueId: r.issueId,
-    issueRef: `${r.projectKey}-${r.issueNumber}`,
-    agentSessionId: r.agentSessionId,
-    agentName: r.agentName,
-    claimedAt: r.claimedAt,
-    live: r.sessionStatus === 'active' && r.sessionHeartbeat > cutoff,
+  const items = rows.map((row) => ({
+    id: row.id,
+    issueId: row.issueId,
+    issueRef: `${row.projectKey}-${row.issueNumber}`,
+    agentSessionId: row.agentSessionId,
+    agentName: row.agentName,
+    claimedAt: row.claimedAt,
+    live: row.sessionStatus === 'active' && row.sessionHeartbeat > cutoff,
   }))
 
   return { items }

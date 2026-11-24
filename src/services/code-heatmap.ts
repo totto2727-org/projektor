@@ -225,7 +225,7 @@ const readCodeHeatmap = async function readCodeHeatmap(
   return {
     prefix: prefix ?? '',
     mode: resolvedMode,
-    totalDistinctIssues: new Set(claims.map((c) => c.issueId)).size,
+    totalDistinctIssues: new Set(claims.map((claim) => claim.issueId)).size,
     entries,
   }
 }

@@ -58,10 +58,10 @@ function ReviewTargetRow({
        * Never unlock during the write, or copy the submitted status into the UI.
        */
       setPending({ attachment, saved: true })
-    } catch (cause) {
+    } catch (currentError) {
       setError(
-        cause instanceof FunctionError
-          ? cause.message
+        currentError instanceof FunctionError
+          ? currentError.message
           : 'レビューステータスを更新できませんでした。もう一度お試しください。',
       )
       setPending(null)

@@ -28,7 +28,7 @@ const plan = async function plan(sql: string, ...params: unknown[]): Promise<str
   const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${sql}`)
     .bind(...params)
     .all<{ detail: string }>()
-  return rows.results.map((r) => r.detail).join(' | ')
+  return rows.results.map((result) => result.detail).join(' | ')
 }
 
 describe("covers PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
@@ -66,11 +66,11 @@ describe("covers PROJ-816: wiki_fts is keyed by the page's search_rowid", () => 
     )
       .bind(a.id, b.id)
       .all<{ page_id: string; content: string; keyed: number }>()
-    const byPage = Object.fromEntries(rows.results.map((r) => [r.page_id, r]))
+    const byPage = Object.fromEntries(rows.results.map((result) => [result.page_id, result]))
     expect(rows.results).toHaveLength(2)
     expect(byPage[a.id].content).toBe('five')
     expect(byPage[b.id].content).toBe('two')
-    expect(rows.results.every((r) => r.keyed === 1)).toBe(true)
+    expect(rows.results.every((result) => result.keyed === 1)).toBe(true)
   })
 
   test('a page with no search_rowid yet (written outside the service) gets one on save', async () => {

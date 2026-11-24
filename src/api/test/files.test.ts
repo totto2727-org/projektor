@@ -1132,7 +1132,7 @@ describe('attachment project visibility', () => {
      * every rejected upload leaves a billable orphan.
      */
     const keys = await env.R2.list({ prefix: `${workspaceId}/` })
-    expect(keys.objects.map((o) => o.key)).toEqual([hiddenR2Key])
+    expect(keys.objects.map((object) => object.key)).toEqual([hiddenR2Key])
   })
 
   test('rejects a link attachment onto an issue in an invisible project', async () => {

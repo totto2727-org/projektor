@@ -61,8 +61,8 @@ describe('native D1 atomic feedback conversion', () => {
       convertFeedbackToIssue(testFixture.ctx, { feedbackId: id }),
       convertFeedbackToIssue(testFixture.ctx, { feedbackId: id }),
     ])
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
-    expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
     const issues = await env.DB.prepare('SELECT id,number FROM issues WHERE project_id=?')
       .bind(testFixture.projectId)
       .all<{ id: string; number: number }>()

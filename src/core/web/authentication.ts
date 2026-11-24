@@ -2,6 +2,7 @@ import { String, Predicate, Effect, Schema } from 'effect'
 
 import { getUserWorkspaces } from '#commands/user-tokens.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { coreFailure } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { authenticateBrowser, BrowserAuthenticationError } from '#services/authentication.ts'
@@ -41,24 +42,24 @@ export const loadBrowserScope = function loadBrowserScope(
 ) {
   return Effect.gen(function* () {
     const decoded = yield* Schema.decodeUnknownEffect(WebRequestSchema)(input).pipe(
-      Effect.mapError(() => coreFailure(400, 'Invalid browser request.')),
+      Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
     )
     const selected = yield* Schema.decodeUnknownEffect(ScopeOptionsSchema)(options).pipe(
-      Effect.mapError(() => coreFailure(400, 'Invalid scope options.')),
+      Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid scope options.')),
     )
     const request = yield* Effect.try({
-      catch: () => coreFailure(400, 'Invalid browser request.'),
+      catch: () => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.'),
       try: () => nativeRequest(decoded),
     })
     if (request.headers.has('authorization')) {
-      return yield* coreFailure(403, 'An interactive browser session is required.')
+      return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }
     const principal = yield* Effect.tryPromise({
       catch: publicWebFailure,
       try: () => authenticateBrowser(request, env),
     })
     if (principal.user.email === 'public-viewer@projektor.local') {
-      return yield* coreFailure(403, 'An interactive browser session is required.')
+      return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }
     const session = yield* Effect.tryPromise({
       catch: publicWebFailure,

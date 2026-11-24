@@ -156,7 +156,7 @@ describe('projects REST', () => {
     })
     const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const projects = (await listRes.json()) as { key: string; description: string | null }[]
-    const proj = projects.find((p) => p.key === 'NULLD')
+    const proj = projects.find((project) => project.key === 'NULLD')
     expect(proj).toBeTruthy()
     expect(proj!.description).toBeNull()
   })
@@ -384,7 +384,7 @@ describe('projects MCP', () => {
       key: string
       description: string | null
     }[]
-    const proj = projects.find((p) => p.key === 'MCPND')
+    const proj = projects.find((project) => project.key === 'MCPND')
     expect(proj).toBeTruthy()
     expect(proj!.description).toBeNull()
   })
@@ -404,7 +404,7 @@ describe('projects MCP', () => {
       workspace_name: string
       open_issue_count: number
     }[]
-    const proj = projects.find((p) => p.key === 'SHAPE')
+    const proj = projects.find((project) => project.key === 'SHAPE')
     expect(proj).toBeTruthy()
     expect(proj!.workspace_id).toBeTruthy()
     expect(typeof proj!.workspace_slug).toBe('string')
@@ -544,7 +544,7 @@ describe('handles GET /api/projects cross-workspace', () => {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     const projects = (await res.json()) as { key: string; open_issue_count: number }[]
-    const proj = projects.find((p) => p.key === 'ICNT')
+    const proj = projects.find((selectedProject) => selectedProject.key === 'ICNT')
     expect(proj).toBeTruthy()
     expect(proj!.open_issue_count).toBe(2)
   })

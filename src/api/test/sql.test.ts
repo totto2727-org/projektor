@@ -37,18 +37,18 @@ describe('inChunks', () => {
   })
 
   test('makes a single call when the input is well under the D1 bound-parameter cap', async () => {
-    const items = Array.from({ length: 10 }, (_, i) => i)
+    const items = Array.from({ length: 10 }, (_value, index) => index)
     const chunks: number[][] = []
     const result = await inChunks(items, async (chunk) => {
       chunks.push(chunk)
       return chunk.map((n) => n * 2)
     })
     expect(chunks).toHaveLength(1)
-    expect(result).toEqual(items.map((n) => n * 2))
+    expect(result).toEqual(items.map((item) => item * 2))
   })
 
   test("splits a 250-item array into 3 chunks, each at or under D1's 100 bound-parameter cap", async () => {
-    const items = Array.from({ length: 250 }, (_, i) => i)
+    const items = Array.from({ length: 250 }, (_value, index) => index)
     const chunkSizes: number[] = []
     const result = await inChunks(items, async (chunk) => {
       chunkSizes.push(chunk.length)
@@ -65,7 +65,7 @@ describe('inChunks', () => {
   })
 
   test('chunks exactly at a 100-item boundary into more than one call', async () => {
-    const items = Array.from({ length: 100 }, (_, i) => i)
+    const items = Array.from({ length: 100 }, (_value, index) => index)
     const chunkSizes: number[] = []
     await inChunks(items, async (chunk) => {
       chunkSizes.push(chunk.length)
@@ -78,7 +78,7 @@ describe('inChunks', () => {
   })
 
   test('supports mutation-style callbacks that return no rows', async () => {
-    const items = Array.from({ length: 150 }, (_, i) => i)
+    const items = Array.from({ length: 150 }, (_value, index) => index)
     const seen: number[] = []
     const result = await inChunks(items, async (chunk) => {
       seen.push(...chunk)

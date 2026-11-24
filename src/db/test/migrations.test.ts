@@ -28,7 +28,7 @@ describe('migrations', () => {
     const rows = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
       name: string
     }[]
-    const tables = rows.map((r) => r.name)
+    const tables = rows.map((row) => row.name)
     expect(tables).toEqual(expect.arrayContaining(['workspaces', 'users', 'workspace_members', 'projects', 'issues']))
   })
 })
@@ -163,7 +163,7 @@ describe('schema constraints', () => {
       id: string
       slug: string
     }[]
-    const slugs = rows.map((r) => r.slug)
+    const slugs = rows.map((row) => row.slug)
     expect(new Set(slugs).size).toBe(2)
     expect(slugs).toContain('start-line')
     expect(slugs).toContain('start-line-2')

@@ -174,12 +174,12 @@ const r2Object = function r2Object(value: unknown): unknown {
     ...value,
     writeHttpMetadata(headers: Headers) {
       const names: Record<string, string> = {
-        contentType: 'content-type',
-        contentLanguage: 'content-language',
-        contentDisposition: 'content-disposition',
-        contentEncoding: 'content-encoding',
         cacheControl: 'cache-control',
         cacheExpiry: 'expires',
+        contentDisposition: 'content-disposition',
+        contentEncoding: 'content-encoding',
+        contentLanguage: 'content-language',
+        contentType: 'content-type',
       }
       Iterable.forEach(Object.entries(metadata ?? {}), ([key, entry]) => {
         if (entry !== undefined) {

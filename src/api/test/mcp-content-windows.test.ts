@@ -95,13 +95,13 @@ describe('covers PROJ-892: MCP tools', () => {
     await tool('create_issue', { projectId: f.projectId, title: 'Short', body: 'tiny' })
 
     const none = await tool<{ items: Record<string, unknown>[] }>('list_issues', {})
-    expect(none.items.every((i) => !('body' in i))).toBe(true)
+    expect(none.items.every((item) => !('body' in item))).toBe(true)
 
     const page = await tool<{ items: Record<string, unknown>[] }>('list_issues', {
       bodyChars: 100,
     })
-    const long = page.items.find((i) => i.title === 'Long')
-    const short = page.items.find((i) => i.title === 'Short')
+    const long = page.items.find((item) => item.title === 'Long')
+    const short = page.items.find((item) => item.title === 'Short')
     expect(globalThis.String(long?.body)).toHaveLength(100)
     expect(long?.bodyTruncated).toBe(true)
     expect(short?.body).toBe('tiny')

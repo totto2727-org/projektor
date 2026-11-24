@@ -1,5 +1,6 @@
 import { Predicate, Effect, Schema } from 'effect'
 
+import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 
 import { RequestServices } from './request.ts'
@@ -41,7 +42,7 @@ export const transferCoreBinary = function transferCoreBinary(
             signal: AbortSignal.any([services.request.signal, signal]),
           }),
         ),
-      catch: () => new ApiError('request', 502, 'The operation could not be completed.'),
+      catch: () => new ApiError('request', HTTP_BAD_GATEWAY, 'The operation could not be completed.'),
     })
     if (!response.ok) {
       const problem = yield* Effect.tryPromise(() => response.json()).pipe(

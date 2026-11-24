@@ -52,9 +52,9 @@ export const listCustomFieldDefs = function listCustomFieldDefs(
       .from(schema.customFieldDefinitions)
       .where(and(...conditions))
       .orderBy(asc(schema.customFieldDefinitions.createdAt))
-    return rows.map((d) => ({
-      ...d,
-      options: d.options ? (JSON.parse(d.options) as string[]) : null,
+    return rows.map((row) => ({
+      ...row,
+      options: row.options ? (JSON.parse(row.options) as string[]) : null,
     }))
   })
 }

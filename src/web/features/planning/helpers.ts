@@ -6,11 +6,11 @@ import type { RangeState, SprintIssue } from './types.ts'
 
 /** Original local-midnight date input contract, including timezone-safe round trips. */
 export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value.trim())
-  if (!m) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value.trim())
+  if (!match) {
     return null
   }
-  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
   return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / 1000)
 }
 export const unixToDateInput = function unixToDateInput(ts: number | null): string {

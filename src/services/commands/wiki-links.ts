@@ -73,14 +73,14 @@ const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): str
 
 export const parseWikiLinkTargets = function parseWikiLinkTargets(content: string): ParsedLinkTarget[] {
   const targets: ParsedLinkTarget[] = []
-  Iterable.forEach(content.matchAll(WIKILINK_RE), (m) => {
-    const title = m[1].trim()
+  Iterable.forEach(content.matchAll(WIKILINK_RE), (match) => {
+    const title = match[1].trim()
     if (title) {
       targets.push({ kind: 'title', title })
     }
   })
-  Iterable.forEach(content.matchAll(MD_LINK_RE), (m) => {
-    const slug = extractWikiSlugFromUrl(m[1].trim())
+  Iterable.forEach(content.matchAll(MD_LINK_RE), (match) => {
+    const slug = extractWikiSlugFromUrl(match[1].trim())
     if (Predicate.isNotNullish(slug) && String.isNonEmpty(slug)) {
       targets.push({ kind: 'slug', slug })
     }
@@ -123,15 +123,15 @@ export const healTitleFolds = async function healTitleFolds(ctx: ServiceCtx): Pr
       .all<{ id: string; t: string }>(),
   ])
   const statements = [
-    ...pages.results.map((r) =>
+    ...pages.results.map((result) =>
       ctx.db
         .prepare('UPDATE wiki_pages SET title_fold = ? WHERE id = ? AND workspace_id = ?')
-        .bind(foldWikiTitle(r.t), r.id, ctx.workspaceId),
+        .bind(foldWikiTitle(result.t), result.id, ctx.workspaceId),
     ),
-    ...links.results.map((r) =>
+    ...links.results.map((result) =>
       ctx.db
         .prepare('UPDATE wiki_links SET target_fold = ? WHERE id = ? AND workspace_id = ?')
-        .bind(foldWikiTitle(r.t), r.id, ctx.workspaceId),
+        .bind(foldWikiTitle(result.t), result.id, ctx.workspaceId),
     ),
   ]
   if (Array.isArrayNonEmpty(statements)) {
@@ -377,7 +377,7 @@ const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
   workspaceId: string,
   pages: Readonly<{ id: string; targets: Readonly<ParsedLinkTarget[]> }[]>,
 ): Promise<Map<string, ResolvedLink[]>> {
-  const allTargets = pages.flatMap((p) => p.targets)
+  const allTargets = pages.flatMap((page) => page.targets)
   const [titleMatches, slugMatches] = await Promise.all([
     resolveTitleTargets(
       orm,
@@ -587,7 +587,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
     return { processed: 0, nextCursor: null, pagesProcessed: 0 }
   }
 
-  const parsedPages = pages.map((p) => ({ id: p.id, targets: parseWikiLinkTargets(p.content) }))
+  const parsedPages = pages.map((page) => ({ id: page.id, targets: parseWikiLinkTargets(page.content) }))
   const resolvedByPage = await resolveLinkTargetsForPages(orm, ctx.workspaceId, parsedPages)
 
   const statements: D1PreparedStatement[] = []
@@ -745,7 +745,7 @@ export const repointIncomingLinks = async function repointIncomingLinks(
   pageIds: string[],
 ): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
-    const placeholders = chunk.map((_, i) => `?${i + 2}`).join(',')
+    const placeholders = chunk.map((_, index) => `?${index + 2}`).join(',')
     await ctx.db
       .prepare(
         `UPDATE wiki_links SET target_page_id = (${repointSubquery('?1')})
@@ -794,7 +794,7 @@ export const countBacklinkSources = async function countBacklinkSources(
    * Dedup across chunks too, since a source page could link to targets that land in
    * different chunks and otherwise be counted more than once.
    */
-  const distinctSources = new Set(rows.map((r) => r.sourcePageId).filter((id) => !pageIds.includes(id)))
+  const distinctSources = new Set(rows.map((row) => row.sourcePageId).filter((id) => !pageIds.includes(id)))
   return distinctSources.size
 }
 
@@ -864,13 +864,13 @@ export const backlinksForResolvedPage = async function backlinksForResolvedPage(
    */
   const visibleSourceIds = new Set(
     isWorkspaceAdmin(ctx.role)
-      ? rows.map((r) => r.pageId)
+      ? rows.map((row) => row.pageId)
       : await visibleSourcePageIds(
           ctx,
-          rows.filter((r) => Predicate.isNotNullish(r.projectId)),
+          rows.filter((row) => Predicate.isNotNullish(row.projectId)),
         ),
   )
-  const visible = rows.filter((r) => Predicate.isNullish(r.projectId) || visibleSourceIds.has(r.pageId))
+  const visible = rows.filter((row) => Predicate.isNullish(row.projectId) || visibleSourceIds.has(row.pageId))
 
   return visible.map((r) => ({
     linkId: r.linkId,
@@ -891,7 +891,7 @@ async function visibleSourcePageIds(
     return []
   }
   const uniqueProjectIds = [
-    ...new Set(rows.map((r) => r.projectId).filter((p): p is string => Predicate.isNotNullish(p))),
+    ...new Set(rows.map((row) => row.projectId).filter((p): p is string => Predicate.isNotNullish(p))),
   ]
   const grantedProjectIds = new Set<string>()
   for (const projectId of uniqueProjectIds) {
@@ -900,7 +900,7 @@ async function visibleSourcePageIds(
     }
   }
   return rows
-    .filter((r) => Predicate.isNotNullish(r.projectId) && grantedProjectIds.has(r.projectId))
+    .filter((row) => Predicate.isNotNullish(row.projectId) && grantedProjectIds.has(row.projectId))
     .map((r) => r.pageId)
 }
 

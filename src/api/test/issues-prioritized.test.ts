@@ -16,7 +16,7 @@ import { seedFixture, seedProject } from './helpers.ts'
 const READY_BODY = 'Do the thing.\n\n## Acceptance criteria\n- [ ] it works\n\n## Scope\n`apps/api/src/x.ts`'
 const NOT_READY_BODY = 'Something is off, look into it.'
 const PRIORITIES = ['urgent', 'high', 'medium', 'low', 'none'] as const
-const PRIORITY_SCORE: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1, none: 0 }
+const PRIORITY_SCORE: Record<string, number> = { high: 3, low: 1, medium: 2, none: 0, urgent: 4 }
 
 const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number) {
   const { workspace, user } = await seedFixture({ role: 'owner' })
@@ -154,10 +154,10 @@ describe('covers PROJ-859: prioritization parity with the in-memory algorithm', 
     }
 
     const wanted = opts.includeNotReady ? expected : expected.filter((e) => e.ready)
-    expect(got.issues.map((i) => i.id)).toEqual(wanted.slice(0, limit).map((e) => e.id))
-    got.issues.forEach((issue, k) => {
-      expect(issue._score).toBeCloseTo(wanted[k].score, 10)
-      expect(issue.needsGrooming === true).toBe(!wanted[k].ready)
+    expect(got.issues.map((issue) => issue.id)).toEqual(wanted.slice(0, limit).map((e) => e.id))
+    got.issues.forEach((issue, index) => {
+      expect(issue._score).toBeCloseTo(wanted[index].score, 10)
+      expect(issue.needsGrooming === true).toBe(!wanted[index].ready)
     })
     expect(got.droppedNotReady).toBe(opts.includeNotReady ? 0 : expected.filter((e) => !e.ready).length)
   })
@@ -219,7 +219,7 @@ describe('covers PROJ-920: string flags and limit are coerced like BooleanQueryP
       includeBacklog: 'false',
       includeNotReady: '1',
     })) as { issues: { id: string }[] }
-    expect(asString.issues.map((i) => i.id)).toEqual(asBool.issues.map((i) => i.id))
+    expect(asString.issues.map((issue) => issue.id)).toEqual(asBool.issues.map((issue) => issue.id))
     expect(asString.issues).toHaveLength(3)
   })
 })

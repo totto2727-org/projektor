@@ -4,6 +4,7 @@ import type { Context } from 'hono'
 import { OAUTH_SCOPES_SUPPORTED } from '#api/auth/scopes.ts'
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '#api/oauth/provider.ts'
+import { HTTP_NOT_FOUND, HTTP_OK } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 /*
@@ -80,7 +81,7 @@ router.get('/oauth-protected-resource/mcp/:workspaceId', (httpContext) => {
        */
       scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
     },
-    200,
+    HTTP_OK,
     PUBLIC_HEADERS,
   )
 })
@@ -130,7 +131,7 @@ router.get('/oauth-authorization-server', (httpContext) => {
       scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
       // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
     },
-    200,
+    HTTP_OK,
     PUBLIC_HEADERS,
   )
 })
@@ -156,7 +157,7 @@ router.get('/oauth-authorization-server', (httpContext) => {
  * has an ASSETS binding — there, the catch-all already 404s. The regression test
  * asserts the *content type* rather than the status for exactly that reason.
  */
-const discoveryNotFound = (httpContext: Context<HonoEnv>) => httpContext.json({ error: 'Not Found' }, 404)
+const discoveryNotFound = (httpContext: Context<HonoEnv>) => httpContext.json({ error: 'Not Found' }, HTTP_NOT_FOUND)
 
 router.all('/oauth-protected-resource', discoveryNotFound)
 router.all('/oauth-protected-resource/*', discoveryNotFound)

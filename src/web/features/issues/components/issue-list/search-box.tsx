@@ -12,7 +12,7 @@ export default function SearchBox({
   route,
 }: {
   searchQuery: string
-  setSearchQuery: (v: string) => void
+  setSearchQuery: (query: string) => void
   isSearchActive: boolean
   searchInputRef: RefObject<HTMLInputElement | null>
   route: IssuesRoute

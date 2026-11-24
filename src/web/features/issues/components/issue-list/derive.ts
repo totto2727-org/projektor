@@ -13,7 +13,7 @@ export const deriveProjectDescription = function deriveProjectDescription(
   if (!filterProject) {
     return null
   }
-  return projects.find((p) => p.key === filterProject)?.description ?? null
+  return projects.find((project) => project.key === filterProject)?.description ?? null
 }
 
 /** Status filter options: prefer the statuses endpoint, else derive from loaded issues. */

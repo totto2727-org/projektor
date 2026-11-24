@@ -19,6 +19,13 @@ import {
 import { apiReply } from '#api/services/reply.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import { ApiSubmittedFeedback } from '#contracts/api-public.ts'
+import {
+  HTTP_BAD_REQUEST,
+  HTTP_CREATED,
+  HTTP_NO_CONTENT,
+  HTTP_TOO_MANY_REQUESTS,
+  HTTP_UNAUTHORIZED,
+} from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const publicRouter = new Hono<HonoEnv>()
@@ -45,7 +52,7 @@ publicRouter.options('/submit', (httpContext) => {
   if (Predicate.isNotNullish(origin) && String.isNonEmpty(origin)) {
     headers['Access-Control-Allow-Origin'] = origin
   }
-  return httpContext.body(null, 204, headers)
+  return httpContext.body(null, HTTP_NO_CONTENT, headers)
 })
 
 const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
@@ -77,7 +84,7 @@ const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
     return null
   }
   if (tokenCount > tokenLimit || ipCount > ipLimit) {
-    return httpContext.json({ error: 'Too Many Requests' }, 429)
+    return httpContext.json({ error: 'Too Many Requests' }, HTTP_TOO_MANY_REQUESTS)
   }
   return null
 }
@@ -101,7 +108,7 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
    */
   if (e instanceof CorePublicError) {
     if (e.kind === 'validation') {
-      return httpContext.json({ error: e.details }, 400)
+      return httpContext.json({ error: e.details }, HTTP_BAD_REQUEST)
     }
     if (e.status === 403 || e.status === 404) {
       return httpContext.json({ error: e.message }, e.status === 404 ? 401 : 403)
@@ -114,7 +121,7 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
 publicRouter.post('/submit', async (httpContext) => {
   const auth = httpContext.req.header('Authorization')
   if (!auth?.startsWith('Bearer ')) {
-    return httpContext.json({ error: 'Unauthorized' }, 401)
+    return httpContext.json({ error: 'Unauthorized' }, HTTP_UNAUTHORIZED)
   }
   const token = auth.slice(7)
   const origin = httpContext.req.header('Origin') ?? null
@@ -134,7 +141,7 @@ publicRouter.post('/submit', async (httpContext) => {
     if (Predicate.isNotNullish(corsAllowOrigin) && String.isNonEmpty(corsAllowOrigin)) {
       httpContext.header('Access-Control-Allow-Origin', corsAllowOrigin)
     }
-    return httpContext.json({ id }, 201)
+    return httpContext.json({ id }, HTTP_CREATED)
   } catch (caughtError) {
     return submitFeedbackErrorResponse(httpContext, caughtError)
   }
@@ -194,7 +201,7 @@ authedRouter.post('/:id/feedback/bulk-convert-to-issue', async (httpContext) => 
   const projectId = httpContext.req.param('id')
   const raw = await jsonBody(httpContext)
   try {
-    return httpContext.json(await bulkConvertToIssue(ctx, { ...raw, projectId }), 201)
+    return httpContext.json(await bulkConvertToIssue(ctx, { ...raw, projectId }), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }
@@ -205,7 +212,7 @@ authedRouter.post('/:id/feedback/:feedbackId/convert-to-issue', async (httpConte
   const projectId = httpContext.req.param('id')
   const feedbackId = httpContext.req.param('feedbackId')
   try {
-    return httpContext.json(await convertFeedbackToIssue(ctx, { projectId, feedbackId }), 201)
+    return httpContext.json(await convertFeedbackToIssue(ctx, { projectId, feedbackId }), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

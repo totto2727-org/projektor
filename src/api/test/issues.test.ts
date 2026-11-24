@@ -440,13 +440,13 @@ describe('issues API', () => {
 
     // Without projectId: only newest 50 come back — all from newerProject
     const { page: all } = await listIssues('http://localhost/api/issues?limit=50')
-    const allTitles = all.items.map((i) => (i as { title: string }).title)
+    const allTitles = all.items.map((item) => (item as { title: string }).title)
     expect(allTitles.some((t) => t.startsWith('Older issue'))).toBe(false)
 
     // With projectId: all 10 project-scoped issues come back regardless of workspace age
     const { page: scoped } = await listIssues(`http://localhost/api/issues?project=${projectId}&limit=100`)
     expect(scoped.items).toHaveLength(10)
-    expect(scoped.items.every((i) => (i as { title: string }).title.startsWith('Older issue'))).toBe(true)
+    expect(scoped.items.every((item) => (item as { title: string }).title.startsWith('Older issue'))).toBe(true)
   }, 15_000) // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
 
   test('handles GET /api/issues/:id returns 404 for unknown id', async () => {
@@ -886,11 +886,11 @@ describe('issues API', () => {
 
   test('handles PATCH rejects a parentId that would create a cycle', async () => {
     // A → B → C; try to set A.parentId = C (cycle: A is ancestor of C)
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
-    const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: a.id })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
+    const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: issue.id })
     const c = await seedIssue(workspaceId, projectId, userId, { title: 'C', parentId: b.id })
 
-    const res = await fetchNativeApi(`http://localhost/api/issues/${a.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: c.id }),
@@ -1314,7 +1314,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     await seedIssue(workspaceId, projectId, userId, { parentId, status: 'done' })
 
     const { page } = await listIssues(`http://localhost/api/issues?noParent=true&includeRollups=1`)
-    const parentItem = page.items.find((i) => i.id === parentId) as {
+    const parentItem = page.items.find((item) => item.id === parentId) as {
       rollup: { total: number; byStatus: Record<string, number>; done: number; remaining: number }
     }
     expect(parentItem).toBeDefined()
@@ -1355,7 +1355,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     expect(single.rollup.done).toBe(1)
 
     const { page } = await listIssues(`http://localhost/api/issues?noParent=true&includeRollups=1`)
-    const parentItem = page.items.find((i) => i.id === parentId) as {
+    const parentItem = page.items.find((item) => item.id === parentId) as {
       rollup: { total: number; done: number }
     }
     expect(parentItem.rollup.total).toBe(single.rollup.total)
@@ -1387,7 +1387,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     }
 
     const { page } = await listIssues(`http://localhost/api/issues?noParent=true&includeRollups=1`)
-    const parentItem = page.items.find((i) => i.id === parentId) as {
+    const parentItem = page.items.find((item) => item.id === parentId) as {
       rollup: { total: number; byStatus: Record<string, number>; done: number }
     }
     expect(parentItem.rollup).toEqual(single.rollup)
@@ -1981,7 +1981,7 @@ describe('get_prioritized_issues MCP tool', () => {
       }[]
     }
     expect(data.issues.length).toBeGreaterThan(0)
-    expect(data.issues.some((i) => i.title === 'High prio')).toBe(true)
+    expect(data.issues.some((issue) => issue.title === 'High prio')).toBe(true)
     Iterable.forEach(data.issues, (issue) => {
       expect(typeof issue._score).toBe('number')
       expect(issue._score_breakdown).toHaveProperty('centrality')
@@ -2014,7 +2014,7 @@ describe('get_prioritized_issues MCP tool', () => {
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = JSON.parse(body.result!.content[0].text) as { issues: { title: string }[] }
-    const titles = data.issues.map((i) => i.title)
+    const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('Open')
     expect(titles).not.toContain('Done')
     expect(titles).not.toContain('Cancelled')
@@ -2042,8 +2042,8 @@ describe('get_prioritized_issues MCP tool', () => {
     const data = JSON.parse(body.result!.content[0].text) as {
       issues: { title: string; _score: number }[]
     }
-    const smallRow = data.issues.find((i) => i.title === 'Small')
-    const largeRow = data.issues.find((i) => i.title === 'Large')
+    const smallRow = data.issues.find((issue) => issue.title === 'Small')
+    const largeRow = data.issues.find((issue) => issue.title === 'Large')
     expect(smallRow!._score).toBeGreaterThan(largeRow!._score)
   })
 
@@ -2072,7 +2072,7 @@ describe('get_prioritized_issues MCP tool', () => {
       issues: { title: string }[]
       droppedNotReady: number
     }
-    const defaultTitles = defaultParsed.issues.map((i) => i.title)
+    const defaultTitles = defaultParsed.issues.map((issue) => issue.title)
     expect(defaultTitles).toContain('Ready')
     expect(defaultTitles).not.toContain('Not ready')
     // PROJ-291: dropped not-ready issues are surfaced as a count, not silently gone.
@@ -2082,10 +2082,10 @@ describe('get_prioritized_issues MCP tool', () => {
     const data = JSON.parse(withNotReady.result!.content[0].text) as {
       issues: { title: string; needsGrooming?: boolean; missingCriteria?: string[] }[]
     }
-    const notReadyRow = data.issues.find((i) => i.title === 'Not ready')
+    const notReadyRow = data.issues.find((issue) => issue.title === 'Not ready')
     expect(notReadyRow?.needsGrooming).toBe(true)
     expect(notReadyRow?.missingCriteria).toEqual(expect.arrayContaining(['acceptance criteria', 'scope/files']))
-    const readyRow = data.issues.find((i) => i.title === 'Ready')
+    const readyRow = data.issues.find((issue) => issue.title === 'Ready')
     expect(readyRow?.needsGrooming).toBeUndefined()
   })
 
@@ -2098,7 +2098,7 @@ describe('get_prioritized_issues MCP tool', () => {
     const body = await callPrioritized({ projectId, includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = JSON.parse(body.result!.content[0].text) as { issues: { title: string }[] }
-    const titles = data.issues.map((i) => i.title)
+    const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('In target project')
     expect(titles).not.toContain('In other project')
   })
@@ -2113,8 +2113,8 @@ describe('get_prioritized_issues MCP tool', () => {
       droppedNotReady: number
       degraded?: boolean
     }
-    expect(data.issues.map((i) => i.title)).toContain('Not ready')
-    expect(data.issues.find((i) => i.title === 'Not ready')?.needsGrooming).toBe(true)
+    expect(data.issues.map((issue) => issue.title)).toContain('Not ready')
+    expect(data.issues.find((issue) => issue.title === 'Not ready')?.needsGrooming).toBe(true)
     expect(data.droppedNotReady).toBe(1)
     expect(data.degraded).toBe(true)
   })
@@ -2139,7 +2139,7 @@ describe('get_prioritized_issues MCP tool', () => {
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = JSON.parse(body.result!.content[0].text) as { issues: { title: string }[] }
-    const titles = data.issues.map((i) => i.title)
+    const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('In target project')
     expect(titles).toContain('In other project')
   })
@@ -2175,7 +2175,7 @@ describe('handles GET /api/issues/prioritized', () => {
      * Seeded low-first so a route that returned insertion order rather than the
      * service's ranking would fail here instead of passing by coincidence.
      */
-    expect(body.issues.map((i) => i.title)).toEqual(['High prio', 'Low prio'])
+    expect(body.issues.map((issue) => issue.title)).toEqual(['High prio', 'Low prio'])
   })
 
   /*
@@ -2200,7 +2200,7 @@ describe('handles GET /api/issues/prioritized', () => {
 
     const { res, body } = await getPrioritized({ projectId, includeNotReady: 'true' })
     expect(res.status).toBe(200)
-    const titles = body.issues.map((i) => i.title)
+    const titles = body.issues.map((issue) => issue.title)
     expect(titles).toContain('In target project')
     expect(titles).not.toContain('In other project')
   })
@@ -2296,22 +2296,22 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('create_issue_link accepts refs for sourceIssueId/targetIssueId', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
 
     const res = await mcpCall({
       name: 'create_issue_link',
       arguments: {
-        sourceIssueId: `${projectKey}-${a.number}`,
+        sourceIssueId: `${projectKey}-${issue.number}`,
         targetIssueId: `${projectKey}-${b.number}`,
         type: 'blocks',
       },
     })
     expect(res.error).toBeUndefined()
 
-    const linksRes = await mcpCall({ name: 'list_issue_links', arguments: { issueId: a.id } })
+    const linksRes = await mcpCall({ name: 'list_issue_links', arguments: { issueId: issue.id } })
     const links = JSON.parse(linksRes.result!.content[0].text) as { linkedIssueId: string }[]
-    expect(links.map((l) => l.linkedIssueId)).toEqual([b.id])
+    expect(links.map((link) => link.linkedIssueId)).toEqual([b.id])
   })
 
   test('create_issue accepts a project key in place of projectId', async () => {
@@ -2333,7 +2333,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     const res = await mcpCall({ name: 'list_issues', arguments: { projectId: projectKey } })
     expect(res.error).toBeUndefined()
     const page = JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }
-    expect(page.items.map((i) => i.title)).toContain('In project')
+    expect(page.items.map((item) => item.title)).toContain('In project')
   })
 
   test('an unresolvable ref returns NotFoundError, not a silent empty result', async () => {
@@ -2422,7 +2422,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     })
     expect(res.error).toBeUndefined()
     const results = (JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }).items
-    expect(results.map((r) => r.title)).toContain('Findable via key search')
+    expect(results.map((result) => result.title)).toContain('Findable via key search')
   })
 
   test('get_prioritized_issues with a visible project key returns results', async () => {
@@ -2439,7 +2439,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     const { issues } = JSON.parse(res.result!.content[0].text) as {
       issues: { title: string }[]
     }
-    expect(issues.map((i) => i.title)).toContain('Prioritizable')
+    expect(issues.map((issue) => issue.title)).toContain('Prioritizable')
   })
 
   test('list_issues rejects an unrecognized param with the field name in the error', async () => {
@@ -2720,15 +2720,15 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issues fetches up to 50 issues in one call by ref and id', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'Batch A' })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Batch A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'Batch B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    const ref = `${row!.key}-${a.number}`
+    const ref = `${row!.key}-${issue.number}`
 
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [b.id] } })
     expect(res.error).toBeUndefined()
     const data = JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }
-    const titles = data.items.map((i) => i.title).sort()
+    const titles = data.items.map((item) => item.title).sort()
     expect(titles).toEqual(['Batch A', 'Batch B'])
   })
 
@@ -2757,10 +2757,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issues preserves request order and reports unresolved/invisible refs+ids as missing', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'Order A' })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Order A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'Order B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    const refA = `${row!.key}-${a.number}`
+    const refA = `${row!.key}-${issue.number}`
     const missingRef = `${row!.key}-999999`
     const missingId = crypto.randomUUID()
 
@@ -2773,7 +2773,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       items: { id: string }[]
       missing: string[]
     }
-    expect(data.items.map((i) => i.id)).toEqual([a.id, b.id])
+    expect(data.items.map((item) => item.id)).toEqual([issue.id, b.id])
     expect(data.missing).toEqual([missingRef, missingId])
   })
 
@@ -2805,14 +2805,14 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('covers REST GET /api/issues/batch has parity with the MCP get_issues tool', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch A' })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch B' })
-    const res = await fetchNativeApi(`http://localhost/api/issues/batch?ids=${a.id},${b.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/batch?ids=${issue.id},${b.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
     const data = (await res.json()) as { items: { title: string }[] }
-    expect(data.items.map((i) => i.title).sort()).toEqual(['REST Batch A', 'REST Batch B'])
+    expect(data.items.map((item) => item.title).sort()).toEqual(['REST Batch A', 'REST Batch B'])
   })
 
   test('covers PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {
@@ -2852,14 +2852,14 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   }
 
   test('get_issues resolves zero-padded refs like get_issue does', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'Padded' })
-    const padded = `${await projectKey()}-00${a.number}`
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Padded' })
+    const padded = `${await projectKey()}-00${issue.number}`
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [padded] } })
     const data = JSON.parse(res.result!.content[0].text) as {
       items: { id: string }[]
       missing: string[]
     }
-    expect(data.items.map((i) => i.id)).toEqual([a.id])
+    expect(data.items.map((item) => item.id)).toEqual([issue.id])
     expect(data.missing).toStrictEqual([])
   })
 
@@ -2871,14 +2871,14 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issues omits body unless includeBody:true', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'Bodied' })
-    await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?').bind('hello', a.id).run()
-    const without = await mcpCall({ name: 'get_issues', arguments: { ids: [a.id] } })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Bodied' })
+    await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?').bind('hello', issue.id).run()
+    const without = await mcpCall({ name: 'get_issues', arguments: { ids: [issue.id] } })
     const w = JSON.parse(without.result!.content[0].text) as { items: Record<string, unknown>[] }
     expect(w.items[0]).not.toHaveProperty('body')
     const withBody = await mcpCall({
       name: 'get_issues',
-      arguments: { ids: [a.id], includeBody: true },
+      arguments: { ids: [issue.id], includeBody: true },
     })
     const b = JSON.parse(withBody.result!.content[0].text) as { items: Record<string, unknown>[] }
     expect(b.items[0].body).toBe('hello')
@@ -2897,16 +2897,16 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('covers REST /api/issues/batch: refs with spaces, missing in request order, 400 over 50', async () => {
-    const a = await seedIssue(workspaceId, projectId, userId, { title: 'REST ref A' })
+    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST ref A' })
     const key = await projectKey()
     const gone = `${key}-999999`
     const res = await fetchNativeApi(
-      `http://localhost/api/issues/batch?refs=${encodeURIComponent(`${gone}, ${key}-${a.number}`)}`,
+      `http://localhost/api/issues/batch?refs=${encodeURIComponent(`${gone}, ${key}-${issue.number}`)}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
     const data = (await res.json()) as { items: { id: string }[]; missing: string[] }
-    expect(data.items.map((i) => i.id)).toEqual([a.id])
+    expect(data.items.map((item) => item.id)).toEqual([issue.id])
     expect(data.missing).toEqual([gone])
 
     const ids = Array.from({ length: 51 }, () => crypto.randomUUID()).join(',')
@@ -2941,7 +2941,7 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
       items: { id: string }[]
       missing: string[]
     }
-    expect(data.items.map((i) => i.id)).toEqual([visible.id])
+    expect(data.items.map((item) => item.id)).toEqual([visible.id])
     expect(data.missing).toEqual([hiddenRef, hidden.id])
 
     const rest = await fetchNativeApi(
@@ -2949,7 +2949,7 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
       { headers: authHeaders(roles.member.token, roles.workspace.slug) },
     )
     const restData = (await rest.json()) as { items: { id: string }[]; missing: string[] }
-    expect(restData.items.map((i) => i.id)).toEqual([visible.id])
+    expect(restData.items.map((item) => item.id)).toEqual([visible.id])
     expect(restData.missing).toEqual([hiddenRef, hidden.id])
   })
 

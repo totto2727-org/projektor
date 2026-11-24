@@ -75,12 +75,12 @@ export const buildPostMessageStatements = function buildPostMessageStatements(
     return []
   }
   const now = Date.now()
-  const rows = messages.map((m) => ({
+  const rows = messages.map((message) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
-    scope: m.scope,
-    agentId: m.agentId ?? null,
-    body: m.body,
+    scope: message.scope,
+    agentId: message.agentId ?? null,
+    body: message.body,
     createdAt: now,
   }))
   const statements: D1PreparedStatement[] = []

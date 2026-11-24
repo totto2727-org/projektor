@@ -16,11 +16,11 @@ import { UpdateDescriptionInputSchema } from './schemas.ts'
 import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas.ts'
 
 const colors: Record<string, string> = {
-  todo: 'var(--status-todo)',
+  cancelled: 'var(--status-cancelled)',
+  done: 'var(--status-done)',
   in_progress: 'var(--status-in-progress)',
   in_review: 'var(--status-in-review)',
-  done: 'var(--status-done)',
-  cancelled: 'var(--status-cancelled)',
+  todo: 'var(--status-todo)',
 }
 const heading = 'text-xs font-semibold text-text-muted m-0 mb-3 uppercase tracking-[0.05em]'
 const badge = 'font-mono text-xs font-medium px-2 py-[0.125rem] rounded bg-surface border border-border text-text-muted'

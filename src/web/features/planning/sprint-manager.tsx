@@ -418,8 +418,8 @@ function SprintRow({
     setError(null)
     try {
       unwrapResult(await setSprintStatus({ workspaceSlug, projectId, sprintId: sprint.id, status }))
-    } catch (cause) {
-      setError(globalThis.String(cause))
+    } catch (currentError) {
+      setError(globalThis.String(currentError))
     }
     setBusy(false)
   }
@@ -432,8 +432,8 @@ function SprintRow({
     try {
       unwrapResult(await archiveSprint({ workspaceSlug, projectId, sprintId: sprint.id }))
       setArchive(false)
-    } catch (cause) {
-      setError(globalThis.String(cause))
+    } catch (currentError) {
+      setError(globalThis.String(currentError))
     }
     setBusy(false)
   }
@@ -625,8 +625,8 @@ function MoveIssuesForm({
       try {
         unwrapResult(await moveSprintIssues(value))
         onClose()
-      } catch (cause) {
-        setError(globalThis.String(cause))
+      } catch (currentError) {
+        setError(globalThis.String(currentError))
       }
     },
   })

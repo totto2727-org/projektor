@@ -45,9 +45,9 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
     }
 
     const links = [
-      ...Array.from({ length: 80 }, (_, i) => `[d${i}](/wiki/direct-${i})`),
-      ...Array.from({ length: 40 }, (_, i) => `[r${i}](/wiki/old-${i})`),
-      ...Array.from({ length: 80 }, (_, i) => `[m${i}](/wiki/missing-${i})`),
+      ...Array.from({ length: 80 }, (_value, index) => `[d${index}](/wiki/direct-${index})`),
+      ...Array.from({ length: 40 }, (_value, index) => `[r${index}](/wiki/old-${index})`),
+      ...Array.from({ length: 80 }, (_value, index) => `[m${index}](/wiki/missing-${index})`),
       // Duplicates must not create extra rows or queries
       ...Array.from({ length: 30 }, () => '[again](/wiki/direct-0)'),
     ]

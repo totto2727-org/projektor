@@ -80,9 +80,9 @@ export function ConnectorManager({
     try {
       unwrapResult(await disconnectConnector({ workspaceSlug, connectorId: id }))
       setRevokeId(null)
-    } catch (cause) {
+    } catch (currentError) {
       setRevoking(false)
-      setError(String(cause))
+      setError(String(currentError))
       return
     }
     setRevoking(false)

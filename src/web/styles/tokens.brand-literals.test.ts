@@ -36,9 +36,9 @@ describe('tokens.css — brand-derived tokens stay derived from --accent (PROJ-7
       const darkMatch = /--dark-([a-z0-9-]+):\s*([^;]+);/g
 
       const findValue = (regex: RegExp, propName: string): undefined | string => {
-        for (const m of tokensCss.matchAll(regex)) {
-          if (m[1] === propName) {
-            return m[2]
+        for (const match of tokensCss.matchAll(regex)) {
+          if (match[1] === propName) {
+            return match[2]
           }
         }
         return undefined

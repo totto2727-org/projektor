@@ -712,7 +712,7 @@ describe('covers MCP endpoint', () => {
     const data = JSON.parse(res.result.content[0].text) as {
       issues: { title: string; _score: number }[]
     }
-    const titles = data.issues.map((i) => i.title)
+    const titles = data.issues.map((issue) => issue.title)
     expect(titles.indexOf('Urgent')).toBeLessThan(titles.indexOf('None'))
   })
 
@@ -737,7 +737,7 @@ describe('covers MCP endpoint', () => {
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as { issues: { title: string }[] }
-    const titles = data.issues.map((i) => i.title)
+    const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('Open')
     expect(titles).not.toContain('Done')
     expect(titles).not.toContain('Cancelled')
@@ -786,8 +786,8 @@ describe('covers MCP endpoint', () => {
     const data = JSON.parse(res.result.content[0].text) as {
       issues: { title: string; _score_breakdown: { centrality: number } }[]
     }
-    const targetRow = data.issues.find((i) => i.title === 'Target')
-    const blockerRow = data.issues.find((i) => i.title === 'Blocker')
+    const targetRow = data.issues.find((issue) => issue.title === 'Target')
+    const blockerRow = data.issues.find((issue) => issue.title === 'Blocker')
     expect(targetRow?._score_breakdown.centrality).toBe(1)
     expect(blockerRow?._score_breakdown.centrality).toBe(0)
   })
@@ -819,8 +819,8 @@ describe('covers MCP endpoint', () => {
     const data = JSON.parse(res.result.content[0].text) as {
       issues: { title: string; _score: number }[]
     }
-    const smallRow = data.issues.find((i) => i.title === 'Small (1pt)')
-    const largeRow = data.issues.find((i) => i.title === 'Large (8pt)')
+    const smallRow = data.issues.find((issue) => issue.title === 'Small (1pt)')
+    const largeRow = data.issues.find((issue) => issue.title === 'Large (8pt)')
     // Smaller story points → higher score (1/sp is larger for small sp)
     expect(smallRow!._score).toBeGreaterThan(largeRow!._score)
   })

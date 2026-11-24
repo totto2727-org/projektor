@@ -4,6 +4,7 @@ import type { Column, SQL } from 'drizzle-orm'
 import { Predicate } from 'effect'
 
 import { ApiError } from '#contracts/errors.ts'
+import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import { requireDataWorkspace } from '#contracts/web-data.ts'
 import type { ProjectSummaryVisibility } from '#services'
 
@@ -30,7 +31,7 @@ export const projectSummaryVisibility = function projectSummaryVisibility(userId
 
 export const requireDataDatabase = function requireDataDatabase(db: D1Database): D1Database {
   if (!db || !Predicate.isFunction(db.prepare)) {
-    throw new ApiError('configuration', 500, 'The application database is not configured.')
+    throw new ApiError('configuration', HTTP_INTERNAL_SERVER_ERROR, 'The application database is not configured.')
   }
   return db
 }

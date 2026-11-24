@@ -154,30 +154,30 @@ function FeedbackMobileCards({
 }: FeedbackMobileCardsProps) {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-      {rows.map((r) => (
-        <div key={r.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+      {rows.map((row) => (
+        <div key={row.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
           <div className='flex items-start gap-2 mb-2'>
             <input
               type='checkbox'
-              aria-label={`select row ${r.id}`}
-              checked={selected.has(r.id)}
+              aria-label={`select row ${row.id}`}
+              checked={selected.has(row.id)}
               onChange={() => {
-                onToggleRow(r.id)
+                onToggleRow(row.id)
               }}
               className='mt-1'
             />
             <div className='flex-1'>
               <div className='flex justify-between items-center gap-2 mb-1'>
-                <span className='text-[0.9rem]'>{ratingDisplay(r.rating, r.ratingScale)}</span>
-                <span className='text-[0.75rem] text-text-muted'>{formatDate(r.createdAt)}</span>
+                <span className='text-[0.9rem]'>{ratingDisplay(row.rating, row.ratingScale)}</span>
+                <span className='text-[0.75rem] text-text-muted'>{formatDate(row.createdAt)}</span>
               </div>
-              <div className='text-[0.875rem] text-text-base'>{r.body ?? '—'}</div>
-              {r.submitterLabel && <div className='text-[0.75rem] text-text-muted mt-1'>{r.submitterLabel}</div>}
-              <FeedbackContext row={r} expanded={expanded.has(r.id)} onToggle={() => onToggleExpanded(r.id)} />
-              <div className='text-[0.75rem] text-text-muted mt-1'>{r.status}</div>
+              <div className='text-[0.875rem] text-text-base'>{row.body ?? '—'}</div>
+              {row.submitterLabel && <div className='text-[0.75rem] text-text-muted mt-1'>{row.submitterLabel}</div>}
+              <FeedbackContext row={row} expanded={expanded.has(row.id)} onToggle={() => onToggleExpanded(row.id)} />
+              <div className='text-[0.75rem] text-text-muted mt-1'>{row.status}</div>
             </div>
           </div>
-          <FeedbackRowActions row={r} onMarkReviewed={onMarkReviewed} onConvert={onConvert} />
+          <FeedbackRowActions row={row} onMarkReviewed={onMarkReviewed} onConvert={onConvert} />
         </div>
       ))}
     </div>
@@ -226,28 +226,28 @@ function FeedbackTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
+          {rows.map((row) => (
+            <tr key={row.id}>
               <td className={TD}>
                 <input
                   type='checkbox'
-                  aria-label={`select row ${r.id}`}
-                  checked={selected.has(r.id)}
+                  aria-label={`select row ${row.id}`}
+                  checked={selected.has(row.id)}
                   onChange={() => {
-                    onToggleRow(r.id)
+                    onToggleRow(row.id)
                   }}
                 />
               </td>
-              <td className={TD}>{ratingDisplay(r.rating, r.ratingScale)}</td>
+              <td className={TD}>{ratingDisplay(row.rating, row.ratingScale)}</td>
               <td className={`${TD} text-text-base`}>
-                <div>{r.body ?? '—'}</div>
-                {r.submitterLabel && <div className='text-[0.75rem] text-text-muted mt-1'>{r.submitterLabel}</div>}
-                <FeedbackContext row={r} expanded={expanded.has(r.id)} onToggle={() => onToggleExpanded(r.id)} />
+                <div>{row.body ?? '—'}</div>
+                {row.submitterLabel && <div className='text-[0.75rem] text-text-muted mt-1'>{row.submitterLabel}</div>}
+                <FeedbackContext row={row} expanded={expanded.has(row.id)} onToggle={() => onToggleExpanded(row.id)} />
               </td>
-              <td className={`${TD} text-text-muted`}>{r.status}</td>
-              <td className={`${TD} text-text-muted`}>{formatDate(r.createdAt)}</td>
+              <td className={`${TD} text-text-muted`}>{row.status}</td>
+              <td className={`${TD} text-text-muted`}>{formatDate(row.createdAt)}</td>
               <td className={`${TD} whitespace-nowrap`}>
-                <FeedbackRowActions row={r} onMarkReviewed={onMarkReviewed} onConvert={onConvert} />
+                <FeedbackRowActions row={row} onMarkReviewed={onMarkReviewed} onConvert={onConvert} />
               </td>
             </tr>
           ))}
@@ -383,7 +383,7 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId, initi
   )
 
   function toggleSelectAll(): void {
-    setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))))
+    setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row.id))))
   }
 
   return (

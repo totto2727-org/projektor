@@ -32,15 +32,15 @@ export const isWorkspaceAdmin = function isWorkspaceAdmin(role: Role | undefined
  * same project gets the strongest.
  */
 const PROJECT_ROLE_RANK: Record<'viewer' | 'member' | 'admin', number> = {
-  viewer: 1,
-  member: 2,
   admin: 3,
+  member: 2,
+  viewer: 1,
 }
 
 const strongestGrant = function strongestGrant(
   roles: Readonly<('viewer' | 'member' | 'admin')[]>,
 ): 'viewer' | 'member' | 'admin' {
-  return roles.reduce((best, r) => (PROJECT_ROLE_RANK[r] > PROJECT_ROLE_RANK[best] ? r : best))
+  return roles.reduce((best, role) => (PROJECT_ROLE_RANK[role] > PROJECT_ROLE_RANK[best] ? role : best))
 }
 
 /**
@@ -79,7 +79,7 @@ export const effectiveProjectRole = async function effectiveProjectRole(
   if (ctx.auth?.method === 'public') {
     return 'viewer'
   }
-  return strongestGrant(rows.map((r) => r.role))
+  return strongestGrant(rows.map((row) => row.role))
 }
 
 /**
@@ -306,7 +306,7 @@ export const visibleProjectIds = async function visibleProjectIds(ctx: ServiceCt
       .from(schema.projects)
       .where(eq(schema.projects.workspaceId, ctx.workspaceId))
       .all()
-    return rows.map((r) => r.id)
+    return rows.map((row) => row.id)
   }
 
   const rows = await orm
@@ -323,7 +323,7 @@ export const visibleProjectIds = async function visibleProjectIds(ctx: ServiceCt
       ),
     )
     .all()
-  return rows.map((r) => r.id)
+  return rows.map((row) => row.id)
 }
 
 /**
@@ -381,11 +381,11 @@ export const usersWithProjectReadAccess = async function usersWithProjectReadAcc
       ),
   )
   if (Predicate.isNullish(projectId)) {
-    return new Set(members.map((m) => m.userId))
+    return new Set(members.map((member) => member.userId))
   }
 
-  const allowed = new Set(members.filter((m) => isWorkspaceAdmin(m.role)).map((m) => m.userId))
-  const needGrant = members.filter((m) => !isWorkspaceAdmin(m.role)).map((m) => m.userId)
+  const allowed = new Set(members.filter((member) => isWorkspaceAdmin(member.role)).map((m) => m.userId))
+  const needGrant = members.filter((member) => !isWorkspaceAdmin(member.role)).map((m) => m.userId)
   const granted = await inChunks(needGrant, (chunk) =>
     orm
       .select({ userId: schema.userGroupMembers.userId })

@@ -55,7 +55,7 @@ function SourceCard({
   projectId: string
 }) {
   const total = summary?.totalCount ?? 0
-  const lastSeenAt = summary?.versions.reduce((max, v) => Math.max(max, v.lastSeenAt), 0) ?? 0
+  const lastSeenAt = summary?.versions.reduce((max, version) => Math.max(max, version.lastSeenAt), 0) ?? 0
   return (
     <a
       href={`/feedback/${encodeURIComponent(source.id)}?workspace=${encodeURIComponent(workspaceSlug)}&projectId=${encodeURIComponent(projectId)}`}

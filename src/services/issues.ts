@@ -333,7 +333,7 @@ export const listIssues = function listIssues(
       const last = items.at(-1)
       return { items, total, nextCursor: hasMore && last ? `${last.created_at}:${last.id}` : null }
     })
-    const ids = page.items.map((r) => r.id)
+    const ids = page.items.map((item) => item.id)
     const fields = yield* batchLoadCustomFields(db, workspaceId, ids)
     const rollups = options.includeRollups === true ? yield* getChildRollups(db, workspaceId, ids) : null
     const items: IssueListRow[] = page.items.map(({ body, ...row }) => ({
@@ -387,8 +387,8 @@ export const getIssuesBatch = function getIssuesBatch(
         })
       }
       const order = refs.map((ref) => {
-        const m = ref.match(ISSUE_REF_PATTERN)!
-        return { requested: ref, id: refToId.get(`${m[1]}-${Number(m[2])}`) }
+        const match = ref.match(ISSUE_REF_PATTERN)!
+        return { requested: ref, id: refToId.get(`${match[1]}-${Number(match[2])}`) }
       })
       Iterable.forEach(options.ids ?? [], (id) => {
         order.push({ requested: id, id })
@@ -408,7 +408,7 @@ export const getIssuesBatch = function getIssuesBatch(
     const fields = yield* batchLoadCustomFields(
       db,
       workspaceId,
-      selection.rows.map((r) => r.id),
+      selection.rows.map((row) => row.id),
     )
     const rowsById = new Map(
       selection.rows.map(({ body, ...row }) => [

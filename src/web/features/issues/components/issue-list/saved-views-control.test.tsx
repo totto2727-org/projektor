@@ -32,7 +32,7 @@ function seedViews(names: string[]): void {
   )
 }
 
-function Harness({ onApply }: { onApply: (f: SavedViewFilters) => void }) {
+function Harness({ onApply }: { onApply: (filters: SavedViewFilters) => void }) {
   const saved = useSavedViews('PROJ', EMPTY_FILTERS, onApply, 'workspace', 'user-a')
   return <SavedViewsControl saved={saved} />
 }

@@ -1,5 +1,6 @@
 import { String, Predicate, Effect, Schema } from 'effect'
 
+import { HTTP_BAD_GATEWAY, HTTP_UNPROCESSABLE_CONTENT } from '#contracts/http-status.ts'
 import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
 import { readDataIssuePage, readSprints } from '@/features/issues/data.ts'
 import { dataError, requireDataProject, requireDataWorkspace } from '@/server/data-context.ts'
@@ -52,12 +53,12 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
       ) {
         return yield* new ApiError(
           'request',
-          422,
+          HTTP_UNPROCESSABLE_CONTENT,
           `Sprint overview supports at most ${MAX_AGGREGATE_ISSUES} issues. Use the paginated issue list for larger projects.`,
         )
       }
       if (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor) && cursors.has(nextCursor)) {
-        return yield* new ApiError('schema', 502, 'Repeated issue pagination cursor')
+        return yield* new ApiError('schema', HTTP_BAD_GATEWAY, 'Repeated issue pagination cursor')
       }
       if (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor)) {
         cursors.add(nextCursor)

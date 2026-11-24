@@ -322,7 +322,7 @@ describe('custom Fields — resolved on read', () => {
     })
     const issue = (await getRes.json()) as { customFields: { key: string; value: string }[] }
     expect(Array.isArray(issue.customFields)).toBe(true)
-    const sp = issue.customFields.find((f) => f.key === 'sp')
+    const sp = issue.customFields.find((field) => field.key === 'sp')
     expect(sp?.value).toBe('8')
   })
 
@@ -347,7 +347,7 @@ describe('custom Fields — resolved on read', () => {
     expect(page.items).toHaveLength(3)
     Iterable.forEach(page.items, (item) => {
       expect(Array.isArray(item.customFields)).toBe(true)
-      const sp = item.customFields.find((f) => f.key === 'sp')
+      const sp = item.customFields.find((field) => field.key === 'sp')
       expect(sp).toBeTruthy()
     })
   })
@@ -371,7 +371,7 @@ describe('custom Fields — resolved on read', () => {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { customFields: { key: string; value: string }[] }
-    expect(issue.customFields.find((f) => f.key === 'sp')?.value).toBe('13')
+    expect(issue.customFields.find((field) => field.key === 'sp')?.value).toBe('13')
   })
 
   test('issue with no custom field values returns empty customFields array', async () => {
@@ -439,7 +439,7 @@ describe('custom Fields — list_issues filter', () => {
     })
     const page = (await res.json()) as { items: { title: string }[] }
     expect(page.items).toHaveLength(2)
-    const titles = page.items.map((i) => i.title).sort()
+    const titles = page.items.map((item) => item.title).sort()
     expect(titles).toEqual(['SP13', 'SP8'])
   })
 

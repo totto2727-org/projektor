@@ -11,10 +11,10 @@ interface ReviewableIssue {
 }
 
 const STATUS_LABELS = {
-  fixing: '修正中',
-  in_review: 'レビュー中',
   changes_requested: '要修正',
   done: '完了',
+  fixing: '修正中',
+  in_review: 'レビュー中',
 }
 
 /** One native link keeps review context visible in every issue layout, including empty selection. */

@@ -842,7 +842,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
       slug: `drawer-${suffix.toLowerCase()}`,
       content: Array.from(
         { length: 30 },
-        (_, index) => `## Section ${index}\n\nScrollable persisted page content.`,
+        (_value, index) => `## Section ${index}\n\nScrollable persisted page content.`,
       ).join('\n\n'),
     },
   })

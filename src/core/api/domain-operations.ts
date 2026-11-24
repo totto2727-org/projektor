@@ -31,6 +31,7 @@ import * as wiki from '#commands/wiki.ts'
 import * as workflow from '#commands/workflow.ts'
 import * as workspaces from '#commands/workspaces.ts'
 import { ApiResults } from '#contracts/api-results.ts'
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
@@ -266,6 +267,6 @@ export const makeApiDomainHandlers = function makeApiDomainHandlers<R>(
 
 function requireInteractive(ctx: ServiceCtx): void {
   if (ctx.auth?.kind !== 'human' || (ctx.auth.method !== 'access' && ctx.auth.method !== 'dev')) {
-    throw coreFailure(403, 'Personal credentials require a signed-in browser session')
+    throw coreFailure(HTTP_FORBIDDEN, 'Personal credentials require a signed-in browser session')
   }
 }

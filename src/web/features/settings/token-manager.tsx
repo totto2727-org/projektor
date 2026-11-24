@@ -270,9 +270,9 @@ export function TokenManager({
     try {
       unwrapResult(await revokeToken({ workspaceSlug, tokenId: id }))
       setRevokeId(null)
-    } catch (cause) {
+    } catch (currentError) {
       setRevoking(false)
-      setRevokeError(String(cause))
+      setRevokeError(String(currentError))
       return
     }
     setRevoking(false)

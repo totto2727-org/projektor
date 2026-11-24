@@ -118,7 +118,7 @@ describe('shared issue queries over the API D1 pool', () => {
         eq(schema.issues.projectId, fixture.projectId),
       ),
     )
-    expect(page.items.map((r) => r.id)).toEqual([visible.id])
+    expect(page.items.map((item) => item.id)).toEqual([visible.id])
     await expect(
       runTestEffect(queries.findIssueCustomField(env.DB, fixture.workspaceId, 'missing')),
     ).resolves.toBeNull()
@@ -133,7 +133,7 @@ describe('shared issue queries over the API D1 pool', () => {
         ids: [first.id, second.id, 'missing'],
       }),
     )
-    expect(page.items.map((r) => r.id)).toEqual([second.id, first.id])
+    expect(page.items.map((item) => item.id)).toEqual([second.id, first.id])
     expect(page.missing).toEqual(['PROJ-999', 'missing'])
     expect(page.items[0]).not.toHaveProperty('body')
     const actual = await api(`issues/batch?refs=PROJ-0${second.number},PROJ-999&ids=${first.id},${second.id},missing`)

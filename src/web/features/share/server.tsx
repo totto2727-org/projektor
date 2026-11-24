@@ -2,6 +2,7 @@ import { String, Predicate, Effect } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 import type React from 'react'
 
+import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import { deploymentBrand } from '@/brand.ts'
 import { renderMarkdownEffect } from '@/components/markdown/effect.ts'
 import { coreResult } from '@/core.ts'
@@ -58,7 +59,7 @@ export function renderShare(
       return <ErrorState error='not_found' />
     }
     const renderedBody = yield* renderMarkdownEffect(issue.body ?? '').pipe(
-      Effect.mapError((cause) => new ApiError('request', 500, cause.message, cause.cause)),
+      Effect.mapError((cause) => new ApiError('request', HTTP_INTERNAL_SERVER_ERROR, cause.message, cause.cause)),
     )
     const brand = layerBrand(base, issue.brand)
     const style: React.CSSProperties = {

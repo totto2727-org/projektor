@@ -1,5 +1,6 @@
 import { Predicate } from 'effect'
 
+import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } from '#core/web/scope.ts'
 
 import { ApiError, ScopeError } from './errors.ts'
@@ -21,7 +22,7 @@ export const dataError = function dataError(cause: unknown): ApiError {
   if (cause instanceof ApiError) {
     return cause
   }
-  return new ApiError('request', 500, 'Unable to load project data.', cause)
+  return new ApiError('request', HTTP_INTERNAL_SERVER_ERROR, 'Unable to load project data.', cause)
 }
 
 /** Presentation selection is not authority. Core revalidates membership before storage access. */

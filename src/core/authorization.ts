@@ -5,6 +5,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 import { VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
 import { capabilityForOAuthScope, parseScopes, tokenAllows } from '#contracts/auth-scopes.ts'
 import type { Capability } from '#contracts/auth-scopes.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_UNAUTHORIZED } from '#contracts/http-status.ts'
 import {
   authenticateAccessJwt,
   authenticateDevelopment,
@@ -39,10 +40,10 @@ export const requireCoreCapability = function requireCoreCapability(
   requiredCapability: Capability,
 ): void {
   if (Predicate.isNotNullish(principal.tokenScopes) && !tokenAllows(principal.tokenScopes, requiredCapability)) {
-    throw coreFailure(403, `Token lacks '${requiredCapability}' scope`)
+    throw coreFailure(HTTP_FORBIDDEN, `Token lacks '${requiredCapability}' scope`)
   }
   if (principal.auth.method === 'public' && requiredCapability !== 'read') {
-    throw coreFailure(403, 'Forbidden')
+    throw coreFailure(HTTP_FORBIDDEN, 'Forbidden')
   }
 }
 
@@ -61,7 +62,7 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
     actor = decodeActor(input)
     url = new URL(actor.requestUrl)
   } catch {
-    throw coreFailure(400, 'Invalid authentication request')
+    throw coreFailure(HTTP_BAD_REQUEST, 'Invalid authentication request')
   }
 
   // Provider admission precedes opaque bearer lookup, as it does in the public API.
@@ -71,7 +72,7 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
       .bind(grant.userId)
       .first<AuthUser>()
     if (!user || user.email !== grant.email) {
-      throw coreFailure(401, 'Unauthorized')
+      throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
     }
     const scopes = grant.scopes
       .map(capabilityForOAuthScope)
@@ -121,7 +122,7 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
     await provisionPublicViewer(env, user)
     return { user, auth: { kind: 'human', method: 'public' }, tokenWorkspaceId: undefined, tokenScopes: undefined }
   }
-  throw coreFailure(401, 'Unauthorized')
+  throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
 }
 
 async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Promise<CorePrincipal> {
@@ -143,10 +144,10 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
       name: string | null
     }>()
   if (!row || !row.user_id || !row.email || Predicate.isNullish(row.name)) {
-    throw coreFailure(401, 'Unauthorized')
+    throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
   }
   if (Predicate.isNotNullish(row.expires_at) && row.expires_at < Date.now() / 1000) {
-    throw coreFailure(401, 'Token expired')
+    throw coreFailure(HTTP_UNAUTHORIZED, 'Token expired')
   }
   const scopes = parseScopes(row.scopes)
   const now = Math.floor(Date.now() / 1000)
@@ -186,7 +187,7 @@ export const resolveCoreServiceCtx = async function resolveCoreServiceCtx(
 ): Promise<ServiceCtx> {
   const principal = await resolveCorePrincipal(actor, env)
   if (principal.tokenWorkspaceId != null && principal.tokenWorkspaceId !== workspaceId) {
-    throw coreFailure(403, 'Forbidden')
+    throw coreFailure(HTTP_FORBIDDEN, 'Forbidden')
   }
   requireCoreCapability(principal, requiredCapability)
   const row = await env.DB.prepare(`SELECT w.id, m.role FROM workspaces w LEFT JOIN workspace_members m
@@ -194,13 +195,13 @@ export const resolveCoreServiceCtx = async function resolveCoreServiceCtx(
     .bind(principal.user.id, workspaceId)
     .first<{ id: string; role: string | null }>()
   if (!row) {
-    throw coreFailure(404, 'Workspace not found')
+    throw coreFailure(HTTP_NOT_FOUND, 'Workspace not found')
   }
   let role: Role
   try {
     role = Schema.decodeUnknownSync(RoleSchema)(row.role)
   } catch {
-    throw coreFailure(403, 'Forbidden')
+    throw coreFailure(HTTP_FORBIDDEN, 'Forbidden')
   }
   const ttl = Number(env.FILE_CLAIM_TTL_SECONDS)
   return {

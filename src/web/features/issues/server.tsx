@@ -1,6 +1,7 @@
 import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
+import { HTTP_BAD_GATEWAY, HTTP_UNPROCESSABLE_CONTENT } from '#contracts/http-status.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
 import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
 import { renderMarkdownDocument } from '@/components/markdown/render.ts'
@@ -108,12 +109,12 @@ function allPages(
       if (items.length >= MAX_AGGREGATE_ISSUES) {
         return yield* new ApiError(
           'request',
-          422,
+          HTTP_UNPROCESSABLE_CONTENT,
           `This view supports at most ${MAX_AGGREGATE_ISSUES} issues. Narrow the filters or use the paginated list.`,
         )
       }
       if (seen.has(globalThis.String(cursor))) {
-        return yield* new ApiError('schema', 502, 'The data query returned a repeated issue cursor.')
+        return yield* new ApiError('schema', HTTP_BAD_GATEWAY, 'The data query returned a repeated issue cursor.')
       }
       seen.add(globalThis.String(cursor))
       const qs = new URLSearchParams(query)
@@ -293,14 +294,14 @@ export function loadIssue(
           ...issue,
           workspaceSlug,
           renderedBody: yield* Effect.tryPromise({
-            catch: () => new ApiError('schema', 502, 'The issue Markdown could not be rendered.'),
+            catch: () => new ApiError('schema', HTTP_BAD_GATEWAY, 'The issue Markdown could not be rendered.'),
             try: () => renderMarkdownDocument(issue.body ?? ''),
           }),
         },
         comments: yield* Effect.all(
           comments.map((comment) =>
             Effect.tryPromise({
-              catch: () => new ApiError('schema', 502, 'The comment Markdown could not be rendered.'),
+              catch: () => new ApiError('schema', HTTP_BAD_GATEWAY, 'The comment Markdown could not be rendered.'),
               try: async () => ({
                 ...comment,
                 renderedBody: await renderMarkdownDocument(comment.body),

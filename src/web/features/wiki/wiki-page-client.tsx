@@ -330,9 +330,9 @@ function TagChips({ tags }: { tags: string[] | undefined | null }) {
   }
   return (
     <span className='inline-flex flex-wrap align-middle'>
-      {tags.map((t) => (
-        <span key={t} className={WIKI_TAG_CHIP_CLASS}>
-          {t}
+      {tags.map((tag) => (
+        <span key={tag} className={WIKI_TAG_CHIP_CLASS}>
+          {tag}
         </span>
       ))}
     </span>
@@ -707,9 +707,9 @@ function SearchResultsList({
   }
   return (
     <ul className='list-none m-0 p-0'>
-      {results.map((r) => (
-        <li key={r.id}>
-          <SearchResultButton r={r} onSelect={onSelect} />
+      {results.map((result) => (
+        <li key={result.id}>
+          <SearchResultButton r={result} onSelect={onSelect} />
         </li>
       ))}
     </ul>
@@ -738,19 +738,19 @@ function StalePagesList({
   }
   return (
     <ul className='list-none m-0 p-0'>
-      {results.map((r) => (
-        <li key={r.id}>
+      {results.map((result) => (
+        <li key={result.id}>
           <button
             type='button'
             className={SEARCH_RESULT_BUTTON_CLASS}
             onClick={() => {
-              onSelect(r.slug)
+              onSelect(result.slug)
             }}
           >
-            <span className='font-medium'>{r.title}</span>
-            {r.freshness && (
+            <span className='font-medium'>{result.title}</span>
+            {result.freshness && (
               <span className='block mt-[0.15rem]'>
-                <WikiFreshnessBadge state={r.freshness.state} />
+                <WikiFreshnessBadge state={result.freshness.state} />
               </span>
             )}
           </button>
@@ -783,20 +783,20 @@ function FilteredPagesList({
   }
   return (
     <ul className='list-none m-0 p-0'>
-      {results.map((r) => (
-        <li key={r.id}>
+      {results.map((result) => (
+        <li key={result.id}>
           <button
             type='button'
             className={SEARCH_RESULT_BUTTON_CLASS}
             onClick={() => {
-              onSelect(r.slug)
+              onSelect(result.slug)
             }}
           >
-            <span className='font-medium'>{r.title}</span>
-            {(r.type || r.status || (r.tags?.length ?? 0) > 0) && (
+            <span className='font-medium'>{result.title}</span>
+            {(result.type || result.status || (result.tags?.length ?? 0) > 0) && (
               <span className='block mt-[0.15rem]'>
-                {r.status && <WikiStatusPill status={r.status} />}
-                <TagChips tags={r.tags} />
+                {result.status && <WikiStatusPill status={result.status} />}
+                <TagChips tags={result.tags} />
               </span>
             )}
           </button>
@@ -847,7 +847,7 @@ function ScopeControl({ workspaceSlug, projectId }: { workspaceSlug: string | un
   const projects = useProjects(workspaceSlug)
   const options: SelectOption[] = [
     { value: '', label: 'Workspace (all projects)' },
-    ...projects.map((p) => ({ value: p.id, label: `${p.key} — ${p.name}` })),
+    ...projects.map((project) => ({ value: project.id, label: `${project.key} — ${project.name}` })),
   ]
 
   return (
@@ -1100,9 +1100,9 @@ function CreatePageForm({
 }) {
   const templateOptions: SelectOption[] = [
     { value: '', label: 'No template (blank page)' },
-    ...templates.map((t) => ({ value: t.slug, label: t.title })),
+    ...templates.map((template) => ({ value: template.slug, label: template.title })),
   ]
-  const selectedTemplate = templates.find((t) => t.slug === templateSlug) ?? null
+  const selectedTemplate = templates.find((template) => template.slug === templateSlug) ?? null
 
   return (
     <div>
@@ -1785,14 +1785,14 @@ function RevisionsHistory({
       </Button>
       {showHistory && (
         <ul className='mt-3 list-none p-0'>
-          {revisions.map((r) => (
+          {revisions.map((revision) => (
             <RevisionRow
-              key={r.id}
-              revision={r}
+              key={revision.id}
+              revision={revision}
               workspaceSlug={workspaceSlug}
               pageSlug={pageSlug}
               onRestore={onRestore}
-              restoring={restoringId === r.id}
+              restoring={restoringId === revision.id}
               editing={editing}
             />
           ))}
@@ -1963,12 +1963,12 @@ function AttachmentsPanel({
 
       {Array.isArrayNonEmpty(attachments) && (
         <div className='mb-4 flex flex-col gap-2'>
-          {attachments.map((a) => (
+          {attachments.map((attachment) => (
             <AttachmentEntry
-              key={a.id}
-              attachment={a}
+              key={attachment.id}
+              attachment={attachment}
               workspaceSlug={workspaceSlug}
-              referenced={isReferenced(a.id, content)}
+              referenced={isReferenced(attachment.id, content)}
               onDelete={onDeleteAttachment}
               isPublicViewer={isPublicViewer}
             />
@@ -2550,8 +2550,8 @@ function useTableOfContents(
       { rootMargin: '-10% 0% -70% 0%', threshold: 0 },
     )
     const headings = container.querySelectorAll('h1[id], h2[id], h3[id]')
-    headings.forEach((h) => {
-      observer.observe(h)
+    headings.forEach((element) => {
+      observer.observe(element)
     })
     return () => observer.disconnect()
   }, [toc, contentRef, contentMountToken])

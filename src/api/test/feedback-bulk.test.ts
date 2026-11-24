@@ -82,7 +82,7 @@ describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
     const rows = await env.DB.prepare('SELECT status FROM feedback WHERE id IN (?, ?)')
       .bind(id1, id2)
       .all<{ status: string }>()
-    expect(rows.results.every((r) => r.status === 'reviewed')).toBe(true)
+    expect(rows.results.every((result) => result.status === 'reviewed')).toBe(true)
   })
 
   test('ignores feedbackIds from another project', async () => {

@@ -72,7 +72,7 @@ describe('groups REST', () => {
       memberCount: number
       grantCount: number
     }[]
-    const g = groups.find((x) => x.name === 'Engineering')
+    const g = groups.find((group) => group.name === 'Engineering')
     expect(g).toBeTruthy()
     expect(g!.memberCount).toBe(0)
     expect(g!.grantCount).toBe(0)
@@ -221,9 +221,9 @@ describe('groups REST', () => {
     })
     expect(res.status).toBe(200)
     const rows = (await res.json()) as { userId: string; groups: Array<{ name: string }> }[]
-    const memberRow = rows.find((r) => r.userId === roles.member.user.id)
-    const viewerRow = rows.find((r) => r.userId === roles.viewer.user.id)
-    expect(memberRow?.groups.map((g) => g.name)).toEqual(['Assigned'])
+    const memberRow = rows.find((row) => row.userId === roles.member.user.id)
+    const viewerRow = rows.find((row) => row.userId === roles.viewer.user.id)
+    expect(memberRow?.groups.map((group) => group.name)).toEqual(['Assigned'])
     expect(viewerRow?.groups).toEqual([]) // pending / default-deny
   })
 
@@ -267,7 +267,7 @@ describe('groups MCP parity', () => {
       content: { text: string }[]
     }>
     const groups = mcpData<{ name: string }[]>(list)
-    expect(groups.map((g) => g.name)).toContain('MCPGroup')
+    expect(groups.map((group) => group.name)).toContain('MCPGroup')
   })
 
   test('create_group rejects member (forbidden)', async () => {

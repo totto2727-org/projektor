@@ -1,6 +1,8 @@
 import { makeRpcStub, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
 import { Cause, Effect, Result, Schema } from 'effect'
 
+import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
+
 import { coreFailure, CorePublicError, coreReplyCodec } from './contract.ts'
 import type { CoreRpcShape } from './contract.ts'
 
@@ -27,7 +29,7 @@ const decodeFailure = function decodeFailure(stage: 'transport' | 'reply', cause
     return Effect.failCause(Cause.fromReasons<never>(cause.reasons.filter(Cause.isInterruptReason)))
   }
   const problem = coreFailure(
-    502,
+    HTTP_BAD_GATEWAY,
     stage === 'transport'
       ? 'The Core service is temporarily unavailable.'
       : 'The Core service returned an invalid response.',

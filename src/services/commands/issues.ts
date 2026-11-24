@@ -195,8 +195,8 @@ export async function resolveIssueIdParam(
   param: string,
   notFoundMessage = 'Issue not found',
 ): Promise<string> {
-  const m = param.match(ISSUE_REF_PATTERN)
-  if (!m) {
+  const match = param.match(ISSUE_REF_PATTERN)
+  if (!match) {
     return param
   }
 
@@ -1592,7 +1592,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
   }
 
   await recordActivity(ctx, { entityType: 'issue', entityId: id, action: 'deleted' })
-  const toInvalidate = new Set([id, ...affected.results.map((r) => r.id)])
+  const toInvalidate = new Set([id, ...affected.results.map((result) => result.id)])
   if (existing.parentId) {
     toInvalidate.add(existing.parentId)
   }
@@ -1662,10 +1662,10 @@ const healDefinitionOfReady = async function healDefinitionOfReady(ctx: ServiceC
       return
     }
     await ctx.db.batch(
-      rows.map((r) =>
+      rows.map((row) =>
         ctx.db
           .prepare('UPDATE issues SET dor_ready = ?, dor_missing = ? WHERE id = ? AND workspace_id = ?')
-          .bind(...dorColumns(r.body), r.id, ctx.workspaceId),
+          .bind(...dorColumns(row.body), row.id, ctx.workspaceId),
       ),
     )
     if (rows.length < DOR_HEAL_BATCH) {

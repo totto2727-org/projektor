@@ -263,7 +263,7 @@ export const issuesTools: MCPTool[] = [
         missing: string[]
       }
       return {
-        items: result.items.map((i) => shapeIssue(withBodyPreview(i, bodyChars), shape)),
+        items: result.items.map((item) => shapeIssue(withBodyPreview(item, bodyChars), shape)),
         missing: result.missing,
       }
     },

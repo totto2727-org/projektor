@@ -5,6 +5,7 @@ import { createUserToken, deleteUserToken, getUserWorkspaces } from '#commands/u
 import { createWorkspace, listWorkspaces } from '#commands/workspaces.ts'
 import { ApiDevelopmentBootstrap, ApiPrincipal } from '#contracts/api-auth.ts'
 import { ApiResults } from '#contracts/api-results.ts'
+import { HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
@@ -57,7 +58,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
                   .bind(input.value)
                   .first<{ id: string; name: string; slug: string }>()
           if (!row) {
-            throw coreFailure(404, 'Workspace not found')
+            throw coreFailure(HTTP_NOT_FOUND, 'Workspace not found')
           }
           const ctx = await resolveCoreServiceCtx(actor, row.id, 'read', env)
           return { ...row, role: ctx.role ?? 'viewer' }
@@ -108,7 +109,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
         attempt(async (env) => {
           const principal = await resolveUser(actor, env, 'write')
           if (principal.tokenWorkspaceId != null) {
-            throw coreFailure(403, 'Workspace-scoped credentials cannot create workspaces')
+            throw coreFailure(HTTP_FORBIDDEN, 'Workspace-scoped credentials cannot create workspaces')
           }
           return createWorkspace(env.DB, principal.user.id, input)
         }),
@@ -144,6 +145,6 @@ async function resolveUser(actor: CoreActor, env: CoreEnvironment, capability: '
 
 function requireInteractive(auth: { method: string; kind: string }): void {
   if (auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
-    throw coreFailure(403, 'Personal credentials require a signed-in browser session')
+    throw coreFailure(HTTP_FORBIDDEN, 'Personal credentials require a signed-in browser session')
   }
 }

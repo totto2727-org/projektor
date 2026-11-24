@@ -25,11 +25,11 @@ export interface SharedIssue {
 }
 
 const PRIORITY_LABELS: Record<string, string> = {
-  urgent: 'Urgent',
   high: 'High',
-  medium: 'Medium',
   low: 'Low',
+  medium: 'Medium',
   none: 'No priority',
+  urgent: 'Urgent',
 }
 
 const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
@@ -103,10 +103,10 @@ function CustomFieldsSection({ fields }: { fields: SharedIssue['customFields'] }
     <div className='border-t border-border pt-4'>
       <p className='text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-text-muted mb-3'>Fields</p>
       <dl className='grid grid-cols-[max-content_1fr] gap-[0.4rem_1rem] text-[0.8125rem]'>
-        {fields.map((f) => (
-          <Fragment key={f.key}>
-            <dt className='text-text-muted font-medium'>{f.label}</dt>
-            <dd className='m-0'>{f.value}</dd>
+        {fields.map((field) => (
+          <Fragment key={field.key}>
+            <dt className='text-text-muted font-medium'>{field.label}</dt>
+            <dd className='m-0'>{field.value}</dd>
           </Fragment>
         ))}
       </dl>

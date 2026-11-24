@@ -2,6 +2,7 @@ import { Predicate, Schema } from 'effect'
 
 import { exportWiki } from '#commands/wiki-export.ts'
 import { getWorkspaceLogoObject, uploadWorkspaceLogo } from '#commands/workspaces.ts'
+import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { CoreActor, resolveCoreServiceCtx } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
@@ -26,7 +27,7 @@ export const handleApiBinaryRequest = async function handleApiBinaryRequest(
     const actor = Schema.decodeUnknownSync(Schema.fromJsonString(CoreActor))(request.headers.get(CORE_ACTOR_HEADER))
     const ids = url.searchParams.getAll('workspaceId')
     if (ids.length !== 1 || !ids[0]) {
-      throw coreFailure(400, 'Workspace not specified')
+      throw coreFailure(HTTP_BAD_REQUEST, 'Workspace not specified')
     }
     const ctx = await resolveCoreServiceCtx(actor, ids[0], request.method === 'POST' ? 'write' : 'read', env)
     if (url.pathname === '/wiki-export') {
@@ -46,17 +47,17 @@ export const handleApiBinaryRequest = async function handleApiBinaryRequest(
     if (request.method === 'POST') {
       const form = await request.formData().catch(() => null)
       if (!form) {
-        throw coreFailure(400, 'Expected multipart/form-data')
+        throw coreFailure(HTTP_BAD_REQUEST, 'Expected multipart/form-data')
       }
       const file = form.get('file')
       if (!(file instanceof File)) {
-        throw coreFailure(400, 'Missing file field')
+        throw coreFailure(HTTP_BAD_REQUEST, 'Missing file field')
       }
       return Response.json(await uploadWorkspaceLogo(ctx, file), { status: 201 })
     }
     const object = await getWorkspaceLogoObject(ctx)
     if (!object) {
-      throw coreFailure(404, 'No logo set')
+      throw coreFailure(HTTP_NOT_FOUND, 'No logo set')
     }
     if (request.method === 'HEAD') {
       await object.body.cancel()
@@ -70,7 +71,10 @@ export const handleApiBinaryRequest = async function handleApiBinaryRequest(
     })
   } catch (error) {
     const mapped = publicDomainFailure(error)
-    const problem = mapped instanceof CorePublicError ? mapped : coreFailure(500, 'An unexpected error occurred.')
+    const problem =
+      mapped instanceof CorePublicError
+        ? mapped
+        : coreFailure(HTTP_INTERNAL_SERVER_ERROR, 'An unexpected error occurred.')
     if (!(mapped instanceof CorePublicError)) {
       console.error('[core]', { operation: 'workspaceLogo', occurrenceId: problem.occurrenceId, error })
     }

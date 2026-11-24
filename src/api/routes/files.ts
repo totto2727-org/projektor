@@ -7,6 +7,7 @@ import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import * as filesService from '#api/services/files.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import { ValidationError } from '#contracts/errors.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import { SetAttachmentReviewStatusSchema } from '#contracts/inputs/files.ts'
 import type { HonoEnv } from '#types'
 
@@ -29,7 +30,7 @@ router.post('/links', async (httpContext) => {
   try {
     return httpContext.json(
       await filesService.createLinkAttachment(ctxFromHono(httpContext), await jsonBody(httpContext).catch(() => null)),
-      201,
+      HTTP_CREATED,
     )
   } catch (error) {
     return serviceErrToResponse(httpContext, error)

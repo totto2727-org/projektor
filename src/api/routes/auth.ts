@@ -6,6 +6,7 @@ import { jsonBody } from '#api/http/body.ts'
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { authMiddleware, requireInteractiveHuman } from '#api/middleware/auth.ts'
 import { ApiUserBootstrap } from '#contracts/api-auth.ts'
+import { HTTP_CREATED, HTTP_FOUND } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -16,7 +17,7 @@ const isSafeRedirectPath = function isSafeRedirectPath(url: string): boolean {
 
 router.get('/login', (httpContext) => {
   const requested = httpContext.req.query('redirect_url') ?? '/'
-  return httpContext.redirect(isSafeRedirectPath(requested) ? requested : '/', 302)
+  return httpContext.redirect(isSafeRedirectPath(requested) ? requested : '/', HTTP_FOUND)
 })
 
 router.get('/me', authMiddleware, async (httpContext) => {
@@ -52,7 +53,7 @@ router.post('/tokens', authMiddleware, async (httpContext) => {
         ),
       ),
     )
-    return httpContext.json(result, 201)
+    return httpContext.json(result, HTTP_CREATED)
   } catch (error) {
     return serviceErrToResponse(httpContext, error)
   }

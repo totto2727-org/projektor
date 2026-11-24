@@ -40,7 +40,7 @@ export const assignHeadingIds = function assignHeadingIds(
 }
 const textOf = function textOf(html: string): string {
   return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} })
-    .replace(/&#(x[0-9a-f]+|\d+);/gi, (_, entity: string) =>
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (_match, entity: string) =>
       globalThis.String.fromCodePoint(
         Math.min(0x10_ff_ff, entity[0].toLowerCase() === 'x' ? parseInt(entity.slice(1), 16) : parseInt(entity, 10)),
       ),
@@ -64,7 +64,7 @@ export const decorateHeadings = function decorateHeadings(html: string): { html:
   const ids = assignHeadingIds(headings)
   const toc = headings.map((heading, index) => ({ ...heading, id: ids[index] }))
   let index = 0
-  const decorated = html.replace(/<h([1-3])([^>]*)>/g, (_, level: string, attributes: string) => {
+  const decorated = html.replace(/<h([1-3])([^>]*)>/g, (_match, level: string, attributes: string) => {
     const id = ids[index++]
       .replace(/&/gu, '&amp;')
       .replace(/"/gu, '&quot;')

@@ -1,6 +1,7 @@
 import { Effect, Schema } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS } from '#contracts/http-status.ts'
 import { assertSameOriginMutation } from '#contracts/mutation.ts'
 import { requireDataWorkspace } from '#contracts/web-data.ts'
 import { coreFailure } from '#core/contract.ts'
@@ -20,7 +21,7 @@ export const browserCommand = function browserCommand<A>(
 ) {
   return Effect.gen(function* () {
     const proof = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(input).pipe(
-      Effect.mapError(() => coreFailure(400, 'Invalid browser command.')),
+      Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser command.')),
     )
     const request = nativeRequest(proof.request)
     yield* Effect.try({
@@ -36,15 +37,15 @@ export const browserCommand = function browserCommand<A>(
     })
     const workspace = yield* Effect.try({ catch: publicWebFailure, try: () => requireDataWorkspace(scope) })
     if (workspace.slug !== proof.workspaceSlug) {
-      return yield* coreFailure(403, 'Selected workspace is not accessible.')
+      return yield* coreFailure(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
     const auth = scope.auth
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
-      return yield* coreFailure(403, 'An interactive browser session is required.')
+      return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }
     const limited = yield* Effect.tryPromise({ catch: publicDomainFailure, try: () => checkRateLimit(request, env) })
     if (limited) {
-      return yield* coreFailure(429, 'Too many requests', { retryAfter: limited.retryAfter })
+      return yield* coreFailure(HTTP_TOO_MANY_REQUESTS, 'Too many requests', { retryAfter: limited.retryAfter })
     }
     const ctx: ServiceCtx = {
       db: env.DB,

@@ -10,6 +10,7 @@ import { isPublicViewer } from '#api/middleware/auth.ts'
 import { signConsentToken, verifyConsentToken } from '#api/oauth/consent-token.ts'
 import { apiReply } from '#api/services/reply.ts'
 import { ApiConsentWorkspace } from '#contracts/api-public.ts'
+import { HTTP_FOUND } from '#contracts/http-status.ts'
 import {
   describeScope,
   isLoopbackOnlyClient,
@@ -204,7 +205,7 @@ const authorizationFailure = function authorizationFailure(
   if (err.issuer) {
     url.searchParams.set('iss', err.issuer)
   }
-  return httpContext.redirect(url.toString(), 302)
+  return httpContext.redirect(url.toString(), HTTP_FOUND)
 }
 
 /**
@@ -320,7 +321,7 @@ oauthRouter.get('/authorize', async (httpContext) => {
    * The prefix only selects the consent label after parseAuthRequest validates the request.
    */
   const identity = authRequest.clientId.startsWith('https://') ? 'Verified identity' : 'Registered client ID'
-  const scopeItems = consent.scopes.map((s) => `<li>${escapeHtml(describeScope(s))}</li>`).join('')
+  const scopeItems = consent.scopes.map((scope) => `<li>${escapeHtml(describeScope(scope))}</li>`).join('')
   const loopbackWarning = isLoopbackOnlyClient(client.redirectUris)
     ? `<div class="warn">This application receives its response on your own machine
        (<code>${escapeHtml(client.redirectUris[0])}</code>). projektor cannot verify which
@@ -426,5 +427,5 @@ oauthRouter.post('/authorize', async (httpContext) => {
     revokeExistingGrants: false,
   })
 
-  return httpContext.redirect(redirectTo, 302)
+  return httpContext.redirect(redirectTo, HTTP_FOUND)
 })

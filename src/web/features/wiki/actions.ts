@@ -58,12 +58,12 @@ export const getWikiPage = EFFRONT.ServerFn.make({
       return { ok: true, value } as const
     }).pipe(
       Effect.catchTags({
-        ApiError: (e) =>
+        ApiError: (error) =>
           Effect.succeed({
             ok: false,
-            status: e.status,
-            message: e.message,
-            ...(e.details ? { details: e.details } : {}),
+            status: error.status,
+            message: error.message,
+            ...(error.details ? { details: error.details } : {}),
           } as const),
         ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
       }),
@@ -79,12 +79,12 @@ export const getWikiRevisionDiff = EFFRONT.ServerFn.make({
       return { ok: true, value } as const
     }).pipe(
       Effect.catchTags({
-        ApiError: (e) =>
+        ApiError: (error) =>
           Effect.succeed({
             ok: false,
-            status: e.status,
-            message: e.message,
-            ...(e.details ? { details: e.details } : {}),
+            status: error.status,
+            message: error.message,
+            ...(error.details ? { details: error.details } : {}),
           } as const),
         ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
       }),
@@ -100,12 +100,12 @@ export const getWikiDraft = EFFRONT.ServerFn.make({
       return { ok: true, value } as const
     }).pipe(
       Effect.catchTags({
-        ApiError: (e) =>
+        ApiError: (error) =>
           Effect.succeed({
             ok: false,
-            status: e.status,
-            message: e.message,
-            ...(e.details ? { details: e.details } : {}),
+            status: error.status,
+            message: error.message,
+            ...(error.details ? { details: error.details } : {}),
           } as const),
         ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
       }),
@@ -147,12 +147,12 @@ export const createWikiPage = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -182,12 +182,12 @@ export const duplicateWikiPage = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -215,12 +215,12 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -250,12 +250,12 @@ export const saveWikiDraft = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -282,12 +282,12 @@ export const discardWikiDraft = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -310,12 +310,12 @@ export const moveWikiPage = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -338,12 +338,12 @@ export const verifyWikiPage = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -366,12 +366,12 @@ export const trashWikiPage = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -394,12 +394,12 @@ export const restoreTrashedWikiPage = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -425,12 +425,12 @@ export const restoreWikiRevision = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),
@@ -453,12 +453,12 @@ export const deleteWikiAttachment = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) =>
+          ApiError: (error) =>
             Effect.succeed({
               ok: false,
-              status: e.status,
-              message: e.message,
-              ...(e.details ? { details: e.details } : {}),
+              status: error.status,
+              message: error.message,
+              ...(error.details ? { details: error.details } : {}),
             } as const),
           ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
         }),

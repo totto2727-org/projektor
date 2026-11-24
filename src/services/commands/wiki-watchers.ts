@@ -178,7 +178,7 @@ export const listWikiWatches = async function listWikiWatches(ctx: ServiceCtx) {
     )
     .orderBy(desc(schema.wikiWatchers.createdAt))
 
-  return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
+  return rows.map((row) => ({ ...row, url: wikiPagePath(row.slug) }))
 }
 
 /*
@@ -215,8 +215,8 @@ const resolveAncestorChain = async function resolveAncestorChain(
 
 const ACTION_LABEL: Record<'created' | 'updated' | 'deleted', string> = {
   created: 'Created',
-  updated: 'Updated',
   deleted: 'Deleted',
+  updated: 'Updated',
 }
 
 /*
@@ -251,7 +251,7 @@ export const notifyWikiWatchers = async function notifyWikiWatchers(
       ),
     )
 
-  const userIds = [...new Set(rows.map((r) => r.userId))].filter((id) => id !== ctx.userId)
+  const userIds = [...new Set(rows.map((row) => row.userId))].filter((id) => id !== ctx.userId)
   if (Array.isArrayEmpty(userIds)) {
     return
   }
@@ -286,7 +286,7 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
       .from(schema.wikiPages)
       .where(and(eq(schema.wikiPages.workspaceId, ctx.workspaceId), inArray(schema.wikiPages.id, chunk))),
   )
-  const projectOf = new Map(pages.map((p) => [p.id, p.projectId ?? null]))
+  const projectOf = new Map(pages.map((page) => [page.id, page.projectId ?? null]))
 
   const usersByProject = new Map<string | null, Set<string>>()
   for (const e of entries) {
@@ -380,7 +380,7 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
 
   const orm = drizzle(ctx.db, { schema })
   const rows = await inChunks(
-    pages.map((p) => p.id),
+    pages.map((page) => page.id),
     (chunk) =>
       orm
         .select({ userId: schema.wikiWatchers.userId, pageId: schema.wikiWatchers.pageId })
@@ -388,9 +388,9 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
         .where(and(eq(schema.wikiWatchers.workspaceId, ctx.workspaceId), inArray(schema.wikiWatchers.pageId, chunk))),
   )
 
-  const byId = new Map(pages.map((p) => [p.id, p]))
+  const byId = new Map(pages.map((page) => [page.id, page]))
   const entries = rows
-    .filter((r) => r.userId !== ctx.userId)
+    .filter((row) => row.userId !== ctx.userId)
     .map((r) => {
       const page = byId.get(r.pageId)
       if (!page) {
@@ -465,7 +465,7 @@ export const listWikiNotifications = async function listWikiNotifications(ctx: S
     .limit(limit)
     .offset(offset)
 
-  return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
+  return rows.map((row) => ({ ...row, url: wikiPagePath(row.slug) }))
 }
 
 export const markWikiNotificationsRead = async function markWikiNotificationsRead(ctx: ServiceCtx, input: unknown) {
@@ -684,8 +684,8 @@ const loadWikiWatchSets = async function loadWikiWatchSets(
     .from(schema.wikiWatchers)
     .where(and(eq(schema.wikiWatchers.workspaceId, ctx.workspaceId), eq(schema.wikiWatchers.userId, ctx.userId)))
   return {
-    directWatchIds: new Set(watches.map((w) => w.pageId)),
-    subtreeRootIds: new Set(watches.filter((w) => w.subtree).map((w) => w.pageId)),
+    directWatchIds: new Set(watches.map((watch) => watch.pageId)),
+    subtreeRootIds: new Set(watches.filter((watch) => watch.subtree).map((w) => w.pageId)),
   }
 }
 
@@ -710,7 +710,7 @@ const matchSubtreeWatches = async function matchSubtreeWatches(
         .from(schema.wikiPages)
         .where(and(inArray(schema.wikiPages.id, chunk), eq(schema.wikiPages.workspaceId, ctx.workspaceId))),
     )
-    const parentOf = new Map(rows.map((r) => [r.id, r.parentId]))
+    const parentOf = new Map(rows.map((row) => [row.id, row.parentId]))
     Iterable.forEach(pending, ([candidate, cur]) => {
       const parent = parentOf.get(cur) ?? null
       if (Predicate.isNullish(parent)) {
@@ -770,7 +770,7 @@ const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends {
   if (rows[0].createdAt === maxTs) {
     return rows
   }
-  return rows.filter((r) => r.createdAt < maxTs)
+  return rows.filter((row) => row.createdAt < maxTs)
 }
 
 /*
@@ -870,10 +870,10 @@ export const listWikiChanges = async function listWikiChanges(
     const watched = await watchedPageIds(
       ctx,
       orm,
-      events.map((e) => e.pageId),
+      events.map((selectedEvent) => selectedEvent.pageId),
     )
     return {
-      changes: events.filter((e) => watched.has(e.pageId)),
+      changes: events.filter((selectedEvent) => watched.has(selectedEvent.pageId)),
       nextSince,
     }
   }

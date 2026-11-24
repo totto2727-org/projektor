@@ -8,6 +8,7 @@ import { ctxFromHono } from '#api/services/types.ts'
 import * as wikiDraftsService from '#api/services/wiki-drafts.ts'
 import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
 import * as wikiService from '#api/services/wiki.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -295,7 +296,7 @@ router.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
-    return httpContext.json(await wikiService.createWikiPage(ctx, body), 201)
+    return httpContext.json(await wikiService.createWikiPage(ctx, body), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

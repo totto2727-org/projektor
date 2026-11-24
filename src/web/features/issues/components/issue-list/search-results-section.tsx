@@ -7,22 +7,22 @@ import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 
 import type { SearchResult } from './use-issue-search.ts'
 
-function priorityBadge(r: SearchResult) {
+function priorityBadge(result: SearchResult) {
   return (
     <span
       className='inline-flex items-center px-1.5 py-0.5 rounded text-[0.7rem] font-semibold capitalize whitespace-nowrap'
       style={{
-        background: `var(--priority-${r.priority}-bg, var(--priority-low-bg))`,
-        color: `var(--priority-${r.priority}-text, var(--text-muted))`,
+        background: `var(--priority-${result.priority}-bg, var(--priority-low-bg))`,
+        color: `var(--priority-${result.priority}-text, var(--text-muted))`,
       }}
     >
-      {r.priority === 'none' ? '–' : r.priority}
+      {result.priority === 'none' ? '–' : result.priority}
     </span>
   )
 }
 
-function statusBadge(r: SearchResult) {
-  return <span className='font-medium text-sm text-text-muted'>{r.status.replace(/_/gu, ' ')}</span>
+function statusBadge(result: SearchResult) {
+  return <span className='font-medium text-sm text-text-muted'>{result.status.replace(/_/gu, ' ')}</span>
 }
 
 function SearchResultsTable({ results }: { results: SearchResult[] }) {
@@ -44,24 +44,24 @@ function SearchResultsTable({ results }: { results: SearchResult[] }) {
           </tr>
         </thead>
         <tbody>
-          {results.map((r) => (
-            <tr key={r.id} className='border-b border-border'>
+          {results.map((result) => (
+            <tr key={result.id} className='border-b border-border'>
               <td className='px-3 py-2 align-middle whitespace-nowrap'>
                 <span className='text-text-muted font-mono text-[0.8rem]'>
-                  {formatIssueRef(r.project_key, r.number)}
+                  {formatIssueRef(result.project_key, result.number)}
                 </span>
               </td>
               <td className='px-3 py-2 align-middle text-text-base'>
                 <a
-                  href={issueUrl(r.project_key, r.number, r.title, r.id, r.workspaceSlug)}
+                  href={issueUrl(result.project_key, result.number, result.title, result.id, result.workspaceSlug)}
                   className='text-text-base no-underline hover:underline focus:underline'
                 >
-                  {r.title}
+                  {result.title}
                 </a>
-                <ReviewTargetsSummary issue={r} />
+                <ReviewTargetsSummary issue={result} />
               </td>
-              <td className='px-3 py-2 align-middle whitespace-nowrap'>{priorityBadge(r)}</td>
-              <td className='px-3 py-2 align-middle whitespace-nowrap'>{statusBadge(r)}</td>
+              <td className='px-3 py-2 align-middle whitespace-nowrap'>{priorityBadge(result)}</td>
+              <td className='px-3 py-2 align-middle whitespace-nowrap'>{statusBadge(result)}</td>
             </tr>
           ))}
         </tbody>
@@ -73,18 +73,21 @@ function SearchResultsTable({ results }: { results: SearchResult[] }) {
 function SearchResultsMobileCards({ results }: { results: SearchResult[] }) {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-      {results.map((r) => (
-        <div key={r.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+      {results.map((result) => (
+        <div key={result.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
           <span className='inline-block font-mono text-[0.8rem] text-text-muted mb-1'>
-            {formatIssueRef(r.project_key, r.number)}
+            {formatIssueRef(result.project_key, result.number)}
           </span>
-          <a href={issueUrl(r.project_key, r.number, r.title, r.id, r.workspaceSlug)} className='no-underline'>
-            <div className='text-[0.9rem] text-text-base font-medium mb-2'>{r.title}</div>
+          <a
+            href={issueUrl(result.project_key, result.number, result.title, result.id, result.workspaceSlug)}
+            className='no-underline'
+          >
+            <div className='text-[0.9rem] text-text-base font-medium mb-2'>{result.title}</div>
           </a>
-          <ReviewTargetsSummary issue={r} />
+          <ReviewTargetsSummary issue={result} />
           <div className='flex gap-[0.375rem] flex-wrap items-center'>
-            {priorityBadge(r)}
-            {statusBadge(r)}
+            {priorityBadge(result)}
+            {statusBadge(result)}
           </div>
         </div>
       ))}

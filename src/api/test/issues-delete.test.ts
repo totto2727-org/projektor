@@ -265,9 +265,14 @@ describe("covers PROJ-922: deleteIssue refuses another workspace's issue", () =>
   test("404s and leaves the other workspace's rows intact", async () => {
     const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers.ts')
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const b = await seedProjectFixture({ role: 'owner' })
-    const bIssue = await seedIssue(b.workspaceId, b.projectId, b.userId, { title: "B's" })
-    await seedComment(bIssue.id, b.userId, 'keep me')
+    const currentTestFixture = await seedProjectFixture({ role: 'owner' })
+    const bIssue = await seedIssue(
+      currentTestFixture.workspaceId,
+      currentTestFixture.projectId,
+      currentTestFixture.userId,
+      { title: "B's" },
+    )
+    await seedComment(bIssue.id, currentTestFixture.userId, 'keep me')
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${bIssue.id}`, {
       headers: authHeaders(testFixture.token, testFixture.slug),

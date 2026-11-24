@@ -107,8 +107,8 @@ describe('feedback conversion transaction', () => {
       convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' }),
       convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' }),
     ])
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
-    expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
     Iterable.forEach(['issues', 'issues_fts', 'activity'], (table) => {
       expect(testFixture.count(table), table).toBe(1)
     })
@@ -130,8 +130,8 @@ describe('feedback conversion transaction', () => {
       bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ['a', 'b'] }),
       bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ['b', 'c'] }),
     ])
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
-    expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
     expect(testFixture.count('issues')).toBe(1)
     expect(
       testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n,
@@ -160,7 +160,7 @@ describe('feedback conversion transaction', () => {
 
   test('converts the 500-ID maximum without crossing the D1 bind cap', async () => {
     const testFixture = fixture()
-    const ids = Array.from({ length: 500 }, (_, i) => `f${i}`)
+    const ids = Array.from({ length: 500 }, (_value, index) => `f${index}`)
     Iterable.forEach(ids, (id) => {
       testFixture.seed(id)
     })

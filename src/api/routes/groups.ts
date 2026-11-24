@@ -15,6 +15,7 @@ import {
   updateGroup,
 } from '#api/services/groups.ts'
 import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -31,7 +32,7 @@ router.get('/:slug/groups', async (httpContext) => {
 router.post('/:slug/groups', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
-    return httpContext.json(await createGroup(ctx, await jsonBody(httpContext)), 201)
+    return httpContext.json(await createGroup(ctx, await jsonBody(httpContext)), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }
@@ -80,7 +81,7 @@ router.post('/:slug/groups/:groupId/members', async (httpContext) => {
   try {
     return httpContext.json(
       await addGroupMember(ctx, httpContext.req.param('groupId'), await jsonBody(httpContext)),
-      201,
+      HTTP_CREATED,
     )
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)

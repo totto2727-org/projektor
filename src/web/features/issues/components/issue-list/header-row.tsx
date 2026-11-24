@@ -26,7 +26,7 @@ interface HeaderRowProps {
   searchResults: SearchResult[] | null
   searchQuery: string
   view: ViewMode
-  setView: (v: ViewMode) => void
+  setView: (view: ViewMode) => void
   filtered: Issue[]
   totalIssues: number | null
   projectsCount: number

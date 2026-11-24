@@ -191,7 +191,7 @@ const provisionAdmin = async function provisionAdmin(
    * task types/statuses. Only reachable once per instance, so the extra read it costs
    * never lands on the warm path.
    */
-  if (!rows.some((r) => r.slug === slug)) {
+  if (!rows.some((row) => row.slug === slug)) {
     try {
       await createWorkspace(env.DB, user.id, { name, slug })
     } catch (caughtError) {
@@ -217,9 +217,9 @@ const provisionAdmin = async function provisionAdmin(
    * Admins own every workspace, including migrated ones they didn't create. The role here
    * only decides whether a write is worth issuing; grantOwner is correct either way.
    */
-  for (const w of rows) {
-    if (w.role !== 'owner') {
-      await grantOwner(orm, w.id, user.id)
+  for (const row of rows) {
+    if (row.role !== 'owner') {
+      await grantOwner(orm, row.id, user.id)
     }
   }
 }

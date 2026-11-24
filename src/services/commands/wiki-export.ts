@@ -153,7 +153,7 @@ const collectDescendantIds = async function collectDescendantIds(
           ),
         ),
     )
-    const inScope = children.filter((c) => (c.projectId ?? null) === rootProjectId)
+    const inScope = children.filter((child) => (child.projectId ?? null) === rootProjectId)
     frontier = inScope.map((c) => c.id)
     descendants.push(...frontier)
     /*
@@ -217,7 +217,7 @@ const collectAttachments = async function collectAttachments(
   Iterable.forEach(pages, (p) => {
     bySlug.set(p.id, p.slug)
   })
-  const pageIds = pages.map((p) => p.id)
+  const pageIds = pages.map((page) => page.id)
 
   const rows = await inChunks(pageIds, (chunk) =>
     orm
@@ -239,7 +239,7 @@ const collectAttachments = async function collectAttachments(
   )
 
   return rows
-    .filter((r) => r.r2Key)
+    .filter((row) => row.r2Key)
     .map((r) => ({
       pageSlug: bySlug.get(r.entityId) ?? r.entityId,
       filename: r.filename,
@@ -288,7 +288,7 @@ const reserveUniqueName = function reserveUniqueName(
  */
 const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<ReadableStream<Uint8Array>> {
   const attachments = await collectAttachments(ctx, pages)
-  const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.size, 0)
+  const totalAttachmentBytes = attachments.reduce((sum, attachment) => sum + attachment.size, 0)
   assertExportSizeAllowed(pages.length, totalAttachmentBytes)
 
   return new ReadableStream<Uint8Array>({

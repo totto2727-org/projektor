@@ -70,7 +70,7 @@ describe('feedback concrete ServerFn shared commands', () => {
 
   test('rejects empty/oversized selections and origins using actual schemas', async () => {
     const test = fixture()
-    for (const feedbackIds of [[], Array.from({ length: 501 }, (_, i) => String(i))]) {
+    for (const feedbackIds of [[], Array.from({ length: 501 }, (_value, index) => String(index))]) {
       await expect(test.invoke(actions.markSelectedFeedbackReviewed, { ...scope, feedbackIds })).rejects.toMatchObject({
         _tag: 'SchemaError',
       })

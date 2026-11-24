@@ -92,8 +92,8 @@ describe('file Claims API', () => {
     const listRes = await listFileClaims({ issueId })
     expect(listRes.status).toBe(200)
     const listBody = (await listRes.json()) as { items: { path: string }[] }
-    expect(listBody.items.some((i) => i.path === 'src/foo.ts')).toBe(true)
-    expect(listBody.items.some((i) => i.path === 'src/bar.ts')).toBe(true)
+    expect(listBody.items.some((item) => item.path === 'src/foo.ts')).toBe(true)
+    expect(listBody.items.some((item) => item.path === 'src/bar.ts')).toBe(true)
 
     // Verify via MCP — workspaceMiddleware requires X-Workspace-Slug
     const mcpRes = await mcpCall('list_file_claims', { issueId })
@@ -102,7 +102,7 @@ describe('file Claims API', () => {
     const mcpData = JSON.parse(mcpBody.result.content[0].text) as {
       items: { path: string }[]
     }
-    expect(mcpData.items.some((i) => i.path === 'src/foo.ts')).toBe(true)
+    expect(mcpData.items.some((item) => item.path === 'src/foo.ts')).toBe(true)
   })
 
   // B2: conflict on held path (force false) -> 409; batch does NOT partially claim
@@ -236,7 +236,7 @@ describe('file Claims API', () => {
     const otherListRes = await listFileClaims({}, other.token, other.workspace.slug)
     expect(otherListRes.status).toBe(200)
     const otherBody = (await otherListRes.json()) as { items: { issueId: string }[] }
-    expect(otherBody.items.some((i) => i.issueId === issueId)).toBe(false)
+    expect(otherBody.items.some((item) => item.issueId === issueId)).toBe(false)
   })
 
   // PROJ-337: rejecting a conflicting claim inserts a claim_conflicts row (forced=0)
@@ -276,10 +276,10 @@ describe('file Claims API', () => {
       .all()
     expect(rows.results).toHaveLength(2)
     const paths = rows.results
-      .map((r) => (r as Record<string, unknown>).path)
-      .sort((a, b) => {
-        const left = String(a)
-        const right = String(b)
+      .map((result) => (result as Record<string, unknown>).path)
+      .sort((selectedLeft, selectedRight) => {
+        const left = String(selectedLeft)
+        const right = String(selectedRight)
         return left < right ? -1 : left > right ? 1 : 0
       })
     expect(paths).toEqual(['src/multi-a.ts', 'src/multi-b.ts'])
@@ -585,7 +585,7 @@ describe('file Claims API', () => {
        */
       const listRes = await listFileClaims({ includeStale: 'true' })
       const body = (await listRes.json()) as { items: { path: string; live: boolean }[] }
-      const byPath = new Map(body.items.map((i) => [i.path, i.live]))
+      const byPath = new Map(body.items.map((item) => [item.path, item.live]))
       expect(byPath.get('src/listed-dead.ts')).toBe(false)
       expect(byPath.get('src/listed-live.ts')).toBe(true)
     })
@@ -755,12 +755,12 @@ describe('file Claims API', () => {
       await claimFiles({ issueId: otherIssue.id, paths: ['src/in-other.ts'] })
 
       const byKey = await listFileClaims({ projectId: projectKey })
-      const byKeyPaths = ((await byKey.json()) as { items: { path: string }[] }).items.map((i) => i.path)
+      const byKeyPaths = ((await byKey.json()) as { items: { path: string }[] }).items.map((item) => item.path)
       expect(byKeyPaths).toContain('src/in-project.ts')
       expect(byKeyPaths).not.toContain('src/in-other.ts')
 
       const byUuid = await listFileClaims({ projectId })
-      const byUuidPaths = ((await byUuid.json()) as { items: { path: string }[] }).items.map((i) => i.path)
+      const byUuidPaths = ((await byUuid.json()) as { items: { path: string }[] }).items.map((item) => item.path)
       expect(byUuidPaths).toContain('src/in-project.ts')
       expect(byUuidPaths).not.toContain('src/in-other.ts')
     })
@@ -770,7 +770,7 @@ describe('file Claims API', () => {
 
       const byKey = await listFileClaims({ projectId: projectKey })
       const byKeyBody = (await byKey.json()) as { items: { path: string }[] }
-      expect(byKeyBody.items.map((i) => i.path)).toContain('src/rest-parity.ts')
+      expect(byKeyBody.items.map((item) => item.path)).toContain('src/rest-parity.ts')
 
       const stale = await listFileClaims({ includeStale: 'true' })
       expect(stale.status).toBe(200)

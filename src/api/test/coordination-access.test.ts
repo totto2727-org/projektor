@@ -95,27 +95,29 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   test('owner sees leases/claims/agents across every project', async () => {
     const t = ws.owner.token
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
-    expect(leases.items.map((l) => l.issueId).sort(lexicalCompare)).toEqual([issueA, issueB].toSorted(lexicalCompare))
+    expect(leases.items.map((item) => item.issueId).sort(lexicalCompare)).toEqual(
+      [issueA, issueB].toSorted(lexicalCompare),
+    )
 
     const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
-    expect(claims.items.map((c) => c.path).sort(lexicalCompare)).toEqual(['a/only.ts', 'b/secret.ts'])
+    expect(claims.items.map((item) => item.path).sort(lexicalCompare)).toEqual(['a/only.ts', 'b/secret.ts'])
 
     const agents = await mcpList('list_active_agents', t, slug, ws.workspace.id)
-    expect(agents.items.map((a) => a.name).sort(lexicalCompare)).toEqual(['agent-A', 'agent-B', 'floating'])
+    expect(agents.items.map((item) => item.name).sort(lexicalCompare)).toEqual(['agent-A', 'agent-B', 'floating'])
   })
 
   test("a member sees only the granted project's leases and file claims", async () => {
     const t = ws.member.token
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
-    expect(leases.items.map((l) => l.issueId)).toEqual([issueA])
+    expect(leases.items.map((item) => item.issueId)).toEqual([issueA])
 
     const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
-    expect(claims.items.map((c) => c.path)).toEqual(['a/only.ts'])
+    expect(claims.items.map((item) => item.path)).toEqual(['a/only.ts'])
   })
 
   test('a member sees agents on granted projects plus issue-less agents, never hidden-project agents', async () => {
     const agents = await mcpList('list_active_agents', ws.member.token, slug, ws.workspace.id)
-    const names = agents.items.map((a) => a.name).sort(lexicalCompare)
+    const names = agents.items.map((item) => item.name).sort(lexicalCompare)
     expect(names).toEqual(['agent-A', 'floating'])
     expect(names).not.toContain('agent-B')
   })
@@ -128,6 +130,6 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
     expect(claims.items).toHaveLength(0)
     const agents = await mcpList('list_active_agents', t, slug, ws.workspace.id)
     // Only the issue-less floating agent leaks nothing about a hidden project
-    expect(agents.items.map((a) => a.name)).toEqual(['floating'])
+    expect(agents.items.map((item) => item.name)).toEqual(['floating'])
   })
 })

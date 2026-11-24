@@ -4,6 +4,7 @@ import * as sources from '#commands/feedback-sources.ts'
 import * as commands from '#commands/feedback.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { ScopeError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import { requireDataProject, requireDataWorkspace } from '#contracts/web-data.ts'
 import {
   FeedbackIndexSchema,
@@ -131,7 +132,7 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           Effect.gen(function* () {
             const scope = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: '' })
             const filter = yield* Schema.decodeUnknownEffect(StatusFields)({ status }).pipe(
-              Effect.mapError(() => coreFailure(400, 'Invalid feedback status.')),
+              Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid feedback status.')),
             )
             const candidates =
               Predicate.isNotNullish(workspaceId) && String.isNonEmpty(workspaceId)

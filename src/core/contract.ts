@@ -1,6 +1,8 @@
 import type { HttpEffect, WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import { Predicate, Cause, Data, Effect, Result, Schema } from 'effect'
 
+import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+
 import type { ApiCoreRpcShape } from './api/operations.ts'
 import type { WebCoreRpcShape } from './web/operations.ts'
 
@@ -58,7 +60,9 @@ export const coreReply = function coreReply<E, R, S extends Schema.Top>(
       }
       const failure = Cause.findError(cause)
       const expected = !Cause.hasDies(cause) && Result.isSuccess(failure) && failure.success instanceof CorePublicError
-      const problem = expected ? failure.success : coreFailure(500, 'An unexpected error occurred.')
+      const problem = expected
+        ? failure.success
+        : coreFailure(HTTP_INTERNAL_SERVER_ERROR, 'An unexpected error occurred.')
       if (!expected) {
         console.error('[core]', { operation, occurrenceId: problem.occurrenceId, cause })
       }
@@ -73,7 +77,7 @@ export const coreReply = function coreReply<E, R, S extends Schema.Top>(
         }),
       ).pipe(
         Effect.catchCause((encodingCause) => {
-          const fallback = coreFailure(500, 'An unexpected error occurred.')
+          const fallback = coreFailure(HTTP_INTERNAL_SERVER_ERROR, 'An unexpected error occurred.')
           console.error('[core]', { operation, occurrenceId: fallback.occurrenceId, cause: encodingCause })
           return Schema.encodeEffect(codec)(Result.fail(fallback)).pipe(Effect.orDie)
         }),

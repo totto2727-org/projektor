@@ -77,7 +77,7 @@ describe('0028 viewer-preserving migration', () => {
       .bind(ctx.viewersGroupId)
       .all<{ role: string }>()
     expect(grants.results).toHaveLength(2)
-    expect(grants.results.every((g) => g.role === 'viewer')).toBe(true)
+    expect(grants.results.every((result) => result.role === 'viewer')).toBe(true)
   })
 
   test('moves the viewer out of the member group into the read-only group', async () => {
@@ -91,7 +91,7 @@ describe('0028 viewer-preserving migration', () => {
     const memberGrants = await env.DB.prepare('SELECT DISTINCT role FROM group_project_grants WHERE group_id = ?')
       .bind(ctx.memberGroupId)
       .all<{ role: string }>()
-    expect(memberGrants.results.map((r) => r.role)).toEqual(['member'])
+    expect(memberGrants.results.map((result) => result.role)).toEqual(['member'])
   })
 
   test('is idempotent — re-running changes nothing', async () => {
@@ -107,7 +107,7 @@ describe('0028 viewer-preserving migration', () => {
   test('creates no viewers group for a workspace that has no viewers', async () => {
     const ws = await seedWorkspace()
     const groupId = `grp-allproj-${ws.id}`
-    const p = await seedProject(ws.id, 'Z')
+    const project = await seedProject(ws.id, 'Z')
     const member = await seedUser(`m2-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, member.id, 'member')
     const now = Math.floor(Date.now() / 1000)
@@ -117,7 +117,7 @@ describe('0028 viewer-preserving migration', () => {
       .bind(groupId, ws.id, now)
       .run()
     await env.DB.prepare("INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'member')")
-      .bind(groupId, p.id)
+      .bind(groupId, project.id)
       .run()
     await env.DB.prepare('INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)')
       .bind(groupId, member.id, member.id, now)

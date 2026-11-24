@@ -2,6 +2,12 @@
 
 import { Effect, Schema } from 'effect'
 
+import {
+  HTTP_BAD_GATEWAY,
+  HTTP_FORBIDDEN,
+  HTTP_PAYLOAD_TOO_LARGE,
+  HTTP_TOO_MANY_REQUESTS,
+} from '#contracts/http-status.ts'
 import { RateLimitResult, rateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
 
 import { UploadAttachmentInputSchema, UploadedAttachmentSchema } from './attachments.ts'
@@ -30,7 +36,9 @@ const uploadToCore = function uploadToCore(input: UploadAttachmentInput, workspa
       }),
     )
     if (limited) {
-      return yield* new ApiError('request', 429, 'Too many requests', undefined, { retryAfter: limited.retryAfter })
+      return yield* new ApiError('request', HTTP_TOO_MANY_REQUESTS, 'Too many requests', undefined, {
+        retryAfter: limited.retryAfter,
+      })
     }
     return yield* transferCoreBinary(`/files?workspaceId=${encodeURIComponent(workspaceId)}`, {
       method: 'POST',
@@ -40,7 +48,9 @@ const uploadToCore = function uploadToCore(input: UploadAttachmentInput, workspa
     Effect.flatMap((response) => Effect.tryPromise(() => response.json())),
     Effect.flatMap(Schema.decodeUnknownEffect(UploadedAttachmentSchema)),
     Effect.mapError((error) =>
-      error instanceof ApiError ? error : new ApiError('request', 502, 'The operation could not be completed.'),
+      error instanceof ApiError
+        ? error
+        : new ApiError('request', HTTP_BAD_GATEWAY, 'The operation could not be completed.'),
     ),
   )
 }
@@ -57,11 +67,11 @@ export const uploadAttachment = EFFRONT.ServerFn.make({
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
           // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
           if (input.file.size > 10 * 1024 * 1024) {
-            return yield* new ApiError('request', 413, 'File too large (max 10 MB)')
+            return yield* new ApiError('request', HTTP_PAYLOAD_TOO_LARGE, 'File too large (max 10 MB)')
           }
           const selection = context.scope.selection
           if (selection.kind !== 'workspace' && selection.kind !== 'project') {
-            return yield* new ApiError('request', 403, 'Selected workspace is not accessible.')
+            return yield* new ApiError('request', HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
           }
           return yield* uploadToCore(input, selection.workspace.id)
         }),
@@ -98,11 +108,11 @@ export const uploadInlineImage = EFFRONT.ServerFn.make({
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
           // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
           if (input.file.size > 10 * 1024 * 1024) {
-            return yield* new ApiError('request', 413, 'File too large (max 10 MB)')
+            return yield* new ApiError('request', HTTP_PAYLOAD_TOO_LARGE, 'File too large (max 10 MB)')
           }
           const selection = context.scope.selection
           if (selection.kind !== 'workspace' && selection.kind !== 'project') {
-            return yield* new ApiError('request', 403, 'Selected workspace is not accessible.')
+            return yield* new ApiError('request', HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
           }
           return yield* uploadToCore(input, selection.workspace.id)
         }),

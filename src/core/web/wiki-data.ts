@@ -5,6 +5,7 @@ import { Iterable, Effect, Schema } from 'effect'
 
 import { readWikiDraftState } from '#commands/wiki-drafts.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import {
   Attachment,
   DraftState,
@@ -95,7 +96,7 @@ export const loadWikiData = function loadWikiData(
               .filter(Boolean),
           }
         : {}),
-    }).pipe(Effect.mapError(() => new ApiError('http', 400, 'Invalid wiki filters.')))
+    }).pipe(Effect.mapError(() => new ApiError('http', HTTP_BAD_REQUEST, 'Invalid wiki filters.')))
     const row = ref ? (yield* readAuthorizedWikiPage(db, scope, ref)).page : undefined
     const page = row
       ? yield* Schema.decodeUnknownEffect(Page)({

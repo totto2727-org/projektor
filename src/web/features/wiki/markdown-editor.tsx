@@ -96,8 +96,8 @@ function prefixLines(view: EditorView, prefix: string): boolean {
     const fromLine = state.doc.lineAt(range.from)
     const toLine = state.doc.lineAt(range.to)
     const lineCount = toLine.number - fromLine.number + 1
-    const changes = globalThis.Array.from({ length: lineCount }, (_, i) => ({
-      from: state.doc.line(fromLine.number + i).from,
+    const changes = globalThis.Array.from({ length: lineCount }, (_value, index) => ({
+      from: state.doc.line(fromLine.number + index).from,
       insert: prefix,
     }))
     return {
@@ -127,13 +127,18 @@ function isDirectPointerActivation(event: React.MouseEvent): boolean {
   if (!target) {
     return false
   }
-  const r = target.getBoundingClientRect()
-  return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom
+  const bounds = target.getBoundingClientRect()
+  return (
+    event.clientX >= bounds.left &&
+    event.clientX <= bounds.right &&
+    event.clientY >= bounds.top &&
+    event.clientY <= bounds.bottom
+  )
 }
 
-function direct(run: () => void): (e: React.MouseEvent) => void {
-  return (e) => {
-    if (isDirectPointerActivation(e)) {
+function direct(run: () => void): (selectedEvent: React.MouseEvent) => void {
+  return (selectedEvent) => {
+    if (isDirectPointerActivation(selectedEvent)) {
       run()
     }
   }
@@ -142,7 +147,7 @@ function direct(run: () => void): (e: React.MouseEvent) => void {
 interface EditorToolbarProps {
   onBold: () => void
   onItalic: () => void
-  onHeading: (n: 1 | 2 | 3) => void
+  onHeading: (level: 1 | 2 | 3) => void
   onLink: () => void
   onCodeBlock: () => void
   onBulletList: () => void

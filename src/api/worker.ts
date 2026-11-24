@@ -9,6 +9,7 @@ import { CorePublicError } from 'projektor/core-client'
 import { ApiDevelopmentBootstrap } from '#contracts/api-auth.ts'
 import { ApiResults } from '#contracts/api-results.ts'
 import { ServiceError } from '#contracts/errors.ts'
+import { HTTP_CREATED, HTTP_INTERNAL_SERVER_ERROR, HTTP_MOVED_PERMANENTLY } from '#contracts/http-status.ts'
 import { safeDecodeURIComponent } from '#contracts/urls.ts'
 import type { ApiEnv, HonoEnv } from '#types'
 
@@ -63,7 +64,7 @@ app.onError((error, httpContext) => {
     return serviceErrToResponse(httpContext, error)
   }
   console.error('unhandled error', { method: httpContext.req.method, path: httpContext.req.path, error })
-  return httpContext.json({ error: 'Internal Server Error' }, 500)
+  return httpContext.json({ error: 'Internal Server Error' }, HTTP_INTERNAL_SERVER_ERROR)
 })
 
 // Anonymous ingestion owns its source-specific CORS, before the global allowlist.
@@ -131,7 +132,7 @@ app.post('/api/workspaces', authMiddleware, async (httpContext) => {
         ),
       ),
     )
-    return httpContext.json(result, 201)
+    return httpContext.json(result, HTTP_CREATED)
   } catch (error) {
     return serviceErrToResponse(httpContext, error)
   }
@@ -220,7 +221,7 @@ app.get('/wiki', async (httpContext) => {
     return shell()
   }
   const page = await resolveWikiPageForSsr(httpContext, slug)
-  return page ? httpContext.redirect(page.url, 301) : shell()
+  return page ? httpContext.redirect(page.url, HTTP_MOVED_PERMANENTLY) : shell()
 })
 app.get('*', async (httpContext) => {
   if (!httpContext.env.ASSETS) {

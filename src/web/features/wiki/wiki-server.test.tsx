@@ -223,9 +223,12 @@ describe('wiki direct request-owned queries', () => {
     ).rejects.toMatchObject({ status: 400 })
     await expect(
       runTestEffect(
-        test.effect(`https://app.test/wiki?tags=${Array.from({ length: 51 }, (_, i) => `tag${i}`).join(',')}`, {
-          slug: '',
-        }),
+        test.effect(
+          `https://app.test/wiki?tags=${Array.from({ length: 51 }, (_value, index) => `tag${index}`).join(',')}`,
+          {
+            slug: '',
+          },
+        ),
       ),
     ).rejects.toMatchObject({ status: 400 })
   })

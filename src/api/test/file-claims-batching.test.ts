@@ -110,9 +110,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
       const holder = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
 
-      const conflictPaths = Array.from({ length: 10 }, (_, i) => `src/conflict-${i}.ts`)
-      const stalePaths = Array.from({ length: 5 }, (_, i) => `src/stale-${i}.ts`)
-      const freshPaths = Array.from({ length: 85 }, (_, i) => `src/fresh-${i}.ts`)
+      const conflictPaths = Array.from({ length: 10 }, (_value, index) => `src/conflict-${index}.ts`)
+      const stalePaths = Array.from({ length: 5 }, (_value, index) => `src/stale-${index}.ts`)
+      const freshPaths = Array.from({ length: 85 }, (_value, index) => `src/fresh-${index}.ts`)
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
       expect(paths).toHaveLength(100)
 
@@ -162,9 +162,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
       const holder = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
 
-      const conflictPaths = Array.from({ length: 10 }, (_, i) => `src/rconflict-${i}.ts`)
-      const stalePaths = Array.from({ length: 5 }, (_, i) => `src/rstale-${i}.ts`)
-      const freshPaths = Array.from({ length: 85 }, (_, i) => `src/rfresh-${i}.ts`)
+      const conflictPaths = Array.from({ length: 10 }, (_value, index) => `src/rconflict-${index}.ts`)
+      const stalePaths = Array.from({ length: 5 }, (_value, index) => `src/rstale-${index}.ts`)
+      const freshPaths = Array.from({ length: 85 }, (_value, index) => `src/rfresh-${index}.ts`)
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
 
       for (const p of conflictPaths) {
@@ -223,7 +223,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
    */
   test.each(['native REST', 'shared command'] as const)('releasing 100 claimed paths, %s', async (boundary) => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
-    const paths = Array.from({ length: 100 }, (_, i) => `src/release-${i}.ts`)
+    const paths = Array.from({ length: 100 }, (_value, index) => `src/release-${index}.ts`)
 
     const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
@@ -258,7 +258,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
 
   test('release reports only claims it actually released (a concurrent release is left alone)', async () => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
-    const paths = Array.from({ length: 5 }, (_, i) => `src/race-${i}.ts`)
+    const paths = Array.from({ length: 5 }, (_value, index) => `src/race-${index}.ts`)
     const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -335,10 +335,10 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     // 100 paths of ~300 chars: the untruncated path list alone would be ~30,000 chars.
     const paths = Array.from(
       { length: 100 },
-      (_, i) => `src/${'deep/'.repeat(58)}file-${String(i).padStart(3, '0')}.ts`,
+      (_value, index) => `src/${'deep/'.repeat(58)}file-${String(index).padStart(3, '0')}.ts`,
     )
-    for (const p of paths) {
-      await seedLiveClaim(workspaceId, holder.id, p)
+    for (const path of paths) {
+      await seedLiveClaim(workspaceId, holder.id, path)
     }
 
     const res = await fetchNativeApi('http://localhost/api/file-claims', {

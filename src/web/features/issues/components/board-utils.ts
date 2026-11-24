@@ -52,19 +52,19 @@ export interface Issue {
 export type SortKey = 'number' | 'priority' | 'updated' | 'status' | 'assignee' | 'created_at' | 'title'
 
 const PRIORITY_ORDER: Record<string, number> = {
-  urgent: 0,
   high: 1,
-  medium: 2,
   low: 3,
+  medium: 2,
   none: 4,
+  urgent: 0,
 }
 
 const STATUS_CATEGORY_ORDER: Record<string, number> = {
-  todo: 0,
+  cancelled: 5,
+  done: 3,
   in_progress: 1,
   in_review: 2,
-  done: 3,
-  cancelled: 5,
+  todo: 0,
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -107,10 +107,11 @@ export const getFirstStatusForCategory = function getFirstStatusForCategory(
 ): TaskStatus | undefined {
   if (category === 'todo') {
     return (
-      statuses.find((s) => s.category === 'todo' && s.key !== 'backlog') ?? statuses.find((s) => s.category === 'todo')
+      statuses.find((selectedStatus) => selectedStatus.category === 'todo' && selectedStatus.key !== 'backlog') ??
+      statuses.find((selectedStatus) => selectedStatus.category === 'todo')
     )
   }
-  return statuses.find((s) => s.category === category)
+  return statuses.find((selectedStatus) => selectedStatus.category === category)
 }
 
 /**
@@ -158,14 +159,15 @@ const statusSortOrder = function statusSortOrder(issue: Issue): number {
   return STATUS_CATEGORY_ORDER[issue.status_category ?? ''] ?? 99
 }
 
-const SORT_COMPARATORS: Record<SortKey, (issue: Issue, b: Issue) => number> = {
-  number: (issue, b) => issue.number - b.number,
-  priority: (issue, b) => (PRIORITY_ORDER[issue.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99),
-  updated: (issue, b) => issue.updated_at - b.updated_at,
-  created_at: (issue, b) => issue.created_at - b.created_at,
-  title: (issue, b) => issue.title.localeCompare(b.title),
-  assignee: (issue, b) => (issue.assignee_name ?? '').localeCompare(b.assignee_name ?? ''),
-  status: (issue, b) => statusSortOrder(issue) - statusSortOrder(b),
+const SORT_COMPARATORS: Record<SortKey, (issue: Issue, selectedIssue: Issue) => number> = {
+  assignee: (issue, selectedIssue) => (issue.assignee_name ?? '').localeCompare(selectedIssue.assignee_name ?? ''),
+  created_at: (issue, selectedIssue) => issue.created_at - selectedIssue.created_at,
+  number: (issue, selectedIssue) => issue.number - selectedIssue.number,
+  priority: (issue, selectedIssue) =>
+    (PRIORITY_ORDER[issue.priority] ?? 99) - (PRIORITY_ORDER[selectedIssue.priority] ?? 99),
+  status: (issue, selectedIssue) => statusSortOrder(issue) - statusSortOrder(selectedIssue),
+  title: (issue, selectedIssue) => issue.title.localeCompare(selectedIssue.title),
+  updated: (issue, selectedIssue) => issue.updated_at - selectedIssue.updated_at,
 }
 
 /** Sorts a copy of an issue list by the given SortKey. */

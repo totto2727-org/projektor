@@ -11,6 +11,7 @@ import {
   updateFeedbackSource,
 } from '#api/services/feedback-sources.ts'
 import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
@@ -20,7 +21,7 @@ router.post('/:id/feedback-sources', async (httpContext) => {
   const projectId = httpContext.req.param('id')
   const raw = await jsonBody(httpContext)
   try {
-    return httpContext.json(await createFeedbackSource(ctx, { ...raw, projectId }), 201)
+    return httpContext.json(await createFeedbackSource(ctx, { ...raw, projectId }), HTTP_CREATED)
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

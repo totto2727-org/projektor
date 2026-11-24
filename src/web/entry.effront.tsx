@@ -21,18 +21,18 @@ function pageTitle(pathname: string): string {
   const path = pathname.replace(/\/$/u, '') || '/'
   const titles: Record<string, string> = {
     '/': 'Projects',
+    '/epics': 'Epics',
+    '/feedback': 'Feedback',
     '/help': 'Help',
-    '/my-issues': 'My Issues',
     '/issues': 'Issues',
     '/issues/view': 'Issue',
-    '/epics': 'Epics',
-    '/sprints': 'Sprints',
     '/metrics': 'Metrics',
-    '/wiki': 'Wiki',
-    '/wiki/view': 'Wiki',
-    '/feedback': 'Feedback',
+    '/my-issues': 'My Issues',
     '/settings/groups': 'Groups',
     '/settings/tokens': 'Connect Agent',
+    '/sprints': 'Sprints',
+    '/wiki': 'Wiki',
+    '/wiki/view': 'Wiki',
   }
   return `${titles[path] ?? (path.startsWith('/projects/view') ? 'Overview' : path.startsWith('/share/') ? 'Shared Issue' : 'Projektor')} · Projektor`
 }

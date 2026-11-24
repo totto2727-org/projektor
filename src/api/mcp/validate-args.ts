@@ -73,7 +73,7 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     : Predicate.isString(declared)
       ? [declared]
       : []
-  if (Array.isArrayNonEmpty(types) && !types.some((t) => matchesType(value, t))) {
+  if (Array.isArrayNonEmpty(types) && !types.some((type) => matchesType(value, type))) {
     issues.push({ path, message: `must be ${types.join(' or ')}, got ${typeOf(value)}` })
     return
   }
@@ -114,8 +114,8 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     }
     const items = schema.items
     if (items && typeof items === 'object' && !globalThis.Array.isArray(items)) {
-      value.forEach((item, i) => {
-        validate(item, items as Schema, `${path}[${i}]`, issues)
+      value.forEach((item, index) => {
+        validate(item, items as Schema, `${path}[${index}]`, issues)
       })
     }
   }

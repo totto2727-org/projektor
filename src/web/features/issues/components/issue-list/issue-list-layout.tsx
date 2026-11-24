@@ -18,7 +18,7 @@ import type { useSavedViews } from './use-saved-views.ts'
 interface IssueListLayoutProps {
   workspaceSlug?: string
   view: ViewMode
-  setView: (v: ViewMode) => void
+  setView: (view: ViewMode) => void
   filtered: Issue[]
   projectDescription: string | null
   filters: ReturnType<typeof useIssueFilters>

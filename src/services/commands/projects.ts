@@ -382,7 +382,7 @@ export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: s
       )
       .bind(id, ctx.workspaceId)
       .all<{ k: string }>()
-  ).results.map((r) => r.k)
+  ).results.map((result) => result.k)
 
   await ctx.db.batch(
     PROJECT_CLEANUP_SQL.map((sql) =>

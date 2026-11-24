@@ -2103,7 +2103,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
-    expect(results.map((r) => r.title).sort()).toEqual(['Tagged Frontend', 'Tagged Ops'])
+    expect(results.map((result) => result.title).sort()).toEqual(['Tagged Frontend', 'Tagged Ops'])
   })
 
   test('covers MCP list_wiki_pages filters by tags (any-of), parity with REST', async () => {
@@ -2152,7 +2152,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     )
     expect(res.status).toBe(200)
     const results = (await res.json()) as { title: string }[]
-    expect(results.map((r) => r.title)).toEqual(['Deploy Runbook'])
+    expect(results.map((result) => result.title)).toEqual(['Deploy Runbook'])
   })
 
   test('search results return tags/owners as arrays, same shape as list and get', async () => {
@@ -2194,7 +2194,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const result = mcpData<{ items: { title: string }[] }>(
       await mcpCall(workspaceId, 'search_wiki', { query: 'widget', type: 'spec' }, authHeaders(token, slug)),
     )
-    expect(result.items.map((r) => r.title)).toEqual(['Widget Spec'])
+    expect(result.items.map((item) => item.title)).toEqual(['Widget Spec'])
   })
 })
 
@@ -2753,7 +2753,7 @@ describe('wiki revision diff (PROJ-492)', () => {
     const revisions = await getRevisions('restorable-doc')
     expect(revisions).toHaveLength(2)
     expect(revisions[0].id).not.toBe(latest.id)
-    expect(revisions.map((r) => r.id)).toContain(latest.id)
+    expect(revisions.map((revision) => revision.id)).toContain(latest.id)
   })
 
   test('restore with a baseRevisionId stale from open history is a 409, not a silent overwrite', async () => {
@@ -3340,7 +3340,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       headers: authHeaders(token, slug),
     })
     const results = (await searchRes.json()) as { title: string }[]
-    expect(results.map((r) => r.title)).toEqual(['Patch Frontmatter Current', 'Patch Frontmatter Demote'])
+    expect(results.map((result) => result.title)).toEqual(['Patch Frontmatter Current', 'Patch Frontmatter Demote'])
   })
 
   test('covers REST: set_frontmatter accepts a stale baseRevisionId belonging to the page', async () => {
@@ -3706,10 +3706,10 @@ describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
         id: string
         slug: string
       }>()
-      const slugs = results.map((r) => r.slug)
+      const slugs = results.map((result) => result.slug)
       expect(new Set(slugs).size).toBe(slugs.length)
-      expect(results.find((r) => r.id === 'p1')?.slug).toBe('operations')
-      expect(results.find((r) => r.id === 'p3')?.slug).toBe('operations-2')
+      expect(results.find((result) => result.id === 'p1')?.slug).toBe('operations')
+      expect(results.find((result) => result.id === 'p3')?.slug).toBe('operations-2')
     })
   })
 })
@@ -4420,7 +4420,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       title: string
       freshness: { state: string } | null
     }[]
-    expect(results.map((r) => r.title)).toEqual(['Fresh Deploy Guide', 'Stale Deploy Guide'])
+    expect(results.map((result) => result.title)).toEqual(['Fresh Deploy Guide', 'Stale Deploy Guide'])
     expect(results[0].freshness?.state).toBe('fresh')
     expect(results[1].freshness?.state).toBe('stale')
   })
@@ -4444,7 +4444,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
-    expect(results.map((r) => r.title)).toEqual(['Current Onboarding', 'Deprecated Onboarding'])
+    expect(results.map((result) => result.title)).toEqual(['Current Onboarding', 'Deprecated Onboarding'])
   })
 
   /*
@@ -4484,7 +4484,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       title: string
       freshness: { state: string } | null
     }[]
-    expect(results.map((r) => r.title)).toEqual(['Securitypolicykeyword Runbook', 'No Signal Page'])
+    expect(results.map((result) => result.title)).toEqual(['Securitypolicykeyword Runbook', 'No Signal Page'])
     expect(results[0].freshness?.state).toBe('unverified')
   })
 
@@ -4526,7 +4526,7 @@ describe('wiki freshness model (PROJ-489)', () => {
     })
     expect(res.status).toBe(200)
     const results = (await res.json()) as { title: string }[]
-    const titles = results.map((r) => r.title).sort()
+    const titles = results.map((result) => result.title).sort()
     expect(titles).toEqual(['Explicitly Stale Page', 'Never Verified Page', 'Overdue Page'])
   })
 
@@ -4688,8 +4688,8 @@ describe('wiki page templates (PROJ-491)', () => {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
-    expect(results.map((r) => r.title)).toContain('Runbook For Deploys')
-    expect(results.map((r) => r.title)).not.toContain('Runbook Template')
+    expect(results.map((result) => result.title)).toContain('Runbook For Deploys')
+    expect(results.map((result) => result.title)).not.toContain('Runbook Template')
   })
 
   /*
@@ -4738,7 +4738,7 @@ describe('wiki page templates (PROJ-491)', () => {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
-    expect(results.map((r) => r.title)).not.toContain('Overdue Template')
+    expect(results.map((result) => result.title)).not.toContain('Overdue Template')
   })
 
   test('covers REST GET /api/wiki/templates lists only template-flagged pages', async () => {
@@ -4754,7 +4754,7 @@ describe('wiki page templates (PROJ-491)', () => {
     })
     expect(res.status).toBe(200)
     const results = (await res.json()) as { title: string }[]
-    expect(results.map((r) => r.title)).toEqual(['Runbook Template'])
+    expect(results.map((result) => result.title)).toEqual(['Runbook Template'])
   })
 
   test("rejects a page slugged 'templates' — it would be shadowed by GET /api/wiki/templates", async () => {
@@ -4799,7 +4799,11 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
     })
     expect(listRes.status).toBe(200)
     const templates = (await listRes.json()) as { title: string; type: string | null }[]
-    expect(templates.map((t) => t.title).sort()).toEqual(['ADR Template', 'Runbook Template', 'Spec Template'])
+    expect(templates.map((template) => template.title).sort()).toEqual([
+      'ADR Template',
+      'Runbook Template',
+      'Spec Template',
+    ])
 
     const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', { headers: newHeaders })
     const tree = (await treeRes.json()) as {
@@ -4844,7 +4848,7 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
     })
     expect(searchRes.status).toBe(200)
     const results = (await searchRes.json()) as { title: string }[]
-    expect(results.map((r) => r.title)).toContain('Templates')
+    expect(results.map((result) => result.title)).toContain('Templates')
   })
 })
 
@@ -4934,7 +4938,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     let watches = (await (
       await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
     ).json()) as { pageId: string; subtree: boolean }[]
-    const initial = watches.filter((w) => w.pageId === page.id)
+    const initial = watches.filter((watch) => watch.pageId === page.id)
     expect(initial).toHaveLength(1)
     expect(initial[0]).toMatchObject({ pageId: page.id, subtree: false })
 
@@ -4947,8 +4951,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     watches = (await (
       await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
     ).json()) as { pageId: string; subtree: boolean }[]
-    expect(watches.filter((w) => w.pageId === page.id)).toHaveLength(1)
-    expect(watches.find((w) => w.pageId === page.id)?.subtree).toBe(true)
+    expect(watches.filter((watch) => watch.pageId === page.id)).toHaveLength(1)
+    expect(watches.find((watch) => watch.pageId === page.id)?.subtree).toBe(true)
 
     const unwatchRes = await req(`http://localhost/api/wiki/${page.slug}/watch`, {
       method: 'DELETE',
@@ -4958,7 +4962,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     watches = (await (
       await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
     ).json()) as { pageId: string; subtree: boolean }[]
-    expect(watches.some((w) => w.pageId === page.id)).toBe(false)
+    expect(watches.some((watch) => watch.pageId === page.id)).toBe(false)
   })
 
   test('a direct watcher is notified when someone else edits the page, never for their own edit', async () => {
@@ -5170,7 +5174,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(watcher.token, slug),
     })
     const body = (await res.json()) as { changes: { slug: string | null }[] }
-    expect(body.changes.map((c) => c.slug)).toContain('bool-unwatched')
+    expect(body.changes.map((change) => change.slug)).toContain('bool-unwatched')
   })
 
   test('mark_wiki_notifications_read: by explicit ids, then all:true', async () => {
@@ -5222,7 +5226,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       changes: { action: string; pageId: string }[]
       nextSince: number
     }
-    expect(body.changes.some((c) => c.pageId === page.id && c.action === 'created')).toBe(true)
+    expect(body.changes.some((change) => change.pageId === page.id && change.action === 'created')).toBe(true)
     expect(body.nextSince).toBeGreaterThanOrEqual(t0)
 
     const empty = (await (
@@ -5294,7 +5298,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
         headers: authHeaders(token, slug),
       })
     ).json()) as { changes: { action: string; slug: string | null; title: string | null }[] }
-    const deleteEvent = body.changes.find((c) => c.action === 'deleted')
+    const deleteEvent = body.changes.find((change) => change.action === 'deleted')
     expect(deleteEvent).toMatchObject({ slug: 'delta-delete', title: 'Delta Delete' })
   })
 
@@ -5321,11 +5325,11 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     ).json()) as {
       changes: { action: string; pageId: string; deletedPageIds: string[] | null }[]
     }
-    const deleteEvent = body.changes.find((c) => c.action === 'deleted' && c.pageId === parent.id)
+    const deleteEvent = body.changes.find((change) => change.action === 'deleted' && change.pageId === parent.id)
     expect(deleteEvent?.deletedPageIds?.sort()).toEqual([child.id, parent.id].toSorted())
 
     // Non-cascade events (e.g. the earlier "created" events) carry no deletedPageIds.
-    const createdEvent = body.changes.find((c) => c.action === 'created' && c.pageId === parent.id)
+    const createdEvent = body.changes.find((change) => change.action === 'created' && change.pageId === parent.id)
     expect(createdEvent?.deletedPageIds ?? null).toBeNull()
   })
 
@@ -5353,7 +5357,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
         headers: authHeaders(outsider.token, slug),
       })
     ).json()) as { changes: { slug: string | null }[] }
-    expect(body.changes.some((c) => c.slug === 'restricted-delta')).toBe(false)
+    expect(body.changes.some((change) => change.slug === 'restricted-delta')).toBe(false)
 
     // The grantee (the creator) does see it.
     const ownBody = (await (
@@ -5361,7 +5365,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
         headers: authHeaders(token, slug),
       })
     ).json()) as { changes: { slug: string | null }[] }
-    expect(ownBody.changes.some((c) => c.slug === 'restricted-delta')).toBe(true)
+    expect(ownBody.changes.some((change) => change.slug === 'restricted-delta')).toBe(true)
   })
 
   test('list_wiki_changes watchedOnly=true narrows to watched pages, including via a subtree watch', async () => {
@@ -5386,7 +5390,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
         headers: authHeaders(watcher.token, slug),
       })
     ).json()) as { changes: { pageId: string }[] }
-    const pageIds = body.changes.map((c) => c.pageId)
+    const pageIds = body.changes.map((change) => change.pageId)
     expect(pageIds).toContain(child.id)
     expect(pageIds).not.toContain(other.id)
   })
@@ -5413,7 +5417,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(isMcpError(watchRes)).toBe(false)
 
     const watches = mcpData<{ pageId: string }[]>(await mcp('list_wiki_watches', {}))
-    expect(watches.some((w) => w.pageId === page.id)).toBe(true)
+    expect(watches.some((watch) => watch.pageId === page.id)).toBe(true)
 
     const unwatchRes = await mcp('unwatch_wiki_page', { slug: page.slug })
     expect(isMcpError(unwatchRes)).toBe(false)
@@ -5423,7 +5427,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const changes = mcpData<{ items: { pageId: string; action: string }[]; next: string }>(
       await mcp('list_wiki_changes', { since: t0 }),
     )
-    expect(changes.items.some((c) => c.pageId === page.id && c.action === 'created')).toBe(true)
+    expect(changes.items.some((item) => item.pageId === page.id && item.action === 'created')).toBe(true)
   })
 })
 
@@ -5763,7 +5767,7 @@ describe('wiki trash (PROJ-496)', () => {
     })
     type TreeNode = { id: string; children: TreeNode[] }
     const flatten = (nodes: Readonly<TreeNode[]>): string[] =>
-      nodes.flatMap((n) => [n.id, ...flatten(n.children ?? [])])
+      nodes.flatMap((node) => [node.id, ...flatten(node.children ?? [])])
     expect(flatten((await treeRes.json()) as TreeNode[])).not.toContain(page.id)
 
     const searchRes = await req('http://localhost/api/wiki/search?q=trash-list-searchterm', {
@@ -5851,9 +5855,9 @@ describe('wiki trash (PROJ-496)', () => {
       .bind(parent.id, child.id, grandchild.id)
       .all<{ id: string; deleted_at: number | null }>()
     expect(rows.results).toHaveLength(3)
-    const deletedAts = new Set(rows.results.map((r) => r.deleted_at))
+    const deletedAts = new Set(rows.results.map((result) => result.deleted_at))
     expect(deletedAts.size).toBe(1)
-    expect(rows.results.every((r) => Predicate.isNotNullish(r.deleted_at))).toBe(true)
+    expect(rows.results.every((result) => Predicate.isNotNullish(result.deleted_at))).toBe(true)
 
     for (const p of [parent, child, grandchild]) {
       const res = await req(`http://localhost/api/wiki/${p.slug}`, {
@@ -5875,8 +5879,8 @@ describe('wiki trash (PROJ-496)', () => {
       deleted_at: number
       purgeAfter: number
     }[]
-    expect(rows.some((r) => r.id === live.id)).toBe(false)
-    const row = rows.find((r) => r.id === trashed.id)
+    expect(rows.some((selectedRow) => selectedRow.id === live.id)).toBe(false)
+    const row = rows.find((selectedRow) => selectedRow.id === trashed.id)
     expect(row).toBeDefined()
     expect(row?.purgeAfter).toBe(row!.deleted_at + 30 * 24 * 60 * 60)
   })
@@ -6401,7 +6405,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     const rows = await env.DB.prepare('SELECT id, title, deleted_at FROM wiki_pages WHERE id IN (?, ?)')
       .bind(target.id, impostorId)
       .all<{ id: string; title: string; deleted_at: number | null }>()
-    const byId = Object.fromEntries(rows.results.map((r) => [r.id, r]))
+    const byId = Object.fromEntries(rows.results.map((result) => [result.id, result]))
     expect(byId[target.id].title).toBe('Target Renamed')
     expect(byId[target.id].deleted_at).not.toBeNull()
     expect(byId[impostorId].title).toBe('Impostor')

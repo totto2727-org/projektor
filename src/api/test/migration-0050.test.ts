@@ -75,7 +75,7 @@ describe('0050 wiki slug slash backfill', () => {
     const rows = await env.DB.prepare('SELECT id, slug FROM wiki_pages WHERE id IN (?, ?)')
       .bind(firstId, secondId)
       .all<{ id: string; slug: string }>()
-    const bySlug = new Map(rows.results.map((r) => [r.id, r.slug]))
+    const bySlug = new Map(rows.results.map((result) => [result.id, result.slug]))
     expect(bySlug.get(firstId)).toBe('a-b-c')
     expect(bySlug.get(secondId)).toBe(`a-b-c-${secondId.slice(0, 8)}`)
   })

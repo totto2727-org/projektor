@@ -1,5 +1,6 @@
 import { Predicate, Effect, Schema } from 'effect'
 
+import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import { RateCounterRequest, RateLimitRequest, RateLimitResult } from '#contracts/request-rate-limit.ts'
 import type { RateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
@@ -35,7 +36,7 @@ export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
         RateLimitResult,
         Effect.gen(function* () {
           const proof = yield* Schema.decodeUnknownEffect(RateLimitRequest)(input).pipe(
-            Effect.mapError(() => coreFailure(400, 'Invalid rate limit request.')),
+            Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid rate limit request.')),
           )
           const env = policyEnvironment(yield* envSource, proof.testPolicy)
           return yield* Effect.tryPromise({
@@ -59,7 +60,7 @@ export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
         Schema.Number,
         Effect.gen(function* () {
           const proof = yield* Schema.decodeUnknownEffect(RateCounterRequest)(input).pipe(
-            Effect.mapError(() => coreFailure(400, 'Invalid rate counter request.')),
+            Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid rate counter request.')),
           )
           const env = policyEnvironment(yield* envSource, proof.testPolicy)
           return yield* Effect.tryPromise({

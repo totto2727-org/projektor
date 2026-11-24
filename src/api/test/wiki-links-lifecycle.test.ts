@@ -179,7 +179,7 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     )
       .bind(linker.id)
       .all<{ t: string; id: string | null }>()
-    const byTitle = Object.fromEntries(rows.results.map((r) => [r.t, r.id]))
+    const byTitle = Object.fromEntries(rows.results.map((result) => [result.t, result.id]))
     expect(byTitle).toEqual({ Twin: second.id, Lonely: null })
   })
 
@@ -208,5 +208,5 @@ async function targetsOf(sourceId: string): Promise<(string | null)[]> {
   )
     .bind(sourceId)
     .all<{ t: string | null }>()
-  return rows.results.map((r) => r.t)
+  return rows.results.map((result) => result.t)
 }

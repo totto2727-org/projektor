@@ -116,7 +116,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
   })
 
   test('capPage keeps valid JSON under the cap, marks truncated, and resumes from the last kept item', () => {
-    const items = Array.from({ length: 50 }, (_, i) => ({ n: i, pad: 'x'.repeat(100) }))
+    const items = Array.from({ length: 50 }, (_value, index) => ({ n: index, pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'orig'), { max: 1000, cursorOf: (i) => `c${i}` })
     const text = JSON.stringify(out)
     expect(text.length).toBeLessThanOrEqual(1000)
@@ -304,7 +304,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const comments = await tool<{ items: { body: string }[] }>('list_comments', {
       issueId: issue.id,
     })
-    expect(comments.items.map((c) => c.body)).toEqual(['hi'])
+    expect(comments.items.map((item) => item.body)).toEqual(['hi'])
     const activity = await tool<{ items: unknown[] }>('list_project_activity', {
       projectId: f.projectId,
     })

@@ -172,7 +172,7 @@ describe('validateToolArgs', () => {
       limit: 1.5,
       title: 'toolong',
     })
-    const paths = issues.map((i) => i.path).sort()
+    const paths = issues.map((issue) => issue.path).sort()
     expect(paths).toEqual(['labels', 'labels[1]', 'limit', 'status', 'title'])
   })
 

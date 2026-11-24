@@ -157,7 +157,7 @@ describe('agent Messages API', () => {
     const p2 = JSON.parse(p2Body.result?.content[0].text ?? '{}') as {
       items: { body: string }[]
     }
-    expect(p2.items.map((m) => m.body)).toEqual(['message three'])
+    expect(p2.items.map((item) => item.body)).toEqual(['message three'])
   })
 
   // C2: workspace scope; messages visible via workspace scope; not returned under issue scope
@@ -177,13 +177,13 @@ describe('agent Messages API', () => {
     const wsListRes = await listMessages({ scope: wsScope }, token2, slug)
     expect(wsListRes.status).toBe(200)
     const wsBody = (await wsListRes.json()) as { items: { body: string; scope: string }[] }
-    expect(wsBody.items.some((m) => m.body === 'workspace-wide notice')).toBe(true)
+    expect(wsBody.items.some((item) => item.body === 'workspace-wide notice')).toBe(true)
 
     // Should NOT appear in issue channel
     const issueListRes = await listMessages({ scope: issueScope }, token2, slug)
     expect(issueListRes.status).toBe(200)
     const issueBody = (await issueListRes.json()) as { items: { body: string }[] }
-    expect(issueBody.items.some((m) => m.body === 'workspace-wide notice')).toBe(false)
+    expect(issueBody.items.some((item) => item.body === 'workspace-wide notice')).toBe(false)
   })
 
   // C3: CAPSTONE — spans agents + file-claims + agent-messages
@@ -246,7 +246,7 @@ describe('agent Messages API', () => {
     const readData = JSON.parse(readBody.result.content[0].text) as {
       items: { body: string }[]
     }
-    expect(readData.items.some((m) => m.body.includes('can you release?'))).toBe(true)
+    expect(readData.items.some((item) => item.body.includes('can you release?'))).toBe(true)
 
     // agent1 releases path A
     const releaseRes = await mcpCall('release_files', { paths: ['src/coord.ts'], issueId: issue2.id }, token2, slug)
@@ -316,9 +316,9 @@ describe('agent Messages API', () => {
     const noticeData = JSON.parse(noticeBody.result.content[0].text) as {
       items: { body: string }[]
     }
-    expect(noticeData.items.some((m) => m.body.includes('force-claimed') && m.body.includes('src/forced.ts'))).toBe(
-      true,
-    )
+    expect(
+      noticeData.items.some((item) => item.body.includes('force-claimed') && item.body.includes('src/forced.ts')),
+    ).toBe(true)
   }, 15_000) // PROJ-248: many sequential MCP round-trips; full-suite contention pushes this past the 5s default
 
   // C4: workspace isolation; issue-scope isolation; cursor stability
@@ -350,8 +350,8 @@ describe('agent Messages API', () => {
     const xListRes = await listMessages({ scope }, token2, slug)
     expect(xListRes.status).toBe(200)
     const xBody = (await xListRes.json()) as { items: { body: string }[] }
-    expect(xBody.items.some((m) => m.body === 'workspace-Y message')).toBe(false)
-    expect(xBody.items.some((m) => m.body === 'workspace-X message')).toBe(true)
+    expect(xBody.items.some((item) => item.body === 'workspace-Y message')).toBe(false)
+    expect(xBody.items.some((item) => item.body === 'workspace-X message')).toBe(true)
 
     // Issue-scope isolation: workspace-channel messages don't bleed into issue scope
     const wsScope = 'workspace'
@@ -361,7 +361,7 @@ describe('agent Messages API', () => {
     const isoRes = await listMessages({ scope }, token3, slug)
     expect(isoRes.status).toBe(200)
     const isoBody = (await isoRes.json()) as { items: { body: string }[] }
-    expect(isoBody.items.some((m) => m.body === 'ws-channel msg')).toBe(false)
+    expect(isoBody.items.some((item) => item.body === 'ws-channel msg')).toBe(false)
   })
 
   // --- Heartbeat refresh on a live agentId (PROJ-929) ---

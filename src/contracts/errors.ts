@@ -1,5 +1,7 @@
 import { Predicate, Data, Redacted } from 'effect'
 
+import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
+
 export type ZodFlattenOutput = {
   formErrors: string[]
   fieldErrors: Record<string, string[] | undefined>
@@ -98,5 +100,5 @@ export const responseError = function responseError(cause: unknown): ApiError {
   if (cause instanceof ApiError) {
     return cause
   }
-  return new ApiError('schema', 502, 'The API returned an unexpected response.', cause)
+  return new ApiError('schema', HTTP_BAD_GATEWAY, 'The API returned an unexpected response.', cause)
 }

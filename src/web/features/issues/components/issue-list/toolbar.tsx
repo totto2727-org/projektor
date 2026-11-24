@@ -58,7 +58,7 @@ function FilterSelects({
           }}
           options={[
             { value: '', label: 'All projects' },
-            ...uniqueProjects.map((p) => ({ value: p.key, label: p.name })),
+            ...uniqueProjects.map((project) => ({ value: project.key, label: project.name })),
           ]}
         />
       )}
@@ -70,9 +70,9 @@ function FilterSelects({
           onChange={setFilterSprintId}
           options={[
             { value: '', label: 'All sprints' },
-            ...sprints.map((s) => ({
-              value: s.id,
-              label: `${s.status === 'active' ? '● ' : ''}${s.name}`,
+            ...sprints.map((sprint) => ({
+              value: sprint.id,
+              label: `${sprint.status === 'active' ? '● ' : ''}${sprint.name}`,
             })),
           ]}
         />
@@ -165,7 +165,7 @@ function SortControls({
 
 interface ToolbarProps extends FilterSelectsProps {
   searchQuery: string
-  setSearchQuery: (v: string) => void
+  setSearchQuery: (query: string) => void
   isSearchActive: boolean
   searchInputRef: RefObject<HTMLInputElement | null>
   searchRoute: IssuesRoute

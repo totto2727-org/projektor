@@ -219,7 +219,7 @@ const buildReleaseByIdsStatements = function buildReleaseByIdsStatements(
 }
 
 const releasedIdsFrom = function releasedIdsFrom(results: Readonly<D1Result[]>): Set<string> {
-  return new Set(results.flatMap((r) => (r.results as { id: string }[]).map((row) => row.id)))
+  return new Set(results.flatMap((result) => (result.results as { id: string }[]).map((row) => row.id)))
 }
 
 /*

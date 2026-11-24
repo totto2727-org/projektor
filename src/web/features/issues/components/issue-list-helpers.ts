@@ -47,7 +47,7 @@ const applyEpicParams = function applyEpicParams(
    * "No epic" option drop epic-typed issues via excludeTypeIds, so the result
    * is correct across pagination rather than only on the loaded page.
    */
-  const epicTypeId = taskTypes.find((t) => t.key === 'epic')?.id
+  const epicTypeId = taskTypes.find((taskType) => taskType.key === 'epic')?.id
   if (Predicate.isNotNullish(epicTypeId) && String.isNonEmpty(epicTypeId) && (hideEpics || filterEpicId === 'none')) {
     qs.set('excludeTypeIds', epicTypeId)
   }
@@ -102,11 +102,11 @@ export const buildFilterQueryParams = function buildFilterQueryParams(
   if (filterPriorities.length) {
     qs.set('priorities', filterPriorities.join(','))
   }
-  const projectId = filterProject ? projects.find((p) => p.key === filterProject)?.id : undefined
+  const projectId = filterProject ? projects.find((project) => project.key === filterProject)?.id : undefined
   if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     qs.set('project', projectId)
   }
-  const typeId = filterType ? taskTypes.find((t) => t.key === filterType)?.id : undefined
+  const typeId = filterType ? taskTypes.find((taskType) => taskType.key === filterType)?.id : undefined
   if (Predicate.isNotNullish(typeId) && String.isNonEmpty(typeId)) {
     qs.set('typeId', typeId)
   }
@@ -131,18 +131,23 @@ export type UrlSyncFilters = Pick<
 >
 
 const URL_SYNC_KEYS = [
-  ['status', (f: UrlSyncFilters) => (Array.isArrayNonEmpty(f.filterStatuses) ? f.filterStatuses.join(',') : null)],
+  [
+    'status',
+    (filters: UrlSyncFilters) =>
+      Array.isArrayNonEmpty(filters.filterStatuses) ? filters.filterStatuses.join(',') : null,
+  ],
   [
     'priority',
-    (f: UrlSyncFilters) => (Array.isArrayNonEmpty(f.filterPriorities) ? f.filterPriorities.join(',') : null),
+    (filters: UrlSyncFilters) =>
+      Array.isArrayNonEmpty(filters.filterPriorities) ? filters.filterPriorities.join(',') : null,
   ],
-  ['epic', (f: UrlSyncFilters) => f.filterEpicId || null],
-  ['sprintId', (f: UrlSyncFilters) => f.filterSprintId || null],
-  ['hideEpics', (f: UrlSyncFilters) => (f.hideEpics ? '1' : null)],
-  ['dateField', (f: UrlSyncFilters) => f.filterDateField || null],
-  ['dateFrom', (f: UrlSyncFilters) => f.filterDateFrom || null],
-  ['dateTo', (f: UrlSyncFilters) => f.filterDateTo || null],
-] as const satisfies Readonly<[string, (f: UrlSyncFilters) => string | null][]>
+  ['epic', (filters: UrlSyncFilters) => filters.filterEpicId || null],
+  ['sprintId', (filters: UrlSyncFilters) => filters.filterSprintId || null],
+  ['hideEpics', (filters: UrlSyncFilters) => (filters.hideEpics ? '1' : null)],
+  ['dateField', (filters: UrlSyncFilters) => filters.filterDateField || null],
+  ['dateFrom', (filters: UrlSyncFilters) => filters.filterDateFrom || null],
+  ['dateTo', (filters: UrlSyncFilters) => filters.filterDateTo || null],
+] as const satisfies Readonly<[string, (filters: UrlSyncFilters) => string | null][]>
 
 // Build canonical filter navigation while retaining unrelated scoped query parameters.
 // Effront owns navigation through ordinary anchors, not a parallel history router.

@@ -7,6 +7,7 @@ import { unauthorizedChallenge } from '#api/auth/challenge.ts'
 import { ApiPrincipal, VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
 import type { ApiUser } from '#contracts/api-auth.ts'
 import { capabilityForMethod, tokenAllows } from '#contracts/auth-scopes.ts'
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import type { HonoEnv } from '#types'
 
@@ -25,7 +26,7 @@ export const requireInteractiveHuman = function requireInteractiveHuman(
 ): Response | null {
   const auth = httpContext.get('auth')
   if (auth?.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
-    return httpContext.json({ error: message }, 403)
+    return httpContext.json({ error: message }, HTTP_FORBIDDEN)
   }
   return null
 }
@@ -78,7 +79,7 @@ export const authMiddleware = async function authMiddleware(httpContext: Context
     if (Predicate.isNotNullish(scopes) && !httpContext.req.path.startsWith('/mcp/')) {
       const required = capabilityForMethod(httpContext.req.method)
       if (!tokenAllows(scopes, required)) {
-        return httpContext.json({ error: `Token lacks '${required}' scope` }, 403)
+        return httpContext.json({ error: `Token lacks '${required}' scope` }, HTTP_FORBIDDEN)
       }
     }
     httpContext.set('coreActor', actor)

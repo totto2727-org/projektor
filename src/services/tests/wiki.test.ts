@@ -55,7 +55,7 @@ describe('pure wiki reads', () => {
 
   test('preserves list metadata projection, JSON decoding, filters and template exclusion', async () => {
     const rows = await runTestEffect(wiki.listWikiPages(db, 'wa'))
-    expect(rows.map((r) => r.id)).toEqual(['root', 'child'])
+    expect(rows.map((row) => row.id)).toEqual(['root', 'child'])
     expect(rows[0]).toEqual({
       id: 'root',
       is_template: false,
@@ -159,8 +159,8 @@ describe('pure wiki reads', () => {
     )
     const opts = { now: 100, limit: 10, offset: 0 }
     const rows = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', opts))
-    expect(rows.map((r) => r.id).sort()).toEqual(['child', 'root'])
-    expect(rows.find((r) => r.id === 'root')?.owners).toEqual(['u'])
+    expect(rows.map((row) => row.id).sort()).toEqual(['child', 'root'])
+    expect(rows.find((row) => row.id === 'root')?.owners).toEqual(['u'])
     const restricted = await runTestEffect(
       wiki.searchWiki(db, 'wa', 'needle*', {
         ...opts,
@@ -171,7 +171,7 @@ describe('pure wiki reads', () => {
     await expect(runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, tags: ['none'] }))).resolves.toEqual([])
     const one = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1 }))
     const two = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1, offset: 1 }))
-    expect([one[0].id, two[0].id]).toEqual(rows.map((r) => r.id))
+    expect([one[0].id, two[0].id]).toEqual(rows.map((row) => row.id))
   })
 
   test('is lazy and reports database failures as typed DataQueryError', async () => {
@@ -187,7 +187,9 @@ describe('pure wiki reads', () => {
   test('keeps API list, template, trash and tree contracts while sharing the DB read', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'owner' } as ServiceCtx
     const rows = await runTestEffect(wiki.listWikiPages(db, 'wa'))
-    await expect(apiWiki.listWikiPages(ctx, {})).resolves.toEqual(rows.map((r) => ({ ...r, url: `/wiki/${r.slug}` })))
+    await expect(apiWiki.listWikiPages(ctx, {})).resolves.toEqual(
+      rows.map((row) => ({ ...row, url: `/wiki/${row.slug}` })),
+    )
     await expect(apiWiki.listWikiTemplates(ctx, {})).resolves.toEqual([
       {
         id: 'template',

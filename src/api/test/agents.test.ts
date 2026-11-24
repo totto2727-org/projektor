@@ -42,7 +42,7 @@ describe('agents API', () => {
     })
     expect(listRes.status).toBe(200)
     const body = (await listRes.json()) as { items: { id: string }[] }
-    expect(body.items.some((s) => s.id === session.id)).toBe(true)
+    expect(body.items.some((item) => item.id === session.id)).toBe(true)
   })
 
   // A2: heartbeat bumps last_heartbeat_at; stale session excluded from list
@@ -70,7 +70,7 @@ describe('agents API', () => {
     })
     expect(listRes.status).toBe(200)
     const listBody = (await listRes.json()) as { items: { id: string }[] }
-    expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
+    expect(listBody.items.some((item) => item.id === session.id)).toBe(false)
   })
 
   // A3: end -> status='ended', excluded from active list
@@ -93,7 +93,7 @@ describe('agents API', () => {
       headers: authHeaders(token, slug),
     })
     const listBody = (await listRes.json()) as { items: { id: string }[] }
-    expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
+    expect(listBody.items.some((item) => item.id === session.id)).toBe(false)
   })
 
   /*
@@ -114,7 +114,7 @@ describe('agents API', () => {
       headers: authHeaders(token, slug),
     })
     const listBody = (await listRes.json()) as { items: Record<string, unknown>[] }
-    const humanItem = listBody.items.find((s) => s.id === humanSession.id)
+    const humanItem = listBody.items.find((item) => item.id === humanSession.id)
     expect(humanItem).toBeDefined()
     expect(humanItem?.kind).toBeUndefined()
   })
@@ -132,7 +132,7 @@ describe('agents API', () => {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     const listBody = (await listRes.json()) as { items: { id: string }[] }
-    expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
+    expect(listBody.items.some((item) => item.id === session.id)).toBe(false)
 
     // Heartbeat from Y -> 404
     const hbRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/heartbeat`, {
@@ -183,7 +183,7 @@ describe('agents API', () => {
       headers: authHeaders(token, slug),
     })
     const body = (await listRes.json()) as { items: { name: string }[] }
-    const names = body.items.map((s) => s.name)
+    const names = body.items.map((item) => item.name)
     expect(names).toContain('agent-1')
     expect(names).toContain('agent-2')
   })
@@ -256,7 +256,7 @@ describe('agents API', () => {
       const messages = await env.DB.prepare('SELECT body FROM agent_messages WHERE scope = ?')
         .bind(`issue:${issue.id}`)
         .all<{ body: string }>()
-      expect(messages.results.some((m) => m.body.includes('started work'))).toBe(true)
+      expect(messages.results.some((result) => result.body.includes('started work'))).toBe(true)
     })
 
     test('works with no paths given', async () => {
@@ -531,11 +531,11 @@ describe('agents API', () => {
 
       const withoutFlag = await listAgents()
       const withoutBody = (await withoutFlag.json()) as { items: { id: string }[] }
-      expect(withoutBody.items.some((s) => s.id === session.id)).toBe(false)
+      expect(withoutBody.items.some((selectedItem) => selectedItem.id === session.id)).toBe(false)
 
       const withFlag = await listAgents({ includeStale: 'true' })
       const withBody = (await withFlag.json()) as { items: { id: string; live: boolean }[] }
-      const item = withBody.items.find((s) => s.id === session.id)
+      const item = withBody.items.find((selectedItem) => selectedItem.id === session.id)
       expect(item).toBeDefined()
       expect(item?.live).toBe(false)
     })
@@ -552,11 +552,11 @@ describe('agents API', () => {
 
       const withoutFlag = await listAgents()
       const withoutBody = (await withoutFlag.json()) as { items: { id: string }[] }
-      expect(withoutBody.items.some((s) => s.id === session.id)).toBe(false)
+      expect(withoutBody.items.some((item) => item.id === session.id)).toBe(false)
 
       const withFlag = await listAgents({ includeStale: 'true' })
       const withBody = (await withFlag.json()) as { items: { id: string }[] }
-      expect(withBody.items.some((s) => s.id === session.id)).toBe(false)
+      expect(withBody.items.some((item) => item.id === session.id)).toBe(false)
     })
 
     test('a fresh session is flagged live:true', async () => {
@@ -565,7 +565,7 @@ describe('agents API', () => {
 
       const listRes = await listAgents()
       const body = (await listRes.json()) as { items: { id: string; live: boolean }[] }
-      expect(body.items.find((s) => s.id === session.id)?.live).toBe(true)
+      expect(body.items.find((item) => item.id === session.id)?.live).toBe(true)
     })
 
     test("carries the linked issue's issueRef; null when unlinked", async () => {
@@ -579,7 +579,7 @@ describe('agents API', () => {
       const body = (await res.json()) as {
         items: { id: string; issueRef: string | null }[]
       }
-      const byId = new Map(body.items.map((s) => [s.id, s.issueRef]))
+      const byId = new Map(body.items.map((item) => [item.id, item.issueRef]))
       expect(byId.get(linkedSession.id)).toBe(`${projectKey}-${issue.number}`)
       expect(byId.get(unlinkedSession.id)).toBeNull()
     })
@@ -602,12 +602,12 @@ describe('agents API', () => {
       const linkedBSession = (await linkedB.json()) as { id: string }
 
       const byKey = await listAgents({ projectId: projectKey })
-      const byKeyIds = ((await byKey.json()) as { items: { id: string }[] }).items.map((s) => s.id)
+      const byKeyIds = ((await byKey.json()) as { items: { id: string }[] }).items.map((item) => item.id)
       expect(byKeyIds).toContain(linkedASession.id)
       expect(byKeyIds).not.toContain(linkedBSession.id)
 
       const byUuid = await listAgents({ projectId })
-      const byUuidIds = ((await byUuid.json()) as { items: { id: string }[] }).items.map((s) => s.id)
+      const byUuidIds = ((await byUuid.json()) as { items: { id: string }[] }).items.map((item) => item.id)
       expect(byUuidIds).toContain(linkedASession.id)
       expect(byUuidIds).not.toContain(linkedBSession.id)
     })
