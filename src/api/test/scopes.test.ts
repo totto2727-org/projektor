@@ -25,7 +25,11 @@ import { authHeaders, seedProject, seedToken, seedUser, seedWorkspace } from './
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-/** Seed a workspace + owner + a project in it, for scope-enforcement tests. */
+/**
+ * Seed a workspace + owner + a project in it, for scope-enforcement tests.
+ *
+ * @returns {Promise<{ slug: string; workspaceId: string; userId: string; projectId: string }>} The workspace slug and the workspace, owner, and project IDs.
+ */
 const seedScopeFixture = async function seedScopeFixture() {
   const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
   const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)

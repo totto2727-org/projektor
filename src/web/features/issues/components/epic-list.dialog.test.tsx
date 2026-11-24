@@ -2,9 +2,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
-vi.mock('../actions', () => ({ createIssue: vi.fn() }))
-
 import { EpicList } from './epic-list.tsx'
+
+vi.mock('../actions', () => ({ createIssue: vi.fn() }))
 
 const project = {
   id: 'project',

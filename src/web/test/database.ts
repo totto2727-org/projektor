@@ -5,7 +5,11 @@ import { String, Predicate } from 'effect'
 
 import { migratedDb } from '#db/test/helpers.ts'
 
-/** Real migrated SQLite schema behind the D1 query interface, for domain tests only. */
+/**
+ * Real migrated SQLite schema behind the D1 query interface, for domain tests only.
+ *
+ * @returns {{ db: D1Database; sqlite: DatabaseSync; close: () => void }} The D1 adapter, the SQLite database, and the function to close the database.
+ */
 export const createTestDatabase = function createTestDatabase() {
   const sqlite = migratedDb()
   const prepare = function prepare(query: string, values: SQLInputValue[] = []): D1PreparedStatement {

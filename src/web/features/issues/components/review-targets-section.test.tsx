@@ -4,6 +4,14 @@ import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
+import type { Attachment } from '@/features/issues/types.ts'
+import type { IssueDetailInitialData } from '@/features/issues/views/issue-detail-page.tsx'
+
+import { IssueDetail } from './issue-detail.tsx'
+import { ReviewTargetsSection } from './review-targets-section.tsx'
+
 vi.mock('../actions', () => ({ setAttachmentReviewStatus: vi.fn(), updateIssue: vi.fn() }))
 vi.mock('./issue-detail-parts.tsx', () => ({
   AttachmentsSection: () => <p>Full attachments</p>,
@@ -17,14 +25,6 @@ vi.mock('./issue-detail-parts.tsx', () => ({
   SidebarPanel: () => <p>Full sidebar</p>,
   TitleSection: ({ issue }: { issue: { title: string } }) => <h1>{issue.title}</h1>,
 }))
-
-import type { ReviewStatus } from '#contracts/review-targets.ts'
-import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
-import type { Attachment } from '@/features/issues/types.ts'
-import type { IssueDetailInitialData } from '@/features/issues/views/issue-detail-page.tsx'
-
-import { IssueDetail } from './issue-detail.tsx'
-import { ReviewTargetsSection } from './review-targets-section.tsx'
 
 function attachment(id: string, status: ReviewStatus | null = null, kind: Attachment['kind'] = 'file'): Attachment {
   return {

@@ -2,14 +2,14 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+import { rotateFeedbackSourceToken } from './actions.ts'
+import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
+
 vi.mock('./actions', () => ({
   rotateFeedbackSourceToken: vi.fn(),
   revokeFeedbackSource: vi.fn(),
   setFeedbackSourceActive: vi.fn(),
 }))
-
-import { rotateFeedbackSourceToken } from './actions.ts'
-import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
 
 // The transport is deferred so repeated confirmation arrives before completion.
 afterEach(() => {

@@ -10,7 +10,13 @@ import { deployment } from '#worker-graph'
 
 import { coreWorkerOptions } from './api-host.ts'
 
-/** Compile official-parser migration records into the acceptance-only Core artifact. */
+/**
+ * Compile official-parser migration records into the acceptance-only Core artifact.
+ *
+ * @param {string} main - The path to the Core fixture entry module.
+ * @param {string} outDir - The output directory for the Core fixture build.
+ * @returns {Promise<UserConfig>} The Vite configuration for the Core fixture build.
+ */
 export const makeCoreFixtureConfig = async function makeCoreFixtureConfig(
   main: string,
   outDir: string,

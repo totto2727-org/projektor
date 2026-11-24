@@ -201,7 +201,6 @@ const IssueDetailView = function IssueDetailView(
             />
 
             <ChildIssuesSection issue={issue} childIssues={props.childIssues} />
-
             <RelationsSection issueId={issueId} workspaceSlug={workspaceSlug} links={props.links} />
 
             <ReviewTargetsSection

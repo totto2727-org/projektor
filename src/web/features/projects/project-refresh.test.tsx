@@ -5,6 +5,12 @@ import type { JSX } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
+import { RuntimeProvider } from '@/client/runtime.tsx'
+
+import { archiveProject, createProject } from './actions.ts'
+import { ProjectLanding } from './project-landing.tsx'
+import { ProjectList } from './project-list.tsx'
+import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas.ts'
 
 vi.mock('../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
 
@@ -21,13 +27,6 @@ vi.mock('../../client/functions', () => ({
     return result.value
   },
 }))
-
-import { RuntimeProvider } from '@/client/runtime.tsx'
-
-import { archiveProject, createProject } from './actions.ts'
-import { ProjectLanding } from './project-landing.tsx'
-import { ProjectList } from './project-list.tsx'
-import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas.ts'
 
 const catalogProject = (name: string) => ({
   id: 'project-1',

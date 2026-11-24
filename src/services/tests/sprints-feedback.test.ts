@@ -9,7 +9,12 @@ import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedback
 import { findSprintById, listSprints } from '#services/sprints.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
-/** Read-only transport over the real migrated schema. */
+/**
+ * Read-only transport over the real migrated schema.
+ *
+ * @param {DatabaseSync} sqlite - The SQLite database with migrations applied.
+ * @returns {D1Database} The D1 read methods that use this database.
+ */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
   const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {

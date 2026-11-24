@@ -9,7 +9,12 @@ import { findAttachment, listAttachments } from '#services/files.ts'
 import { findGroup, listGroupGrants, listGroupMembers, listGroups, listMemberGroups } from '#services/groups.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
-/** Executes the actual Drizzle/raw SQL over the complete migrated SQLite schema. */
+/**
+ * Executes the actual Drizzle/raw SQL over the complete migrated SQLite schema.
+ *
+ * @param {DatabaseSync} sqlite - The SQLite database with migrations applied.
+ * @returns {D1Database} The D1 read methods that use this database.
+ */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
   const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {

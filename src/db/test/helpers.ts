@@ -27,7 +27,11 @@ export const loadMigrations = function loadMigrations(): string[] {
     .map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8'))
 }
 
-/** A fresh in-memory SQLite DB with every migration applied in order, FK enforcement on. */
+/**
+ * A fresh in-memory SQLite DB with every migration applied in order, FK enforcement on.
+ *
+ * @returns {DatabaseSync} The open SQLite database. The caller closes it.
+ */
 export const migratedDb = function migratedDb(): DatabaseSync {
   const db = new DatabaseSync(':memory:')
   db.exec('PRAGMA foreign_keys = ON;')

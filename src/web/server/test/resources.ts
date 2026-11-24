@@ -17,7 +17,11 @@ export type TestEnvironment = CoreEnvironment &
     } & { [K in keyof WebCoreRpcShape]: (...args: Parameters<WebCoreRpcShape[K]>) => Promise<string> }
   }
 
-/** Unit-test storage doubles only. Worker acceptance uses actual native KV/R2 bindings. */
+/**
+ * Unit-test storage doubles only. Worker acceptance uses actual native KV/R2 bindings.
+ *
+ * @returns {KVNamespace} A KV namespace with its own in-memory store.
+ */
 export const inMemoryKV = function inMemoryKV(): KVNamespace {
   const values = new Map<string, string>()
   return {

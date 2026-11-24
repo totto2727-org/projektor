@@ -77,7 +77,13 @@ export const seedToken = async function seedToken(
   return raw
 }
 
-/** Seed a user-scoped token (NULL workspace_id — valid across all the user's workspaces). */
+/**
+ * Seed a user-scoped token (NULL workspace_id — valid across all the user's workspaces).
+ *
+ * @param {string} userId - The ID of the token owner.
+ * @param {Readonly<{ scopes?: string[]; expiresAt?: number }>} opts - The token scopes and expiration time.
+ * @returns {Promise<string>} The raw token to use in the Authorization header.
+ */
 export const seedUserToken = async function seedUserToken(
   userId: string,
   opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>,
@@ -118,6 +124,12 @@ export const seedProject = async function seedProject(workspaceId: string, key =
  * PROJ-311: grant a user access to a project by putting them in a fresh group that
  * holds a (project, role) grant. Mirrors what an admin does through the groups UI;
  * used to give non-admin fixtures visibility now that access is default-deny.
+ *
+ * @param {string} workspaceId - The ID of the workspace for the new group.
+ * @param {string} userId - The ID of the group member.
+ * @param {string} projectId - The ID of the project that the group can access.
+ * @param {string} role - The project role for the group. The default is `member`.
+ * @returns {Promise<{ groupId: string }>} The ID of the new group in the `groupId` field.
  */
 export const seedGroupGrant = async function seedGroupGrant(
   workspaceId: string,
@@ -141,7 +153,13 @@ export const seedGroupGrant = async function seedGroupGrant(
   return { groupId }
 }
 
-/** Returns headers needed for every authenticated request */
+/**
+ * Returns headers needed for every authenticated request
+ *
+ * @param {string} token - The raw token for the Authorization header.
+ * @param {string} slug - The workspace slug for the X-Workspace-Slug header.
+ * @returns {{ Authorization: string; 'X-Workspace-Slug': string; 'Content-Type': string }} The headers for an authenticated JSON request.
+ */
 export const authHeaders = function authHeaders(
   token: string,
   slug: string,
@@ -319,6 +337,11 @@ export const seedCustomFieldValue = async function seedCustomFieldValue(
  * claim flow. `live: true` (default) means an active session heartbeating within the
  * TTL (a live lease); `live: false` means an ended session with a stale heartbeat (the
  * issue was agent-worked but no lease is currently live).
+ *
+ * @param {string} workspaceId - The ID of the workspace for the session and lease.
+ * @param {string} issueId - The ID of the issue for the lease.
+ * @param {Readonly<{ kind?: 'agent' | 'human'; live?: boolean; name?: string }>} opts - The session kind, session name, and lease state.
+ * @returns {Promise<{ agentSessionId: string; leaseId: string }>} The IDs of the session and lease.
  */
 export const seedAgentLease = async function seedAgentLease(
   workspaceId: string,
@@ -355,7 +378,12 @@ export const seedAgentLease = async function seedAgentLease(
   return { agentSessionId, leaseId }
 }
 
-/** Seed a complete workspace + user + member + token in one call */
+/**
+ * Seed a complete workspace + user + member + token in one call
+ *
+ * @param {Readonly<{ slug?: string; email?: string; role?: string }>} opts - The workspace slug, user email address, and workspace role.
+ * @returns {Promise<{ workspace: Awaited<ReturnType<typeof seedWorkspace>>; user: Awaited<ReturnType<typeof seedUser>>; token: string }>} The workspace, the user, and the raw token.
+ */
 export const seedFixture = async function seedFixture(
   opts?: Readonly<{ slug?: string; email?: string; role?: string }>,
 ) {
@@ -366,7 +394,12 @@ export const seedFixture = async function seedFixture(
   return { workspace, user, token }
 }
 
-/** Seed a workspace fixture plus a project in it — the common `beforeEach` shape across API tests. */
+/**
+ * Seed a workspace fixture plus a project in it — the common `beforeEach` shape across API tests.
+ *
+ * @param {Readonly<{ role?: string }>} opts - The workspace role for the user. The default role is `member`.
+ * @returns {Promise<{ token: string; slug: string; workspaceId: string; userId: string; projectId: string }>} The raw token, workspace slug, and IDs for the workspace, user, and project.
+ */
 export const seedProjectFixture = async function seedProjectFixture(opts?: Readonly<{ role?: string }>) {
   const fixture = await seedFixture({ role: opts?.role })
   const project = await seedProject(fixture.workspace.id)
@@ -388,7 +421,12 @@ export const seedProjectFixture = async function seedProjectFixture(opts?: Reado
   }
 }
 
-/** Seed a project fixture plus an issue in it. */
+/**
+ * Seed a project fixture plus an issue in it.
+ *
+ * @param {Readonly<{ role?: string; issueTitle?: string }>} opts - The workspace role and issue title.
+ * @returns {Promise<Awaited<ReturnType<typeof seedProjectFixture>> & { issueId: string }>} The project fixture with the issue ID.
+ */
 export const seedIssueFixture = async function seedIssueFixture(
   opts?: Readonly<{ role?: string; issueTitle?: string }>,
 ) {
@@ -405,6 +443,8 @@ export const seedIssueFixture = async function seedIssueFixture(
  *
  * Scaffolding note: when scopes are enforced at the middleware level, extend each seedToken call
  * here (or in individual tests) with the opts.scopes parameter to exercise restricted-scope paths.
+ *
+ * @returns {Promise<{ workspace: Awaited<ReturnType<typeof seedWorkspace>> } & Record<'owner' | 'member' | 'viewer', { user: Awaited<ReturnType<typeof seedUser>>; token: string }>>} The workspace and the user and raw token for each role.
  */
 export const seedWorkspaceRoles = async function seedWorkspaceRoles() {
   const workspace = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
@@ -447,6 +487,9 @@ export interface ToolErrorBody {
  * The `{error}` body of a failed tools/call, given the parsed JSON-RPC response, or
  * `undefined` when the call succeeded or failed as a JSON-RPC protocol error (check
  * `.error` on the response for that).
+ *
+ * @param {unknown} response - The parsed JSON-RPC response.
+ * @returns {ToolErrorBody | undefined} The tool error or `undefined` if the response has no tool error text.
  */
 export const toolError = function toolError(response: unknown): ToolErrorBody | undefined {
   const result = (response as { result?: { isError?: boolean; content?: { type: string; text: string }[] } })?.result

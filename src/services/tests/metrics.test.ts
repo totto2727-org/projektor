@@ -12,7 +12,13 @@ import { runTestEffect } from '#tests/run-effect.ts'
 const DAY = 86_400
 const now = 3 * DAY
 
-/** Executes the production Drizzle SQL against the complete migrated SQLite schema. */
+/**
+ * Executes the production Drizzle SQL against the complete migrated SQLite schema.
+ *
+ * @param {DatabaseSync} sqlite - The SQLite database with migrations applied.
+ * @param {() => void} onQuery - The function to call before each read.
+ * @returns {D1Database} The D1 read methods that use this database.
+ */
 const readDatabase = function readDatabase(sqlite: DatabaseSync, onQuery: () => void = () => {}): D1Database {
   const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {

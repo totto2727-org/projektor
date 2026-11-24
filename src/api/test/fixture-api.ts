@@ -53,7 +53,11 @@ const synchronizeConfiguration = function synchronizeConfiguration(): void {
   }
 }
 
-/** Explicit failure modes survive subsequent ordinary scalar fixture mutations. */
+/**
+ * Explicit failure modes survive subsequent ordinary scalar fixture mutations.
+ *
+ * @param {Readonly<Record<string, string | null>>} settings - The overrides to apply to the Core fixture configuration.
+ */
 export const configureCore = async function configureCore(
   settings: Readonly<Record<string, string | null>> = {},
 ): Promise<void> {

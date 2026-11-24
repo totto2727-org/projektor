@@ -4,6 +4,12 @@ import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+import { issue, project, scope, secondProject, workspace } from '@/features/issues/test/fixtures.ts'
+
+import { IssueReviewNavigation } from './issue-review-navigation.tsx'
+import { IssuesPage } from './issues-page.tsx'
+import type { IssuesInitialData } from './issues-page.tsx'
+
 vi.mock('../components/issue-list.tsx', () => ({
   IssueList: ({ initialData }: { initialData: IssuesInitialData }) => (
     <ul aria-label='Canonical issues'>
@@ -13,12 +19,6 @@ vi.mock('../components/issue-list.tsx', () => ({
     </ul>
   ),
 }))
-
-import { issue, project, scope, secondProject, workspace } from '@/features/issues/test/fixtures.ts'
-
-import { IssueReviewNavigation } from './issue-review-navigation.tsx'
-import { IssuesPage } from './issues-page.tsx'
-import type { IssuesInitialData } from './issues-page.tsx'
 
 afterEach(cleanup)
 

@@ -9,9 +9,9 @@ import {
 } from '#contracts/time.ts'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 
-export { formatBytes } from '@/lib/file-size.ts'
-
 import type { CustomFieldValue } from './board-utils.ts'
+
+export { formatBytes } from '@/lib/file-size.ts'
 
 export type { CustomFieldValue, TaskStatus } from './board-utils.ts'
 

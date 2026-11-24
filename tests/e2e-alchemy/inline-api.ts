@@ -23,7 +23,13 @@ export class InlineApi extends Plugin.Service<
 
 export const inlineCoreBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
 
-/** Read official build artifacts unchanged. Entry module must be first for workerd. */
+/**
+ * Read official build artifacts unchanged. Entry module must be first for workerd.
+ *
+ * @param {string} directory - The Worker build directory.
+ * @param {string} entryName - The name of the entry module relative to the build directory.
+ * @returns {Promise<WorkerdConfig.Worker_Module[]>} The workerd modules with the entry module first.
+ */
 const readWorkerModules = async function readWorkerModules(
   directory: string,
   entryName: string,

@@ -5,6 +5,9 @@ import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.t
 import { drizzle, schema } from '#db'
 import type { Env } from '#types'
 
+import { ConflictError } from './errors.ts'
+import { createWorkspace } from './workspaces.ts'
+
 /** Provisioning never needs the API's signing secret or file/OAuth bindings. */
 export type ProvisioningEnvironment = Pick<
   Env,
@@ -16,9 +19,6 @@ export type ProvisioningEnvironment = Pick<
   | 'AUTO_JOIN_ROLE'
   | 'WORKSPACE_DOMAIN_MAP'
 >
-
-import { ConflictError } from './errors.ts'
-import { createWorkspace } from './workspaces.ts'
 
 /*
  * PROJ-436: an owner's explicit removeMember call is durable — provisioning must not

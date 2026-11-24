@@ -4,12 +4,11 @@ import { useState } from 'react'
 import type { JSX } from 'react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+import { LazyMarkdownEditor } from './lazy-markdown-editor.tsx'
 import type { Props } from './markdown-editor.tsx'
 
 const chunk = vi.hoisted(() => Promise.withResolvers<{ MarkdownEditor: (props: Props) => React.ReactNode }>())
 vi.mock('./markdown-editor.tsx', () => chunk.promise)
-
-import { LazyMarkdownEditor } from './lazy-markdown-editor.tsx'
 
 afterEach(cleanup)
 

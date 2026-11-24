@@ -24,6 +24,10 @@ export const resetRateLimits = async function resetRateLimits(): Promise<void> {
  *
  * PROJ-637: the window is fixed, so seeding in the last moments of one window and sending
  * the request in the next silently clears the cap. Wait out the tail of the window first.
+ *
+ * @param {string} key - The key for the limiter counter.
+ * @param {number} count - The number of hits to add.
+ * @param {number} windowSecs - The length of the rate-limit window in seconds.
  */
 export const seedRateLimitCounter = async function seedRateLimitCounter(
   key: string,
