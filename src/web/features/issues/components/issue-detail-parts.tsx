@@ -756,6 +756,9 @@ const LinkForm = function LinkForm({
   )
 }
 
+const IssueLinkTypeSchema = Schema.Literals(['blocks', 'blocked_by', 'relates_to', 'duplicates'])
+const decodeIssueLinkType = Schema.decodeUnknownEffect(IssueLinkTypeSchema)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const RelationsSection = function RelationsSection({
   issueId,
@@ -807,9 +810,7 @@ export const RelationsSection = function RelationsSection({
         return
       }
 
-      const type = await Effect.runPromise(
-        Schema.decodeUnknownEffect(Schema.Literals(['blocks', 'blocked_by', 'relates_to', 'duplicates']))(linkFormType),
-      )
+      const type = await Effect.runPromise(decodeIssueLinkType(linkFormType))
       unwrapResult(await addIssueLink({ workspaceSlug, issueId, targetIssueId: resolved.id, type }))
       setLinkFormRef('')
       setLinkFormOpen(false)

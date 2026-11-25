@@ -1,4 +1,5 @@
-import { String, Predicate, Array, Schema } from 'effect'
+import { String, Predicate, Array, Result, Schema } from 'effect'
+import type { SchemaAST } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
@@ -63,8 +64,16 @@ export const ProjectSummarySchema = Schema.Struct(projectSummaryFields)
 export type ProjectSummary = typeof ProjectSummarySchema.Type
 export const ProjectCatalogSchema = Schema.Array(ProjectSummarySchema)
 
-export const decodeAuthSession = Schema.decodeUnknownSync(AuthSessionSchema)
-export const decodeProjectCatalog = Schema.decodeUnknownSync(ProjectCatalogSchema)
+const decodeAuthSessionResult = Schema.decodeUnknownResult(AuthSessionSchema)
+const decodeProjectCatalogResult = Schema.decodeUnknownResult(ProjectCatalogSchema)
+
+export const decodeAuthSession = (input: unknown, options?: SchemaAST.ParseOptions): AuthSession =>
+  Result.getOrThrow(decodeAuthSessionResult(input, options))
+
+export const decodeProjectCatalog = (
+  input: unknown,
+  options?: SchemaAST.ParseOptions,
+): typeof ProjectCatalogSchema.Type => Result.getOrThrow(decodeProjectCatalogResult(input, options))
 
 export type ScopeSelection =
   | Readonly<{ kind: 'global' }>

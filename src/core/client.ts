@@ -53,7 +53,8 @@ export const decodeCoreReply = function decodeCoreReply<S extends Schema.Top, E,
   return invocation.pipe(
     Effect.catchCause((cause) => decodeFailure('transport', cause)),
     Effect.flatMap((wire) =>
-      Schema.decodeUnknownEffect(coreReplyCodec(schema))(wire).pipe(
+      // oxlint-disable-next-line rules/require-top-level-decoder -- The caller supplies the success schema. Build its reply decoder after the native call returns a wire value.
+      Schema.decodeEffect(coreReplyCodec(schema))(wire).pipe(
         Effect.catchCause((cause) => decodeFailure('reply', cause)),
       ),
     ),
