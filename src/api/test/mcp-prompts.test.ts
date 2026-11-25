@@ -1,31 +1,28 @@
-import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-describe('covers MCP prompts', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let epicId: string
-  let epicNumber: number
+type PromptFixture = Readonly<{
+  epicNumber: number
+  mcpCall: (method: string, params: unknown) => Promise<unknown>
+}>
 
-  beforeEach(async () => {
-    const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
-    token = fixture.token
-    slug = fixture.slug
-    workspaceId = fixture.workspaceId
-    epicId = fixture.issueId
-    /*
-     * Read the seeded number directly from D1, same reasoning as
-     * playbook-compose.test.ts: avoid warming getIssue's KV cache via REST.
-     */
-    const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?').bind(epicId).first<{ number: number }>()
-    assert.exists(row)
-    epicNumber = row.number
-  })
+const seedPromptFixture = async function seedPromptFixture(): Promise<PromptFixture> {
+  const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
+  const token = fixture.token
+  const slug = fixture.slug
+  const workspaceId = fixture.workspaceId
+  const epicId = fixture.issueId
+  /*
+   * Read the seeded number directly from D1, same reasoning as
+   * playbook-compose.test.ts: avoid warming getIssue's KV cache via REST.
+   */
+  const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?').bind(epicId).first<{ number: number }>()
+  assert.exists(row)
+  const epicNumber = row.number
 
   const mcpCall = async function mcpCall(method: string, params: unknown): Promise<unknown> {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
@@ -35,8 +32,12 @@ describe('covers MCP prompts', () => {
     })
     return res.json()
   }
+  return { epicNumber, mcpCall }
+}
 
+describe('covers MCP prompts', () => {
   test('prompts/list returns the epic-goal prompt with its arguments', async () => {
+    const { mcpCall } = await seedPromptFixture()
     const json = (await mcpCall('prompts/list', {})) as JsonRpcResult<{
       prompts: {
         name: string
@@ -53,6 +54,7 @@ describe('covers MCP prompts', () => {
   })
 
   test('prompts/get with only epicRef returns the composed directive as a user message', async () => {
+    const { epicNumber, mcpCall } = await seedPromptFixture()
     const json = (await mcpCall('prompts/get', {
       name: 'epic-goal',
       arguments: { epicRef: `PROJ-${epicNumber}` },
@@ -70,6 +72,7 @@ describe('covers MCP prompts', () => {
   })
 
   test('prompts/get honors string-valued variant/reviewModel/cadence/checkpointInterval arguments', async () => {
+    const { epicNumber, mcpCall } = await seedPromptFixture()
     const json = (await mcpCall('prompts/get', {
       name: 'epic-goal',
       arguments: {
@@ -88,6 +91,7 @@ describe('covers MCP prompts', () => {
   })
 
   test('prompts/get on an unresolvable epicRef surfaces the compose error', async () => {
+    const { mcpCall } = await seedPromptFixture()
     const json = (await mcpCall('prompts/get', {
       arguments: { epicRef: 'PROJ-999999' },
       name: 'epic-goal',
@@ -97,6 +101,7 @@ describe('covers MCP prompts', () => {
   })
 
   test('prompts/get on an unknown prompt name errors, naming valid options', async () => {
+    const { mcpCall } = await seedPromptFixture()
     const json = (await mcpCall('prompts/get', {
       arguments: {},
       name: 'does-not-exist',

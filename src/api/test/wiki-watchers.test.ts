@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seedToken, seedUser } from './helpers.ts'
@@ -6,27 +6,26 @@ import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
-/*
- * PROJ-821: a watcher who loses access to a page (grant revoked, or removed from the
- * workspace) must stop receiving its notifications, which carry the page title.
- */
-describe('wiki watch notifications respect current access (PROJ-821)', () => {
-  let adminToken: string
-  let slug: string
-  let workspaceId: string
-  let watcherId: string
-  let watcherToken: string
+type WatcherFixture = Readonly<{
+  createPage: (body: Record<string, unknown>) => Promise<string>
+  edit: (pageId: string, content: string) => Promise<void>
+  notificationCount: () => Promise<number>
+  slug: string
+  watch: (pageId: string) => Promise<void>
+  watcherId: string
+  watcherToken: string
+  workspaceId: string
+}>
 
-  beforeEach(async () => {
-    const fixture = await seedFixture({ role: 'admin' })
-    adminToken = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    const watcher = await seedUser(`w-${crypto.randomUUID().slice(0, 8)}@example.com`)
-    watcherId = watcher.id
-    await seedMember(workspaceId, watcherId, 'member')
-    watcherToken = await seedToken(workspaceId, watcherId)
-  })
+const seedWatcherFixture = async function seedWatcherFixture(): Promise<WatcherFixture> {
+  const fixture = await seedFixture({ role: 'admin' })
+  const adminToken = fixture.token
+  const slug = fixture.workspace.slug
+  const workspaceId = fixture.workspace.id
+  const watcher = await seedUser(`w-${crypto.randomUUID().slice(0, 8)}@example.com`)
+  const watcherId = watcher.id
+  await seedMember(workspaceId, watcherId, 'member')
+  const watcherToken = await seedToken(workspaceId, watcherId)
 
   const createPage = async function createPage(body: Record<string, unknown>): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -66,8 +65,16 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
       .first<{ n: number }>()
     return row?.n ?? 0
   }
+  return { createPage, edit, notificationCount, slug, watch, watcherId, watcherToken, workspaceId }
+}
 
+/*
+ * PROJ-821: a watcher who loses access to a page (grant revoked, or removed from the
+ * workspace) must stop receiving its notifications, which carry the page title.
+ */
+describe('wiki watch notifications respect current access (PROJ-821)', () => {
   test("stops notifying a watcher once their group's project grant is revoked", async () => {
+    const { createPage, edit, notificationCount, watch, watcherId, workspaceId } = await seedWatcherFixture()
     const project = await seedProject(workspaceId)
     const { groupId } = await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
     const pageId = await createPage({ title: 'Secret Plan', content: 'v1', projectId: project.id })
@@ -85,6 +92,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
   })
 
   test('stops notifying a watcher removed from the workspace, even for workspace-level pages', async () => {
+    const { createPage, edit, notificationCount, watch, watcherId, workspaceId } = await seedWatcherFixture()
     const pageId = await createPage({ title: 'Handbook', content: 'v1' })
     await watch(pageId)
 
@@ -100,6 +108,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
   })
 
   test('still notifies a subtree watcher who keeps access', async () => {
+    const { createPage, notificationCount, slug, watcherId, watcherToken, workspaceId } = await seedWatcherFixture()
     const project = await seedProject(workspaceId)
     await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
     const parentId = await createPage({ title: 'Parent', content: 'p', projectId: project.id })
