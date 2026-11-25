@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from 'cn'
+import { Predicate } from 'effect'
 import * as React from 'react'
 import * as RechartsPrimitive from 'recharts'
 import type { TooltipValueType } from 'recharts'
@@ -142,7 +143,7 @@ export function ChartTooltipContent({
     const [item] = payload
     const key = String(labelKey ?? item?.dataKey ?? item?.name ?? 'value')
     const itemConfig = getPayloadConfigFromPayload(config, item, key)
-    const value = !labelKey && typeof label === 'string' ? (config[label]?.label ?? label) : itemConfig?.label
+    const value = !labelKey && Predicate.isString(label) ? (config[label]?.label ?? label) : itemConfig?.label
 
     if (labelFormatter) {
       return <div className={cn('font-medium', labelClassName)}>{labelFormatter(value, payload)}</div>
@@ -219,9 +220,9 @@ export function ChartTooltipContent({
                         {nestLabel ? tooltipLabel : null}
                         <span className='text-muted-foreground'>{itemConfig?.label ?? item.name}</span>
                       </div>
-                      {item.value != null && (
+                      {Predicate.isNotNullish(item.value) && (
                         <span className='font-mono font-medium text-foreground tabular-nums'>
-                          {typeof item.value === 'number' ? item.value.toLocaleString() : String(item.value)}
+                          {Predicate.isNumber(item.value) ? item.value.toLocaleString() : String(item.value)}
                         </span>
                       )}
                     </div>
