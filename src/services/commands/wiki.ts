@@ -766,36 +766,32 @@ const buildCreateWikiPageInsertStatement = function buildCreateWikiPageInsertSta
   }>,
 ): D1PreparedStatement {
   const { id, projectId, slug, title, content, parentId, now, meta } = fields
-  return toD1Statement(
-    ctx,
-    orm
-      .insert(schema.wikiPages)
-      .values({
-        id,
-        // PROJ-816
-        searchRowid: newSearchRowid(),
-        workspaceId: ctx.workspaceId,
-        projectId,
-        slug,
-        title,
-        titleFold: foldWikiTitle(title),
-        content,
-        parentId,
-        createdById: ctx.userId,
-        updatedById: ctx.userId,
-        createdAt: now,
-        updatedAt: now,
-        type: meta.type,
-        tags: meta.tags,
-        status: meta.status,
-        verifiedAt: meta.verifiedAt,
-        verifiedBy: meta.verifiedBy,
-        owners: meta.owners,
-        verifyInterval: meta.verifyInterval,
-        isTemplate: meta.isTemplate,
-      })
-      .toSQL(),
-  )
+  const insertPage = orm.insert(schema.wikiPages)
+  const pageValues = fieldsInOrder([
+    ['id', id],
+    // PROJ-816
+    ['searchRowid', newSearchRowid()],
+    ['workspaceId', ctx.workspaceId],
+    ['projectId', projectId],
+    ['slug', slug],
+    ['title', title],
+    ['titleFold', foldWikiTitle(title)],
+    ['content', content],
+    ['parentId', parentId],
+    ['createdById', ctx.userId],
+    ['updatedById', ctx.userId],
+    ['createdAt', now],
+    ['updatedAt', now],
+    ['type', meta.type],
+    ['tags', meta.tags],
+    ['status', meta.status],
+    ['verifiedAt', meta.verifiedAt],
+    ['verifiedBy', meta.verifiedBy],
+    ['owners', meta.owners],
+    ['verifyInterval', meta.verifyInterval],
+    ['isTemplate', meta.isTemplate],
+  ])
+  return toD1Statement(ctx, insertPage.values(pageValues).toSQL())
 }
 
 /*
@@ -1183,6 +1179,64 @@ const deleteWikiFtsEntries = async function deleteWikiFtsEntries(ctx: ServiceCtx
   })
 }
 
+const buildWikiRevisionStatement = function buildWikiRevisionStatement(
+  ctx: ServiceCtx,
+  orm: ReturnType<typeof drizzle>,
+  {
+    now,
+    page,
+    readSummary,
+  }: Readonly<{
+    now: number
+    page: Pick<Awaited<ReturnType<typeof resolvePageByIdOrSlug>>, 'id' | 'content' | 'title'>
+    readSummary: () => string | undefined
+  }>,
+): D1PreparedStatement {
+  const insertRevision = orm.insert(schema.wikiRevisions)
+  const revisionValues = fieldsInOrder([
+    ['id', crypto.randomUUID()],
+    ['pageId', page.id],
+    ['content', page.content],
+    ['title', page.title],
+    ['summary', readSummary() ?? null],
+    ['authorId', ctx.userId],
+    ['createdAt', now],
+  ])
+  return toD1Statement(ctx, insertRevision.values(revisionValues).toSQL())
+}
+
+const buildWikiRedirectStatement = function buildWikiRedirectStatement(
+  ctx: ServiceCtx,
+  orm: ReturnType<typeof drizzle>,
+  {
+    now,
+    page,
+  }: Readonly<{
+    now: number
+    page: Pick<Awaited<ReturnType<typeof resolvePageByIdOrSlug>>, 'id' | 'slug'>
+  }>,
+): D1PreparedStatement {
+  const insertRedirect = orm.insert(schema.wikiRedirects)
+  const redirectValues = fieldsInOrder([
+    ['id', crypto.randomUUID()],
+    ['workspaceId', ctx.workspaceId],
+    ['oldSlug', page.slug],
+    ['pageId', page.id],
+    ['createdAt', now],
+  ])
+  const redirect = insertRedirect.values(redirectValues)
+  const redirectTarget = Array.make(schema.wikiRedirects.workspaceId, schema.wikiRedirects.oldSlug)
+  const redirectSet = fieldsInOrder([
+    ['pageId', page.id],
+    ['createdAt', now],
+  ])
+  const redirectConflict = fieldsInOrder([
+    ['target', redirectTarget],
+    ['set', redirectSet],
+  ])
+  return toD1Statement(ctx, redirect.onConflictDoUpdate(redirectConflict).toSQL())
+}
+
 /*
  * Builds the batch of statements for a single updateWikiPage call — content revision
  * snapshot, the page row update itself, FTS/link reindex, and the redirect upsert on
@@ -1217,23 +1271,7 @@ const buildUpdateWikiPageStatements = function buildUpdateWikiPageStatements(
      * this update applies any new title) — consistent with content, which snapshots
      * the pre-edit value too. summary is this edit's optional changelog note.
      */
-    statements.push(
-      toD1Statement(
-        ctx,
-        orm
-          .insert(schema.wikiRevisions)
-          .values({
-            id: crypto.randomUUID(),
-            pageId: page.id,
-            content: page.content,
-            title: page.title,
-            summary: summary ?? null,
-            authorId: ctx.userId,
-            createdAt: now,
-          })
-          .toSQL(),
-      ),
-    )
+    statements.push(buildWikiRevisionStatement(ctx, orm, { now, page, readSummary: () => summary }))
   }
 
   const setData = buildWikiPageUpdateSet(now, ctx.userId, { content, meta, parentId, slug, title })
@@ -1252,25 +1290,7 @@ const buildUpdateWikiPageStatements = function buildUpdateWikiPageStatements(
      * Upsert: the old slug may already carry a stale redirect from an earlier rename
      * of some other page — this rename takes ownership of it.
      */
-    statements.push(
-      toD1Statement(
-        ctx,
-        orm
-          .insert(schema.wikiRedirects)
-          .values({
-            id: crypto.randomUUID(),
-            workspaceId: ctx.workspaceId,
-            oldSlug: page.slug,
-            pageId: page.id,
-            createdAt: now,
-          })
-          .onConflictDoUpdate({
-            target: [schema.wikiRedirects.workspaceId, schema.wikiRedirects.oldSlug],
-            set: { pageId: page.id, createdAt: now },
-          })
-          .toSQL(),
-      ),
-    )
+    statements.push(buildWikiRedirectStatement(ctx, orm, { now, page }))
   }
 
   return statements
@@ -1898,21 +1918,7 @@ const patchWikiPageOnce = async function patchWikiPageOnce(
    * PROJ-511: same atomic-batch shape as updateWikiPage — content write, revision
    * snapshot, FTS mirror, and wiki_links reindex all in one ctx.db.batch() call.
    */
-  const revisionStatement = toD1Statement(
-    ctx,
-    orm
-      .insert(schema.wikiRevisions)
-      .values({
-        id: crypto.randomUUID(),
-        pageId: page.id,
-        content: page.content,
-        title: page.title,
-        summary: data.summary ?? null,
-        authorId: ctx.userId,
-        createdAt: now,
-      })
-      .toSQL(),
-  )
+  const revisionStatement = buildWikiRevisionStatement(ctx, orm, { now, page, readSummary: () => data.summary })
 
   const setData = buildWikiPageUpdateSet(now, ctx.userId, { content: newContent, meta })
   const updateStatement = toD1Statement(
@@ -2099,30 +2105,24 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
   const now = currentEpochSeconds()
 
   const parentId = crypto.randomUUID()
-  const statements: D1PreparedStatement[] = [
-    prepareQuery(
-      db,
-      orm
-        .insert(schema.wikiPages)
-        .values({
-          id: parentId,
-          // PROJ-816
-          searchRowid: newSearchRowid(),
-          workspaceId,
-          projectId: null,
-          slug: 'page-templates',
-          title: 'Templates',
-          titleFold: foldWikiTitle('Templates'),
-          content: '',
-          parentId: null,
-          createdById: userId,
-          updatedById: userId,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .toSQL(),
-    ),
-  ]
+  const insertTemplateParent = orm.insert(schema.wikiPages)
+  const parentValues = fieldsInOrder([
+    ['id', parentId],
+    // PROJ-816
+    ['searchRowid', newSearchRowid()],
+    ['workspaceId', workspaceId],
+    ['projectId', null],
+    ['slug', 'page-templates'],
+    ['title', 'Templates'],
+    ['titleFold', foldWikiTitle('Templates')],
+    ['content', ''],
+    ['parentId', null],
+    ['createdById', userId],
+    ['updatedById', userId],
+    ['createdAt', now],
+    ['updatedAt', now],
+  ])
+  const statements: D1PreparedStatement[] = [prepareQuery(db, insertTemplateParent.values(parentValues).toSQL())]
   /*
    * PROJ-522: unlike the three templates below (search-excluded by is_template=0/1),
    * this parent page is a real browsable, non-template page — it needs the same
@@ -2140,33 +2140,27 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
 
   Iterable.forEach(DEFAULT_WIKI_TEMPLATES, (template) => {
     const content = `---\ntype: ${template.type}\nstatus: draft\ntemplate: true\n---\n${template.body}`
-    statements.push(
-      prepareQuery(
-        db,
-        orm
-          .insert(schema.wikiPages)
-          .values({
-            id: crypto.randomUUID(),
-            // PROJ-816
-            searchRowid: newSearchRowid(),
-            workspaceId,
-            projectId: null,
-            slug: template.slug,
-            title: template.title,
-            titleFold: foldWikiTitle(template.title),
-            content,
-            parentId,
-            createdById: userId,
-            updatedById: userId,
-            createdAt: now,
-            updatedAt: now,
-            type: template.type,
-            status: 'draft',
-            isTemplate: true,
-          })
-          .toSQL(),
-      ),
-    )
+    const insertTemplate = orm.insert(schema.wikiPages)
+    const templateValues = fieldsInOrder([
+      ['id', crypto.randomUUID()],
+      // PROJ-816
+      ['searchRowid', newSearchRowid()],
+      ['workspaceId', workspaceId],
+      ['projectId', null],
+      ['slug', template.slug],
+      ['title', template.title],
+      ['titleFold', foldWikiTitle(template.title)],
+      ['content', content],
+      ['parentId', parentId],
+      ['createdById', userId],
+      ['updatedById', userId],
+      ['createdAt', now],
+      ['updatedAt', now],
+      ['type', template.type],
+      ['status', 'draft'],
+      ['isTemplate', true],
+    ])
+    statements.push(prepareQuery(db, insertTemplate.values(templateValues).toSQL()))
   })
   return statements
 }
