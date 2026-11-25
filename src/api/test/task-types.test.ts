@@ -22,6 +22,7 @@ import {
   IdResponse,
   JsonListResponse,
   readNativeJson,
+  readNativeMcpResultText,
 } from './response-json.ts'
 
 describe('task Types API', () => {
@@ -438,7 +439,7 @@ describe('task Types — MCP parity', () => {
   test('list_task_types returns empty list', async () => {
     const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_types' })
     expect(resp.error).toBeUndefined()
-    const data = parseNativeMcpText(resp.result!.content[0].text, JsonListResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(resp.result), JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
@@ -449,7 +450,7 @@ describe('task Types — MCP parity', () => {
       name: 'create_task_type',
     })
     const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_types' })
-    const data = parseNativeMcpText(resp.result!.content[0].text, KeyListResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(resp.result), KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('epic')
   })
@@ -459,13 +460,13 @@ describe('task Types — MCP parity', () => {
       arguments: { key: 'tmp', name: 'Tmp' },
       name: 'create_task_type',
     })
-    const created = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const created = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const deleteResp = await mcpCall('tools/call', {
       name: 'delete_task_type',
       arguments: { id: created.id },
     })
-    const deleted = parseNativeMcpText(deleteResp.result!.content[0].text, OkResponse)
+    const deleted = parseNativeMcpText(readNativeMcpResultText(deleteResp.result), OkResponse)
     expect(deleted.ok).toBe(true)
   })
 })

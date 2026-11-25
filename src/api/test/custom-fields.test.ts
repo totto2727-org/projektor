@@ -27,6 +27,7 @@ import {
   IdResponse,
   JsonListResponse,
   readNativeJson,
+  readNativeMcpResultText,
 } from './response-json.ts'
 
 // ─── Definition CRUD ──────────────────────────────────────────────────────────
@@ -563,7 +564,7 @@ describe('custom Fields — MCP parity', () => {
   test('list_custom_field_defs returns empty list', async () => {
     const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_custom_field_defs' })
     expect(resp.error).toBeUndefined()
-    const data = parseNativeMcpText(resp.result!.content[0].text, JsonListResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(resp.result), JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
@@ -574,7 +575,7 @@ describe('custom Fields — MCP parity', () => {
       name: 'create_custom_field_def',
     })
     const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_custom_field_defs' })
-    const data = parseNativeMcpText(resp.result!.content[0].text, KeyListResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(resp.result), KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('effort')
   })
@@ -584,13 +585,13 @@ describe('custom Fields — MCP parity', () => {
       arguments: { key: 'tmp', label: 'Tmp', type: 'text' },
       name: 'create_custom_field_def',
     })
-    const created = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const created = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const deleteResp = await mcpCall('tools/call', {
       name: 'delete_custom_field_def',
       arguments: { id: created.id },
     })
-    const deleted = parseNativeMcpText(deleteResp.result!.content[0].text, OkResponse)
+    const deleted = parseNativeMcpText(readNativeMcpResultText(deleteResp.result), OkResponse)
     expect(deleted.ok).toBe(true)
   })
 

@@ -1,4 +1,4 @@
-import { Data, Schema } from 'effect'
+import { Data, Predicate, Schema } from 'effect'
 
 export const ErrorMessageResponse = Schema.Struct({ error: Schema.String })
 export const IdResponse = Schema.Struct({ id: Schema.String })
@@ -43,6 +43,16 @@ export const readNativeJson = async function readNativeJson<S extends Schema.Con
     })
   }
   return body
+}
+
+export const readNativeMcpResultText = function readNativeMcpResultText(
+  result: typeof RpcTextResponse.Type.result | undefined,
+): string {
+  const text = result?.content[0]?.text
+  if (!Predicate.isString(text)) {
+    throw new NativeJsonShapeError({ message: 'Expected the native MCP result to contain a first text item.' })
+  }
+  return text
 }
 
 export const parseNativeMcpText = function parseNativeMcpText<S extends Schema.Constraint>(

@@ -35,6 +35,7 @@ import {
   JsonListResponse,
   TitleListResponse,
   readNativeJson,
+  readNativeMcpResultText,
 } from './response-json.ts'
 
 const callMcpTool = async function callMcpTool(
@@ -1590,7 +1591,7 @@ describe('issues MCP — typeId', () => {
       arguments: { projectId, title: 'Epic issue', typeId },
     })
     expect(createResp.error).toBeUndefined()
-    const { id } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -1620,7 +1621,7 @@ describe('issues MCP — typeId', () => {
       arguments: { projectId, title: 'Epic via hash id', typeId },
     })
     expect(createResp.error).toBeUndefined()
-    const { id } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -1637,7 +1638,7 @@ describe('issues MCP — typeId', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'No type yet' },
     })
-    const { id } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const updateResp = await mcpCall({ name: 'update_issue', arguments: { id, typeId } })
     expect(updateResp.error).toBeUndefined()
@@ -1657,7 +1658,7 @@ describe('issues MCP — typeId', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'Typed issue', typeId },
     })
-    const { id } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     await mcpCall({ name: 'update_issue', arguments: { id, typeId: null } })
 
@@ -1682,7 +1683,7 @@ describe('issues MCP — typeId', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'Parent epic', typeId: epicTypeId },
     })
-    const { id: epicId } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id: epicId } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     await mcpCall({
       name: 'create_issue',
@@ -1713,7 +1714,7 @@ describe('issues MCP — typeId', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'Story parent', typeId: storyTypeId },
     })
-    const { id: parentId } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id: parentId } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     await mcpCall({
       name: 'create_issue',
@@ -1742,7 +1743,7 @@ describe('issues MCP — typeId', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'Childless epic', typeId: epicTypeId },
     })
-    const { id: epicId } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id: epicId } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const updateResp = await mcpCall({
       name: 'update_issue',
@@ -1774,7 +1775,7 @@ describe('issues MCP — typeId', () => {
 
     const listResp = await mcpCall({ name: 'list_issues', arguments: { typeId: bugTypeId } })
     expect(listResp.error).toBeUndefined()
-    const page = parseNativeMcpText(listResp.result!.content[0].text, TitleItemsResponse)
+    const page = parseNativeMcpText(readNativeMcpResultText(listResp.result), TitleItemsResponse)
     expect(page.items).toHaveLength(1)
     expect(page.items[0].title).toBe('Bug issue')
   })
@@ -1817,7 +1818,7 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'Parent issue' },
     })
-    const { id: parentId } = parseNativeMcpText(parentResp.result!.content[0].text, IdResponse)
+    const { id: parentId } = parseNativeMcpText(readNativeMcpResultText(parentResp.result), IdResponse)
     await mcpCall({
       name: 'create_issue',
       arguments: { projectId, title: 'Child issue', parentId },
@@ -1825,7 +1826,7 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
 
     const listResp = await mcpCall({ name: 'list_issues', arguments: { noParent: true } })
     expect(listResp.error).toBeUndefined()
-    const page = parseNativeMcpText(listResp.result!.content[0].text, TitleItemsResponse)
+    const page = parseNativeMcpText(readNativeMcpResultText(listResp.result), TitleItemsResponse)
     expect(page.items).toHaveLength(1)
     expect(page.items[0].title).toBe('Parent issue')
   })
@@ -2123,7 +2124,7 @@ describe('get_prioritized_issues MCP tool', () => {
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = parseNativeMcpText(
-      body.result!.content[0].text,
+      readNativeMcpResultText(body.result),
       Schema.Struct({ issues: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
     )
     expect(Array.isArray(data.issues)).toBe(true)
@@ -2138,7 +2139,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = JSON.parse(body.result!.content[0].text) as {
+    const data = JSON.parse(readNativeMcpResultText(body.result)) as {
       issues: {
         title: string
         _score: number
@@ -2168,7 +2169,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const body = await callPrioritized({ limit: 100, includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = parseNativeMcpText(body.result!.content[0].text, IssueTitlesResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(body.result), IssueTitlesResponse)
     expect(data.issues).toHaveLength(100)
   })
 
@@ -2180,7 +2181,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = parseNativeMcpText(body.result!.content[0].text, IssueTitlesResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(body.result), IssueTitlesResponse)
     const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('Open')
     expect(titles).not.toContain('Done')
@@ -2208,7 +2209,7 @@ describe('get_prioritized_issues MCP tool', () => {
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = parseNativeMcpText(
-      body.result!.content[0].text,
+      readNativeMcpResultText(body.result),
       Schema.Struct({
         issues: Schema.Array(Schema.Struct({ _score: Schema.Number, title: Schema.String })).pipe(Schema.mutable),
       }),
@@ -2243,7 +2244,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const defaultBody = await callPrioritized()
     const defaultParsed = parseNativeMcpText(
-      defaultBody.result!.content[0].text,
+      readNativeMcpResultText(defaultBody.result),
       Schema.Struct({
         droppedNotReady: Schema.Number,
         issues: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
@@ -2257,7 +2258,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const withNotReady = await callPrioritized({ includeNotReady: true })
     const data = parseNativeMcpText(
-      withNotReady.result!.content[0].text,
+      readNativeMcpResultText(withNotReady.result),
       Schema.Struct({
         issues: Schema.Array(
           Schema.Struct({
@@ -2284,7 +2285,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const body = await callPrioritized({ projectId, includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = parseNativeMcpText(body.result!.content[0].text, IssueTitlesResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(body.result), IssueTitlesResponse)
     const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('In target project')
     expect(titles).not.toContain('In other project')
@@ -2297,7 +2298,7 @@ describe('get_prioritized_issues MCP tool', () => {
     const body = await callPrioritized()
     expect(body.error).toBeUndefined()
     const data = parseNativeMcpText(
-      body.result!.content[0].text,
+      readNativeMcpResultText(body.result),
       Schema.Struct({
         degraded: Schema.optional(Schema.Boolean),
         droppedNotReady: Schema.Number,
@@ -2321,7 +2322,10 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const body = await callPrioritized({ projectId })
     expect(body.error).toBeUndefined()
-    const data = parseNativeMcpText(body.result!.content[0].text, Schema.Struct({ droppedNotReady: Schema.Number }))
+    const data = parseNativeMcpText(
+      readNativeMcpResultText(body.result),
+      Schema.Struct({ droppedNotReady: Schema.Number }),
+    )
     expect(data.droppedNotReady).toBe(1)
   })
 
@@ -2333,7 +2337,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = parseNativeMcpText(body.result!.content[0].text, IssueTitlesResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(body.result), IssueTitlesResponse)
     const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('In target project')
     expect(titles).toContain('In other project')
@@ -2437,7 +2441,7 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
       name: 'create_issue',
       arguments: { projectId, title: 'For get_issue' },
     })
-    const { id } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const res = await mcpCall({ name: 'get_issue', arguments: { id, bogus: 'x' } })
     expect(res.error).toBeUndefined()
@@ -2448,8 +2452,8 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
     const { mcpCall, projectId } = await seedIssueInputValidationFixture()
     const rpcResponse = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'A' } })
     const b = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'B' } })
-    const { id: aId } = parseNativeMcpText(rpcResponse.result!.content[0].text, IdResponse)
-    const { id: bId } = parseNativeMcpText(b.result!.content[0].text, IdResponse)
+    const { id: aId } = parseNativeMcpText(readNativeMcpResultText(rpcResponse.result), IdResponse)
+    const { id: bId } = parseNativeMcpText(readNativeMcpResultText(b.result), IdResponse)
 
     const res = await mcpCall({
       name: 'create_issue_link',
@@ -2487,7 +2491,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     expect(res.error).toBeUndefined()
 
     const getRes = await mcpCall({ name: 'get_issue', arguments: { ref } })
-    const issue = parseNativeMcpText(getRes.result!.content[0].text, Schema.Struct({ title: Schema.String }))
+    const issue = parseNativeMcpText(readNativeMcpResultText(getRes.result), Schema.Struct({ title: Schema.String }))
     expect(issue.title).toBe('Renamed via ref')
   })
 
@@ -2519,7 +2523,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
     const linksRes = await mcpCall({ name: 'list_issue_links', arguments: { issueId: issue.id } })
     const links = parseNativeMcpText(
-      linksRes.result!.content[0].text,
+      readNativeMcpResultText(linksRes.result),
       Schema.Array(Schema.Struct({ linkedIssueId: Schema.String })).pipe(Schema.mutable),
     )
     expect(links.map((link) => link.linkedIssueId)).toStrictEqual([currentIssue.id])
@@ -2531,10 +2535,13 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
       arguments: { projectId: projectKey, title: 'Via project key' },
     })
     expect(res.error).toBeUndefined()
-    const { id } = parseNativeMcpText(res.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(res.result), IdResponse)
 
     const getRes = await mcpCall({ name: 'get_issue', arguments: { id, verbose: true } })
-    const issue = parseNativeMcpText(getRes.result!.content[0].text, Schema.Struct({ project_id: Schema.String }))
+    const issue = parseNativeMcpText(
+      readNativeMcpResultText(getRes.result),
+      Schema.Struct({ project_id: Schema.String }),
+    )
     expect(issue.project_id).toBe(projectId)
   })
 
@@ -2543,7 +2550,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
     const res = await mcpCall({ name: 'list_issues', arguments: { projectId: projectKey } })
     expect(res.error).toBeUndefined()
-    const page = parseNativeMcpText(res.result!.content[0].text, TitleItemsResponse)
+    const page = parseNativeMcpText(readNativeMcpResultText(res.result), TitleItemsResponse)
     expect(page.items.map((item) => item.title)).toContain('In project')
   })
 
@@ -2612,8 +2619,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
     expect(nonexistentRes.error).toBeUndefined()
     expect(invisibleRes.error).toBeUndefined()
-    const nonexistentPage = parseNativeMcpText(nonexistentRes.result!.content[0].text, ItemsResponse)
-    const invisiblePage = parseNativeMcpText(invisibleRes.result!.content[0].text, ItemsResponse)
+    const nonexistentPage = parseNativeMcpText(readNativeMcpResultText(nonexistentRes.result), ItemsResponse)
+    const invisiblePage = parseNativeMcpText(readNativeMcpResultText(invisibleRes.result), ItemsResponse)
     expect(nonexistentPage.items).toStrictEqual([])
     expect(invisiblePage.items).toStrictEqual([])
   })
@@ -2630,7 +2637,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
       arguments: { query: 'Findable', projectId: projectKey },
     })
     expect(res.error).toBeUndefined()
-    const results = parseNativeMcpText(res.result!.content[0].text, TitleItemsResponse).items
+    const results = parseNativeMcpText(readNativeMcpResultText(res.result), TitleItemsResponse).items
     expect(results.map((result) => result.title)).toContain('Findable via key search')
   })
 
@@ -2645,7 +2652,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
       arguments: { projectId: projectKey, includeNotReady: true },
     })
     expect(res.error).toBeUndefined()
-    const { issues } = parseNativeMcpText(res.result!.content[0].text, IssueTitlesResponse)
+    const { issues } = parseNativeMcpText(readNativeMcpResultText(res.result), IssueTitlesResponse)
     expect(issues.map((issue) => issue.title)).toContain('Prioritizable')
   })
 
@@ -2769,7 +2776,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'To reassign via MCP' },
     })
-    const { id } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const res = await mcpCall({
       name: 'update_issue',
@@ -2788,7 +2795,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
       name: 'create_issue',
       arguments: { projectId, title: 'Will be cleared via MCP', assigneeId: assignee.id },
     })
-    const { id } = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
+    const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const res = await mcpCall({
       name: 'update_issue',
@@ -2824,7 +2831,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Minified check' })
     const res = await mcpCall({ arguments: {}, name: 'list_issues' })
     expect(res.error).toBeUndefined()
-    const text = res.result!.content[0].text
+    const text = readNativeMcpResultText(res.result)
     expect(text).not.toContain('\n')
     expect(text).not.toContain('  ')
     expect(parseNativeMcpText(text, ItemsResponse).items).toBeInstanceOf(globalThis.Array)
@@ -2848,7 +2855,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Compact me' })
     const res = await mcpCall({ name: 'get_issue', arguments: { id } })
     expect(res.error).toBeUndefined()
-    const issue = parseNativeMcpText(res.result!.content[0].text, JsonRecordResponse)
+    const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(issue).not.toHaveProperty('links')
     expect(issue).not.toHaveProperty('rollup')
     expect(issue).not.toHaveProperty('customFields')
@@ -2864,7 +2871,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Verbose me' })
     const res = await mcpCall({ name: 'get_issue', arguments: { id, verbose: true } })
     expect(res.error).toBeUndefined()
-    const issue = parseNativeMcpText(res.result!.content[0].text, JsonRecordResponse)
+    const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(issue).toHaveProperty('links', [])
     expect(issue).toHaveProperty('rollup')
     expect(issue).toHaveProperty('customFields', [])
@@ -2891,7 +2898,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Grandchild', parentId: parent.id })
 
     const parentRes = await mcpCall({ name: 'get_issue', arguments: { id: parent.id } })
-    const parentIssue = parseNativeMcpText(parentRes.result!.content[0].text, JsonRecordResponse)
+    const parentIssue = parseNativeMcpText(readNativeMcpResultText(parentRes.result), JsonRecordResponse)
     expect(parentIssue.rollup).toStrictEqual({
       byStatus: { backlog: 2 },
       done: 0,
@@ -2900,7 +2907,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
 
     const childRes = await mcpCall({ arguments: { id: childId }, name: 'get_issue' })
-    const child = parseNativeMcpText(childRes.result!.content[0].text, JsonRecordResponse)
+    const child = parseNativeMcpText(readNativeMcpResultText(childRes.result), JsonRecordResponse)
     expect(child.assignee_id).toBe(assignee.id)
     expect(child.parent_id).toBe(parent.id)
     expect(child.customFields).toStrictEqual([expect.objectContaining({ key: 'proj931_cf', value: 'hello' })])
@@ -2911,7 +2918,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Compact list item' })
     const res = await mcpCall({ arguments: { includeRollups: true }, name: 'list_issues' })
     expect(res.error).toBeUndefined()
-    const page = parseNativeMcpText(res.result!.content[0].text, RecordItemsResponse)
+    const page = parseNativeMcpText(readNativeMcpResultText(res.result), RecordItemsResponse)
     expect(page.items[0]).not.toHaveProperty('rollup')
     expect(page.items[0]).not.toHaveProperty('customFields')
     expect(page.items[0]).not.toHaveProperty('assignee_id')
@@ -2927,7 +2934,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       arguments: { id, fields: ['id', 'title', 'priority'] },
     })
     expect(res.error).toBeUndefined()
-    const issue = parseNativeMcpText(res.result!.content[0].text, JsonRecordResponse)
+    const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(Object.keys(issue).toSorted()).toStrictEqual(['id', 'priority', 'title'])
     expect(issue.title).toBe('Fields test')
   })
@@ -2941,7 +2948,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [currentIssue.id] } })
     expect(res.error).toBeUndefined()
-    const data = parseNativeMcpText(res.result!.content[0].text, TitleItemsResponse)
+    const data = parseNativeMcpText(readNativeMcpResultText(res.result), TitleItemsResponse)
     const titles = data.items.map((item) => item.title).toSorted()
     expect(titles).toStrictEqual(['Batch A', 'Batch B'])
   })
@@ -2953,7 +2960,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       arguments: { id, fields: ['id', 'assignee_id', 'sprint_id', 'links', 'rollup'] },
     })
     expect(res.error).toBeUndefined()
-    const issue = parseNativeMcpText(res.result!.content[0].text, JsonRecordResponse)
+    const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(Object.keys(issue).toSorted()).toStrictEqual(['assignee_id', 'id', 'links', 'rollup', 'sprint_id'])
     expect(issue.assignee_id).toBeNull()
     expect(issue.sprint_id).toBeNull()
@@ -2985,7 +2992,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
     expect(res.error).toBeUndefined()
     const data = parseNativeMcpText(
-      res.result!.content[0].text,
+      readNativeMcpResultText(res.result),
       Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
         missing: Schema.Array(Schema.String).pipe(Schema.mutable),
@@ -3058,7 +3065,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
     // "After": the actual MCP get_issue tool result (minified + compacted).
     const mcpRes = await mcpCall({ name: 'get_issue', arguments: { id } })
-    const afterBytes = mcpRes.result!.content[0].text.length
+    const afterBytes = readNativeMcpResultText(mcpRes.result).length
 
     const reduction = (beforeBytes - afterBytes) / beforeBytes
     console.log(`PROJ-931 get_issue bytes: before=${beforeBytes} after=${afterBytes}`)
@@ -3078,7 +3085,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const padded = `${await projectKey()}-00${issue.number}`
     const res = await mcpCall({ arguments: { refs: [padded] }, name: 'get_issues' })
     const data = parseNativeMcpText(
-      res.result!.content[0].text,
+      readNativeMcpResultText(res.result),
       Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
         missing: Schema.Array(Schema.String).pipe(Schema.mutable),
@@ -3092,7 +3099,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const ref = `${await projectKey()}-999999`
     const res = await mcpCall({ arguments: { refs: [ref, ref] }, name: 'get_issues' })
     const data = parseNativeMcpText(
-      res.result!.content[0].text,
+      readNativeMcpResultText(res.result),
       Schema.Struct({ missing: Schema.Array(Schema.String).pipe(Schema.mutable) }),
     )
     expect(data.missing).toStrictEqual([ref])
@@ -3102,20 +3109,20 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Bodied' })
     await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?').bind('hello', issue.id).run()
     const without = await mcpCall({ name: 'get_issues', arguments: { ids: [issue.id] } })
-    const parsedResult = parseNativeMcpText(without.result!.content[0].text, RecordItemsResponse)
+    const parsedResult = parseNativeMcpText(readNativeMcpResultText(without.result), RecordItemsResponse)
     expect(parsedResult.items[0]).not.toHaveProperty('body')
     const withBody = await mcpCall({
       name: 'get_issues',
       arguments: { ids: [issue.id], includeBody: true },
     })
-    const b = parseNativeMcpText(withBody.result!.content[0].text, RecordItemsResponse)
+    const b = parseNativeMcpText(readNativeMcpResultText(withBody.result), RecordItemsResponse)
     expect(b.items[0].body).toBe('hello')
   })
 
   test('fields keeps false as false and rejects unknown field names', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Audit flag' })
     const ok = await mcpCall({ name: 'get_issue', arguments: { id, fields: ['needs_audit'] } })
-    const issue = parseNativeMcpText(ok.result!.content[0].text, JsonRecordResponse)
+    const issue = parseNativeMcpText(readNativeMcpResultText(ok.result), JsonRecordResponse)
     expect(issue.needs_audit).toBe(false)
 
     const typo = await mcpCall({ name: 'get_issue', arguments: { id, fields: ['titel'] } })
@@ -3170,7 +3177,7 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
     })
     expect(res.error).toBeUndefined()
     const data = parseNativeMcpText(
-      res.result!.content[0].text,
+      readNativeMcpResultText(res.result),
       Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
         missing: Schema.Array(Schema.String).pipe(Schema.mutable),
@@ -3206,7 +3213,7 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
       arguments: { refs: [ref], ids: [theirIssue.id] },
     })
     const data = parseNativeMcpText(
-      res.result!.content[0].text,
+      readNativeMcpResultText(res.result),
       Schema.Struct({
         items: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
         missing: Schema.Array(Schema.String).pipe(Schema.mutable),
