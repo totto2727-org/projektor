@@ -3,6 +3,7 @@ import { Effect, Schema } from 'effect'
 import { CommandIdSchema, CommandOkSchema } from '#core/web/command-contract.ts'
 import type { MetricsQuery } from '#core/web/planning.ts'
 import { browserRequest, coreResult } from '@/core.ts'
+import type { CoreResult } from '@/core.ts'
 import { sprints } from '@/features/issues/commands.ts'
 import { RequestServices } from '@/request.ts'
 import type { BrowserCommandClient } from '@/server/browser-command.ts'
@@ -11,14 +12,20 @@ import { HeatmapSchema, MetricsSchema } from './schemas.ts'
 
 export const sprintCommands = {
   ...sprints,
-  createSprint: ({ core, proof }: BrowserCommandClient, input: unknown) =>
+  createSprint: ({ core, proof }: BrowserCommandClient, input: unknown): CoreResult<typeof CommandIdSchema.Type> =>
     coreResult(CommandIdSchema, core.webCreateSprint(proof, input)),
-  deleteSprint: ({ core, proof }: BrowserCommandClient, id: string) =>
+  deleteSprint: ({ core, proof }: BrowserCommandClient, id: string): CoreResult<typeof CommandOkSchema.Type> =>
     coreResult(CommandOkSchema, core.webDeleteSprint(proof, id)),
-  moveIssuesToSprint: ({ core, proof }: BrowserCommandClient, input: unknown) =>
+  moveIssuesToSprint: (
+    { core, proof }: BrowserCommandClient,
+    input: unknown,
+  ): CoreResult<Readonly<{ ok: boolean; count: number }>> =>
     coreResult(Schema.Struct({ ok: Schema.Boolean, count: Schema.Number }), core.webMoveSprintIssues(proof, input)),
 }
-export const readFlowMetrics = function readFlowMetrics(workspaceId: string, query: MetricsQuery) {
+export const readFlowMetrics = function readFlowMetrics(
+  workspaceId: string,
+  query: MetricsQuery,
+): CoreResult<typeof MetricsSchema.Type, RequestServices> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -27,7 +34,10 @@ export const readFlowMetrics = function readFlowMetrics(workspaceId: string, que
     )
   })
 }
-export const readCodeHeatmap = function readCodeHeatmap(workspaceId: string, query: MetricsQuery) {
+export const readCodeHeatmap = function readCodeHeatmap(
+  workspaceId: string,
+  query: MetricsQuery,
+): CoreResult<typeof HeatmapSchema.Type, RequestServices> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
