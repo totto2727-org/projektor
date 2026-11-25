@@ -14,7 +14,7 @@ export interface ReadinessCheck {
 
 // Does the line introduce a new section (so a section started earlier has ended)?
 const isSectionBoundary = function isSectionBoundary(line: string): boolean {
-  return /^#{1,6}\s/u.test(line) || /^\*\*[A-Za-z][^*]*\*\*:?\s*$/.test(line)
+  return /^#{1,6}\s/u.test(line) || /^\*\*[A-Za-z][^*]*\*\*:?\s*$/u.test(line)
 }
 
 const ci = function ci(source: string, flags: string): RegExp {
@@ -51,7 +51,7 @@ const isLabelLine = function isLabelLine(line: string, m: LabelMatchers): boolea
   const t = line.trim()
 
   const isHeading = /^#{1,6}\s+/u.test(t)
-  const isBold = /^\*\*[^*]+\*\*:?\s*$/.test(t) || /^[-*]\s+\*\*[^*]+\*\*/.test(t)
+  const isBold = /^\*\*[^*]+\*\*:?\s*$/u.test(t) || /^[-*]\s+\*\*[^*]+\*\*/u.test(t)
   if (isHeading || isBold) {
     return m.word.test(t)
   }
@@ -77,7 +77,7 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
     .replace(/^[#\-*\s]+/u, '')
     .replace(/\*\*/gu, '')
     .replace(/`/gu, '')
-  const sepIdx = inline.search(/[:—–]/)
+  const sepIdx = inline.search(/[:—–]/u)
   const afterColon = sepIdx === -1 ? '' : inline.slice(sepIdx + 1).trim()
   if (String.isNonEmpty(afterColon)) {
     return true
@@ -101,7 +101,7 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
  * filename.ext. A lone span like `true` no longer satisfies "scope/files" (PROJ-291).
  */
 const hasFilePathToken = function hasFilePathToken(body: string): boolean {
-  const spans = body.match(/`[^`\n]+`/g)
+  const spans = body.match(/`[^`\n]+`/gu)
   if (!spans) {
     return false
   }

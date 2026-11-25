@@ -170,7 +170,7 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
           ) {
             return false
           }
-          const match = /^\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/.exec(state.src.slice(state.pos, state.posMax))
+          const match = /^\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/u.exec(state.src.slice(state.pos, state.posMax))
           if (!match) {
             return false
           }

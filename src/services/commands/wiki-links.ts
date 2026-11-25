@@ -35,13 +35,13 @@ type Orm = ReturnType<typeof drizzle<typeof schema>>
  * Mirrors apps/web/src/utils/markdown.ts's resolveWikilinks regex — same link syntax
  * rules, server-side.
  */
-const WIKILINK_RE = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g
+const WIKILINK_RE = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/gu
 /*
  * Markdown link syntax `[label](url)` — used to catch same-workspace wiki URLs
  * (`/wiki/:slug`, `/wiki?slug=...`, or the relative `?slug=...` form markdown.ts emits
  * for already-resolved wikilinks).
  */
-const MD_LINK_RE = /\[[^\]]*\]\(([^)\s]+)\)/g
+const MD_LINK_RE = /\[[^\]]*\]\(([^)\s]+)\)/gu
 
 type ParsedLinkTarget = { kind: 'title'; title: string } | { kind: 'slug'; slug: string }
 
@@ -58,7 +58,7 @@ const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): str
     return null
   }
   const pathMatch = url.match(/^\/wiki\/([a-z0-9-]+)\/?$/i)
-  const queryMatch = pathMatch ? null : url.match(/[?&]slug=([^&]+)/)
+  const queryMatch = pathMatch ? null : url.match(/[?&]slug=([^&]+)/u)
   const raw = pathMatch?.[1] ?? queryMatch?.[1]
   if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return null

@@ -12,7 +12,7 @@ import { ValidationError, validationIssues } from './errors.ts'
  * convention. CRLF-tolerant since pages can be edited from any client. A page with no
  * leading `---` line has no frontmatter at all (not an error — frontmatter is optional).
  */
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/u
 
 export interface WikiFrontmatterMeta {
   type: string | null

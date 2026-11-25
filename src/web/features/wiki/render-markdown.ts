@@ -7,7 +7,7 @@ export const renderMd = async function renderMd(markdown: string): Promise<strin
   return document.html
 }
 
-const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/
+const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/u
 export const stripFrontmatter = function stripFrontmatter(markdown: string): string {
   return markdown.replace(FRONTMATTER_RE, '')
 }

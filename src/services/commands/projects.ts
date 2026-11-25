@@ -155,8 +155,8 @@ const slugify = function slugify(name: string): string {
     name
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'project'
+      .replace(/[^a-z0-9]+/gu, '-')
+      .replace(/^-+|-+$/gu, '') || 'project'
   )
 }
 
