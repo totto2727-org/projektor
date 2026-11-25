@@ -186,12 +186,10 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
               : []
             const grants = yield* Effect.tryPromise({
               catch: publicDomainFailure,
-              try: async () =>
-                listConnectorGrants(
-                  (await import('#services/oauth-provider.ts')).oauthApi(env),
-                  ctx.userId,
-                  ctx.workspaceId,
-                ),
+              try: async () => {
+                const provider = await import('#services/oauth-provider.ts')
+                return listConnectorGrants(provider.oauthApi(env), ctx.userId, ctx.workspaceId)
+              },
             })
             const info = yield* Effect.tryPromise({
               catch: publicDomainFailure,
@@ -210,12 +208,10 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             const { ctx } = yield* readContext(env, proof)
             return yield* Effect.tryPromise({
               catch: publicDomainFailure,
-              try: async () =>
-                listConnectorGrants(
-                  (await import('#services/oauth-provider.ts')).oauthApi(env),
-                  ctx.userId,
-                  ctx.workspaceId,
-                ),
+              try: async () => {
+                const provider = await import('#services/oauth-provider.ts')
+                return listConnectorGrants(provider.oauthApi(env), ctx.userId, ctx.workspaceId)
+              },
             })
           }),
         ),
@@ -259,13 +255,9 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     webRevokeToken: (proof: BrowserCommand, tokenId: string): CoreReply<R> =>
       mutation('webRevokeToken', SettingsOkSchema, proof, async (ctx) => workspaces.revokeToken(ctx, tokenId)),
     webDisconnectConnector: (proof: BrowserCommand, connectorId: string): CoreReply<R> =>
-      mutation('webDisconnectConnector', SettingsOkSchema, proof, async (ctx, env) =>
-        revokeConnectorGrant(
-          (await import('#services/oauth-provider.ts')).oauthApi(env),
-          ctx.userId,
-          ctx.workspaceId,
-          connectorId,
-        ),
-      ),
+      mutation('webDisconnectConnector', SettingsOkSchema, proof, async (ctx, env) => {
+        const provider = await import('#services/oauth-provider.ts')
+        return revokeConnectorGrant(provider.oauthApi(env), ctx.userId, ctx.workspaceId, connectorId)
+      }),
   }
 }
