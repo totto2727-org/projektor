@@ -5,17 +5,12 @@ import { String, Array, Predicate, Schema } from 'effect'
 import { useOptimistic, useState, useTransition } from 'react'
 import type { JSX, Dispatch, SetStateAction } from 'react'
 
-import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Select } from '@/components/ui/select.tsx'
 import { navigateFeature } from '@/features/wiki/navigation.ts'
 
-import {
-  convertFeedbackToIssue,
-  convertSelectedFeedbackToIssue,
-  markFeedbackReviewed,
-  markSelectedFeedbackReviewed,
-} from './actions.ts'
+import { useFeedbackActions } from './feedback-list-actions.ts'
+import type { FeedbackStatusUpdate } from './feedback-list-actions.ts'
 import { FeedbackMobileCards } from './feedback-mobile-cards.tsx'
 import { FeedbackTable } from './feedback-table.tsx'
 
@@ -48,61 +43,6 @@ const STATUS_OPTIONS = [
   { value: 'reviewed', label: 'Reviewed' },
   { value: 'actioned', label: 'Actioned' },
 ]
-
-const useFeedbackActions = function useFeedbackActions(
-  workspaceSlug: string | undefined,
-  projectId: string,
-  setError: (e: string | null) => void,
-  setSelected: (s: Set<string>) => void,
-  addOptimistic: (change: { ids: Readonly<string[]>; status: string }) => void,
-  startTransition: (action: () => Promise<void>) => void,
-) {
-  const convert = function convert(id: string): void {
-    startTransition(async () => {
-      addOptimistic({ ids: [id], status: 'actioned' })
-      try {
-        unwrapResult(await convertFeedbackToIssue({ workspaceSlug, projectId, feedbackId: id }))
-      } catch (error) {
-        setError(globalThis.String(error))
-      }
-    })
-  }
-  const markReviewed = function markReviewed(id: string): void {
-    startTransition(async () => {
-      addOptimistic({ ids: [id], status: 'reviewed' })
-      try {
-        unwrapResult(await markFeedbackReviewed({ workspaceSlug, projectId, feedbackId: id }))
-      } catch (error) {
-        setError(globalThis.String(error))
-      }
-    })
-  }
-  const bulkMarkReviewed = function bulkMarkReviewed(selected: Set<string>): void {
-    startTransition(async () => {
-      const feedbackIds = [...selected]
-      addOptimistic({ ids: feedbackIds, status: 'reviewed' })
-      try {
-        unwrapResult(await markSelectedFeedbackReviewed({ workspaceSlug, projectId, feedbackIds }))
-        setSelected(new Set())
-      } catch (error) {
-        setError(globalThis.String(error))
-      }
-    })
-  }
-  const bulkConvertToIssue = function bulkConvertToIssue(selected: Set<string>): void {
-    startTransition(async () => {
-      const feedbackIds = [...selected]
-      addOptimistic({ ids: feedbackIds, status: 'actioned' })
-      try {
-        unwrapResult(await convertSelectedFeedbackToIssue({ workspaceSlug, projectId, feedbackIds }))
-        setSelected(new Set())
-      } catch (error) {
-        setError(globalThis.String(error))
-      }
-    })
-  }
-  return { convert, markReviewed, bulkMarkReviewed, bulkConvertToIssue }
-}
 
 const useToggleSet = function useToggleSet() {
   const [set, setSet] = useState<Set<string>>(new Set())
@@ -162,24 +102,21 @@ export function FeedbackList({
   const status = initialStatus
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
-  const [optimisticRows, addOptimistic] = useOptimistic(
-    initialRows,
-    (current, change: { ids: Readonly<string[]>; status: string }) => {
-      const ids = new Set(change.ids)
-      return current.map((row) => (ids.has(row.id) ? { ...row, status: change.status } : row))
-    },
-  )
+  const [optimisticRows, addOptimistic] = useOptimistic(initialRows, (current, change: FeedbackStatusUpdate) => {
+    const ids = new Set(change.ids)
+    return current.map((row) => (ids.has(row.id) ? { ...row, status: change.status } : row))
+  })
   const rows = optimisticRows.filter((row) => !status || row.status === status)
   const [selected, toggleRow, setSelected] = useSelectedFeedback()
   const [expanded, toggleExpanded] = useToggleSet()
-  const { convert, markReviewed, bulkMarkReviewed, bulkConvertToIssue } = useFeedbackActions(
-    workspaceSlug,
+  const { convert, markReviewed, bulkMarkReviewed, bulkConvertToIssue } = useFeedbackActions({
+    addOptimistic,
     projectId,
     setError,
     setSelected,
-    addOptimistic,
     startTransition,
-  )
+    workspaceSlug,
+  })
 
   const toggleSelectAll = function toggleSelectAll(): void {
     setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row.id))))
