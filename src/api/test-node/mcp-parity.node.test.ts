@@ -481,7 +481,7 @@ const domainOperations = function domainOperations(
       })
       if (
         ts.isPropertyAccessExpression(expression) &&
-        /^(get|post|put|patch|delete|head|all)$/u.test(expression.name.text)
+        /^(?:get|post|put|patch|delete|head|all)$/u.test(expression.name.text)
       ) {
         method = expression.name.text.toUpperCase()
       }

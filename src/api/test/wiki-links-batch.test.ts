@@ -80,7 +80,9 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
      * Every read of wiki_pages / wiki_redirects during the save — slug checks, parent
      * lookups and link resolution together. Per-link resolution made this ~300.
      */
-    const wikiReads = sqls.filter((sql) => /^select/i.test(sql.trim()) && /from "?wiki_(pages|redirects)"?/i.test(sql))
+    const wikiReads = sqls.filter(
+      (sql) => /^select/i.test(sql.trim()) && /from "?wiki_(?:pages|redirects)"?/i.test(sql),
+    )
     expect(wikiReads.length).toBeLessThanOrEqual(12)
 
     const { id: hubId } = await readNativeJson(res, IdResponse)

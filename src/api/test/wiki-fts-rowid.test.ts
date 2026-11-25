@@ -43,7 +43,7 @@ describe("covers PROJ-816: wiki_fts is keyed by the page's search_rowid", () => 
      * FTS5 reports its xBestIndex choice as "VIRTUAL TABLE INDEX <n>:<constraints>";
      * a rowid-equality lookup carries an '=' constraint, the page_id filter none.
      */
-    expect(fullScan).toMatch(/VIRTUAL TABLE INDEX \d+:(\s|$|\|)/u)
+    expect(fullScan).toMatch(/VIRTUAL TABLE INDEX \d+:(?:\s|$|\|)/u)
     expect(byRowid).toMatch(/VIRTUAL TABLE INDEX \d+:=/u)
   })
 

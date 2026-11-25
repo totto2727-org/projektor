@@ -42,7 +42,7 @@ export const migratedDb = function migratedDb(): DatabaseSync {
        * across Node patch versions; production D1/Cloudflare sqlite does.
        * Skip fts5-dependent statements here rather than gate tests on it.
        */
-      if (/\bfts5\b/i.test(stmt) || /\b(issues|wiki)_fts\b/i.test(stmt)) {
+      if (/\bfts5\b/i.test(stmt) || /\b(?:issues|wiki)_fts\b/i.test(stmt)) {
         return
       }
       db.exec(stmt)

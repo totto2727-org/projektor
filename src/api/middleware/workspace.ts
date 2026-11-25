@@ -28,7 +28,7 @@ const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
     Predicate.isNullish(hostname) ||
     String.isEmpty(hostname) ||
     hostname === 'localhost' ||
-    /^\d{1,3}(\.\d{1,3}){3}$/u.test(hostname)
+    /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(hostname)
   ) {
     return
   }

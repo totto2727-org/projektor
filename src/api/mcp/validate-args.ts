@@ -40,7 +40,7 @@ const typeOf = function typeOf(v: unknown): string {
 const BOOLEAN_STRINGS = new Set(['true', '1', 'false', '0', ''])
 
 const isNumericString = function isNumericString(v: unknown): boolean {
-  return Predicate.isString(v) && /^-?\d+(\.\d+)?$/u.test(v.trim())
+  return Predicate.isString(v) && /^-?\d+(?:\.\d+)?$/u.test(v.trim())
 }
 
 const matchesType = function matchesType(v: unknown, t: string): boolean {
