@@ -26,7 +26,7 @@ import {
   seedWorkspaceRoles,
   toolError,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   IssueTitlesResponse,
   JsonRecordResponse,
@@ -320,12 +320,12 @@ describe('issues API', () => {
     await seedMember(workspaceId, assignee.id)
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({
-        projectId,
-        title: 'Assigned',
-        assigneeId: assignee.id,
-        labels: ['bug', 'urgent'],
-      }),
+      body: stringifyOrderedFields([
+        ['projectId', projectId],
+        ['title', 'Assigned'],
+        ['assigneeId', assignee.id],
+        ['labels', ['bug', 'urgent']],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -399,7 +399,11 @@ describe('issues API', () => {
       method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Assigned issue', assigneeId: assignee.id }),
+      body: stringifyOrderedFields([
+        ['projectId', projectId],
+        ['title', 'Assigned issue'],
+        ['assigneeId', assignee.id],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -1547,7 +1551,11 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
       method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Assigned to someone else', assigneeId: other.id }),
+      body: stringifyOrderedFields([
+        ['projectId', projectId],
+        ['title', 'Assigned to someone else'],
+        ['assigneeId', other.id],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -1562,7 +1570,11 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     const other = await seedUser('literal-id-filter@example.com')
     await seedMember(workspaceId, other.id)
     await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Assigned to other', assigneeId: other.id }),
+      body: stringifyOrderedFields([
+        ['projectId', projectId],
+        ['title', 'Assigned to other'],
+        ['assigneeId', other.id],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -2715,7 +2727,11 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const { projectId, slug, token } = await seedOwnerMcpFixture()
     const otherFixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Bad assignee', assigneeId: otherFixture.user.id }),
+      body: stringifyOrderedFields([
+        ['projectId', projectId],
+        ['title', 'Bad assignee'],
+        ['assigneeId', otherFixture.user.id],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -2734,7 +2750,11 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const assignee = await seedUser('proj785-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Good assignee', assigneeId: assignee.id }),
+      body: stringifyOrderedFields([
+        ['projectId', projectId],
+        ['title', 'Good assignee'],
+        ['assigneeId', assignee.id],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -2764,7 +2784,11 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const assignee = await seedUser('proj785-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
-      body: JSON.stringify({ projectId, title: 'Will be cleared', assigneeId: assignee.id }),
+      body: stringifyOrderedFields([
+        ['projectId', projectId],
+        ['title', 'Will be cleared'],
+        ['assigneeId', assignee.id],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

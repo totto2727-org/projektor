@@ -6,7 +6,7 @@ import { ApiResults } from '#contracts/api-results.ts'
 
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
@@ -219,7 +219,11 @@ describe('workflow spec', () => {
     )
     expect(body.version).toBe(
       await hashWorkflowContent(
-        JSON.stringify({ title: body.title, description: body.description, content: body.content }),
+        stringifyOrderedFields([
+          ['title', body.title],
+          ['description', body.description],
+          ['content', body.content],
+        ]),
       ),
     )
   })

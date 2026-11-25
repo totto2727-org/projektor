@@ -5,7 +5,7 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import { KeyListResponse, parseNativeMcpText, IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
@@ -157,7 +157,10 @@ describe('projects REST', () => {
     const requestOptions = requestOptionsWithBody(
       'POST',
       ownerHeaders,
-      JSON.stringify({ name: 'x'.repeat(101), key: 'TOOLONG' }),
+      stringifyOrderedFields([
+        ['name', 'x'.repeat(101)],
+        ['key', 'TOOLONG'],
+      ]),
     )
     const res = await fetchNativeApi('http://localhost/api/projects', requestOptions)
     expect(res.status).toBe(400)

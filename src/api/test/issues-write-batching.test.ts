@@ -29,7 +29,7 @@ import {
   seedTaskStatus,
   seedTaskType,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 const trackD1RoundTrips = function trackD1RoundTrips() {
   let count = 0
@@ -263,10 +263,10 @@ describe('covers PROJ-870 review: completion report comment limit', () => {
     const requestOptions = requestOptionsWithBody(
       'PATCH',
       authHeaders(testFixture.token, testFixture.slug),
-      JSON.stringify({
-        status: 'in_review',
-        completionReport: { summary: 's'.repeat(6000), verification: 'v'.repeat(4000) },
-      }),
+      stringifyOrderedFields([
+        ['status', 'in_review'],
+        ['completionReport', { summary: 's'.repeat(6000), verification: 'v'.repeat(4000) }],
+      ]),
     )
     const res = await fetchNativeApi(requestUrl, requestOptions)
     expect(res.status).toBe(400)

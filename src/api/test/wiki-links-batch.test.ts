@@ -10,7 +10,7 @@ import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-858: batched slug link resolution on save', () => {
@@ -71,7 +71,10 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
     const requestOptions = requestOptionsWithBody(
       'POST',
       authHeaders(token, workspace.slug),
-      JSON.stringify({ title: 'Hub', content: links.join('\n') }),
+      stringifyOrderedFields([
+        ['title', 'Hub'],
+        ['content', links.join('\n')],
+      ]),
     )
     const res = await fetchNativeApi('http://localhost/api/wiki', requestOptions)
     expect(res.status).toBe(201)

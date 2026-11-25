@@ -2,8 +2,14 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+
+const PUBLISHED_PAGE_BODY = stringifyOrderedFields([
+  ['title', 'Lifecycle'],
+  ['slug', 'lifecycle'],
+  ['content', 'Published'],
+])
 
 describe('native Wiki draft lifecycle preconditions', () => {
   test('rejects delayed writes after a newer snapshot and after a discard through API/Core/D1', async () => {
@@ -15,13 +21,17 @@ describe('native Wiki draft lifecycle preconditions', () => {
     }
     const created = await request('', {
       method: 'POST',
-      body: JSON.stringify({ title: 'Lifecycle', slug: 'lifecycle', content: 'Published' }),
+      body: PUBLISHED_PAGE_BODY,
     })
     expect(created.status).toBe(201)
     const save = async function save(content: string, expectedDraftRevision: string | null): Promise<Response> {
       return request('/lifecycle/draft', {
         method: 'PUT',
-        body: JSON.stringify({ title: 'Draft', content, expectedDraftRevision }),
+        body: stringifyOrderedFields([
+          ['title', 'Draft'],
+          ['content', content],
+          ['expectedDraftRevision', expectedDraftRevision],
+        ]),
       })
     }
     const revision = async function revision(): Promise<string> {

@@ -5,7 +5,7 @@ import * as cache from '#commands/cache.ts'
 
 import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   KeyListResponse,
   parseNativeMcpText,
@@ -209,7 +209,11 @@ describe('covers KV caching', () => {
       const beforeBody = await readNativeJson(before, JsonListResponse)
 
       const created = await fetchNativeApi(url, {
-        body: JSON.stringify({ key: 'blocked', name: 'Blocked', category: 'in_progress' }),
+        body: stringifyOrderedFields([
+          ['key', 'blocked'],
+          ['name', 'Blocked'],
+          ['category', 'in_progress'],
+        ]),
         headers: hdrs,
         method: 'POST',
       })

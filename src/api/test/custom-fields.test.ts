@@ -20,7 +20,7 @@ import {
   seedToken,
   seedUser,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   KeyListResponse,
   OkResponse,
@@ -85,12 +85,12 @@ describe('custom Field Definitions API', () => {
   test('handles POST /api/custom-fields creates a select field with options', async () => {
     const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
-      body: JSON.stringify({
-        key: 'size',
-        label: 'Size',
-        type: 'select',
-        options: ['S', 'M', 'L'],
-      }),
+      body: stringifyOrderedFields([
+        ['key', 'size'],
+        ['label', 'Size'],
+        ['type', 'select'],
+        ['options', ['S', 'M', 'L']],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

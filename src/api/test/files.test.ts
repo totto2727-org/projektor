@@ -20,7 +20,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import { ErrorMessageResponse, IdAndSlugResponse, IdResponse, readNativeJson } from './response-json.ts'
 
@@ -508,12 +508,12 @@ describe('files API', () => {
       const requestOptions = requestOptionsWithBody(
         'POST',
         { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          wikiPageId: crypto.randomUUID(),
-        }),
+        stringifyOrderedFields([
+          ['kind', 'wiki_ref'],
+          ['entityType', 'issue'],
+          ['entityId', ENTITY_ID],
+          ['wikiPageId', crypto.randomUUID()],
+        ]),
       )
       const res = await fetchNativeApi('http://localhost/api/files/links', requestOptions)
       expect(res.status).toBe(404)
@@ -526,13 +526,13 @@ describe('files API', () => {
         requestOptionsWithBody(
           'POST',
           { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-          JSON.stringify({
-            kind: 'url',
-            entityType: 'issue',
-            entityId: ENTITY_ID,
-            url: 'https://example.com/doc',
-            label: 'Design doc',
-          }),
+          stringifyOrderedFields([
+            ['kind', 'url'],
+            ['entityType', 'issue'],
+            ['entityId', ENTITY_ID],
+            ['url', 'https://example.com/doc'],
+            ['label', 'Design doc'],
+          ]),
         ),
       )
       expect(res.status).toBe(201)
@@ -601,12 +601,12 @@ describe('files API', () => {
         requestOptionsWithBody(
           'POST',
           headers,
-          JSON.stringify({
-            kind: 'url',
-            entityType: 'issue',
-            entityId: ENTITY_ID,
-            url: 'https://example.com',
-          }),
+          stringifyOrderedFields([
+            ['kind', 'url'],
+            ['entityType', 'issue'],
+            ['entityId', ENTITY_ID],
+            ['url', 'https://example.com'],
+          ]),
         ),
       )
       const { id } = await readNativeJson(createRes, IdResponse)
@@ -815,12 +815,12 @@ describe('files API', () => {
           ...authHeaders(viewer.token, workspace.slug),
           'Content-Type': 'application/json',
         },
-        JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: crypto.randomUUID(),
-          url: 'https://example.com',
-        }),
+        stringifyOrderedFields([
+          ['kind', 'url'],
+          ['entityType', 'issue'],
+          ['entityId', crypto.randomUUID()],
+          ['url', 'https://example.com'],
+        ]),
       )
       const res = await fetchNativeApi('http://localhost/api/files/links', viewerRequestOptions)
       expect(res.status).toBe(403)
@@ -1277,12 +1277,12 @@ describe('attachment project visibility', () => {
       requestOptionsWithBody(
         'POST',
         asMember(visibilityFixture),
-        JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: hiddenIssueId,
-          url: 'https://example.com',
-        }),
+        stringifyOrderedFields([
+          ['kind', 'url'],
+          ['entityType', 'issue'],
+          ['entityId', hiddenIssueId],
+          ['url', 'https://example.com'],
+        ]),
       ),
     )
     expect(res.status).toBe(404)

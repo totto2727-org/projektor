@@ -18,7 +18,7 @@ import { runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi } from './native-fetch.ts'
 import { readNativeJson } from './response-json.ts'
 
 /**
@@ -354,7 +354,11 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/file-claims', {
-      body: JSON.stringify({ issueId, paths, force: true }),
+      body: stringifyOrderedFields([
+        ['issueId', issueId],
+        ['paths', paths],
+        ['force', true],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

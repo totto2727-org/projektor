@@ -23,7 +23,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProject, seedToken, seedUser, seedWorkspace } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 /**
  * Seed a workspace + owner + a project in it, for scope-enforcement tests.
@@ -252,7 +252,11 @@ describe('covers PROJ-17: POST /auth/tokens', () => {
 
   test('a member can mint a token for their workspace', async () => {
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      body: JSON.stringify({ name: 'mine', workspaceId, scopes: ['read'] }),
+      body: stringifyOrderedFields([
+        ['name', 'mine'],
+        ['workspaceId', workspaceId],
+        ['scopes', ['read']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })
@@ -263,7 +267,11 @@ describe('covers PROJ-17: POST /auth/tokens', () => {
   test("minting a token for a workspace you don't belong to is forbidden", async () => {
     const other = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      body: JSON.stringify({ name: 'sneaky', workspaceId: other.id, scopes: ['*'] }),
+      body: stringifyOrderedFields([
+        ['name', 'sneaky'],
+        ['workspaceId', other.id],
+        ['scopes', ['*']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })
@@ -272,7 +280,11 @@ describe('covers PROJ-17: POST /auth/tokens', () => {
 
   test('rejects invalid scope values', async () => {
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      body: JSON.stringify({ name: 'bad', workspaceId, scopes: ['admin'] }),
+      body: stringifyOrderedFields([
+        ['name', 'bad'],
+        ['workspaceId', workspaceId],
+        ['scopes', ['admin']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })

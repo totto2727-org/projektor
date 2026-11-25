@@ -13,7 +13,7 @@ import {
   seedToken,
   seedUser,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   KeyListResponse,
   OkResponse,
@@ -76,7 +76,11 @@ describe('task Statuses API', () => {
     const { slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedTaskStatus(workspaceId, { category: 'done', key: 'done', name: 'Done' })
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      body: JSON.stringify({ key: 'done', name: 'Done 2', category: 'done' }),
+      body: stringifyOrderedFields([
+        ['key', 'done'],
+        ['name', 'Done 2'],
+        ['category', 'done'],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -86,7 +90,11 @@ describe('task Statuses API', () => {
   test('handles POST /api/task-statuses rejects invalid key format', async () => {
     const { slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      body: JSON.stringify({ key: 'Bad Key!', name: 'Bad', category: 'todo' }),
+      body: stringifyOrderedFields([
+        ['key', 'Bad Key!'],
+        ['name', 'Bad'],
+        ['category', 'todo'],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -103,7 +111,12 @@ describe('task Statuses API', () => {
     })
 
     await fetchNativeApi('http://localhost/api/task-statuses', {
-      body: JSON.stringify({ key: 'backlog', name: 'Backlog', category: 'todo', isDefault: true }),
+      body: stringifyOrderedFields([
+        ['key', 'backlog'],
+        ['name', 'Backlog'],
+        ['category', 'todo'],
+        ['isDefault', true],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -127,7 +140,11 @@ describe('task Statuses API', () => {
     const memberToken = await seedToken(workspaceId, memberUser.id)
 
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      body: JSON.stringify({ key: 'done', name: 'Done', category: 'done' }),
+      body: stringifyOrderedFields([
+        ['key', 'done'],
+        ['name', 'Done'],
+        ['category', 'done'],
+      ]),
       headers: authHeaders(memberToken, slug),
       method: 'POST',
     })

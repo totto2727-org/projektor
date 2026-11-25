@@ -14,7 +14,7 @@ import {
   seedToken,
   seedUser,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import {
   KeyListResponse,
   OkResponse,
@@ -97,7 +97,11 @@ describe('task Types API', () => {
     await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task' })
 
     await fetchNativeApi('http://localhost/api/task-types', {
-      body: JSON.stringify({ key: 'story', name: 'Story', isDefault: true }),
+      body: stringifyOrderedFields([
+        ['key', 'story'],
+        ['name', 'Story'],
+        ['isDefault', true],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

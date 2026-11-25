@@ -15,7 +15,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { seedRateLimitCounter } from './rate-limit-reset.ts'
 import { ErrorMessageResponse, IdListResponse, IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
@@ -41,7 +41,10 @@ describe('feedback sources REST', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(testFixture.token, testFixture.slug),
-        JSON.stringify({ name: 'Onboarding survey', allowedOrigins: ['https://acme.test'] }),
+        stringifyOrderedFields([
+          ['name', 'Onboarding survey'],
+          ['allowedOrigins', ['https://acme.test']],
+        ]),
       ),
     )
     expect(res.status).toBe(201)

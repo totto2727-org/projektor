@@ -35,7 +35,7 @@ import {
   seedWorkspaceRoles,
   toolError,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { ErrorMessageResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
@@ -333,7 +333,12 @@ describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
       .replaceAll('+', '-')
       .replaceAll('/', '_')
       .replaceAll('=', '')
-    const payload = btoa(JSON.stringify({ exp: currentEpochSeconds() + 3600, email: 'x@x.com' }))
+    const payload = btoa(
+      stringifyOrderedFields([
+        ['exp', currentEpochSeconds() + 3600],
+        ['email', 'x@x.com'],
+      ]),
+    )
       .replaceAll('+', '-')
       .replaceAll('/', '_')
       .replaceAll('=', '')
@@ -1104,11 +1109,11 @@ describe('covers PROJ-79: POST /auth/tokens', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: 'ci-token',
-        workspaceId: fixture.workspace.id,
-        scopes: ['read', 'write'],
-      }),
+      body: stringifyOrderedFields([
+        ['name', 'ci-token'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', ['read', 'write']],
+      ]),
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, TokenResponse)
@@ -1123,7 +1128,11 @@ describe('covers PROJ-79: POST /auth/tokens', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name: 't', workspaceId: 'not-a-uuid', scopes: ['read'] }),
+      body: stringifyOrderedFields([
+        ['name', 't'],
+        ['workspaceId', 'not-a-uuid'],
+        ['scopes', ['read']],
+      ]),
     })
     expect(res.status).toBe(400)
   })
@@ -1135,7 +1144,11 @@ describe('covers PROJ-79: POST /auth/tokens', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name: 't', workspaceId: fixture.workspace.id, scopes: [] }),
+      body: stringifyOrderedFields([
+        ['name', 't'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', []],
+      ]),
     })
     expect(res.status).toBe(400)
   })
@@ -1143,7 +1156,11 @@ describe('covers PROJ-79: POST /auth/tokens', () => {
   test('returns 401 without authentication', async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
-      body: JSON.stringify({ name: 't', workspaceId: fixture.workspace.id, scopes: ['read'] }),
+      body: stringifyOrderedFields([
+        ['name', 't'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', ['read']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })
@@ -1161,11 +1178,11 @@ describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: 'to-delete',
-        workspaceId: fixture.workspace.id,
-        scopes: ['read'],
-      }),
+      body: stringifyOrderedFields([
+        ['name', 'to-delete'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', ['read']],
+      ]),
     })
     expect(createRes.status).toBe(201)
 

@@ -4,7 +4,7 @@ import m0061 from '#migrations/0061_task_status_review_step.sql?raw'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
 // PROJ-749: a status is a review step because the workspace flagged it
@@ -88,12 +88,12 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
 
   test('create/update_task_status set and clear the flag (REST)', async () => {
     const created = await fetchNativeApi('http://localhost/api/task-statuses', {
-      body: JSON.stringify({
-        key: 'design_review',
-        name: 'Design Review',
-        category: 'in_progress',
-        isReviewStep: true,
-      }),
+      body: stringifyOrderedFields([
+        ['key', 'design_review'],
+        ['name', 'Design Review'],
+        ['category', 'in_progress'],
+        ['isReviewStep', true],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })

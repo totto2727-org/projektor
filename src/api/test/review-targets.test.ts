@@ -7,7 +7,7 @@ import { runInOrder } from '#tests/run-effect.ts'
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedToken, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
@@ -150,7 +150,11 @@ describe('review targets REST through the real API and Core Workers', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(fixture.token, fixture.slug),
-        JSON.stringify({ issueId: fixture.issueId, attachmentId, status: 'fixing' }),
+        stringifyOrderedFields([
+          ['issueId', fixture.issueId],
+          ['attachmentId', attachmentId],
+          ['status', 'fixing'],
+        ]),
       ),
     )
     expect(response.status).toBe(404)

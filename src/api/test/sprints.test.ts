@@ -14,7 +14,7 @@ import {
   seedProjectFixture,
   seedWorkspaceRoles,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, ItemsResponse, readNativeJson } from './response-json.ts'
 
 /*
@@ -375,7 +375,10 @@ describe('sprints API', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(other.token, other.workspace.slug),
-        JSON.stringify({ projectId: otherProject.id, name: 'Other Workspace Sprint' }),
+        stringifyOrderedFields([
+          ['projectId', otherProject.id],
+          ['name', 'Other Workspace Sprint'],
+        ]),
       ),
     )
 
@@ -399,7 +402,10 @@ describe('sprints role guards', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(roles.viewer.token, roles.workspace.slug),
-        JSON.stringify({ projectId: project.id, name: 'Viewer Sprint' }),
+        stringifyOrderedFields([
+          ['projectId', project.id],
+          ['name', 'Viewer Sprint'],
+        ]),
       ),
     )
     expect(res.status).toBe(403)
@@ -478,7 +484,10 @@ describe('sprints role guards', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(roles.member.token, roles.workspace.slug),
-        JSON.stringify({ projectId: projectA.id, name: 'Sprint A' }),
+        stringifyOrderedFields([
+          ['projectId', projectA.id],
+          ['name', 'Sprint A'],
+        ]),
       ),
     )
     expect(createRes.status).toBe(201)
@@ -516,7 +525,10 @@ describe('sprints role guards', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(roles.member.token, roles.workspace.slug),
-        JSON.stringify({ projectId: project.id, name: 'Sprint' }),
+        stringifyOrderedFields([
+          ['projectId', project.id],
+          ['name', 'Sprint'],
+        ]),
       ),
     )
     const { id: sprintId } = await readNativeJson(createRes, IdResponse)
