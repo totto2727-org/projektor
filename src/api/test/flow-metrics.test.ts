@@ -76,18 +76,18 @@ describe('flow metrics (PROJ-252)', () => {
 
     const agentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent-worked' })
     await stampFlowTimestamps(agentIssue.id, {
-      readyAt: now - 500,
       claimedAt: now - 400,
       doneAt: now,
+      readyAt: now - 500,
     })
     const agentSessionId = await registerAgent()
     await claim(agentIssue.id, agentSessionId)
 
     const humanIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Human-worked' })
     await stampFlowTimestamps(humanIssue.id, {
-      readyAt: now - 250,
       claimedAt: now - 200,
       doneAt: now,
+      readyAt: now - 250,
     })
 
     const metrics = await getFlowMetrics()
@@ -137,13 +137,13 @@ describe('flow metrics (PROJ-252)', () => {
     const until = now
 
     const oldIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Created before window',
       createdAt: now - 10 * DAY,
+      title: 'Created before window',
     })
     await stampFlowTimestamps(oldIssue.id, {
-      readyAt: now - 10 * DAY,
       claimedAt: now - 2 * DAY,
       doneAt: now - 1 * DAY,
+      readyAt: now - 10 * DAY,
     })
 
     const res = await fetchNativeApi(
@@ -166,9 +166,9 @@ describe('flow metrics (PROJ-252)', () => {
      * for an issue that finished before flow-timestamp stamping existed.
      */
     await stampFlowTimestamps(issue.id, {
-      readyAt: now - 300,
       claimedAt: now - 200,
       doneAt: now - 50,
+      readyAt: now - 300,
     })
 
     const metrics = await getFlowMetrics()
@@ -188,21 +188,21 @@ describe('flow metrics (PROJ-252)', () => {
     const until = now
 
     await stampFlowTimestamps(thisWeekIssue.id, {
-      readyAt: now - 100,
       claimedAt: now - 50,
       doneAt: now,
+      readyAt: now - 100,
     })
 
     await stampFlowTimestamps(lastWeekIssue.id, {
-      readyAt: now - WEEK - 100,
       claimedAt: now - WEEK - 50,
       doneAt: now - WEEK,
+      readyAt: now - WEEK - 100,
     })
 
     await stampFlowTimestamps(outsideWindowIssue.id, {
-      readyAt: now - 10 * WEEK,
       claimedAt: now - 10 * WEEK + 50,
       doneAt: now - 10 * WEEK + 100,
+      readyAt: now - 10 * WEEK,
     })
 
     const res = await fetchNativeApi(
@@ -230,18 +230,18 @@ describe('flow metrics (PROJ-252)', () => {
       title: 'Just inside since',
     })
     await stampFlowTimestamps(justInsideIssue.id, {
-      readyAt: since - 100,
       claimedAt: since - 50,
       doneAt: since + 10,
+      readyAt: since - 100,
     })
 
     const justOutsideIssue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Just before since, same aligned bucket',
     })
     await stampFlowTimestamps(justOutsideIssue.id, {
-      readyAt: since - 200,
       claimedAt: since - 150,
       doneAt: since - 10,
+      readyAt: since - 200,
     })
 
     const res = await fetchNativeApi(
@@ -280,14 +280,14 @@ describe('flow metrics (PROJ-252)', () => {
     const until = now
 
     await stampFlowTimestamps(issueA.id, {
-      readyAt: now - WEEK - 100,
       claimedAt: now - WEEK - 50,
       doneAt: now - WEEK,
+      readyAt: now - WEEK - 100,
     })
     await stampFlowTimestamps(issueB.id, {
-      readyAt: now - 100,
       claimedAt: now - 50,
       doneAt: now,
+      readyAt: now - 100,
     })
 
     const weeklyRes = await fetchNativeApi(
@@ -316,15 +316,15 @@ describe('flow metrics (PROJ-252)', () => {
 
     const oldIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Old' })
     await stampFlowTimestamps(oldIssue.id, {
-      readyAt: now - 7 * WEEK,
       claimedAt: now - 7 * WEEK + 100,
       doneAt: now - 7 * WEEK + 200,
+      readyAt: now - 7 * WEEK,
     })
     const recentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Recent' })
     await stampFlowTimestamps(recentIssue.id, {
-      readyAt: now - 100,
       claimedAt: now - 50,
       doneAt: now,
+      readyAt: now - 100,
     })
 
     const metrics = await getFlowMetrics()
@@ -375,9 +375,9 @@ describe('flow metrics (PROJ-252)', () => {
 
     const modernIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Modern issue' })
     await stampFlowTimestamps(modernIssue.id, {
-      readyAt: now - 300,
       claimedAt: now - 200,
       doneAt: now,
+      readyAt: now - 300,
     })
 
     const metrics = await getFlowMetrics()
@@ -414,7 +414,7 @@ describe('flow metrics (PROJ-252)', () => {
   test('computes review latency (in_review -> done)', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Reviewed' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampReviewFields(issue.id, { inReviewAt: now - 100 })
 
     const metrics = await getFlowMetrics()
@@ -427,7 +427,7 @@ describe('flow metrics (PROJ-252)', () => {
   test('counts human comments + review bounces as human interventions, excluding agent comments', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Intervened' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampReviewFields(issue.id, { inReviewAt: now - 100, reviewBounceCount: 2 })
     await seedComment(issue.id, userId, 'Looks good', 'human')
     await seedComment(issue.id, userId, 'wip update', 'agent')
@@ -446,7 +446,7 @@ describe('flow metrics (PROJ-252)', () => {
   test('computes autonomy ratio as lease-held time over cycle time', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Leased' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampLease(crypto.randomUUID(), issue.id, now - 400, now - 200)
 
     const metrics = await getFlowMetrics()
@@ -458,7 +458,7 @@ describe('flow metrics (PROJ-252)', () => {
   test('clamps autonomy ratio to 1 when leases held time exceeds cycle time', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Over-leased' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     // Lease still held past doneAt (released_at NULL) — counts through doneAt, not "now".
     await stampLease(crypto.randomUUID(), issue.id, now - 400, null)
 
@@ -485,21 +485,21 @@ describe('flow metrics (PROJ-252)', () => {
 
     // Sits in backlog/todo for the whole window.
     await seedIssue(workspaceId, projectId, userId, {
-      title: 'Backlog',
       createdAt: since - DAY - 100,
+      title: 'Backlog',
     })
 
     // Claimed mid-window, never reaches review or done — in_progress by the end.
     const inProgressIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In progress',
       createdAt: since - DAY - 100,
+      title: 'In progress',
     })
     await stampFlowTimestamps(inProgressIssue.id, { claimedAt: since + WEEK })
 
     // Reaches review a week before `until` and finishes right at `until`.
     const doneIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Done',
       createdAt: since - DAY - 100,
+      title: 'Done',
     })
     await stampFlowTimestamps(doneIssue.id, {
       claimedAt: since + 10,
@@ -555,13 +555,13 @@ describe('flow metrics (PROJ-252)', () => {
     const now = currentEpochSeconds()
 
     const burstIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Created and finished this week',
       createdAt: now - 100,
+      title: 'Created and finished this week',
     })
     await stampFlowTimestamps(burstIssue.id, {
-      readyAt: now - 90,
       claimedAt: now - 60,
       doneAt: now - 10,
+      readyAt: now - 90,
     })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?granularity=week`, {
@@ -577,7 +577,7 @@ describe('flow metrics (PROJ-252)', () => {
   test('computes time in progress (claimed -> next stage) for issues completing in the window', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Progressed' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampReviewFields(issue.id, { inReviewAt: now - 100 })
 
     const metrics = await getFlowMetrics()
@@ -596,17 +596,17 @@ describe('flow metrics (PROJ-252)', () => {
     const until = now
 
     // Created this window, not yet done: counts as an arrival, not a completion.
-    await seedIssue(workspaceId, projectId, userId, { title: 'New arrival', createdAt: now - 100 })
+    await seedIssue(workspaceId, projectId, userId, { createdAt: now - 100, title: 'New arrival' })
 
     // Created before the window, completed inside it: counts as a completion only.
     const completedIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Completed',
       createdAt: now - 10 * WEEK,
+      title: 'Completed',
     })
     await stampFlowTimestamps(completedIssue.id, {
-      readyAt: now - 300,
       claimedAt: now - 200,
       doneAt: now - 50,
+      readyAt: now - 300,
     })
 
     const res = await fetchNativeApi(
@@ -629,7 +629,7 @@ describe('flow metrics (PROJ-252)', () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Queued then leased' })
     // Ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 300, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 300, doneAt: now, readyAt: now - 500 })
     // 150s held
     await stampLease(crypto.randomUUID(), issue.id, now - 300, now - 150)
 
@@ -648,16 +648,16 @@ describe('flow metrics (PROJ-252)', () => {
     const now = currentEpochSeconds()
 
     const oldInProgress = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Stuck in progress',
-      status: 'in_progress',
       createdAt: now - 30 * DAY,
+      status: 'in_progress',
+      title: 'Stuck in progress',
     })
     await stampFlowTimestamps(oldInProgress.id, { claimedAt: now - 20 * DAY })
 
     const inReview = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In review',
-      status: 'in_review',
       createdAt: now - 5 * DAY,
+      status: 'in_review',
+      title: 'In review',
     })
     await stampFlowTimestamps(inReview.id, { claimedAt: now - 2 * DAY })
 

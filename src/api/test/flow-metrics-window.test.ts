@@ -171,36 +171,36 @@ describe('covers PROJ-866: bucket-rewrite fidelity (snapshot on a representative
     // Still in backlog for the whole window.
     await seedIssueWithStamps('Backlog', { createdAt: since - DAY })
     // In progress by the end of the window.
-    await seedIssueWithStamps('In progress', { createdAt: since - DAY, claimedAt: since + WEEK })
+    await seedIssueWithStamps('In progress', { claimedAt: since + WEEK, createdAt: since - DAY })
     // A bug completed inside the window, having gone through review.
     await seedIssueWithStamps('Bug done', {
-      createdAt: since - DAY,
-      readyAt: since - DAY,
       claimedAt: since + 10,
-      inReviewAt: since + WEEK,
+      createdAt: since - DAY,
       doneAt: since + WEEK + 100,
+      inReviewAt: since + WEEK,
+      readyAt: since - DAY,
       typeKey: 'bug',
     })
     // A non-bug completed just before the window's end.
     await seedIssueWithStamps('Feature done', {
-      createdAt: since + 5,
-      readyAt: since + 5,
       claimedAt: since + 20,
+      createdAt: since + 5,
       doneAt: until - 10,
+      readyAt: since + 5,
       typeKey: 'feature',
     })
     // Created inside the window, not yet done — an arrival with no completion.
     await seedIssueWithStamps('New arrival', { createdAt: until - 100 })
     // Done well before the window: in the CFD done band at every sample.
     await seedIssueWithStamps('Done long ago', {
-      createdAt: since - 4 * WEEK,
       claimedAt: since - 3 * WEEK,
+      createdAt: since - 4 * WEEK,
       doneAt: since - 2 * WEEK,
     })
     // Done after the first WIP sample (the day start) but before `since`: WIP there.
     await seedIssueWithStamps('Done just before since', {
-      createdAt: since - WEEK,
       claimedAt: since - DAY,
+      createdAt: since - WEEK,
       doneAt: since - 60,
     })
 
@@ -384,14 +384,14 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
     }
     // Created after the (past) `until`, still open now.
     const newer = await insert('Created after until', {
-      createdAt: now - 10 * DAY,
       claimedAt: now - 9 * DAY,
+      createdAt: now - 10 * DAY,
       doneAt: null,
     })
     // Reopened: its write-once done_at predates `since`, but it's in progress now.
     const reopened = await insert('Reopened', {
-      createdAt: now - 100 * DAY,
       claimedAt: now - 95 * DAY,
+      createdAt: now - 100 * DAY,
       doneAt: now - 90 * DAY,
     })
 
