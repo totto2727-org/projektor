@@ -23,7 +23,7 @@ const priorityBadge = function priorityBadge(result: SearchResult): JSX.Element 
 }
 
 const statusBadge = function statusBadge(result: SearchResult): JSX.Element {
-  return <span className='font-medium text-sm text-text-muted'>{result.status.replace(/_/gu, ' ')}</span>
+  return <span className='font-medium text-sm text-text-muted'>{result.status.replaceAll('_', ' ')}</span>
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.

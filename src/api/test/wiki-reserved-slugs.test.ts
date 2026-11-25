@@ -99,7 +99,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     await env.DB.batch([search.stmt, exportPage.stmt, exportTaken.stmt, trashed.stmt])
 
     const statements = m0060
-      .replace(/--[^\n]*/g, '')
+      .replaceAll(/--[^\n]*/g, '')
       .split(';')
       .map((statement) => statement.trim())
       .filter((statement) => String.isNonEmpty(statement))
@@ -115,7 +115,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
       )?.slug
     await expect(slugOf(search.id)).resolves.toBe('search-page')
     await expect(slugOf(exportTaken.id)).resolves.toBe('export-page')
-    await expect(slugOf(exportPage.id)).resolves.toBe(`export-page-${exportPage.id.replace(/-/gu, '').slice(0, 8)}`)
+    await expect(slugOf(exportPage.id)).resolves.toBe(`export-page-${exportPage.id.replaceAll('-', '').slice(0, 8)}`)
     await expect(slugOf(trashed.id)).resolves.toBe('trash-page')
 
     const reservedLeft = await env.DB.prepare(

@@ -280,7 +280,7 @@ export const searchDataWikiAttachments = function searchDataWikiAttachments(
       .trim()
       .split(/\s+/u)
       .filter((word) => /\w/u.test(word))
-      .map((word) => `"${word.replace(/"/gu, '""')}"`)
+      .map((word) => `"${word.replaceAll('"', '""')}"`)
       .join(' ')
     if (!ftsQuery) {
       return []

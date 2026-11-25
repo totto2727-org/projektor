@@ -78,7 +78,7 @@ describe('covers PROJ-889: auth middleware records method + credential', () => {
 
   test('a pk_ workspace token → method pk, with its api_tokens id and scopes', async () => {
     const { workspace, user } = await seedFixture()
-    const raw = `pk_${crypto.randomUUID().replace(/-/gu, '')}`
+    const raw = `pk_${crypto.randomUUID().replaceAll('-', '')}`
     const id = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, created_at)

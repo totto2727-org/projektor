@@ -27,7 +27,7 @@ const declaredFkActions = function declaredFkActions(): Set<string> {
   Iterable.forEach(
     readdirSync(MIGRATIONS).filter((selectedFile) => selectedFile.endsWith('.sql')),
     (file): void => {
-      const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '')
+      const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replaceAll(/--[^\n]*/g, '')
       Iterable.forEach(sql.split(';'), (stmt) => {
         const table =
           /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(\w+)[`"]?/i.exec(stmt) ??
@@ -68,7 +68,7 @@ const declarationSource = function declarationSource(ref: string): string | null
 }
 
 const camel = function camel(snake: string): string {
-  return snake.replace(/_([a-z])/gu, (_match, c: string) => c.toUpperCase())
+  return snake.replaceAll(/_([a-z])/gu, (_match, c: string) => c.toUpperCase())
 }
 
 describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {

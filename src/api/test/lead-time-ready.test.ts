@@ -122,7 +122,7 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
         .run()
     }
     const repair = m0062
-      .replace(/--[^\n]*/g, '')
+      .replaceAll(/--[^\n]*/g, '')
       .split(';')
       .map((statement) => statement.trim())
       .find((statement) => statement.startsWith('UPDATE'))

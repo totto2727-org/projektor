@@ -97,12 +97,12 @@ export const resolveWikiPageForSsr = async function resolveWikiPageForSsr(
 
 const plainTextExcerpt = function plainTextExcerpt(markdown: string, maxLen = 200): string {
   const plain = markdown
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/\[\[([^\]|]*)(\|[^\]]*)?\]\]/g, '$1')
-    .replace(/[#>*_`~-]/gu, ' ')
-    .replace(/\s+/gu, ' ')
+    .replaceAll(/```[\s\S]*?```/g, ' ')
+    .replaceAll(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replaceAll(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replaceAll(/\[\[([^\]|]*)(\|[^\]]*)?\]\]/g, '$1')
+    .replaceAll(/[#>*_`~-]/gu, ' ')
+    .replaceAll(/\s+/gu, ' ')
     .trim()
   return plain.length > maxLen ? `${plain.slice(0, maxLen - 1)}…` : plain
 }

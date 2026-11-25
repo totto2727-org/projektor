@@ -39,7 +39,7 @@ export const handleApiBinaryRequest = async function handleApiBinaryRequest(
       return new Response(stream, {
         headers: {
           'Content-Type': 'application/zip',
-          'Content-Disposition': `attachment; filename="${filename.replace(/[\r\n"\\]/gu, '_')}"`,
+          'Content-Disposition': `attachment; filename="${filename.replaceAll(/[\r\n"\\]/gu, '_')}"`,
           'X-Content-Type-Options': 'nosniff',
         },
       })

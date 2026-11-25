@@ -67,7 +67,7 @@ const RootLayout = EFFRONT.Layout.make({
               type='font/woff2'
               crossOrigin='anonymous'
             />
-            <title>{pageTitle(services.url.pathname).replace(/Projektor/gu, brand.name)}</title>
+            <title>{pageTitle(services.url.pathname).replaceAll('Projektor', brand.name)}</title>
           </head>
           <body>
             <Shell

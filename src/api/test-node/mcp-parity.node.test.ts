@@ -144,7 +144,7 @@ const expandToFiles = function expandToFiles(path: string): string[] {
 }
 
 const snakeCase = function snakeCase(name: string): string {
-  return name.replace(/([a-z0-9])([A-Z])/gu, '$1_$2').toLowerCase()
+  return name.replaceAll(/([a-z0-9])([A-Z])/gu, '$1_$2').toLowerCase()
 }
 
 /** Qualified import bindings keep facade names distinct from their canonical domain operations. */

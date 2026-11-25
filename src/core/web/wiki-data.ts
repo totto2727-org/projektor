@@ -133,7 +133,7 @@ export const loadWikiData = function loadWikiData(
       .trim()
       .split(/\s+/u)
       .filter((token) => Boolean(token) && /\w/u.test(token))
-      .map((token) => `"${token.replace(/"/gu, '""')}"`)
+      .map((token) => `"${token.replaceAll('"', '""')}"`)
       .join(' ')
     // Serialize the same app-authored visibility predicate for the shared raw FTS query.
     const rawVisibility = yield* Effect.try({

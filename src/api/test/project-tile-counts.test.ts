@@ -119,7 +119,7 @@ describe('migration 0066: repairs drifted status_category (PROJ-849)', () => {
     })
 
     const repairSql = m0066
-      .replace(/--[^\n]*/g, '')
+      .replaceAll(/--[^\n]*/g, '')
       .split(';')
       .map((statement) => statement.trim())
       .filter(Boolean)

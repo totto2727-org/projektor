@@ -47,8 +47,8 @@ export const issueHref = function issueHref(issue: SprintIssue, workspaceSlug: s
   }
   const slug = issue.title
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/^-|-$/g, '')
   return `/projects/${encodeURIComponent(issue.project_key)}/issues/${issue.number}/${slug}?workspace=${encodeURIComponent(workspaceSlug)}`
 }
 export const defaultRange = function defaultRange(now = new Date()): RangeState {

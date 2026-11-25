@@ -78,7 +78,7 @@ const seedWikiPage = async function seedWikiPage(
 ) {
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
-  const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replace(/\s+/gu, '-')
+  const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replaceAll(/\s+/gu, '-')
   const updatedAt = opts.updatedAt ?? now
   await env.DB.prepare(
     `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id,

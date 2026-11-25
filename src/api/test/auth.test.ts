@@ -44,9 +44,9 @@ import { ErrorMessageResponse, TokenResponse, readNativeJson } from './response-
 
 const b64urlEncode = function b64urlEncode(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/gu, '-')
-    .replace(/\//gu, '_')
-    .replace(/=/gu, '')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
 }
 
 const encodeJwtPart = function encodeJwtPart(obj: unknown): string {
@@ -330,13 +330,13 @@ describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
   test('covers JWT with non-RS256 alg header returns 401', async () => {
     // Header: {"alg":"HS256"}, payload: {"exp": far-future, "email":"x"}, bogus sig
     const header = btoa(JSON.stringify({ alg: 'HS256' }))
-      .replace(/\+/gu, '-')
-      .replace(/\//gu, '_')
-      .replace(/=/gu, '')
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replaceAll('=', '')
     const payload = btoa(JSON.stringify({ exp: currentEpochSeconds() + 3600, email: 'x@x.com' }))
-      .replace(/\+/gu, '-')
-      .replace(/\//gu, '_')
-      .replace(/=/gu, '')
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replaceAll('=', '')
     const jwt = `${header}.${payload}.fakesig`
 
     const res = await fetchNativeApi('http://localhost/api/issues', {

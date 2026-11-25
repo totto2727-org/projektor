@@ -76,7 +76,7 @@ const fixture = async function fixture(
   // The shared relational fixture skips FTS-dependent migrations for portability.
   // Wiki commands exercise real FTS5 here using those exact maintained statements.
   Iterable.forEach(loadMigrations(), (migration) => {
-    Iterable.forEach(migration.replace(/--[^\n]*/g, '').split(';'), (statement) => {
+    Iterable.forEach(migration.replaceAll(/--[^\n]*/g, '').split(';'), (statement) => {
       if (/\bwiki_fts(?:_new)?\b/i.test(statement)) {
         database.sqlite.exec(statement)
       }

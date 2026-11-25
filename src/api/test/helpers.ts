@@ -57,7 +57,7 @@ export const seedToken = async function seedToken(
   userId: string,
   opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>,
 ): Promise<string> {
-  const raw = `tok_${crypto.randomUUID().replace(/-/gu, '')}`
+  const raw = `tok_${crypto.randomUUID().replaceAll('-', '')}`
   const hash = await hashToken(raw)
   const now = currentEpochSeconds()
   await env.DB.prepare(
@@ -89,7 +89,7 @@ export const seedUserToken = async function seedUserToken(
   userId: string,
   opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>,
 ): Promise<string> {
-  const raw = `tok_${crypto.randomUUID().replace(/-/gu, '')}`
+  const raw = `tok_${crypto.randomUUID().replaceAll('-', '')}`
   const hash = await hashToken(raw)
   const now = currentEpochSeconds()
   await env.DB.prepare(

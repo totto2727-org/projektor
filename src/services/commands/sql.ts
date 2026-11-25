@@ -31,7 +31,7 @@ export const sanitizeFtsQuery = function sanitizeFtsQuery(q: string): string {
     .trim()
     .split(/\s+/u)
     .filter((t) => Boolean(t) && /\w/u.test(t))
-    .map((t) => `"${t.replace(/"/gu, '""')}"`)
+    .map((t) => `"${t.replaceAll('"', '""')}"`)
     .join(' ')
 }
 

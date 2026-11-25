@@ -135,7 +135,7 @@ describe('schema constraints', () => {
     db.exec('PRAGMA foreign_keys = ON;')
     const splitStatements = (sql: string): string[] =>
       sql
-        .replace(/--[^\n]*/g, '')
+        .replaceAll(/--[^\n]*/g, '')
         .split(';')
         .map((statement) => statement.trim())
         .filter((statement) => String.isNonEmpty(statement))

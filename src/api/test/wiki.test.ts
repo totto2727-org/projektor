@@ -6913,7 +6913,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
   test('rejects an explicit slug shaped like a dashed or undashed page id', async () => {
     const dashed = await create({ title: 'A', slug: crypto.randomUUID() })
     expect(dashed.status).toBe(400)
-    const hex = await create({ title: 'B', slug: crypto.randomUUID().replace(/-/gu, '') })
+    const hex = await create({ title: 'B', slug: crypto.randomUUID().replaceAll('-', '') })
     expect(hex.status).toBe(400)
   })
 

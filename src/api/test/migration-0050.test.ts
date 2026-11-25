@@ -17,7 +17,7 @@ import { seedUser, seedWorkspace } from './helpers.ts'
 
 const splitStatements = function splitStatements(sql: string): string[] {
   return sql
-    .replace(/--[^\n]*/g, '')
+    .replaceAll(/--[^\n]*/g, '')
     .split(';')
     .map((statement) => statement.trim())
     .filter((statement) => String.isNonEmpty(statement))

@@ -21,7 +21,7 @@ import { OAUTH_SCOPES_SUPPORTED } from './scopes.ts'
  * challenge header that can be broken by its own payload is not worth the gamble.
  */
 const quote = function quote(value: string): string {
-  return `"${value.replace(/[\\"]/gu, (ch) => `\\${ch}`)}"`
+  return `"${value.replaceAll(/[\\"]/gu, (ch) => `\\${ch}`)}"`
 }
 
 const bearerChallenge = function bearerChallenge(params: Readonly<Record<string, string>>): string {

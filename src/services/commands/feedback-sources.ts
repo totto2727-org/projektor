@@ -41,7 +41,7 @@ const sha256hex = async function sha256hex(input: string): Promise<string> {
 }
 
 const newRawToken = function newRawToken(): string {
-  return `fbk_${crypto.randomUUID().replace(/-/gu, '')}${crypto.randomUUID().replace(/-/gu, '')}`
+  return `fbk_${crypto.randomUUID().replaceAll('-', '')}${crypto.randomUUID().replaceAll('-', '')}`
 }
 
 interface SourceRow {

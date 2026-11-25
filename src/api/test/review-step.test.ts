@@ -134,7 +134,7 @@ describe("covers PROJ-749: migration 0061 backfill preserves today's behaviour",
         .run()
     }
     const backfill = m0061
-      .replace(/--[^\n]*/g, '')
+      .replaceAll(/--[^\n]*/g, '')
       .split(';')
       .map((statement) => statement.trim())
       .find((statement) => statement.startsWith('UPDATE'))

@@ -250,7 +250,7 @@ const collectAttachments = async function collectAttachments(
 
 const safeZipPathSegment = function safeZipPathSegment(value: string): string {
   // oxlint-disable-next-line no-control-regex -- Intentionally strip control characters from ZIP entry names.
-  const stripped = value.replace(/[\\/]/gu, '_').replace(/[\x00-\x1f]/g, '')
+  const stripped = value.replaceAll(/[\\/]/gu, '_').replaceAll(/[\x00-\x1f]/g, '')
   return /^\.+$/u.test(stripped) ? '_' : stripped
 }
 

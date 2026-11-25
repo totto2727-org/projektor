@@ -57,7 +57,7 @@ const isLabelLine = function isLabelLine(line: string, m: LabelMatchers): boolea
   }
 
   // A plain line only counts when the label is a "Label:" prefix, not mid-sentence.
-  const stripped = t.replace(/^[-*]\s+/u, '').replace(/\*\*/gu, '')
+  const stripped = t.replace(/^[-*]\s+/u, '').replaceAll('**', '')
   return m.prefix.test(stripped)
 }
 
@@ -75,8 +75,8 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
 
   const inline = lines[idx]
     .replace(/^[#\-*\s]+/u, '')
-    .replace(/\*\*/gu, '')
-    .replace(/`/gu, '')
+    .replaceAll('**', '')
+    .replaceAll('`', '')
   const sepIdx = inline.search(/[:—–]/u)
   const afterColon = sepIdx === -1 ? '' : inline.slice(sepIdx + 1).trim()
   if (String.isNonEmpty(afterColon)) {

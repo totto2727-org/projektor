@@ -472,7 +472,7 @@ export const searchIssues = function searchIssues(
       .trim()
       .split(/\s+/u)
       .filter((t) => Boolean(t) && /\w/u.test(t))
-      .map((t) => `"${t.replace(/"/gu, '""')}"`)
+      .map((t) => `"${t.replaceAll('"', '""')}"`)
       .join(' ')
     if (!query) {
       return []

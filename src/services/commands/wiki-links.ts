@@ -819,7 +819,7 @@ const extractSnippet = function extractSnippet(content: string, targetTitle: str
   const SNIPPET_RADIUS = 60
   const start = Math.max(0, idx - SNIPPET_RADIUS)
   const end = Math.min(content.length, idx + marker.length + SNIPPET_RADIUS)
-  const text = content.slice(start, end).replace(/\s+/gu, ' ').trim()
+  const text = content.slice(start, end).replaceAll(/\s+/gu, ' ').trim()
   return `${start > 0 ? '…' : ''}${text}${end < content.length ? '…' : ''}`
 }
 

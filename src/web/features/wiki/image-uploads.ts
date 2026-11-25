@@ -62,7 +62,7 @@ export const insertUploadedImages = async function insertUploadedImages(
       if (Predicate.isNullish(url) || String.isEmpty(url)) {
         continue
       }
-      const label = file.name.replace(/[\\[\]]/gu, '\\$&')
+      const label = file.name.replaceAll(/[\\[\]]/gu, '\\$&')
       view.dispatch({ changes: { from: anchor.position, insert: `![${label}](${url})\n` } })
     }
   } finally {

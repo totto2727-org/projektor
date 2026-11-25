@@ -47,9 +47,9 @@ const CF_AUDIENCE = 'oauth-test-audience'
 
 const b64url = function b64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/gu, '-')
-    .replace(/\//gu, '_')
-    .replace(/=/gu, '')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
 }
 
 let signingKey: CryptoKey

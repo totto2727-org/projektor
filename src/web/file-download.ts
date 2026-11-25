@@ -53,7 +53,7 @@ export const downloadFile = function downloadFile(
     const inline = INLINE_TYPES.has(contentType)
     const headers = {
       'content-type': inline ? contentType : 'application/octet-stream',
-      'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${filename.replace(/[\r\n"\\]/gu, '_')}"`,
+      'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${filename.replaceAll(/[\r\n"\\]/gu, '_')}"`,
       'x-content-type-options': 'nosniff',
       'content-security-policy': "sandbox; default-src 'none'",
       'cache-control': 'private, no-store',

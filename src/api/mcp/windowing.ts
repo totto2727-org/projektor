@@ -112,9 +112,9 @@ export const outlineOf = function outlineOf(content: string): string[] {
 const slugify = function slugify(s: string): string {
   return s
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replaceAll(/[^\p{L}\p{N}\s-]/gu, '')
     .trim()
-    .replace(/\s+/gu, '-')
+    .replaceAll(/\s+/gu, '-')
 }
 
 /**

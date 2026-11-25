@@ -68,7 +68,7 @@ const FlowChart = function FlowChart({
   const id = useId()
   return (
     <ChartContainer
-      id={`flow-${name}-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`}
+      id={`flow-${name}-${id.replaceAll(/[^a-zA-Z0-9_-]/g, '')}`}
       config={config}
       className='h-[220px] min-h-[220px] w-full aspect-auto'
       data-testid={`flow-chart-${name}`}
