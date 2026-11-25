@@ -170,12 +170,12 @@ type SubrequestBudget = ReturnType<typeof createSubrequestBudget>
 const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database {
   const reads = new Set(['all', 'first', 'raw', 'run'])
   return new Proxy(db, {
-    get(target, property, receiver) {
+    get(target, property, receiver): unknown {
       if (property === 'prepare') {
         return (sql: string) => {
           const statement = Reflect.get(target, 'prepare', receiver).call(target, sql)
           return new Proxy(statement, {
-            get(statementTarget, statementProperty, statementReceiver) {
+            get(statementTarget, statementProperty, statementReceiver): unknown {
               if (statementProperty === 'bind') {
                 return (...args: unknown[]) => {
                   const bound = Reflect.get(statementTarget, 'bind', statementReceiver).call(statementTarget, ...args)
@@ -193,7 +193,7 @@ const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: Subre
                   })
                 }
               }
-              const original = Reflect.get(statementTarget, statementProperty, statementReceiver)
+              const original: unknown = Reflect.get(statementTarget, statementProperty, statementReceiver)
               return Predicate.isFunction(original) ? original.bind(statementTarget) : original
             },
           })
@@ -205,7 +205,7 @@ const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: Subre
           return Reflect.get(target, 'batch', receiver).call(target, statements)
         }
       }
-      const original = Reflect.get(target, property, receiver)
+      const original: unknown = Reflect.get(target, property, receiver)
       return Predicate.isFunction(original) ? original.bind(target) : original
     },
   })
@@ -213,12 +213,12 @@ const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: Subre
 
 const wrapCallsWithBudget = function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudget): T {
   return new Proxy(target, {
-    get(object, property, receiver) {
-      const original = Reflect.get(object, property, receiver)
+    get(object, property, receiver): unknown {
+      const original: unknown = Reflect.get(object, property, receiver)
       if (!Predicate.isFunction(original)) {
         return original
       }
-      return (...args: unknown[]) => {
+      return (...args: unknown[]): unknown => {
         budget.spend()
         return original.apply(object, args)
       }
