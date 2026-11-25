@@ -8,12 +8,28 @@ import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
+import { JSON_RPC_INVALID_PARAMS } from './json-rpc.ts'
+
+const MCP_SERVER_ERROR_CODE = -32_000
+
 const validationIssueFields = fieldsInOrder([
   ['formErrors', z.array(z.string())],
   ['fieldErrors', z.record(z.string(), z.array(z.string()).optional())],
 ])
 
 const ValidationIssues = z.object(validationIssueFields)
+
+const rpcErrorWithData = function rpcErrorWithData(
+  code: number,
+  message: string,
+  data: unknown,
+): { code: number; message: string; data: unknown } {
+  return fieldsInOrder([
+    ['code', code],
+    ['message', message],
+    ['data', data],
+  ])
+}
 
 const MAX_DETAIL_VALUE_CHARS = 80
 const MAX_DETAIL_SUMMARY_CHARS = 300
@@ -88,13 +104,9 @@ const toMcpValidationError = function toMcpValidationError(err: { issues: ZodFla
   data?: unknown
 } {
   if (!hasIssues(err.issues)) {
-    return { code: -32_602, message: 'Invalid params', data: err.issues }
+    return rpcErrorWithData(JSON_RPC_INVALID_PARAMS, 'Invalid params', err.issues)
   }
-  return {
-    code: -32_602,
-    message: `Invalid params (${summarizeIssues(err.issues)})`,
-    data: err.issues,
-  }
+  return rpcErrorWithData(JSON_RPC_INVALID_PARAMS, `Invalid params (${summarizeIssues(err.issues)})`, err.issues)
 }
 
 /*
@@ -110,7 +122,7 @@ const toMcpServiceErrorWithDetails = function toMcpServiceErrorWithDetails(
   if (!hasDetails(details)) {
     return { code: -32_000, message }
   }
-  return { code: -32_000, message: `${message} (${summarizeDetails(details)})`, data: details }
+  return rpcErrorWithData(MCP_SERVER_ERROR_CODE, `${message} (${summarizeDetails(details)})`, details)
 }
 
 export const toMcpError = function toMcpError(
@@ -150,16 +162,12 @@ export const toMcpError = function toMcpError(
       }
       default: {
         console.error(`[mcp] unhandled ServiceError kind (request ${requestId}):`, err.kind, err)
-        return {
-          code: -32_000,
-          message: `Internal error (request: ${requestId})`,
-          data: { requestId },
-        }
+        return rpcErrorWithData(MCP_SERVER_ERROR_CODE, `Internal error (request: ${requestId})`, { requestId })
       }
     }
   }
   console.error(`[mcp] unhandled error in tools/call (request ${requestId}):`, err)
-  return { code: -32_000, message: `Internal error (request: ${requestId})`, data: { requestId } }
+  return rpcErrorWithData(MCP_SERVER_ERROR_CODE, `Internal error (request: ${requestId})`, { requestId })
 }
 
 /*

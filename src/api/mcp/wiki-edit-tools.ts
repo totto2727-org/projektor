@@ -11,19 +11,23 @@ import { WELL_KNOWN_TYPES } from './wiki-tool-fields.ts'
 
 export const wikiEditTools: MCPTool[] = [
   {
-    name: 'create_wiki_page',
-    description:
-      'Create a new wiki page. `content` may start with an optional YAML frontmatter block ' +
-      '(`---\\ntype: runbook\\ntags: [foo]\\nstatus: draft\\n---\\n...`) — type (freeform; ' +
-      `well-known values ${WELL_KNOWN_TYPES}), tags[], status (draft|current|stale|` +
-      'deprecated), verified_at, verified_by, owners[], verify_interval (days), template ' +
-      '(boolean) are parsed and denormalised for filtering. Invalid frontmatter (bad status/' +
-      'enum, wrong type, unrecognised key) is rejected with a structured error, not ignored. ' +
-      'Alternatively, pass `templateSlug` (from ' +
-      "list_wiki_templates) to seed this page's content from an existing template page — " +
-      'its `template: true` flag is stripped from the seeded content (the new page is not ' +
-      'itself a template). `templateSlug` and `content` are mutually exclusive; a ' +
-      "`templateSlug` that doesn't resolve to a page flagged template:true is rejected.",
+    ...fieldsInOrder([
+      ['name', 'create_wiki_page'],
+      [
+        'description',
+        'Create a new wiki page. `content` may start with an optional YAML frontmatter block ' +
+          '(`---\\ntype: runbook\\ntags: [foo]\\nstatus: draft\\n---\\n...`) — type (freeform; ' +
+          `well-known values ${WELL_KNOWN_TYPES}), tags[], status (draft|current|stale|` +
+          'deprecated), verified_at, verified_by, owners[], verify_interval (days), template ' +
+          '(boolean) are parsed and denormalised for filtering. Invalid frontmatter (bad status/' +
+          'enum, wrong type, unrecognised key) is rejected with a structured error, not ignored. ' +
+          'Alternatively, pass `templateSlug` (from ' +
+          "list_wiki_templates) to seed this page's content from an existing template page — " +
+          'its `template: true` flag is stripped from the seeded content (the new page is not ' +
+          'itself a template). `templateSlug` and `content` are mutually exclusive; a ' +
+          "`templateSlug` that doesn't resolve to a page flagged template:true is rejected.",
+      ],
+    ]),
     inputSchema: requiredObjectInputSchema(
       ['title'],
       fieldsInOrder([
@@ -49,7 +53,7 @@ export const wikiEditTools: MCPTool[] = [
         ['projectId', describedInputProperty('string', 'Project ID to scope this page to')],
       ]),
     ),
-    annotations: CREATE,
+    ...fieldsInOrder([['annotations', CREATE]]),
     async handler(input, ctx) {
       return await wikiService.createWikiPage(ctx, input)
     },

@@ -20,6 +20,8 @@ import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS
 import type { MCPTool } from './types.ts'
 import { bodyPreview, ISSUE_BODY_MAX_CHARS, LIST_BODY_MAX_CHARS, windowText } from './windowing.ts'
 
+const NO_BODY_PREVIEW_CHARS = 0
+
 const DEFAULT_ISSUE_LIST_LIMIT = 50
 const DEFAULT_ISSUE_SEARCH_LIMIT = 20
 const DEFAULT_PRIORITIZED_ISSUE_LIMIT = 10
@@ -32,14 +34,16 @@ const COMPLETION_REPORT_PROPERTIES = fieldsInOrder([
 ])
 
 const BODY_CHARS_PROP = {
-  bodyChars: {
-    type: 'number',
-    default: 0,
-    description:
+  bodyChars: fieldsInOrder([
+    ['type', 'number'],
+    ['default', NO_BODY_PREVIEW_CHARS],
+    [
+      'description',
       `Include the first N characters of each item's body (0-${LIST_BODY_MAX_CHARS}, default 0 = ` +
-      'no body); a cut body carries `bodyTruncated:true`. Read the rest with get_issue. ' +
-      '`includeBody:true` still returns whole bodies.',
-  },
+        'no body); a cut body carries `bodyTruncated:true`. Read the rest with get_issue. ' +
+        '`includeBody:true` still returns whole bodies.',
+    ],
+  ]),
 } as const
 
 /** Splits MCP-only `bodyChars` off the input; asks the service for bodies when it's set. */
@@ -49,7 +53,10 @@ const splitBodyChars = function splitBodyChars(rest: Record<string, unknown>): {
 } {
   const { bodyChars, ...others } = rest
   if (bodyChars === undefined) {
-    return { rest: others, bodyChars: 0 }
+    return fieldsInOrder([
+      ['rest', others],
+      ['bodyChars', NO_BODY_PREVIEW_CHARS],
+    ])
   }
   if (!Number.isInteger(bodyChars) || (bodyChars as number) < 0 || (bodyChars as number) > LIST_BODY_MAX_CHARS) {
     throw new ValidationError(
@@ -75,13 +82,17 @@ const withBodyPreview = function withBodyPreview(
 
 export const issuesTools: MCPTool[] = [
   {
-    name: 'list_issues',
-    description:
-      'List issues in the workspace, optionally filtered by status, priority, project, or assignee. ' +
-      'Items omit `body` by default — pass bodyChars:N (max 1000) for a preview, or includeBody:true for whole bodies. Pass includeRollups:true ' +
-      'to attach a `rollup` (child status counts: total/byStatus/done/remaining) to each item ' +
-      '(a zero rollup is omitted unless verbose:true). ' +
-      OMISSION_NOTE,
+    ...fieldsInOrder([
+      ['name', 'list_issues'],
+      [
+        'description',
+        'List issues in the workspace, optionally filtered by status, priority, project, or assignee. ' +
+          'Items omit `body` by default — pass bodyChars:N (max 1000) for a preview, or includeBody:true for whole bodies. Pass includeRollups:true ' +
+          'to attach a `rollup` (child status counts: total/byStatus/done/remaining) to each item ' +
+          '(a zero rollup is omitted unless verbose:true). ' +
+          OMISSION_NOTE,
+      ],
+    ]),
     inputSchema: objectInputSchema({
       ...fieldsInOrder([
         ['projectId', describedInputProperty('string', 'UUID of the project, or a project key like PROJ')],
@@ -189,7 +200,7 @@ export const issuesTools: MCPTool[] = [
       ...BODY_CHARS_PROP,
       ...VIEW_FIELDS_PROPS,
     }),
-    annotations: READ,
+    ...fieldsInOrder([['annotations', READ]]),
     async handler(input, ctx) {
       const { rest: shapeRest, ...shape } = splitShapeOpts(input)
       const { rest, bodyChars } = splitBodyChars(shapeRest)
@@ -215,11 +226,15 @@ export const issuesTools: MCPTool[] = [
     },
   },
   {
-    name: 'get_issue',
-    description:
-      `Get a single issue by ID or project key + number (e.g. "PROJ-42"). \`body\` is returned ` +
-      `up to ${ISSUE_BODY_MAX_CHARS} chars; if it is longer the result has \`bodyTruncated:true\`, ` +
-      `\`bodyTotalChars\` and \`next\` — pass \`next\` back as \`cursor\` for the rest. ${OMISSION_NOTE}`,
+    ...fieldsInOrder([
+      ['name', 'get_issue'],
+      [
+        'description',
+        `Get a single issue by ID or project key + number (e.g. "PROJ-42"). \`body\` is returned ` +
+          `up to ${ISSUE_BODY_MAX_CHARS} chars; if it is longer the result has \`bodyTruncated:true\`, ` +
+          `\`bodyTotalChars\` and \`next\` — pass \`next\` back as \`cursor\` for the rest. ${OMISSION_NOTE}`,
+      ],
+    ]),
     inputSchema: objectInputSchema({
       ...fieldsInOrder([
         ['id', { type: 'string' }],
@@ -231,7 +246,7 @@ export const issuesTools: MCPTool[] = [
       ]),
       ...VIEW_FIELDS_PROPS,
     }),
-    annotations: READ,
+    ...fieldsInOrder([['annotations', READ]]),
     async handler(input, ctx) {
       const { rest: shapeRest, ...shape } = splitShapeOpts(input)
       const { cursor, ...rest } = shapeRest as { cursor?: string } & Record<string, unknown>
@@ -254,14 +269,18 @@ export const issuesTools: MCPTool[] = [
     },
   },
   {
-    name: 'get_issues',
-    description:
-      'Fetch up to 50 issues in one call, by ref (e.g. PROJ-42) and/or id. Cheaper than ' +
-      'repeated get_issue calls for triage. Items carry customFields but no rollup/links/' +
-      'assignee_name, and omit `body` unless includeBody:true. Returned in the order refs/ids ' +
-      "were given; `missing` lists (once each) any requested ref/id that didn't resolve or " +
-      "isn't visible to you. " +
-      OMISSION_NOTE,
+    ...fieldsInOrder([
+      ['name', 'get_issues'],
+      [
+        'description',
+        'Fetch up to 50 issues in one call, by ref (e.g. PROJ-42) and/or id. Cheaper than ' +
+          'repeated get_issue calls for triage. Items carry customFields but no rollup/links/' +
+          'assignee_name, and omit `body` unless includeBody:true. Returned in the order refs/ids ' +
+          "were given; `missing` lists (once each) any requested ref/id that didn't resolve or " +
+          "isn't visible to you. " +
+          OMISSION_NOTE,
+      ],
+    ]),
     inputSchema: objectInputSchema({
       ...fieldsInOrder([
         [
@@ -285,7 +304,7 @@ export const issuesTools: MCPTool[] = [
       ...BODY_CHARS_PROP,
       ...VIEW_FIELDS_PROPS,
     }),
-    annotations: READ,
+    ...fieldsInOrder([['annotations', READ]]),
     async handler(input, ctx) {
       const { rest: shapeRest, ...shape } = splitShapeOpts(input)
       const { rest, bodyChars } = splitBodyChars(shapeRest)

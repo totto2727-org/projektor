@@ -67,28 +67,39 @@ export const ISSUE_FIELD_NAMES = [
 ] as const
 
 export const VIEW_FIELDS_PROPS = {
-  view: fieldsInOrder([
-    ['type', 'string'],
-    ['enum', ['summary', 'full']],
+  ...fieldsInOrder([
     [
-      'description',
-      'summary = {ref,title,status,priority,type,parent?,assignee?,updated} per issue; ' +
-        'full (default) = every non-empty field. See ' +
-        RESPONSE_CONVENTIONS_DOC,
+      'view',
+      fieldsInOrder([
+        ['type', 'string'],
+        ['enum', ['summary', 'full']],
+        [
+          'description',
+          'summary = {ref,title,status,priority,type,parent?,assignee?,updated} per issue; ' +
+            'full (default) = every non-empty field. See ' +
+            RESPONSE_CONVENTIONS_DOC,
+        ],
+      ]),
     ],
-  ]),
-  verbose: fieldsInOrder([
-    ['type', 'boolean'],
-    ['description', 'Include normally-omitted empty/default/internal fields (default false)'],
-  ]),
-  fields: fieldsInOrder([
-    ['type', ['array', 'string']],
-    ['items', { type: 'string' }],
     [
-      'description',
-      'Return only these fields (array, or comma-separated string), with their real values ' +
-        '(null if the issue has no such value). Every named field is always present. Unknown ' +
-        `names are rejected. See ${RESPONSE_CONVENTIONS_DOC}`,
+      'verbose',
+      fieldsInOrder([
+        ['type', 'boolean'],
+        ['description', 'Include normally-omitted empty/default/internal fields (default false)'],
+      ]),
+    ],
+    [
+      'fields',
+      fieldsInOrder([
+        ['type', ['array', 'string']],
+        ['items', { type: 'string' }],
+        [
+          'description',
+          'Return only these fields (array, or comma-separated string), with their real values ' +
+            '(null if the issue has no such value). Every named field is always present. Unknown ' +
+            `names are rejected. See ${RESPONSE_CONVENTIONS_DOC}`,
+        ],
+      ]),
     ],
   ]),
 } as const
