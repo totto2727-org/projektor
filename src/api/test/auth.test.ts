@@ -35,7 +35,7 @@ import {
   seedWorkspaceRoles,
   toolError,
 } from './helpers.ts'
-import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, fetchNativeMcpTool, requestOptionsWithBody } from './native-fetch.ts'
 import { ErrorMessageResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
@@ -1252,56 +1252,56 @@ describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
 // PROJ-79 §4: MCP error contract
 // ---------------------------------------------------------------------------
 
-describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
+type McpRequestAuth = Readonly<{ headers: Record<string, string>; workspaceId: string }>
 
-  beforeEach(async () => {
+interface McpErrorTestContext {
+  requestAuth: McpRequestAuth
+}
+
+interface McpErrorReply {
+  error?: { code: number; message: string }
+  id: unknown
+  jsonrpc: string
+  result?: { isError?: boolean }
+}
+
+const requestTool = async function requestTool(
+  { headers, workspaceId }: McpRequestAuth,
+  name: string,
+  args: unknown,
+): Promise<McpErrorReply> {
+  const response = await fetchNativeMcpTool(workspaceId, { arguments: args, name }, headers)
+  return response.json() as Promise<McpErrorReply>
+}
+
+// A service failure is a successful JSON-RPC response whose result is a tool error.
+const expectToolError = function expectToolError(resp: McpErrorReply, code: string): ReturnType<typeof toolError> {
+  expect('error' in resp).toBe(false)
+  expect(resp.result?.isError).toBe(true)
+  const err = toolError(resp)
+  expect(err?.code).toBe(code)
+  return err
+}
+
+describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes', () => {
+  beforeEach<McpErrorTestContext>(async (context) => {
     const fixture = await seedFixture({ role: 'owner' })
-    workspaceId = fixture.workspace.id
-    ;({ slug } = fixture.workspace)
-    ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), slug)
+    const { id: workspaceId, slug } = fixture.workspace
+    const headers = authHeaders(await seedUserToken(fixture.user.id), slug)
+    context.requestAuth = { headers, workspaceId }
   })
 
-  const mcp = async function mcp(name: string, args: unknown, headers = ownerHeaders, wsId = workspaceId) {
-    const res = await fetchNativeApi(
-      `http://localhost/mcp/${wsId}`,
-      requestOptionsWithBody(
-        'POST',
-        headers,
-        JSON.stringify({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: { arguments: args, name },
-        }),
-      ),
-    )
-    return res.json() as Promise<{
-      jsonrpc: string
-      id: unknown
-      result?: { isError?: boolean }
-      error?: { code: number; message: string }
-    }>
-  }
-
-  // A service failure is a successful JSON-RPC response whose result is a tool error.
-  const expectToolError = function expectToolError(resp: Awaited<ReturnType<typeof mcp>>, code: string) {
-    expect('error' in resp).toBe(false)
-    expect(resp.result?.isError).toBe(true)
-    const err = toolError(resp)
-    expect(err?.code).toBe(code)
-    return err
-  }
-
-  test('covers ValidationError (e.g. empty wiki title) maps to a validation tool error', async () => {
-    const resp = await mcp('create_wiki_page', { title: '', content: 'body' })
+  test<McpErrorTestContext>('covers ValidationError (e.g. empty wiki title) maps to a validation tool error', async ({
+    requestAuth,
+  }) => {
+    const resp = await requestTool(requestAuth, 'create_wiki_page', { title: '', content: 'body' })
     expectToolError(resp, 'validation')
   })
 
-  test('covers NotFoundError (unknown issue id) maps to a not_found tool error', async () => {
-    const resp = await mcp('get_issue', { id: crypto.randomUUID() })
+  test<McpErrorTestContext>('covers NotFoundError (unknown issue id) maps to a not_found tool error', async ({
+    requestAuth,
+  }) => {
+    const resp = await requestTool(requestAuth, 'get_issue', { id: crypto.randomUUID() })
     const err = expectToolError(resp, 'not_found')
     expect(err?.message).toMatch(/not found/iu)
   })
@@ -1310,16 +1310,21 @@ describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes
   test('covers ForbiddenError maps to a forbidden tool error', async () => {
     const roles = await seedWorkspaceRoles()
     const viewerHeaders = authHeaders(roles.viewer.token, roles.workspace.slug)
-    const resp = await mcp('create_task_type', { key: 'epic', name: 'Epic' }, viewerHeaders, roles.workspace.id)
+    const resp = await requestTool({ headers: viewerHeaders, workspaceId: roles.workspace.id }, 'create_task_type', {
+      key: 'epic',
+      name: 'Epic',
+    })
     expectToolError(resp, 'forbidden')
   })
 
   // ConflictError (duplicate workspace slug)
-  test('covers ConflictError (duplicate workspace slug) maps to a conflict tool error', async () => {
+  test<McpErrorTestContext>('covers ConflictError (duplicate workspace slug) maps to a conflict tool error', async ({
+    requestAuth,
+  }) => {
     // Create workspace with a slug
-    await mcp('create_workspace', { slug: 'conflict-slug', name: 'First' })
+    await requestTool(requestAuth, 'create_workspace', { slug: 'conflict-slug', name: 'First' })
     // Create again with same slug → ConflictError
-    const resp = await mcp('create_workspace', { slug: 'conflict-slug', name: 'Second' })
+    const resp = await requestTool(requestAuth, 'create_workspace', { slug: 'conflict-slug', name: 'Second' })
     const err = expectToolError(resp, 'conflict')
     expect(err?.message).toMatch(/slug already taken/i)
   })
