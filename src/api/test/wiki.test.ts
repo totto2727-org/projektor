@@ -2579,7 +2579,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Transitional', content: 'v1' }),
+        JSON.stringify({ content: 'v1', title: 'Transitional' }),
       ),
     )
 
@@ -2599,7 +2599,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
     await req(
       'http://localhost/api/wiki',
-      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title: 'Locked Doc', content: 'v1' })),
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ content: 'v1', title: 'Locked Doc' })),
     )
     // First edit (no base yet) creates the first revision, capturing "v1".
     await req(
@@ -2629,7 +2629,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Contested Doc', content: 'v1' }),
+      body: JSON.stringify({ content: 'v1', title: 'Contested Doc' }),
     })
     await req('http://localhost/api/wiki/contested-doc', {
       method: 'PUT',
@@ -2698,7 +2698,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Summarized Doc', content: 'v1' }),
+        JSON.stringify({ content: 'v1', title: 'Summarized Doc' }),
       ),
     )
     await req(
@@ -2721,7 +2721,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Garbage Base Doc', content: 'v1' }),
+        JSON.stringify({ content: 'v1', title: 'Garbage Base Doc' }),
       ),
     )
     const res = await req('http://localhost/api/wiki/garbage-base-doc', {
@@ -2823,7 +2823,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Diffable Doc', content: 'line one\nline two' }),
+        JSON.stringify({ content: 'line one\nline two', title: 'Diffable Doc' }),
       ),
     )
     await req(
@@ -2853,7 +2853,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Multi Rev Doc', content: 'v1' }),
+        JSON.stringify({ content: 'v1', title: 'Multi Rev Doc' }),
       ),
     )
     await req(
@@ -2883,7 +2883,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Unchanged Doc', content: 'same' }),
+        JSON.stringify({ content: 'same', title: 'Unchanged Doc' }),
       ),
     )
     await req(
@@ -2906,7 +2906,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Unknown Against Doc', content: 'v1' }),
+        JSON.stringify({ content: 'v1', title: 'Unknown Against Doc' }),
       ),
     )
     await req(
@@ -2929,7 +2929,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'No Such Revision Doc', content: 'v1' }),
+        JSON.stringify({ content: 'v1', title: 'No Such Revision Doc' }),
       ),
     )
 
@@ -2959,7 +2959,7 @@ describe('wiki revision diff (PROJ-492)', () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Restorable Doc', content: 'original content' }),
+      body: JSON.stringify({ content: 'original content', title: 'Restorable Doc' }),
     })
     await req('http://localhost/api/wiki/restorable-doc', {
       method: 'PUT',
@@ -3009,7 +3009,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Raced Restore Doc', content: 'original content' }),
+        JSON.stringify({ content: 'original content', title: 'Raced Restore Doc' }),
       ),
     )
     await req(
@@ -3057,7 +3057,7 @@ describe('wiki revision diff (PROJ-492)', () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Legacy Frontmatter Doc', content: 'first body' }),
+      body: JSON.stringify({ content: 'first body', title: 'Legacy Frontmatter Doc' }),
     })
     await req('http://localhost/api/wiki/legacy-frontmatter-doc', {
       method: 'PUT',
@@ -6642,7 +6642,7 @@ describe('wiki trash (PROJ-496)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(other.token, other.workspace.slug),
-        JSON.stringify({ title: 'Other Workspace Trash Page', content: 'content' }),
+        JSON.stringify({ content: 'content', title: 'Other Workspace Trash Page' }),
       ),
     )
     const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
@@ -6676,7 +6676,7 @@ describe('wiki trash (PROJ-496)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(other.token, other.workspace.slug),
-        JSON.stringify({ title: 'Cross Workspace Trash Page', content: 'content' }),
+        JSON.stringify({ content: 'content', title: 'Cross Workspace Trash Page' }),
       ),
     )
     const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
