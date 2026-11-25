@@ -1,5 +1,5 @@
 import { Schema, Predicate } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -17,17 +17,27 @@ import {
   seedWorkspace,
   toolError,
 } from './helpers.ts'
-import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { OkResponse, IdListResponse, IdResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
+import {
+  OkResponse,
+  IdListResponse,
+  IdResponse,
+  RpcTextResponse,
+  parseNativeMcpText,
+  readNativeJson,
+} from './response-json.ts'
 
-const mcpCall = async function mcpCall<T>(
+interface McpToolRequest {
+  arguments: unknown
+  name: string
+}
+
+const fetchMcpTool = async function fetchMcpTool(
   workspaceId: string,
-  name: string,
-  args: unknown,
+  params: McpToolRequest,
   headers: Record<string, string>,
-): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(
+): Promise<Response> {
+  return fetchNativeApi(
     `http://localhost/mcp/${workspaceId}`,
     requestOptionsWithBody(
       'POST',
@@ -36,16 +46,32 @@ const mcpCall = async function mcpCall<T>(
         id: 1,
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { arguments: args, name },
+        params,
       }),
     ),
   )
-  return res.json()
 }
 
-const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc is JsonRpcError {
-  return 'error' in rpc
+const callMcpTool = async function callMcpTool(
+  workspaceId: string,
+  params: McpToolRequest,
+  headers: Record<string, string>,
+): Promise<typeof RpcTextResponse.Type> {
+  const response = await fetchMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, RpcTextResponse)
 }
+
+const mcpCall = async function mcpCall(
+  workspaceId: string,
+  params: McpToolRequest,
+  headers: Record<string, string>,
+): Promise<unknown> {
+  const response = await fetchMcpTool(workspaceId, params, headers)
+  return response.json()
+}
+
+const StoredBrandLogo = Schema.Struct({ logoR2Key: Schema.String })
+const isStoredBrandLogo = Schema.is(StoredBrandLogo)
 
 describe('workspaces MCP', () => {
   let workspaceId: string
@@ -64,14 +90,9 @@ describe('workspaces MCP', () => {
   })
 
   test('list_workspaces returns the single workspace the user belongs to', async () => {
-    const res = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_workspaces',
-      {},
-      userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_workspaces' }, userHeaders)
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const data = parseNativeMcpText(
       res.result.content[0].text,
       Schema.Array(Schema.Struct({ id: Schema.String, role: Schema.String })).pipe(Schema.mutable),
@@ -89,14 +110,9 @@ describe('workspaces MCP', () => {
     const token2 = await seedToken(ws2.id, userId)
 
     // Call using either workspace as the path param — should still return both
-    const res = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_workspaces',
-      {},
-      userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_workspaces' }, userHeaders)
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const data = parseNativeMcpText(res.result.content[0].text, IdListResponse)
     expect(data).toHaveLength(2)
     const ids = data.map((workspace) => workspace.id)
@@ -110,28 +126,18 @@ describe('workspaces MCP', () => {
     // Create a second user with their own workspace
     const other = await seedFixture({ role: 'owner' })
 
-    const res = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_workspaces',
-      {},
-      userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_workspaces' }, userHeaders)
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const data = parseNativeMcpText(res.result.content[0].text, IdListResponse)
     const ids = data.map((workspace) => workspace.id)
     expect(ids).not.toContain(other.workspace.id)
   })
 
   test('list_workspaces returns workspace id, name, slug, role fields', async () => {
-    const res = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_workspaces',
-      {},
-      userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_workspaces' }, userHeaders)
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const data = parseNativeMcpText(
       res.result.content[0].text,
       Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
@@ -143,14 +149,13 @@ describe('workspaces MCP', () => {
   })
 
   test('create_workspace creates a workspace and returns id, name, slug', async () => {
-    const res = (await mcpCall<{ content: { text: string }[] }>(
+    const res = await callMcpTool(
       workspaceId,
-      'create_workspace',
-      { name: 'New Workspace', slug: 'new-ws' },
+      { arguments: { name: 'New Workspace', slug: 'new-ws' }, name: 'create_workspace' },
       userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    )
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const created = parseNativeMcpText(
       res.result.content[0].text,
       Schema.Struct({ id: Schema.String, name: Schema.String, slug: Schema.String }),
@@ -161,23 +166,17 @@ describe('workspaces MCP', () => {
   })
 
   test('create_workspace adds caller as owner and seeds defaults', async () => {
-    const res = (await mcpCall<{ content: { text: string }[] }>(
+    const res = await callMcpTool(
       workspaceId,
-      'create_workspace',
-      { name: 'Seeded', slug: 'seeded-ws' },
+      { arguments: { name: 'Seeded', slug: 'seeded-ws' }, name: 'create_workspace' },
       userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    )
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const created = parseNativeMcpText(res.result.content[0].text, IdResponse)
 
     // Caller should be able to list it via list_workspaces
-    const listRes = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_workspaces',
-      {},
-      userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const listRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_workspaces' }, userHeaders)
     const workspaces = parseNativeMcpText(
       listRes.result.content[0].text,
       Schema.Array(Schema.Struct({ id: Schema.String, role: Schema.String })).pipe(Schema.mutable),
@@ -188,14 +187,22 @@ describe('workspaces MCP', () => {
   })
 
   test('create_workspace returns conflict error when slug already taken', async () => {
-    await mcpCall(workspaceId, 'create_workspace', { name: 'First', slug: 'dup-slug' }, userHeaders)
-    const res = await mcpCall(workspaceId, 'create_workspace', { name: 'Second', slug: 'dup-slug' }, userHeaders)
+    await mcpCall(
+      workspaceId,
+      { arguments: { name: 'First', slug: 'dup-slug' }, name: 'create_workspace' },
+      userHeaders,
+    )
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { name: 'Second', slug: 'dup-slug' }, name: 'create_workspace' },
+      userHeaders,
+    )
     expect(toolError(res)?.code).toBe('conflict')
     expect(toolError(res)?.message).toMatch(/slug already taken/i)
   })
 
   test('create_workspace returns error when required fields missing', async () => {
-    const res = await mcpCall(workspaceId, 'create_workspace', { name: 'No Slug' }, userHeaders)
+    const res = await mcpCall(workspaceId, { arguments: { name: 'No Slug' }, name: 'create_workspace' }, userHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 
@@ -203,14 +210,13 @@ describe('workspaces MCP', () => {
     const extra = await seedFixture({ role: 'owner' })
     const extraHeaders = authHeaders(extra.token, extra.workspace.slug)
 
-    const res = (await mcpCall<{ content: { text: string }[] }>(
+    const res = await callMcpTool(
       extra.workspace.id,
-      'delete_workspace',
-      { workspaceSlug: extra.workspace.slug },
+      { arguments: { workspaceSlug: extra.workspace.slug }, name: 'delete_workspace' },
       extraHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    )
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const data = parseNativeMcpText(res.result.content[0].text, OkResponse)
     expect(data.ok).toBe(true)
   })
@@ -226,8 +232,7 @@ describe('workspaces MCP', () => {
 
     const res = await mcpCall(
       extra.workspace.id,
-      'delete_workspace',
-      { workspaceSlug: extra.workspace.slug },
+      { arguments: { workspaceSlug: extra.workspace.slug }, name: 'delete_workspace' },
       extraHeaders,
     )
 
@@ -246,8 +251,7 @@ describe('workspaces MCP', () => {
 
       const res = await mcpCall(
         testFixture.workspace.id,
-        'delete_workspace',
-        { workspaceSlug: victim.slug },
+        { arguments: { workspaceSlug: victim.slug }, name: 'delete_workspace' },
         authHeaders(testFixture.token, testFixture.workspace.slug),
       )
 
@@ -264,8 +268,7 @@ describe('workspaces MCP', () => {
 
       const res = await mcpCall(
         testFixture.workspace.id,
-        'delete_workspace',
-        { workspaceSlug: workspace.slug },
+        { arguments: { workspaceSlug: workspace.slug }, name: 'delete_workspace' },
         authHeaders(testFixture.token, testFixture.workspace.slug),
       )
 
@@ -283,7 +286,7 @@ describe('workspaces MCP', () => {
     const memberToken = await seedToken(ws.id, memberUser.id)
     const memberHeaders = authHeaders(memberToken, ws.slug)
 
-    const res = await mcpCall(ws.id, 'delete_workspace', { workspaceSlug: ws.slug }, memberHeaders)
+    const res = await mcpCall(ws.id, { arguments: { workspaceSlug: ws.slug }, name: 'delete_workspace' }, memberHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
@@ -294,8 +297,7 @@ describe('workspaces MCP', () => {
 
     const res = await mcpCall(
       extra.workspace.id,
-      'delete_workspace',
-      { workspaceSlug: extra.workspace.slug },
+      { arguments: { workspaceSlug: extra.workspace.slug }, name: 'delete_workspace' },
       extraHeaders,
     )
     expect(toolError(res)?.code).toBe('conflict')
@@ -303,14 +305,13 @@ describe('workspaces MCP', () => {
   })
 
   test('update_workspace renames the workspace (PROJ-246)', async () => {
-    const res = (await mcpCall<{ content: { text: string }[] }>(
+    const res = await callMcpTool(
       workspaceId,
-      'update_workspace',
-      { name: 'Renamed via MCP' },
+      { arguments: { name: 'Renamed via MCP' }, name: 'update_workspace' },
       userHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    )
 
-    expect(isMcpError(res)).toBe(false)
+    expect('error' in res).toBe(false)
     const data = parseNativeMcpText(res.result.content[0].text, OkResponse)
     expect(data.ok).toBe(true)
 
@@ -330,12 +331,12 @@ describe('workspaces MCP', () => {
     const memberToken = await seedToken(ws.id, memberUser.id)
     const memberHeaders = authHeaders(memberToken, ws.slug)
 
-    const res = await mcpCall(ws.id, 'update_workspace', { name: 'Should Fail' }, memberHeaders)
+    const res = await mcpCall(ws.id, { arguments: { name: 'Should Fail' }, name: 'update_workspace' }, memberHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('update_workspace returns error when name missing (PROJ-246)', async () => {
-    const res = await mcpCall(workspaceId, 'update_workspace', {}, userHeaders)
+    const res = await mcpCall(workspaceId, { arguments: {}, name: 'update_workspace' }, userHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 })
@@ -860,9 +861,10 @@ describe('workspace brand R2 cleanup (review finding 5)', () => {
     const row = await fixtureEnv.DB.prepare('SELECT brand FROM workspaces WHERE id = ?')
       .bind(owner.workspace.id)
       .first<{ brand: string }>()
-    const r2Key = (JSON.parse(row?.brand ?? '{}') as { logoR2Key?: string }).logoR2Key
-    expect(r2Key).toBeDefined()
-    await expect(fixtureEnv.R2.get(r2Key as string)).resolves.not.toBeNull()
+    const storedBrand: unknown = JSON.parse(row?.brand ?? '{}')
+    assert(isStoredBrandLogo(storedBrand), 'Expected stored workspace logo key')
+    const { logoR2Key } = storedBrand
+    await expect(fixtureEnv.R2.get(logoR2Key)).resolves.not.toBeNull()
 
     const delRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.workspace.slug}`, {
       headers: ownerHeaders,
@@ -870,6 +872,6 @@ describe('workspace brand R2 cleanup (review finding 5)', () => {
     })
     expect(delRes.status).toBe(200)
 
-    await expect(fixtureEnv.R2.get(r2Key as string)).resolves.toBeNull()
+    await expect(fixtureEnv.R2.get(logoR2Key)).resolves.toBeNull()
   })
 })
