@@ -1,17 +1,7 @@
 import { Schema } from 'effect'
 
-import {
-  BooleanSchema,
-  NN,
-  NS,
-  NumberSchema,
-  Ok,
-  StringSchema,
-  array,
-  extendStructInOrder,
-  fieldsInOrder,
-  structInOrder,
-} from './api-result-codecs.ts'
+import { BooleanSchema, NN, NS, NumberSchema, Ok, StringSchema, array } from './api-result-codecs.ts'
+import { extendStructInOrder, fieldsInOrder, structInOrder } from './ordered-schema.ts'
 
 const Freshness = Schema.NullOr(
   structInOrder([

@@ -1,20 +1,8 @@
 import { Schema } from 'effect'
 
-import {
-  BooleanSchema,
-  Id,
-  Keyed,
-  NN,
-  NS,
-  NumberSchema,
-  Ok,
-  StringSchema,
-  array,
-  extendStructInOrder,
-  fieldsInOrder,
-  structInOrder,
-} from './api-result-codecs.ts'
+import { BooleanSchema, Id, Keyed, NN, NS, NumberSchema, Ok, StringSchema, array } from './api-result-codecs.ts'
 import { Brand, TaskStatus, TaskType } from './api-workspace-results.ts'
+import { extendStructInOrder, fieldsInOrder, structInOrder } from './ordered-schema.ts'
 
 const IssueLink = structInOrder([
   ['id', StringSchema],

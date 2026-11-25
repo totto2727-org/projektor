@@ -2,18 +2,10 @@ import { Schema } from 'effect'
 
 import { agentResults } from './api-agent-results.ts'
 import { issueResults, sprintResults } from './api-issue-results.ts'
-import {
-  BooleanSchema,
-  NN,
-  NumberSchema,
-  Ok,
-  StringSchema,
-  array,
-  fieldsInOrder,
-  structInOrder,
-} from './api-result-codecs.ts'
+import { BooleanSchema, NN, NumberSchema, Ok, StringSchema, array } from './api-result-codecs.ts'
 import { wikiResults } from './api-wiki-results.ts'
 import { workspaceResults } from './api-workspace-results.ts'
+import { fieldsInOrder, structInOrder } from './ordered-schema.ts'
 
 const additionalResults = [
   ['apiDeleteStoredAttachment', Schema.Void],
