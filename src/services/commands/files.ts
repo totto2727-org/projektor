@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 import { flattenError } from 'zod'
 
+import { BYTES_PER_GIBIBYTE, BYTES_PER_MEBIBYTE, MAX_UPLOAD_SIZE } from '#contracts/file-limits.ts'
 import {
   CreateLinkAttachmentSchema,
   DeleteAttachmentSchema,
@@ -115,8 +116,7 @@ export interface AttachmentDto {
 // SVG is intentionally excluded (script execution risk).
 export const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
-// 50 MB
-export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024
+export { MAX_UPLOAD_SIZE } from '#contracts/file-limits.ts'
 
 /*
  * File.type is supplied by the client and can be spoofed; this allowlist prevents accidental
@@ -262,7 +262,7 @@ export const createLinkAttachment = async function createLinkAttachment(
  * back to the default for unset/invalid/non-positive values.
  */
 // 1 GiB per workspace
-const DEFAULT_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024
+const DEFAULT_STORAGE_QUOTA_BYTES = BYTES_PER_GIBIBYTE
 
 export const storageQuotaBytes = function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {
   const quota = Number(env.STORAGE_QUOTA_BYTES)
@@ -292,7 +292,7 @@ export const assertUploadAllowed = async function assertUploadAllowed(
   const quota = params.quotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES
   const bytesUsed = await workspaceStorageUsageBytes(ctx)
   if (bytesUsed + params.size > quota) {
-    const quotaMb = Math.round(quota / (1024 * 1024))
+    const quotaMb = Math.round(quota / BYTES_PER_MEBIBYTE)
     throw new PayloadTooLargeError(`Workspace storage quota exceeded (${quotaMb} MB)`)
   }
 }
@@ -398,7 +398,9 @@ export async function recordUpload(
     )
     .first<{ id: string }>()
   if (!recorded) {
-    throw new PayloadTooLargeError(`Workspace storage quota exceeded (${Math.round(quotaBytes / (1024 * 1024))} MB)`)
+    throw new PayloadTooLargeError(
+      `Workspace storage quota exceeded (${Math.round(quotaBytes / BYTES_PER_MEBIBYTE)} MB)`,
+    )
   }
 
   return { id }

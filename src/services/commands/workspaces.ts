@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { Iterable, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
+import { BYTES_PER_MEBIBYTE } from '#contracts/file-limits.ts'
 import { IdSchema } from '#contracts/inputs/common.ts'
 import {
   CreateTokenSchema,
@@ -498,7 +499,8 @@ export const updateWorkspaceBrand = async function updateWorkspaceBrand(
   return toBrandDto(next, workspaceSlug)
 }
 
-const MAX_LOGO_SIZE = 2 * 1024 * 1024
+const MAX_LOGO_MEBIBYTES = 2
+const MAX_LOGO_SIZE = MAX_LOGO_MEBIBYTES * BYTES_PER_MEBIBYTE
 const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 export const uploadWorkspaceLogo = async function uploadWorkspaceLogo(

@@ -10,7 +10,11 @@ import {
 } from '#contracts/http-status.ts'
 import { RateLimitResult, rateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
 
-import { UploadAttachmentInputSchema, UploadedAttachmentSchema } from './attachments.ts'
+import {
+  MAX_SERVER_FUNCTION_UPLOAD_BYTES,
+  UploadAttachmentInputSchema,
+  UploadedAttachmentSchema,
+} from './attachments.ts'
 import type { UploadAttachmentInput, UploadedAttachment } from './attachments.ts'
 import { transferCoreBinary } from './core-binary.ts'
 import { coreResult } from './core.ts'
@@ -66,7 +70,7 @@ export const uploadAttachment = EFFRONT.ServerFn.make({
           yield* checkSameOriginMutation(services.request)
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
           // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
-          if (input.file.size > 10 * 1024 * 1024) {
+          if (input.file.size > MAX_SERVER_FUNCTION_UPLOAD_BYTES) {
             return yield* new ApiError('request', HTTP_PAYLOAD_TOO_LARGE, 'File too large (max 10 MB)')
           }
           const selection = context.scope.selection
@@ -99,7 +103,7 @@ export const uploadInlineImage = EFFRONT.ServerFn.make({
           yield* checkSameOriginMutation(services.request)
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
           // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
-          if (input.file.size > 10 * 1024 * 1024) {
+          if (input.file.size > MAX_SERVER_FUNCTION_UPLOAD_BYTES) {
             return yield* new ApiError('request', HTTP_PAYLOAD_TOO_LARGE, 'File too large (max 10 MB)')
           }
           const selection = context.scope.selection

@@ -4,6 +4,7 @@ import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
+import { BYTES_PER_MEBIBYTE } from '#contracts/file-limits.ts'
 import { ExportWikiInputSchema } from '#contracts/inputs/wiki.ts'
 import { drizzle, schema } from '#db'
 
@@ -28,8 +29,8 @@ interface ExportedPage {
  * against pathological page counts / attachment totals.
  */
 const MAX_EXPORT_PAGES = 500
-// 100 MB total per export
-const MAX_EXPORT_ATTACHMENT_BYTES = 100 * 1024 * 1024
+const MAX_EXPORT_ATTACHMENT_MEBIBYTES = 100
+const MAX_EXPORT_ATTACHMENT_BYTES = MAX_EXPORT_ATTACHMENT_MEBIBYTES * BYTES_PER_MEBIBYTE
 
 const assertPageCountAllowed = function assertPageCountAllowed(pageCount: number): void {
   if (pageCount > MAX_EXPORT_PAGES) {

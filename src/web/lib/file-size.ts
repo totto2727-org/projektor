@@ -1,5 +1,5 @@
-const BYTES_PER_KIBIBYTE = 1024
-const BYTES_PER_MEBIBYTE = BYTES_PER_KIBIBYTE * BYTES_PER_KIBIBYTE
+import { BYTES_PER_KIBIBYTE, BYTES_PER_MEBIBYTE } from '#contracts/file-limits.ts'
+
 const FRACTION_DIGITS = 1
 
 export const formatBytes = function formatBytes(bytes: number): string {
