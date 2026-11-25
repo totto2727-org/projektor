@@ -93,7 +93,17 @@ export const buildPostMessageStatements = function buildPostMessageStatements(
   })
 }
 
-export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unknown) {
+type AgentMessage = Pick<
+  typeof schema.agentMessages.$inferSelect,
+  'id' | 'createdAt' | 'workspaceId' | 'scope' | 'agentId' | 'body'
+>
+
+interface MessagePage {
+  items: AgentMessage[]
+  nextCursor: string | null
+}
+
+export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unknown): Promise<AgentMessage> {
   const result = PostMessageSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -138,7 +148,7 @@ export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unkn
   return row!
 }
 
-export const listMessages = async function listMessages(ctx: ServiceCtx, raw: unknown) {
+export const listMessages = async function listMessages(ctx: ServiceCtx, raw: unknown): Promise<MessagePage> {
   const result = ListMessagesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

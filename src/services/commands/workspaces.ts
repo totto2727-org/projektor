@@ -48,7 +48,26 @@ export const listWorkspaces = async function listWorkspaces(
   return Effect.runPromise(data.listWorkspaces(db, userId))
 }
 
-export const createWorkspace = async function createWorkspace(db: D1Database, userId: string, input: unknown) {
+interface WorkspaceIdentity {
+  id: string
+  name: string
+  slug: string
+}
+
+interface CreatedWorkspace extends WorkspaceIdentity {
+  id: ReturnType<typeof crypto.randomUUID>
+}
+
+interface WorkspaceWithMembers extends WorkspaceIdentity {
+  members: data.WorkspaceMember[]
+  currentUserRole: ServiceCtx['role']
+}
+
+export const createWorkspace = async function createWorkspace(
+  db: D1Database,
+  userId: string,
+  input: unknown,
+): Promise<CreatedWorkspace> {
   const parsed = CreateWorkspaceSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -84,8 +103,8 @@ export const createWorkspace = async function createWorkspace(db: D1Database, us
 
 export const getWorkspaceWithMembers = async function getWorkspaceWithMembers(
   ctx: ServiceCtx,
-  workspace: Readonly<{ id: string; name: string; slug: string }>,
-) {
+  workspace: Readonly<WorkspaceIdentity>,
+): Promise<WorkspaceWithMembers> {
   const members = await Effect.runPromise(data.listWorkspaceMembers(ctx.db, ctx.workspaceId))
   return {
     ...workspace,
@@ -221,7 +240,15 @@ export const updateMemberRole = async function updateMemberRole(
   return { ok: true }
 }
 
-export const createToken = async function createToken(ctx: ServiceCtx, input: unknown) {
+interface CreatedWorkspaceToken {
+  id: ReturnType<typeof crypto.randomUUID>
+  token: string
+  name: string
+  scopes: ReturnType<typeof CreateTokenSchema.parse>['scopes']
+  expiresAt: number | null
+}
+
+export const createToken = async function createToken(ctx: ServiceCtx, input: unknown): Promise<CreatedWorkspaceToken> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }

@@ -31,7 +31,10 @@ export interface CustomFieldValue {
   value: string
 }
 
-export const listCustomFieldDefs = async function listCustomFieldDefs(ctx: ServiceCtx, projectId?: string | null) {
+export const listCustomFieldDefs = async function listCustomFieldDefs(
+  ctx: ServiceCtx,
+  projectId?: string | null,
+): Promise<Effect.Success<ReturnType<typeof fieldQueries.listCustomFieldDefs>>> {
   return Effect.runPromise(
     fieldQueries.listCustomFieldDefs(
       ctx.db,
@@ -91,7 +94,17 @@ const assertCustomFieldDefLimitNotReached = async function assertCustomFieldDefL
   }
 }
 
-export const createCustomFieldDef = async function createCustomFieldDef(ctx: ServiceCtx, raw: unknown) {
+interface CreatedCustomField {
+  id: ReturnType<typeof crypto.randomUUID>
+  key: string
+  label: string
+  type: ReturnType<typeof CreateCustomFieldDefSchema.parse>['type']
+}
+
+export const createCustomFieldDef = async function createCustomFieldDef(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<CreatedCustomField> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }

@@ -8,6 +8,7 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
+import type { IssueLinkRow } from '#services/issue-links.ts'
 
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import * as cache from './cache.ts'
@@ -56,7 +57,7 @@ const canonicalize = function canonicalize(
   return { source, target, type }
 }
 
-export async function createLink(ctx: ServiceCtx, raw: unknown) {
+export async function createLink(ctx: ServiceCtx, raw: unknown): Promise<{ id: ReturnType<typeof crypto.randomUUID> }> {
   if (ctx.role === 'viewer') {
     throw new ForbiddenError('Insufficient permissions')
   }
@@ -184,7 +185,7 @@ export async function deleteLink(ctx: ServiceCtx, raw: unknown): Promise<{ ok: b
   return { ok: true }
 }
 
-export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown) {
+export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown): Promise<IssueLinkRow[]> {
   const result = ListIssueLinksSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
