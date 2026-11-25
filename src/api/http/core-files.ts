@@ -4,7 +4,15 @@ import type { Context } from 'hono'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { HonoEnv } from '#types'
 
-/** Native binding fetch is reserved for streaming file endpoints. */
+/**
+ * Send a streaming file request through the native Core binding.
+ *
+ * @param {Context<HonoEnv>} httpContext API request context with the method, workspace and authentication proof.
+ * @param {string} pathname Internal Core file route.
+ * @param {BodyInit | null} [body] Optional request body to forward.
+ * @param {string} [contentType] Optional Content-Type header for the forwarded body.
+ * @returns {Promise<Response>} The response from Core.
+ */
 export const coreFileRequest = function coreFileRequest(
   httpContext: Context<HonoEnv>,
   pathname: string,

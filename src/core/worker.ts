@@ -11,7 +11,12 @@ import { handleCoreFileRequest } from './files.ts'
 import { handleSharedLogoRequest } from './shared-logo.ts'
 import { makeWebCoreHandlers } from './web/operations.ts'
 
-/** Stable named handlers, with environment Effects resolved inside each invocation. */
+/**
+ * Build Core handlers that resolve the environment for each invocation.
+ *
+ * @param {CoreEnvironmentSource} environment Effect that provides the Core bindings.
+ * @returns {Effect.Effect<CoreShape>} An effect that creates the named handlers and the binary fetch handler.
+ */
 export const makeCoreHandlersWithEnvironment = (environment: CoreEnvironmentSource) =>
   Effect.sync(
     () =>

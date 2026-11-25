@@ -20,7 +20,11 @@ const WIKI_TRASH_SUBREQUEST_BUDGET = 100
 const WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE = 45
 const WikiTrashCursor = Schema.Struct({ workspaceIds: Schema.Array(Schema.Unknown) })
 
-/** Existing maintenance budgets and continuation policy, now executed inside Core. */
+/**
+ * Run Core maintenance with the existing budgets and continuation policy.
+ *
+ * @param {CoreEnvironment} env Core bindings used by the scheduled jobs.
+ */
 export const runMaintenance = async function runMaintenance(env: CoreEnvironment): Promise<void> {
   await Promise.all([
     purgeAllWorkspacesExpiredWikiPages(env),
@@ -166,7 +170,13 @@ const createSubrequestBudget = function createSubrequestBudget(limit: number) {
 }
 type SubrequestBudget = ReturnType<typeof createSubrequestBudget>
 
-/** Count real D1 calls without altering native prepare/bind/batch behavior. */
+/**
+ * Count database requests as they execute.
+ *
+ * @param {D1Database} db Native D1 binding used for the maintenance work.
+ * @param {SubrequestBudget} budget Counter shared by the current purge run.
+ * @returns {D1Database} A D1 wrapper that preserves native preparation, binding and execution.
+ */
 const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database {
   const reads = new Set(['all', 'first', 'raw', 'run'])
   return new Proxy(db, {

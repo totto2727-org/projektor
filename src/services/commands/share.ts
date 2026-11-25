@@ -19,6 +19,9 @@ const hashToken = async function hashToken(token: string): Promise<string> {
  * PROJ-792: creating or revoking a public link needs *edit* access to the
  * issue's project (group grant, or workspace owner/admin) — not merely a
  * non-viewer workspace role. No access → 404 (hides existence); read-only → 403.
+ *
+ * @param {ServiceCtx} ctx Authenticated service scope for the workspace.
+ * @param {string} issueId Issue selected for sharing.
  */
 const assertIssueShareable = async function assertIssueShareable(ctx: ServiceCtx, issueId: string): Promise<void> {
   const issue = await ctx.db
@@ -69,6 +72,10 @@ export const createShareToken = async function createShareToken(
  *   and the issue's project isn't archived (issues have no archive state of their own);
  * - the token's creator can still read the issue's project — still a workspace member,
  *   and a workspace owner/admin or a member whose group holds a grant on it.
+ *
+ * @param {D1Database} db Database used for the token, issue and access lookups.
+ * @param {string} tokenHash Stored hash of the share token.
+ * @returns {Promise<{ issueId: string, workspaceId: string } | null>} The issue and workspace IDs for a valid link, or null when access fails.
  */
 const resolveLiveShareToken = async function resolveLiveShareToken(
   db: D1Database,

@@ -17,6 +17,9 @@ const INTERNAL_ROLE_HEADER = 'X-Internal-Role'
  * The private hub receives the original authentication proof. Core reauthorizes it
  * on upgrade and every message or broadcast. Legacy identity hints and any
  * client-supplied proof header are stripped before the adapter sets its own proof.
+ *
+ * @param {Context<HonoEnv>} httpContext API request context with the resolved workspace and authentication proof.
+ * @returns {Request} The request to send to the workspace hub.
  */
 const buildHubRequest = function buildHubRequest(httpContext: Context<HonoEnv>): Request {
   const headers = new Headers(httpContext.req.raw.headers)

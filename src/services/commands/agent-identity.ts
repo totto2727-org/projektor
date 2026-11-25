@@ -32,6 +32,10 @@ export const agentSessionCredential = function agentSessionCredential(ctx: Servi
 /** A supplied session ID identifies a resource, never authority to impersonate its holder.
  * Legacy sessions without an ownership key are manageable only by workspace administrators.
  * New browser sessions use a namespaced user key, not a fabricated API-token foreign key.
+ *
+ * @param {ServiceCtx} ctx Authenticated service scope for the workspace.
+ * @param {string} id Agent session to authorize.
+ * @param {object} [options] Whether internal cleanup can use administrative access.
  */
 export const assertAgentSessionAccess = async function assertAgentSessionAccess(
   ctx: ServiceCtx,
@@ -84,6 +88,11 @@ export const assertAgentSessionAccess = async function assertAgentSessionAccess(
  * `includeStale`: heartbeat_agent/end_agent may fall back to a session that has just gone
  * stale (that call is what revives it), but only when the credential has no live session;
  * the claim path requires a live one, since a dead session can't hold a lease.
+ *
+ * @param {ServiceCtx} ctx Authenticated service scope for the workspace.
+ * @param {string | undefined} provided Explicit session ID when supplied by the caller.
+ * @param {object} [opts] Options for stale fallback and internal administrative access.
+ * @returns {Promise<string>} The authorized explicit session ID or the unique matching session ID.
  */
 export const resolveAgentSessionId = async function resolveAgentSessionId(
   ctx: ServiceCtx,

@@ -11,7 +11,12 @@ import { runMaintenance } from './maintenance.ts'
 import { makeApiPublicHandlers } from './public-operations.ts'
 import { makeApiRateLimitHandlers } from './rate-limit.ts'
 
-/** Compose concrete named families without an operation dispatcher or protocol proxy. */
+/**
+ * Compose the named API operation families.
+ *
+ * @param {Effect.Effect<CoreEnvironment, never, R>} envSource Effect that provides Core bindings to each operation.
+ * @returns {ReturnType<typeof makeApiCoreHandlers>} The named identity, domain, public, rate limit and maintenance handlers.
+ */
 export const makeApiCoreHandlers = function makeApiCoreHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
 ) {

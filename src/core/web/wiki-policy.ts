@@ -11,7 +11,14 @@ import * as wikiData from '#services/wiki.ts'
 import { authorizeDataEntity, dataError, requireDataWorkspace, visibleProjectPredicate } from './data-context.ts'
 import type { RequestScope } from './scope.ts'
 
-/** An existing archived page follows the same workspace/grant policy in SSR and ServerFns. */
+/**
+ * Apply the same workspace and grant policy to Wiki reads in SSR and server functions.
+ *
+ * @param {D1Database} db Database used for the page and project lookups.
+ * @param {RequestScope} scope Authenticated browser scope for the current request.
+ * @param {string} ref Page reference in the selected workspace.
+ * @returns {ReturnType<typeof readAuthorizedWikiPage>} An effect that yields the database, workspace and page after authorization.
+ */
 export const readAuthorizedWikiPage = function readAuthorizedWikiPage(
   db: CoreEnvironment['DB'],
   scope: RequestScope,
