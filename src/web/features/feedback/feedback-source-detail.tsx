@@ -181,7 +181,7 @@ export function FeedbackSourceDetail({
   const sources = initialSources
   const tab = initialTab
   const tabRefs = useRef<Partial<Record<TabId, HTMLAnchorElement | null>>>({})
-  function hrefForTab(id: TabId): string {
+  const hrefForTab = function hrefForTab(id: TabId): string {
     const params = new URLSearchParams({ projectId, workspace: workspaceSlug, tab: id })
     if (Predicate.isNotNullish(initialStatus) && String.isNonEmpty(initialStatus)) {
       params.set('status', initialStatus)
@@ -193,7 +193,7 @@ export function FeedbackSourceDetail({
     tabRefs.current[id]?.focus()
   }
 
-  function onTabKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
+  const onTabKeyDown = function onTabKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     const focused = TABS.find((id) => tabRefs.current[id] === document.activeElement) ?? tab
     const idx = TABS.indexOf(focused)
     let nextId: TabId | null = null

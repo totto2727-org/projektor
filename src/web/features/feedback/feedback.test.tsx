@@ -36,7 +36,7 @@ const scope: RequestScope = {
   selection: { kind: 'workspace', workspace },
 }
 const databases: ReturnType<typeof createTestDatabase>[] = []
-async function fixture(currentScope = scope) {
+const fixture = async function fixture(currentScope = scope) {
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
   const database = createTestDatabase()

@@ -343,7 +343,7 @@ const useFeedbackActions = function useFeedbackActions(
 
 const useToggleSet = function useToggleSet() {
   const [set, setSet] = useState<Set<string>>(new Set())
-  function toggle(id: string): void {
+  const toggle = function toggle(id: string): void {
     setSet((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -374,7 +374,7 @@ const useSelectedFeedback = function useSelectedFeedback() {
     const current = new Set(form.getFieldValue('ids'))
     form.setFieldValue('ids', [...(Predicate.isFunction(value) ? value(current) : value)])
   }
-  function toggle(id: string): void {
+  const toggle = function toggle(id: string): void {
     setSelected((current) => {
       const next = new Set(current)
       if (next.has(id)) {
