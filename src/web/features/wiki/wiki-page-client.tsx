@@ -1232,7 +1232,7 @@ function PageActionOverflowMenu({
         setOpen(false)
       }
     }
-    function onKeyDown(event: KeyboardEvent): void {
+    const onKeyDown = function onKeyDown(event: KeyboardEvent): void {
       if (event.key === 'Escape' || event.key === 'Tab') {
         event.preventDefault()
         closeToTrigger()
@@ -2193,7 +2193,7 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
       setUploadError(`Couldn't delete attachment: ${globalThis.String(error)}`)
     }
   }
-  async function uploadInlineImage(file: File): Promise<string | null> {
+  const uploadInlineImage = async function uploadInlineImage(file: File): Promise<string | null> {
     if (!page || Predicate.isNullish(workspaceSlug) || String.isEmpty(workspaceSlug)) {
       return null
     }
@@ -2715,7 +2715,7 @@ function useWikiEditing(
    * fetch resolves, matching the R10 diff/choice pattern of offering rather than
    * silently applying.
    */
-  async function startEdit(): Promise<void> {
+  const startEdit = async function startEdit(): Promise<void> {
     if (!page) {
       return
     }
@@ -3151,7 +3151,7 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
    * exclusive with content) rather than duplicating the strip-template-flag logic here.
    */
 
-  function startCreate(parentId: string | null = null): void {
+  const startCreate = function startCreate(parentId: string | null = null): void {
     setCreating(true)
     setCreateTitle('')
     setCreateSlug('')
@@ -3186,7 +3186,7 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
     }
   }
 
-  async function submitCreate(): Promise<string | undefined> {
+  const submitCreate = async function submitCreate(): Promise<string | undefined> {
     await createForm.validate('change')
     if (!createForm.state.isValid) {
       setCreateError('Check the title, slug, and content limits.')
@@ -3272,13 +3272,13 @@ function createWikiActions(
     args.navigate(s ? `/wiki/${encodeURIComponent(s)}` : '/wiki')
   }
 
-  function startCreate(parentId: string | null = null): void {
+  const startCreate = function startCreate(parentId: string | null = null): void {
     setEditing(false)
     args.cancelMove()
     args.rawStartCreate(parentId)
   }
 
-  async function submitCreate(): Promise<void> {
+  const submitCreate = async function submitCreate(): Promise<void> {
     const createdSlug = await args.rawSubmitCreate()
     if (Predicate.isNotNullish(createdSlug) && String.isNonEmpty(createdSlug)) {
       navigateTo(createdSlug)
@@ -3483,7 +3483,7 @@ function useWikiSidebarDrawer() {
     if (!open) {
       return
     }
-    function onKeyDown(event: KeyboardEvent): void {
+    const onKeyDown = function onKeyDown(event: KeyboardEvent): void {
       if (event.key === 'Escape') {
         close()
       }
@@ -3972,7 +3972,7 @@ function useAssembledWikiPageProps(state: ReturnType<typeof useWikiPageState>, w
     toc,
   )
 
-  function startEdit(): void {
+  const startEdit = function startEdit(): void {
     move.cancelMove()
     void editState.startEdit()
   }
