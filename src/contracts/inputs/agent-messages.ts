@@ -5,7 +5,7 @@ const MIN_PAGE_SIZE = 1
 const MAX_PAGE_SIZE = 100
 const DEFAULT_PAGE_SIZE = 50
 
-const scopeSchema = z.string().refine((v) => v === 'workspace' || /^issue:[0-9a-f-]{36}$/u.test(v), {
+const scopeSchema = z.string().refine((scope) => scope === 'workspace' || /^issue:[0-9a-f-]{36}$/u.test(scope), {
   message: 'scope must be "workspace" or "issue:<uuid>"',
 })
 

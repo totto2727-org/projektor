@@ -65,11 +65,11 @@ export const UpdateIssueSchema = z
 
 export const IssueListCursorSchema = z
   .union([z.number().int().nonnegative(), z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/)])
-  .transform((v) => {
-    if (Predicate.isNumber(v)) {
-      return { createdAt: v }
+  .transform((cursor) => {
+    if (Predicate.isNumber(cursor)) {
+      return { createdAt: cursor }
     }
-    const [createdAt, id] = v.split(':')
+    const [createdAt, id] = cursor.split(':')
     return { createdAt: Number(createdAt), id }
   })
 
@@ -136,7 +136,11 @@ export const GetIssueSchema = z
 // (REST query param), same convention as the existing statusIds/excludeTypeIds filters.
 const CommaOrArraySchema = z
   .union([z.string(), z.array(z.string())])
-  .transform((v) => (globalThis.Array.isArray(v) ? v : v.split(',')).map((s) => s.trim()).filter(Boolean))
+  .transform((statuses) =>
+    (globalThis.Array.isArray(statuses) ? statuses : statuses.split(','))
+      .map((status) => status.trim())
+      .filter(Boolean),
+  )
 
 export const GetIssuesBatchSchema = z
   .object({

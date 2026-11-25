@@ -92,8 +92,10 @@ const ShapeOptsSchema = z.object({
   verbose: z.boolean().optional(),
   fields: z
     .union([z.string(), z.array(z.string())])
-    .transform((v) =>
-      (Predicate.isString(v) ? v.split(',') : v).map((s) => s.trim()).filter((s) => String.isNonEmpty(s)),
+    .transform((csv) =>
+      (Predicate.isString(csv) ? csv.split(',') : csv)
+        .map((entry) => entry.trim())
+        .filter((entry) => String.isNonEmpty(entry)),
     )
     .pipe(z.array(z.enum(ISSUE_FIELD_NAMES)).max(ISSUE_FIELD_NAMES.length))
     .optional(),
@@ -114,27 +116,29 @@ export const splitShapeOpts = function splitShapeOpts(input: unknown): { rest: R
   return { rest, ...result.data }
 }
 
-const isEmptyArray = function isEmptyArray(v: unknown): boolean {
-  return globalThis.Array.isArray(v) && Array.isArrayEmpty(v)
+const isEmptyArray = function isEmptyArray(value: unknown): boolean {
+  return globalThis.Array.isArray(value) && Array.isArrayEmpty(value)
 }
 
-const parseLabels = function parseLabels(v: unknown): string[] | undefined {
-  if (globalThis.Array.isArray(v)) {
-    return v.filter((x): x is string => Predicate.isString(x))
+const parseLabels = function parseLabels(value: unknown): string[] | undefined {
+  if (globalThis.Array.isArray(value)) {
+    return value.filter((label): label is string => Predicate.isString(label))
   }
-  if (!Predicate.isString(v)) {
+  if (!Predicate.isString(value)) {
     return undefined
   }
   try {
-    const parsed = JSON.parse(v)
-    return globalThis.Array.isArray(parsed) ? parsed.filter((x): x is string => Predicate.isString(x)) : undefined
+    const parsed = JSON.parse(value)
+    return globalThis.Array.isArray(parsed)
+      ? parsed.filter((label): label is string => Predicate.isString(label))
+      : undefined
   } catch {
     return undefined
   }
 }
 
-const isZeroRollup = function isZeroRollup(v: unknown): boolean {
-  return !!v && typeof v === 'object' && (v as { total?: unknown }).total === 0
+const isZeroRollup = function isZeroRollup(value: unknown): boolean {
+  return !!value && typeof value === 'object' && (value as { total?: unknown }).total === 0
 }
 
 /*
@@ -310,12 +314,12 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
     return page
   }
 
-  const build = (k: number) => {
+  const build = (keptCount: number) => {
     const { next: _drop, ...rest } = page
-    const cursor = opts.cursorOf?.(k - 1)
+    const cursor = opts.cursorOf?.(keptCount - 1)
     return {
       ...rest,
-      items: page.items.slice(0, k),
+      items: page.items.slice(0, keptCount),
       truncated: true as const,
       ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { next: cursor } : {}),
       ...(opts.cursorOf ? {} : { hint: `Result capped at ${max} chars; lower limit or narrow the filters.` }),
@@ -337,12 +341,12 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
    * Back off to a cut the tool says is resumable. If none exists (e.g. every event shares
    * one second), an over-cap page is better than a cursor that silently skips items.
    */
-  let k = lo
-  while (k > 1 && opts.canCutAt && !opts.canCutAt(k)) {
-    k = Number.decrement(k)
+  let keptCount = lo
+  while (keptCount > 1 && opts.canCutAt && !opts.canCutAt(keptCount)) {
+    keptCount = Number.decrement(keptCount)
   }
-  if (opts.canCutAt && !opts.canCutAt(k)) {
+  if (opts.canCutAt && !opts.canCutAt(keptCount)) {
     return page
   }
-  return build(k)
+  return build(keptCount)
 }

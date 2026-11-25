@@ -56,7 +56,7 @@ export const UpdateWorkspaceBrandSchema = z
     fontUrl: z
       .string()
       .url()
-      .refine((v) => v.startsWith('https://'), 'fontUrl must be an https:// URL')
+      .refine((fontUrl) => fontUrl.startsWith('https://'), 'fontUrl must be an https:// URL')
       .nullable()
       .optional(),
   })

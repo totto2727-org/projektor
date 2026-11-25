@@ -131,25 +131,25 @@ export const wikiReadTools: MCPTool[] = [
         if (Predicate.isNullish(body)) {
           return { ...rest, outline, section, sectionFound: false }
         }
-        const w = windowText(body, { cursor, max })
+        const sectionWindow = windowText(body, { cursor, max })
         return {
           ...rest,
           outline,
           section,
-          content: w.text,
-          totalChars: w.totalChars,
+          content: sectionWindow.text,
+          totalChars: sectionWindow.totalChars,
           contentTruncated: true,
-          ...(isNonEmptyText(w.next) ? { next: w.next } : {}),
+          ...(isNonEmptyText(sectionWindow.next) ? { next: sectionWindow.next } : {}),
         }
       }
-      const w = windowText(full, { cursor, max })
+      const contentWindow = windowText(full, { cursor, max })
       return {
         ...rest,
         outline,
-        content: w.text,
-        totalChars: w.totalChars,
-        ...(isNonEmptyText(w.next) || Predicate.isNotNullish(cursor) ? { contentTruncated: true } : {}),
-        ...(isNonEmptyText(w.next) ? { next: w.next } : {}),
+        content: contentWindow.text,
+        totalChars: contentWindow.totalChars,
+        ...(isNonEmptyText(contentWindow.next) || Predicate.isNotNullish(cursor) ? { contentTruncated: true } : {}),
+        ...(isNonEmptyText(contentWindow.next) ? { next: contentWindow.next } : {}),
       }
     },
     inputSchema: requiredObjectInputSchema(['slug'], {

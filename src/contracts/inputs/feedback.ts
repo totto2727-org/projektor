@@ -28,21 +28,21 @@ export const SubmitFeedbackSchema = z
     sourceUrl: z.string().max(MAX_SOURCE_URL_LENGTH).optional(),
     appVersion: z.string().max(MAX_APP_VERSION_LENGTH).optional(),
   })
-  .refine((d) => Predicate.isNotNullish(d.rating) || Predicate.isNotNullish(d.body), {
+  .refine((input) => Predicate.isNotNullish(input.rating) || Predicate.isNotNullish(input.body), {
     message: 'At least one of rating or body must be provided',
   })
-  .refine((d) => Predicate.isNullish(d.rating) === Predicate.isNullish(d.ratingScale), {
+  .refine((input) => Predicate.isNullish(input.rating) === Predicate.isNullish(input.ratingScale), {
     message: 'ratingScale is required when rating is present, and forbidden otherwise',
   })
   .refine(
-    (d) => {
-      if (Predicate.isNullish(d.rating) || Predicate.isNullish(d.ratingScale)) {
+    (input) => {
+      if (Predicate.isNullish(input.rating) || Predicate.isNullish(input.ratingScale)) {
         return true
       }
-      if (d.ratingScale === 'thumbs') {
-        return d.rating === THUMBS_DOWN || d.rating === THUMBS_UP
+      if (input.ratingScale === 'thumbs') {
+        return input.rating === THUMBS_DOWN || input.rating === THUMBS_UP
       }
-      return d.rating >= MIN_STAR_RATING && d.rating <= MAX_STAR_RATING
+      return input.rating >= MIN_STAR_RATING && input.rating <= MAX_STAR_RATING
     },
     { message: 'rating must be -1 or 1 for thumbs, or an integer 1-5 for five_star' },
   )
@@ -74,9 +74,13 @@ export const UpdateFeedbackSourceSchema = z
     description: z.string().max(MAX_SOURCE_DESCRIPTION_LENGTH).nullable().optional(),
     isActive: z.boolean().optional(),
   })
-  .refine((d) => Predicate.isNotNullish(d.name) || d.description !== undefined || Predicate.isNotNullish(d.isActive), {
-    message: 'At least one of name, description, or isActive must be provided',
-  })
+  .refine(
+    (input) =>
+      Predicate.isNotNullish(input.name) || input.description !== undefined || Predicate.isNotNullish(input.isActive),
+    {
+      message: 'At least one of name, description, or isActive must be provided',
+    },
+  )
 
 export const RotateFeedbackSourceSchema = z.object({
   sourceId: z.string(),

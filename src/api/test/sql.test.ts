@@ -41,7 +41,7 @@ describe('inChunks', () => {
     const chunks: number[][] = []
     const result = await inChunks(items, async (chunk) => {
       chunks.push(chunk)
-      return chunk.map((n) => n * 2)
+      return chunk.map((item) => item * 2)
     })
     expect(chunks).toHaveLength(1)
     expect(result).toStrictEqual(items.map((item) => item * 2))
@@ -60,7 +60,7 @@ describe('inChunks', () => {
     Iterable.forEach(chunkSizes, (size) => {
       expect(size).toBeLessThanOrEqual(100)
     })
-    expect(chunkSizes.reduce((a, b) => a + b, 0)).toBe(250)
+    expect(chunkSizes.reduce((total, size) => total + size, 0)).toBe(250)
     // Concatenation preserves order and every item exactly once
     expect(result).toStrictEqual(items)
   })

@@ -334,42 +334,42 @@ export const searchWiki = function searchWiki(
     if (!ftsQuery) {
       return []
     }
-    let q = `SELECT p.id, p.slug, p.title, p.project_id, p.type, p.tags, p.status, p.verified_at, p.verified_by, p.owners, p.verify_interval,
+    let query = `SELECT p.id, p.slug, p.title, p.project_id, p.type, p.tags, p.status, p.verified_at, p.verified_by, p.owners, p.verify_interval,
 		 snippet(wiki_fts, -1, '**', '**', '…', 24) as excerpt, bm25(wiki_fts, 0, 0, 10.0, 1.0, 5.0) as rank
 		 FROM wiki_fts JOIN wiki_pages p ON p.id = wiki_fts.page_id
 		 WHERE wiki_fts MATCH ? AND wiki_fts.workspace_id = ? AND p.workspace_id = ? AND p.is_template = 0 AND p.deleted_at IS NULL`
     const params: unknown[] = [ftsQuery, workspaceId, workspaceId]
     if (isNonEmptyText(opts.projectId)) {
-      q +=
+      query +=
         opts.includeWorkspacePages === true
           ? ' AND (p.project_id = ? OR p.project_id IS NULL)'
           : ' AND p.project_id = ?'
       params.push(opts.projectId)
     }
     if (opts.visibilitySql) {
-      q += ` AND (${opts.visibilitySql.sql})`
+      query += ` AND (${opts.visibilitySql.sql})`
       params.push(...opts.visibilitySql.params)
     }
     if (Predicate.isNotNullish(opts.updatedSince)) {
-      q += ' AND p.updated_at >= ?'
+      query += ' AND p.updated_at >= ?'
       params.push(opts.updatedSince)
     }
     if (isNonEmptyText(opts.type)) {
-      q += ' AND p.type = ?'
+      query += ' AND p.type = ?'
       params.push(opts.type)
     }
     if (isNonEmptyText(opts.status)) {
-      q += ' AND p.status = ?'
+      query += ' AND p.status = ?'
       params.push(opts.status)
     }
     if (opts.tags?.length) {
-      q += ` AND EXISTS (SELECT 1 FROM json_each(p.tags) WHERE value IN (${opts.tags.map(() => '?').join(',')}))`
+      query += ` AND EXISTS (SELECT 1 FROM json_each(p.tags) WHERE value IN (${opts.tags.map(() => '?').join(',')}))`
       params.push(...opts.tags)
     }
-    q += ` ORDER BY (CASE WHEN (p.status IN ('stale', 'deprecated') OR (p.verify_interval IS NOT NULL AND p.verified_at IS NOT NULL AND (p.verified_at + p.verify_interval * 86400) <= ?)) THEN 1 ELSE 0 END), bm25(wiki_fts, 0, 0, 10.0, 1.0, 5.0), p.id LIMIT ? OFFSET ?`
+    query += ` ORDER BY (CASE WHEN (p.status IN ('stale', 'deprecated') OR (p.verify_interval IS NOT NULL AND p.verified_at IS NOT NULL AND (p.verified_at + p.verify_interval * 86400) <= ?)) THEN 1 ELSE 0 END), bm25(wiki_fts, 0, 0, 10.0, 1.0, 5.0), p.id LIMIT ? OFFSET ?`
     params.push(opts.now, opts.limit, opts.offset)
     const { results } = await db
-      .prepare(q)
+      .prepare(query)
       .bind(...params)
       .all<Omit<WikiSearchResult, 'tags' | 'owners'> & { tags: unknown; owners: unknown }>()
     return results.map((row) => ({
@@ -410,15 +410,17 @@ interface DiffOp {
 }
 
 const buildLcsTable = function buildLcsTable(oldLines: Readonly<string[]>, newLines: Readonly<string[]>): number[][] {
-  const n = oldLines.length
-  const m = newLines.length
-  const dp: number[][] = globalThis.Array.from({ length: n + 1 }, () =>
-    globalThis.Array.from({ length: m + 1 }, () => 0),
+  const oldCount = oldLines.length
+  const newCount = newLines.length
+  const dp: number[][] = globalThis.Array.from({ length: oldCount + 1 }, () =>
+    globalThis.Array.from({ length: newCount + 1 }, () => 0),
   )
-  for (let index = n - 1; index >= 0; index = Number.decrement(index)) {
-    for (let j = m - 1; j >= 0; j = Number.decrement(j)) {
-      dp[index][j] =
-        oldLines[index] === newLines[j] ? dp[index + 1][j + 1] + 1 : Math.max(dp[index + 1][j], dp[index][j + 1])
+  for (let index = oldCount - 1; index >= 0; index = Number.decrement(index)) {
+    for (let newIndex = newCount - 1; newIndex >= 0; newIndex = Number.decrement(newIndex)) {
+      dp[index][newIndex] =
+        oldLines[index] === newLines[newIndex]
+          ? dp[index + 1][newIndex + 1] + 1
+          : Math.max(dp[index + 1][newIndex], dp[index][newIndex + 1])
     }
   }
   return dp
@@ -429,31 +431,31 @@ const traceLcsDiffOps = function traceLcsDiffOps(
   newLines: Readonly<string[]>,
   dp: Readonly<number[][]>,
 ): DiffOp[] {
-  const n = oldLines.length
-  const m = newLines.length
+  const oldCount = oldLines.length
+  const newCount = newLines.length
   const ops: DiffOp[] = []
-  let i = 0
-  let j = 0
-  while (i < n && j < m) {
-    if (oldLines[i] === newLines[j]) {
-      ops.push({ type: 'equal', line: oldLines[i] })
-      i = Number.increment(i)
-      j = Number.increment(j)
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      ops.push({ type: 'remove', line: oldLines[i] })
-      i = Number.increment(i)
+  let oldIndex = 0
+  let newIndex = 0
+  while (oldIndex < oldCount && newIndex < newCount) {
+    if (oldLines[oldIndex] === newLines[newIndex]) {
+      ops.push({ type: 'equal', line: oldLines[oldIndex] })
+      oldIndex = Number.increment(oldIndex)
+      newIndex = Number.increment(newIndex)
+    } else if (dp[oldIndex + 1][newIndex] >= dp[oldIndex][newIndex + 1]) {
+      ops.push({ type: 'remove', line: oldLines[oldIndex] })
+      oldIndex = Number.increment(oldIndex)
     } else {
-      ops.push({ type: 'add', line: newLines[j] })
-      j = Number.increment(j)
+      ops.push({ type: 'add', line: newLines[newIndex] })
+      newIndex = Number.increment(newIndex)
     }
   }
-  while (i < n) {
-    ops.push({ type: 'remove', line: oldLines[i] })
-    i = Number.increment(i)
+  while (oldIndex < oldCount) {
+    ops.push({ type: 'remove', line: oldLines[oldIndex] })
+    oldIndex = Number.increment(oldIndex)
   }
-  while (j < m) {
-    ops.push({ type: 'add', line: newLines[j] })
-    j = Number.increment(j)
+  while (newIndex < newCount) {
+    ops.push({ type: 'add', line: newLines[newIndex] })
+    newIndex = Number.increment(newIndex)
   }
   return ops
 }
@@ -503,11 +505,11 @@ export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, c
     const slice = ops.slice(sliceStart, sliceEnd + 1)
     let oldStart = 1
     let newStart = 1
-    for (let k = 0; k < sliceStart; k = Number.increment(k)) {
-      if (ops[k].type !== 'add') {
+    for (let index = 0; index < sliceStart; index = Number.increment(index)) {
+      if (ops[index].type !== 'add') {
         oldStart = Number.increment(oldStart)
       }
-      if (ops[k].type !== 'remove') {
+      if (ops[index].type !== 'remove') {
         newStart = Number.increment(newStart)
       }
     }

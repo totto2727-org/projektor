@@ -44,7 +44,7 @@ export const listLinksForIssue = function listLinksForIssue(
       createdById: row.createdById,
       createdAt: row.createdAt,
     }))
-    const issueRows = await inChunks([...new Set(enriched.map((r) => r.linkedIssueId))], (chunk) =>
+    const issueRows = await inChunks([...new Set(enriched.map((link) => link.linkedIssueId))], (chunk) =>
       orm
         .select({
           id: schema.issues.id,
@@ -57,21 +57,21 @@ export const listLinksForIssue = function listLinksForIssue(
         .leftJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
         .where(and(inArray(schema.issues.id, chunk), eq(schema.issues.workspaceId, workspaceId), visibility)),
     )
-    const byId = new Map(issueRows.map((r) => [r.id, r]))
+    const byId = new Map(issueRows.map((row) => [row.id, row]))
     return enriched
-      .filter((r) => !visibility || byId.has(r.linkedIssueId))
-      .map((r) => {
-        const linked = byId.get(r.linkedIssueId)
+      .filter((link) => !visibility || byId.has(link.linkedIssueId))
+      .map((link) => {
+        const linked = byId.get(link.linkedIssueId)
         return {
-          id: r.id,
-          type: r.type,
-          linkedIssueId: r.linkedIssueId,
+          id: link.id,
+          type: link.type,
+          linkedIssueId: link.linkedIssueId,
           linkedIssueTitle: linked?.title ?? '',
           linkedIssueNumber: linked?.number ?? 0,
           linkedIssueProjectKey: linked?.projectKey ?? '',
           linkedIssueStatusCategory: linked?.statusCategory ?? '',
-          createdById: r.createdById,
-          createdAt: r.createdAt,
+          createdById: link.createdById,
+          createdAt: link.createdAt,
         }
       })
   })

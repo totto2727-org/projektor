@@ -44,8 +44,8 @@ const splitBodyChars = function splitBodyChars(rest: Record<string, unknown>): {
       validationIssues([], { bodyChars: [`must be an integer from 0 to ${LIST_BODY_MAX_CHARS}`] }),
     )
   }
-  const n = bodyChars as number
-  return { rest: n > 0 ? { ...others, includeBody: true } : others, bodyChars: n }
+  const previewChars = bodyChars as number
+  return { rest: previewChars > 0 ? { ...others, includeBody: true } : others, bodyChars: previewChars }
 }
 
 const withBodyPreview = function withBodyPreview(
@@ -141,7 +141,7 @@ export const issuesTools: MCPTool[] = [
        */
       const raw = result.items
       const page = toPage(
-        raw.map((i) => shapeIssue(withBodyPreview(i, bodyChars), shape)),
+        raw.map((issue) => shapeIssue(withBodyPreview(issue, bodyChars), shape)),
         result.nextCursor,
         Predicate.isNullish(result.total) ? {} : { total: result.total },
       )
@@ -173,15 +173,15 @@ export const issuesTools: MCPTool[] = [
         return shaped
       }
       // PROJ-892: a long body is windowed; \`next\` continues it.
-      const w = windowText(shaped.body, { cursor, max: ISSUE_BODY_MAX_CHARS })
-      if (!isNonEmptyText(w.next) && Predicate.isNullish(cursor)) {
+      const bodyWindow = windowText(shaped.body, { cursor, max: ISSUE_BODY_MAX_CHARS })
+      if (!isNonEmptyText(bodyWindow.next) && Predicate.isNullish(cursor)) {
         return shaped
       }
       return {
         ...shaped,
-        body: w.text,
-        bodyTotalChars: w.totalChars,
-        ...(isNonEmptyText(w.next) ? { bodyTruncated: true, next: w.next } : {}),
+        body: bodyWindow.text,
+        bodyTotalChars: bodyWindow.totalChars,
+        ...(isNonEmptyText(bodyWindow.next) ? { bodyTruncated: true, next: bodyWindow.next } : {}),
       }
     },
   },

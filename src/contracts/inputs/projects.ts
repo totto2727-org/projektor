@@ -17,7 +17,7 @@ export const CreateProjectSchema = z.object({
      * services/issues.ts) stay unambiguous.
      */
     .regex(/^[A-Z][A-Z0-9]*$/i)
-    .transform((s) => s.toUpperCase()),
+    .transform((key) => key.toUpperCase()),
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
   // PROJ-253: per-project agent WIP cap. null/omitted = workspace default.
   agentWipLimit: z.number().int().min(MIN_AGENT_WIP_LIMIT).max(MAX_AGENT_WIP_LIMIT).nullable().optional(),
