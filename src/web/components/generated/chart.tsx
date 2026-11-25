@@ -108,32 +108,41 @@ export const ChartContainer = function ChartContainer({
 
 export const ChartTooltip = RechartsPrimitive.Tooltip
 
-function getPayloadConfigFromPayload(
+// oxlint-disable-next-line rules/prefer-is-nullish -- JavaScript typeof object includes null and excludes undefined.
+const hasObjectType = Predicate.or(Predicate.isObjectOrArray, Predicate.isNull)
+
+const readMatchedLabel = function readMatchedLabel(payload: object, key: string): string {
+  const label: unknown = Reflect.get(payload, key)
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Preserve the registry's second property read after the string guard, including accessor behavior.
+  return label as string
+}
+
+const selectConfigLabel = function selectConfigLabel(payload: object, nested: object | undefined, key: string): string {
+  if (key in payload && Predicate.isString(Reflect.get(payload, key))) {
+    return readMatchedLabel(payload, key)
+  }
+  if (nested && key in nested && Predicate.isString(Reflect.get(nested, key))) {
+    return readMatchedLabel(nested, key)
+  }
+  return key
+}
+
+const getPayloadConfigFromPayload = function getPayloadConfigFromPayload(
   config: ChartConfig,
   payload: unknown,
   key: string,
 ): ChartConfig[string] | undefined {
-  if (typeof payload !== 'object' || payload === null) {
+  if (!Predicate.isObjectOrArray(payload)) {
     return undefined
   }
 
   const payloadPayload =
-    'payload' in payload && typeof payload.payload === 'object' && payload.payload !== null
+    // oxlint-disable-next-line rules/prefer-is-nullish -- Keep the second accessor read's null check separate from the first read's type check.
+    'payload' in payload && hasObjectType(payload.payload) && Predicate.isNotNull(payload.payload)
       ? payload.payload
       : undefined
 
-  let configLabelKey: string = key
-
-  if (key in payload && typeof payload[key as keyof typeof payload] === 'string') {
-    configLabelKey = payload[key as keyof typeof payload]
-  } else if (
-    payloadPayload &&
-    key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === 'string'
-  ) {
-    configLabelKey = payloadPayload[key as keyof typeof payloadPayload]
-  }
-
+  const configLabelKey = selectConfigLabel(payload, payloadPayload, key)
   return configLabelKey in config ? config[configLabelKey] : config[key]
 }
 
@@ -216,7 +225,8 @@ export function ChartTooltipContent({
                   indicator === 'dot' && 'items-center',
                 )}
               >
-                {formatter && item?.value !== undefined && item.name ? (
+                {/* oxlint-disable-next-line rules/prefer-is-nullish -- Pass explicit null data through to the registered formatter. */}
+                {formatter && Predicate.isNotUndefined(item?.value) && item.name ? (
                   formatter(item.value, item.name, item, index, item.payload)
                 ) : (
                   <>
