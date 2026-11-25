@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Data, Iterable, Predicate, Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
@@ -8,26 +8,19 @@ import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
-import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import {
-  JsonListResponse,
-  readNativeJson,
-  UnknownItemsResponse,
-  ItemsResponse,
-  parseNativeMcpText,
-} from './response-json.ts'
+import { JsonListResponse, McpRpcResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
-interface McpContent {
-  content: { text: string }[]
-}
+const ActivityPage = Schema.Struct({ items: ApiResults.apiListProjectActivity })
 
-const mcpCall = async function mcpCall<T>(
+class ProjectActivityRpcError extends Data.TaggedError('ProjectActivityRpcError')<Readonly<{ message: string }>> {}
+
+const mcpCall = async function mcpCall(
   workspaceId: string,
   toolName: string,
   args: unknown,
   headers: Record<string, string>,
-): Promise<JsonRpcResult<T> | JsonRpcError> {
+): Promise<typeof McpRpcResponse.Type> {
   const res = await fetchNativeApi(
     `http://localhost/mcp/${workspaceId}`,
     requestOptionsWithBody(
@@ -41,15 +34,18 @@ const mcpCall = async function mcpCall<T>(
       }),
     ),
   )
-  return res.json()
+  return readNativeJson(res, McpRpcResponse)
 }
 
-const parseEvents = function parseEvents(res: JsonRpcResult<McpContent> | JsonRpcError): unknown[] {
-  if ('error' in res && res.error) {
-    throw new Error(`MCP error: ${res.error.message}`)
+const parseEvents = function parseEvents(res: typeof McpRpcResponse.Type): typeof ActivityPage.Type.items {
+  if (res.error) {
+    throw new ProjectActivityRpcError({ message: `MCP error: ${res.error.message}` })
   }
-  const r = res as JsonRpcResult<McpContent>
-  return parseNativeMcpText(r.result.content[0].text, ItemsResponse).items
+  const text = res.result?.content?.[0]?.text
+  if (!Predicate.isString(text)) {
+    throw new ProjectActivityRpcError({ message: 'Expected the project activity result to contain a first text item.' })
+  }
+  return parseNativeMcpText(text, ActivityPage).items
 }
 
 const seedSprint = async function seedSprint(
@@ -127,7 +123,7 @@ describe('list_project_activity MCP tool', () => {
 
   test('returns empty array when project has no activity', async () => {
     const { headers, projectId, workspaceId } = await seedTestData()
-    const res = await mcpCall<McpContent>(workspaceId, 'list_project_activity', { projectId }, headers)
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
     const events = parseEvents(res)
     expect(Array.isArray(events)).toBe(true)
     expect(events).toHaveLength(0)
@@ -137,19 +133,8 @@ describe('list_project_activity MCP tool', () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'My Issue' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-      summary: string
-      entity_type: string
-      entity_ref: string
-      created_at: number
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const created = events.filter((selectedEvent) => selectedEvent.type === 'issue_created')
     expect(created).toHaveLength(1)
@@ -164,16 +149,8 @@ describe('list_project_activity MCP tool', () => {
     const issue = await seedIssue(workspaceId, projectId, userId)
     await seedComment(issue.id, userId, 'Hello world')
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-      actor: string | null
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const commented = events.filter((selectedEvent) => selectedEvent.type === 'issue_commented')
     expect(commented).toHaveLength(1)
@@ -184,18 +161,8 @@ describe('list_project_activity MCP tool', () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, { title: 'Design Doc' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-      entity_type: string
-      summary: string
-      entity_ref: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const wikiCreated = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_created')
     expect(wikiCreated).toHaveLength(1)
@@ -211,15 +178,8 @@ describe('list_project_activity MCP tool', () => {
       updatedAt: currentEpochSeconds() + 10,
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const edited = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_edited')
     expect(edited).toHaveLength(1)
@@ -229,15 +189,8 @@ describe('list_project_activity MCP tool', () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, { title: 'Untouched' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const edited = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_edited')
     expect(edited).toHaveLength(0)
@@ -251,15 +204,8 @@ describe('list_project_activity MCP tool', () => {
       updatedAt: currentEpochSeconds() + 10,
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     expect(events.some((selectedEvent) => selectedEvent.type === 'wiki_page_created')).toBe(false)
     expect(events.some((selectedEvent) => selectedEvent.type === 'wiki_page_edited')).toBe(false)
@@ -274,17 +220,8 @@ describe('list_project_activity MCP tool', () => {
       status: 'active',
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-      summary: string
-      entity_type: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const started = events.filter((selectedEvent) => selectedEvent.type === 'sprint_started')
     expect(started).toHaveLength(1)
@@ -302,16 +239,8 @@ describe('list_project_activity MCP tool', () => {
       endDate: now,
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      type: string
-      summary: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const completed = events.filter((selectedEvent) => selectedEvent.type === 'sprint_completed')
     expect(completed).toHaveLength(1)
@@ -327,13 +256,8 @@ describe('list_project_activity MCP tool', () => {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId, limit: 2 },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as unknown[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId, limit: 2 }, headers)
+    const events = parseEvents(res)
     expect(events).toHaveLength(2)
   })
 
@@ -343,15 +267,8 @@ describe('list_project_activity MCP tool', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Old issue', createdAt: past - 1 })
     await seedIssue(workspaceId, projectId, userId, { title: 'New issue' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId, since: past },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      summary: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId, since: past }, headers)
+    const events = parseEvents(res)
 
     const titles = events.map((selectedEvent) => selectedEvent.summary)
     expect(titles).toContain('New issue')
@@ -364,16 +281,8 @@ describe('list_project_activity MCP tool', () => {
     await seedIssue(workspaceId, projectId, userId, { createdAt: base, title: 'Older' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Newer', createdAt: base + 50 })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      summary: string
-      created_at: number
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const created = events.filter(
       (selectedEvent) => selectedEvent.summary === 'Older' || selectedEvent.summary === 'Newer',
@@ -388,15 +297,8 @@ describe('list_project_activity MCP tool', () => {
     await seedIssue(workspaceId, other.id, userId, { title: 'Other project issue' })
     await seedIssue(workspaceId, projectId, userId, { title: 'This project issue' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
-      summary: string
-    }[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     const summaries = events.map((selectedEvent) => selectedEvent.summary)
     expect(summaries).toContain('This project issue')
@@ -421,16 +323,8 @@ describe('list_project_activity MCP tool', () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'Flat check' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as Record<
-      string,
-      unknown
-    >[]
+    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId }, headers)
+    const events = parseEvents(res)
 
     Iterable.forEach(events, (event) => {
       Iterable.forEach(Object.values(event), (val) => {
