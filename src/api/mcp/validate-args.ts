@@ -22,6 +22,8 @@ import { Array, Iterable, Predicate } from 'effect'
 
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
+import { isOmittedArgument } from './input-schema.ts'
+
 type Schema = Record<string, unknown>
 
 export interface ArgIssue {
@@ -36,14 +38,12 @@ const argumentIssue = function argumentIssue(path: string, message: string): Arg
   ])
 }
 
-const typeOf = function typeOf(v: unknown): string {
-  if (v === null) {
-    return 'null'
+const typeOf = function typeOf(value: unknown): string {
+  const kind = typeof value
+  if (Predicate.isNullish(value)) {
+    return kind === 'object' ? 'null' : kind
   }
-  if (globalThis.Array.isArray(v)) {
-    return 'array'
-  }
-  return typeof v
+  return globalThis.Array.isArray(value) ? 'array' : kind
 }
 
 // Mirrors BooleanQueryParam (schemas/common.ts).
@@ -56,7 +56,7 @@ const isNumericString = function isNumericString(v: unknown): boolean {
 const matchesType = function matchesType(v: unknown, t: string): boolean {
   switch (t) {
     case 'boolean': {
-      return Predicate.isBoolean(v) || BOOLEAN_STRINGS.has(v as string)
+      return Predicate.isBoolean(v) || (Predicate.isString(v) && BOOLEAN_STRINGS.has(v))
     }
     case 'string':
     case 'object':
@@ -70,7 +70,7 @@ const matchesType = function matchesType(v: unknown, t: string): boolean {
       return (Predicate.isNumber(v) && Number.isInteger(v)) || (isNumericString(v) && Number.isInteger(Number(v)))
     }
     case 'null': {
-      return v === null
+      return typeOf(v) === 'null'
     }
     default: {
       // Unknown type keyword: don't reject on a guess
@@ -80,13 +80,13 @@ const matchesType = function matchesType(v: unknown, t: string): boolean {
 }
 
 const validate = function validate(value: unknown, schema: Schema, path: string, issues: ArgIssue[]): void {
-  if (value === null && schema.nullable === true) {
+  if (typeOf(value) === 'null' && schema.nullable === true) {
     return
   }
 
   const declared = schema.type
   const types = globalThis.Array.isArray(declared)
-    ? declared.filter((t): t is string => Predicate.isString(t))
+    ? declared.filter((item) => Predicate.isString(item))
     : Predicate.isString(declared)
       ? [declared]
       : []
@@ -134,18 +134,17 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     }
   }
 
-  if (typeOf(value) === 'object') {
-    validateObject(value as Record<string, unknown>, schema, path, issues)
+  if (Predicate.isObject(value)) {
+    validateObject(value, schema, path, issues)
   }
 }
 
 function validateObject(obj: Record<string, unknown>, schema: Schema, path: string, issues: ArgIssue[]): void {
-  const props =
-    schema.properties && typeof schema.properties === 'object' ? (schema.properties as Record<string, Schema>) : {}
+  const props = Predicate.isObjectOrArray(schema.properties) ? (schema.properties as Record<string, Schema>) : {}
   const prefix = path ? `${path}.` : ''
   if (globalThis.Array.isArray(schema.required)) {
     Iterable.forEach(schema.required, (key) => {
-      if (Predicate.isString(key) && obj[key] === undefined) {
+      if (Predicate.isString(key) && isOmittedArgument(obj[key])) {
         issues.push(argumentIssue(`${prefix}${key}`, 'is required'))
       }
     })
@@ -153,7 +152,7 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   const required = new Set(globalThis.Array.isArray(schema.required) ? schema.required : [])
   Iterable.forEach(Object.entries(props), ([key, sub]) => {
     const v = obj[key]
-    if (v === undefined || !Predicate.isObjectOrArray(sub)) {
+    if (isOmittedArgument(v) || !Predicate.isObjectOrArray(sub)) {
       return
     }
     if (Predicate.isNullish(v) && !required.has(key)) {

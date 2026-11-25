@@ -15,8 +15,7 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 export const RESPONSE_CONVENTIONS_DOC = '/projektor/agents/response-conventions/'
 
 /** Every tool description that shapes results says this, so a caller sees the contract. */
-export const OMISSION_NOTE =
-  'Omitted keys are null/empty/false; pass verbose:true for the raw shape. ' + `See ${RESPONSE_CONVENTIONS_DOC}.`
+export const OMISSION_NOTE = `Omitted keys are null/empty/false; pass verbose:true for the raw shape. See ${RESPONSE_CONVENTIONS_DOC}.`
 
 /** Per-result size ceiling (characters of serialized JSON). */
 export const MAX_RESULT_CHARS = 20_000
@@ -308,7 +307,8 @@ export const shapeIssue = function shapeIssue(
     delete out.needs_audit
   }
   Iterable.forEach(NULLABLE_DEFAULT_KEYS, (key) => {
-    if (!Predicate.isNotNullish(out[key]) || out[key] === '') {
+    const value = out[key]
+    if (Predicate.isNullish(value) || (Predicate.isString(value) && String.isEmpty(value))) {
       delete out[key]
     }
   })

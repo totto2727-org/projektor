@@ -18,10 +18,10 @@ import type { MCPTool } from './types.ts'
 /** Claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
 const withIdAlias = function withIdAlias(input: unknown): unknown {
   const { agentId, ...rest } = (input ?? {}) as { agentId?: unknown; id?: unknown }
-  if (agentId === undefined || Predicate.isNullish(agentId)) {
+  if (Predicate.isNullish(agentId)) {
     return rest
   }
-  if (rest.id === undefined || Predicate.isNullish(rest.id)) {
+  if (Predicate.isNullish(rest.id)) {
     return { ...rest, id: agentId }
   }
   if (rest.id !== agentId) {

@@ -12,6 +12,9 @@ import { JSON_RPC_INVALID_PARAMS } from './json-rpc.ts'
 
 const MCP_SERVER_ERROR_CODE = -32_000
 
+// oxlint-disable-next-line unicorn/no-null -- The MCP error adapter's null result signals that the route should return a JSON-RPC error.
+const NO_TOOL_ERROR = null
+
 const validationIssueFields = fieldsInOrder([
   ['formErrors', z.array(z.string())],
   ['fieldErrors', z.record(z.string(), z.array(z.string()).optional())],
@@ -282,12 +285,12 @@ const conflictHint = function conflictHint(message: string, details: Record<stri
 export const toToolError = function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolErrorResult | null {
   if (err instanceof CorePublicError) {
     if (err.status >= HTTP_INTERNAL_SERVER_ERROR) {
-      return null
+      return NO_TOOL_ERROR
     }
     if (err.kind === 'validation') {
       const parsed = ValidationIssues.safeParse(err.details)
       if (!parsed.success) {
-        return null
+        return NO_TOOL_ERROR
       }
       const fields = definedFields(parsed.data.fieldErrors)
       return toolErrorResult({
@@ -339,7 +342,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
         ]),
       )
     }
-    return null
+    return NO_TOOL_ERROR
   }
   if (err instanceof ValidationError) {
     const fields = definedFields(err.issues.fieldErrors)
@@ -354,7 +357,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
     })
   }
   if (!(err instanceof ServiceError)) {
-    return null
+    return NO_TOOL_ERROR
   }
 
   switch (err.kind) {
@@ -404,7 +407,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
       )
     }
     default: {
-      return null
+      return NO_TOOL_ERROR
     }
   }
 }

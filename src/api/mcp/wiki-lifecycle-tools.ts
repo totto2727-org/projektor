@@ -52,7 +52,7 @@ export const wikiLifecycleTools: MCPTool[] = [
             ['nullable', true],
             [
               'description',
-              "The page's latest revision id when this draft was started; null if the " + 'page had no revisions yet',
+              "The page's latest revision id when this draft was started; null if the page had no revisions yet",
             ],
           ]),
         ],

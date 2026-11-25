@@ -13,8 +13,9 @@ export const WIKI_MAX_CHARS = 20_000
 export const ISSUE_BODY_MAX_CHARS = 16_000
 export const LIST_BODY_MAX_CHARS = 1000
 
-const HIGH_SURROGATE_START = 0xd8_00
-const HIGH_SURROGATE_END = 0xdb_ff
+// High-surrogate code units span U+D800 to U+DBFF.
+const HIGH_SURROGATE_START = 55_296
+const HIGH_SURROGATE_END = 56_319
 const FIRST_SUPPLEMENTARY_CODE_POINT = 0x1_00_00
 
 const isHighSurrogateAt = function isHighSurrogateAt(text: string, index: number): boolean {

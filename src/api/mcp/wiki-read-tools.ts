@@ -5,7 +5,13 @@ import { ValidationError, validationIssues } from '#contracts/errors.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { READ } from './annotations.ts'
-import { fieldsInOrder, objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import {
+  isOmittedArgument,
+  fieldsInOrder,
+  objectInputSchema,
+  requiredObjectInputSchema,
+  describedInputProperty,
+} from './input-schema.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { TYPE_FILTER_DESCRIPTION, INCLUDE_WORKSPACE_PAGES_PROPERTY } from './wiki-tool-fields.ts'
@@ -77,7 +83,7 @@ export const wikiReadTools: MCPTool[] = [
       'See /projektor/agents/response-conventions/.',
     async handler(input, ctx) {
       const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
-      if (cursor !== undefined) {
+      if (!isOmittedArgument(cursor)) {
         const offset = Number(cursor)
         if (!Number.isInteger(offset) || offset < 0) {
           throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
@@ -88,7 +94,7 @@ export const wikiReadTools: MCPTool[] = [
       // A full page means there may be more: the cursor is the next offset.
       const limit = Predicate.isNumber(rest.limit) ? rest.limit : 10
       const offset = Predicate.isNumber(rest.offset) ? rest.offset : 0
-      const page = toPage(items, items.length >= limit ? offset + limit : null)
+      const page = toPage(items, items.length >= limit ? offset + limit : undefined)
       // A cut page resumes at the first dropped result.
       return capPage(page, { cursorOf: (index) => globalThis.String(offset + index + 1) })
     },

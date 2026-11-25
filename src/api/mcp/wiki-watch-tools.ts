@@ -1,11 +1,16 @@
-import { Predicate } from 'effect'
+import { Predicate, String } from 'effect'
 
 import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import {
+  isOmittedArgument,
+  objectInputSchema,
+  requiredObjectInputSchema,
+  describedInputProperty,
+} from './input-schema.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 
@@ -138,10 +143,10 @@ export const wikiWatchTools: MCPTool[] = [
     async handler(input, ctx) {
       const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
       // Null / "" mean "no cursor", not "since the epoch".
-      if (cursor !== undefined && Predicate.isNotNullish(cursor) && cursor !== '') {
+      if (Predicate.isNotNullish(cursor) && !(Predicate.isString(cursor) && String.isEmpty(cursor))) {
         rest.since = Number(cursor)
       }
-      if (rest.since === undefined || Number.isNaN(rest.since)) {
+      if (isOmittedArgument(rest.since) || Number.isNaN(rest.since)) {
         throw new ValidationError(
           validationIssues([], { since: ['pass since (unix seconds) or cursor from a previous `next`'] }),
         )
@@ -152,7 +157,7 @@ export const wikiWatchTools: MCPTool[] = [
        * out, so a poller keeps advancing); the feed is drained when it is absent.
        */
       const events = result.changes as { createdAt: number }[]
-      const page = toPage(events, result.nextSince > (rest.since as number) ? result.nextSince : null)
+      const page = toPage(events, result.nextSince > (rest.since as number) ? result.nextSince : undefined)
       // `since` is exclusive, so a cut must not split events sharing one second.
       return capPage(
         page,

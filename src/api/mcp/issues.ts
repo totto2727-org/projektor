@@ -15,7 +15,12 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import {
+  isOmittedArgument,
+  objectInputSchema,
+  requiredObjectInputSchema,
+  describedInputProperty,
+} from './input-schema.ts'
 import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS_PROPS } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { bodyPreview, ISSUE_BODY_MAX_CHARS, LIST_BODY_MAX_CHARS, windowText } from './windowing.ts'
@@ -52,18 +57,23 @@ const splitBodyChars = function splitBodyChars(rest: Record<string, unknown>): {
   bodyChars: number
 } {
   const { bodyChars, ...others } = rest
-  if (bodyChars === undefined) {
+  if (isOmittedArgument(bodyChars)) {
     return fieldsInOrder([
       ['rest', others],
       ['bodyChars', NO_BODY_PREVIEW_CHARS],
     ])
   }
-  if (!Number.isInteger(bodyChars) || (bodyChars as number) < 0 || (bodyChars as number) > LIST_BODY_MAX_CHARS) {
+  if (
+    !Predicate.isNumber(bodyChars) ||
+    !Number.isInteger(bodyChars) ||
+    bodyChars < 0 ||
+    bodyChars > LIST_BODY_MAX_CHARS
+  ) {
     throw new ValidationError(
       validationIssues([], { bodyChars: [`must be an integer from 0 to ${LIST_BODY_MAX_CHARS}`] }),
     )
   }
-  const previewChars = bodyChars as number
+  const previewChars = bodyChars
   return fieldsInOrder([
     ['rest', previewChars > 0 ? { ...others, includeBody: true } : others],
     ['bodyChars', previewChars],

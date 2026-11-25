@@ -35,6 +35,7 @@ export const filesTools: MCPTool[] = [
           'status',
           fieldsInOrder([
             ['type', ['string', 'null']],
+            // oxlint-disable-next-line unicorn/no-null -- A literal null clears the review status and must remain in the advertised enum.
             ['enum', [...REVIEW_STATUSES, null]],
           ]),
         ],
