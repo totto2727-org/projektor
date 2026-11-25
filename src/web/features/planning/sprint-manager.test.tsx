@@ -56,14 +56,16 @@ const issue = (id: string, category: string, points: string): SprintIssue => ({
 const rows = [issue('done', 'done', '5'), issue('open', 'in_progress', '3')]
 const scope = { workspaceSlug: 'alpha', projectId: 'project-a' }
 const props = { ...scope, initialIssues: rows }
-afterEach(cleanup)
-beforeEach(() => {
-  request.mockReset()
-  nativeSubmitted.mockReset()
-  request.mockResolvedValue({ ok: true, value: { ok: true } })
-})
 
 describe('original SprintManager with TanStack schemas and semantic Effront calls', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    request.mockReset()
+    nativeSubmitted.mockReset()
+    request.mockResolvedValue({ ok: true, value: { ok: true } })
+  })
+
   test('retains a pending native edit across canonical refresh and closes after the result arrives', async () => {
     const pending = Promise.withResolvers<{ ok: true; value: { ok: true } }>()
     request.mockReturnValueOnce(pending.promise)

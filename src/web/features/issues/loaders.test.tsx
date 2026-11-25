@@ -53,16 +53,17 @@ function fixture() {
   databases.push(data)
   return data
 }
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (data) => {
-    data.close()
-  })
-})
 const selected: RequestScope = { ...scope, selection: { kind: 'project', workspace, project } }
 const listUrl = new URL('https://front.test/issues?workspace=workspace')
 const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=workspace')
 
 describe('complete direct D1 issues SSR loaders', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (data) => {
+      data.close()
+    })
+  })
+
   test('requires an explicit nullable review status in API and Web attachment replies', () => {
     expect.hasAssertions()
     const attachment = {

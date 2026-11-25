@@ -11,11 +11,6 @@ import { sqliteRowFields } from '#tests/sqlite-records.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = createTestDatabase()
@@ -59,6 +54,12 @@ const fixture = function fixture() {
 }
 
 describe('issue attachment review target storage and authorization', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('defaults existing metadata to null and persists every review state, then removes selection', async () => {
     const testFixture = fixture()
     await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })

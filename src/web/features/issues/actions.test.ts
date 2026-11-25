@@ -30,11 +30,6 @@ import {
 import { issueDataFixture } from './test/data-fixture.ts'
 import { project, scope, workspace } from './test/fixtures.ts'
 const databases: ReturnType<typeof issueDataFixture>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 /*
  * Capture the framework's schema boundary while exercising migrated D1, real development
@@ -88,6 +83,12 @@ const fixture = function fixture(options: { origin?: string } = {}) {
 }
 
 describe('individual issue ServerFn authorization and contracts', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('sets and clears review status through the named Core command under selected issue ownership', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(

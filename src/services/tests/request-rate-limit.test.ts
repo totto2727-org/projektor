@@ -23,13 +23,6 @@ import type { ApiEnv, HonoEnv } from '#types'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  vi.useRealTimers()
-  vi.restoreAllMocks()
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = createTestDatabase()
@@ -83,6 +76,14 @@ const consume = async function consume(count: number, req: Request, env: Request
 }
 
 describe('shared request rate-limit policy', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('retains 300 IP and 600 bearer defaults, with no JWT or app auth bindings', async () => {
     const testFixture = fixture()
     await consume(300, request(), testFixture.env)

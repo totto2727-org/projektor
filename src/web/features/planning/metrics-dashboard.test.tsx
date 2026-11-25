@@ -62,15 +62,17 @@ const props = {
     entries: [{ path: 'src', segment: 'src', isLeaf: false, distinctIssueCount: 2 }],
   },
 }
-afterEach(cleanup)
-// Jsdom has no layout. Give the real ResponsiveContainer a representative measured rectangle.
-beforeEach(() => {
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    return new DOMRect(0, 0, 600, this.classList.contains('recharts-legend-wrapper') ? 24 : 220)
-  })
-})
 
 describe('full original metrics surfaces', () => {
+  afterEach(cleanup)
+
+  // Jsdom has no layout. Give the real ResponsiveContainer a representative measured rectangle.
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return new DOMRect(0, 0, 600, this.classList.contains('recharts-legend-wrapper') ? 24 : 220)
+    })
+  })
+
   test('uses the shared Effect Standard Schema to block reversed native GET ranges', async () => {
     expect.hasAssertions()
     const nativeSubmit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {})

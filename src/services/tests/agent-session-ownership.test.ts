@@ -12,11 +12,6 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = createTestDatabase()
@@ -49,6 +44,12 @@ const fixture = function fixture() {
 }
 
 describe('agent session ownership at shared command boundaries', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('denies foreign admin act-as but permits explicit administrative cleanup', async () => {
     const testFixture = fixture()
     const session = await registerAgent(testFixture.ctx, { name: 'holder', issueId: testFixture.issueId })

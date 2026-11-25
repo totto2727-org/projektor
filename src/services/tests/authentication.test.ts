@@ -27,18 +27,6 @@ let pair: CryptoKeyPair
 let otherPair: CryptoKeyPair
 let key: JsonWebKey
 let otherKey: JsonWebKey
-beforeAll(async () => {
-  const algorithm = {
-    name: 'RSASSA-PKCS1-v1_5',
-    modulusLength: 2048,
-    publicExponent: new Uint8Array([1, 0, 1]),
-    hash: 'SHA-256',
-  }
-  pair = await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])
-  otherPair = await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])
-  key = await crypto.subtle.exportKey('jwk', pair.publicKey)
-  otherKey = await crypto.subtle.exportKey('jwk', otherPair.publicKey)
-})
 const token = async function token(
   overrides: Record<string, unknown> = {},
   signingPair = pair,
@@ -69,6 +57,19 @@ const browser = function browser(jwt: string, cookie = false): Request<unknown, 
   })
 }
 describe('shared browser authentication without API transport or signing secrets', () => {
+  beforeAll(async () => {
+    const algorithm = {
+      name: 'RSASSA-PKCS1-v1_5',
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA-256',
+    }
+    pair = await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])
+    otherPair = await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])
+    key = await crypto.subtle.exportKey('jwk', pair.publicKey)
+    otherKey = await crypto.subtle.exportKey('jwk', otherPair.publicKey)
+  })
+
   let database: ReturnType<typeof createTestDatabase>
   let env: BrowserAuthEnvironment
   let cache: Map<string, string>

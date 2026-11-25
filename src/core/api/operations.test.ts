@@ -15,12 +15,6 @@ import { makeApiIdentityHandlers } from './identity-operations.ts'
 import { makeApiPublicHandlers } from './public-operations.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-  resetAuthCachesForTests()
-})
 
 const fixture = async function fixture() {
   const database = createTestDatabase()
@@ -59,6 +53,13 @@ const reply = function reply<S extends Schema.Top & Readonly<{ DecodingServices:
 }
 
 describe('covers API Core authorization and presentation boundaries', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+    resetAuthCachesForTests()
+  })
+
   test('filters both workspace catalogs and auth bootstrap by the original credential audience', async () => {
     const testFixture = await fixture()
     const workspaces = await reply(

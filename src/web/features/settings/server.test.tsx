@@ -69,11 +69,6 @@ const connector = {
 }
 const url = new URL('https://front.example/settings?workspace=alpha')
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 async function fixture(currentScope = scope) {
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
@@ -137,6 +132,12 @@ async function fixture(currentScope = scope) {
 }
 
 describe('settings authorized direct D1 SSR', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test.each(['groups', 'members'] as const)('keeps canonical native URL %s view and original DTOs', async (view) => {
     const testFixture = await fixture()
     const node = await testFixture.run(

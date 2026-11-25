@@ -37,29 +37,30 @@ function viewport(width: number): void {
   }))
 }
 
-beforeEach(() => {
-  localStorage.clear()
-  viewport(1440)
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      public observe(): void {}
-      public unobserve(): void {}
-      public disconnect(): void {}
-    },
-  )
-})
-afterEach(() => {
-  cleanup()
-  localStorage.clear()
-  document.documentElement.removeAttribute('data-theme')
-  document.documentElement.removeAttribute('data-density')
-  document.documentElement.removeAttribute('data-sidebar')
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
-})
-
 describe('generated Base UI Shell', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    viewport(1440)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        public observe(): void {}
+        public unobserve(): void {}
+        public disconnect(): void {}
+      },
+    )
+  })
+
+  afterEach(() => {
+    cleanup()
+    localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
+    document.documentElement.removeAttribute('data-density')
+    document.documentElement.removeAttribute('data-sidebar')
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
   test('reads the preserved application version from the single private root package', () => {
     expect(pkg.private).toBe(true)
     expect(pkg.version).toBe('0.7.6')

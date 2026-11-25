@@ -13,11 +13,6 @@ import type { ServiceCtx } from '#commands/types.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = createTestDatabase()
@@ -66,6 +61,12 @@ const input = (file: File, entityId = 'i1'): { file: File; entityType: 'issue'; 
 })
 
 describe('shared file transfer commands over migrated SQLite and bounded R2', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('accepts only one concurrent upload when both preflights see the same remaining quota', async () => {
     const testFixture = fixture()
     const ready = Promise.withResolvers<void>()

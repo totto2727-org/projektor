@@ -8,11 +8,6 @@ import type { CoreEnvironment } from './environment.ts'
 import { handleSharedLogoRequest } from './shared-logo.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = async function fixture() {
   const database = createTestDatabase()
@@ -51,6 +46,12 @@ const fixture = async function fixture() {
 }
 
 describe('core shared logo binary delivery', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('streams the exact body and forwards cancellation without buffering', async () => {
     const testFixture = await fixture()
     const response = await handleSharedLogoRequest(testFixture.request(), testFixture.env)

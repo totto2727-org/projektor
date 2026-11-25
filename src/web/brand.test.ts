@@ -10,11 +10,6 @@ import { testEnvironment } from './server/test/resources.ts'
 import { createTestDatabase } from './test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 const workspace = { id: 'w', slug: 'beta', name: 'Beta', role: 'owner' as const }
 const request = new Request('https://front.example/?workspace=beta')
 const scope: RequestScope = {
@@ -44,6 +39,12 @@ const fixture = function fixture() {
 }
 
 describe('server-rendered native brand', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('normalizes deployment bindings and derives a Unicode mark', () => {
     expect(deploymentBrand({})).toStrictEqual(defaultBrand)
     expect(

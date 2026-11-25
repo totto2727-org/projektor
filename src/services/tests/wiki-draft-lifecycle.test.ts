@@ -19,11 +19,6 @@ import { deleteWorkspace } from '#commands/workspaces.ts'
 import { migratedDb } from '#db/test/helpers.ts'
 
 const databases: ReturnType<typeof migratedDb>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (db) => {
-    db.close()
-  })
-})
 const fixture = function fixture() {
   const sqlite = migratedDb()
   databases.push(sqlite)
@@ -87,6 +82,12 @@ const snapshot = (content: string, expectedDraftRevision: string | null) => ({
 })
 
 describe('durable Wiki draft lifecycle preconditions', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (db) => {
+      db.close()
+    })
+  })
+
   test('reauthorizes cleanup after publication instead of trusting a reserved page id', async () => {
     const { ctx, sqlite, state } = fixture()
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('A', null))

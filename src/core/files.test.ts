@@ -9,11 +9,6 @@ import type { CoreEnvironment } from './environment.ts'
 import { handleCoreFileRequest } from './files.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = createTestDatabase()
@@ -65,6 +60,12 @@ const fixture = function fixture() {
 }
 
 describe('core narrow same-binding binary transfer', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('streams exact binary bytes from an authorized archived owner without buffering', async () => {
     const testFixture = fixture()
     const response = await handleCoreFileRequest(testFixture.request(), testFixture.env)

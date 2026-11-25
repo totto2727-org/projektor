@@ -36,11 +36,6 @@ const scope: RequestScope = {
   selection: { kind: 'workspace', workspace },
 }
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 async function fixture(currentScope = scope) {
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
@@ -71,6 +66,12 @@ async function fixture(currentScope = scope) {
 }
 
 describe('feedback request-local database SSR', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('requires a project for grid without reading API or DB', async () => {
     const testFixture = await fixture()
     const prepare = vi.spyOn(testFixture.db, 'prepare')

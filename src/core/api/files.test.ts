@@ -9,11 +9,6 @@ import { createTestDatabase } from '@/test/database.ts'
 import { handleApiBinaryRequest } from './files.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
@@ -56,6 +51,12 @@ const fixture = function fixture() {
 }
 
 describe('covers API Core binary workspace logos', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('streams bytes without buffering and propagates consumer cancellation', async () => {
     const testFixture = fixture()
     const response = await handleApiBinaryRequest(testFixture.request(), testFixture.env)

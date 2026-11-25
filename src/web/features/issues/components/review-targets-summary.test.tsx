@@ -9,8 +9,6 @@ import { issue } from '@/features/issues/test/fixtures.ts'
 
 import { ReviewTargetsSummary } from './review-targets-summary.tsx'
 
-afterEach(cleanup)
-
 function target(overrides: Partial<ReviewTarget> = {}): ReviewTarget {
   return {
     id: 'reference',
@@ -23,6 +21,8 @@ function target(overrides: Partial<ReviewTarget> = {}): ReviewTarget {
 }
 
 describe('issue review target summary', () => {
+  afterEach(cleanup)
+
   test('always displays an unconfigured link, including server-rendered HTML', () => {
     const value = { ...issue(), workspaceSlug: 'team space' }
     render(<ReviewTargetsSummary issue={value} />)

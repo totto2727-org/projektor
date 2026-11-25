@@ -7,8 +7,6 @@ import type { ScopedIssue } from '@/features/issues/views/my-issues-page.tsx'
 
 import { MyIssues } from './my-issues.tsx'
 
-afterEach(cleanup)
-
 function scoped(overrides: Partial<ScopedIssue> = {}): ScopedIssue {
   return { ...issue(), workspaceSlug: workspace.slug, ...overrides }
 }
@@ -25,6 +23,8 @@ function titles(): string[] {
 }
 
 describe('my Issues focus order', () => {
+  afterEach(cleanup)
+
   test('uses one four-column table across projects and workspaces with scoped issue references', () => {
     show([
       scoped({ id: 'a', title: 'First issue', project_name: 'First project' }),

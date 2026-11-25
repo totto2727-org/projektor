@@ -7,11 +7,6 @@ import type { ServiceCtx } from '#commands/types.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture(concurrentBatches = 1) {
   const database = createTestDatabase()
@@ -100,6 +95,12 @@ const fixture = function fixture(concurrentBatches = 1) {
 }
 
 describe('feedback conversion transaction', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('permits exactly one concurrent single conversion without orphan issues, mirrors, activity or events', async () => {
     const testFixture = fixture(2)
     testFixture.seed('f')

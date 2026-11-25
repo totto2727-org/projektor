@@ -11,8 +11,6 @@ import type { SavedViewFilters } from '@/features/issues/components/saved-views.
 import { SavedViewsControl } from './saved-views-control.tsx'
 import { useSavedViews } from './use-saved-views.ts'
 
-afterEach(cleanup)
-
 const EMPTY_FILTERS: SavedViewFilters = {
   statuses: [],
   priorities: [],
@@ -38,10 +36,12 @@ function Harness({ onApply }: { onApply: (filters: SavedViewFilters) => void }):
   return <SavedViewsControl saved={saved} />
 }
 
-beforeEach(() => sessionStorage.clear())
-
 // Standard Base UI menus own pointer, focus and keyboard interaction.
 describe('covers SavedViewsControl — generated menu', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => sessionStorage.clear())
+
   test('renders nothing when there are no saved views', () => {
     render(<Harness onApply={() => {}} />)
     expect(screen.queryByRole('button', { name: 'Saved views' })).toBeNull()

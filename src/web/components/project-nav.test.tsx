@@ -34,13 +34,13 @@ const scope: RequestScope = {
 }
 const url = 'https://frontend.test/wiki/page?workspace=team&projectId=project-1'
 
-afterEach(() => {
-  cleanup()
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
-})
-
 describe('covers ProjectNav SSR width fallback', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
   test('keeps all scoped native links scrollable before JavaScript runs', () => {
     expect.hasAssertions()
     const container = document.createElement('div')

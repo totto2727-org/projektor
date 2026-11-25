@@ -18,107 +18,6 @@ let hiddenProject: string
 let groupId: string
 let selected: { id: string; projectId: string; status: ReviewStatus }[]
 
-beforeEach(async () => {
-  const suffix = crypto.randomUUID()
-  const userId = `filter-user-${suffix}`
-  const email = `filter-${suffix}@example.test`
-  const slug = `filter-${suffix}`
-  workspaceId = `filter-workspace-${suffix}`
-  foreignWorkspaceId = `foreign-workspace-${suffix}`
-  firstProject = `first-${suffix}`
-  secondProject = `second-${suffix}`
-  hiddenProject = `hidden-${suffix}`
-  const foreignProject = `foreign-${suffix}`
-  groupId = `filter-group-${suffix}`
-  await configureCore({ DEV_USER_EMAIL: email, DEFAULT_WORKSPACE_SLUG: slug })
-  await env.DB.batch([
-    env.DB.prepare("INSERT INTO users (id,email,name,created_at) VALUES (?,?,'Reviewer',1)").bind(userId, email),
-    env.DB.prepare("INSERT INTO workspaces (id,name,slug,created_at) VALUES (?,'Review',?,1),(?,'Other',?,1)").bind(
-      workspaceId,
-      slug,
-      foreignWorkspaceId,
-      `other-${suffix}`,
-    ),
-    env.DB.prepare("INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES (?,?,'member',1)").bind(
-      workspaceId,
-      userId,
-    ),
-    env.DB.prepare(
-      "INSERT INTO projects (id,workspace_id,name,key,created_at,updated_at) VALUES (?,?,'First','ONE',1,1),(?,?,'Second','TWO',1,1),(?,?,'Hidden','HID',1,1),(?,?,'Foreign','OTH',1,1)",
-    ).bind(
-      firstProject,
-      workspaceId,
-      secondProject,
-      workspaceId,
-      hiddenProject,
-      workspaceId,
-      foreignProject,
-      foreignWorkspaceId,
-    ),
-    env.DB.prepare("INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES (?,?,'Visible',1)").bind(
-      groupId,
-      workspaceId,
-    ),
-    env.DB.prepare('INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES (?,?,?,1)').bind(
-      groupId,
-      userId,
-      userId,
-    ),
-    env.DB.prepare(
-      "INSERT INTO group_project_grants (group_id,project_id,role) VALUES (?,?,'member'),(?,?,'member')",
-    ).bind(groupId, firstProject, groupId, secondProject),
-  ])
-  const statements: D1PreparedStatement[] = []
-  selected = []
-  const states = ['fixing', 'in_review', 'changes_requested'] as const
-  for (let index = 0; index < 62; index += 1) {
-    const active = index < 35
-    const ownerWorkspace = index === 61 ? foreignWorkspaceId : workspaceId
-    const projectId =
-      index === 60 ? hiddenProject : index === 61 ? foreignProject : index % 2 === 0 ? firstProject : secondProject
-    const id = `filter-issue-${suffix}-${globalThis.String(index).padStart(2, '0')}`
-    const status = active
-      ? (states[index % 3] ?? 'fixing')
-      : index >= 60
-        ? 'in_review'
-        : index % 2 === 0
-          ? null
-          : 'done'
-    const title = active ? 'Needle review target' : 'Needle'
-    const createdAt = index + 100
-    statements.push(
-      env.DB.prepare(
-        "INSERT INTO issues (id,workspace_id,project_id,number,title,status,priority,created_by_id,created_at,updated_at) VALUES (?,?,?,?,?,'todo','medium',?,?,?)",
-      ).bind(id, ownerWorkspace, projectId, index + 1, title, userId, createdAt, createdAt),
-    )
-    statements.push(
-      env.DB.prepare('INSERT INTO issues_fts (issue_id,workspace_id,title,body) VALUES (?,?,?,?)').bind(
-        id,
-        ownerWorkspace,
-        title,
-        '',
-      ),
-    )
-    statements.push(
-      env.DB.prepare(
-        "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,review_status,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'url','','Design','',0,'https://example.test',?,'issue',?,?,1)",
-      ).bind(`target-${id}`, ownerWorkspace, status, id, userId),
-    )
-    if (active && status) {
-      selected.push({ id, projectId, status })
-    }
-  }
-  statements.push(
-    env.DB.prepare(
-      "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,review_status,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'file','foreign/key','Foreign','text/plain',1,'in_review','issue',?,?,1)",
-    ).bind(`cross-workspace-target-${suffix}`, foreignWorkspaceId, `filter-issue-${suffix}-35`, userId),
-  )
-  for (let offset = 0; offset < statements.length; offset += 75) {
-    await env.DB.batch(statements.slice(offset, offset + 75))
-  }
-  request = { url: `https://front.test/issues?workspace=${slug}`, method: 'GET', headers: [] }
-})
-
 const page = function page(query: string, workspace = workspaceId) {
   return runTestEffect(
     decodeCoreReply(IssuePageSchema, makeCoreClient(Reflect.get(env, 'CORE')).webIssuePage(request, workspace, query)),
@@ -134,6 +33,106 @@ const search = function search(review?: ReviewFilter, projectId?: string, worksp
 }
 
 describe('cross-project review filters through actual named Core bindings', () => {
+  beforeEach(async () => {
+    const suffix = crypto.randomUUID()
+    const userId = `filter-user-${suffix}`
+    const email = `filter-${suffix}@example.test`
+    const slug = `filter-${suffix}`
+    workspaceId = `filter-workspace-${suffix}`
+    foreignWorkspaceId = `foreign-workspace-${suffix}`
+    firstProject = `first-${suffix}`
+    secondProject = `second-${suffix}`
+    hiddenProject = `hidden-${suffix}`
+    const foreignProject = `foreign-${suffix}`
+    groupId = `filter-group-${suffix}`
+    await configureCore({ DEV_USER_EMAIL: email, DEFAULT_WORKSPACE_SLUG: slug })
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO users (id,email,name,created_at) VALUES (?,?,'Reviewer',1)").bind(userId, email),
+      env.DB.prepare("INSERT INTO workspaces (id,name,slug,created_at) VALUES (?,'Review',?,1),(?,'Other',?,1)").bind(
+        workspaceId,
+        slug,
+        foreignWorkspaceId,
+        `other-${suffix}`,
+      ),
+      env.DB.prepare(
+        "INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES (?,?,'member',1)",
+      ).bind(workspaceId, userId),
+      env.DB.prepare(
+        "INSERT INTO projects (id,workspace_id,name,key,created_at,updated_at) VALUES (?,?,'First','ONE',1,1),(?,?,'Second','TWO',1,1),(?,?,'Hidden','HID',1,1),(?,?,'Foreign','OTH',1,1)",
+      ).bind(
+        firstProject,
+        workspaceId,
+        secondProject,
+        workspaceId,
+        hiddenProject,
+        workspaceId,
+        foreignProject,
+        foreignWorkspaceId,
+      ),
+      env.DB.prepare("INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES (?,?,'Visible',1)").bind(
+        groupId,
+        workspaceId,
+      ),
+      env.DB.prepare('INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES (?,?,?,1)').bind(
+        groupId,
+        userId,
+        userId,
+      ),
+      env.DB.prepare(
+        "INSERT INTO group_project_grants (group_id,project_id,role) VALUES (?,?,'member'),(?,?,'member')",
+      ).bind(groupId, firstProject, groupId, secondProject),
+    ])
+    const statements: D1PreparedStatement[] = []
+    selected = []
+    const states = ['fixing', 'in_review', 'changes_requested'] as const
+    for (let index = 0; index < 62; index += 1) {
+      const active = index < 35
+      const ownerWorkspace = index === 61 ? foreignWorkspaceId : workspaceId
+      const projectId =
+        index === 60 ? hiddenProject : index === 61 ? foreignProject : index % 2 === 0 ? firstProject : secondProject
+      const id = `filter-issue-${suffix}-${globalThis.String(index).padStart(2, '0')}`
+      const status = active
+        ? (states[index % 3] ?? 'fixing')
+        : index >= 60
+          ? 'in_review'
+          : index % 2 === 0
+            ? null
+            : 'done'
+      const title = active ? 'Needle review target' : 'Needle'
+      const createdAt = index + 100
+      statements.push(
+        env.DB.prepare(
+          "INSERT INTO issues (id,workspace_id,project_id,number,title,status,priority,created_by_id,created_at,updated_at) VALUES (?,?,?,?,?,'todo','medium',?,?,?)",
+        ).bind(id, ownerWorkspace, projectId, index + 1, title, userId, createdAt, createdAt),
+      )
+      statements.push(
+        env.DB.prepare('INSERT INTO issues_fts (issue_id,workspace_id,title,body) VALUES (?,?,?,?)').bind(
+          id,
+          ownerWorkspace,
+          title,
+          '',
+        ),
+      )
+      statements.push(
+        env.DB.prepare(
+          "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,review_status,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'url','','Design','',0,'https://example.test',?,'issue',?,?,1)",
+        ).bind(`target-${id}`, ownerWorkspace, status, id, userId),
+      )
+      if (active && status) {
+        selected.push({ id, projectId, status })
+      }
+    }
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,review_status,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'file','foreign/key','Foreign','text/plain',1,'in_review','issue',?,?,1)",
+      ).bind(`cross-workspace-target-${suffix}`, foreignWorkspaceId, `filter-issue-${suffix}-35`, userId),
+    )
+    for (let offset = 0; offset < statements.length; offset += 75) {
+      await env.DB.batch(statements.slice(offset, offset + 75))
+    }
+    request = { url: `https://front.test/issues?workspace=${slug}`, method: 'GET', headers: [] }
+  })
+
   test('counts all filtered visible issues and pages them without unselected or hidden leaks', async () => {
     const seen: string[] = []
     let cursor: string | null | undefined

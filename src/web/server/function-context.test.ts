@@ -36,12 +36,6 @@ const project: ProjectSummary = {
 }
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  resetAuthCachesForTests()
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture(
   path = '/_effront/query',
@@ -117,6 +111,13 @@ const fixture = function fixture(
 }
 
 describe('independent ServerFn authentication and semantic selection', () => {
+  afterEach(() => {
+    resetAuthCachesForTests()
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('resolves a workspace query without a page URL or inferred project', async () => {
     const { run, invalidated } = fixture()
     const context = await run(resolveFunctionContext({ workspaceSlug: 'alpha' }, { requireWorkspace: true }))

@@ -75,12 +75,12 @@ function environment(locale: string, timeZone: string): void {
   })
 }
 
-afterEach(() => {
-  vi.restoreAllMocks()
-  document.body.innerHTML = ''
-})
-
 describe('covers SSR timestamp hydration', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.body.innerHTML = ''
+  })
+
   test.each([
     [0, '1970-01-01', '00:00:00'],
     [timestamp, '2026-10-04', '08:48:46'],

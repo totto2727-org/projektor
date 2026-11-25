@@ -13,57 +13,6 @@ let workspaceId: string
 let projectId: string
 let groupId: string
 
-beforeEach(async () => {
-  const suffix = crypto.randomUUID()
-  const userId = `review-user-${suffix}`
-  workspaceId = `review-workspace-${suffix}`
-  projectId = `review-project-${suffix}`
-  groupId = `review-group-${suffix}`
-  issueId = `review-issue-${suffix}`
-  attachmentId = `review-attachment-${suffix}`
-  const email = `review-${suffix}@example.test`
-  const slug = `review-${suffix}`
-  await configureCore({ DEV_USER_EMAIL: email, DEFAULT_WORKSPACE_SLUG: slug, RATE_LIMIT_AUTH_MAX: '100' })
-  await env.DB.batch([
-    env.DB.prepare('INSERT INTO users (id,email,name,created_at) VALUES (?,?,?,1)').bind(userId, email, 'Reviewer'),
-    env.DB.prepare('INSERT INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,1)').bind(
-      workspaceId,
-      'Review',
-      slug,
-    ),
-    env.DB.prepare("INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES (?,?,'member',1)").bind(
-      workspaceId,
-      userId,
-    ),
-    env.DB.prepare(
-      "INSERT INTO projects (id,workspace_id,name,key,created_at,updated_at) VALUES (?,?,'Review','REV',1,1)",
-    ).bind(projectId, workspaceId),
-    env.DB.prepare("INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES (?,?,'Review',1)").bind(
-      groupId,
-      workspaceId,
-    ),
-    env.DB.prepare('INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES (?,?,?,1)').bind(
-      groupId,
-      userId,
-      userId,
-    ),
-    env.DB.prepare("INSERT INTO group_project_grants (group_id,project_id,role) VALUES (?,?,'member')").bind(
-      groupId,
-      projectId,
-    ),
-    env.DB.prepare(
-      "INSERT INTO issues (id,workspace_id,project_id,number,title,status,priority,created_by_id,created_at,updated_at) VALUES (?,?,?,1,'Review issue','backlog','medium',?,1,1)",
-    ).bind(issueId, workspaceId, projectId, userId),
-    env.DB.prepare(
-      "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'url','','Design','',0,'https://example.test','issue',?,?,1)",
-    ).bind(attachmentId, workspaceId, issueId, userId),
-  ])
-  proof = {
-    workspaceSlug: slug,
-    request: { url: 'https://front.test/_effront/query', method: 'POST', headers: [['origin', 'https://front.test']] },
-  }
-})
-
 const update = function update(status: unknown, command = proof, owner = issueId) {
   return runTestEffect(
     decodeCoreReply(
@@ -84,6 +33,60 @@ const persistedStatus = async function persistedStatus(): Promise<Record<string,
 }
 
 describe('native named review target browser command', () => {
+  beforeEach(async () => {
+    const suffix = crypto.randomUUID()
+    const userId = `review-user-${suffix}`
+    workspaceId = `review-workspace-${suffix}`
+    projectId = `review-project-${suffix}`
+    groupId = `review-group-${suffix}`
+    issueId = `review-issue-${suffix}`
+    attachmentId = `review-attachment-${suffix}`
+    const email = `review-${suffix}@example.test`
+    const slug = `review-${suffix}`
+    await configureCore({ DEV_USER_EMAIL: email, DEFAULT_WORKSPACE_SLUG: slug, RATE_LIMIT_AUTH_MAX: '100' })
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO users (id,email,name,created_at) VALUES (?,?,?,1)').bind(userId, email, 'Reviewer'),
+      env.DB.prepare('INSERT INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,1)').bind(
+        workspaceId,
+        'Review',
+        slug,
+      ),
+      env.DB.prepare(
+        "INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES (?,?,'member',1)",
+      ).bind(workspaceId, userId),
+      env.DB.prepare(
+        "INSERT INTO projects (id,workspace_id,name,key,created_at,updated_at) VALUES (?,?,'Review','REV',1,1)",
+      ).bind(projectId, workspaceId),
+      env.DB.prepare("INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES (?,?,'Review',1)").bind(
+        groupId,
+        workspaceId,
+      ),
+      env.DB.prepare('INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES (?,?,?,1)').bind(
+        groupId,
+        userId,
+        userId,
+      ),
+      env.DB.prepare("INSERT INTO group_project_grants (group_id,project_id,role) VALUES (?,?,'member')").bind(
+        groupId,
+        projectId,
+      ),
+      env.DB.prepare(
+        "INSERT INTO issues (id,workspace_id,project_id,number,title,status,priority,created_by_id,created_at,updated_at) VALUES (?,?,?,1,'Review issue','backlog','medium',?,1,1)",
+      ).bind(issueId, workspaceId, projectId, userId),
+      env.DB.prepare(
+        "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'url','','Design','',0,'https://example.test','issue',?,?,1)",
+      ).bind(attachmentId, workspaceId, issueId, userId),
+    ])
+    proof = {
+      workspaceSlug: slug,
+      request: {
+        url: 'https://front.test/_effront/query',
+        method: 'POST',
+        headers: [['origin', 'https://front.test']],
+      },
+    }
+  })
+
   test('persists nullable review transitions across the actual Core service binding', async () => {
     expect.hasAssertions()
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: null })

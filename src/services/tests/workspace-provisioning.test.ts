@@ -6,11 +6,6 @@ import { createWorkspace } from '#commands/workspaces.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = createTestDatabase()
@@ -47,6 +42,12 @@ const fixture = function fixture() {
 }
 
 describe('atomic workspace provisioning', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('creates ownership and complete default configuration in one batch', async () => {
     const testFixture = fixture()
     const workspace = await createWorkspace(testFixture.db, 'u', { name: 'Workspace', slug: 'workspace' })

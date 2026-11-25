@@ -89,19 +89,21 @@ const grant = (client = 'Claude'): ConnectorGrant => ({
 })
 const groupScope = { workspaceSlug: 'alpha', groupId: 'g1' }
 const writeText = vi.fn().mockResolvedValue(undefined)
-afterEach(cleanup)
-beforeEach(() => {
-  request.mockReset()
-  nativeSubmitted.mockReset()
-  writeText.mockClear()
-  request.mockResolvedValue({ ok: true, value: { ok: true } })
-  Object.defineProperty(navigator, 'clipboard', {
-    configurable: true,
-    value: { writeText },
-  })
-})
 
 describe('original settings controls with TanStack schemas and semantic ServerFns', () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    request.mockReset()
+    nativeSubmitted.mockReset()
+    writeText.mockClear()
+    request.mockResolvedValue({ ok: true, value: { ok: true } })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+  })
+
   test('releases delayed member-removal failures and preserves editor drafts through canonical refresh', async () => {
     const pending = Promise.withResolvers<unknown>()
     request.mockReturnValueOnce(pending.promise)

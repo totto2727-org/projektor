@@ -10,11 +10,6 @@ import { readDataIssuePage, searchDataIssues } from './issue-data.ts'
 import { CoreReadServices } from './read-services.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = issueDataFixture()
@@ -68,6 +63,12 @@ const fixture = function fixture() {
 }
 
 describe('cross-project review filters at the Core data boundary', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('filters before counts and cursor pagination across more than one page without leaking hidden or foreign issues', async () => {
     const testFixture = fixture()
     const seen: string[] = []

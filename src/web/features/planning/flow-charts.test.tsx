@@ -49,8 +49,6 @@ vi.mock('recharts', () => {
     ].map((name) => [name, primitive(name)]),
   )
 })
-beforeEach(() => calls.clear())
-afterEach(cleanup)
 const first = (name: string): Record<string, unknown> => {
   const props = calls.get(name)?.[0]
   if (!props) {
@@ -67,6 +65,10 @@ function tooltipProps() {
 }
 
 describe('flow chart public data and primitive semantics', () => {
+  beforeEach(() => calls.clear())
+
+  afterEach(cleanup)
+
   test('formats throughput tooltip dates and count labels with the original contract', () => {
     render(<ThroughputChart data={[{ bucketStart: '2026-10-01', count: 4 }]} />)
     const props = tooltipProps()

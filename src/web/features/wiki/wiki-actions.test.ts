@@ -55,11 +55,6 @@ const readGuideContent = function readGuideContent(
 }
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 const fixture = async function fixture(
   options: {
     origin?: string
@@ -157,6 +152,12 @@ const fixture = async function fixture(
   return { run, invalidate, sqlite: database.sqlite, resources }
 }
 describe('wiki semantic ServerFn contracts', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
     expect.hasAssertions()
     const test = await fixture()

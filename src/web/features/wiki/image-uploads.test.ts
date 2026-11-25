@@ -19,13 +19,14 @@ const deferred = function deferred() {
   })
   return { promise, resolve }
 }
-afterEach(() => {
-  Iterable.forEach(views.splice(0), (view) => {
-    view.destroy()
-  })
-})
 
 describe('deferred image uploads', () => {
+  afterEach(() => {
+    Iterable.forEach(views.splice(0), (view) => {
+      view.destroy()
+    })
+  })
+
   test('maps the insertion point through concurrent edits and deletion', async () => {
     const view = editor()
     const upload = deferred()

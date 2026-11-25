@@ -44,11 +44,6 @@ const row: Feedback = {
   linkedIssueId: JSON_NULL,
   createdAt: 1,
 }
-afterEach(() => {
-  cleanup()
-  vi.clearAllMocks()
-  vi.unstubAllGlobals()
-})
 const source: FeedbackSource = {
   id: 'source',
   name: 'Customer feedback',
@@ -60,6 +55,12 @@ const source: FeedbackSource = {
   revokedAt: JSON_NULL,
 }
 describe('feedback hydrated original controls', () => {
+  afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
+
   test('creates a source through native action-state FormData and retains its one-time token across refresh', async () => {
     vi.mocked(createFeedbackSource).mockResolvedValue({
       ok: true,

@@ -10,13 +10,14 @@ import type { RenderedMarkdown } from './render.ts'
 vi.mock('./render', () => ({ renderMarkdownDocument: vi.fn() }))
 const renderDocument = vi.mocked(renderMarkdownDocument)
 const document = (text: string): RenderedMarkdown => ({ html: `<p>${text}</p>`, toc: [] })
-afterEach(() => {
-  cleanup()
-  vi.useRealTimers()
-  renderDocument.mockReset()
-})
 
 describe('local Comark preview', () => {
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+    renderDocument.mockReset()
+  })
+
   test('renders prepared canonical HTML during SSR without client effects', () => {
     expect(
       renderToStaticMarkup(

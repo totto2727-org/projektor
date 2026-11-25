@@ -14,9 +14,9 @@ import { Popover, Portal } from './popover.tsx'
 import { Select } from './select.tsx'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './table.tsx'
 
-afterEach(cleanup)
-
 describe('generated UI compatibility adapters', () => {
+  afterEach(cleanup)
+
   test('keeps button, native form, anchor and noninteractive span modes', () => {
     render(
       <>

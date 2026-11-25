@@ -13,11 +13,6 @@ import { testEnvironment } from '@/server/test/resources.ts'
 import { issueDataFixture } from './test/data-fixture.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 
 const fixture = function fixture() {
   const database = issueDataFixture()
@@ -53,6 +48,12 @@ const signedAccess = async function signedAccess(email: string) {
 }
 
 describe('private browser command boundary', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('accepts a cryptographically verified Access identity without development fallback', async () => {
     const { env, proof, invoke } = fixture()
     const signed = await signedAccess('user@example.test')

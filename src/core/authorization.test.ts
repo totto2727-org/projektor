@@ -9,12 +9,6 @@ import type { CoreActor } from './authorization.ts'
 import type { CoreEnvironment } from './environment.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-  resetAuthCachesForTests()
-})
 
 const fixture = async function fixture() {
   const database = createTestDatabase()
@@ -50,6 +44,13 @@ const fixture = async function fixture() {
 }
 
 describe('core persistent authorization', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+    resetAuthCachesForTests()
+  })
+
   test('rechecks membership and role for each named domain operation', async () => {
     const testFixture = await fixture()
     const first = await resolveCoreServiceCtx(testFixture.actor, 'w', 'write', testFixture.env)

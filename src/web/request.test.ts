@@ -12,12 +12,6 @@ import { testEnvironment } from './server/test/resources.ts'
 import { createTestDatabase } from './test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  resetAuthCachesForTests()
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 const fixture = function fixture() {
   resetAuthCachesForTests()
   const database = createTestDatabase()
@@ -33,6 +27,13 @@ const fixture = function fixture() {
 const incoming = (): Request<unknown, CfProperties> => new Request('https://front.example.test/')
 
 describe('request-scoped native services', () => {
+  afterEach(() => {
+    resetAuthCachesForTests()
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('requires a native Core fetch capability and valid browser-only configuration', () => {
     expect(isWebEnvironment({ CORE: { fetch: async () => new Response() }, ENVIRONMENT: 'production' })).toBe(true)
     expect(isWebEnvironment({ CORE: {}, ENVIRONMENT: 'production' })).toBe(false)

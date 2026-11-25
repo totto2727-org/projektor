@@ -21,11 +21,6 @@ const workspaceBrand = {
 }
 const body = '## Details\n\nComplete **SSR body**.\n\n<script>evil()</script>\n\n```mermaid\ngraph TD; A-->B\n```'
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 async function fixture() {
   const database = createTestDatabase()
   databases.push(database)
@@ -53,6 +48,12 @@ async function fixture() {
   return { ...database, token, env: testEnvironment(database.db) }
 }
 describe('public Share SSR', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('reads the public token without browser credentials and renders the exact sanitized DTO and workspace branding', async () => {
     const test = await fixture()
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Public share must not use HTTP'))

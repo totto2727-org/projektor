@@ -12,11 +12,6 @@ import { resolveFunctionContext } from './function-context.ts'
 import { testEnvironment } from './test/resources.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 const fixture = function fixture() {
   const database = issueDataFixture()
   databases.push(database)
@@ -38,6 +33,12 @@ const fixture = function fixture() {
   return { database, env, run, context }
 }
 describe('storage-free browser command composition', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('creates only request proof and a named Core client, never a storage capability', async () => {
     const { run, context } = fixture()
     const client = await run(context.pipe(Effect.flatMap((ctx) => runCommand(ctx, Effect.succeed))))

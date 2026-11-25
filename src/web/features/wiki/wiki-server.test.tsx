@@ -59,11 +59,6 @@ function initialData(rendered: ReactElement) {
 }
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  Iterable.forEach(databases.splice(0), (database) => {
-    database.close()
-  })
-})
 async function fixture(currentScope: RequestScope = scope) {
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
@@ -103,6 +98,12 @@ async function fixture(currentScope: RequestScope = scope) {
 }
 
 describe('wiki direct request-owned queries', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
   test('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
     const test = await fixture()
     const reopen = async () => initialData(await runTestEffect(test.effect('https://app.test/wiki/guide/edit')))
