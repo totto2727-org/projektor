@@ -212,9 +212,9 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
       imports.set(bindings.name.text, { path: target })
     }
     if (bindings && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) {
-      for (const binding of bindings.elements) {
+      Iterable.forEach<ts.ExportSpecifier | ts.ImportSpecifier>(bindings.elements, (binding): void => {
         imports.set(binding.name.text, { path: target, name: binding.propertyName?.text ?? binding.name.text })
-      }
+      })
     }
   })
   const functions = new Map<string, ts.Node>()
@@ -223,11 +223,11 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
       functions.set(node.name.text, node.body)
     }
     if (ts.isVariableStatement(node)) {
-      for (const declaration of node.declarationList.declarations) {
+      Iterable.forEach(node.declarationList.declarations, (declaration): void => {
         if (ts.isIdentifier(declaration.name) && declaration.initializer) {
           functions.set(declaration.name.text, declaration.initializer)
         }
-      }
+      })
     }
   })
   const module = { path, ast, imports, functions }
@@ -512,9 +512,9 @@ const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: strin
         ) {
           continue
         }
-        for (const key of domainOperations(module, statement)) {
+        Iterable.forEach(domainOperations(module, statement), (key): void => {
           keys.add(key)
-        }
+        })
       }
     },
   )
@@ -617,14 +617,14 @@ Iterable.forEach(expandToFiles(COMMANDS), (path): void => {
     .ast.statements.filter(isFunctionStatement)
     .filter((statement) => statement.modifiers?.some(({ kind }) => kind === ts.SyntaxKind.ExportKeyword))
     .flatMap(declaredFunctions)
-  for (const { name: fn } of exportedFunctions) {
+  Iterable.forEach(exportedFunctions, ({ name: fn }): void => {
     serviceFns.push({
       key: `${file}:${fn}`,
       fn,
       onMcp: mcpOperations.has(`${file}:${fn}`),
       onRest: restOperations.has(`${file}:${fn}`),
     })
-  }
+  })
 })
 
 const catalogToolNames = TOOL_DOMAINS.flatMap((d) => d.tools.map((tool) => tool.name))
@@ -798,9 +798,9 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       expect.hasAssertions()
       const byTool = new Map<string, string[]>()
       Iterable.forEach(TOOL_DOMAINS, (domain): void => {
-        for (const tool of domain.tools) {
+        Iterable.forEach(domain.tools, (tool): void => {
           byTool.set(tool.name, [...(byTool.get(tool.name) ?? []), domain.group])
-        }
+        })
       })
       const unclassified = runtimeToolNames.filter((n) => (byTool.get(n) ?? []).length !== 1)
       expect(unclassified).toStrictEqual([])
