@@ -11,6 +11,8 @@ export const useUnsavedUnloadGuard = function useUnsavedUnloadGuard(dirty: boole
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', guard)
-    return () => window.removeEventListener('beforeunload', guard)
+    return () => {
+      window.removeEventListener('beforeunload', guard)
+    }
   }, [dirty])
 }

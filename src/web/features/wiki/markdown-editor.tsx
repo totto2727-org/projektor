@@ -137,10 +137,13 @@ function isDirectPointerActivation(event: React.MouseEvent): boolean {
   )
 }
 
-function direct(run: () => void): (selectedEvent: React.MouseEvent) => void {
+const direct = function direct<Args extends unknown[]>(
+  run: (...args: Args) => void,
+  ...args: Args
+): (selectedEvent: React.MouseEvent) => void {
   return (selectedEvent) => {
     if (isDirectPointerActivation(selectedEvent)) {
-      run()
+      run(...args)
     }
   }
 }
@@ -178,13 +181,13 @@ function EditorToolbar({
         I
       </button>
       <div className='w-px bg-border mx-[3px] my-[2px] self-stretch min-h-[16px]' />
-      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(() => onHeading(1))} title='Heading 1'>
+      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onHeading, 1)} title='Heading 1'>
         H1
       </button>
-      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(() => onHeading(2))} title='Heading 2'>
+      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onHeading, 2)} title='Heading 2'>
         H2
       </button>
-      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(() => onHeading(3))} title='Heading 3'>
+      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onHeading, 3)} title='Heading 3'>
         H3
       </button>
       <div className='w-px bg-border mx-[3px] my-[2px] self-stretch min-h-[16px]' />

@@ -96,7 +96,11 @@ export const coreEnvironment: CoreEnvironmentSource = Effect.gen(function* () {
   const context = yield* WorkerExecutionContext
   const resolved: unknown = {
     ...env,
-    invocation: { waitUntil: (promise: Promise<unknown>) => context.raw.waitUntil(promise) },
+    invocation: {
+      waitUntil: (promise: Promise<unknown>) => {
+        context.raw.waitUntil(promise)
+      },
+    },
   }
   if (!isCoreEnvironment(resolved)) {
     return yield* Effect.die(new Error('Invalid Core Worker bindings'))

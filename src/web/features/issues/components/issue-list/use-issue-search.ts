@@ -32,7 +32,9 @@ export const useIssueSearch = function useIssueSearch(seed: IssueSearchSeed, rou
       return
     }
     const timer = setTimeout(() => searchInputRef.current?.form?.requestSubmit(), 300)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+    }
   }, [searchQuery, seed.query])
   return {
     searchQuery,

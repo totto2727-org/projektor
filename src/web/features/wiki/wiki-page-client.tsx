@@ -2787,7 +2787,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     const timer = setTimeout(() => {
       persistDraft(page, editTitle, editContent, baseRevisionId)
     }, 1000)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+    }
   }, [editing, editTitle, editContent, page, draftBanner, baseRevisionId, saving, draftStatus, persistDraft])
 
   /*
@@ -3856,7 +3858,9 @@ function useWikiSidebarDrawer() {
       }
     }
     document.addEventListener('keydown', onTrapTab)
-    return () => document.removeEventListener('keydown', onTrapTab)
+    return () => {
+      document.removeEventListener('keydown', onTrapTab)
+    }
   }, [open])
 
   return { open, setOpen, close, triggerRef, sidebarRef }
@@ -4368,7 +4372,9 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
       return
     }
     const timer = setTimeout(onDismiss, UNDO_TOAST_TIMEOUT_MS)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+    }
   }, [paused, onDismiss])
 
   const current = toast

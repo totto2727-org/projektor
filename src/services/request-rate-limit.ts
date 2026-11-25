@@ -120,7 +120,9 @@ async function incrementCounter(
     const stub = ns.get(ns.idFromName(rateLimiterObjectName(env, key)))
     let timer: ReturnType<typeof setTimeout> | undefined
     const timeout = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => reject(new Error('rate limiter timed out')), LIMITER_TIMEOUT_MS)
+      timer = setTimeout(() => {
+        reject(new Error('rate limiter timed out'))
+      }, LIMITER_TIMEOUT_MS)
     })
     try {
       return await Promise.race([stub.increment(windowSecs, nowSecs), timeout])

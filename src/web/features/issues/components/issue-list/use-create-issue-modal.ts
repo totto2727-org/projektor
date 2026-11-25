@@ -63,7 +63,9 @@ export const useCreateIssueModal = function useCreateIssueModal({ workspaceSlug,
       }
     }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    return () => {
+      window.removeEventListener('keydown', handler)
+    }
   }, [showCreateModal])
 
   const openCreateModal = function openCreateModal(): void {
