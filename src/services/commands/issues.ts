@@ -2,6 +2,7 @@ import { and, eq, or } from 'drizzle-orm'
 import { String, Array, Iterable, Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
+import { MAX_BULK_FEEDBACK_COUNT } from '#contracts/feedback-limits.ts'
 import { AddCommentSchema } from '#contracts/inputs/comments.ts'
 import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
 import {
@@ -12,6 +13,7 @@ import {
   SearchIssuesInputSchema,
   UpdateIssueSchema,
 } from '#contracts/inputs/issues.ts'
+import { DEFAULT_PRIORITIZED_ISSUE_LIMIT, MAX_PRIORITIZED_ISSUE_LIMIT } from '#contracts/issue-limits.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { issuePath } from '#contracts/urls.ts'
@@ -51,6 +53,12 @@ import { broadcastWorkspaceEvent } from './realtime.ts'
 import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'
 import { resolveStatus } from './task-statuses.ts'
 import type { ServiceCtx } from './types.ts'
+
+const REVIEW_BOUNCE_INCREMENT = 1
+const FIRST_ANCESTOR_INDEX = 1
+const MAX_ISSUE_NESTING_DEPTH = 5
+const NO_CHILD_ISSUES = 0
+const EMPTY_PAGE_SIZE = 0
 
 const ISSUE_TTL = 300
 
@@ -114,13 +122,13 @@ const validateParent = async function validateParent(
    * If the parent already has 5 ancestors, the child would be at depth 6 — exceeds the cap.
    */
   let ancestorCount = 0
-  Iterable.forEach(chain.slice(1), ({ id: ancestorId }) => {
+  Iterable.forEach(chain.slice(FIRST_ANCESTOR_INDEX), ({ id: ancestorId }) => {
     if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId) && ancestorId === issueId) {
       throw new ValidationError(validationIssues(['Setting this parent would create a cycle'], {}))
     }
 
     ancestorCount++
-    if (ancestorCount >= 5) {
+    if (ancestorCount >= MAX_ISSUE_NESTING_DEPTH) {
       throw new ValidationError(validationIssues(['Maximum nesting depth (5) exceeded'], {}))
     }
   })
@@ -543,7 +551,11 @@ export async function createIssueFromFeedback(
   input: Readonly<{ projectId: string; title: string; body: string; priority: 'medium' }>,
   feedbackIds: Readonly<string[]>,
 ) {
-  if (!feedbackIds.length || feedbackIds.length > 500 || new Set(feedbackIds).size !== feedbackIds.length) {
+  if (
+    !feedbackIds.length ||
+    feedbackIds.length > MAX_BULK_FEEDBACK_COUNT ||
+    new Set(feedbackIds).size !== feedbackIds.length
+  ) {
     throw new ValidationError(validationIssues(['Invalid feedback selection'], {}))
   }
   const { projectId, title, body, priority } = input
@@ -667,6 +679,7 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
 }
 
 type UpdateIssueData = z.infer<typeof UpdateIssueSchema>
+type CompletionReport = Readonly<NonNullable<UpdateIssueData['completionReport']>>
 interface ExistingIssue {
   id: string
   parentId: string | null
@@ -841,7 +854,7 @@ const buildReviewTransitions = function buildReviewTransitions(
   const wasInReview = existing.statusIsReviewStep
   const leavingReviewNotDone = wasInReview && !newIsReviewStep && !enteringDone
   if (leavingReviewNotDone) {
-    setValues.reviewBounceCount = existing.reviewBounceCount + 1
+    setValues.reviewBounceCount = existing.reviewBounceCount + REVIEW_BOUNCE_INCREMENT
   }
 
   const isGateRejection =
@@ -1036,13 +1049,7 @@ const applyStatusFields = async function applyStatusFields(
   ])
 }
 
-function formatCompletionReportComment(
-  report: Readonly<{
-    summary: string
-    verification: string
-    prLink?: string
-  }>,
-): string {
+function formatCompletionReportComment(report: CompletionReport): string {
   const lines = [
     '**Completion report**',
     '',
@@ -1062,9 +1069,7 @@ function formatCompletionReportComment(
  * been written); the batched insert doesn't re-validate, so check it here, before the
  * batch, and fail the whole update with a 400 instead of storing an oversize comment.
  */
-const completionReportCommentBody = function completionReportCommentBody(
-  report: Parameters<typeof formatCompletionReportComment>[0],
-): string {
+const completionReportCommentBody = function completionReportCommentBody(report: CompletionReport): string {
   const body = formatCompletionReportComment(report)
   const max = AddCommentSchema.shape.body.maxLength
   if (Predicate.isNotNullish(max) && body.length > max) {
@@ -1108,7 +1113,7 @@ const assertNotDemotingEpicWithChildren = async function assertNotDemotingEpicWi
     schema.issues,
     and(eq(schema.issues.parentId, existing.id), eq(schema.issues.workspaceId, ctx.workspaceId)),
   )
-  if (childCount > 0) {
+  if (childCount > NO_CHILD_ISSUES) {
     throw new ValidationError(
       validationIssues(['Cannot change type: this epic still has child issues — move or remove them first'], {}),
     )
@@ -1648,7 +1653,9 @@ const parsePrioritizedFilters = function parsePrioritizedFilters(raw: unknown): 
   }
   const rawLimit = Predicate.isString(input.limit) ? Number(input.limit) : input.limit
   const limit =
-    Predicate.isNumber(rawLimit) && Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 100) : 10
+    Predicate.isNumber(rawLimit) && Number.isFinite(rawLimit) && rawLimit > EMPTY_PAGE_SIZE
+      ? Math.min(Math.floor(rawLimit), MAX_PRIORITIZED_ISSUE_LIMIT)
+      : DEFAULT_PRIORITIZED_ISSUE_LIMIT
   const includeBacklog = flag(input.includeBacklog, true)
   const excludeClaimed = flag(input.excludeClaimed, false)
   const includeNotReady = flag(input.includeNotReady, false)
