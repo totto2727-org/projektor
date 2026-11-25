@@ -606,7 +606,7 @@ describe('the consent POST cannot be forged or replayed', () => {
      * to whatever the altered payload says.
      */
     const forged = `${body.slice(0, -4)}AAAA.${sig}`
-    expect((await postConsent(forged, 'approve', jwt)).status).toBe(400)
+    await expect(postConsent(forged, 'approve', jwt)).resolves.toHaveProperty('status', 400)
   })
 
   test('rejects a consent token issued to a different user', async () => {
@@ -685,7 +685,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     const { email, workspaceId } = await seedTestData()
     const { tokens } = await connect({ email, scope: 'projektor:read', workspaceId })
 
-    expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspaceId, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
     const write = await mcpCall(workspaceId, tokens.access_token, 'create_project', {
       key: 'NOPE',
@@ -740,7 +740,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     const revoked = await exchange({ token: tokens.access_token, client_id: clientId })
     expect(revoked.status).toBe(200)
 
-    expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(401)
+    await expect(mcpCall(workspaceId, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
   })
 })
 
@@ -877,7 +877,7 @@ describe("the token endpoint's failure modes", () => {
      * The access token already handed out is gone too — that is what makes this a
      * revocation rather than just a rejected second exchange.
      */
-    expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(401)
+    await expect(mcpCall(workspaceId, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
   })
 
   test('rejects an authorization request that omits code_challenge_method', async () => {
@@ -946,7 +946,7 @@ describe('the token endpoint is rate-limited', () => {
     for (let index = 0; index < 3; index += 1) {
       expect((await exchange(body, ip)).status).not.toBe(429)
     }
-    expect((await exchange(body, ip)).status).toBe(429)
+    await expect(exchange(body, ip)).resolves.toHaveProperty('status', 429)
   })
 })
 
@@ -963,13 +963,13 @@ describe('a grant is only as live as the membership behind it (PROJ-658)', () =>
     await seedMember(workspace.id, user.id, 'member')
 
     const { tokens } = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspace.id, user.id)
       .run()
 
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(403)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 403)
   })
 
   test('revoking the refresh token takes the access token with it', async () => {
@@ -984,12 +984,12 @@ describe('a grant is only as live as the membership behind it (PROJ-658)', () =>
     await seedMember(workspace.id, user.id, 'member')
 
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
     const revoked = await exchange({ token: tokens.refresh_token, client_id: clientId })
     expect(revoked.status).toBe(200)
 
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(401)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
   })
 })
 
@@ -1006,7 +1006,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
     env.RATE_LIMIT_TEST_NOW_MS = String(currentEpochMilliseconds())
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
     for (let index = 0; index < API_LIMIT; index += 1) {
-      expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+      await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
     }
 
     const refreshed = await exchange({
@@ -1017,7 +1017,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
     expect(refreshed.status).toBe(200)
     const rotated = await refreshed.json<TokenResponse>()
     expect(rotated.access_token).not.toBe(tokens.access_token)
-    expect((await mcpCall(workspace.id, rotated.access_token, 'list_projects')).status).toBe(429)
+    await expect(mcpCall(workspace.id, rotated.access_token, 'list_projects')).resolves.toHaveProperty('status', 429)
     env.RATE_LIMIT_TEST_NOW_MS = undefined
 
     /*
@@ -1027,7 +1027,10 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
     // The consent screen's own IP budget is 3 per window
     clientIp = '203.0.113.251'
     const second = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, second.tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, second.tokens.access_token, 'list_projects')).resolves.toHaveProperty(
+      'status',
+      200,
+    )
   })
 })
 
@@ -1108,7 +1111,7 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
     await seedMember(workspace.id, user.id, 'member')
 
     const { tokens } = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
     clientIp = '203.0.113.241'
     const jwt = await accessJwt(email)
@@ -1122,7 +1125,7 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
      * No cache extends a revoked grant: middleware/auth.ts caches the *user*, but the
      * grant lookup that produces the props is per-request, in the provider.
      */
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(401)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
     await expect((await settings(workspace.slug, jwt)).json()).resolves.toStrictEqual([])
   })
 
@@ -1200,7 +1203,7 @@ describe('the scheduled purge', () => {
 
     await purgeExpiredOAuthData(env as unknown as Env)
 
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
   })
 })
 

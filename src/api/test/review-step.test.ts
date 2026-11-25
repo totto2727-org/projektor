@@ -71,16 +71,14 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
       name: 'Peer Review',
     })
 
-    expect((await patch(issue.id, { statusId: peer.id })).status).toBe(400)
-    expect(
-      (
-        await patch(issue.id, {
-          statusId: peer.id,
-          completionReport: { summary: 's', verification: 'v' },
-        })
-      ).status,
-    ).toBe(200)
-    expect((await patch(issue.id, { status: 'in_progress' })).status).toBe(200)
+    await expect(patch(issue.id, { statusId: peer.id })).resolves.toHaveProperty('status', 400)
+    await expect(
+      patch(issue.id, {
+        statusId: peer.id,
+        completionReport: { summary: 's', verification: 'v' },
+      }),
+    ).resolves.toHaveProperty('status', 200)
+    await expect(patch(issue.id, { status: 'in_progress' })).resolves.toHaveProperty('status', 200)
 
     const state = await reviewState(issue.id)
     expect(state.in_review_at).not.toBeNull()

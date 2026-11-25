@@ -110,10 +110,10 @@ describe('issue leases API (PROJ-184)', () => {
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
 
-    expect((await claim(issue.id, a1)).status).toBe(201)
-    expect((await release(issue.id)).status).toBe(200)
+    await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
+    await expect(release(issue.id)).resolves.toHaveProperty('status', 200)
     // Now claimable again.
-    expect((await claim(issue.id, a2)).status).toBe(201)
+    await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
   })
 
   test('ending an agent releases its leases', async () => {
@@ -121,7 +121,7 @@ describe('issue leases API (PROJ-184)', () => {
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
 
-    expect((await claim(issue.id, a1)).status).toBe(201)
+    await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
     const endRes = await fetchNativeApi(`http://localhost/api/agents/${a1}/end`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -129,7 +129,7 @@ describe('issue leases API (PROJ-184)', () => {
     expect(endRes.status).toBe(200)
 
     // The lease for a1 was released on end → a2 can claim.
-    expect((await claim(issue.id, a2)).status).toBe(201)
+    await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
   })
 
   test('handles GET /:id/leases lists the active lease with a live flag', async () => {
@@ -285,7 +285,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       seedIssue(workspaceId, projectId, userId, { title: 'Second' }),
     ])
 
-    expect((await claim(first.id, agent)).status).toBe(201)
+    await expect(claim(first.id, agent)).resolves.toHaveProperty('status', 201)
     const res = await claim(second.id, agent)
     expect(res.status).toBe(409)
   }
@@ -299,7 +299,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     )
 
     for (const issue of issues.slice(0, 3)) {
-      expect((await claim(issue.id, agent)).status).toBe(201)
+      await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
     }
 
     const res = await claim(issues[3].id, agent)
@@ -326,7 +326,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     )
 
     for (const issue of issues.slice(0, cap)) {
-      expect((await claim(issue.id, agent)).status).toBe(201)
+      await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
     }
 
     const res = await claim(issues[cap].id, agent)
@@ -349,10 +349,10 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     )
 
     for (const issue of issues.slice(0, 3)) {
-      expect((await claim(issue.id, agent)).status).toBe(201)
+      await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
     }
 
-    expect((await claim(issues[3].id, agent)).status).toBe(409)
+    await expect(claim(issues[3].id, agent)).resolves.toHaveProperty('status', 409)
 
     const row = await env.DB.prepare(
       'SELECT project_id, issue_id, agent_session_id FROM wip_cap_denials WHERE workspace_id = ?',
@@ -443,7 +443,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       seedIssue(workspaceId, created.id, userId, { title: 'Second' }),
     ])
 
-    expect((await claim(first.id, agent)).status).toBe(201)
+    await expect(claim(first.id, agent)).resolves.toHaveProperty('status', 201)
     const res = await claim(second.id, agent)
     expect(res.status).toBe(409)
   })
@@ -467,9 +467,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     test('marking a leased issue done releases its lease', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Closes done' })
       const a1 = await registerAgent('a1')
-      expect((await claim(issue.id, a1)).status).toBe(201)
+      await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
 
-      expect((await patchStatus(issue.id, 'done', REPORT)).status).toBe(200)
+      await expect(patchStatus(issue.id, 'done', REPORT)).resolves.toHaveProperty('status', 200)
 
       const leases = await env.DB.prepare(
         'SELECT release_reason FROM issue_leases WHERE issue_id = ? AND released_at IS NOT NULL',
@@ -480,27 +480,27 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
       // Freed for another agent to pick up (e.g. reopened and reworked).
       const a2 = await registerAgent('a2')
-      expect((await claim(issue.id, a2)).status).toBe(201)
+      await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
     })
 
     test('marking a leased issue cancelled releases its lease', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Closes cancelled' })
       const a1 = await registerAgent('a1')
-      expect((await claim(issue.id, a1)).status).toBe(201)
+      await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
 
-      expect((await patchStatus(issue.id, 'cancelled')).status).toBe(200)
+      await expect(patchStatus(issue.id, 'cancelled')).resolves.toHaveProperty('status', 200)
 
       const a2 = await registerAgent('a2')
-      expect((await claim(issue.id, a2)).status).toBe(201)
+      await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
     })
 
     test('a non-status update of a done issue does not disturb a newer lease', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Already done' })
-      expect((await patchStatus(issue.id, 'done')).status).toBe(200)
+      await expect(patchStatus(issue.id, 'done')).resolves.toHaveProperty('status', 200)
 
       // A fresh lease claimed after the issue was already closed (e.g. reopened work).
       const a1 = await registerAgent('a1')
-      expect((await claim(issue.id, a1)).status).toBe(201)
+      await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
 
       const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
         body: JSON.stringify({ title: 'Renamed' }),
@@ -593,7 +593,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
   test('excludes a lease whose session has gone stale by default; includeStale:true includes it', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale by default' })
     const agent = await registerAgent('stale-holder')
-    expect((await claim(issue.id, agent)).status).toBe(201)
+    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
     await backdateHeartbeat(agent)
 
     const withoutFlag = await mcpLeases({ issueId: issue.id })
@@ -607,7 +607,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
   test('excludes a released lease regardless of includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Released' })
     const agent = await registerAgent('releaser')
-    expect((await claim(issue.id, agent)).status).toBe(201)
+    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
     const response = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
       body: JSON.stringify({}),
       headers: authHeaders(token, slug),
@@ -622,7 +622,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
   test("every item carries the issue's issueRef", async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Ref check' })
     const agent = await registerAgent('ref-holder')
-    expect((await claim(issue.id, agent)).status).toBe(201)
+    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
 
     const { items } = await mcpLeases({ issueId: issue.id })
     expect(items).toHaveLength(1)
@@ -653,7 +653,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
   test('covers REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST parity' })
     const agent = await registerAgent('rest-holder')
-    expect((await claim(issue.id, agent)).status).toBe(201)
+    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
     await backdateHeartbeat(agent)
 
     const defaultRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases`, {

@@ -550,7 +550,10 @@ describe('file Claims API', () => {
       await claimFiles({ issueId, paths: ['src/no-agent.ts'] })
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Blocked' })
-      expect((await claimFiles({ issueId: issue2.id, paths: ['src/no-agent.ts'] })).status).toBe(409)
+      await expect(claimFiles({ issueId: issue2.id, paths: ['src/no-agent.ts'] })).resolves.toHaveProperty(
+        'status',
+        409,
+      )
     })
 
     test('does not record a conflict when superseding a dead holder', async () => {
@@ -728,7 +731,7 @@ describe('file Claims API', () => {
     test('marking an issue done releases its file claims', async () => {
       await claimFiles({ issueId, paths: ['src/done-releases.ts'] })
 
-      expect((await patchStatus(issueId, 'done')).status).toBe(200)
+      await expect(patchStatus(issueId, 'done')).resolves.toHaveProperty('status', 200)
 
       const listRes = await listFileClaims({ path: 'src/done-releases.ts' })
       const listBody = await readNativeJson(listRes, ItemsResponse)
@@ -745,7 +748,7 @@ describe('file Claims API', () => {
     test('marking an issue cancelled releases its file claims', async () => {
       await claimFiles({ issueId, paths: ['src/cancelled-releases.ts'] })
 
-      expect((await patchStatus(issueId, 'cancelled')).status).toBe(200)
+      await expect(patchStatus(issueId, 'cancelled')).resolves.toHaveProperty('status', 200)
 
       const listRes = await listFileClaims({ path: 'src/cancelled-releases.ts' })
       const listBody = await readNativeJson(listRes, ItemsResponse)
@@ -753,7 +756,7 @@ describe('file Claims API', () => {
     })
 
     test('a title-only update of an already-done issue does not re-release a new claim', async () => {
-      expect((await patchStatus(issueId, 'done')).status).toBe(200)
+      await expect(patchStatus(issueId, 'done')).resolves.toHaveProperty('status', 200)
       /*
        * A fresh claim made after the issue is already done — a subsequent non-status
        * update must not sweep it up.
@@ -859,7 +862,10 @@ describe('file Claims API', () => {
 
     test('excludes an agent-linked claim whose session heartbeat is stale; includeStale:true includes it, flagged live:false', async () => {
       const dead = await seedStaleAgentSession()
-      expect((await claimFiles({ issueId, agentId: dead, paths: ['src/stale-agent-932.ts'] })).status).toBe(201)
+      await expect(claimFiles({ issueId, agentId: dead, paths: ['src/stale-agent-932.ts'] })).resolves.toHaveProperty(
+        'status',
+        201,
+      )
 
       const withoutFlag = await listFileClaims({ path: 'src/stale-agent-932.ts' })
       expect(((await withoutFlag.json()) as { items: unknown[] }).items).toHaveLength(0)
@@ -877,7 +883,10 @@ describe('file Claims API', () => {
     })
 
     test('excludes an agentless claim past the file-claim TTL; includeStale:true includes it, flagged live:false', async () => {
-      expect((await claimFiles({ issueId, paths: ['src/expired-agentless-932.ts'] })).status).toBe(201)
+      await expect(claimFiles({ issueId, paths: ['src/expired-agentless-932.ts'] })).resolves.toHaveProperty(
+        'status',
+        201,
+      )
       await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
         .bind(
           // Past the default 24h TTL
