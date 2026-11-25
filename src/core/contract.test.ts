@@ -1,5 +1,5 @@
 import { makeRpcStub, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
-import { Cause, Effect, Exit, Schema } from 'effect'
+import { Cause, Effect, Exit, Function, Schema } from 'effect'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
@@ -37,7 +37,7 @@ describe('core native RPC public boundary', () => {
   test.each(['checked', 'defect', 'outbound codec'] as const)(
     'logs %s diagnostics only at the origin',
     async (kind) => {
-      const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
       try {
         const secret = 'private-sql-credential'
         const effect =
@@ -90,7 +90,7 @@ describe('core native RPC public boundary', () => {
   })
 
   test('treats mixed defect and checked failures as unexpected at the origin', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
     try {
       const cause = Cause.combine(Cause.fail(coreFailure(403, 'Forbidden')), Cause.die(new Error('private defect')))
       const wire = await runTestEffect(coreReply('load', Success, Effect.failCause(cause)))
@@ -103,7 +103,7 @@ describe('core native RPC public boundary', () => {
   })
 
   test('sanitizes a malformed application error instead of leaking an encoder defect', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
     try {
       const wire = await runTestEffect(coreReply('load', Success, Effect.fail(coreFailure(999, 'private bad status'))))
       expect(JSON.parse(wire).failure.status).toBe(500)
@@ -131,7 +131,7 @@ describe('core native RPC public boundary', () => {
   test.each(['transport', 'reply'] as const)(
     'records safe %s correlation without copying private diagnostics',
     async (stage) => {
-      const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
       try {
         const invocation =
           stage === 'transport' ? Effect.fail(new Error('private detail')) : Effect.succeed('invalid wire')

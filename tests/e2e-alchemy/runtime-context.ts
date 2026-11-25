@@ -10,7 +10,7 @@ import { makeInlineApiLayer } from './inline-api.ts'
 /** Only preview allocates runtime services. A build must remain offline and exit. */
 export const makePreviewContext = async function makePreviewContext(isPreview: boolean | undefined) {
   if (isPreview !== true) {
-    return undefined
+    return
   }
   const directory = process.env.PROJEKTOR_E2E_STORAGE_DIRECTORY
   if (Predicate.isNullish(directory) || String.isEmpty(directory)) {

@@ -1,9 +1,11 @@
+import { Function } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { isCoreEnvironment } from './environment.ts'
 
 const fixture = function fixture() {
-  const binding = (methods: Readonly<string[]>) => Object.fromEntries(methods.map((key) => [key, () => undefined]))
+  const binding = (methods: Readonly<string[]>) =>
+    Object.fromEntries(methods.map((key) => [key, Function.constUndefined]))
   return {
     DB: binding(['prepare', 'batch', 'exec', 'withSession', 'dump']),
     KV: binding(['get', 'put', 'delete', 'list', 'getWithMetadata']),
@@ -18,9 +20,9 @@ const fixture = function fixture() {
 describe('core native environment admission', () => {
   test('admits only concrete storage capabilities and scalar configuration', () => {
     expect(isCoreEnvironment(fixture())).toBe(true)
-    expect(isCoreEnvironment({ ...fixture(), invocation: { waitUntil: () => undefined } })).toBe(true)
+    expect(isCoreEnvironment({ ...fixture(), invocation: { waitUntil: Function.constVoid } })).toBe(true)
     expect(isCoreEnvironment({ ...fixture(), DB: {} })).toBe(false)
-    expect(isCoreEnvironment({ ...fixture(), R2: { get: () => undefined } })).toBe(false)
+    expect(isCoreEnvironment({ ...fixture(), R2: { get: Function.constUndefined } })).toBe(false)
     expect(isCoreEnvironment({ ...fixture(), KV: null })).toBe(false)
     expect(isCoreEnvironment({ ...fixture(), ENVIRONMENT: 'invalid' })).toBe(false)
     expect(isCoreEnvironment({ ...fixture(), STORAGE_QUOTA_BYTES: 10 })).toBe(false)

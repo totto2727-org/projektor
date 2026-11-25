@@ -166,7 +166,7 @@ export const findWikiPage = function findWikiPage(db: D1Database, workspaceId: s
       .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), eq(schema.wikiRedirects.oldSlug, idOrSlug)))
       .get()
     if (!redirect) {
-      return undefined
+      return
     }
     // Existing detail contracts include version only on historical-slug fallback.
     return orm

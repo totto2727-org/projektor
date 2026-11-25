@@ -8,7 +8,7 @@ import { CloudflareEnvironment, Providers } from 'alchemy/Cloudflare'
 import type { WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import { dedupeBindings, diffBindings } from 'alchemy/Diff'
 import * as Output from 'alchemy/Output'
-import { Iterable, Predicate, ConfigProvider, Effect, Redacted } from 'effect'
+import { Iterable, Predicate, ConfigProvider, Effect, Function, Redacted } from 'effect'
 import { HttpClient } from 'effect/http'
 import { describe, expect, test } from 'vite-plus/test'
 
@@ -67,7 +67,7 @@ const register = async function register(
         }),
       ),
       // Registration must not resolve providers, credentials or cloud APIs.
-      Effect.provideService(Providers, { kind: 'ProviderCollection', providers: {}, get: () => undefined }),
+      Effect.provideService(Providers, { kind: 'ProviderCollection', providers: {}, get: Function.constUndefined }),
     ),
   )
   return { ...resources, stack }

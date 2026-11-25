@@ -1,7 +1,7 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Effect, Function } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
@@ -222,7 +222,7 @@ describe('project/workspace pure queries', () => {
     const failure = await runTestEffect(
       query.pipe(
         Effect.match({
-          onSuccess: () => undefined,
+          onSuccess: Function.constVoid,
           onFailure: (error) => error,
         }),
       ),

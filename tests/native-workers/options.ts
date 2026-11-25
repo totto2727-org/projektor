@@ -4,6 +4,8 @@ import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
+import { Function } from 'effect'
+
 import { deployment } from '#worker-graph'
 
 const execute = promisify(execFile)
@@ -16,7 +18,7 @@ const prepareCoreArtifact = function prepareCoreArtifact(): Promise<void> {
     cwd: fileURLToPath(new URL('../../', import.meta.url)),
     maxBuffer: 16 * 1024 * 1024,
   })
-    .then(() => undefined)
+    .then(Function.constVoid)
     .catch((error: unknown) => {
       building = undefined
       throw error

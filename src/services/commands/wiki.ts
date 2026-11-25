@@ -588,7 +588,7 @@ async function resolveWikiPageByRedirect(
     .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), eq(schema.wikiRedirects.oldSlug, oldSlug)))
     .get()
   if (!redirect) {
-    return undefined
+    return
   }
   return orm
     .select({ ...wikiPageDetailColumns, version: schema.wikiPages.version })
