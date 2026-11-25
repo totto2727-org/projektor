@@ -6,6 +6,8 @@ import { runTestEffect } from '#tests/run-effect.ts'
 
 import { applyDateRangeParams } from './issue-list-helpers.ts'
 
+const decodeMetricsQuery = Schema.decodeUnknownEffect(MetricsQuerySchema)
+
 // Both initial SSR and client pagination use this exact calendar conversion.
 describe('covers UTC calendar issue filters', () => {
   test('keeps inclusive UTC bounds through daylight-saving transition days', () => {
@@ -28,18 +30,12 @@ describe('private metrics input budget', () => {
   test.each([Number.NaN, Infinity, -1, 0.5, 366 * 86_400, 253_402_300_800])(
     'rejects invalid or excessive until %s',
     async (until) => {
-      await expect(
-        runTestEffect(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, until })),
-      ).rejects.toBeDefined()
+      await expect(runTestEffect(decodeMetricsQuery({ ...base, until }))).rejects.toBeDefined()
     },
   )
 
   test('accepts exactly 366 inclusive calendar days but rejects reversed ranges', async () => {
-    await expect(
-      runTestEffect(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, until: 366 * 86_400 - 1 })),
-    ).resolves.toBeDefined()
-    await expect(
-      runTestEffect(Schema.decodeUnknownEffect(MetricsQuerySchema)({ ...base, since: 2, until: 1 })),
-    ).rejects.toBeDefined()
+    await expect(runTestEffect(decodeMetricsQuery({ ...base, until: 366 * 86_400 - 1 }))).resolves.toBeDefined()
+    await expect(runTestEffect(decodeMetricsQuery({ ...base, since: 2, until: 1 }))).rejects.toBeDefined()
   })
 })

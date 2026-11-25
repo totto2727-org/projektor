@@ -35,6 +35,23 @@ import {
 import type { RequestScope } from './scope.ts'
 import { pageFreshness as freshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
+const wikiFilterFields = fieldsInOrder([
+  ['type', Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(50)))],
+  ['status', Schema.optional(Schema.Literals(['draft', 'current', 'stale', 'deprecated']))],
+  ['tags', Schema.optional(Schema.mutable(Schema.Array(Schema.String).check(Schema.isMaxLength(50))))],
+])
+
+const decodeWikiFilters = Schema.decodeUnknownEffect(Schema.Struct(wikiFilterFields))
+const decodeWikiPage = Schema.decodeUnknownEffect(Page)
+const decodeWikiTree = Schema.decodeUnknownEffect(Tree)
+const decodeWikiTemplates = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Template)))
+const decodeStaleWikiPages = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(StalePage)))
+const decodeWikiListItems = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(ListItem)))
+const decodeWikiSearchResults = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(SearchResult)))
+const decodeWikiRevisions = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Revision)))
+const decodeWikiAttachments = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Attachment)))
+const decodeWikiDraftState = Schema.decodeUnknownEffect(DraftState)
+
 /** The request owns authorization, presentation and rendering. Shared queries own only SQL. */
 export const loadWikiData = function loadWikiData(
   env: CoreEnvironment,
@@ -82,13 +99,7 @@ export const loadWikiData = function loadWikiData(
       visibility,
     }
 
-    const wikiFilterFields = fieldsInOrder([
-      ['type', Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(50)))],
-      ['status', Schema.optional(Schema.Literals(['draft', 'current', 'stale', 'deprecated']))],
-      ['tags', Schema.optional(Schema.mutable(Schema.Array(Schema.String).check(Schema.isMaxLength(50))))],
-    ])
-
-    const filters = yield* Schema.decodeUnknownEffect(Schema.Struct(wikiFilterFields))({
+    const filters = yield* decodeWikiFilters({
       ...(filterType ? { type: filterType } : {}),
       ...(filterStatus ? { status: filterStatus } : {}),
       ...(filterTags
@@ -102,7 +113,7 @@ export const loadWikiData = function loadWikiData(
     }).pipe(Effect.mapError(() => new ApiError('http', HTTP_BAD_REQUEST, 'Invalid wiki filters.')))
     const row = ref ? (yield* readAuthorizedWikiPage(db, scope, ref)).page : undefined
     const page = row
-      ? yield* Schema.decodeUnknownEffect(Page)({
+      ? yield* decodeWikiPage({
           ...row,
           revisionId: yield* wikiData
             .getLatestWikiRevisionId(db, workspace.id, row.id)
@@ -153,26 +164,20 @@ export const loadWikiData = function loadWikiData(
     })
     const data = yield* Effect.all(
       {
-        tree: Schema.decodeUnknownEffect(Tree)(roots).pipe(Effect.mapError(dataError)),
+        tree: decodeWikiTree(roots).pipe(Effect.mapError(dataError)),
         templates: wikiData
           .listWikiTemplates(db, workspace.id, { visibility })
-          .pipe(
-            Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Template)))),
-            Effect.mapError(dataError),
-          ),
+          .pipe(Effect.flatMap(decodeWikiTemplates), Effect.mapError(dataError)),
         stalePages: wikiData.listStaleWikiPages(db, workspace.id, { ...options, now, limit: 50, offset: 0 }).pipe(
           Effect.map((rows) => rows.map((item) => ({ ...item, freshness: freshness(item, now) }))),
-          Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(StalePage)))),
+          Effect.flatMap(decodeStaleWikiPages),
           Effect.mapError(dataError),
         ),
         filteredPages:
           filterType || filterStatus || filterTags
             ? wikiData
                 .listWikiPages(db, workspace.id, { ...options, ...filters })
-                .pipe(
-                  Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(ListItem)))),
-                  Effect.mapError(dataError),
-                )
+                .pipe(Effect.flatMap(decodeWikiListItems), Effect.mapError(dataError))
             : Effect.succeed([]),
         searchResults: searchQuery
           ? wikiData
@@ -191,17 +196,14 @@ export const loadWikiData = function loadWikiData(
                     freshness: freshness(item, now),
                   })),
                 ),
-                Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(SearchResult)))),
+                Effect.flatMap(decodeWikiSearchResults),
                 Effect.mapError(dataError),
               )
           : Effect.succeed([]),
         revisions: page
           ? wikiData
               .listWikiRevisions(db, workspace.id, page.id)
-              .pipe(
-                Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Revision)))),
-                Effect.mapError(dataError),
-              )
+              .pipe(Effect.flatMap(decodeWikiRevisions), Effect.mapError(dataError))
           : Effect.succeed([]),
         attachments: page
           ? listAttachments(db, workspace.id, {
@@ -209,10 +211,7 @@ export const loadWikiData = function loadWikiData(
               entityId: page.id,
               // The owner page was authorized above. A wiki_ref target is checked separately.
               linkedWikiVisibility: rawVisibility.linkedWiki,
-            }).pipe(
-              Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Attachment)))),
-              Effect.mapError(dataError),
-            )
+            }).pipe(Effect.flatMap(decodeWikiAttachments), Effect.mapError(dataError))
           : Effect.succeed([]),
         draftResult:
           page && scope.user.email !== 'public-viewer@projektor.local'
@@ -220,7 +219,7 @@ export const loadWikiData = function loadWikiData(
                 catch: dataError,
                 try: async () => readWikiDraftState(db, workspace.id, page.id, scope.user.id),
               }).pipe(
-                Effect.flatMap(Schema.decodeUnknownEffect(DraftState)),
+                Effect.flatMap(decodeWikiDraftState),
                 Effect.mapError(dataError),
                 Effect.map((state) => ({ ...state, status: 'ready' as const })),
                 Effect.catch(() => Effect.succeed({ draft: null, revision: null, status: 'failed' as const })),

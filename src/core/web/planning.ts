@@ -35,6 +35,8 @@ export const MetricsQuerySchema = Schema.Struct(metricsQueryFields).check(
 )
 export type MetricsQuery = typeof MetricsQuerySchema.Type
 
+const decodeMetricsQuery = Schema.decodeUnknownEffect(MetricsQuerySchema)
+
 const moveSprintIssuesResultFields = fieldsInOrder([
   ['ok', Schema.Boolean],
   ['count', Schema.Number],
@@ -52,7 +54,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           workspaceId,
           (scope) =>
             Effect.gen(function* () {
-              const query = yield* Schema.decodeUnknownEffect(MetricsQuerySchema)(input).pipe(
+              const query = yield* decodeMetricsQuery(input).pipe(
                 Effect.mapError(() =>
                   coreFailure(HTTP_BAD_REQUEST, `Choose a valid metrics range of at most ${MAX_METRICS_DAYS} days.`),
                 ),
@@ -78,7 +80,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           workspaceId,
           (scope) =>
             Effect.gen(function* () {
-              const query = yield* Schema.decodeUnknownEffect(MetricsQuerySchema)(input).pipe(
+              const query = yield* decodeMetricsQuery(input).pipe(
                 Effect.mapError(() =>
                   coreFailure(HTTP_BAD_REQUEST, `Choose a valid metrics range of at most ${MAX_METRICS_DAYS} days.`),
                 ),
