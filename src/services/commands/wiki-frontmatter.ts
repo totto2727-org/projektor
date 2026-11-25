@@ -163,10 +163,10 @@ export const stripTemplateFlag = function stripTemplateFlag(content: string): st
   const rest = content.slice(match[0].length)
 
   const raw = parseYaml(match[1])
-  if (raw === null || raw === undefined || typeof raw !== 'object' || globalThis.Array.isArray(raw)) {
+  if (!Predicate.isObject(raw)) {
     return content
   }
-  const { template: _template, ...remaining } = raw as Record<string, unknown>
+  const { template: _template, ...remaining } = raw
   if (Array.isArrayEmpty(Object.keys(remaining))) {
     return rest
   }

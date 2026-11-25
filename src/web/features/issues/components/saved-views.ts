@@ -85,7 +85,7 @@ export const parseSavedViews = function parseSavedViews(raw: string | null): Sav
   }
   const out: SavedView[] = []
   Iterable.forEach(data, (candidate) => {
-    if (typeof candidate !== 'object' || candidate === null) {
+    if (!Predicate.isObjectOrArray(candidate)) {
       return
     }
     const name = (candidate as { name?: unknown }).name

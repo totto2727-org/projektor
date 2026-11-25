@@ -17,7 +17,7 @@ type FixtureEnvironment = ApiEnvironment &
 
 const configuration = function configuration(value: string | undefined): FixtureConfiguration {
   const parsed: unknown = Predicate.isNullish(value) ? {} : JSON.parse(value)
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+  if (!Predicate.isObject(parsed)) {
     throw new Error('Invalid native API fixture policy')
   }
   const settings: Record<string, string | null> = {}

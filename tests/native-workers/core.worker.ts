@@ -247,7 +247,7 @@ const fixtureLimiterNamespace = function fixtureLimiterNamespace(
 }
 
 function configuration(props: unknown): Record<string, string | undefined> {
-  if (props === null || typeof props !== 'object' || Array.isArray(props)) {
+  if (!Predicate.isObject(props)) {
     throw new Error('Invalid native fixture configuration')
   }
   const result: Record<string, string | undefined> = {}
@@ -261,7 +261,7 @@ function configuration(props: unknown): Record<string, string | undefined> {
     if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) {
       return
     }
-    result[key] = value === null ? undefined : value
+    result[key] = value ?? undefined
   })
   return result
 }
