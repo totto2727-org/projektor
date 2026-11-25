@@ -247,7 +247,8 @@ describe('projects REST', () => {
     expect(archiveRes.status).toBe(200)
 
     const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
-    const keys = ((await listRes.json()) as { key: string }[]).map((p) => p.key)
+    const projects = await readNativeJson(listRes, KeyListResponse)
+    const keys = projects.map((p) => p.key)
     expect(keys).not.toContain('ARCH1')
 
     const includeArchivedRes = await fetchNativeApi('http://localhost/api/projects?includeArchived=true', {
@@ -272,7 +273,8 @@ describe('projects REST', () => {
     const afterUnarchive = await fetchNativeApi('http://localhost/api/projects', {
       headers: ownerHeaders,
     })
-    const afterKeys = ((await afterUnarchive.json()) as { key: string }[]).map((p) => p.key)
+    const visibleProjects = await readNativeJson(afterUnarchive, KeyListResponse)
+    const afterKeys = visibleProjects.map((p) => p.key)
     expect(afterKeys).toContain('ARCH1')
   })
 
@@ -545,7 +547,8 @@ describe('handles GET /api/projects cross-workspace', () => {
       headers: { Authorization: `Bearer ${userToken}` },
     })
     expect(res.status).toBe(200)
-    const keys = ((await res.json()) as { key: string }[]).map((p) => p.key)
+    const projects = await readNativeJson(res, KeyListResponse)
+    const keys = projects.map((p) => p.key)
     expect(keys).toContain('WS1P')
     expect(keys).toContain('WS2P')
   })
@@ -562,7 +565,8 @@ describe('handles GET /api/projects cross-workspace', () => {
       headers: { Authorization: `Bearer ${user.token}` },
     })
     expect(res.status).toBe(200)
-    const keys = ((await res.json()) as { key: string }[]).map((p) => p.key)
+    const projects = await readNativeJson(res, KeyListResponse)
+    const keys = projects.map((p) => p.key)
     expect(keys).toContain('MINE')
     expect(keys).not.toContain('NOTMINE')
   })

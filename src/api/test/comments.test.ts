@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { env } from './fixture-api.ts'
@@ -356,7 +357,8 @@ describe('covers PROJ-438 — comments accept an issue ref', () => {
     })
 
     expect(res.status).toBe(200)
-    const bodies = ((await res.json()) as { body: string }[]).map((c) => c.body)
+    const comments = await readNativeJson(res, ApiResults.apiListComments)
+    const bodies = comments.map((c) => c.body)
     expect(bodies).toStrictEqual(['mine'])
   })
 

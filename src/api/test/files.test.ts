@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
@@ -1136,7 +1137,8 @@ describe('attachment project visibility', () => {
     const global = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`, {
       headers: asMember(),
     })
-    expect((await global.json()) as unknown[]).toHaveLength(1)
+    const visibleAttachments = await readNativeJson(global, ApiResults.apiListAttachments)
+    expect(visibleAttachments).toHaveLength(1)
   })
 
   test('still shows the attachment to a workspace admin', async () => {
@@ -1147,7 +1149,8 @@ describe('attachment project visibility', () => {
     const list = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
       headers: authHeaders(adminToken, slug),
     })
-    expect((await list.json()) as unknown[]).toHaveLength(1)
+    const attachments = await readNativeJson(list, ApiResults.apiListAttachments)
+    expect(attachments).toHaveLength(1)
 
     const meta = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
       headers: authHeaders(adminToken, slug),
@@ -1165,7 +1168,8 @@ describe('attachment project visibility', () => {
     const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${orphanId}`, {
       headers: asMember(),
     })
-    expect(((await res.json()) as { filename: string }[]).map((a) => a.filename)).toStrictEqual(['orphan.txt'])
+    const attachments = await readNativeJson(res, ApiResults.apiListAttachments)
+    expect(attachments.map((a) => a.filename)).toStrictEqual(['orphan.txt'])
   })
 
   test('rejects uploading onto an issue in an invisible project without orphaning the R2 object', async () => {

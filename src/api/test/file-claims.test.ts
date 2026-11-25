@@ -1,6 +1,7 @@
 import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { configureCore, env } from './fixture-api.ts'
@@ -171,10 +172,7 @@ describe('file Claims API', () => {
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue 2' })
     const forceRes = await claimFiles({ issueId: issue2.id, paths: ['src/steal.ts'], force: true })
     expect(forceRes.status).toBe(201)
-    const forceBody = (await forceRes.json()) as {
-      created: { issueId: string; path: string; releasedAt: null }[]
-      overridden: { issueId: string; path: string; releasedAt: number }[]
-    }
+    const forceBody = await readNativeJson(forceRes, ApiResults.apiClaimFiles)
     expect(forceBody.created).toHaveLength(1)
     expect(forceBody.created[0].issueId).toBe(issue2.id)
     expect(forceBody.created[0].releasedAt).toBeNull()
@@ -813,12 +811,14 @@ describe('file Claims API', () => {
       await claimFiles({ issueId: otherIssue.id, paths: ['src/in-other.ts'] })
 
       const byKey = await listFileClaims({ projectId: projectKey })
-      const byKeyPaths = ((await byKey.json()) as { items: { path: string }[] }).items.map((item) => item.path)
+      const keyedClaims = await readNativeJson(byKey, ApiResults.apiListFileClaims)
+      const byKeyPaths = keyedClaims.items.map((item) => item.path)
       expect(byKeyPaths).toContain('src/in-project.ts')
       expect(byKeyPaths).not.toContain('src/in-other.ts')
 
       const byUuid = await listFileClaims({ projectId })
-      const byUuidPaths = ((await byUuid.json()) as { items: { path: string }[] }).items.map((item) => item.path)
+      const uuidClaims = await readNativeJson(byUuid, ApiResults.apiListFileClaims)
+      const byUuidPaths = uuidClaims.items.map((item) => item.path)
       expect(byUuidPaths).toContain('src/in-project.ts')
       expect(byUuidPaths).not.toContain('src/in-other.ts')
     })
@@ -868,7 +868,8 @@ describe('file Claims API', () => {
       )
 
       const withoutFlag = await listFileClaims({ path: 'src/stale-agent-932.ts' })
-      expect(((await withoutFlag.json()) as { items: unknown[] }).items).toHaveLength(0)
+      const activeClaims = await readNativeJson(withoutFlag, ItemsResponse)
+      expect(activeClaims.items).toHaveLength(0)
 
       const withFlag = await listFileClaims({
         path: 'src/stale-agent-932.ts',
@@ -897,7 +898,8 @@ describe('file Claims API', () => {
         .run()
 
       const withoutFlag = await listFileClaims({ path: 'src/expired-agentless-932.ts' })
-      expect(((await withoutFlag.json()) as { items: unknown[] }).items).toHaveLength(0)
+      const activeClaims = await readNativeJson(withoutFlag, ItemsResponse)
+      expect(activeClaims.items).toHaveLength(0)
 
       const withFlag = await listFileClaims({
         path: 'src/expired-agentless-932.ts',
@@ -946,9 +948,11 @@ describe('covers PROJ-932: list_file_claims projectId + visibility for a non-adm
     }
 
     const byKey = await list({ projectId: 'HIDN' })
-    expect(((await byKey.json()) as { items: unknown[] }).items).toHaveLength(0)
+    const keyedClaims = await readNativeJson(byKey, ItemsResponse)
+    expect(keyedClaims.items).toHaveLength(0)
 
     const byUuid = await list({ projectId: hidden.id })
-    expect(((await byUuid.json()) as { items: unknown[] }).items).toHaveLength(0)
+    const uuidClaims = await readNativeJson(byUuid, ItemsResponse)
+    expect(uuidClaims.items).toHaveLength(0)
   })
 })

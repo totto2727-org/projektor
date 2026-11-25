@@ -308,7 +308,8 @@ describe('sprints API', () => {
         headers: authHeaders(token, slug),
       })
       expect(warmRes.status).toBe(200)
-      expect(((await warmRes.json()) as { sprint_id: string | null }).sprint_id).toBeNull()
+      const issue = await readNativeJson(warmRes, Schema.Struct({ sprint_id: Schema.NullOr(Schema.String) }))
+      expect(issue.sprint_id).toBeNull()
       await expect(env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).resolves.not.toBeNull()
 
       let kvDeletes = 0

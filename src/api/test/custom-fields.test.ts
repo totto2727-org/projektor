@@ -678,13 +678,15 @@ describe('covers PROJ-837: custom field definitions respect project access', () 
       headers: authHeaders(token, workspace.slug),
     })
     expect(all.status).toBe(200)
-    const keys = ((await all.json()) as { key: string }[]).map((d) => d.key).toSorted()
+    const definitions = await readNativeJson(all, KeyListResponse)
+    const keys = definitions.map((d) => d.key).toSorted()
     expect(keys).toStrictEqual(['open_field', 'ws_field'])
 
     const scoped = await fetchNativeApi(`http://localhost/api/custom-fields?projectId=${restricted.id}`, {
       headers: authHeaders(token, workspace.slug),
     })
-    const scopedKeys = ((await scoped.json()) as { key: string }[]).map((d) => d.key)
+    const scopedDefinitions = await readNativeJson(scoped, KeyListResponse)
+    const scopedKeys = scopedDefinitions.map((d) => d.key)
     expect(scopedKeys).toStrictEqual(['ws_field'])
   })
 })

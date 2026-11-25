@@ -1474,7 +1474,8 @@ describe('covers PROJ-430: CF Access certs fetch failure', () => {
       expect(res.status).toBe(503)
       const jwksObservations = await getCoreObservations()
       expect(jwksObservations.jwksFetches).toStrictEqual([`https://${domain}/cdn-cgi/access/certs`])
-      expect((await res.json()) as { error: string }).toStrictEqual({
+      const body = await readNativeJson(res, ErrorMessageResponse)
+      expect(body).toStrictEqual({
         error: 'Authentication temporarily unavailable',
       })
     } finally {

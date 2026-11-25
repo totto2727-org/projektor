@@ -1,6 +1,8 @@
 import { Schema } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
+
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
@@ -186,7 +188,7 @@ describe('groups REST', () => {
     const detailResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
       headers: ownerHeaders,
     })
-    const detail = (await detailResponse.json()) as { grants: { projectId: string; role: string }[] }
+    const detail = await readNativeJson(detailResponse, ApiResults.apiGetGroup)
     expect(detail.grants).toHaveLength(1)
     expect(detail.grants[0].role).toBe('admin')
 
@@ -221,13 +223,13 @@ describe('groups REST', () => {
     const memberListResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       headers: memberHeaders,
     })
-    const memberList = (await memberListResponse.json()) as { name: string }[]
+    const memberList = await readNativeJson(memberListResponse, ApiResults.apiListGroups)
     expect(memberList.map((g) => g.name)).toStrictEqual(['Mine'])
 
     const ownerListResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       headers: ownerHeaders,
     })
-    const ownerList = (await ownerListResponse.json()) as { name: string }[]
+    const ownerList = await readNativeJson(ownerListResponse, ApiResults.apiListGroups)
     expect(ownerList.map((g) => g.name).toSorted()).toStrictEqual(['Mine', 'Theirs'])
   })
 

@@ -23,7 +23,7 @@ import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
  *  3. Workspace-scoped token is still confined to its workspace (regression).
  *  4. POST /auth/tokens without workspaceId mints a user-scoped token (NULL in DB).
  */
-import { IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
+import { ErrorMessageResponse, IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -235,7 +235,8 @@ describe('covers PROJ-903: only a human session can mint or revoke a PAT', () =>
       ),
     )
     expect(res.status).toBe(403)
-    expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/u)
+    const body = await readNativeJson(res, ErrorMessageResponse)
+    expect(body.error).toMatch(/signed-in browser session/u)
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind('escape').first()
     expect(row).toBeNull()
   })
