@@ -90,7 +90,7 @@ describe('covers API facade reply boundary', () => {
         ApiResults.apiCreateToken,
         humanHandlers.apiCreateToken(human, 'facade-workspace', { name: 'Human credential', scopes: ['read'] }),
       )
-      expect(created).toMatchObject({ expiresAt: null, name: 'Human credential', scopes: ['read'] })
+      expect(created).toMatchObject({ expiresAt: JSON_NULL, name: 'Human credential', scopes: ['read'] })
       expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/u)
       await expect(
         apiReply(ApiResults.apiRevokeToken, humanHandlers.apiRevokeToken(human, 'facade-workspace', created.id)),
@@ -147,25 +147,25 @@ describe('covers API facade reply boundary', () => {
       body: 'Body',
       status: 'todo',
       priority: 'high',
-      assignee_id: null,
+      assignee_id: JSON_NULL,
       labels: '["public"]',
-      parent_id: null,
-      type_id: null,
-      status_id: null,
-      status_category: null,
-      sprint_id: null,
+      parent_id: JSON_NULL,
+      type_id: JSON_NULL,
+      status_id: JSON_NULL,
+      status_category: JSON_NULL,
+      sprint_id: JSON_NULL,
       created_by_id: 'user',
-      author_kind: null,
+      author_kind: JSON_NULL,
       created_at: 1,
       updated_at: 2,
-      completed_at: null,
+      completed_at: JSON_NULL,
       needs_audit: false,
       project_key: 'PROJ',
       project_name: 'Project',
-      type_key: null,
-      type_name: null,
-      status_key: null,
-      status_name: null,
+      type_key: JSON_NULL,
+      type_name: JSON_NULL,
+      status_key: JSON_NULL,
+      status_name: JSON_NULL,
       rollup: { total: 1, byStatus: { todo: 1 }, done: 0, remaining: 1 },
       links: [
         {
@@ -203,7 +203,7 @@ describe('covers API facade reply boundary', () => {
       {
         id: 'field',
         workspaceId: 'workspace',
-        projectId: null,
+        projectId: JSON_NULL,
         key: 'size',
         label: 'Size',
         type: 'select',
@@ -221,7 +221,7 @@ describe('covers API facade reply boundary', () => {
       id: 'claim',
       workspaceId: 'workspace',
       issueId: 'issue',
-      agentId: null,
+      agentId: JSON_NULL,
       path: 'src/file.ts',
       claimedAt: 1,
       releasedAt: 2,
@@ -264,7 +264,7 @@ describe('covers API facade reply boundary', () => {
         slug: 'root',
         title: 'Root',
         url: '/wiki/root',
-        type: null,
+        type: JSON_NULL,
         children: [{ id: 'child', slug: 'child', title: 'Child', url: '/wiki/child', type: 'guide', children: [] }],
       },
     ]

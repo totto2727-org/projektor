@@ -7,6 +7,7 @@ import { Iterable, Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { migratedDb } from '#db/test/helpers.ts'
 import { listComments } from '#services/comments.ts'
 import { batchLoadCustomFields, listCustomFieldDefs } from '#services/custom-fields.ts'
@@ -70,30 +71,30 @@ describe('issue and related pure data queries', () => {
     const row = await runTestEffect(issues.getIssue(db, 'wa', { ref: 'A-01' }))
     expect(row).toStrictEqual({
       assignee_id: 'u',
-      author_kind: null,
+      author_kind: SQL_NULL,
       body: 'Body',
-      completed_at: null,
+      completed_at: SQL_NULL,
       created_at: 100,
       created_by_id: 'u',
       id: 'i1',
       labels: '["x"]',
       needs_audit: false,
       number: 1,
-      parent_id: null,
+      parent_id: SQL_NULL,
       priority: 'high',
       project_id: 'pa',
       project_key: 'A',
       project_name: 'Project A',
-      sprint_id: null,
+      sprint_id: SQL_NULL,
       status: 'todo',
-      status_category: null,
-      status_id: null,
-      status_key: null,
-      status_name: null,
+      status_category: SQL_NULL,
+      status_id: SQL_NULL,
+      status_key: SQL_NULL,
+      status_name: SQL_NULL,
       title: 'Needle one',
-      type_id: null,
-      type_key: null,
-      type_name: null,
+      type_id: SQL_NULL,
+      type_key: SQL_NULL,
+      type_name: SQL_NULL,
       updated_at: 101,
       workspace_id: 'wa',
     })
@@ -107,7 +108,7 @@ describe('issue and related pure data queries', () => {
     expect(page.total).toBe(2)
     expect(page.items[0].id).toBe('i2')
     expect(page.items[0]).not.toHaveProperty('body')
-    expect(page.items[0]).toHaveProperty('assignee_name', null)
+    expect(page.items[0]).toHaveProperty('assignee_name', SQL_NULL)
     expect(page.items[0].rollup).toStrictEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
     const next = await runTestEffect(
       issues.listIssues(db, 'wa', { limit: 1, cursor: { createdAt: 100, id: 'i2' }, includeBody: true }, visibility),
@@ -222,8 +223,8 @@ describe('issue and related pure data queries', () => {
       INSERT INTO custom_field_definitions(id,workspace_id,key,label,type,options,created_at) VALUES ('choice','wa','choice','Choice','select','["A","B"]',2);`)
     await expect(runTestEffect(listTaskTypes(db, 'wa'))).resolves.toStrictEqual([
       {
-        color: null,
-        icon: null,
+        color: SQL_NULL,
+        icon: SQL_NULL,
         id: 't',
         is_default: 1,
         key: 'bug',
@@ -235,7 +236,7 @@ describe('issue and related pure data queries', () => {
     await expect(runTestEffect(listTaskStatuses(db, 'wa'))).resolves.toStrictEqual([
       {
         category: 'in_progress',
-        color: null,
+        color: SQL_NULL,
         id: 's',
         is_default: 1,
         is_review_step: 1,

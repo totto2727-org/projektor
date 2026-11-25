@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 
 import { configureCore, env } from './fixture-api.ts'
@@ -70,7 +72,7 @@ const mcpUpdate = async function mcpUpdate(
 describe('review target MCP tool through the real API and Core Workers', () => {
   test('sets all review statuses and clears selection with canonical metadata readback', async () => {
     expect.hasAssertions()
-    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', JSON_NULL], async (status): Promise<void> => {
       await resetRateLimits()
       const reply = await mcpUpdate(status)
       expect(reply).not.toHaveProperty('error')
@@ -87,7 +89,7 @@ describe('review target MCP tool through the real API and Core Workers', () => {
   test('returns a safe validation tool error without changing selection', async () => {
     const reply = await mcpUpdate('invalid')
     expect(toolError(reply)?.code).toBe('validation')
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 
   test('denies viewer grants and then revoked visibility without writing', async () => {
@@ -99,15 +101,15 @@ describe('review target MCP tool through the real API and Core Workers', () => {
     expect(toolError(await mcpUpdate('fixing'))?.code).toBe('not_found')
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
-    ).resolves.toStrictEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 })
 
 describe('review targets REST through the real API and Core Workers', () => {
   test('selects, updates and removes a review target and exposes canonical attachment metadata', async () => {
     expect.hasAssertions()
-    await expect(readMetadata()).resolves.toMatchObject({ id: attachmentId, kind: 'url', reviewStatus: null })
-    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
+    await expect(readMetadata()).resolves.toMatchObject({ id: attachmentId, kind: 'url', reviewStatus: JSON_NULL })
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', JSON_NULL], async (status): Promise<void> => {
       await resetRateLimits()
       const response = await update(status)
       expect(response.status).toBe(200)
@@ -119,7 +121,7 @@ describe('review targets REST through the real API and Core Workers', () => {
   test.each(['invalid', '', 1, {}])('rejects malformed review status %j without a write', async (status) => {
     const result = await update(status)
     expect(result.status).toBe(400)
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 
   test('rejects malformed JSON and missing status', async () => {
@@ -132,14 +134,14 @@ describe('review targets REST through the real API and Core Workers', () => {
       })
       expect(response.status).toBe(400)
     })
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 
   test('rejects an attachment belonging to another issue even in the same project', async () => {
     const sibling = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const resolvedValue = await update('fixing', { issueId: sibling.id })
     expect(resolvedValue.status).toBe(404)
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 
   test('treats the path attachment id as authoritative instead of a body override', async () => {
@@ -152,7 +154,7 @@ describe('review targets REST through the real API and Core Workers', () => {
       ),
     )
     expect(response.status).toBe(404)
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 
   test('confines workspace-bound credentials despite a foreign issue and attachment pair', async () => {
@@ -167,7 +169,7 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect(response.status).toBe(404)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(foreignAttachmentId).first(),
-    ).resolves.toStrictEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
   test('rechecks current project viewer grants and revoked visibility', async () => {
@@ -181,14 +183,14 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect(apiResponse.status).toBe(404)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
-    ).resolves.toStrictEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
   test('rejects read-only credentials without writing', async () => {
     const readOnly = await seedToken(fixture.workspaceId, fixture.userId, { scopes: ['projektor:read'] })
     const response = await update('fixing', { token: readOnly })
     expect(response.status).toBe(403)
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 
   test('rejects current membership revocation without writing', async () => {
@@ -199,20 +201,20 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect(response.status).toBe(403)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
-    ).resolves.toStrictEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
   test('does not select Wiki references for review', async () => {
     await env.DB.prepare("UPDATE attachments SET kind='wiki_ref' WHERE id=?").bind(attachmentId).run()
     const response = await update('fixing')
     expect(response.status).toBe(404)
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 
   test('does not mutate archived projects', async () => {
     await env.DB.prepare('UPDATE projects SET archived_at=2 WHERE id=?').bind(fixture.projectId).run()
     const response = await update('fixing')
     expect(response.status).toBe(404)
-    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
+    await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: JSON_NULL })
   })
 })
