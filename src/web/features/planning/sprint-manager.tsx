@@ -19,6 +19,15 @@ import { calendarOffset, MoveSprintIssuesSchema, SprintFormSchema } from './inpu
 import type { SprintListMode } from './input-schemas.ts'
 import type { ProjectIdentity, Sprint, SprintIssue } from './types.ts'
 
+const TAB_LABEL_REMAINDER_START = 1
+const VELOCITY_HISTORY_START = -6
+const NO_SUBMISSION_ATTEMPTS = 0
+const NO_STORY_POINTS = 0
+const MIN_POINT_AXIS_MAX = 1
+const BAR_AREA_HEIGHT_PX = 100
+const ZERO_BAR_HEIGHT_PX = 0
+const MIN_VISIBLE_BAR_HEIGHT_PX = 2
+
 const CARD = 'px-5 py-4 bg-surface border border-border rounded-lg mb-3 last:mb-0'
 const LABEL = 'block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'
 interface Draft {
@@ -191,7 +200,7 @@ export const SprintManager = function SprintManager({
             variant={mode === value ? 'primary' : 'outline'}
             aria-current={mode === value ? 'page' : undefined}
           >
-            {value === 'completed' ? 'History' : value[0].toUpperCase() + value.slice(1)}
+            {value === 'completed' ? 'History' : value[0].toUpperCase() + value.slice(TAB_LABEL_REMAINDER_START)}
           </Button>
         ))}
       </nav>
@@ -223,7 +232,9 @@ export const SprintManager = function SprintManager({
           />
         ))
       )}
-      {Array.isArrayNonEmpty(completed) && <VelocityChart sprints={completed.slice(-6)} issues={issues} />}
+      {Array.isArrayNonEmpty(completed) && (
+        <VelocityChart sprints={completed.slice(VELOCITY_HISTORY_START)} issues={issues} />
+      )}
     </div>
   )
 }
@@ -277,7 +288,7 @@ function SprintForm({
         selector={(state) => ({
           canSubmit: state.canSubmit,
           errors: state.errors,
-          showErrors: state.isDirty || state.submissionAttempts > 0,
+          showErrors: state.isDirty || state.submissionAttempts > NO_SUBMISSION_ATTEMPTS,
         })}
       >
         {({ canSubmit, errors, showErrors }) => (
@@ -475,8 +486,8 @@ function SprintRow({
         <span>
           Story points:{' '}
           <strong className='text-text-base'>
-            {done.reduce((sum, issue) => sum + getStoryPoints(issue), 0)}/
-            {sprintIssues.reduce((sum, issue) => sum + getStoryPoints(issue), 0)}
+            {done.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)}/
+            {sprintIssues.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)}
           </strong>
         </span>
       </div>
@@ -659,7 +670,7 @@ function MoveIssuesForm({
           busy: state.isSubmitting,
           canSubmit: state.canSubmit,
           errors: state.errors,
-          showErrors: state.isDirty || state.submissionAttempts > 0,
+          showErrors: state.isDirty || state.submissionAttempts > NO_SUBMISSION_ATTEMPTS,
         })}
       >
         {({ busy, canSubmit, errors, showErrors }) => (
@@ -755,8 +766,8 @@ function CompletionSummaryPanel({
 }): JSX.Element {
   const { sprint, issues } = summary
   const done = issues.filter((issue) => issue.status_category === 'done')
-  const totalSP = issues.reduce((sum, issue) => sum + getStoryPoints(issue), 0)
-  const doneSP = done.reduce((sum, issue) => sum + getStoryPoints(issue), 0)
+  const totalSP = issues.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)
+  const doneSP = done.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)
   return (
     <div className='mb-6 px-5 py-4 bg-success-bg border border-success-border rounded-lg'>
       <div className='flex justify-between items-start mb-3'>
@@ -777,7 +788,7 @@ function CompletionSummaryPanel({
             {done.length}/{issues.length}
           </strong>
         </div>
-        {totalSP > 0 && (
+        {totalSP > NO_STORY_POINTS && (
           <div>
             <span className='text-text-muted'>Story points:</span>{' '}
             <strong className='text-text-base'>
@@ -813,32 +824,33 @@ function VelocityChart({ sprints, issues }: { sprints: Sprint[]; issues: SprintI
       sprint,
       pointsCompleted: rows
         .filter((issue) => issue.status_category === 'done')
-        .reduce((sum, issue) => sum + getStoryPoints(issue), 0),
-      pointsTotal: rows.reduce((sum, issue) => sum + getStoryPoints(issue), 0),
+        .reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS),
+      pointsTotal: rows.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS),
     }
   })
-  const max = Math.max(1, ...data.map((row) => row.pointsTotal))
+  const max = Math.max(MIN_POINT_AXIS_MAX, ...data.map((row) => row.pointsTotal))
   return (
     <div className='mt-8 p-5 bg-surface border border-border rounded-lg'>
       <h2 className='m-0 mb-4 text-base font-semibold text-text-base'>Velocity</h2>
       <div>
         <div className='flex items-end gap-2 h-[148px]'>
           {data.map(({ sprint, pointsCompleted, pointsTotal }) => {
-            const totalH = Math.round((pointsTotal / max) * 100)
-            const doneH = totalH > 0 ? Math.round((pointsCompleted / pointsTotal) * totalH) : 0
+            const totalH = Math.round((pointsTotal / max) * BAR_AREA_HEIGHT_PX)
+            const doneH =
+              totalH > ZERO_BAR_HEIGHT_PX ? Math.round((pointsCompleted / pointsTotal) * totalH) : ZERO_BAR_HEIGHT_PX
             return (
               <div key={sprint.id} className='flex-1 flex flex-col items-center justify-end min-w-0 h-[148px]'>
                 <div className='text-[0.7rem] font-semibold text-text-base mb-1'>
                   {pointsCompleted}
-                  {pointsTotal > 0 && pointsCompleted !== pointsTotal && (
+                  {pointsTotal > NO_STORY_POINTS && pointsCompleted !== pointsTotal && (
                     <span className='font-normal text-text-muted'>/{pointsTotal}</span>
                   )}
                 </div>
                 <div
                   className='relative w-full rounded-t bg-velocity-bar-bg'
-                  style={{ height: `${Math.max(totalH, 2)}px` }}
+                  style={{ height: `${Math.max(totalH, MIN_VISIBLE_BAR_HEIGHT_PX)}px` }}
                 >
-                  {doneH > 0 && (
+                  {doneH > ZERO_BAR_HEIGHT_PX && (
                     <div
                       className='absolute bottom-0 left-0 right-0 rounded-t bg-status-done opacity-80'
                       style={{ height: `${doneH}px` }}
