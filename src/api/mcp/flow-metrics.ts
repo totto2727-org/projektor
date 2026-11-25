@@ -19,7 +19,7 @@ export const flowMetricsTools: MCPTool[] = [
       "bugTypeTracked:false (no 'bug' task type in the workspace) is distinct from a genuine " +
       '0% bug share. Bucketing defaults to weekly (current ISO week plus the preceding 5 ' +
       "weeks); pass granularity: 'day' for daily buckets.",
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return getFlowMetrics(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId'], {

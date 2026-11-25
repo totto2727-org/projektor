@@ -231,7 +231,7 @@ export const issuesTools: MCPTool[] = [
       "— see get_workflow's definition of ready. get_prioritized_issues excludes issues " +
       "missing these by default. Verification isn't part of the readiness bar (PROJ-738) — " +
       "it's required later, in the completionReport when entering review/done.",
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return createIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId', 'title'], {
@@ -262,7 +262,7 @@ export const issuesTools: MCPTool[] = [
       'an agent requires completionReport. Agents CAN transition directly to done (no human ' +
       "approval gate) — but if the completionReport.verification isn't externally checkable (no " +
       'CI run/PR/commit link), the issue is flagged needsAudit:true for after-the-fact human review.',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -326,7 +326,7 @@ export const issuesTools: MCPTool[] = [
   {
     annotations: DESTRUCTIVE,
     description: 'Delete an issue by ID or ref (e.g. PROJ-42)',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -347,7 +347,7 @@ export const issuesTools: MCPTool[] = [
       'If none of the open issues pass, the ranked (not-ready) list is returned anyway with ' +
       '`degraded: true` on the response and `needsGrooming`/`missingCriteria` on each issue, rather than ' +
       'an empty array — empty otherwise means "no open work", which would be a lie.',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return getPrioritizedIssues(ctx, input)
     },
     inputSchema: objectInputSchema({

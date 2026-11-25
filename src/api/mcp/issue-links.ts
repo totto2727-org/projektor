@@ -11,7 +11,7 @@ export const issueLinksTools: MCPTool[] = [
   {
     annotations: CREATE,
     description: 'Create a typed link between two issues (blocks, blocked_by, relates_to, duplicates)',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return createLink(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['sourceIssueId', 'targetIssueId', 'type'], {
@@ -28,7 +28,7 @@ export const issueLinksTools: MCPTool[] = [
   {
     annotations: DESTRUCTIVE,
     description: 'Delete an issue link by ID',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -43,7 +43,7 @@ export const issueLinksTools: MCPTool[] = [
   {
     annotations: READ,
     description: "List all links for an issue (shows effective type from this issue's perspective)",
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return listLinksForIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId'], {

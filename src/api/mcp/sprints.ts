@@ -19,7 +19,7 @@ export const sprintsTools: MCPTool[] = [
   {
     annotations: READ,
     description: 'List sprints for a project, ordered by creation date',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return listSprints(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId'], {
@@ -30,7 +30,7 @@ export const sprintsTools: MCPTool[] = [
   {
     annotations: READ,
     description: 'Get a sprint by ID',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -45,7 +45,7 @@ export const sprintsTools: MCPTool[] = [
   {
     annotations: CREATE,
     description: 'Create a new sprint in a project',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return createSprint(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId', 'name'], {
@@ -60,7 +60,7 @@ export const sprintsTools: MCPTool[] = [
   {
     annotations: IDEMPOTENT_WRITE,
     description: 'Update sprint fields — name, goal, status, start/end dates',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -80,7 +80,7 @@ export const sprintsTools: MCPTool[] = [
   {
     annotations: PLAIN_WRITE,
     description: 'Mark an active sprint as completed',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -95,7 +95,7 @@ export const sprintsTools: MCPTool[] = [
   {
     annotations: DESTRUCTIVE,
     description: 'Delete a sprint (issues in the sprint will have their sprint_id cleared)',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -110,7 +110,7 @@ export const sprintsTools: MCPTool[] = [
   {
     annotations: PLAIN_WRITE,
     description: 'Bulk move issues into a sprint by setting their sprint_id',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return moveIssuesToSprint(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['sprintId', 'issueIds'], {

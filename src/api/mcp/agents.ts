@@ -38,7 +38,7 @@ export const agentsTools: MCPTool[] = [
       'compensating cleanup: on any conflict (same errors as claim_issue/claim_files) the session is ' +
       'ended and nothing is left claimed. If the process crashes mid-call, the same claims become ' +
       "reclaimable once the session's heartbeat goes stale (120s).",
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return startWork(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issue', 'name'], {
@@ -58,7 +58,7 @@ export const agentsTools: MCPTool[] = [
       'Optionally transition an issue (completion-report rules apply, same as update_issue), then ' +
       'release every claim/lease the session holds and end it — replaces update_issue + ' +
       'release_issue + release_files + end_agent.',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return finishWork(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['sessionId', 'issue'], {
@@ -81,7 +81,7 @@ export const agentsTools: MCPTool[] = [
   {
     annotations: PLAIN_WRITE,
     description: 'Register an agent session, optionally linked to an issue',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return registerAgent(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['name'], {
@@ -99,7 +99,7 @@ export const agentsTools: MCPTool[] = [
   {
     annotations: PLAIN_WRITE,
     description: 'Send a heartbeat to keep an agent session active',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return heartbeatAgent(ctx, withIdAlias(input))
     },
     inputSchema: objectInputSchema({
@@ -114,7 +114,7 @@ export const agentsTools: MCPTool[] = [
   {
     annotations: PLAIN_WRITE,
     description: 'End an agent session',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return endAgent(ctx, withIdAlias(input))
     },
     inputSchema: objectInputSchema({
@@ -134,7 +134,7 @@ export const agentsTools: MCPTool[] = [
       'heartbeating is also excluded; pass includeStale:true to include those too. Each entry ' +
       'carries a `live` flag (false when its heartbeat has gone stale) and, when tied to an issue, ' +
       'that issue\'s ref (e.g. "PROJ-857") as issueRef.',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return listActiveAgents(ctx, input)
     },
     inputSchema: objectInputSchema({

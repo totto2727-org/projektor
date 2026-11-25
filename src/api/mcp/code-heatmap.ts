@@ -17,7 +17,7 @@ export const codeHeatmapTools: MCPTool[] = [
       'file path, not a directory. Defaults to the current ISO week plus the preceding 5 weeks, ' +
       'matching get_flow_metrics. `mode` switches sizing between claim volume and claim ' +
       'contention (claim_conflicts).',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return getCodeHeatmap(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId'], {

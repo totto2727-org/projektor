@@ -10,7 +10,7 @@ export const issueLeasesTools: MCPTool[] = [
     description:
       "Atomically lease an issue to an agent session so the parallel fleet doesn't double-work it. " +
       'Fails if another live session already holds it; reclaims a lease whose session stopped heartbeating.',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return claimIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId'], {
@@ -25,7 +25,7 @@ export const issueLeasesTools: MCPTool[] = [
   {
     annotations: DESTRUCTIVE,
     description: 'Release the active lease on an issue, optionally only if held by a given agent session',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return releaseIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId'], {
@@ -42,7 +42,7 @@ export const issueLeasesTools: MCPTool[] = [
       'heartbeating is excluded; pass includeStale:true for all. Each entry carries the linked ' +
       'issue\'s ref (e.g. "PROJ-857") as issueRef, and a `live` flag (false when the holder ' +
       'stopped heartbeating and the lease is reclaimable — only possible with includeStale:true).',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return listIssueLeases(ctx, input)
     },
     inputSchema: objectInputSchema({

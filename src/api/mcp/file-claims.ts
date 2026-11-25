@@ -8,7 +8,7 @@ export const fileClaimsTools: MCPTool[] = [
   {
     annotations: IDEMPOTENT_WRITE,
     description: 'Claim one or more repo file paths for an issue so the parallel fleet can see what is taken',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return claimFiles(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId', 'paths'], {
@@ -26,7 +26,7 @@ export const fileClaimsTools: MCPTool[] = [
   {
     annotations: DESTRUCTIVE,
     description: 'Release active file claims in the workspace, optionally scoped to an issue',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return releaseFiles(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['paths'], {
@@ -47,7 +47,7 @@ export const fileClaimsTools: MCPTool[] = [
       '(for an agentless claim) sat past its TTL is excluded; pass includeStale:true for all. ' +
       'Each entry carries the linked issue\'s ref (e.g. "PROJ-857") as issueRef, and a `live` ' +
       'flag (false when the claim is reclaimable — only possible with includeStale:true).',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return listFileClaims(ctx, input)
     },
     inputSchema: objectInputSchema({

@@ -16,7 +16,7 @@ export const customFieldsTools: MCPTool[] = [
   {
     annotations: READ,
     description: 'List all custom field definitions for the workspace',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { projectId } = (input as { projectId?: string }) ?? {}
       return listCustomFieldDefs(ctx, projectId)
     },
@@ -31,7 +31,7 @@ export const customFieldsTools: MCPTool[] = [
   {
     annotations: CREATE,
     description: 'Create a new custom field definition (owner/admin only)',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return createCustomFieldDef(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['key', 'label', 'type'], {
@@ -58,7 +58,7 @@ export const customFieldsTools: MCPTool[] = [
   {
     annotations: IDEMPOTENT_WRITE,
     description: 'Update a custom field definition label or options (owner/admin only)',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -75,7 +75,7 @@ export const customFieldsTools: MCPTool[] = [
   {
     annotations: DESTRUCTIVE,
     description: 'Delete a custom field definition (owner/admin only). Fails if any issues have values for this field.',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))

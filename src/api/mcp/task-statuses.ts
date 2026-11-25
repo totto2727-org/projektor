@@ -11,7 +11,7 @@ export const taskStatusesTools: MCPTool[] = [
   {
     annotations: READ,
     description: 'List all task statuses configured for the workspace',
-    handler(_input, ctx) {
+    async handler(_input, ctx) {
       return listTaskStatuses(ctx)
     },
     inputSchema: objectInputSchema({}),
@@ -20,7 +20,7 @@ export const taskStatusesTools: MCPTool[] = [
   {
     annotations: CREATE,
     description: 'Create a new task status for the workspace (owner/admin only)',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return createTaskStatus(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['key', 'name', 'category'], {
@@ -44,7 +44,7 @@ export const taskStatusesTools: MCPTool[] = [
   {
     annotations: IDEMPOTENT_WRITE,
     description: 'Update a task status (owner/admin only)',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
@@ -68,7 +68,7 @@ export const taskStatusesTools: MCPTool[] = [
   {
     annotations: DESTRUCTIVE,
     description: 'Delete a task status (owner/admin only). Fails if the status is in use or is the default.',
-    handler(input, ctx) {
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError(validationIssues(['id is required'], {}))
