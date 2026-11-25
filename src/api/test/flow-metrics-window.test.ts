@@ -34,7 +34,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
     ;({ token, slug, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  const getFlowMetrics = async function getFlowMetrics(qs: string): Promise<Response> {
+  const fetchFlowMetrics = async function fetchFlowMetrics(qs: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
       headers: authHeaders(token, slug),
     })
@@ -43,7 +43,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   test('400s a day-granularity window spanning more than 366 days', async () => {
     const now = currentEpochSeconds()
     const since = now - 400 * 86_400
-    const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
+    const res = await fetchFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(400)
     const body = await readNativeJson(res, Schema.Struct({ error: Schema.Unknown }))
     expect(JSON.stringify(body)).toMatch(/366 days/u)
@@ -52,14 +52,14 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   test('accepts a day-granularity window of exactly 366 days', async () => {
     const now = currentEpochSeconds()
     const since = now - 366 * 86_400
-    const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
+    const res = await fetchFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(200)
   })
 
   test('400s a week-granularity window spanning more than 5 years', async () => {
     const now = currentEpochSeconds()
     const since = now - (5 * 365 * 86_400 + 86_400)
-    const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
+    const res = await fetchFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(400)
     const body = await readNativeJson(res, Schema.Struct({ error: Schema.Unknown }))
     expect(JSON.stringify(body)).toMatch(/5 years/u)
@@ -68,30 +68,30 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   test('accepts a week-granularity window of exactly 5 years', async () => {
     const now = currentEpochSeconds()
     const since = now - 5 * 365 * 86_400
-    const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
+    const res = await fetchFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(200)
   })
 
   test('400s `since=0` with day granularity (the reported case) instead of computing tens of thousands of buckets', async () => {
-    const res = await getFlowMetrics('since=0&granularity=day')
+    const res = await fetchFlowMetrics('since=0&granularity=day')
     expect(res.status).toBe(400)
   })
 
   test('400s until < since', async () => {
     const now = currentEpochSeconds()
-    const res = await getFlowMetrics(`since=${now}&until=${now - 1000}`)
+    const res = await fetchFlowMetrics(`since=${now}&until=${now - 1000}`)
     expect(res.status).toBe(400)
   })
 
   test('does not require since/until at all — the fully-default call is unaffected', async () => {
-    const res = await getFlowMetrics('')
+    const res = await fetchFlowMetrics('')
     expect(res.status).toBe(200)
   })
 
   test('400s when only `since` is given and it is more than 366 days before now at day granularity', async () => {
     const now = currentEpochSeconds()
     const since = now - 400 * 86_400
-    const res = await getFlowMetrics(`since=${since}&granularity=day`)
+    const res = await fetchFlowMetrics(`since=${since}&granularity=day`)
     expect(res.status).toBe(400)
   })
 })

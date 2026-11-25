@@ -76,7 +76,7 @@ export const ChartContainer = function ChartContainer({
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }): React.JSX.Element | null => {
-  const colorConfig = Object.entries(config).filter(([, config]) => config.theme ?? config.color)
+  const colorConfig = Object.entries(config).filter(([, seriesConfig]) => seriesConfig.theme ?? seriesConfig.color)
 
   if (!colorConfig.length) {
     return null
