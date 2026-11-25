@@ -4,6 +4,7 @@ import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 import { issuesTools } from '#api/mcp/issues.ts'
 import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 
 import { env } from './fixture-api.ts'
@@ -1186,7 +1187,7 @@ describe('issues API', () => {
     const row = await env.DB.prepare('SELECT completed_at FROM issues WHERE id = ?')
       .bind(id)
       .first<{ completed_at: number | null }>()
-    return row?.completed_at ?? null
+    return row?.completed_at ?? SQL_NULL
   }
 
   test('stamps completed_at when an issue enters a done status and clears it on exit (PROJ-212)', async () => {
@@ -1259,7 +1260,7 @@ describe('issues API', () => {
     const row = await env.DB.prepare('SELECT ready_at, claimed_at, done_at FROM issues WHERE id = ?')
       .bind(id)
       .first<{ ready_at: number | null; claimed_at: number | null; done_at: number | null }>()
-    return row ?? { ready_at: null, claimed_at: null, done_at: null }
+    return row ?? { ready_at: SQL_NULL, claimed_at: SQL_NULL, done_at: SQL_NULL }
   }
 
   test('stamps ready_at/claimed_at/done_at once, on first entry, and never clears them', async () => {
@@ -1267,7 +1268,11 @@ describe('issues API', () => {
     // 4 API requests (seed + 4 patches), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Flows through' })
     const id = issue.id
-    await expect(flowTimestampsOf(id)).resolves.toStrictEqual({ claimed_at: null, done_at: null, ready_at: null })
+    await expect(flowTimestampsOf(id)).resolves.toStrictEqual({
+      claimed_at: SQL_NULL,
+      done_at: SQL_NULL,
+      ready_at: SQL_NULL,
+    })
 
     await patch(id, { status: 'todo' })
     const afterReady = await flowTimestampsOf(id)
@@ -1312,7 +1317,7 @@ describe('issues API', () => {
     const row = await env.DB.prepare('SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?')
       .bind(id)
       .first<{ in_review_at: number | null; review_bounce_count: number }>()
-    return row ?? { in_review_at: null, review_bounce_count: 0 }
+    return row ?? { in_review_at: SQL_NULL, review_bounce_count: 0 }
   }
 
   test('stamps in_review_at once, on first entry, and counts bounces back to in_progress', async () => {
@@ -1323,7 +1328,7 @@ describe('issues API', () => {
     const id = issue.id
 
     await patch(id, { status: 'in_progress' })
-    await expect(reviewFieldsOf(id)).resolves.toStrictEqual({ in_review_at: null, review_bounce_count: 0 })
+    await expect(reviewFieldsOf(id)).resolves.toStrictEqual({ in_review_at: SQL_NULL, review_bounce_count: 0 })
 
     await patch(id, { status: 'in_review' })
     const afterReview = await reviewFieldsOf(id)
@@ -1660,7 +1665,7 @@ describe('issues MCP — typeId', () => {
     })
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
-    await mcpCall({ arguments: { id, typeId: null }, name: 'update_issue' })
+    await mcpCall({ arguments: { id, typeId: JSON_NULL }, name: 'update_issue' })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -2798,7 +2803,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const res = await mcpCall({
-      arguments: { assigneeId: null, id },
+      arguments: { assigneeId: JSON_NULL, id },
       name: 'update_issue',
     })
     expect(res.error).toBeUndefined()
@@ -2846,9 +2851,9 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     // REST keeps the full shape: empty/null fields are still present.
     expect(issue.links).toStrictEqual([])
     expect(issue.customFields).toStrictEqual([])
-    expect(issue).toHaveProperty('sprint_id', null)
-    expect(issue).toHaveProperty('assignee_id', null)
-    expect(issue).toHaveProperty('parent_id', null)
+    expect(issue).toHaveProperty('sprint_id', JSON_NULL)
+    expect(issue).toHaveProperty('assignee_id', JSON_NULL)
+    expect(issue).toHaveProperty('parent_id', JSON_NULL)
   })
 
   test('get_issue omits empty links/rollup/customFields and null sprint/assignee/parent/labels by default', async () => {
@@ -2875,9 +2880,9 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(issue).toHaveProperty('links', [])
     expect(issue).toHaveProperty('rollup')
     expect(issue).toHaveProperty('customFields', [])
-    expect(issue).toHaveProperty('sprint_id', null)
-    expect(issue).toHaveProperty('assignee_id', null)
-    expect(issue).toHaveProperty('parent_id', null)
+    expect(issue).toHaveProperty('sprint_id', JSON_NULL)
+    expect(issue).toHaveProperty('assignee_id', JSON_NULL)
+    expect(issue).toHaveProperty('parent_id', JSON_NULL)
   })
 
   test('get_issue keeps non-empty links/customFields/rollup/assignee/parent/labels', async () => {
@@ -3061,7 +3066,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       headers: authHeaders(token, slug),
     })
     const fullIssue = await restRes.json()
-    const beforeBytes = JSON.stringify(fullIssue, null, 2).length
+    const beforeBytes = JSON.stringify(fullIssue, undefined, 2).length
 
     // "After": the actual MCP get_issue tool result (minified + compacted).
     const mcpRes = await mcpCall({ arguments: { id }, name: 'get_issue' })

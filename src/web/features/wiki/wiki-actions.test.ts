@@ -2,7 +2,9 @@ import { Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { loadMigrations } from '#db/test/helpers.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
@@ -169,14 +171,14 @@ describe('wiki semantic ServerFn contracts', () => {
     })
     await expect(test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
-      value: { draft: null, revision: null },
+      value: { draft: JSON_NULL, revision: JSON_NULL },
     })
     await test.run(saveWikiDraft, {
       workspaceSlug: 'team',
       slug: 'guide',
       title: 'Newer',
       content: 'Keep B',
-      expectedDraftRevision: null,
+      expectedDraftRevision: JSON_NULL,
     })
     const head = test.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision
     await runInOrder([saveWikiDraft, discardWikiDraft, saveWikiPage], async (operation): Promise<void> => {
@@ -187,7 +189,7 @@ describe('wiki semantic ServerFn contracts', () => {
           title: 'Stale',
           content: 'Late A',
           baseRevisionId: 'revision',
-          expectedDraftRevision: null,
+          expectedDraftRevision: JSON_NULL,
         }),
       ).resolves.toMatchObject({ ok: false, status: 409 })
     })
@@ -226,7 +228,7 @@ describe('wiki semantic ServerFn contracts', () => {
       ).resolves.toMatchObject({ ok: true, value: { diff: expect.any(String) } })
       await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
         ok: true,
-        value: null,
+        value: JSON_NULL,
       })
       expect(sqliteRowFields(test.sqlite.prepare('SELECT COUNT(*) AS count FROM wiki_pages').get())).toStrictEqual({
         count: 2,
@@ -249,7 +251,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const test = await fixture({ origin: 'https://attacker.test' })
     await expect(
       test.run(saveWikiPage, {
-        expectedDraftRevision: null,
+        expectedDraftRevision: JSON_NULL,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Draft',
@@ -274,7 +276,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const test = await fixture()
     await expect(
       test.run(saveWikiPage, {
-        expectedDraftRevision: null,
+        expectedDraftRevision: JSON_NULL,
         workspaceSlug: 'other',
         slug: 'guide',
         title: 'Draft',
@@ -302,7 +304,7 @@ describe('wiki semantic ServerFn contracts', () => {
     `)
     await expect(
       test.run(saveWikiPage, {
-        expectedDraftRevision: null,
+        expectedDraftRevision: JSON_NULL,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'My title',
@@ -328,7 +330,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const test = await fixture()
     await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
-      value: null,
+      value: JSON_NULL,
     })
     expect(test.invalidate).not.toHaveBeenCalled()
   })
@@ -347,7 +349,7 @@ describe('wiki semantic ServerFn contracts', () => {
       ),
     ).toStrictEqual({
       content: 'Body',
-      parent_id: null,
+      parent_id: SQL_NULL,
       project_id: '00000000-0000-4000-8000-000000000002',
       title: 'Guide (copy)',
     })
@@ -358,7 +360,12 @@ describe('wiki semantic ServerFn contracts', () => {
     const test = await fixture()
     await expect(test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
       ok: true,
-      value: { content: 'Body', freshness: null, id: '00000000-0000-4000-8000-000000000001', revisionId: 'revision' },
+      value: {
+        content: 'Body',
+        freshness: JSON_NULL,
+        id: '00000000-0000-4000-8000-000000000001',
+        revisionId: 'revision',
+      },
     })
     test.sqlite.exec(
       `INSERT INTO wiki_drafts (id,workspace_id,user_id,page_id,title,content,base_revision_id,updated_at) VALUES ('mine','workspace','user','00000000-0000-4000-8000-000000000001','Mine','Personal','revision',2),('theirs','workspace','other-user','00000000-0000-4000-8000-000000000001','Secret','Private','revision',3)`,
@@ -445,11 +452,11 @@ describe('wiki semantic ServerFn contracts', () => {
     [duplicateWikiPage, { slug: 'guide' }],
     [
       saveWikiPage,
-      { expectedDraftRevision: null, slug: 'guide', title: 'New', content: 'New', baseRevisionId: 'revision' },
+      { expectedDraftRevision: JSON_NULL, slug: 'guide', title: 'New', content: 'New', baseRevisionId: 'revision' },
     ],
-    [saveWikiDraft, { expectedDraftRevision: null, slug: 'guide', title: 'Draft', content: 'Draft' }],
-    [discardWikiDraft, { expectedDraftRevision: null, slug: 'guide' }],
-    [moveWikiPage, { slug: 'guide', parentId: null }],
+    [saveWikiDraft, { expectedDraftRevision: JSON_NULL, slug: 'guide', title: 'Draft', content: 'Draft' }],
+    [discardWikiDraft, { expectedDraftRevision: JSON_NULL, slug: 'guide' }],
+    [moveWikiPage, { slug: 'guide', parentId: JSON_NULL }],
     [verifyWikiPage, { slug: 'guide' }],
     [trashWikiPage, { slug: 'guide' }],
     [restoreTrashedWikiPage, { pageId: '00000000-0000-4000-8000-000000000001' }],
@@ -469,7 +476,7 @@ describe('wiki semantic ServerFn contracts', () => {
           )
           .get(),
       ),
-    ).toStrictEqual({ content: 'Body', deleted_at: null, title: 'Guide', version: 0 })
+    ).toStrictEqual({ content: 'Body', deleted_at: SQL_NULL, title: 'Guide', version: 0 })
     expect(test.invalidate).toHaveBeenCalledOnce()
   })
 
@@ -479,7 +486,7 @@ describe('wiki semantic ServerFn contracts', () => {
       const test = await fixture({ auth })
       await expect(
         test.run(saveWikiPage, {
-          expectedDraftRevision: null,
+          expectedDraftRevision: JSON_NULL,
           workspaceSlug: 'team',
           slug: 'guide',
           title: 'New',
@@ -495,7 +502,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Wiki must not use HTTP'))
     await expect(
       test.run(saveWikiDraft, {
-        expectedDraftRevision: null,
+        expectedDraftRevision: JSON_NULL,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Draft',
@@ -542,7 +549,7 @@ describe('wiki semantic ServerFn contracts', () => {
       }),
     ).resolves.toMatchObject({ ok: true, value: { id: expect.any(String), slug: 'child' } })
     await expect(
-      test.run(moveWikiPage, { workspaceSlug: 'team', slug: 'child', parentId: null }),
+      test.run(moveWikiPage, { workspaceSlug: 'team', slug: 'child', parentId: JSON_NULL }),
     ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
@@ -550,7 +557,7 @@ describe('wiki semantic ServerFn contracts', () => {
     expect(
       sqliteRowFields(test.sqlite.prepare("SELECT parent_id FROM wiki_pages WHERE slug = 'child'").get()),
     ).toStrictEqual({
-      parent_id: null,
+      parent_id: SQL_NULL,
     })
     await expect(
       test.run(moveWikiPage, {
@@ -589,7 +596,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const hidden = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     await expect(
       hidden.run(saveWikiPage, {
-        expectedDraftRevision: null,
+        expectedDraftRevision: JSON_NULL,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Hidden',
@@ -607,7 +614,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const viewer = await fixture({ role: 'viewer' })
     await expect(
       viewer.run(saveWikiPage, {
-        expectedDraftRevision: null,
+        expectedDraftRevision: JSON_NULL,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'New',

@@ -1,9 +1,10 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { String, Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+// @vitest-environment jsdom
+import { JSON_NULL } from '#tests/json-null.ts'
 import { uploadInlineImage } from '@/attachment-actions.ts'
 
 import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions.ts'
@@ -86,7 +87,7 @@ function seed(): WikiSeed & { page: NonNullable<WikiSeed['page']> } {
     filterStatus: '',
     filterTags: '',
     searchQuery: '',
-    draft: null,
+    draft: JSON_NULL,
     draftStatus: 'ready',
     tree: [],
     revisions: [],
@@ -101,18 +102,18 @@ function seed(): WikiSeed & { page: NonNullable<WikiSeed['page']> } {
       slug: 'guide',
       title: 'Guide',
       content: 'Published',
-      project_id: null,
-      parent_id: null,
+      project_id: JSON_NULL,
+      parent_id: JSON_NULL,
       revisionId: 'rev',
       updated_at: 1,
-      type: null,
-      status: null,
+      type: JSON_NULL,
+      status: JSON_NULL,
       tags: [],
       owners: [],
-      verified_at: null,
-      verified_by: null,
-      verify_interval: null,
-      freshness: null,
+      verified_at: JSON_NULL,
+      verified_by: JSON_NULL,
+      verify_interval: JSON_NULL,
+      freshness: JSON_NULL,
     },
   }
 }
@@ -205,7 +206,7 @@ describe('wiki delayed draft lifecycle', () => {
     })
     expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
-      expect.objectContaining({ content: 'Keep A', expectedDraftRevision: null }),
+      expect.objectContaining({ content: 'Keep A', expectedDraftRevision: JSON_NULL }),
     )
   })
 
@@ -220,7 +221,7 @@ describe('wiki delayed draft lifecycle', () => {
       ok: true,
       value: {
         ...initial.page,
-        project_id: initial.page.project_id ?? null,
+        project_id: initial.page.project_id ?? JSON_NULL,
         content: 'A',
         revisionId: 'published-page',
       },
@@ -383,12 +384,12 @@ describe('wiki server prop adoption', () => {
       id: 'result',
       slug: 'result',
       title: 'Server search result',
-      project_id: null,
-      excerpt: null,
-      type: null,
-      status: null,
+      project_id: JSON_NULL,
+      excerpt: JSON_NULL,
+      type: JSON_NULL,
+      status: JSON_NULL,
       tags: [],
-      freshness: null,
+      freshness: JSON_NULL,
     }
     const initial = {
       ...seed(),
@@ -577,7 +578,7 @@ describe('wiki server prop adoption', () => {
     expect(saveWikiDraft).toHaveBeenCalledWith({
       baseRevisionId: 'rev',
       content: 'Unsaved body',
-      expectedDraftRevision: null,
+      expectedDraftRevision: JSON_NULL,
       slug: 'guide',
       title: 'Guide',
       workspaceSlug: 'team',

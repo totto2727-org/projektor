@@ -5,6 +5,7 @@ import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 
 import { env } from './fixture-api.ts'
@@ -808,7 +809,7 @@ describe('wiki API', () => {
     await seedGroupGrant(ws.id, userId, project.id)
     await seedGroupGrant(ws.id, userId, other.id)
     await seedWikiPageRow(ws.id, project.id, 'scoped-page', 'Scoped Page')
-    await seedWikiPageRow(ws.id, null, 'shared-page', 'Shared Page')
+    await seedWikiPageRow(ws.id, SQL_NULL, 'shared-page', 'Shared Page')
     await seedWikiPageRow(ws.id, other.id, 'other-page', 'Other Project Page')
 
     const strictRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
@@ -840,7 +841,7 @@ describe('wiki API', () => {
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     assert.exists(ws)
     const ungranted = await seedProject(ws.id, 'UNGRANTED')
-    await seedWikiPageRow(ws.id, null, 'ungranted-shared-page', 'Shared Page')
+    await seedWikiPageRow(ws.id, SQL_NULL, 'ungranted-shared-page', 'Shared Page')
     await seedWikiPageRow(ws.id, ungranted.id, 'secret-page', 'Secret Page')
 
     const res = await fetchNativeApi(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
@@ -3803,7 +3804,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       slug: created.slug,
       op: 'set_frontmatter',
       values: { status: 'deprecated' },
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(ok)).toBe(false)
 
@@ -3811,7 +3812,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       slug: created.slug,
       op: 'set_frontmatter',
       values: { status: 'not-a-real-status' },
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(invalid)).toBe(false)
     expect(toolError(invalid)?.code).toBe('validation')
@@ -3835,7 +3836,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       op: 'append_to_section',
       heading: 'Alpha',
       text: 'From MCP agent A.',
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(okA)).toBe(false)
 
@@ -3844,7 +3845,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       op: 'append_to_section',
       heading: 'Beta',
       text: 'From MCP agent B.',
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(okB)).toBe(false)
 
@@ -3853,7 +3854,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       op: 'append_to_section',
       heading: 'Alpha',
       text: 'From MCP agent C.',
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(conflict)).toBe(false)
     const conflictErr = toolError(conflict)
@@ -3865,7 +3866,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       op: 'replace_section',
       heading: 'Nope',
       text: 'x',
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(missingHeading)).toBe(false)
     const missingErr = toolError(missingHeading)
@@ -3893,7 +3894,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       op: 'replace_section',
       heading: 'Notes',
       text: 'Replaced.',
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(result)).toBe(false)
     const err = toolError(result)
@@ -4028,7 +4029,7 @@ describe('wiki patch operations (PROJ-490)', () => {
             op: 'insert_after_heading',
             heading: 'Alpha',
             text,
-            baseRevisionId: revisions[0]?.id ?? null,
+            baseRevisionId: revisions[0]?.id ?? JSON_NULL,
           }),
         ),
       )
@@ -6094,7 +6095,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       headers: authHeaders(token, slug),
     })
     const revisions = await readNativeJson(revRes, IdListResponse)
-    const baseRevisionId = revisions[0]?.id ?? null
+    const baseRevisionId = revisions[0]?.id ?? JSON_NULL
 
     await req(
       `http://localhost/api/wiki/${page.slug}/draft`,
@@ -6279,7 +6280,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       slug: page.slug,
       title: 'MCP Draft',
       content: 'mcp draft content',
-      baseRevisionId: null,
+      baseRevisionId: JSON_NULL,
     })
     expect(isMcpError(saveRes)).toBe(false)
 
