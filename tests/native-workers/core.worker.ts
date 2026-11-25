@@ -29,6 +29,26 @@ const fixtureEnvironmentSource: CoreEnvironmentSource = Effect.gen(function* () 
 
 const fixtureRequest = new AsyncLocalStorage<unknown>()
 const nativeFetch = globalThis.fetch
+
+const configuration = function configuration(props: unknown): Record<string, string | undefined> {
+  if (!Predicate.isObject(props)) {
+    throw new Error('Invalid native fixture configuration')
+  }
+  const result: Record<string, string | undefined> = {}
+  Iterable.forEach(Object.entries(props), ([key, value]) => {
+    if (value !== null && !Predicate.isString(value)) {
+      throw new Error(`Invalid fixture configuration: ${key}`)
+    }
+    if (key === 'FIXTURE_LIMITER_MODE') {
+      return
+    }
+    if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) {
+      return
+    }
+    result[key] = value ?? undefined
+  })
+  return result
+}
 /*
  * Installed once in this test-only artifact. Async-local invocation settings,
  * rather than mutable global policy, select a fixture for the real HTTP client.
@@ -244,26 +264,6 @@ const fixtureLimiterNamespace = function fixtureLimiterNamespace(
       },
     }),
   } as unknown as NonNullable<CoreEnvironment['RATE_LIMITER']>
-}
-
-function configuration(props: unknown): Record<string, string | undefined> {
-  if (!Predicate.isObject(props)) {
-    throw new Error('Invalid native fixture configuration')
-  }
-  const result: Record<string, string | undefined> = {}
-  Iterable.forEach(Object.entries(props), ([key, value]) => {
-    if (value !== null && !Predicate.isString(value)) {
-      throw new Error(`Invalid fixture configuration: ${key}`)
-    }
-    if (key === 'FIXTURE_LIMITER_MODE') {
-      return
-    }
-    if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) {
-      return
-    }
-    result[key] = value ?? undefined
-  })
-  return result
 }
 
 const objectMetadata = function objectMetadata(object: R2Object) {

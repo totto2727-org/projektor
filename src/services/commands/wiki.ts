@@ -720,6 +720,16 @@ const deriveSlugFromTitle = function deriveSlugFromTitle(title: string): string 
   return needsSuffix ? `${derivedSlug.data}-page` : derivedSlug.data
 }
 
+/*
+ * PROJ-511: converts an un-awaited drizzle query builder (insert/update/delete) into a
+ * raw D1PreparedStatement, so it can sit in the same ctx.db.batch() array as hand-written
+ * SQL (wiki_fts/wiki_links) — batch() is D1's native API and only accepts
+ * D1PreparedStatement, not drizzle's own query builders.
+ */
+function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+  return ctx.db.prepare(query.sql).bind(...query.params)
+}
+
 const buildCreateWikiPageInsertStatement = function buildCreateWikiPageInsertStatement(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle<typeof schema>>,
@@ -1030,16 +1040,6 @@ const assertRevisionBelongsToPage = async function assertRevisionBelongsToPage(
 }
 
 export const { buildUnifiedDiff } = wikiData
-
-/*
- * PROJ-511: converts an un-awaited drizzle query builder (insert/update/delete) into a
- * raw D1PreparedStatement, so it can sit in the same ctx.db.batch() array as hand-written
- * SQL (wiki_fts/wiki_links) — batch() is D1's native API and only accepts
- * D1PreparedStatement, not drizzle's own query builders.
- */
-function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
-  return ctx.db.prepare(query.sql).bind(...query.params)
-}
 
 /*
  * PROJ-816: a new page's wiki_fts rowid. Random 52-bit (safe JS integer), offset past
@@ -1820,33 +1820,6 @@ const resolveSectionPatchContent = async function resolveSectionPatchContent(
  */
 const PATCH_RETRIES = 3
 
-export const patchWikiPage = async function patchWikiPage(
-  ctx: ServiceCtx,
-  idOrSlug: string,
-  input: unknown,
-): Promise<{ ok: boolean; url: string }> {
-  const parsed = PatchWikiPageInputSchema.safeParse(input)
-  if (!parsed.success) {
-    throw new ValidationError(flattenError(parsed.error))
-  }
-  const { data } = parsed
-  const retryable = data.op === 'append_to_page' || data.op === 'set_frontmatter'
-
-  for (let attempt = 0; ; attempt = Number.increment(attempt)) {
-    const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
-    try {
-      return await patchWikiPageOnce(ctx, page, data)
-    } catch (caughtError) {
-      if (!(caughtError instanceof StaleWikiWriteError)) {
-        throw caughtError
-      }
-      if (!retryable || Number.increment(attempt) >= PATCH_RETRIES) {
-        throw await staleConflict(ctx, page.id)
-      }
-    }
-  }
-}
-
 async function patchWikiPageOnce(
   ctx: ServiceCtx,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
@@ -1930,6 +1903,33 @@ async function patchWikiPageOnce(
   }
 
   return { ok: true, url: wikiPagePath(page.slug) }
+}
+
+export const patchWikiPage = async function patchWikiPage(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  input: unknown,
+): Promise<{ ok: boolean; url: string }> {
+  const parsed = PatchWikiPageInputSchema.safeParse(input)
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
+  const { data } = parsed
+  const retryable = data.op === 'append_to_page' || data.op === 'set_frontmatter'
+
+  for (let attempt = 0; ; attempt = Number.increment(attempt)) {
+    const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
+    try {
+      return await patchWikiPageOnce(ctx, page, data)
+    } catch (caughtError) {
+      if (!(caughtError instanceof StaleWikiWriteError)) {
+        throw caughtError
+      }
+      if (!retryable || Number.increment(attempt) >= PATCH_RETRIES) {
+        throw await staleConflict(ctx, page.id)
+      }
+    }
+  }
 }
 
 /*

@@ -89,6 +89,22 @@ const backlinks = async function backlinks(
   return res.json()
 }
 
+async function targetOf(sourceId: string): Promise<string | null> {
+  const row = await env.DB.prepare('SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?')
+    .bind(sourceId)
+    .first<{ t: string | null }>()
+  return row?.t ?? null
+}
+
+async function targetsOf(sourceId: string): Promise<(string | null)[]> {
+  const rows = await env.DB.prepare(
+    'SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ? ORDER BY target_page_id',
+  )
+    .bind(sourceId)
+    .all<{ t: string | null }>()
+  return rows.results.map((result) => result.t)
+}
+
 describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links", () => {
   test('create: an unresolved link resolves once the matching page is created', async () => {
     const { workspace, token } = await seedFixture({ role: 'owner' })
@@ -225,19 +241,3 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     await expect(targetOf(byTitle.id)).resolves.toBeNull()
   })
 })
-
-async function targetOf(sourceId: string): Promise<string | null> {
-  const row = await env.DB.prepare('SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?')
-    .bind(sourceId)
-    .first<{ t: string | null }>()
-  return row?.t ?? null
-}
-
-async function targetsOf(sourceId: string): Promise<(string | null)[]> {
-  const rows = await env.DB.prepare(
-    'SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ? ORDER BY target_page_id',
-  )
-    .bind(sourceId)
-    .all<{ t: string | null }>()
-  return rows.results.map((result) => result.t)
-}

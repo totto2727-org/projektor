@@ -314,56 +314,10 @@ export const forgetProvisionedForTests = async function forgetProvisionedForTest
   await env.KV.delete(provisionedKey(userId))
 }
 
-/**
- * Idempotent, config-driven provisioning for a Cloudflare Access (browser) identity.
- *
- * Cloudflare Access (backed by the Entra email list) is the gate — it decides *who* may log
- * in. This decides *what they get* once inside:
- *   - email ∈ ADMIN_EMAILS  → `owner` of EVERY workspace. The FIRST admin to log in also
- *                             creates the default workspace if it doesn't exist yet (first-run).
- *   - domain-mapped non-admin → confined to the single mapped workspace (never the default).
- *   - otherwise             → AUTO_JOIN_ROLE (default `viewer`) in the default workspace;
- *                             `none` disables auto-join.
- *
- * Non-admins who log in before any workspace exists simply get no membership yet (they will
- * 403 on workspace routes) until an admin has bootstrapped the default workspace.
- *
- * API-token / MCP auth never reaches here — those identities are provisioned explicitly when
- * the token is minted, so we leave them untouched.
- *
- * Runs at most once per user per TTL — up to 2× PROVISIONED_LOCAL_TTL_MS in the worst case,
- * since a KV hit re-extends the isolate-local marker. An admin therefore picks up ownership
- * of a workspace someone *else* created within that window rather than on their very next
- * request; a workspace they create themselves makes them owner immediately, via
- * createWorkspace. Changing AUTO_JOIN_ROLE or WORKSPACE_DOMAIN_MAP likewise takes up to
- * that long to affect an already-marked user — the KV marker outlives a redeploy.
- *
- * PROJ-436: removeMember (services/workspaces.ts) tombstones the removal in
- * provisioning_removals, and grantOwner / the domain-map and auto-join paths above all check
- * it before re-adding — so a config match (ADMIN_EMAILS, AUTO_JOIN_ROLE, WORKSPACE_DOMAIN_MAP)
- * no longer undoes an explicit removal. inviteMember clears the tombstone.
- *
- * @param {ProvisioningEnvironment} env The provisioning configuration and storage bindings.
- * @param { {id: string, email: string} } user The authenticated user eligible for provisioning.
- */
-export const ensureUserProvisioned = async function ensureUserProvisioned(
+const runProvisioning = async function runProvisioning(
   env: ProvisioningEnvironment,
   user: { id: string; email: string },
-): Promise<void> {
-  if (await alreadyProvisioned(env, user.id)) {
-    return
-  }
-  /*
-   * Only remember runs that reached a settled outcome. Bailing because a workspace hasn't
-   * been bootstrapped yet is transient — caching it would leave that user unprovisioned
-   * for the whole TTL after an admin finally creates it.
-   */
-  if (await runProvisioning(env, user)) {
-    await markProvisioned(env, user.id)
-  }
-}
-
-async function runProvisioning(env: ProvisioningEnvironment, user: { id: string; email: string }): Promise<boolean> {
+): Promise<boolean> {
   const slug = env.DEFAULT_WORKSPACE_SLUG?.trim() || 'projektor'
   const name = env.DEFAULT_WORKSPACE_NAME?.trim() || 'Projektor'
   const isAdmin = parseEmailSet(env.ADMIN_EMAILS).has(user.email.toLowerCase())
@@ -438,6 +392,55 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
     })
     .onConflictDoNothing()
   return true
+}
+
+/**
+ * Idempotent, config-driven provisioning for a Cloudflare Access (browser) identity.
+ *
+ * Cloudflare Access (backed by the Entra email list) is the gate — it decides *who* may log
+ * in. This decides *what they get* once inside:
+ *   - email ∈ ADMIN_EMAILS  → `owner` of EVERY workspace. The FIRST admin to log in also
+ *                             creates the default workspace if it doesn't exist yet (first-run).
+ *   - domain-mapped non-admin → confined to the single mapped workspace (never the default).
+ *   - otherwise             → AUTO_JOIN_ROLE (default `viewer`) in the default workspace;
+ *                             `none` disables auto-join.
+ *
+ * Non-admins who log in before any workspace exists simply get no membership yet (they will
+ * 403 on workspace routes) until an admin has bootstrapped the default workspace.
+ *
+ * API-token / MCP auth never reaches here — those identities are provisioned explicitly when
+ * the token is minted, so we leave them untouched.
+ *
+ * Runs at most once per user per TTL — up to 2× PROVISIONED_LOCAL_TTL_MS in the worst case,
+ * since a KV hit re-extends the isolate-local marker. An admin therefore picks up ownership
+ * of a workspace someone *else* created within that window rather than on their very next
+ * request; a workspace they create themselves makes them owner immediately, via
+ * createWorkspace. Changing AUTO_JOIN_ROLE or WORKSPACE_DOMAIN_MAP likewise takes up to
+ * that long to affect an already-marked user — the KV marker outlives a redeploy.
+ *
+ * PROJ-436: removeMember (services/workspaces.ts) tombstones the removal in
+ * provisioning_removals, and grantOwner / the domain-map and auto-join paths above all check
+ * it before re-adding — so a config match (ADMIN_EMAILS, AUTO_JOIN_ROLE, WORKSPACE_DOMAIN_MAP)
+ * no longer undoes an explicit removal. inviteMember clears the tombstone.
+ *
+ * @param {ProvisioningEnvironment} env The provisioning configuration and storage bindings.
+ * @param { {id: string, email: string} } user The authenticated user eligible for provisioning.
+ */
+export const ensureUserProvisioned = async function ensureUserProvisioned(
+  env: ProvisioningEnvironment,
+  user: { id: string; email: string },
+): Promise<void> {
+  if (await alreadyProvisioned(env, user.id)) {
+    return
+  }
+  /*
+   * Only remember runs that reached a settled outcome. Bailing because a workspace hasn't
+   * been bootstrapped yet is transient — caching it would leave that user unprovisioned
+   * for the whole TTL after an admin finally creates it.
+   */
+  if (await runProvisioning(env, user)) {
+    await markProvisioned(env, user.id)
+  }
 }
 
 /**

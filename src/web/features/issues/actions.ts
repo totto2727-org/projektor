@@ -32,14 +32,7 @@ import {
   searchDataWikiAttachments,
 } from './data.ts'
 
-/** Entity references are resolved under the authorized membership, then checked against the authorized catalog. */
-const authorizedIssue = function authorizedIssue(context: FunctionContext, issueId: string) {
-  return Effect.gen(function* () {
-    return yield* readDataIssue(context.scope, yield* dataWorkspaceId(context), issueId, context.projectId)
-  })
-}
-
-function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeError> {
+const dataWorkspaceId = function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeError> {
   return Effect.try({
     catch: () => new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.'),
     try: () =>
@@ -47,6 +40,13 @@ function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeE
         context.scope,
         context.scope.workspaces.find((workspace) => workspace.slug === context.workspaceSlug)?.id,
       ).id,
+  })
+}
+
+/** Entity references are resolved under the authorized membership, then checked against the authorized catalog. */
+const authorizedIssue = function authorizedIssue(context: FunctionContext, issueId: string) {
+  return Effect.gen(function* () {
+    return yield* readDataIssue(context.scope, yield* dataWorkspaceId(context), issueId, context.projectId)
   })
 }
 

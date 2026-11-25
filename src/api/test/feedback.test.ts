@@ -160,6 +160,12 @@ const mintSource = async function mintSource(
   return source.token
 }
 
+// RATE_LIMIT_FEEDBACK_MAX and _IP_MAX are both 5 in vite.config.ts — seed to the cap.
+// (seedRateLimitCounter waits out the tail of a window first — PROJ-637.)
+async function seedRateLimitAtCap(key: string): Promise<void> {
+  await seedRateLimitCounter(key, 5)
+}
+
 describe('feedback submit (public)', () => {
   test('fails open (201, not 500) when the rate limiter is unavailable (PROJ-867)', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
@@ -372,12 +378,6 @@ describe('feedback submit (public)', () => {
     expect(res.status).toBe(429)
   })
 })
-
-// RATE_LIMIT_FEEDBACK_MAX and _IP_MAX are both 5 in vite.config.ts — seed to the cap.
-// (seedRateLimitCounter waits out the tail of a window first — PROJ-637.)
-async function seedRateLimitAtCap(key: string): Promise<void> {
-  await seedRateLimitCounter(key, 5)
-}
 
 const seedFeedbackRow = async function seedFeedbackRow(
   sourceId: string,

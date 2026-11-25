@@ -2225,6 +2225,29 @@ function mayWrite(s: UseServerDraftAutosaveOptions): s is UseServerDraftAutosave
   return !!s.page && !s.draftBanner && s.draftStatus === 'ready'
 }
 
+async function saveWikiPageEdit(
+  params: Readonly<{
+    workspaceSlug: string | undefined
+    page: WikiPageData
+    editTitle: string
+    editContent: string
+    baseRevisionId: string | null | undefined
+    expectedDraftRevision: string | null
+  }>,
+) {
+  const { workspaceSlug, page, editTitle, editContent, baseRevisionId, expectedDraftRevision } = params
+  return unwrapResult(
+    await saveWikiPage({
+      workspaceSlug,
+      slug: page.slug,
+      title: editTitle,
+      content: editContent,
+      baseRevisionId,
+      expectedDraftRevision,
+    }),
+  )
+}
+
 function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   const { workspaceSlug, editing, editTitle, editContent, page, draftBanner, baseRevisionId, saving, draftStatus } =
     options
@@ -2527,29 +2550,6 @@ function useUnsavedChangesGuard(
       window.navigation?.removeEventListener('navigate', onNavigate)
     }
   }, [dirty])
-}
-
-async function saveWikiPageEdit(
-  params: Readonly<{
-    workspaceSlug: string | undefined
-    page: WikiPageData
-    editTitle: string
-    editContent: string
-    baseRevisionId: string | null | undefined
-    expectedDraftRevision: string | null
-  }>,
-) {
-  const { workspaceSlug, page, editTitle, editContent, baseRevisionId, expectedDraftRevision } = params
-  return unwrapResult(
-    await saveWikiPage({
-      workspaceSlug,
-      slug: page.slug,
-      title: editTitle,
-      content: editContent,
-      baseRevisionId,
-      expectedDraftRevision,
-    }),
-  )
 }
 
 /*

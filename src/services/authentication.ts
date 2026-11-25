@@ -115,6 +115,10 @@ const JwtPayloadSchema = z.object({
 })
 type JwtHeader = z.infer<typeof JwtHeaderSchema>
 type JwtPayload = z.infer<typeof JwtPayloadSchema>
+function base64urlDecode(value: string): string {
+  const padded = value.replaceAll('-', '+').replaceAll('_', '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
+  return atob(padded)
+}
 function decodeJwtFields(parts: Readonly<string[]>): { header: JwtHeader; payload: JwtPayload } | null {
   try {
     const header = JwtHeaderSchema.safeParse(JSON.parse(base64urlDecode(parts[0])))
@@ -226,16 +230,6 @@ const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
   inMemoryCertsCache = { keys, expiresAt: currentEpochMilliseconds() + CERTS_LOCAL_TTL_MS }
   return keys
 }
-async function getCfAccessKeysOrUnavailable(
-  env: BrowserAuthEnvironment,
-  opts?: { forceRefresh?: boolean },
-): Promise<JsonWebKey[]> {
-  try {
-    return await getCfAccessKeys(env, opts)
-  } catch {
-    throw new BrowserAuthenticationError(HTTP_SERVICE_UNAVAILABLE, 'Authentication temporarily unavailable')
-  }
-}
 async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefresh?: boolean }): Promise<JsonWebKey[]> {
   if (opts?.forceRefresh === true && currentEpochMilliseconds() - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
     lastForcedRefreshAt = currentEpochMilliseconds()
@@ -256,6 +250,16 @@ async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefres
     return keys
   }
   return fetchAndCacheCfAccessKeys(env)
+}
+async function getCfAccessKeysOrUnavailable(
+  env: BrowserAuthEnvironment,
+  opts?: { forceRefresh?: boolean },
+): Promise<JsonWebKey[]> {
+  try {
+    return await getCfAccessKeys(env, opts)
+  } catch {
+    throw new BrowserAuthenticationError(HTTP_SERVICE_UNAVAILABLE, 'Authentication temporarily unavailable')
+  }
 }
 const inMemoryUserCache = new Map<string, { user: AuthUser; expiresAt: number }>()
 const USER_LOCAL_TTL_MS = 300_000
@@ -316,8 +320,4 @@ export function parseCookie(cookieHeader: string, name: string): string | undefi
     }
   }
   return undefined
-}
-function base64urlDecode(value: string): string {
-  const padded = value.replaceAll('-', '+').replaceAll('_', '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
-  return atob(padded)
 }
