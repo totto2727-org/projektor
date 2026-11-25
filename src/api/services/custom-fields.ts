@@ -4,7 +4,7 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export const listCustomFieldDefs = function listCustomFieldDefs(
+export const listCustomFieldDefs = async function listCustomFieldDefs(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListCustomFieldDefs']>
 ): Promise<typeof ApiResults.apiListCustomFieldDefs.Type> {
@@ -13,7 +13,7 @@ export const listCustomFieldDefs = function listCustomFieldDefs(
     ctx.core.apiListCustomFieldDefs(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const createCustomFieldDef = function createCustomFieldDef(
+export const createCustomFieldDef = async function createCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateCustomFieldDef']>
 ): Promise<typeof ApiResults.apiCreateCustomFieldDef.Type> {
@@ -22,7 +22,7 @@ export const createCustomFieldDef = function createCustomFieldDef(
     ctx.core.apiCreateCustomFieldDef(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const updateCustomFieldDef = function updateCustomFieldDef(
+export const updateCustomFieldDef = async function updateCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiUpdateCustomFieldDef']>
 ): Promise<typeof ApiResults.apiUpdateCustomFieldDef.Type> {
@@ -31,7 +31,7 @@ export const updateCustomFieldDef = function updateCustomFieldDef(
     ctx.core.apiUpdateCustomFieldDef(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const deleteCustomFieldDef = function deleteCustomFieldDef(
+export const deleteCustomFieldDef = async function deleteCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiDeleteCustomFieldDef']>
 ): Promise<typeof ApiResults.apiDeleteCustomFieldDef.Type> {
