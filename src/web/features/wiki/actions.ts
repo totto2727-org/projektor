@@ -48,7 +48,11 @@ const RevisionReference = Schema.Struct({ ...Reference.fields, revisionId: ident
 const Create = Schema.Struct({
   ...FunctionSelectorSchema.fields,
   title: EditFields.fields.title,
-  slug: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200), Schema.isPattern(/^[a-z0-9-]+$/)),
+  slug: Schema.String.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(200),
+    Schema.isPattern(/^[a-z0-9-]+$/u, { toJsonSchema: () => [{}, true] }),
+  ),
   content: Schema.optional(EditFields.fields.content),
   parentId: Schema.optional(Schema.NullOr(Schema.String)),
   templateSlug: Schema.optional(identifier),

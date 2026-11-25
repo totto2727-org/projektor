@@ -8,13 +8,17 @@ import type { Dispatch, SetStateAction } from 'react'
 import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '#contracts/issue-limits.ts'
 
 export const Text = Schema.String
-export const RequiredText = Schema.String.check(Schema.isPattern(/\S/))
+export const RequiredText = Schema.String.check(Schema.isPattern(/\S/u, { toJsonSchema: () => [{}, true] }))
 export const TitleText = RequiredText.check(Schema.isMaxLength(MAX_ISSUE_TITLE_LENGTH))
 export const BodyText = Text.check(Schema.isMaxLength(MAX_ISSUE_BODY_LENGTH))
 export const CommentText = RequiredText.check(Schema.isMaxLength(MAX_ISSUE_COMMENT_LENGTH))
 export const Priority = Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])
-export const IssueReference = Schema.String.check(Schema.isPattern(/^[A-Za-z][A-Za-z0-9]*-\d+$/))
-export const PointsText = Schema.String.check(Schema.isPattern(/^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)?$/))
+export const IssueReference = Schema.String.check(
+  Schema.isPattern(/^[A-Za-z][A-Za-z0-9]*-\d+$/u, { toJsonSchema: () => [{}, true] }),
+)
+export const PointsText = Schema.String.check(
+  Schema.isPattern(/^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)?$/u, { toJsonSchema: () => [{}, true] }),
+)
 export const UrlText = Schema.URLFromString
 
 /** TanStack owns editable values and Effect owns validation. Canonical DTO refreshes never reset unsaved input. */

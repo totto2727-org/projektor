@@ -24,7 +24,7 @@ export type CoreShape = InvocationShape<CoreRpcShape> & Readonly<{ fetch: HttpEf
 export const CoreProblem = Schema.Struct({
   status: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 400, maximum: 599 })),
   message: Schema.String,
-  occurrenceId: Schema.String.check(Schema.isPattern(/^urn:uuid:[0-9a-f-]{36}$/i)),
+  occurrenceId: Schema.String.check(Schema.isPattern(/^urn:uuid:[0-9a-f-]{36}$/iu)),
   kind: Schema.optional(Schema.String),
   details: Schema.optional(Schema.JsonObject),
   retryAfter: Schema.optional(Schema.Number),

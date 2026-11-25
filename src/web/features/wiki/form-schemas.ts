@@ -11,7 +11,10 @@ export const EditFields = Schema.Struct({
 })
 export const CreateFields = Schema.Struct({
   title,
-  slug: Schema.String.check(Schema.isMaxLength(200), Schema.isPattern(/^[a-z0-9-]*$/)),
+  slug: Schema.String.check(
+    Schema.isMaxLength(200),
+    Schema.isPattern(/^[a-z0-9-]*$/u, { toJsonSchema: () => [{}, true] }),
+  ),
   content,
   parentId: Schema.NullOr(Schema.String),
   templateSlug: Schema.String.check(Schema.isMaxLength(200)),

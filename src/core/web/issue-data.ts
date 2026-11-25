@@ -69,7 +69,12 @@ const issueListQueryFields = fieldsInOrder([
   ['completedBefore', Schema.optional(NumericQuery)],
   ['updatedAfter', Schema.optional(NumericQuery)],
   ['updatedBefore', Schema.optional(NumericQuery)],
-  ['cursor', Schema.optional(Schema.String.check(Schema.isPattern(/^\d+(?::[A-Za-z0-9-]+)?$/)))],
+  [
+    'cursor',
+    Schema.optional(
+      Schema.String.check(Schema.isPattern(/^\d+(?::[A-Za-z0-9-]+)?$/u, { toJsonSchema: () => [{}, true] })),
+    ),
+  ],
   ['limit', Schema.optional(NumericQuery.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 })))],
   ['cfKey', Schema.optional(Schema.String)],
   ['cfValue', Schema.optional(Schema.String)],

@@ -9,7 +9,7 @@ import type { HonoEnv } from '#types'
 
 export const projectsRouter = new Hono<HonoEnv>()
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
 projectsRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)

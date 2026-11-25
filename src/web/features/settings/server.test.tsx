@@ -219,7 +219,7 @@ describe('settings authorized direct D1 SSR', () => {
     const prepare = vi.spyOn(testFixture.db, 'prepare')
     const node = await testFixture.run(renderTokens(testFixture.scope, url))
     // Core rechecks live membership, but must not load token metadata for a member.
-    expect(prepare.mock.calls.some(([query]) => /\bapi_tokens\b/.test(query))).toBe(false)
+    expect(prepare.mock.calls.some(([query]) => /\bapi_tokens\b/u.test(query))).toBe(false)
     expect(node.props.initialTokens).toStrictEqual([])
     expect(node.props.tokensDenied).toBe(true)
     expect(node.props.initialGrants).toStrictEqual([connector])
