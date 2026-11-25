@@ -232,15 +232,19 @@ describe('planning SSR named shared queries on real migrated D1', () => {
   })
 
   test('decodes the existing concrete sprint, metrics and heatmap DTO contracts', () => {
-    expect(() => Schema.decodeUnknownSync(SprintsSchema)({ items: [{ id: 's1', status: 'archived' }] })).toThrow()
-    expect(() => Schema.decodeUnknownSync(MetricsSchema)({ bugTypeTracked: 'false' })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(SprintsSchema, { errors: 'all' })({ items: [{ id: 's1', status: 'archived' }] }),
+    ).toThrow('["items"][0]["status"]')
+    expect(() => Schema.decodeUnknownSync(MetricsSchema, { errors: 'all' })({ bugTypeTracked: 'false' })).toThrow(
+      '["bugTypeTracked"]',
+    )
     expect(() =>
       Schema.decodeUnknownSync(HeatmapSchema)({
         prefix: '',
         totalDistinctIssues: '1',
         entries: [],
       }),
-    ).toThrow()
+    ).toThrow('["totalDistinctIssues"]')
   })
 
   test('keeps the six-week weekly default and date normalization', () => {

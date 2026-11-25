@@ -165,7 +165,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const test = await fixture()
     await expect(
       test.run(saveWikiDraft, { workspaceSlug: 'team', slug: 'guide', title: 'Missing token', content: 'No write' }),
-    ).rejects.toThrow()
+    ).rejects.toThrow('["expectedDraftRevision"]')
     expect(sqliteRowFields(test.sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get())).toStrictEqual({
       count: 0,
     })
@@ -669,7 +669,7 @@ describe('wiki semantic ServerFn contracts', () => {
         content: 'Body',
         templateSlug: 'template',
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow('Choose template or content, not both.')
     expect(
       sqliteRowFields(
         test.sqlite

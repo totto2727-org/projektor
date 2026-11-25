@@ -109,8 +109,17 @@ describe('covers PROJ-891: serializer (unit)', () => {
 
   test('fields accepts a comma-separated string and rejects unknown names', () => {
     expect(splitShapeOpts({ fields: 'ref, title' }).fields).toStrictEqual(['ref', 'title'])
-    expect(() => splitShapeOpts({ fields: 'ref,nope' })).toThrow()
-    expect(() => splitShapeOpts({ view: 'tiny' })).toThrow()
+    const invalidOption: unknown = expect.stringContaining('Invalid option')
+    const invalidFields: unknown = expect.objectContaining({
+      issues: { fieldErrors: { fields: [invalidOption] }, formErrors: [] },
+      message: 'Validation failed',
+    })
+    const invalidView: unknown = expect.objectContaining({
+      issues: { fieldErrors: { view: [invalidOption] }, formErrors: [] },
+      message: 'Validation failed',
+    })
+    expect(() => splitShapeOpts({ fields: 'ref,nope' })).toThrow(invalidFields)
+    expect(() => splitShapeOpts({ view: 'tiny' })).toThrow(invalidView)
   })
 
   test('toPage omits next when there is no further page', () => {

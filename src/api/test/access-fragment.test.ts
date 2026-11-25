@@ -23,7 +23,9 @@ describe('visibleProjectSqlFragment column-expression guard', () => {
 
   test('returns null for owner/admin (no filter) but still validates the expression', () => {
     expect(visibleProjectSqlFragment(ownerCtx, 'i.project_id')).toBeNull()
-    expect(() => visibleProjectSqlFragment(ownerCtx, 'i.project_id; DROP TABLE issues')).toThrow()
+    expect(() => visibleProjectSqlFragment(ownerCtx, 'i.project_id; DROP TABLE issues')).toThrow(
+      'projectColExpr must be a column identifier',
+    )
   })
 
   test('throws on anything that is not a column identifier', () => {

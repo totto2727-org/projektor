@@ -43,8 +43,12 @@ describe('covers PROJ-892: windowing (unit)', () => {
   })
 
   test('rejects a bad cursor', () => {
-    expect(() => windowText('abc', { max: 2, cursor: 'x' })).toThrow()
-    expect(() => windowText('abc', { max: 2, cursor: '99' })).toThrow()
+    const invalidCursor: unknown = expect.objectContaining({
+      issues: { fieldErrors: { cursor: ['invalid cursor'] }, formErrors: [] },
+      message: 'Validation failed',
+    })
+    expect(() => windowText('abc', { max: 2, cursor: 'x' })).toThrow(invalidCursor)
+    expect(() => windowText('abc', { max: 2, cursor: '99' })).toThrow(invalidCursor)
   })
 
   test('outline skips code fences and frontmatter; sectionOf stops at the next same-or-higher heading', () => {

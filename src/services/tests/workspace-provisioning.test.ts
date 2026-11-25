@@ -99,7 +99,9 @@ describe('atomic workspace provisioning', () => {
 
   test('does not leave a tenant when its owner does not exist', async () => {
     const testFixture = fixture()
-    await expect(createWorkspace(testFixture.db, 'missing', { name: 'Workspace', slug: 'workspace' })).rejects.toThrow()
+    await expect(createWorkspace(testFixture.db, 'missing', { name: 'Workspace', slug: 'workspace' })).rejects.toThrow(
+      'FOREIGN KEY constraint failed',
+    )
     expect(testFixture.count('workspaces')).toBe(0)
     expect(testFixture.count('workspace_members')).toBe(0)
   })

@@ -323,7 +323,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
           issueId: 'issue-a',
           link: { kind: 'url', url },
         }),
-      ).rejects.toThrow()
+      ).rejects.toThrow('["link"]["url"]')
       expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toStrictEqual(before)
       expect(invalidated).not.toHaveBeenCalled()
     },

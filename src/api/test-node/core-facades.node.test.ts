@@ -129,10 +129,10 @@ describe('covers API facade reply boundary', () => {
     expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(unchanged)).toStrictEqual(unchanged)
     const full = { title: 'Workflow', description: 'Rules', content: 'Do work', version: 'current' }
     expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(full)).toStrictEqual(full)
-    expect(() => Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)({ version: 'current' })).toThrow()
+    expect(() => Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)({ version: 'current' })).toThrow('["title"]')
     expect(() =>
       Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)({ ...backfill, nextCursor: { id: 'page' } }),
-    ).toThrow()
+    ).toThrow('["nextCursor"]["updatedAt"]')
   })
 
   test('dispatches a concrete issue operation with the current actor and workspace only', async () => {
