@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 /**
  * PROJ-78 — Authorization test coverage
@@ -418,35 +418,68 @@ describe('covers PROJ-78: MCP tools – viewer role → error', () => {
 // PROJ-78c: Workspace routes – owner-only operations
 // ---------------------------------------------------------------------------
 
+type WorkspaceAuthorizationFixture = Readonly<{
+  memberEmail: string
+  memberHeaders: Record<string, string>
+  ownerEmail: string
+  ownerHeaders: Record<string, string>
+  slug: string
+  viewerHeaders: Record<string, string>
+  workspaceId: string
+}>
+
+const seedWorkspaceAuthorizationFixture =
+  async function seedWorkspaceAuthorizationFixture(): Promise<WorkspaceAuthorizationFixture> {
+    const { workspace, owner, member, viewer } = await seedWorkspaceRoles()
+    const { id: workspaceId, slug } = workspace
+    const ownerEmail = owner.user.email
+    const memberEmail = member.user.email
+    const ownerHeaders = authHeaders(owner.token, slug)
+    const memberHeaders = authHeaders(member.token, slug)
+    const viewerHeaders = authHeaders(viewer.token, slug)
+    return { memberEmail, memberHeaders, ownerEmail, ownerHeaders, slug, viewerHeaders, workspaceId }
+  }
+
+const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
+  const prev = env.DEV_USER_EMAIL
+  env.DEV_USER_EMAIL = email
+  try {
+    return await fn()
+  } finally {
+    env.DEV_USER_EMAIL = prev
+  }
+}
+
+const humanHeaders = (slug: string): { 'X-Workspace-Slug': string; 'Content-Type': string } => ({
+  'X-Workspace-Slug': slug,
+  'Content-Type': 'application/json',
+})
+
+const mintWorkspaceToken = (
+  slug: string,
+  email: string,
+  { name, scopes }: Readonly<{ name: string; scopes: string[] }>,
+): Promise<Response> =>
+  asHuman(email, () =>
+    fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/tokens`,
+      requestOptionsWithBody('POST', humanHeaders(slug), JSON.stringify({ name, scopes })),
+    ),
+  )
+
+const revokeWorkspaceToken = (slug: string, email: string, id: string): Promise<Response> =>
+  asHuman(email, () =>
+    fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
+      headers: humanHeaders(slug),
+      method: 'DELETE',
+    }),
+  )
+
 describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerToken: string
-  let memberToken: string
-  let viewerToken: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
-  let ownerEmail: string
-  let memberEmail: string
-
-  beforeEach(async () => {
-    const roles = await seedWorkspaceRoles()
-    workspaceId = roles.workspace.id
-    ;({ slug } = roles.workspace)
-    ownerEmail = roles.owner.user.email
-    memberEmail = roles.member.user.email
-    ownerToken = roles.owner.token
-    memberToken = roles.member.token
-    viewerToken = roles.viewer.token
-    ownerHeaders = authHeaders(ownerToken, slug)
-    memberHeaders = authHeaders(memberToken, slug)
-    viewerHeaders = authHeaders(viewerToken, slug)
-  })
-
   // PATCH /:slug — owner-only rename
 
   test('member cannot PATCH /api/workspaces/:slug', async () => {
+    const { memberHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}`,
       requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ name: 'Renamed' })),
@@ -455,6 +488,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('viewer cannot PATCH /api/workspaces/:slug', async () => {
+    const { slug, viewerHeaders } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}`,
       requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Renamed' })),
@@ -463,6 +497,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('owner CAN PATCH /api/workspaces/:slug', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}`,
       requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ name: 'Renamed By Owner' })),
@@ -473,6 +508,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   // POST /:slug/members — owner-only invite
 
   test('member cannot POST /api/workspaces/:slug/members (invite)', async () => {
+    const { memberHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/members`,
       requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ email: 'newbie@example.com', role: 'viewer' })),
@@ -481,6 +517,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('owner CAN POST /api/workspaces/:slug/members', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/members`,
       requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'newbie@example.com', role: 'viewer' })),
@@ -491,6 +528,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   // DELETE /:slug/members/:userId — owner-only remove
 
   test('member cannot DELETE /api/workspaces/:slug/members/:userId', async () => {
+    const { memberHeaders, ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     // Invite someone first so there is a target to remove
     await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/members`,
@@ -509,6 +547,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('owner CAN DELETE /api/workspaces/:slug/members/:userId', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/members`,
       requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'removal@example.com', role: 'viewer' })),
@@ -528,6 +567,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   // PATCH /:slug/members/:userId — owner-only role-change
 
   test('member cannot PATCH /api/workspaces/:slug/members/:userId (role-change)', async () => {
+    const { memberHeaders, slug, workspaceId } = await seedWorkspaceAuthorizationFixture()
     // The viewerUser fixture is already in the workspace from seedWorkspaceRoles
     const viewerRow = await env.DB.prepare(
       "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
@@ -544,6 +584,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('owner CAN PATCH /api/workspaces/:slug/members/:userId', async () => {
+    const { ownerHeaders, slug, workspaceId } = await seedWorkspaceAuthorizationFixture()
     const viewerRow = await env.DB.prepare(
       "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
     )
@@ -561,6 +602,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   // GET /:slug/tokens — admin/owner only
 
   test('member cannot GET /api/workspaces/:slug/tokens', async () => {
+    const { memberHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: memberHeaders,
     })
@@ -568,6 +610,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('viewer cannot GET /api/workspaces/:slug/tokens', async () => {
+    const { slug, viewerHeaders } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: viewerHeaders,
     })
@@ -575,6 +618,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('owner CAN GET /api/workspaces/:slug/tokens', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: ownerHeaders,
     })
@@ -587,41 +631,15 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
    * workspace-tokens.test.ts.
    */
 
-  const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
-    const prev = env.DEV_USER_EMAIL
-    env.DEV_USER_EMAIL = email
-    try {
-      return await fn()
-    } finally {
-      env.DEV_USER_EMAIL = prev
-    }
-  }
-  const humanHeaders = (): { 'X-Workspace-Slug': string; 'Content-Type': string } => ({
-    'X-Workspace-Slug': slug,
-    'Content-Type': 'application/json',
-  })
-  const mint = (email: string, name: string, scopes: string[]): Promise<Response> =>
-    asHuman(email, () =>
-      fetchNativeApi(
-        `http://localhost/api/workspaces/${slug}/tokens`,
-        requestOptionsWithBody('POST', humanHeaders(), JSON.stringify({ name, scopes })),
-      ),
-    )
-  const revoke = (email: string, id: string): Promise<Response> =>
-    asHuman(email, () =>
-      fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
-        headers: humanHeaders(),
-        method: 'DELETE',
-      }),
-    )
-
   test('member cannot POST /api/workspaces/:slug/tokens', async () => {
-    const res = await mint(memberEmail, 'my-token', ['read'])
+    const { memberEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await mintWorkspaceToken(slug, memberEmail, { name: 'my-token', scopes: ['read'] })
     expect(res.status).toBe(403)
   })
 
   test('owner CAN POST /api/workspaces/:slug/tokens', async () => {
-    const res = await mint(ownerEmail, 'my-token', ['read', 'write'])
+    const { ownerEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await mintWorkspaceToken(slug, ownerEmail, { name: 'my-token', scopes: ['read', 'write'] })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, token: Schema.String }))
     expect(isNonEmptyText(body.token)).toBe(true)
@@ -629,16 +647,18 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   })
 
   test('member cannot DELETE /api/workspaces/:slug/tokens/:id', async () => {
-    const response = await mint(ownerEmail, 'to-revoke', ['read'])
+    const { memberEmail, ownerEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const response = await mintWorkspaceToken(slug, ownerEmail, { name: 'to-revoke', scopes: ['read'] })
     const { id } = await readNativeJson(response, IdResponse)
-    const res = await revoke(memberEmail, id)
+    const res = await revokeWorkspaceToken(slug, memberEmail, id)
     expect(res.status).toBe(403)
   })
 
   test('owner CAN DELETE /api/workspaces/:slug/tokens/:id', async () => {
-    const response = await mint(ownerEmail, 'revocable', ['read'])
+    const { ownerEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const response = await mintWorkspaceToken(slug, ownerEmail, { name: 'revocable', scopes: ['read'] })
     const { id } = await readNativeJson(response, IdResponse)
-    const res = await revoke(ownerEmail, id)
+    const res = await revokeWorkspaceToken(slug, ownerEmail, id)
     expect(res.status).toBe(200)
   })
 })
