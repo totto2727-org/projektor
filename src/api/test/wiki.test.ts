@@ -3159,17 +3159,15 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 })
 
-/*
- * PROJ-490: section-addressed patch operations (R8). Disjoint-section writes must
- * never conflict — that's the headline behavior a naive whole-page baseRevisionId
- * check would break.
- */
-describe('wiki patch operations (PROJ-490)', () => {
-  let token: string, slug: string, workspaceId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
-  })
+const seedWikiPatchFixture = async function seedWikiPatchFixture(): Promise<
+  WikiWorkspaceFixture & {
+    createPage: (pageSlug: string, title: string, content: string) => Promise<{ id: string; slug: string }>
+    getPage: (pageSlug: string) => Promise<{ content: string }>
+    mcp: <T>(name: string, args: unknown) => Promise<JsonRpcError | JsonRpcResult<T>>
+    req: (url: string, opts?: RequestInit) => Promise<Response>
+  }
+> {
+  const { token, slug, workspaceId } = await seedWorkspaceFixture()
 
   // Same rate-limit escape hatch as the PROJ-484 describe block above.
   const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
@@ -3200,9 +3198,19 @@ describe('wiki patch operations (PROJ-490)', () => {
     return readNativeJson(res, Schema.Struct({ content: Schema.String }))
   }
 
+  return { createPage, getPage, mcp, req, slug, token, workspaceId }
+}
+
+/*
+ * PROJ-490: section-addressed patch operations (R8). Disjoint-section writes must
+ * never conflict — that's the headline behavior a naive whole-page baseRevisionId
+ * check would break.
+ */
+describe('wiki patch operations (PROJ-490)', () => {
   const TWO_SECTIONS = '## Alpha\nAlpha body.\n\n## Beta\nBeta body.\n'
 
   test('covers REST: append_to_section adds text at the end of the target section only', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-append', 'Patch Append', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-append',
@@ -3224,6 +3232,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: replace_section replaces the section body, keeping the heading', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-replace', 'Patch Replace', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-replace',
@@ -3246,6 +3255,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: insert_after_heading inserts content directly under the heading, before the existing body', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-insert', 'Patch Insert', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-insert',
@@ -3269,6 +3279,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: append_to_page appends at the very end regardless of section structure', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-append-page', 'Patch Append Page', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-append-page',
@@ -3288,6 +3299,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: patch creates a revision, restorable via list_wiki_revisions', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-revision', 'Patch Revision', TWO_SECTIONS)
     await req(
       'http://localhost/api/wiki/patch-revision',
@@ -3321,6 +3333,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: unknown heading is rejected with a structured error listing current headings', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-missing-heading', 'Patch Missing Heading', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-missing-heading',
@@ -3344,6 +3357,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: disjoint-section writes never conflict — two patches vs. a stale baseRevisionId both succeed', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-disjoint', 'Patch Disjoint', TWO_SECTIONS)
     const revRes = await req('http://localhost/api/wiki/patch-disjoint/revisions', {
       headers: authHeaders(token, slug),
@@ -3393,6 +3407,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: a same-section conflict is rejected with a structured diff', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-conflict', 'Patch Conflict', TWO_SECTIONS)
 
     // Agent A patches Alpha from the null base.
@@ -3437,6 +3452,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: a section deleted since baseRevisionId surfaces as a not-found error, not a silent conflict', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-deleted-section', 'Patch Deleted Section', TWO_SECTIONS)
     const revRes = await req('http://localhost/api/wiki/patch-deleted-section/revisions', {
       headers: authHeaders(token, slug),
@@ -3471,6 +3487,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: patch preserves existing YAML frontmatter untouched', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     const content = '---\ntype: runbook\nstatus: current\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-frontmatter', 'Patch Frontmatter', content)
     const res = await req(
@@ -3500,6 +3517,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: viewer role cannot patch a workspace-level page', async () => {
+    await seedWikiPatchFixture()
     const roles = await seedWorkspaceRoles()
     await resetRateLimits()
     const createRes = await fetchNativeApi(
@@ -3530,6 +3548,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test("covers REST: baseRevisionId that doesn't belong to the page is rejected with a validation error", async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-garbage-base', 'Patch Garbage Base', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-garbage-base',
@@ -3554,6 +3573,7 @@ describe('wiki patch operations (PROJ-490)', () => {
    * gets a signal instead of silent acceptance.
    */
   test("covers REST: append_to_page rejects a baseRevisionId that doesn't belong to the page", async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-append-garbage-base', 'Patch Append Garbage Base', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-append-garbage-base',
@@ -3571,6 +3591,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: append_to_page accepts a stale baseRevisionId belonging to the page (staleness ignored here)', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-append-stale-base', 'Patch Append Stale Base', TWO_SECTIONS)
     const firstRes = await req(
       'http://localhost/api/wiki/patch-append-stale-base',
@@ -3609,6 +3630,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: set_frontmatter adds a frontmatter block to a page that had none', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-frontmatter-new', 'Patch Frontmatter New', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-frontmatter-new',
@@ -3633,6 +3655,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: set_frontmatter preserves other existing frontmatter keys', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage(
       'patch-frontmatter-preserve',
       'Patch Frontmatter Preserve',
@@ -3668,6 +3691,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: set_frontmatter with a null value removes that key', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage(
       'patch-frontmatter-remove',
       'Patch Frontmatter Remove',
@@ -3695,6 +3719,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: set_frontmatter rejects an invalid value with a structured validation error', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-frontmatter-invalid', 'Patch Frontmatter Invalid', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-frontmatter-invalid',
@@ -3719,6 +3744,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: set_frontmatter rejects an empty values map', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-frontmatter-empty', 'Patch Frontmatter Empty', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-frontmatter-empty',
@@ -3732,6 +3758,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: set_frontmatter flips status to deprecated in one call and search demotes it', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-frontmatter-demote', 'Patch Frontmatter Demote', `${TWO_SECTIONS}\nuniquedemotekeyword`)
     await req(
       'http://localhost/api/wiki/patch-frontmatter-demote',
@@ -3758,6 +3785,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: set_frontmatter accepts a stale baseRevisionId belonging to the page', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-frontmatter-stale-base', 'Patch Frontmatter Stale Base', TWO_SECTIONS)
     await req(
       'http://localhost/api/wiki/patch-frontmatter-stale-base',
@@ -3793,6 +3821,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test("covers REST: set_frontmatter rejects a baseRevisionId that doesn't belong to the page", async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-frontmatter-garbage-base', 'Patch Frontmatter Garbage Base', TWO_SECTIONS)
     const res = await req(
       'http://localhost/api/wiki/patch-frontmatter-garbage-base',
@@ -3810,6 +3839,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers MCP: set_frontmatter parity — sets a key, preserves others, over MCP', async () => {
+    const { mcp } = await seedWikiPatchFixture()
     const created = mcpData(
       await mcp('create_wiki_page', {
         title: 'MCP Frontmatter Doc',
@@ -3844,6 +3874,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test("covers MCP: patch_wiki_page parity — disjoint sections don't conflict, same section does", async () => {
+    const { mcp } = await seedWikiPatchFixture()
     const created = mcpData(
       await mcp('create_wiki_page', { title: 'MCP Patch Doc', content: TWO_SECTIONS }),
       SlugResponse,
@@ -3899,6 +3930,7 @@ describe('wiki patch operations (PROJ-490)', () => {
    * got via body.error.formErrors. Twin of the REST test below.
    */
   test('covers MCP: patch_wiki_page rejects an ambiguous heading with formErrors as the tool error message', async () => {
+    const { mcp } = await seedWikiPatchFixture()
     const created = mcpData(
       await mcp('create_wiki_page', {
         title: 'MCP Patch Ambiguous',
@@ -3928,6 +3960,7 @@ describe('wiki patch operations (PROJ-490)', () => {
    * eat the opening fence, leaving an orphaned closing one.
    */
   test('covers REST: a `#` line inside a fenced code block is not a heading', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     const content = '## Setup\n\n```bash\n# install deps\npnpm i\n```\n\n## Usage\nUse it.\n'
     await createPage('patch-fenced', 'Patch Fenced', content)
 
@@ -3977,6 +4010,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: a `#` line inside the YAML frontmatter block is not a heading', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     const content = '---\ntype: runbook\n# a yaml comment\nstatus: current\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-fm-comment', 'Patch FM Comment', content)
     const res = await req(
@@ -4001,6 +4035,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: a heading appearing twice is rejected as ambiguous rather than silently patching the first', async () => {
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     const content = '# Notes\nOne.\n\n## Other\nx\n\n## Notes\nTwo.\n'
     await createPage('patch-ambiguous', 'Patch Ambiguous', content)
     const res = await req(
@@ -4033,6 +4068,7 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: repeated insert_after_heading does not accumulate blank lines', async () => {
     expect.hasAssertions()
+    const { createPage, getPage, req, slug, token } = await seedWikiPatchFixture()
     await createPage('patch-blanklines', 'Patch Blank Lines', TWO_SECTIONS)
     await runInOrder(['First.', 'Second.'], async (text): Promise<void> => {
       const revRes = await req('http://localhost/api/wiki/patch-blanklines/revisions', {
@@ -4060,6 +4096,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: patch does not stamp verified_at as a side effect', async () => {
+    const { createPage, req, slug, token } = await seedWikiPatchFixture()
     const content = '---\ntype: runbook\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-no-verify', 'Patch No Verify', content)
     const res = await req(
@@ -4171,15 +4208,12 @@ describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
   })
 })
 
-describe('wiki link graph and backlinks (PROJ-485)', () => {
-  let token: string
-  let slug: string
-
-  beforeEach(async () => {
-    const fixture = await seedFixture()
-    ;({ token } = fixture)
-    ;({ slug } = fixture.workspace)
-  })
+const seedWikiBacklinkFixture = async function seedWikiBacklinkFixture(): Promise<
+  Pick<WikiWorkspaceFixture, 'slug' | 'token'> & {
+    createPage: (title: string, content: string) => Promise<{ id: string; slug: string }>
+  }
+> {
+  const { token, slug } = await seedWorkspaceFixture()
 
   const createPage = async function createPage(title: string, content: string): Promise<{ id: string; slug: string }> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -4190,7 +4224,12 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     return readNativeJson(res, IdAndSlugResponse)
   }
 
+  return { createPage, slug, token }
+}
+
+describe('wiki link graph and backlinks (PROJ-485)', () => {
   test('[[Target]] and [[Target|label]] both resolve a backlink to the target page', async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const target = await createPage('Runbook', 'how to page')
     await createPage('Alpha', 'see [[Runbook]] for details')
     await createPage('Beta', 'see [[Runbook|the runbook]] for details')
@@ -4207,6 +4246,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('a same-workspace wiki URL link resolves a backlink', async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const target = await createPage('Handbook', 'contents')
     await createPage('Gamma', `[link](/wiki/${target.slug})`)
 
@@ -4218,6 +4258,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test("covers PROJ-517/512: a multi-segment /wiki/ URL is never indexed against the first segment's page", async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const operations = await createPage('Operations', 'contents')
     await createPage('Runbook', `[Runbook](/wiki/${operations.slug}/admin-allow-list)`)
 
@@ -4229,6 +4270,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('an absolute cross-host URL is never indexed as a same-workspace link', async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const target = await createPage('Epsilon', 'contents')
     await createPage(
       'Zeta',
@@ -4243,6 +4285,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test("covers PROJ-510: a malformed %-escape in a link URL doesn't crash the write; other links still index", async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const runbook = await createPage('Runbook Eta', 'how to page')
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
@@ -4262,6 +4305,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('an unresolved [[Target]] is stored as a broken link, not a backlink', async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     await createPage('Delta', 'see [[Nonexistent Page]] for details')
 
     const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
@@ -4275,6 +4319,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('get_backlinks (MCP) returns the same result as REST', async () => {
+    await seedWikiBacklinkFixture()
     const fixture = await seedFixture()
     const targetResponse = await fetchNativeApi(
       'http://localhost/api/wiki',
@@ -4305,6 +4350,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('list_broken_wiki_links (MCP) matches REST', async () => {
+    await seedWikiBacklinkFixture()
     const fixture = await seedFixture()
     await fetchNativeApi(
       'http://localhost/api/wiki',
@@ -4326,6 +4372,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test("renaming the target page's slug doesn't break an existing backlink (id-backed)", async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const target = await createPage('Original Name', 'content')
     await createPage('Linker', 'see [[Original Name]]')
 
@@ -4343,6 +4390,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('editing content to remove a link removes the backlink; a new link adds one', async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const target = await createPage('Stable Target', 'x')
     const linker = await createPage('Changing Source', 'see [[Stable Target]]')
 
@@ -4364,6 +4412,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('a title-only update (no content change) leaves the link graph untouched', async () => {
+    const { createPage, slug, token } = await seedWikiBacklinkFixture()
     const target = await createPage('Untouched Target', 'x')
     const linker = await createPage('Title Change Source', 'see [[Untouched Target]]')
 
@@ -4381,6 +4430,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('handles DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
+    await seedWikiBacklinkFixture()
     const owner = await seedFixture({ role: 'owner' })
     const targetResponse = await fetchNativeApi(
       'http://localhost/api/wiki',
@@ -4428,6 +4478,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('cascade-deleting a subtree cleans up outgoing links for every deleted page', async () => {
+    await seedWikiBacklinkFixture()
     const owner = await seedFixture({ role: 'owner' })
     const parentRes = await fetchNativeApi(
       'http://localhost/api/wiki',
@@ -4468,6 +4519,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('backlinks and broken links never cross workspace boundaries', async () => {
+    await seedWikiBacklinkFixture()
     const workspaceA = await seedFixture()
     const workspaceB = await seedFixture()
 
@@ -4510,6 +4562,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('backfill_wiki_links (MCP, owner-only) recomputes links for pre-existing content', async () => {
+    await seedWikiBacklinkFixture()
     const owner = await seedFixture({ role: 'owner' })
     /*
      * Seed pages directly at the DB layer, bypassing reindexWikiLinks, to simulate
@@ -4553,6 +4606,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   test('backfill_wiki_links is rejected for a non-admin member', async () => {
+    await seedWikiBacklinkFixture()
     const member = await seedFixture({ role: 'member' })
     const result = await mcpCall(
       member.workspace.id,
