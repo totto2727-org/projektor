@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
+import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types'
 import { Array, Iterable, Predicate, Number } from 'effect'
 import type { Effect } from 'effect'
 
@@ -71,6 +72,18 @@ const summaryColumns = {
 }
 const detailColumns = { ...summaryColumns, content: schema.wikiPages.content }
 
+type WikiPageSummary = SelectResultFields<typeof summaryColumns>
+type WikiPageDetail = SelectResultFields<typeof detailColumns>
+type WikiPageRow = typeof schema.wikiPages.$inferSelect
+type RedirectedWikiPage = WikiPageDetail & { version: WikiPageRow['version'] }
+type TrashedWikiPage = Pick<WikiPageSummary, 'id' | 'slug' | 'title' | 'parent_id' | 'project_id'> & {
+  deleted_at: WikiPageRow['deletedAt']
+}
+type StaleWikiPage = Pick<
+  WikiPageSummary,
+  'id' | 'slug' | 'title' | 'project_id' | 'status' | 'verified_at' | 'verified_by' | 'verify_interval' | 'updated_at'
+>
+
 const scopeConditions = function scopeConditions(workspaceId: string, opts: WikiScopeOptions, trash = false): SQL[] {
   const conditions = [
     eq(schema.wikiPages.workspaceId, workspaceId),
@@ -91,7 +104,11 @@ const scopeConditions = function scopeConditions(workspaceId: string, opts: Wiki
   return conditions
 }
 
-export const listWikiPages = function listWikiPages(db: D1Database, workspaceId: string, opts: WikiListOptions = {}) {
+export const listWikiPages = function listWikiPages(
+  db: D1Database,
+  workspaceId: string,
+  opts: WikiListOptions = {},
+): Effect.Effect<WikiPageSummary[], DataQueryError> {
   return queryEffect('listWikiPages', () => {
     const conditions = scopeConditions(workspaceId, opts)
     if (isNonEmptyText(opts.parentId)) {
@@ -147,7 +164,11 @@ export const listWikiTreeRows = function listWikiTreeRows(
 }
 
 /** Live id wins over a colliding slug, then single-hop historical-slug fallback. */
-export const findWikiPage = function findWikiPage(db: D1Database, workspaceId: string, idOrSlug: string) {
+export const findWikiPage = function findWikiPage(
+  db: D1Database,
+  workspaceId: string,
+  idOrSlug: string,
+): Effect.Effect<WikiPageDetail | RedirectedWikiPage | undefined, DataQueryError> {
   return queryEffect('findWikiPage', async () => {
     const orm = drizzle(db, { schema })
     const direct = await orm
@@ -191,7 +212,7 @@ export const listWikiTemplates = function listWikiTemplates(
   db: D1Database,
   workspaceId: string,
   opts: WikiScopeOptions = {},
-) {
+): Effect.Effect<Pick<WikiPageSummary, 'id' | 'slug' | 'title' | 'project_id' | 'type'>[], DataQueryError> {
   return queryEffect('listWikiTemplates', () =>
     drizzle(db, { schema })
       .select({
@@ -207,7 +228,11 @@ export const listWikiTemplates = function listWikiTemplates(
   )
 }
 
-export const listWikiTrash = function listWikiTrash(db: D1Database, workspaceId: string, opts: WikiPageOptions) {
+export const listWikiTrash = function listWikiTrash(
+  db: D1Database,
+  workspaceId: string,
+  opts: WikiPageOptions,
+): Effect.Effect<TrashedWikiPage[], DataQueryError> {
   return queryEffect('listWikiTrash', () =>
     drizzle(db, { schema })
       .select({
@@ -230,7 +255,7 @@ export const listStaleWikiPages = function listStaleWikiPages(
   db: D1Database,
   workspaceId: string,
   opts: WikiPageOptions & { now: number },
-) {
+): Effect.Effect<StaleWikiPage[], DataQueryError> {
   return queryEffect('listStaleWikiPages', () =>
     drizzle(db, { schema })
       .select({
@@ -267,13 +292,20 @@ const revisionColumns = {
   author_id: schema.wikiRevisions.authorId,
   created_at: schema.wikiRevisions.createdAt,
 }
+type WikiRevisionProjection = SelectResultFields<typeof revisionColumns>
+type WikiRevisionSummary = WikiRevisionProjection & { author_name: (typeof schema.users.$inferSelect)['name'] | null }
+type WikiRevisionDetail = WikiRevisionProjection & { content: (typeof schema.wikiRevisions.$inferSelect)['content'] }
 const revisionScope = function revisionScope(workspaceId: string, pageId: string): SQL | undefined {
   return and(
     eq(schema.wikiRevisions.pageId, pageId),
     sql`EXISTS (SELECT 1 FROM wiki_pages WHERE wiki_pages.id = ${schema.wikiRevisions.pageId} AND wiki_pages.workspace_id = ${workspaceId})`,
   )
 }
-export const listWikiRevisions = function listWikiRevisions(db: D1Database, workspaceId: string, pageId: string) {
+export const listWikiRevisions = function listWikiRevisions(
+  db: D1Database,
+  workspaceId: string,
+  pageId: string,
+): Effect.Effect<WikiRevisionSummary[], DataQueryError> {
   return queryEffect('listWikiRevisions', () =>
     drizzle(db, { schema })
       .select({ ...revisionColumns, author_name: schema.users.name })
@@ -288,7 +320,7 @@ export const getWikiRevision = function getWikiRevision(
   workspaceId: string,
   pageId: string,
   revisionId: string,
-) {
+): Effect.Effect<WikiRevisionDetail | undefined, DataQueryError> {
   return queryEffect('getWikiRevision', () =>
     drizzle(db, { schema })
       .select({ ...revisionColumns, content: schema.wikiRevisions.content })
