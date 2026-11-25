@@ -162,35 +162,33 @@ describe('wiki semantic ServerFn contracts', () => {
 
   test('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
     expect.hasAssertions()
-    const testFixture = await fixture()
+    const { run, sqlite } = await fixture()
     await expect(
-      testFixture.run(saveWikiDraft, {
+      run(saveWikiDraft, {
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Missing token',
         content: 'No write',
       }),
     ).rejects.toThrow('["expectedDraftRevision"]')
-    expect(
-      sqliteRowFields(testFixture.sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get()),
-    ).toStrictEqual({
+    expect(sqliteRowFields(sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get())).toStrictEqual({
       count: 0,
     })
-    await expect(testFixture.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
+    await expect(run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
       value: { draft: JSON_NULL, revision: JSON_NULL },
     })
-    await testFixture.run(saveWikiDraft, {
+    await run(saveWikiDraft, {
       workspaceSlug: 'team',
       slug: 'guide',
       title: 'Newer',
       content: 'Keep B',
       expectedDraftRevision: JSON_NULL,
     })
-    const head = testFixture.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision
+    const head = sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision
     await runInOrder([saveWikiDraft, discardWikiDraft, saveWikiPage], async (operation): Promise<void> => {
       await expect(
-        testFixture.run(operation, {
+        run(operation, {
           workspaceSlug: 'team',
           slug: 'guide',
           title: 'Stale',
@@ -200,15 +198,13 @@ describe('wiki semantic ServerFn contracts', () => {
         }),
       ).resolves.toMatchObject({ ok: false, status: 409 })
     })
-    await expect(testFixture.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+    await expect(run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
       ok: true,
       value: { revision: head, draft: { content: 'Keep B' } },
     })
     expect(
       sqliteRowFields(
-        testFixture.sqlite
-          .prepare('SELECT content FROM wiki_pages WHERE slug = ? AND workspace_id = ?')
-          .get('guide', 'workspace'),
+        sqlite.prepare('SELECT content FROM wiki_pages WHERE slug = ? AND workspace_id = ?').get('guide', 'workspace'),
       ),
     ).toStrictEqual({ content: 'Body' })
   })
