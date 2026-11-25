@@ -2072,7 +2072,7 @@ function useHashScroll(
   contentRef: RefObject<HTMLDivElement | null>,
   pageSlug: string | undefined,
 ): void {
-  const handledRef = useRef<string | null>(null)
+  const handledRef = useRef('')
 
   const scrollToHash = useCallback(() => {
     // PROJ-802: some call sites (and this file's own tests, see PROJ-487) swap
@@ -2116,7 +2116,7 @@ function useHashScroll(
 
   useEffect(() => {
     const onNavigate = function onNavigate(): void {
-      handledRef.current = null
+      handledRef.current = ''
       scrollToHash()
     }
     window.addEventListener('hashchange', onNavigate)
@@ -2271,7 +2271,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   const seed = useWikiSeed()
   const serverHasDraftRef = useRef(seed.mode === 'edit' && !!seed.draft)
   const revisionRef = useRef(seed.draftRevision ?? null)
-  const lastPersistedRef = useRef<string | null>(null)
+  const lastPersistedRef = useRef('')
   const tailRef = useRef<Promise<unknown>>(Promise.resolve())
   interface Snapshot {
     page: WikiPageData
@@ -2279,7 +2279,8 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     content: string
     base: string | null | undefined
   }
-  const pendingRef = useRef<Snapshot | null>(null)
+  const emptyQueue = 'empty'
+  const pendingRef = useRef<Snapshot | typeof emptyQueue>(emptyQueue)
   const drainingRef = useRef(false)
   const blockedRef = useRef(false)
   const suspendedRef = useRef(false)
@@ -2296,9 +2297,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     drainingRef.current = true
     const task = tailRef.current
       .then(async () => {
-        while (pendingRef.current && !suspendedRef.current && !blockedRef.current) {
+        while (pendingRef.current !== emptyQueue && !suspendedRef.current && !blockedRef.current) {
           const { page: p, title, content, base } = pendingRef.current
-          pendingRef.current = null
+          pendingRef.current = emptyQueue
           const fingerprint = JSON.stringify([p.id, title, content, base ?? null])
           if (lastPersistedRef.current === fingerprint) {
             continue
@@ -2334,7 +2335,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
           } catch {
             blockedRef.current = true
             setWriteWarning('Autosave did not complete. Your text is still here. Save before leaving this page.')
-            pendingRef.current = null
+            pendingRef.current = emptyQueue
             break
           }
         }
@@ -2360,13 +2361,13 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     revisionRef.current = state.revision
     blockedRef.current = false
     serverHasDraftRef.current = Predicate.isNotNullish(state.draft)
-    lastPersistedRef.current = null
+    lastPersistedRef.current = ''
     setWriteWarning(undefined)
   }
 
   const discardDraftNow = function discardDraftNow(p: WikiPageData, title: string, content: string): Promise<void> {
     suspendedRef.current = true
-    pendingRef.current = null
+    pendingRef.current = emptyQueue
     const task = tailRef.current
       .then(async () => {
         const result = unwrapResult(
@@ -2378,19 +2379,23 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
         )
         revisionRef.current = result.revision
         serverHasDraftRef.current = false
-        lastPersistedRef.current = null
-        if (pendingRef.current?.title === title && pendingRef.current.content === content) {
-          pendingRef.current = null
+        lastPersistedRef.current = ''
+        if (
+          pendingRef.current !== emptyQueue &&
+          pendingRef.current.title === title &&
+          pendingRef.current.content === content
+        ) {
+          pendingRef.current = emptyQueue
         }
       })
       .catch((error: unknown) => {
         blockedRef.current = true
-        pendingRef.current = null
+        pendingRef.current = emptyQueue
         throw error
       })
       .finally(() => {
         suspendedRef.current = false
-        if (pendingRef.current) {
+        if (pendingRef.current !== emptyQueue) {
           drainDrafts()
         }
       })
@@ -2400,7 +2405,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
 
   const publishDraft = function publishDraft(snapshot: Snapshot) {
     suspendedRef.current = true
-    pendingRef.current = null
+    pendingRef.current = emptyQueue
     const task = tailRef.current
       .then(async () => {
         const result = await saveWikiPageEdit({
@@ -2413,28 +2418,32 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
         })
         if (Predicate.isNullish(result.draftRevision)) {
           blockedRef.current = true
-          pendingRef.current = null
+          pendingRef.current = emptyQueue
           setWriteWarning(
             'The page was published, but its saved draft changed. Reopen editing to reconcile it before autosaving.',
           )
         } else {
           revisionRef.current = result.draftRevision
           serverHasDraftRef.current = false
-          lastPersistedRef.current = null
+          lastPersistedRef.current = ''
         }
-        if (pendingRef.current?.title === snapshot.title && pendingRef.current.content === snapshot.content) {
-          pendingRef.current = null
+        if (
+          pendingRef.current !== emptyQueue &&
+          pendingRef.current.title === snapshot.title &&
+          pendingRef.current.content === snapshot.content
+        ) {
+          pendingRef.current = emptyQueue
         }
         return result
       })
       .catch((error: unknown) => {
         blockedRef.current = true
-        pendingRef.current = null
+        pendingRef.current = emptyQueue
         throw error
       })
       .finally(() => {
         suspendedRef.current = false
-        if (pendingRef.current) {
+        if (pendingRef.current !== emptyQueue) {
           drainDrafts()
         }
       })

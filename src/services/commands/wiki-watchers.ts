@@ -20,6 +20,7 @@ import { wikiPagePath } from '#contracts/urls.ts'
  * resolveSlugTargets precedent.
  */
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { assertProjectAccess, hasProjectAccess, usersWithProjectReadAccess } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
@@ -352,7 +353,7 @@ async function insertNotifications(
     actorId: ctx.userId,
     summary: `${ACTION_LABEL[e.action]}: ${e.title}`,
     createdAt: now,
-    readAt: null,
+    readAt: SQL_NULL,
   }))
 
   /*
@@ -400,20 +401,21 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
   const byId = new Map(pages.map((page) => [page.id, page]))
   const entries = rows
     .filter((row) => row.userId !== ctx.userId)
-    .map((row) => {
+    .flatMap((row) => {
       const page = byId.get(row.pageId)
       if (!page) {
-        return null
+        return []
       }
-      return {
-        userId: row.userId,
-        pageId: page.id,
-        slug: page.slug,
-        title: page.title,
-        action,
-      }
+      return [
+        {
+          userId: row.userId,
+          pageId: page.id,
+          slug: page.slug,
+          title: page.title,
+          action,
+        },
+      ]
     })
-    .filter((e): e is NonNullable<typeof e> => Predicate.isNotNullish(e))
 
   await insertNotifications(ctx, orm, entries)
 }
@@ -538,15 +540,15 @@ export interface WikiChangeEvent {
   deletedPageIdsTruncated: boolean
 }
 
-const parseJsonObject = function parseJsonObject(raw: string | null): Record<string, unknown> | null {
+const parseJsonObject = function parseJsonObject(raw: string | null): Record<string, unknown> | undefined {
   if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
-    return null
+    return undefined
   }
   try {
     const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : undefined
   } catch {
-    return null
+    return undefined
   }
 }
 
@@ -622,9 +624,9 @@ const eventFieldsFor = function eventFieldsFor(
   slug: string | null
   title: string | null
   eventProjectId: string | null
-  deleted: ReturnType<typeof extractDeletedPageInfo> | null
+  deleted: ReturnType<typeof extractDeletedPageInfo> | undefined
 } {
-  const deleted = action === 'deleted' ? extractDeletedPageInfo(r.diff) : null
+  const deleted = action === 'deleted' ? extractDeletedPageInfo(r.diff) : undefined
   return {
     slug: deleted ? deleted.slug : r.pageSlug,
     title: deleted ? deleted.title : r.pageTitle,
@@ -648,22 +650,22 @@ const isEventVisible = async function isEventVisible(
 }
 
 /*
- * Resolves one activity row to an event, or null if it should be dropped (stale
+ * Resolves one activity row to an event, or undefined if it should be dropped (stale
  * trash-shadowed row, wrong project, or not visible to the caller).
  */
 const toWikiChangeEvent = async function toWikiChangeEvent(
   r: WikiActivityRow,
   projectId: string | undefined,
   canSeeProject: (id: string) => Promise<boolean>,
-): Promise<WikiChangeEvent | null> {
+): Promise<WikiChangeEvent | undefined> {
   const action = r.action as 'created' | 'updated' | 'deleted'
   if (action !== 'deleted' && Predicate.isNotNullish(r.pageDeletedAt) && Predicate.isNotNullish(r.pageDeletedAt)) {
-    return null
+    return undefined
   }
 
   const { slug, title, eventProjectId, deleted } = eventFieldsFor(action, r)
   if (!(await isEventVisible(projectId, eventProjectId, canSeeProject))) {
-    return null
+    return undefined
   }
 
   return {
@@ -728,7 +730,7 @@ const matchSubtreeWatches = async function matchSubtreeWatches(
     )
     const parentOf = new Map(rows.map((row) => [row.id, row.parentId]))
     Iterable.forEach(pending, ([candidate, cur]) => {
-      const parent = parentOf.get(cur) ?? null
+      const parent = parentOf.get(cur)
       if (Predicate.isNullish(parent)) {
         pending.delete(candidate)
       } else if (subtreeRootIds.has(parent)) {
