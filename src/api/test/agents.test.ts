@@ -9,7 +9,15 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { parseNativeMcpText, IdResponse, readNativeJson } from './response-json.ts'
+import {
+  IdListResponse,
+  IdResponse,
+  ItemsResponse,
+  JsonRecordResponse,
+  McpRpcResponse,
+  parseNativeMcpText,
+  readNativeJson,
+} from './response-json.ts'
 
 describe('agents API', () => {
   let token: string
@@ -120,7 +128,7 @@ describe('agents API', () => {
 
     const humanRes = await registerAgent({ name: 'human-user', kind: 'human' })
     expect(humanRes.status).toBe(201)
-    const humanSession = (await humanRes.json()) as { id: string } & Record<string, unknown>
+    const humanSession = await readNativeJson(humanRes, JsonRecordResponse)
     expect(humanSession.kind).toBeUndefined()
 
     const listRes = await fetchNativeApi('http://localhost/api/agents', {
@@ -246,10 +254,7 @@ describe('agents API', () => {
           }),
         ),
       )
-      const body = (await res.json()) as {
-        result?: { content: { text: string }[]; isError?: boolean }
-        error?: { message: string }
-      }
+      const body = await readNativeJson(res, McpRpcResponse)
       return { status: res.status, body }
     }
 
@@ -498,7 +503,7 @@ describe('agents API', () => {
       const started = await mcpCall('start_work', { issue: issue.id, name: 'mcp-worker' })
       expect(started.status).toBe(200)
       const startedResult = parseNativeMcpText(
-        started.body.result?.content[0].text ?? '{}',
+        started.body.result?.content?.[0].text ?? '{}',
         Schema.Struct({ sessionId: Schema.String }),
       )
       expect(isNonEmptyText(startedResult.sessionId)).toBe(true)
@@ -657,13 +662,16 @@ describe('agents API', () => {
       const linkedB = await registerAgent({ name: 'linked-b-932', issueId: issueB.id })
       const linkedBSession = await readNativeJson(linkedB, IdResponse)
 
+      const sessionListShape = Schema.Struct({ items: IdListResponse })
       const byKey = await listAgents({ projectId: projectKey })
-      const byKeyIds = ((await byKey.json()) as { items: { id: string }[] }).items.map((item) => item.id)
+      const byKeyBody = await readNativeJson(byKey, sessionListShape)
+      const byKeyIds = byKeyBody.items.map((item) => item.id)
       expect(byKeyIds).toContain(linkedASession.id)
       expect(byKeyIds).not.toContain(linkedBSession.id)
 
       const byUuid = await listAgents({ projectId })
-      const byUuidIds = ((await byUuid.json()) as { items: { id: string }[] }).items.map((item) => item.id)
+      const byUuidBody = await readNativeJson(byUuid, sessionListShape)
+      const byUuidIds = byUuidBody.items.map((item) => item.id)
       expect(byUuidIds).toContain(linkedASession.id)
       expect(byUuidIds).not.toContain(linkedBSession.id)
     })
@@ -675,10 +683,12 @@ describe('agents API', () => {
       await registerAgent({ name: 'hidden-agent-932', issueId: issue.id })
 
       const byKey = await listAgents({ projectId: 'HIDN' })
-      expect(((await byKey.json()) as { items: unknown[] }).items).toHaveLength(0)
+      const byKeyBody = await readNativeJson(byKey, ItemsResponse)
+      expect(byKeyBody.items).toHaveLength(0)
 
       const byUuid = await listAgents({ projectId: hidden.id })
-      expect(((await byUuid.json()) as { items: unknown[] }).items).toHaveLength(0)
+      const byUuidBody = await readNativeJson(byUuid, ItemsResponse)
+      expect(byUuidBody.items).toHaveLength(0)
     })
   })
 })

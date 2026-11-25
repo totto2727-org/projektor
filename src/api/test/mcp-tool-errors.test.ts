@@ -12,12 +12,7 @@ import { env } from './fixture-api.ts'
 import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './helpers.ts'
 import type { ToolErrorBody } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { IdListResponse, SlugResponse, parseNativeMcpText } from './response-json.ts'
-
-interface Rpc {
-  error?: { code: number; message: string }
-  result?: { isError?: boolean; content?: { text: string }[] }
-}
+import { IdListResponse, McpRpcResponse, SlugResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-893: MCP tool failures are isError results', () => {
   // This suite makes more calls per token than vite.config.ts's RATE_LIMIT_API_MAX.
@@ -45,10 +40,10 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     )
   }
 
-  const call = async function call(name: string, args: unknown, token = f.token): Promise<Rpc> {
+  const call = async function call(name: string, args: unknown, token = f.token): Promise<typeof McpRpcResponse.Type> {
     const res = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, token)
     expect(res.status).toBe(200)
-    return (await res.json()) as Rpc
+    return readNativeJson(res, McpRpcResponse)
   }
 
   /** Asserts the failure is a tool result (not a JSON-RPC error) and returns its body. */
@@ -117,7 +112,7 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
         }),
       ),
     )
-    const body = (await res.json()) as Rpc
+    const body = await readNativeJson(res, McpRpcResponse)
     expect(body.error).toBeUndefined()
     const problem = toolError(body)
     expect(problem?.code).toBe('forbidden')
@@ -163,25 +158,27 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
 
     test('an unknown method is -32601', async () => {
       const resResponse = await post({ jsonrpc: '2.0', id: 1, method: 'nope/nope' })
-      const res = (await resResponse.json()) as Rpc
+      const res = await readNativeJson(resResponse, McpRpcResponse)
       expect(res.error?.code).toBe(-32_601)
     })
 
     test('malformed JSON is a -32700 parse error', async () => {
       const res = await post('{ not json')
       expect(res.status).toBe(400)
-      expect(((await res.json()) as Rpc).error?.code).toBe(-32_700)
+      const body = await readNativeJson(res, McpRpcResponse)
+      expect(body.error?.code).toBe(-32_700)
     })
 
     test('a body that is not a request object is a -32600 invalid request', async () => {
       const res = await post([1, 2, 3])
       expect(res.status).toBe(400)
-      expect(((await res.json()) as Rpc).error?.code).toBe(-32_600)
+      const body = await readNativeJson(res, McpRpcResponse)
+      expect(body.error?.code).toBe(-32_600)
     })
 
     test('a tools/call with no tool name is a -32602 invalid-params protocol error', async () => {
       const resResponse = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {} })
-      const res = (await resResponse.json()) as Rpc
+      const res = await readNativeJson(resResponse, McpRpcResponse)
       expect(res.error?.code).toBe(-32_602)
     })
   })
@@ -199,7 +196,7 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     )
     expect(res.status).toBe(403)
     expect(isNonEmptyText(res.headers.get('WWW-Authenticate'))).toBe(true)
-    const body = (await res.json()) as Rpc
+    const body = await readNativeJson(res, McpRpcResponse)
     expect(body.error?.code).toBe(-32_003)
     expect(body.result).toBeUndefined()
   })

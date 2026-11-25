@@ -3,9 +3,8 @@ import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
-import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { parseNativeMcpText, readNativeJson } from './response-json.ts'
+import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
 
 describe('compose_playbook', () => {
   let token: string
@@ -65,9 +64,10 @@ describe('compose_playbook', () => {
     await env.DB.prepare('UPDATE projects SET agent_wip_limit = ? WHERE id = ?').bind(7, projectId).run()
 
     const res = await compose({ epicRef: `PROJ-${epicNumber}` })
-    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
+    const json = await readNativeJson(res, RpcTextResponse)
+    const text = readNativeMcpResultText(json.result)
     const body = parseNativeMcpText(
-      json.result.content[0].text,
+      text,
       Schema.Struct({ directive: Schema.String, name: Schema.String, variant: Schema.String }),
     )
 
@@ -103,11 +103,9 @@ describe('compose_playbook', () => {
       reviewModel: 'sonnet',
       cadence: 5,
     })
-    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const body = parseNativeMcpText(
-      json.result.content[0].text,
-      Schema.Struct({ directive: Schema.String, variant: Schema.String }),
-    )
+    const json = await readNativeJson(res, RpcTextResponse)
+    const text = readNativeMcpResultText(json.result)
+    const body = parseNativeMcpText(text, Schema.Struct({ directive: Schema.String, variant: Schema.String }))
 
     expect(body.variant).toBe('full')
     expect(body.directive).toContain('Self-feed (full)')
@@ -118,16 +116,18 @@ describe('compose_playbook', () => {
 
   test('honors a custom checkpointInterval', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}`, checkpointInterval: 3 })
-    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const body = parseNativeMcpText(json.result.content[0].text, Schema.Struct({ directive: Schema.String }))
+    const json = await readNativeJson(res, RpcTextResponse)
+    const text = readNativeMcpResultText(json.result)
+    const body = parseNativeMcpText(text, Schema.Struct({ directive: Schema.String }))
 
     expect(body.directive).toContain('every 3 completed tickets')
   })
 
   test('notes when the epic has no open child tickets yet', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}` })
-    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const body = parseNativeMcpText(json.result.content[0].text, Schema.Struct({ directive: Schema.String }))
+    const json = await readNativeJson(res, RpcTextResponse)
+    const text = readNativeMcpResultText(json.result)
+    const body = parseNativeMcpText(text, Schema.Struct({ directive: Schema.String }))
 
     expect(body.directive).toContain('no open child tickets yet')
   })

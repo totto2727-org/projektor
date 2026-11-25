@@ -1,10 +1,11 @@
 import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
+
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
-import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
+import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
 
 describe('playbooks', () => {
   type TestData = Readonly<{
@@ -57,7 +58,7 @@ describe('playbooks', () => {
     const restRes = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
-    const restBody = await restRes.json()
+    const restBody = await readNativeJson(restRes, ApiResults.apiListPlaybooks)
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
@@ -69,8 +70,9 @@ describe('playbooks', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text)
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
+    const text = readNativeMcpResultText(mcpJson.result)
+    const mcpBody = parseNativeMcpText(text, ApiResults.apiListPlaybooks)
 
     expect(mcpBody).toStrictEqual(restBody)
   })
@@ -106,7 +108,7 @@ describe('playbooks', () => {
     const restRes = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
-    const restBody = await restRes.json()
+    const restBody = await readNativeJson(restRes, ApiResults.apiGetPlaybook)
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
@@ -118,8 +120,9 @@ describe('playbooks', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text)
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
+    const text = readNativeMcpResultText(mcpJson.result)
+    const mcpBody = parseNativeMcpText(text, ApiResults.apiGetPlaybook)
 
     expect(mcpBody).toStrictEqual(restBody)
   })

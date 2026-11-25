@@ -12,6 +12,15 @@ export const RpcTextResponse = Schema.Struct({
     content: RpcTextEntries,
   }),
 })
+export const McpRpcResponse = Schema.Struct({
+  error: Schema.optional(Schema.Struct({ code: Schema.Number, message: Schema.String })),
+  result: Schema.optional(
+    Schema.Struct({
+      content: Schema.optional(RpcTextEntries),
+      isError: Schema.optional(Schema.Boolean),
+    }),
+  ),
+})
 export const SlugResponse = Schema.Struct({ slug: Schema.String })
 export const SlugListResponse = Schema.Array(SlugResponse).pipe(Schema.mutable)
 export const TitleListResponse = Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable)
