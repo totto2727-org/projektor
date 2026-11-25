@@ -3,12 +3,14 @@ import { Schema } from 'effect'
 import { structInOrder } from '#contracts/ordered-schema.ts'
 
 const nullable = Schema.NullOr(Schema.String)
+
+const AllowedOriginsSchema = Schema.NullOr(Schema.mutable(Schema.Array(Schema.String)))
 export const Source = structInOrder([
   ['id', Schema.String],
   ['name', Schema.String],
   ['description', nullable],
   ['isActive', Schema.Boolean],
-  ['allowedOrigins', Schema.NullOr(Schema.mutable(Schema.Array(Schema.String)))],
+  ['allowedOrigins', AllowedOriginsSchema],
   ['tokenPreview', Schema.String],
   ['createdAt', Schema.Number],
   ['revokedAt', Schema.NullOr(Schema.Number)],
@@ -28,22 +30,20 @@ export const Feedback = structInOrder([
   ['linkedIssueId', nullable],
   ['createdAt', Schema.Number],
 ])
+
+const FeedbackVersionSummarySchema = structInOrder([
+  ['appVersion', nullable],
+  ['totalCount', Schema.Number],
+  ['withCommentCount', Schema.Number],
+  ['thumbsUpPct', Schema.NullOr(Schema.Number)],
+  ['avgFiveStar', Schema.NullOr(Schema.Number)],
+  ['lastSeenAt', Schema.Number],
+])
 export const Summary = Schema.Struct({
   sourceId: Schema.String,
   sourceName: Schema.optional(nullable),
   totalCount: Schema.Number,
-  versions: Schema.mutable(
-    Schema.Array(
-      structInOrder([
-        ['appVersion', nullable],
-        ['totalCount', Schema.Number],
-        ['withCommentCount', Schema.Number],
-        ['thumbsUpPct', Schema.NullOr(Schema.Number)],
-        ['avgFiveStar', Schema.NullOr(Schema.Number)],
-        ['lastSeenAt', Schema.Number],
-      ]),
-    ),
-  ),
+  versions: Schema.mutable(Schema.Array(FeedbackVersionSummarySchema)),
 })
 export const Sources = Schema.mutable(Schema.Array(Source))
 export const Rows = Schema.mutable(Schema.Array(Feedback))

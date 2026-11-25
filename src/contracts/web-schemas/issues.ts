@@ -33,6 +33,13 @@ const field = Schema.Struct({
   type: Schema.String,
   value: Schema.String,
 })
+
+const IssueRollupSchema = structInOrder([
+  ['done', Schema.Number],
+  ['remaining', Schema.Number],
+  ['total', Schema.Number],
+  ['byStatus', Schema.optional(Schema.Record(Schema.String, Schema.Number))],
+])
 export const IssueSchema = structInOrder([
   ['id', Schema.String],
   ['number', Schema.Number],
@@ -58,17 +65,7 @@ export const IssueSchema = structInOrder([
   ['updated_at', Schema.Number],
   ['reviewTargets', Schema.Array(ReviewTargetSchema)],
   ['customFields', Schema.optional(Schema.Array(field))],
-  [
-    'rollup',
-    Schema.optional(
-      structInOrder([
-        ['done', Schema.Number],
-        ['remaining', Schema.Number],
-        ['total', Schema.Number],
-        ['byStatus', Schema.optional(Schema.Record(Schema.String, Schema.Number))],
-      ]),
-    ),
-  ],
+  ['rollup', Schema.optional(IssueRollupSchema)],
 ])
 /**
  * Normalize a decoded issue after the native loader validates its concrete schema.
@@ -88,9 +85,11 @@ export const normalizeIssue = function normalizeIssue(dto: typeof IssueSchema.Ty
     rollup: dto.rollup ? { ...dto.rollup, byStatus: { ...dto.rollup.byStatus } } : undefined,
   }
 }
+
+const IssuePageCursorSchema = Schema.NullOr(Schema.Union([Schema.String, Schema.Number]))
 export const IssuePageSchema = Schema.Struct({
   items: Schema.Array(IssueSchema),
-  nextCursor: Schema.optional(Schema.NullOr(Schema.Union([Schema.String, Schema.Number]))),
+  nextCursor: Schema.optional(IssuePageCursorSchema),
   total: Schema.optional(Schema.NullOr(Schema.Number)),
 })
 export const normalizeIssuePage = function normalizeIssuePage(dto: typeof IssuePageSchema.Type): IssuePage {
@@ -152,6 +151,8 @@ export const normalizeLinks = function normalizeLinks(dto: typeof LinksSchema.Ty
     createdAt: entry.createdAt ?? 0,
   }))
 }
+
+const WikiAttachmentPageSchema = Schema.Struct({ id: Schema.String, title: Schema.String, url: Schema.String })
 export const AttachmentSchema = structInOrder([
   ['id', Schema.String],
   ['kind', Schema.optional(Schema.Literals(['file', 'wiki_ref', 'url']))],
@@ -161,10 +162,7 @@ export const AttachmentSchema = structInOrder([
   ['createdAt', Schema.Number],
   ['reviewStatus', Schema.NullOr(ReviewStatusSchema)],
   ['url', Schema.optional(nullable)],
-  [
-    'wikiPage',
-    Schema.optional(Schema.NullOr(Schema.Struct({ id: Schema.String, title: Schema.String, url: Schema.String }))),
-  ],
+  ['wikiPage', Schema.optional(Schema.NullOr(WikiAttachmentPageSchema))],
 ])
 export const AttachmentsSchema = Schema.Array(AttachmentSchema)
 export const normalizeAttachments = function normalizeAttachments(dto: typeof AttachmentsSchema.Type): Attachment[] {

@@ -99,6 +99,13 @@ export const TreeNode: Schema.Codec<WikiSeed['tree'][number]> = Schema.suspend((
   ]),
 )
 export const Tree = Schema.mutable(Schema.Array(TreeNode))
+
+const WikiProjectOptionSchema = Schema.Struct({
+  id: Schema.String,
+  key: Schema.String,
+  name: Schema.String,
+  workspace_slug: Schema.String,
+})
 export const WikiSeedDataSchema = structInOrder([
   ['page', Schema.NullOr(Page)],
   ['tree', Tree],
@@ -111,14 +118,7 @@ export const WikiSeedDataSchema = structInOrder([
   ['draft', Draft],
   ['draftRevision', Schema.optional(nullable)],
   ['draftStatus', Schema.Literals(['ready', 'failed'])],
-  [
-    'projects',
-    Schema.mutable(
-      Schema.Array(
-        Schema.Struct({ id: Schema.String, key: Schema.String, name: Schema.String, workspace_slug: Schema.String }),
-      ),
-    ),
-  ],
+  ['projects', Schema.mutable(Schema.Array(WikiProjectOptionSchema))],
   ['workspaceSlug', Schema.String],
   ['projectId', Schema.String],
   ['slug', Schema.String],

@@ -19,6 +19,8 @@ export const SprintSchema = structInOrder([
   ['createdAt', Schema.Finite],
 ])
 export const SprintsSchema = Schema.Struct({ items: array(SprintSchema) })
+
+const IssueCustomFieldsSchema = array(Schema.Struct({ key: Schema.String, value: Schema.String }))
 export const IssuePageSchema = structInOrder([
   ['nextCursor', nullableText],
   [
@@ -31,7 +33,7 @@ export const IssuePageSchema = structInOrder([
         ['status_category', nullableText],
         ['project_key', nullableText],
         ['sprint_id', nullableText],
-        ['customFields', array(Schema.Struct({ key: Schema.String, value: Schema.String }))],
+        ['customFields', IssueCustomFieldsSchema],
       ]),
     ),
   ],
@@ -42,6 +44,8 @@ const DistributionSchema = structInOrder([
   ['p50', nullableNumber],
   ['p90', nullableNumber],
 ])
+
+const AgingWipStatusSchema = Schema.Literals(['in_progress', 'in_review'])
 export const MetricsSchema = structInOrder([
   ['leadTime', DistributionSchema],
   ['cycleTime', DistributionSchema],
@@ -101,7 +105,7 @@ export const MetricsSchema = structInOrder([
     array(
       structInOrder([
         ['id', Schema.String],
-        ['status', Schema.Literals(['in_progress', 'in_review'])],
+        ['status', AgingWipStatusSchema],
         ['ageSeconds', Schema.Finite],
       ]),
     ),
@@ -116,21 +120,18 @@ export const MetricsSchema = structInOrder([
     ]),
   ],
 ])
+
+const HeatmapEntrySchema = structInOrder([
+  ['path', Schema.String],
+  ['segment', Schema.String],
+  ['isLeaf', Schema.Boolean],
+  ['distinctIssueCount', Schema.optionalKey(Schema.Finite)],
+  ['claimCount', Schema.optionalKey(Schema.Finite)],
+  ['distinctRejectedIssueCount', Schema.optionalKey(Schema.Finite)],
+  ['conflictCount', Schema.optionalKey(Schema.Finite)],
+])
 export const HeatmapSchema = structInOrder([
   ['prefix', Schema.String],
   ['totalDistinctIssues', Schema.Finite],
-  [
-    'entries',
-    array(
-      structInOrder([
-        ['path', Schema.String],
-        ['segment', Schema.String],
-        ['isLeaf', Schema.Boolean],
-        ['distinctIssueCount', Schema.optionalKey(Schema.Finite)],
-        ['claimCount', Schema.optionalKey(Schema.Finite)],
-        ['distinctRejectedIssueCount', Schema.optionalKey(Schema.Finite)],
-        ['conflictCount', Schema.optionalKey(Schema.Finite)],
-      ]),
-    ),
-  ],
+  ['entries', array(HeatmapEntrySchema)],
 ])

@@ -15,6 +15,8 @@ export const GroupSchema = structInOrder([
   ['grantCount', Schema.Finite],
 ])
 export const GroupsSchema = array(GroupSchema)
+
+const GroupGrantRoleSchema = Schema.Literals(['viewer', 'member', 'admin'])
 /** GET detail does not contain list aggregate columns. Derive counts after decoding. */
 export const GroupDetailSchema = structInOrder([
   ['id', Schema.String],
@@ -37,7 +39,7 @@ export const GroupDetailSchema = structInOrder([
         ['projectId', Schema.String],
         ['projectName', Schema.String],
         ['projectKey', Schema.String],
-        ['role', Schema.Literals(['viewer', 'member', 'admin'])],
+        ['role', GroupGrantRoleSchema],
       ]),
     ),
   ],
@@ -53,10 +55,12 @@ export const WorkspaceSchema = Schema.Struct({
     ]),
   ),
 })
+
+const MemberGroupSchema = Schema.Struct({ id: Schema.String, name: Schema.String })
 export const MemberGroupsSchema = array(
   structInOrder([
     ['userId', Schema.String],
-    ['groups', array(Schema.Struct({ id: Schema.String, name: Schema.String }))],
+    ['groups', array(MemberGroupSchema)],
   ]),
 )
 export const ProjectsSchema = array(

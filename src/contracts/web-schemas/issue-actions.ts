@@ -11,6 +11,8 @@ export const SelectorFields = {
   projectId: Schema.optional(NonEmpty),
 }
 export const IssueIdentitySchema = Schema.Struct({ ...SelectorFields, issueId: NonEmpty })
+
+const StoryPointsPatchSchema = Schema.Struct({ story_points: Schema.NullOr(Schema.String) })
 export const IssuePatchSchema = structInOrder([
   ['title', Schema.optional(NonEmpty)],
   ['body', Schema.optional(Schema.String)],
@@ -19,8 +21,10 @@ export const IssuePatchSchema = structInOrder([
   ['typeId', Schema.optional(Schema.NullOr(NonEmpty))],
   ['assigneeId', Schema.optional(Schema.NullOr(NonEmpty))],
   ['parentId', Schema.optional(Schema.NullOr(NonEmpty))],
-  ['customFields', Schema.optional(Schema.Struct({ story_points: Schema.NullOr(Schema.String) }))],
+  ['customFields', Schema.optional(StoryPointsPatchSchema)],
 ])
+
+const IssueBodySchema = Schema.String.check(Schema.isMaxLength(MAX_ISSUE_BODY_LENGTH))
 const CreateIssueFields = fieldsInOrder([
   ['projectId', NonEmpty],
   // Preserve the existing schema output while checking the title at runtime.
@@ -31,12 +35,14 @@ const CreateIssueFields = fieldsInOrder([
       Schema.isMaxLength(MAX_ISSUE_TITLE_LENGTH),
     ),
   ],
-  ['body', Schema.optional(Schema.String.check(Schema.isMaxLength(MAX_ISSUE_BODY_LENGTH)))],
+  ['body', Schema.optional(IssueBodySchema)],
   ['priority', Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none']))],
   ['statusId', Schema.optional(NonEmpty)],
   ['typeId', Schema.optional(NonEmpty)],
 ])
 export const CreateIssueSchema = Schema.Struct({ ...SelectorFields, ...CreateIssueFields })
+
+const IssuePageLimitSchema = Schema.Number.check(Schema.isBetween({ minimum: 1, maximum: 100 }))
 export const IssuePageInputSchema = extendStructInOrder(SelectorFields, [
   ['statusIds', Schema.optional(Schema.String)],
   ['priorities', Schema.optional(Schema.String)],
@@ -50,7 +56,7 @@ export const IssuePageInputSchema = extendStructInOrder(SelectorFields, [
   ['updatedAfter', Schema.optional(Schema.String)],
   ['updatedBefore', Schema.optional(Schema.String)],
   ['cursor', Schema.optional(Schema.String)],
-  ['limit', Schema.optional(Schema.Number.check(Schema.isBetween({ minimum: 1, maximum: 100 })))],
+  ['limit', Schema.optional(IssuePageLimitSchema)],
   ['includeRollups', Schema.optional(Schema.Boolean)],
 ])
 export const SearchResultsSchema = Schema.Array(
