@@ -57,7 +57,7 @@ const first = (name: string): Record<string, unknown> => {
   return props
 }
 function tooltipProps() {
-  const content = first('Tooltip').content
+  const { content } = first('Tooltip')
   if (!isValidElement<ComponentProps<typeof ChartTooltipContent>>(content)) {
     throw new Error('Missing tooltip content')
   }

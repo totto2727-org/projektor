@@ -48,7 +48,7 @@ describe('projects REST', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const ownerToken = roles.owner.token
     const memberToken = roles.member.token
     const viewerToken = roles.viewer.token
@@ -324,7 +324,7 @@ describe('projects MCP', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const workspaceId = roles.workspace.id
     const ownerToken = roles.owner.token
     const ownerHeaders = authHeaders(ownerToken, slug)

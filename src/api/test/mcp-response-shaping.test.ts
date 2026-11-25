@@ -411,7 +411,7 @@ describe('covers PROJ-891: MCP tools', () => {
       title: 'Sect Page',
       content: '# A\nalpha\n## B\nbeta\n',
     })
-    const slug = result.slug
+    const { slug } = result
     const changes = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
       since: 0,
     })

@@ -123,8 +123,8 @@ describe('project server-prop refresh', () => {
 
   test('uses a native GET form for the addressable archived catalog', () => {
     render(withRuntime(<ProjectList initialProjects={[]} memberships={[]} showArchived />))
-    const checkbox = screen.getByRole('checkbox', { name: 'Show archived' }) as HTMLInputElement
-    const form = checkbox.form
+    const checkbox = screen.getByRole<HTMLInputElement>('checkbox', { name: 'Show archived' })
+    const { form } = checkbox
     expect(form?.method).toBe('get')
     expect(form?.getAttribute('action')).toBe('/projects/view')
     expect(form && new FormData(form).get('includeArchived')).toBe('true')
@@ -181,7 +181,7 @@ describe('project server-prop refresh', () => {
       ),
     )
     fireEvent.click(screen.getByLabelText('Edit project description'))
-    const input = screen.getByLabelText('Project description') as HTMLTextAreaElement
+    const input = screen.getByLabelText<HTMLTextAreaElement>('Project description')
     fireEvent.change(input, { target: { value: 'Unsaved draft' } })
 
     view.rerender(

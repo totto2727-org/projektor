@@ -74,8 +74,8 @@ describe('covers MCP endpoint', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     const workspaceId = fixture.workspace.id
     const headers = authHeaders(token, slug)
     const project = await seedProject(workspaceId)

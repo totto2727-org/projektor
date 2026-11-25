@@ -907,7 +907,7 @@ describe('covers PROJ-390: path params win over body-supplied ids', () => {
       .bind(testFixture.projectId)
       .first<{ id: string }>()
     assert.exists(source)
-    const id = source.id
+    const { id } = source
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback-sources/${id}`,

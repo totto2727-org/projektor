@@ -80,7 +80,7 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
 
   test('a human session mints; a pk_ token cannot revoke; the human can', async () => {
     const testFixture = await seedFixture({ role: 'owner' })
-    const slug = testFixture.workspace.slug
+    const { slug } = testFixture.workspace
     const mint = await mintAsHuman(
       testFixture.user.email,
       slug,

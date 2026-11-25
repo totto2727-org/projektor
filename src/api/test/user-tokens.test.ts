@@ -61,7 +61,7 @@ describe('covers PROJ-91: user-scoped token — member workspace', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
-    const slug = ws.slug
+    const { slug } = ws
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const userId = user.id
     await seedMember(ws.id, userId, 'member')

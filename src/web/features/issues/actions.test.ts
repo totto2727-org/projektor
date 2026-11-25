@@ -55,7 +55,7 @@ const fixture = function fixture(options: { origin?: string } = {}) {
   const kv = inMemoryKV()
   const r2 = inMemoryR2()
   const invoke = async function invoke(action: unknown, input: unknown): Promise<unknown> {
-    const definition = (action as { definition: Definition }).definition
+    const { definition } = action as { definition: Definition }
     const multiple = Array.isArray(definition.input)
     const inputSchema = multiple
       ? Schema.Tuple(definition.input as Readonly<Schema.Decoder<unknown>[]>)

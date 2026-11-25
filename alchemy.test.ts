@@ -101,7 +101,7 @@ describe('source-owned private Core deployment', () => {
     { id: 'Frontend', entrypoint: FrontendWorker },
   ])('selects the $id default export from its configured production module', async ({ id, entrypoint }) => {
     const { stack } = await register(false)
-    const main = stack.resources[id].Props.main
+    const { main } = stack.resources[id].Props
     assert.ok(main)
     const module: unknown = await import(main)
     expect(module).toHaveProperty('default', entrypoint)

@@ -96,7 +96,7 @@ export const parseSavedViews = function parseSavedViews(raw: string | null): Sav
     if (!Predicate.isObjectOrArray(candidate)) {
       return
     }
-    const name = (candidate as { name?: unknown }).name
+    const { name } = candidate as { name?: unknown }
     if (!Predicate.isString(name) || String.isEmpty(name)) {
       return
     }

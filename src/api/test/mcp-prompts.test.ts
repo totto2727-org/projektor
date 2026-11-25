@@ -83,7 +83,7 @@ describe('covers MCP prompts', () => {
         checkpointInterval: '3',
       },
     })) as JsonRpcResult<{ messages: { content: { text: string } }[] }>
-    const text = json.result.messages[0].content.text
+    const { text } = json.result.messages[0].content
     expect(text).toContain('Self-feed (full)')
     expect(text).toContain('every 5 completed tickets')
     expect(text).toContain('adversarial sonnet review')

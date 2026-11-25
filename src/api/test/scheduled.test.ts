@@ -107,8 +107,8 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'admin' })
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     return { slug, token }
   }
 

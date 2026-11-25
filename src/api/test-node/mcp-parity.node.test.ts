@@ -386,7 +386,7 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): BinaryV
     node.expression.name.text === 'exec' &&
     ts.isRegularExpressionLiteral(node.expression.expression)
   ) {
-    const text = node.expression.expression.text
+    const { text } = node.expression.expression
     const end = text.lastIndexOf('/')
     const argument = node.arguments.at(0)
     const input = Predicate.isNotNullish(argument) ? valueOf(argument, context) : undefined
@@ -504,7 +504,7 @@ const domainOperations = function domainOperations(
       binary.values.set(child.name.text, valueOf(child.initializer, binary))
     }
     if (ts.isCallExpression(child)) {
-      const expression = child.expression
+      const { expression } = child
       const imported = importedSymbol(module, expression)
       if (imported?.name === 'coreFileRequest') {
         const pathname = pathLiteral(child.arguments[1])
