@@ -43,6 +43,9 @@ export const viewsStorageKey = function viewsStorageKey(project: string): string
  * complete SavedViewFilters. Missing fields fall back to the empty default, so
  * a view saved before a new filter existed (e.g. hideEpics) still applies
  * cleanly instead of writing `undefined` into filter state.
+ *
+ * @param {Partial<SavedViewFilters> | null | undefined} raw The stored filter fields, which can be missing.
+ * @returns {SavedViewFilters} The complete filters with defaults for missing fields.
  */
 const normalizeFilters = function normalizeFilters(
   raw: Partial<SavedViewFilters> | null | undefined,
@@ -69,7 +72,12 @@ export const captureView = function captureView(name: string, filters: SavedView
   return { name, filters: normalizeFilters(filters) }
 }
 
-/** Parse the sessionStorage payload, dropping anything malformed or unnamed. */
+/**
+ * Parse the sessionStorage payload, dropping anything malformed or unnamed.
+ *
+ * @param {string | null} raw The saved-views payload from sessionStorage.
+ * @returns {SavedView[]} The valid named views with normalized filters.
+ */
 export const parseSavedViews = function parseSavedViews(raw: string | null): SavedView[] {
   if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return []
@@ -100,7 +108,13 @@ export const parseSavedViews = function parseSavedViews(raw: string | null): Sav
   return out
 }
 
-/** Insert or replace a view by name (names are unique within a bucket). */
+/**
+ * Insert or replace a view by name (names are unique within a bucket).
+ *
+ * @param {Readonly<SavedView[]>} views The existing views in the storage bucket.
+ * @param {SavedView} view The view to save.
+ * @returns {SavedView[]} A new list with the saved view at the end.
+ */
 export const upsertView = function upsertView(views: Readonly<SavedView[]>, view: SavedView): SavedView[] {
   return [...views.filter((selectedView) => selectedView.name !== view.name), view]
 }
@@ -109,12 +123,24 @@ export const removeView = function removeView(views: Readonly<SavedView[]>, name
   return views.filter((view) => view.name !== name)
 }
 
-/** Order-insensitive equality for the two list-valued filters. */
+/**
+ * Order-insensitive equality for the two list-valued filters.
+ *
+ * @param {Readonly<string[]>} left The first list of selected filter values.
+ * @param {Readonly<string[]>} right The second list of selected filter values.
+ * @returns {boolean} Whether the two lists contain the same values and multiplicities.
+ */
 const sameSet = function sameSet(left: Readonly<string[]>, right: Readonly<string[]>): boolean {
   return JSON.stringify([...left].toSorted()) === JSON.stringify([...right].toSorted())
 }
 
-/** True when two filter sets are equivalent (drives the active-view indicator). */
+/**
+ * True when two filter sets are equivalent (drives the active-view indicator).
+ *
+ * @param {SavedViewFilters} filters The current issue-list filters.
+ * @param {SavedViewFilters} selectedFilters The filters stored in the selected view.
+ * @returns {boolean} Whether both sets of filters produce the same selection.
+ */
 export const filtersMatch = function filtersMatch(
   filters: SavedViewFilters,
   selectedFilters: SavedViewFilters,

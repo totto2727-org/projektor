@@ -51,7 +51,14 @@ export interface FeedbackSourceRow extends FeedbackSourceListRow {
   project_id: string
 }
 
-/** Validated filters only. Authorization and response shaping belong to callers. */
+/**
+ * Validated filters only. Authorization and response shaping belong to callers.
+ *
+ * @param {D1Database} db The D1 connection for feedback data.
+ * @param {string} workspaceId The workspace to query.
+ * @param {ListFeedbackOptions} opts The project and optional source and status filters.
+ * @returns {Effect.Effect<FeedbackJoinRow[], DataQueryError>} An effect that reads matching feedback rows in reverse creation order.
+ */
 export const listFeedback = function listFeedback(
   db: D1Database,
   workspaceId: string,
@@ -81,7 +88,14 @@ export const listFeedback = function listFeedback(
   })
 }
 
-/** Raw aggregate rows retain database semantics, including null averages. */
+/**
+ * Raw aggregate rows retain database semantics, including null averages.
+ *
+ * @param {D1Database} db The D1 connection for feedback data.
+ * @param {string} workspaceId The workspace to query.
+ * @param {FeedbackProjectOptions} opts The project to summarize.
+ * @returns {Effect.Effect<FeedbackSummaryRow[], DataQueryError>} An effect that reads aggregates by source and app version.
+ */
 export const readFeedbackSummary = function readFeedbackSummary(
   db: D1Database,
   workspaceId: string,
@@ -124,7 +138,14 @@ export const listFeedbackSources = function listFeedbackSources(
   })
 }
 
-/** Token hashes are database model fields, never a browser response contract. */
+/**
+ * Token hashes are database model fields, never a browser response contract.
+ *
+ * @param {D1Database} db The D1 connection for feedback data.
+ * @param {string} workspaceId The workspace to query.
+ * @param {string} sourceId The feedback source ID in the workspace.
+ * @returns {Effect.Effect<FeedbackSourceRow | null, DataQueryError>} An effect that reads the source row, or null if it is missing.
+ */
 export const findFeedbackSourceById = function findFeedbackSourceById(
   db: D1Database,
   workspaceId: string,

@@ -99,9 +99,13 @@ export const assigneeInitials = function assigneeInitials(name: string): string 
 }
 
 /**
- * Returns the best drop-target status ID for a given board column category.
+ * Returns the preferred drop-target status for a board column.
  * For 'todo': prefers the first non-backlog status; falls back to any todo status.
  * For other categories: returns the first status in that category.
+ *
+ * @param {Readonly<TaskStatus[]>} statuses The workspace's statuses in display order.
+ * @param {string} category The workflow category of the column.
+ * @returns {TaskStatus | undefined} The selected drop-target status, or undefined when none matches.
  */
 export const getFirstStatusForCategory = function getFirstStatusForCategory(
   statuses: Readonly<TaskStatus[]>,
@@ -119,6 +123,10 @@ export const getFirstStatusForCategory = function getFirstStatusForCategory(
 /**
  * Returns issues to display in a board column.
  * Todo column excludes backlog issues (those belong to the Backlog view).
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @param {string} category The workflow category of the column.
+ * @returns {Issue[]} The visible records for that board column.
  */
 export const getBoardColumnIssues = function getBoardColumnIssues(
   issues: Readonly<Issue[]>,
@@ -129,12 +137,26 @@ export const getBoardColumnIssues = function getBoardColumnIssues(
   )
 }
 
-/** Returns issues for the Backlog view: todo category with backlog key. */
+/**
+ * Returns issues for the Backlog view: todo category with backlog key.
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @returns {Issue[]} The issues with the backlog status in the todo category.
+ */
 export const getBacklogIssues = function getBacklogIssues(issues: Readonly<Issue[]>): Issue[] {
   return issues.filter((issue) => issue.status_category === 'todo' && issue.status_key === 'backlog')
 }
 
-/** Applies multi-predicate filtering to an issue list (all predicates are AND-ed). */
+/**
+ * Applies multi-predicate filtering to an issue list (all predicates are AND-ed).
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @param {Readonly<string[]>} filterStatuses The selected status IDs.
+ * @param {Readonly<string[]>} filterPriorities The selected priorities.
+ * @param {string} filterProject The project key, or an empty string for any project.
+ * @param {string} filterType The task type key, or an empty string for any type.
+ * @returns {Issue[]} The issues that match every active filter.
+ */
 export const filterIssues = function filterIssues(
   issues: Readonly<Issue[]>,
   filterStatuses: Readonly<string[]>,
@@ -172,7 +194,14 @@ const SORT_COMPARATORS: Record<SortKey, (issue: Issue, selectedIssue: Issue) => 
   updated: (issue, selectedIssue) => issue.updated_at - selectedIssue.updated_at,
 }
 
-/** Sorts a copy of an issue list by the given SortKey. */
+/**
+ * Sorts a copy of an issue list by the given SortKey.
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @param {SortKey} sortBy The column to sort by.
+ * @param {'asc' | 'desc'} sortDir The sort direction.
+ * @returns {Issue[]} A sorted copy of the issue list.
+ */
 export const sortIssues = function sortIssues(
   issues: Readonly<Issue[]>,
   sortBy: SortKey,

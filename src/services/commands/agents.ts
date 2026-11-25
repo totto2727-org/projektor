@@ -113,6 +113,11 @@ export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: 
  * itself crashes mid-call (so the compensating end_agent never runs), the claims it
  * made are still reclaimable by the next caller once the session's heartbeat goes
  * stale after ACTIVE_TTL (120s) — see claim_issue/claim_files's stale-holder reclaim.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The issue ID, agent name and optional file paths.
+ * @returns {Promise<{sessionId: string, lease: Awaited<ReturnType<typeof claimIssue>>, claimedFiles: Awaited<ReturnType<typeof claimFiles>>['created']}>}
+ * The created session, issue lease, and newly claimed files.
  */
 export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown) {
   const result = StartWorkSchema.safeParse(raw)
@@ -238,6 +243,10 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
  * update_issue call), then ends the session — which already releases every claim and
  * lease it holds (see endAgent). Replaces release_issue + release_files + end_agent
  * (+ an update_issue call, if the issue is being closed) with one call.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The session and issue IDs, optional status and completion report.
+ * @returns {ReturnType<typeof endAgent>} The ended session after the issue update, if requested.
  */
 export const finishWork = async function finishWork(ctx: ServiceCtx, raw: unknown) {
   const result = FinishWorkSchema.safeParse(raw)
@@ -273,6 +282,11 @@ export const finishWork = async function finishWork(ctx: ServiceCtx, raw: unknow
  * check, it doesn't reach into ended sessions. Each item carries a `live` boolean
  * (true when its heartbeat is inside the TTL) and, when linked to an issue, that
  * issue's display ref (issueRef, e.g. "PROJ-857").
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The optional issue and project filters and stale-session policy.
+ * @returns {Promise<{items: (Awaited<ReturnType<typeof registerAgent>> & {issueRef: string | null, live: boolean})[]}>}
+ * Visible active sessions with current liveness and issue references.
  */
 export const listActiveAgents = async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
   const result = ListActiveAgentsSchema.safeParse(raw)

@@ -23,7 +23,14 @@ const requireAdmin = function requireAdmin(ctx: ServiceCtx): void {
   }
 }
 
-/** Load a group scoped to the workspace, or throw NotFound. */
+/**
+ * Load a group scoped to the workspace, or throw NotFound.
+ *
+ * @param {ReturnType<typeof drizzle>} orm The Drizzle connection.
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} groupId The group ID in the caller's workspace.
+ * @returns {Promise<typeof schema.userGroups.$inferSelect>} The group row in the workspace.
+ */
 const loadGroup = async function loadGroup(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, groupId: string) {
   const group = await orm
     .select()
@@ -36,7 +43,13 @@ const loadGroup = async function loadGroup(orm: ReturnType<typeof drizzle>, ctx:
   return group
 }
 
-/** Requires workspace-admin, then loads the group (or throws NotFound). */
+/**
+ * Requires workspace-admin, then loads the group (or throws NotFound).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} groupId The group ID in the caller's workspace.
+ * @returns {Promise<{orm: ReturnType<typeof drizzle>, group: typeof schema.userGroups.$inferSelect}>} The database connection and group after the admin check.
+ */
 const requireAdminGroup = async function requireAdminGroup(ctx: ServiceCtx, groupId: string) {
   requireAdmin(ctx)
   const orm = drizzle(ctx.db, { schema })
@@ -47,6 +60,9 @@ const requireAdminGroup = async function requireAdminGroup(ctx: ServiceCtx, grou
 /**
  * List groups. Owner/admin see every group in the workspace; a plain member sees
  * only the groups they belong to (ticket: "members see only their own groups").
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @returns {Promise<Effect.Success<ReturnType<typeof groupData.listGroups>>>} The groups visible to the caller and their membership and grant counts.
  */
 export const listGroups = async function listGroups(ctx: ServiceCtx) {
   return Effect.runPromise(
@@ -57,6 +73,11 @@ export const listGroups = async function listGroups(ctx: ServiceCtx) {
 /**
  * Full group detail: members and project grants. Owner/admin may view any group;
  * a plain member may view only groups they belong to.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} groupId The group ID in the caller's workspace.
+ * @returns {Promise<typeof schema.userGroups.$inferSelect & {members: Effect.Success<ReturnType<typeof groupData.listGroupMembers>>, grants: Effect.Success<ReturnType<typeof groupData.listGroupGrants>>}>}
+ * The group row with member and project-grant details.
  */
 export const getGroup = async function getGroup(ctx: ServiceCtx, groupId: string) {
   const orm = drizzle(ctx.db, { schema })
@@ -87,6 +108,9 @@ export const getGroup = async function getGroup(ctx: ServiceCtx, groupId: string
  * Per-member group membership for the whole workspace, driving the members-admin
  * screen (group chips + the "no groups / pending" badge). Owner/admin only.
  * Includes members with zero groups so the pending state is visible.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @returns {Promise<{userId: string, groups: {id: string, name: string}[] }[]>} The workspace members and each member's groups.
  */
 export const listMemberGroups = async function listMemberGroups(
   ctx: ServiceCtx,
