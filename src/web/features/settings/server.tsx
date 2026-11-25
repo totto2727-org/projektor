@@ -138,7 +138,7 @@ export const renderTokens = function renderTokens(scope: RequestScope, _url: URL
     const data = yield* runBrowserCommand({ scope, workspaceSlug: workspace.slug }, (client) =>
       coreResult(SettingsTokensSchema, client.core.webSettingsTokens(client.proof)),
     )
-    const info = data.info
+    const { info } = data
     const template =
       info?.mcpAddCommandTemplate ??
       (info?.mcpUrl

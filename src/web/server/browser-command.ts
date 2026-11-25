@@ -23,7 +23,7 @@ export const runBrowserCommand = function runBrowserCommand<A, E, R>(
 ): Effect.Effect<A, ApiError | ScopeError | E, RequestServices | R> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
-    const auth = context.scope.auth
+    const { auth } = context.scope
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
       return yield* new ScopeError(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }

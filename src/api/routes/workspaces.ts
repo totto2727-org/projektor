@@ -214,7 +214,7 @@ workspacesRouter.get('/:slug/brand/logo', (httpContext) => coreFileRequest(httpC
 workspacesRouter.get('/:slug/mcp-info', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const workspace = httpContext.get('workspace')
-  const origin = new URL(httpContext.req.url).origin
+  const { origin } = new URL(httpContext.req.url)
   try {
     return httpContext.json(await getWorkspaceMcpInfo(ctx, workspace, origin))
   } catch (caughtError) {

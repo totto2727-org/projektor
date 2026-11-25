@@ -26,7 +26,7 @@ export function IssueList({ workspaceSlug, initialData, route }: Props): JSX.Ele
    * The URL owns the view and its SSR-loaded working set. Browser preferences
    * cannot change the initial tree or replace primary data after hydration.
    */
-  const view = initialData.view
+  const { view } = initialData
   const setView = (next: ViewMode): void => {
     const params = new URLSearchParams(route.search)
     params.set('view', next)

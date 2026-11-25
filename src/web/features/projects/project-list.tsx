@@ -212,7 +212,7 @@ export const ProjectList = function ProjectList({
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => {
-                        const value = event.currentTarget.value
+                        const { value } = event.currentTarget
                         field.handleChange(value)
                         if (form.getFieldMeta('key')?.isTouched !== true) {
                           form.setFieldValue('key', deriveKey(value))

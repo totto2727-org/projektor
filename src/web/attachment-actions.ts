@@ -73,7 +73,7 @@ export const uploadAttachment = EFFRONT.ServerFn.make({
           if (input.file.size > MAX_SERVER_FUNCTION_UPLOAD_BYTES) {
             return yield* new ApiError('request', HTTP_PAYLOAD_TOO_LARGE, 'File too large (max 10 MB)')
           }
-          const selection = context.scope.selection
+          const { selection } = context.scope
           if (selection.kind !== 'workspace' && selection.kind !== 'project') {
             return yield* new ApiError('request', HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
           }
@@ -106,7 +106,7 @@ export const uploadInlineImage = EFFRONT.ServerFn.make({
           if (input.file.size > MAX_SERVER_FUNCTION_UPLOAD_BYTES) {
             return yield* new ApiError('request', HTTP_PAYLOAD_TOO_LARGE, 'File too large (max 10 MB)')
           }
-          const selection = context.scope.selection
+          const { selection } = context.scope
           if (selection.kind !== 'workspace' && selection.kind !== 'project') {
             return yield* new ApiError('request', HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
           }

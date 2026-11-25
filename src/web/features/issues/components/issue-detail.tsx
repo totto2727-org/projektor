@@ -252,7 +252,7 @@ export function IssueDetail({
   workspaceSlug: string
   initialData: IssueDetailInitialData
 }): JSX.Element {
-  const issue = initialData.issue
+  const { issue } = initialData
   const comments = [...initialData.comments]
   const links = [...initialData.links]
   const attachments = [...initialData.attachments]

@@ -124,7 +124,7 @@ export const renderMetrics = function renderMetrics(scope: RequestScope, url: UR
     }).pipe(Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid metrics date range or chart options.')))
     const range = { since: window.since, until: window.until, granularity: window.granularity }
     const mode = window.heatmapMode
-    const prefix = window.prefix
+    const { prefix } = window
     const queryRange = {
       projectId: project.id,
       since: dateEpochStart(range.since),

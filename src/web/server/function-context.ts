@@ -54,7 +54,7 @@ export const resolveFunctionContext = function resolveFunctionContext(
     if (options.requireWorkspace === true && !isNonEmptyText(input.workspaceSlug) && !isNonEmptyText(input.projectId)) {
       return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select a workspace for this operation.')
     }
-    const selection = scope.selection
+    const { selection } = scope
     if (selection.kind === 'selection-required') {
       return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select an accessible workspace or project.')
     }

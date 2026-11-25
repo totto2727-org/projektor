@@ -207,7 +207,7 @@ export function EpicList({
   } = useIssueFilters(initialData.search, initialData.project.key, initialData.projects)
 
   const projectId = initialData.project.id
-  const projects = initialData.projects
+  const { projects } = initialData
   const epicTypeId = initialData.taskTypes.find((entry) => entry.key === 'epic')?.id ?? null
 
   const [sortBy, setSortBy] = useState<SortKey>('created_at')

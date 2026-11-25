@@ -1902,7 +1902,7 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   }
   const loading = false
   const error = seed.slug && !seed.page ? '404' : null
-  const revisions = seed.revisions
+  const { revisions } = seed
   /*
    * PROJ-507: whether `revisions` reflects a completed fetch for this page. An empty
    * list means two very different things to the optimistic lock — "this page has never
@@ -2690,7 +2690,7 @@ function useWikiEditing(
         return
       }
       adoptDraftState(state)
-      const draft = state.draft
+      const { draft } = state
       /*
        * PROJ-797: offer any draft that differs from what's published, regardless
        * of timestamp order — a publish by someone else after the last autosave

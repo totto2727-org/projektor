@@ -15,7 +15,7 @@ import { sessionNavigation } from './session-navigation.ts'
 const logoResponse = function logoResponse(request: Request) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
-    const pathname = new URL(request.url).pathname
+    const { pathname } = new URL(request.url)
     const publicLogo = /^\/api\/share\/([^/]+)\/logo$/u.exec(pathname)
     const workspaceLogo = /^\/api\/workspaces\/([^/]+)\/brand\/logo$/u.exec(pathname)
     const value = publicLogo?.[1] ?? workspaceLogo?.[1]

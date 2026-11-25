@@ -31,7 +31,7 @@ export type PublicRenderer = (
 ) => Effect.Effect<ReactNode, PageFailure, RequestServices>
 
 const errorResponse = function errorResponse(error: PageFailure): HttpServerResponse.HttpServerResponse {
-  const status = error.status
+  const { status } = error
   const message =
     status === HTTP_UNAUTHORIZED
       ? 'Your session has expired. Refresh this page to sign in.'

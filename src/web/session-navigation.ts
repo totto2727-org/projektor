@@ -43,7 +43,7 @@ export const sessionNavigation = function sessionNavigation(
     ).pipe(Effect.mapError(() => new ApiError('request', HTTP_BAD_REQUEST, 'Invalid session navigation form.')))
     let location = '/cdn-cgi/access/logout'
     if (form.action === 'login') {
-      const origin = new URL(request.url).origin
+      const { origin } = new URL(request.url)
       const destination = yield* Effect.try({
         catch: () => new ApiError('request', HTTP_BAD_REQUEST, 'A local session redirect is required.'),
         try: () => new URL(form.redirect_url ?? '/', origin),

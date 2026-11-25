@@ -50,7 +50,7 @@ export const loadBrand = function loadBrand(
   if (scope?.selection.kind !== 'workspace' && scope?.selection.kind !== 'project') {
     return Effect.succeed(brand)
   }
-  const workspace = scope.selection.workspace
+  const { workspace } = scope.selection
   if (!scope.workspaces.some((member) => member.id === workspace.id && member.slug === workspace.slug)) {
     return Effect.succeed(brand)
   }
