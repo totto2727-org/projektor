@@ -554,10 +554,12 @@ describe('wiki API', () => {
     }
     await resetRateLimits()
 
-    const fetchAll = (): Promise<{ id: string }[]> =>
-      fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2', {
+    const fetchAll = async (): Promise<{ id: string }[]> => {
+      const response = await fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2', {
         headers: authHeaders(token, slug),
-      }).then((response) => response.json() as Promise<{ id: string }[]>)
+      })
+      return readNativeJson(response, IdListResponse)
+    }
 
     const first = await fetchAll()
     await resetRateLimits()
@@ -812,7 +814,8 @@ describe('wiki API', () => {
     const strictRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await strictRes.json()) as { title: string }[]).map((page) => page.title)).toStrictEqual(['Scoped Page'])
+    const strictPages = await readNativeJson(strictRes, TitleListResponse)
+    expect(strictPages.map((page) => page.title)).toStrictEqual(['Scoped Page'])
 
     const widenedRes = await fetchNativeApi(
       `http://localhost/api/wiki?projectId=${project.id}&includeWorkspacePages=1`,
@@ -820,10 +823,8 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await widenedRes.json()) as { title: string }[]).map((page) => page.title).toSorted()).toStrictEqual([
-      'Scoped Page',
-      'Shared Page',
-    ])
+    const widenedPages = await readNativeJson(widenedRes, TitleListResponse)
+    expect(widenedPages.map((page) => page.title).toSorted()).toStrictEqual(['Scoped Page', 'Shared Page'])
 
     const treeRes = await fetchNativeApi(
       `http://localhost/api/wiki/tree?projectId=${project.id}&includeWorkspacePages=1`,
@@ -831,10 +832,8 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await treeRes.json()) as { title: string }[]).map((page) => page.title).toSorted()).toStrictEqual([
-      'Scoped Page',
-      'Shared Page',
-    ])
+    const treePages = await readNativeJson(treeRes, TitleListResponse)
+    expect(treePages.map((page) => page.title).toSorted()).toStrictEqual(['Scoped Page', 'Shared Page'])
   })
 
   test("includeWorkspacePages still hides a project the caller isn't granted (PROJ-742)", async () => {
@@ -847,7 +846,8 @@ describe('wiki API', () => {
     const res = await fetchNativeApi(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await res.json()) as { title: string }[]).map((page) => page.title)).toStrictEqual(['Shared Page'])
+    const sharedPages = await readNativeJson(res, TitleListResponse)
+    expect(sharedPages.map((page) => page.title)).toStrictEqual(['Shared Page'])
   })
 
   test('handles POST /api/wiki stores projectId and GET returns it', async () => {
@@ -1454,7 +1454,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       method: 'POST',
     })
     expect(res.status).toBe(201)
-    expect(((await res.json()) as { slug: string }).slug).toBe('view-page')
+    await expect(readNativeJson(res, SlugResponse)).resolves.toHaveProperty('slug', 'view-page')
   })
 
   test("handles PUT /api/wiki/:slug rejects renaming to the reserved slug 'view' (PROJ-487, 400)", async () => {
@@ -1623,7 +1623,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       method: 'POST',
     })
     expect(res.status).toBe(201)
-    expect(((await res.json()) as { slug: string }).slug).toBe('index-page')
+    await expect(readNativeJson(res, SlugResponse)).resolves.toHaveProperty('slug', 'index-page')
   })
 
   test("handles PUT /api/wiki/:slug rejects renaming to the reserved slug 'index' (PROJ-487, 400)", async () => {
@@ -1718,13 +1718,13 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       headers: authHeaders(token, slug),
     })
     expect(originalRes.status).toBe(200)
-    expect(((await originalRes.json()) as { slug: string }).slug).toBe('docs-v3')
+    await expect(readNativeJson(originalRes, SlugResponse)).resolves.toHaveProperty('slug', 'docs-v3')
 
     const intermediateRes = await fetchNativeApi('http://localhost/api/wiki/docs-v2', {
       headers: authHeaders(token, slug),
     })
     expect(intermediateRes.status).toBe(200)
-    expect(((await intermediateRes.json()) as { slug: string }).slug).toBe('docs-v3')
+    await expect(readNativeJson(intermediateRes, SlugResponse)).resolves.toHaveProperty('slug', 'docs-v3')
   })
 
   test('getWikiPage prefers a live page over a stale redirect for a reused slug (never ambiguous)', async () => {
@@ -2599,7 +2599,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     const pageRes = await req('http://localhost/api/wiki/transitional', {
       headers: authHeaders(token, slug),
     })
-    expect(((await pageRes.json()) as { content: string }).content).toBe('v2')
+    await expect(readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))).resolves.toHaveProperty(
+      'content',
+      'v2',
+    )
   })
 
   test('covers REST: update succeeds when baseRevisionId matches the current latest revision', async () => {
@@ -2628,7 +2631,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     const pageRes = await req('http://localhost/api/wiki/locked-doc', {
       headers: authHeaders(token, slug),
     })
-    expect(((await pageRes.json()) as { content: string }).content).toBe('v3')
+    await expect(readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))).resolves.toHaveProperty(
+      'content',
+      'v3',
+    )
   })
 
   test('covers REST: update is rejected with a structured conflict when baseRevisionId is stale', async () => {
@@ -2676,7 +2682,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     const pageRes = await req('http://localhost/api/wiki/contested-doc', {
       headers: authHeaders(token, slug),
     })
-    expect(((await pageRes.json()) as { content: string }).content).toBe('v3')
+    await expect(readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))).resolves.toHaveProperty(
+      'content',
+      'v3',
+    )
   })
 
   test('covers REST: revision rows get a title snapshot', async () => {
@@ -2903,7 +2912,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    expect(((await res.json()) as { diff: string }).diff).toBe('')
+    await expect(readNativeJson(res, Schema.Struct({ diff: Schema.String }))).resolves.toHaveProperty('diff', '')
   })
 
   test('covers REST: an unknown `against` revision id 404s', async () => {
@@ -2996,7 +3005,10 @@ describe('wiki revision diff (PROJ-492)', () => {
     const pageRes = await req('http://localhost/api/wiki/restorable-doc', {
       headers: authHeaders(token, slug),
     })
-    expect(((await pageRes.json()) as { content: string }).content).toBe('original content')
+    await expect(readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))).resolves.toHaveProperty(
+      'content',
+      'original content',
+    )
 
     /*
      * Restoring created a NEW (third) revision snapshotting the pre-restore "mistaken
@@ -3055,7 +3067,10 @@ describe('wiki revision diff (PROJ-492)', () => {
     const pageRes = await req('http://localhost/api/wiki/raced-restore-doc', {
       headers: authHeaders(token, slug),
     })
-    expect(((await pageRes.json()) as { content: string }).content).toBe("a colleague's edit")
+    await expect(readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))).resolves.toHaveProperty(
+      'content',
+      "a colleague's edit",
+    )
     expect(await getRevisions('raced-restore-doc')).toHaveLength(2)
   })
 
@@ -3102,7 +3117,10 @@ describe('wiki revision diff (PROJ-492)', () => {
     const pageRes = await req('http://localhost/api/wiki/legacy-frontmatter-doc', {
       headers: authHeaders(token, slug),
     })
-    expect(((await pageRes.json()) as { content: string }).content).toBe('second body')
+    await expect(readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))).resolves.toHaveProperty(
+      'content',
+      'second body',
+    )
     expect(await getRevisions('legacy-frontmatter-doc')).toHaveLength(1)
   })
 })
@@ -3297,7 +3315,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       headers: authHeaders(token, slug),
     })
     // No revisions yet (page just created) — base is null.
-    expect((await revRes.json()) as unknown[]).toHaveLength(0)
+    await expect(readNativeJson(revRes, JsonListResponse)).resolves.toHaveLength(0)
 
     // Agent A patches Alpha.
     const resA = await req(
@@ -3389,7 +3407,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const revRes = await req('http://localhost/api/wiki/patch-deleted-section/revisions', {
       headers: authHeaders(token, slug),
     })
-    expect((await revRes.json()) as unknown[]).toHaveLength(0)
+    await expect(readNativeJson(revRes, JsonListResponse)).resolves.toHaveLength(0)
 
     // Someone replaces the whole page, removing the Beta heading entirely.
     await req(
@@ -4212,14 +4230,15 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   test('get_backlinks (MCP) returns the same result as REST', async () => {
     const fixture = await seedFixture()
-    const target = await fetchNativeApi(
+    const targetResponse = await fetchNativeApi(
       'http://localhost/api/wiki',
       requestOptionsWithBody(
         'POST',
         authHeaders(fixture.token, fixture.workspace.slug),
         JSON.stringify({ content: 'x', title: 'MCP Target' }),
       ),
-    ).then((response) => response.json() as Promise<{ slug: string }>)
+    )
+    const target = await readNativeJson(targetResponse, SlugResponse)
     await fetchNativeApi(
       'http://localhost/api/wiki',
       requestOptionsWithBody(
@@ -4284,7 +4303,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     let res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    expect((await res.json()) as unknown[]).toHaveLength(1)
+    await expect(readNativeJson(res, JsonListResponse)).resolves.toHaveLength(1)
 
     await fetchNativeApi(`http://localhost/api/wiki/${linker.slug}`, {
       body: JSON.stringify({ content: 'no more links here' }),
@@ -4317,14 +4336,15 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   test('handles DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
     const owner = await seedFixture({ role: 'owner' })
-    const target = await fetchNativeApi(
+    const targetResponse = await fetchNativeApi(
       'http://localhost/api/wiki',
       requestOptionsWithBody(
         'POST',
         authHeaders(owner.token, owner.workspace.slug),
         JSON.stringify({ content: 'x', title: 'Linked Target' }),
       ),
-    ).then((response) => response.json() as Promise<{ slug: string }>)
+    )
+    const target = await readNativeJson(targetResponse, SlugResponse)
     await fetchNativeApi(
       'http://localhost/api/wiki',
       requestOptionsWithBody(
@@ -5324,7 +5344,10 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
       headers: newHeaders,
     })
     expect(parentRes.status).toBe(200)
-    expect(((await parentRes.json()) as { title: string }).title).toBe('Templates')
+    await expect(readNativeJson(parentRes, Schema.Struct({ title: Schema.String }))).resolves.toHaveProperty(
+      'title',
+      'Templates',
+    )
   })
 
   /*
@@ -6346,7 +6369,7 @@ describe('wiki trash (PROJ-496)', () => {
     let backlinksRes = await req(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    expect((await backlinksRes.json()) as { slug: string }[]).toStrictEqual([
+    await expect(readNativeJson(backlinksRes, SlugListResponse)).resolves.toStrictEqual([
       expect.objectContaining({ slug: source.slug, title: 'Trash Backlink Source' }),
     ])
 
@@ -6939,7 +6962,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     const id = crypto.randomUUID()
     const res = await create({ title: id })
     expect(res.status).toBe(201)
-    expect(((await res.json()) as { slug: string }).slug).toBe(`${id}-page`)
+    await expect(readNativeJson(res, SlugResponse)).resolves.toHaveProperty('slug', `${id}-page`)
   })
 
   test("resolves GET, PUT and DELETE by id to the id's page when a legacy slug equals that id", async () => {
