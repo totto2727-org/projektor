@@ -32,6 +32,32 @@ interface ResolvedDraftTarget {
   slug: string
 }
 
+type WikiDraft = Pick<typeof schema.wikiDrafts.$inferSelect, 'title' | 'content' | 'baseRevisionId' | 'updatedAt'>
+type DraftRevision = ReturnType<typeof crypto.randomUUID>
+
+interface DraftState {
+  revision: string | null
+  draft: WikiDraft | null
+}
+
+interface ChangedDraft {
+  ok: true
+  revision: DraftRevision
+}
+
+interface SavedDraft extends ChangedDraft {
+  pageId: string
+  updatedAt: number
+}
+
+interface ReservedDraft {
+  pageId: string
+  revision: DraftRevision
+  input: ReturnType<typeof VersionedWikiDraftInputSchema.parse>
+}
+
+type PublishedDraft = { ok: true; draftRevision: DraftRevision } | { ok: true; draftRevision: null }
+
 /*
  * PROJ-495: same id-or-slug + redirect-fallback resolution as services/wiki.ts's
  * resolvePageByIdOrSlug, plus the same project-visibility check — duplicated (not
@@ -109,7 +135,7 @@ const resolveDraftTarget = async function resolveDraftTarget(
  * PROJ-495: returns null (not 404) when the caller has no draft for this page — "no
  * draft yet" is the expected common case, not an error.
  */
-export const getWikiDraft = async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
+export const getWikiDraft = async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string): Promise<WikiDraft | null> {
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
@@ -142,7 +168,7 @@ export const readWikiDraftState = async function readWikiDraftState(
   workspaceId: string,
   pageId: string,
   userId: string,
-) {
+): Promise<DraftState> {
   const row = await db
     .prepare(`
     SELECT h.revision, d.title, d.content, d.base_revision_id AS baseRevisionId, d.updated_at AS updatedAt
@@ -208,7 +234,11 @@ const requireAdvanced = function requireAdvanced(result: D1Result, revision: str
   }
 }
 
-export const saveWikiDraft = async function saveWikiDraft(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const saveWikiDraft = async function saveWikiDraft(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  input: unknown,
+): Promise<SavedDraft> {
   const parsed = SaveWikiDraftInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -252,7 +282,7 @@ const discardResolvedDraft = async function discardResolvedDraft(
   ctx: ServiceCtx,
   pageId: string,
   expected: string | null | undefined,
-) {
+): Promise<ChangedDraft> {
   const revision = crypto.randomUUID()
   const results = await ctx.db.batch([
     advanceHead(ctx, pageId, expected, revision),
@@ -266,7 +296,11 @@ const discardResolvedDraft = async function discardResolvedDraft(
   return { ok: true as const, revision }
 }
 
-export const discardWikiDraft = async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?: unknown) {
+export const discardWikiDraft = async function discardWikiDraft(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  input?: unknown,
+): Promise<ChangedDraft> {
   let expected: string | null | undefined
   if (input !== undefined) {
     const parsed = WikiDraftRevisionInputSchema.safeParse(input)
@@ -287,7 +321,7 @@ export const beginWikiDraftPublish = async function beginWikiDraftPublish(
   ctx: ServiceCtx,
   idOrSlug: string,
   input: unknown,
-) {
+): Promise<ReservedDraft> {
   const parsed = VersionedWikiDraftInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -307,7 +341,7 @@ export const finishWikiDraftPublish = async function finishWikiDraftPublish(
   ctx: ServiceCtx,
   pageId: string,
   reservedRevision: string,
-) {
+): Promise<PublishedDraft> {
   const page = await resolveDraftTarget(ctx, pageId)
   try {
     const result = await discardResolvedDraft(ctx, page.id, reservedRevision)
