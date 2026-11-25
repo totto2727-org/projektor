@@ -3,30 +3,37 @@ import { String, Predicate, Array, Schema } from 'effect'
 import { ScopeError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { hasSingleItem } from '#contracts/item-count.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { AuthInfo } from '#types'
 
-export const WebRequestSchema = Schema.Struct({
-  url: Schema.String,
-  method: Schema.String,
-  headers: Schema.Array(Schema.Tuple([Schema.String, Schema.String])),
-})
+const webRequestFields = fieldsInOrder([
+  ['url', Schema.String],
+  ['method', Schema.String],
+  ['headers', Schema.Array(Schema.Tuple([Schema.String, Schema.String]))],
+])
+
+export const WebRequestSchema = Schema.Struct(webRequestFields)
 export type WebRequest = typeof WebRequestSchema.Type
 
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1))
 
-export const AuthUserSchema = Schema.Struct({
-  id: NonEmptyString,
-  email: NonEmptyString,
-  name: Schema.String,
-})
+const authUserFields = fieldsInOrder([
+  ['id', NonEmptyString],
+  ['email', NonEmptyString],
+  ['name', Schema.String],
+])
+
+export const AuthUserSchema = Schema.Struct(authUserFields)
 export type AuthUser = typeof AuthUserSchema.Type
 
-export const WorkspaceMembershipSchema = Schema.Struct({
-  id: NonEmptyString,
-  name: Schema.String,
-  slug: NonEmptyString,
-  role: Schema.Literals(['owner', 'admin', 'member', 'viewer']),
-})
+const workspaceMembershipFields = fieldsInOrder([
+  ['id', NonEmptyString],
+  ['name', Schema.String],
+  ['slug', NonEmptyString],
+  ['role', Schema.Literals(['owner', 'admin', 'member', 'viewer'])],
+])
+
+export const WorkspaceMembershipSchema = Schema.Struct(workspaceMembershipFields)
 export type WorkspaceMembership = typeof WorkspaceMembershipSchema.Type
 
 export const AuthSessionSchema = Schema.Struct({
@@ -35,22 +42,24 @@ export const AuthSessionSchema = Schema.Struct({
 })
 export type AuthSession = typeof AuthSessionSchema.Type
 
+const projectSummaryFields = fieldsInOrder([
+  ['id', NonEmptyString],
+  ['name', Schema.String],
+  ['key', NonEmptyString],
+  ['slug', Schema.NullOr(Schema.String)],
+  ['description', Schema.NullOr(Schema.String)],
+  ['workspace_id', NonEmptyString],
+  ['workspace_name', Schema.String],
+  ['workspace_slug', NonEmptyString],
+  ['open_issue_count', Schema.Number],
+  ['backlog_issue_count', Schema.Number],
+  ['archived_at', Schema.NullOr(Schema.Number)],
+  ['created_at', Schema.Number],
+  ['updated_at', Schema.Number],
+])
+
 /** The existing cross-workspace GET /api/projects response, not a new API DTO. */
-export const ProjectSummarySchema = Schema.Struct({
-  id: NonEmptyString,
-  name: Schema.String,
-  key: NonEmptyString,
-  slug: Schema.NullOr(Schema.String),
-  description: Schema.NullOr(Schema.String),
-  workspace_id: NonEmptyString,
-  workspace_name: Schema.String,
-  workspace_slug: NonEmptyString,
-  open_issue_count: Schema.Number,
-  backlog_issue_count: Schema.Number,
-  archived_at: Schema.NullOr(Schema.Number),
-  created_at: Schema.Number,
-  updated_at: Schema.Number,
-})
+export const ProjectSummarySchema = Schema.Struct(projectSummaryFields)
 export type ProjectSummary = typeof ProjectSummarySchema.Type
 export const ProjectCatalogSchema = Schema.Array(ProjectSummarySchema)
 
@@ -88,41 +97,52 @@ export type ScopeOptions = Readonly<{
   workspaceHint?: string
 }>
 
-export const ScopeOptionsSchema = Schema.Struct({
-  requireProject: Schema.optional(Schema.Boolean),
-  requireWorkspace: Schema.optional(Schema.Boolean),
-  projectHint: Schema.optional(Schema.String),
-  workspaceHint: Schema.optional(Schema.String),
-})
+const scopeOptionsFields = fieldsInOrder([
+  ['requireProject', Schema.optional(Schema.Boolean)],
+  ['requireWorkspace', Schema.optional(Schema.Boolean)],
+  ['projectHint', Schema.optional(Schema.String)],
+  ['workspaceHint', Schema.optional(Schema.String)],
+])
 
-export const RequestScopeSchema = Schema.Struct({
-  user: AuthUserSchema,
-  workspaces: Schema.Array(WorkspaceMembershipSchema),
-  projects: ProjectCatalogSchema,
-  auth: Schema.optional(
-    Schema.Struct({
-      kind: Schema.Literals(['human', 'agent']),
-      method: Schema.Literals(['oauth', 'pk', 'pat', 'access', 'dev', 'public']),
-      credentialId: Schema.optional(Schema.String),
-      clientId: Schema.optional(Schema.String),
-      scopes: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-    }),
-  ),
-  selection: Schema.Union([
-    Schema.Struct({ kind: Schema.Literal('global') }),
-    Schema.Struct({ kind: Schema.Literal('workspace'), workspace: WorkspaceMembershipSchema }),
-    Schema.Struct({
-      kind: Schema.Literal('project'),
-      workspace: WorkspaceMembershipSchema,
-      project: ProjectSummarySchema,
-    }),
-    Schema.Struct({
-      kind: Schema.Literal('selection-required'),
-      target: Schema.Literals(['workspace', 'project']),
-      reason: Schema.Literals(['empty', 'ambiguous']),
-    }),
-  ]),
-})
+export const ScopeOptionsSchema = Schema.Struct(scopeOptionsFields)
+
+const requestScopeAuthFields = fieldsInOrder([
+  ['kind', Schema.Literals(['human', 'agent'])],
+  ['method', Schema.Literals(['oauth', 'pk', 'pat', 'access', 'dev', 'public'])],
+  ['credentialId', Schema.optional(Schema.String)],
+  ['clientId', Schema.optional(Schema.String)],
+  ['scopes', Schema.optional(Schema.mutable(Schema.Array(Schema.String)))],
+])
+
+const projectScopeSelectionFields = fieldsInOrder([
+  ['kind', Schema.Literal('project')],
+  ['workspace', WorkspaceMembershipSchema],
+  ['project', ProjectSummarySchema],
+])
+
+const requiredScopeSelectionFields = fieldsInOrder([
+  ['kind', Schema.Literal('selection-required')],
+  ['target', Schema.Literals(['workspace', 'project'])],
+  ['reason', Schema.Literals(['empty', 'ambiguous'])],
+])
+
+const requestScopeFields = fieldsInOrder([
+  ['user', AuthUserSchema],
+  ['workspaces', Schema.Array(WorkspaceMembershipSchema)],
+  ['projects', ProjectCatalogSchema],
+  ['auth', Schema.optional(Schema.Struct(requestScopeAuthFields))],
+  [
+    'selection',
+    Schema.Union([
+      Schema.Struct({ kind: Schema.Literal('global') }),
+      Schema.Struct({ kind: Schema.Literal('workspace'), workspace: WorkspaceMembershipSchema }),
+      Schema.Struct(projectScopeSelectionFields),
+      Schema.Struct(requiredScopeSelectionFields),
+    ]),
+  ],
+])
+
+export const RequestScopeSchema = Schema.Struct(requestScopeFields)
 
 export const queryHint = function queryHint(url: URL, name: string): string | undefined {
   const values = url.searchParams.getAll(name).filter((value) => String.isNonEmpty(value))

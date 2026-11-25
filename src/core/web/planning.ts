@@ -2,6 +2,7 @@ import { Effect, Schema } from 'effect'
 
 import * as sprints from '#commands/sprints.ts'
 import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY } from '#contracts/time.ts'
 import { requireDataProject } from '#contracts/web-data.ts'
 import { MAX_METRICS_DAYS } from '#contracts/web-limits.ts'
@@ -18,19 +19,26 @@ import { browserCommand } from './command.ts'
 import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 
-export const MetricsQuerySchema = Schema.Struct({
-  projectId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
-  since: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253_402_300_799 })),
-  until: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253_402_300_799 })),
-  granularity: Schema.Literals(['day', 'week']),
-  mode: Schema.Literals(['claims', 'contention']),
-  prefix: Schema.String.check(Schema.isMaxLength(2000)),
-}).check(
+const metricsQueryFields = fieldsInOrder([
+  ['projectId', Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200))],
+  ['since', Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253_402_300_799 }))],
+  ['until', Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253_402_300_799 }))],
+  ['granularity', Schema.Literals(['day', 'week'])],
+  ['mode', Schema.Literals(['claims', 'contention'])],
+  ['prefix', Schema.String.check(Schema.isMaxLength(2000))],
+])
+
+export const MetricsQuerySchema = Schema.Struct(metricsQueryFields).check(
   Schema.makeFilter(
     (query) => query.since <= query.until && query.until - query.since < MAX_METRICS_DAYS * SECONDS_PER_DAY,
   ),
 )
 export type MetricsQuery = typeof MetricsQuerySchema.Type
+
+const moveSprintIssuesResultFields = fieldsInOrder([
+  ['ok', Schema.Boolean],
+  ['count', Schema.Number],
+])
 
 export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => ({
   webFlowMetrics: (request: WebRequest, workspaceId: string, input: MetricsQuery) =>
@@ -105,7 +113,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     Effect.flatMap(envSource, (env) =>
       coreReply(
         'webMoveSprintIssues',
-        Schema.Struct({ ok: Schema.Boolean, count: Schema.Number }),
+        Schema.Struct(moveSprintIssuesResultFields),
         browserCommand(env, proof, async (ctx) => sprints.moveIssuesToSprint(ctx, input)),
       ),
     ),

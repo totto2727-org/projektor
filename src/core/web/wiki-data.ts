@@ -81,13 +81,14 @@ export const loadWikiData = function loadWikiData(
       ...(projectId ? { projectId, includeWorkspacePages: true } : {}),
       visibility,
     }
-    const filters = yield* Schema.decodeUnknownEffect(
-      Schema.Struct({
-        type: Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(50))),
-        status: Schema.optional(Schema.Literals(['draft', 'current', 'stale', 'deprecated'])),
-        tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String).check(Schema.isMaxLength(50)))),
-      }),
-    )({
+
+    const wikiFilterFields = fieldsInOrder([
+      ['type', Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(50)))],
+      ['status', Schema.optional(Schema.Literals(['draft', 'current', 'stale', 'deprecated']))],
+      ['tags', Schema.optional(Schema.mutable(Schema.Array(Schema.String).check(Schema.isMaxLength(50))))],
+    ])
+
+    const filters = yield* Schema.decodeUnknownEffect(Schema.Struct(wikiFilterFields))({
       ...(filterType ? { type: filterType } : {}),
       ...(filterStatus ? { status: filterStatus } : {}),
       ...(filterTags

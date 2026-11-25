@@ -47,34 +47,37 @@ export const checked = function checked<A>(read: () => A): Effect.Effect<A, Scop
 }
 const BooleanQuery = Schema.Literals(['true', '1', 'false', '0', ''])
 const NumericQuery = Schema.NumberFromString.check(Schema.isFinite())
+
+const issueListQueryFields = fieldsInOrder([
+  ['review', Schema.optional(ReviewFilterSchema)],
+  ['status', Schema.optional(Schema.Literals(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled']))],
+  ['priority', Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none']))],
+  ['category', Schema.optional(Schema.Literals(['todo', 'in_progress', 'done', 'cancelled']))],
+  ['statusId', Schema.optional(Schema.String)],
+  ['statusIds', Schema.optional(Schema.String)],
+  ['priorities', Schema.optional(Schema.String)],
+  ['parentId', Schema.optional(Schema.String)],
+  ['typeId', Schema.optional(Schema.String)],
+  ['excludeTypeIds', Schema.optional(Schema.String)],
+  ['sprintId', Schema.optional(Schema.String)],
+  ['assignee', Schema.optional(Schema.String)],
+  ['noParent', Schema.optional(BooleanQuery)],
+  ['includeRollups', Schema.optional(BooleanQuery)],
+  ['includeBody', Schema.optional(BooleanQuery)],
+  ['needsAudit', Schema.optional(BooleanQuery)],
+  ['completedAfter', Schema.optional(NumericQuery)],
+  ['completedBefore', Schema.optional(NumericQuery)],
+  ['updatedAfter', Schema.optional(NumericQuery)],
+  ['updatedBefore', Schema.optional(NumericQuery)],
+  ['cursor', Schema.optional(Schema.String.check(Schema.isPattern(/^\d+(?::[A-Za-z0-9-]+)?$/)))],
+  ['limit', Schema.optional(NumericQuery.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 })))],
+  ['cfKey', Schema.optional(Schema.String)],
+  ['cfValue', Schema.optional(Schema.String)],
+  ['cfOp', Schema.optional(Schema.Literals(['eq', 'gt', 'gte', 'lt', 'lte']))],
+])
+
 const IssueListQuerySchema = Schema.fromURLSearchParams(
-  Schema.Struct({
-    review: Schema.optional(ReviewFilterSchema),
-    status: Schema.optional(Schema.Literals(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled'])),
-    priority: Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])),
-    category: Schema.optional(Schema.Literals(['todo', 'in_progress', 'done', 'cancelled'])),
-    statusId: Schema.optional(Schema.String),
-    statusIds: Schema.optional(Schema.String),
-    priorities: Schema.optional(Schema.String),
-    parentId: Schema.optional(Schema.String),
-    typeId: Schema.optional(Schema.String),
-    excludeTypeIds: Schema.optional(Schema.String),
-    sprintId: Schema.optional(Schema.String),
-    assignee: Schema.optional(Schema.String),
-    noParent: Schema.optional(BooleanQuery),
-    includeRollups: Schema.optional(BooleanQuery),
-    includeBody: Schema.optional(BooleanQuery),
-    needsAudit: Schema.optional(BooleanQuery),
-    completedAfter: Schema.optional(NumericQuery),
-    completedBefore: Schema.optional(NumericQuery),
-    updatedAfter: Schema.optional(NumericQuery),
-    updatedBefore: Schema.optional(NumericQuery),
-    cursor: Schema.optional(Schema.String.check(Schema.isPattern(/^\d+(?::[A-Za-z0-9-]+)?$/))),
-    limit: Schema.optional(NumericQuery.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 }))),
-    cfKey: Schema.optional(Schema.String),
-    cfValue: Schema.optional(Schema.String),
-    cfOp: Schema.optional(Schema.Literals(['eq', 'gt', 'gte', 'lt', 'lte'])),
-  }).check(
+  Schema.Struct(issueListQueryFields).check(
     Schema.makeFilter(
       (query) =>
         (Predicate.isNullish(query.completedAfter) ||
