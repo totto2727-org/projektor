@@ -459,11 +459,14 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
 
   await ctx.db.batch(statements)
 
-  await broadcastWorkspaceEvent(ctx, {
-    type: 'claims.created',
-    projectId,
-    data: { issueId, agentId, paths, count: created.length },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', 'claims.created'],
+      ['projectId', projectId],
+      ['data', { issueId, agentId, paths, count: created.length }],
+    ]),
+  )
 
   return { created, overridden, reclaimed }
 }
@@ -554,11 +557,14 @@ export const releaseFiles = async function releaseFiles(
    * project; otherwise released rows may span projects, so fan out one event per project.
    */
   if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
-    await broadcastWorkspaceEvent(ctx, {
-      type: 'claims.released',
-      projectId: releasedRows[0].projectId,
-      data: { issueId, paths, count: released.length },
-    })
+    await broadcastWorkspaceEvent(
+      ctx,
+      fieldsInOrder([
+        ['type', 'claims.released'],
+        ['projectId', releasedRows[0].projectId],
+        ['data', { issueId, paths, count: released.length }],
+      ]),
+    )
   } else {
     const grouped = new Map<string, string[]>()
     Iterable.forEach(releasedRows, (row) => {
@@ -567,11 +573,14 @@ export const releaseFiles = async function releaseFiles(
       grouped.set(row.projectId, list)
     })
     for (const [projectId, projectPaths] of grouped) {
-      await broadcastWorkspaceEvent(ctx, {
-        type: 'claims.released',
-        projectId,
-        data: { issueId, paths: projectPaths, count: projectPaths.length },
-      })
+      await broadcastWorkspaceEvent(
+        ctx,
+        fieldsInOrder([
+          ['type', 'claims.released'],
+          ['projectId', projectId],
+          ['data', { issueId, paths: projectPaths, count: projectPaths.length }],
+        ]),
+      )
     }
   }
 

@@ -654,11 +654,14 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
     await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${parentId}`)
   }
 
-  await broadcastWorkspaceEvent(ctx, {
-    type: 'issue.created',
-    projectId: data.projectId,
-    data: { id, number, title: data.title, status: resolvedStatusKey ?? 'todo' },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', 'issue.created'],
+      ['projectId', data.projectId],
+      ['data', { id, number, title: data.title, status: resolvedStatusKey ?? 'todo' }],
+    ]),
+  )
 
   return { id, number }
 }
@@ -1413,21 +1416,27 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown):
   await ctx.db.batch(statements)
 
   if (recordCompletionReport && data.completionReport) {
-    await broadcastWorkspaceEvent(ctx, {
-      type: 'comment.created',
-      projectId: existing.projectId,
-      data: { id: commentId, issueId: id, authorId: ctx.userId },
-    })
+    await broadcastWorkspaceEvent(
+      ctx,
+      fieldsInOrder([
+        ['type', 'comment.created'],
+        ['projectId', existing.projectId],
+        ['data', { id: commentId, issueId: id, authorId: ctx.userId }],
+      ]),
+    )
   }
 
   await invalidateUpdateCaches(ctx, id, data, existing)
 
   const isStatusChange = Predicate.isNotNullish(data.status) || data.statusId !== undefined
-  await broadcastWorkspaceEvent(ctx, {
-    type: isStatusChange ? 'issue.status_changed' : 'issue.updated',
-    projectId: existing.projectId ?? undefined,
-    data: { id, updates: data },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', isStatusChange ? 'issue.status_changed' : 'issue.updated'],
+      ['projectId', existing.projectId ?? undefined],
+      ['data', { id, updates: data }],
+    ]),
+  )
 
   return { ok: true }
 }
@@ -1600,11 +1609,14 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
   }
   await Promise.all([...toInvalidate].map((iid) => cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${iid}`)))
 
-  await broadcastWorkspaceEvent(ctx, {
-    type: 'issue.deleted',
-    projectId: existing.projectId,
-    data: { id },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', 'issue.deleted'],
+      ['projectId', existing.projectId],
+      ['data', { id }],
+    ]),
+  )
 
   return { ok: true }
 }

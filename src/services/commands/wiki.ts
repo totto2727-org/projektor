@@ -1363,22 +1363,28 @@ const finalizeWikiPageUpdate = async function finalizeWikiPageUpdate(
   }>,
 ): Promise<void> {
   const { title, content, parentId, slug, meta } = fields
-  await recordActivity(ctx, {
-    entityType: 'wiki_page',
-    entityId: page.id,
-    action: 'updated',
-    diff: buildWikiPageUpdateDiff({ content, title }),
-  })
+  await recordActivity(
+    ctx,
+    fieldsInOrder([
+      ['entityType', 'wiki_page'],
+      ['entityId', page.id],
+      ['action', 'updated'],
+      ['diff', buildWikiPageUpdateDiff({ content, title })],
+    ]),
+  )
 
   const isTemplate = meta?.isTemplate ?? page.isTemplate
   if (!isTemplate) {
-    await notifyWikiWatchers(ctx, {
-      pageId: page.id,
-      parentId: parentId !== undefined ? parentId : page.parentId,
-      slug: slug ?? page.slug,
-      title: title ?? page.title,
-      action: 'updated',
-    })
+    await notifyWikiWatchers(
+      ctx,
+      fieldsInOrder([
+        ['pageId', page.id],
+        ['parentId', parentId !== undefined ? parentId : page.parentId],
+        ['slug', slug ?? page.slug],
+        ['title', title ?? page.title],
+        ['action', 'updated'],
+      ]),
+    )
   }
 }
 
@@ -1906,12 +1912,15 @@ async function patchWikiPageOnce(
 
   await batchGuarded(ctx, page, [revisionStatement, updateStatement, ...ftsStatements, ...linkStatements])
 
-  await recordActivity(ctx, {
-    entityType: 'wiki_page',
-    entityId: page.id,
-    action: 'updated',
-    diff: buildWikiPageUpdateDiff({ content: newContent }),
-  })
+  await recordActivity(
+    ctx,
+    fieldsInOrder([
+      ['entityType', 'wiki_page'],
+      ['entityId', page.id],
+      ['action', 'updated'],
+      ['diff', buildWikiPageUpdateDiff({ content: newContent })],
+    ]),
+  )
 
   /*
    * PROJ-493 (R11): meta is always reparsed from newContent above (patches only touch
@@ -1919,13 +1928,16 @@ async function patchWikiPageOnce(
    * consistent with the other write paths).
    */
   if (!meta.isTemplate) {
-    await notifyWikiWatchers(ctx, {
-      pageId: page.id,
-      parentId: page.parentId,
-      slug: page.slug,
-      title: page.title,
-      action: 'updated',
-    })
+    await notifyWikiWatchers(
+      ctx,
+      fieldsInOrder([
+        ['pageId', page.id],
+        ['parentId', page.parentId],
+        ['slug', page.slug],
+        ['title', page.title],
+        ['action', 'updated'],
+      ]),
+    )
   }
 
   return { ok: true, url: wikiPagePath(page.slug) }
@@ -2365,13 +2377,16 @@ export const deleteWikiPage = async function deleteWikiPage(
      */
     const linkedByCount = await countBacklinkSources(ctx, allIds)
     if (!page.isTemplate) {
-      await notifyWikiWatchers(ctx, {
-        pageId: page.id,
-        parentId: page.parentId,
-        slug: page.slug,
-        title: page.title,
-        action: 'deleted',
-      })
+      await notifyWikiWatchers(
+        ctx,
+        fieldsInOrder([
+          ['pageId', page.id],
+          ['parentId', page.parentId],
+          ['slug', page.slug],
+          ['title', page.title],
+          ['action', 'deleted'],
+        ]),
+      )
     }
     /*
      * PROJ-493: subtree watchers rooted at/above the cascade root got the single
@@ -2406,23 +2421,29 @@ export const deleteWikiPage = async function deleteWikiPage(
      * target as broken/hidden), so restore brings them back intact; a new page with the
      * same title/slug may claim them meanwhile (buildResolveIncomingLinksStatement).
      */
-    await recordActivity(ctx, {
-      entityType: 'wiki_page',
-      entityId: page.id,
-      action: 'deleted',
-      /*
-       * PROJ-526: descendant ids so a list_wiki_changes poller can evict them from a
-       * local mirror without a per-descendant activity row (which would make project
-       * activity feeds noisier — see the ticket's rationale for this shape).
-       */
-      diff: {
-        ...deleteDiffBase,
-        cascade: true,
-        deletedCount: allIds.length,
-        deletedPageIds: allIds.slice(0, MAX_DELETED_PAGE_IDS),
-        deletedPageIdsTruncated: allIds.length > MAX_DELETED_PAGE_IDS,
-      },
-    })
+    await recordActivity(
+      ctx,
+      fieldsInOrder([
+        ['entityType', 'wiki_page'],
+        ['entityId', page.id],
+        ['action', 'deleted'],
+        /*
+         * PROJ-526: descendant ids so a list_wiki_changes poller can evict them from a
+         * local mirror without a per-descendant activity row (which would make project
+         * activity feeds noisier — see the ticket's rationale for this shape).
+         */
+        [
+          'diff',
+          {
+            ...deleteDiffBase,
+            cascade: true,
+            deletedCount: allIds.length,
+            deletedPageIds: allIds.slice(0, MAX_DELETED_PAGE_IDS),
+            deletedPageIdsTruncated: allIds.length > MAX_DELETED_PAGE_IDS,
+          },
+        ],
+      ]),
+    )
     return fieldsInOrder([
       ['ok', true],
       ['deletedCount', allIds.length],
@@ -2445,13 +2466,16 @@ export const deleteWikiPage = async function deleteWikiPage(
 
   const linkedByCount = await countBacklinkSources(ctx, [page.id])
   if (!page.isTemplate) {
-    await notifyWikiWatchers(ctx, {
-      pageId: page.id,
-      parentId: page.parentId,
-      slug: page.slug,
-      title: page.title,
-      action: 'deleted',
-    })
+    await notifyWikiWatchers(
+      ctx,
+      fieldsInOrder([
+        ['pageId', page.id],
+        ['parentId', page.parentId],
+        ['slug', page.slug],
+        ['title', page.title],
+        ['action', 'deleted'],
+      ]),
+    )
   }
   await orm
     .update(schema.wikiPages)
@@ -2461,12 +2485,15 @@ export const deleteWikiPage = async function deleteWikiPage(
       version: sql`${schema.wikiPages.version} + 1`,
     })
     .where(eq(schema.wikiPages.id, page.id))
-  await recordActivity(ctx, {
-    entityType: 'wiki_page',
-    entityId: page.id,
-    action: 'deleted',
-    diff: deleteDiffBase,
-  })
+  await recordActivity(
+    ctx,
+    fieldsInOrder([
+      ['entityType', 'wiki_page'],
+      ['entityId', page.id],
+      ['action', 'deleted'],
+      ['diff', deleteDiffBase],
+    ]),
+  )
   return { ok: true, deletedCount: 1, linkedByCount }
 }
 
@@ -2597,26 +2624,35 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
    * restore genuinely IS "this page changed state and is worth telling watchers about",
    * which is exactly what an "updated" event already means to every consumer.
    */
-  await recordActivity(ctx, {
-    entityType: 'wiki_page',
-    entityId: page.id,
-    action: 'updated',
-    diff: {
-      restored: true,
-      slug: page.slug,
-      title: page.title,
-      projectId: page.projectId,
-      restoredCount: allIds.length,
-    },
-  })
+  await recordActivity(
+    ctx,
+    fieldsInOrder([
+      ['entityType', 'wiki_page'],
+      ['entityId', page.id],
+      ['action', 'updated'],
+      [
+        'diff',
+        {
+          restored: true,
+          slug: page.slug,
+          title: page.title,
+          projectId: page.projectId,
+          restoredCount: allIds.length,
+        },
+      ],
+    ]),
+  )
   if (!page.isTemplate) {
-    await notifyWikiWatchers(ctx, {
-      pageId: page.id,
-      parentId: page.parentId,
-      slug: page.slug,
-      title: page.title,
-      action: 'updated',
-    })
+    await notifyWikiWatchers(
+      ctx,
+      fieldsInOrder([
+        ['pageId', page.id],
+        ['parentId', page.parentId],
+        ['slug', page.slug],
+        ['title', page.title],
+        ['action', 'updated'],
+      ]),
+    )
   }
   /*
    * PROJ-496 follow-up: mirrors deleteWikiPage's cascade branch notifying descendant

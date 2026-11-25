@@ -132,7 +132,14 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           'webFeedbackDetail',
           FeedbackDetailSchema,
           Effect.gen(function* () {
-            const scope = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: '' })
+            const scope = yield* loadBrowserScope(
+              env,
+              request,
+              fieldsInOrder([
+                ['workspaceHint', ''],
+                ['projectHint', ''],
+              ]),
+            )
             const filter = yield* Schema.decodeUnknownEffect(StatusFields)({ status }).pipe(
               Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid feedback status.')),
             )

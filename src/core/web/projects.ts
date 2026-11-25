@@ -45,7 +45,14 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
         'webProjectCatalog',
         ProjectSummariesSchema,
         Effect.gen(function* () {
-          const scope = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: '' })
+          const scope = yield* loadBrowserScope(
+            env,
+            request,
+            fieldsInOrder([
+              ['workspaceHint', ''],
+              ['projectHint', ''],
+            ]),
+          )
           return yield* listProjectSummaries(
             env.DB,
             scope.user.id,

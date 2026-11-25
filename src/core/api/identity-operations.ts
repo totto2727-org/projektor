@@ -6,6 +6,7 @@ import { createWorkspace, listWorkspaces } from '#commands/workspaces.ts'
 import { ApiDevelopmentBootstrap, ApiPrincipal } from '#contracts/api-auth.ts'
 import { ApiResults } from '#contracts/api-results.ts'
 import { HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
 import type { CoreActor, CorePrincipal } from '#core/authorization.ts'
 import type { CoreReply } from '#core/contract.ts'
@@ -15,8 +16,21 @@ import type { CoreEnvironment } from '#core/environment.ts'
 
 import { bootstrapDevelopment } from './bootstrap.ts'
 
-const User = Schema.Struct({ id: Schema.String, email: Schema.String, name: Schema.String })
-const Workspace = Schema.Struct({ id: Schema.String, name: Schema.String, slug: Schema.String, role: Schema.String })
+const User = Schema.Struct(
+  fieldsInOrder([
+    ['id', Schema.String],
+    ['email', Schema.String],
+    ['name', Schema.String],
+  ]),
+)
+const Workspace = Schema.Struct(
+  fieldsInOrder([
+    ['id', Schema.String],
+    ['name', Schema.String],
+    ['slug', Schema.String],
+    ['role', Schema.String],
+  ]),
+)
 const Workspaces = Schema.Array(Workspace)
 
 const resolveUser = async function resolveUser(

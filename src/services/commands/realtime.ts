@@ -1,3 +1,4 @@
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import type { RealtimeEvent } from '#types'
 
@@ -28,11 +29,14 @@ export const broadcastWorkspaceEvent = async function broadcastWorkspaceEvent(
   try {
     const stub = ctx.workspaceHub.get(ctx.workspaceHub.idFromName(ctx.workspaceId))
     const sendPromise = stub
-      .fetch('http://do/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fullEvent),
-      })
+      .fetch(
+        'http://do/broadcast',
+        fieldsInOrder([
+          ['method', 'POST'],
+          ['headers', { 'Content-Type': 'application/json' }],
+          ['body', JSON.stringify(fullEvent)],
+        ]),
+      )
       .catch(() => {
         // Prevent broadcast errors from affecting the calling service
       })

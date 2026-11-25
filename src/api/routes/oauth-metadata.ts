@@ -5,6 +5,7 @@ import { OAUTH_SCOPES_SUPPORTED } from '#api/auth/scopes.ts'
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '#api/oauth/provider.ts'
 import { HTTP_NOT_FOUND, HTTP_OK } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { HonoEnv } from '#types'
 
 /*
@@ -70,17 +71,17 @@ oauthMetadataRouter.get('/oauth-protected-resource/mcp/:workspaceId', (httpConte
   const workspaceId = encodeURIComponent(httpContext.req.param('workspaceId'))
 
   return httpContext.json(
-    {
-      resource: `${origin}/mcp/${workspaceId}`,
-      authorization_servers: [origin],
-      bearer_methods_supported: ['header'],
+    fieldsInOrder([
+      ['resource', `${origin}/mcp/${workspaceId}`],
+      ['authorization_servers', [origin]],
+      ['bearer_methods_supported', ['header']],
       /*
        * No `offline_access`: the MCP spec says a protected resource SHOULD NOT
        * advertise it. Refresh-token support is advertised where it belongs, in
        * the authorization server's `grant_types_supported` below.
        */
-      scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
-    },
+      ['scopes_supported', [...OAUTH_SCOPES_SUPPORTED]],
+    ]),
     HTTP_OK,
     PUBLIC_HEADERS,
   )
@@ -95,12 +96,12 @@ oauthMetadataRouter.get('/oauth-authorization-server', (httpContext) => {
   const origin = originOf(httpContext)
 
   return httpContext.json(
-    {
-      issuer: origin,
-      authorization_endpoint: `${origin}${AUTHORIZE_ENDPOINT}`,
-      token_endpoint: `${origin}${TOKEN_ENDPOINT}`,
+    fieldsInOrder([
+      ['issuer', origin],
+      ['authorization_endpoint', `${origin}${AUTHORIZE_ENDPOINT}`],
+      ['token_endpoint', `${origin}${TOKEN_ENDPOINT}`],
       // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-      registration_endpoint: `${origin}${REGISTRATION_ENDPOINT}`,
+      ['registration_endpoint', `${origin}${REGISTRATION_ENDPOINT}`],
       /*
        * Same URL as the token endpoint, not a separate /oauth/revoke: the
        * provider answers RFC 7009 revocation on the token endpoint itself.
@@ -108,29 +109,29 @@ oauthMetadataRouter.get('/oauth-authorization-server', (httpContext) => {
        * SPA fallback, which answers 200 — and a client reading that as success
        * would report a token revoked that is still live.
        */
-      revocation_endpoint: `${origin}${TOKEN_ENDPOINT}`,
-      response_types_supported: ['code'],
-      response_modes_supported: ['query'],
-      grant_types_supported: ['authorization_code', 'refresh_token'],
+      ['revocation_endpoint', `${origin}${TOKEN_ENDPOINT}`],
+      ['response_types_supported', ['code']],
+      ['response_modes_supported', ['query']],
+      ['grant_types_supported', ['authorization_code', 'refresh_token']],
       // OAuth 2.1: PKCE is mandatory and `plain` is not offered.
-      code_challenge_methods_supported: ['S256'],
+      ['code_challenge_methods_supported', ['S256']],
       /*
        * The two CIMD gating flags. Claude selects Client ID Metadata Documents
        * only when `client_id_metadata_document_supported` is true AND "none"
        * appears in `token_endpoint_auth_methods_supported`. Missing either one
        * and it silently falls back to hunting for a `registration_endpoint`.
        */
-      token_endpoint_auth_methods_supported: ['none'],
-      client_id_metadata_document_supported: true,
-      revocation_endpoint_auth_methods_supported: ['none'],
+      ['token_endpoint_auth_methods_supported', ['none']],
+      ['client_id_metadata_document_supported', true],
+      ['revocation_endpoint_auth_methods_supported', ['none']],
       /*
        * RFC 9207. Advertised because PROJ-656 emits `iss` on authorization
        * responses; a client may reject an `iss` it was not told to expect.
        */
-      authorization_response_iss_parameter_supported: true,
-      scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
+      ['authorization_response_iss_parameter_supported', true],
+      ['scopes_supported', [...OAUTH_SCOPES_SUPPORTED]],
       // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-    },
+    ]),
     HTTP_OK,
     PUBLIC_HEADERS,
   )

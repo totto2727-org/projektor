@@ -289,11 +289,14 @@ export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknow
 
   const row = await orm.select().from(schema.issueLeases).where(eq(schema.issueLeases.id, id)).get()
 
-  await broadcastWorkspaceEvent(ctx, {
-    type: 'lease.claimed',
-    projectId,
-    data: { issueId, agentId, id },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', 'lease.claimed'],
+      ['projectId', projectId],
+      ['data', { issueId, agentId, id }],
+    ]),
+  )
 
   // Row was just inserted; SELECT immediately after guarantees it exists
   return row!

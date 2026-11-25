@@ -2,6 +2,7 @@ import { Effect, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
 import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { SearchResultsSchema, WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import {
@@ -39,7 +40,14 @@ export const webRead = function webRead<A, E>(
   projectId?: string,
 ): Effect.Effect<A, unknown> {
   return Effect.gen(function* () {
-    const base = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: projectId ?? '' })
+    const base = yield* loadBrowserScope(
+      env,
+      request,
+      fieldsInOrder([
+        ['workspaceHint', ''],
+        ['projectHint', projectId ?? ''],
+      ]),
+    )
     const workspace = yield* Effect.try({ catch: publicWebFailure, try: () => requireDataWorkspace(base, workspaceId) })
     const scope: RequestScope = { ...base, selection: { kind: 'workspace', workspace } }
     return yield* operation(scope).pipe(Effect.provideService(CoreReadServices, { db: env.DB }))

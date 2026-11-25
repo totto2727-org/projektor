@@ -9,6 +9,7 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { ValidationError } from '#contracts/errors.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import { SetAttachmentReviewStatusSchema } from '#contracts/inputs/files.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { HonoEnv } from '#types'
 
 export const filesRouter = new Hono<HonoEnv>()
@@ -43,10 +44,13 @@ filesRouter.post('/', async (httpContext) => {
     httpContext.req.raw.body,
     httpContext.req.header('Content-Type'),
   )
-  return new Response(response.body, {
-    status: response.ok ? HTTP_CREATED : response.status,
-    headers: response.headers,
-  })
+  return new Response(
+    response.body,
+    fieldsInOrder([
+      ['status', response.ok ? HTTP_CREATED : response.status],
+      ['headers', response.headers],
+    ]),
+  )
 })
 filesRouter.patch('/:id/review-status', async (httpContext) => {
   try {

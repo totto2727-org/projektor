@@ -37,11 +37,15 @@ export const WikiDiffSchema = Schema.Struct({ diff: Schema.String })
 
 const importScope = function importScope(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
-    const scope = yield* loadBrowserScope(env, proof.request, {
-      workspaceHint: proof.workspaceSlug,
-      projectHint: proof.projectId ?? '',
-      requireWorkspace: true,
-    })
+    const scope = yield* loadBrowserScope(
+      env,
+      proof.request,
+      fieldsInOrder([
+        ['workspaceHint', proof.workspaceSlug],
+        ['projectHint', proof.projectId ?? ''],
+        ['requireWorkspace', true],
+      ]),
+    )
     yield* checked(() => requireDataWorkspace(scope))
     return scope
   })

@@ -41,11 +41,15 @@ const readContext = function readContext(env: CoreEnvironment, proof: BrowserCom
     const input = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(proof).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
     )
-    const scope = yield* loadBrowserScope(env, input.request, {
-      workspaceHint: input.workspaceSlug,
-      projectHint: '',
-      requireWorkspace: true,
-    })
+    const scope = yield* loadBrowserScope(
+      env,
+      input.request,
+      fieldsInOrder([
+        ['workspaceHint', input.workspaceSlug],
+        ['projectHint', ''],
+        ['requireWorkspace', true],
+      ]),
+    )
     const workspace = yield* checked(() => requireDataWorkspace(scope))
     const { auth } = scope
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {

@@ -81,11 +81,14 @@ export const addComment = async function addComment(ctx: ServiceCtx, input: unkn
 
   await buildAddCommentInsertStatement(ctx, orm, { body, id, issueId, now }).run()
 
-  await broadcastWorkspaceEvent(ctx, {
-    type: 'comment.created',
-    projectId,
-    data: { id, issueId, authorId: ctx.userId },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', 'comment.created'],
+      ['projectId', projectId],
+      ['data', { id, issueId, authorId: ctx.userId }],
+    ]),
+  )
 
   return { id }
 }
@@ -156,11 +159,14 @@ export const updateComment = async function updateComment(ctx: ServiceCtx, input
     .set({ body, updatedAt: currentEpochSeconds() })
     .where(eq(schema.issueComments.id, commentId))
 
-  await broadcastWorkspaceEvent(ctx, {
-    type: 'comment.updated',
-    projectId,
-    data: { id: commentId, issueId },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', 'comment.updated'],
+      ['projectId', projectId],
+      ['data', { id: commentId, issueId }],
+    ]),
+  )
 
   return { ok: true }
 }
@@ -197,11 +203,14 @@ export const deleteComment = async function deleteComment(ctx: ServiceCtx, input
 
   await orm.delete(schema.issueComments).where(eq(schema.issueComments.id, commentId))
 
-  await broadcastWorkspaceEvent(ctx, {
-    type: 'comment.deleted',
-    projectId,
-    data: { id: commentId, issueId },
-  })
+  await broadcastWorkspaceEvent(
+    ctx,
+    fieldsInOrder([
+      ['type', 'comment.deleted'],
+      ['projectId', projectId],
+      ['data', { id: commentId, issueId }],
+    ]),
+  )
 
   return { ok: true }
 }

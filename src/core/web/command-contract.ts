@@ -1,12 +1,16 @@
 import { Schema } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { WebRequestSchema } from './scope.ts'
 
-export const BrowserCommandSchema = Schema.Struct({
-  request: WebRequestSchema,
-  workspaceSlug: Schema.String,
-  projectId: Schema.optional(Schema.String),
-})
+export const BrowserCommandSchema = Schema.Struct(
+  fieldsInOrder([
+    ['request', WebRequestSchema],
+    ['workspaceSlug', Schema.String],
+    ['projectId', Schema.optional(Schema.String)],
+  ]),
+)
 export type BrowserCommand = typeof BrowserCommandSchema.Type
 export const CommandIdSchema = Schema.Struct({ id: Schema.String })
 export const CreatedLinkAttachmentSchema = Schema.Struct({ id: Schema.String, kind: Schema.Literals(['url', 'wiki']) })
