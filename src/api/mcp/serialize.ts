@@ -316,7 +316,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
 
   const build = (keptCount: number) => {
     const { next: _drop, ...rest } = page
-    const cursor = opts.cursorOf?.(keptCount - 1)
+    const cursor = opts.cursorOf?.(Number.decrement(keptCount))
     return {
       ...rest,
       items: page.items.slice(0, keptCount),
@@ -334,7 +334,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
     if (JSON.stringify(build(mid)).length <= max) {
       lo = mid
     } else {
-      hi = mid - 1
+      hi = Number.decrement(mid)
     }
   }
   /*

@@ -206,7 +206,7 @@ const resolveAncestorChain = async function resolveAncestorChain(
   const chain = [pageId]
   let cur = parentId
   let depth = 0
-  while (Predicate.isNotNullish(cur) && String.isNonEmpty(cur) && depth < WIKI_MAX_NESTING_DEPTH + 1) {
+  while (Predicate.isNotNullish(cur) && String.isNonEmpty(cur) && depth < Number.increment(WIKI_MAX_NESTING_DEPTH)) {
     chain.push(cur)
     const row = await db
       .prepare('SELECT parent_id FROM wiki_pages WHERE id = ? AND workspace_id = ?')
@@ -714,7 +714,11 @@ const matchSubtreeWatches = async function matchSubtreeWatches(
   subtreeRootIds: ReadonlySet<string>,
   matched: Set<string>,
 ): Promise<void> {
-  for (let depth = 0; depth < WIKI_MAX_NESTING_DEPTH + 1 && pending.size > 0; depth = Number.increment(depth)) {
+  for (
+    let depth = 0;
+    depth < Number.increment(WIKI_MAX_NESTING_DEPTH) && pending.size > 0;
+    depth = Number.increment(depth)
+  ) {
     const frontier = [...new Set(pending.values())]
     const rows = await inChunks(frontier, (chunk) =>
       orm
@@ -778,7 +782,7 @@ const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends {
   if (rows.length !== limit || Array.isReadonlyArrayEmpty(rows)) {
     return rows
   }
-  const maxTs = rows[rows.length - 1].createdAt
+  const maxTs = rows[Number.decrement(rows.length)].createdAt
   if (rows[0].createdAt === maxTs) {
     return rows
   }

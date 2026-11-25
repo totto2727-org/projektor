@@ -303,7 +303,7 @@ const getSubtreeHeight = async function getSubtreeHeight(
 			)
 			SELECT MAX(depth) AS maxDepth FROM subtree`,
     )
-    .bind(pageId, workspaceId, WIKI_MAX_NESTING_DEPTH + 1)
+    .bind(pageId, workspaceId, Number.increment(WIKI_MAX_NESTING_DEPTH))
     .first<{ maxDepth: number | null }>()
   return row?.maxDepth ?? 0
 }
@@ -346,7 +346,7 @@ const validateParentDepth = async function validateParentDepth(
     }
     cur = pid
     parentDepth = Number.increment(parentDepth)
-    if (parentDepth >= WIKI_MAX_NESTING_DEPTH - 1) {
+    if (parentDepth >= Number.decrement(WIKI_MAX_NESTING_DEPTH)) {
       throw new ValidationError(
         validationIssues([`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`], {}),
       )
@@ -358,7 +358,7 @@ const validateParentDepth = async function validateParentDepth(
     Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId)
       ? await getSubtreeHeight(db, forbidPageId, workspaceId)
       : 0
-  if (parentDepth + 1 + subtreeHeight > WIKI_MAX_NESTING_DEPTH - 1) {
+  if (Number.increment(parentDepth) + subtreeHeight > Number.decrement(WIKI_MAX_NESTING_DEPTH)) {
     throw new ValidationError(validationIssues([`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`], {}))
   }
 }
@@ -1620,7 +1620,7 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
     heading: heading.heading,
     level: heading.level,
     startLine: heading.startLine,
-    endLine: index + 1 < headings.length ? headings[index + 1].startLine : lines.length,
+    endLine: Number.increment(index) < headings.length ? headings[Number.increment(index)].startLine : lines.length,
   }))
 }
 
@@ -1635,7 +1635,7 @@ const extractSectionText = function extractSectionText(content: string, section:
 
 const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (Array.isArrayNonEmpty(out) && String.isEmpty(out[out.length - 1].trim())) {
+  while (Array.isArrayNonEmpty(out) && String.isEmpty(out[Number.decrement(out.length)].trim())) {
     out.pop()
   }
   return out
@@ -1677,7 +1677,7 @@ const applySectionOp = function applySectionOp(
   const lines = content.split('\n')
   const before = lines.slice(0, section.startLine)
   const headingLine = lines[section.startLine]
-  const bodyLines = lines.slice(section.startLine + 1, section.endLine)
+  const bodyLines = lines.slice(Number.increment(section.startLine), section.endLine)
   const afterLines = lines.slice(section.endLine)
 
   let newBodyLines: string[]
@@ -1840,7 +1840,7 @@ export const patchWikiPage = async function patchWikiPage(
       if (!(caughtError instanceof StaleWikiWriteError)) {
         throw caughtError
       }
-      if (!retryable || attempt + 1 >= PATCH_RETRIES) {
+      if (!retryable || Number.increment(attempt) >= PATCH_RETRIES) {
         throw await staleConflict(ctx, page.id)
       }
     }
@@ -2679,7 +2679,7 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
       ),
     )
     .orderBy(asc(schema.wikiPages.deletedAt))
-    .limit(limit + 1)
+    .limit(Number.increment(limit))
   const moreExpired = expiredPlusOne.length > limit
   const expired = moreExpired ? expiredPlusOne.slice(0, limit) : expiredPlusOne
   const ids = expired.map((expiredPage) => expiredPage.id)

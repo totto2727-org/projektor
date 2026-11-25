@@ -78,12 +78,12 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
     .replaceAll('**', '')
     .replaceAll('`', '')
   const sepIdx = inline.search(/[:—–]/u)
-  const afterColon = sepIdx === -1 ? '' : inline.slice(sepIdx + 1).trim()
+  const afterColon = sepIdx === -1 ? '' : inline.slice(Number.increment(sepIdx)).trim()
   if (String.isNonEmpty(afterColon)) {
     return true
   }
 
-  for (let index = idx + 1; index < lines.length; index = Number.increment(index)) {
+  for (let index = Number.increment(idx); index < lines.length; index = Number.increment(index)) {
     const line = lines[index].trim()
     if (String.isEmpty(line)) {
       continue

@@ -412,15 +412,15 @@ interface DiffOp {
 const buildLcsTable = function buildLcsTable(oldLines: Readonly<string[]>, newLines: Readonly<string[]>): number[][] {
   const oldCount = oldLines.length
   const newCount = newLines.length
-  const dp: number[][] = globalThis.Array.from({ length: oldCount + 1 }, () =>
-    globalThis.Array.from({ length: newCount + 1 }, () => 0),
+  const dp: number[][] = globalThis.Array.from({ length: Number.increment(oldCount) }, () =>
+    globalThis.Array.from({ length: Number.increment(newCount) }, () => 0),
   )
-  for (let index = oldCount - 1; index >= 0; index = Number.decrement(index)) {
-    for (let newIndex = newCount - 1; newIndex >= 0; newIndex = Number.decrement(newIndex)) {
+  for (let index = Number.decrement(oldCount); index >= 0; index = Number.decrement(index)) {
+    for (let newIndex = Number.decrement(newCount); newIndex >= 0; newIndex = Number.decrement(newIndex)) {
       dp[index][newIndex] =
         oldLines[index] === newLines[newIndex]
-          ? dp[index + 1][newIndex + 1] + 1
-          : Math.max(dp[index + 1][newIndex], dp[index][newIndex + 1])
+          ? dp[Number.increment(index)][Number.increment(newIndex)] + 1
+          : Math.max(dp[Number.increment(index)][newIndex], dp[index][Number.increment(newIndex)])
     }
   }
   return dp
@@ -441,7 +441,7 @@ const traceLcsDiffOps = function traceLcsDiffOps(
       ops.push({ type: 'equal', line: oldLines[oldIndex] })
       oldIndex = Number.increment(oldIndex)
       newIndex = Number.increment(newIndex)
-    } else if (dp[oldIndex + 1][newIndex] >= dp[oldIndex][newIndex + 1]) {
+    } else if (dp[Number.increment(oldIndex)][newIndex] >= dp[oldIndex][Number.increment(newIndex)]) {
       ops.push({ type: 'remove', line: oldLines[oldIndex] })
       oldIndex = Number.increment(oldIndex)
     } else {
@@ -501,8 +501,8 @@ export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, c
   const hunks: string[] = []
   Iterable.forEach(groups, ([gStart, gEnd]) => {
     const sliceStart = Math.max(0, gStart - CONTEXT)
-    const sliceEnd = Math.min(ops.length - 1, gEnd + CONTEXT)
-    const slice = ops.slice(sliceStart, sliceEnd + 1)
+    const sliceEnd = Math.min(Number.decrement(ops.length), gEnd + CONTEXT)
+    const slice = ops.slice(sliceStart, Number.increment(sliceEnd))
     let oldStart = 1
     let newStart = 1
     for (let index = 0; index < sliceStart; index = Number.increment(index)) {

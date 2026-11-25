@@ -608,7 +608,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
     await ctx.db.batch(statements)
   }
 
-  const last = pages[pages.length - 1]
+  const last = pages[Number.decrement(pages.length)]
   // A short page (fewer rows than requested) means we've reached the end of the scope.
   const nextCursor = pages.length < pageBudget ? null : { updatedAt: last.updatedAt, id: last.id }
   return { processed: pages.length, nextCursor, pagesProcessed: pages.length }
