@@ -52,6 +52,48 @@ export function SelectTrigger({
 }
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SelectScrollUpButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollUpArrow>): React.JSX.Element {
+  return (
+    <SelectPrimitive.ScrollUpArrow
+      data-slot='select-scroll-up-button'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Select ScrollUpArrow applies these classes to its own rendered element.
+      className={cn(
+        "top-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI ScrollUpArrow.
+      {...props}
+    >
+      <ChevronUpIcon />
+    </SelectPrimitive.ScrollUpArrow>
+  )
+}
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SelectScrollDownButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollDownArrow>): React.JSX.Element {
+  return (
+    <SelectPrimitive.ScrollDownArrow
+      data-slot='select-scroll-down-button'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Select ScrollDownArrow applies these classes to its own rendered element.
+      className={cn(
+        "bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI ScrollDownArrow.
+      {...props}
+    >
+      <ChevronDownIcon />
+    </SelectPrimitive.ScrollDownArrow>
+  )
+}
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectContent({
   className,
   children,
@@ -146,47 +188,5 @@ export function SelectSeparator({ className, ...props }: SelectPrimitive.Separat
       // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Separator.
       {...props}
     />
-  )
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-export function SelectScrollUpButton({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollUpArrow>): React.JSX.Element {
-  return (
-    <SelectPrimitive.ScrollUpArrow
-      data-slot='select-scroll-up-button'
-      // oxlint-disable-next-line react/forbid-component-props -- Base UI Select ScrollUpArrow applies these classes to its own rendered element.
-      className={cn(
-        "top-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
-        className,
-      )}
-      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI ScrollUpArrow.
-      {...props}
-    >
-      <ChevronUpIcon />
-    </SelectPrimitive.ScrollUpArrow>
-  )
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-export function SelectScrollDownButton({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollDownArrow>): React.JSX.Element {
-  return (
-    <SelectPrimitive.ScrollDownArrow
-      data-slot='select-scroll-down-button'
-      // oxlint-disable-next-line react/forbid-component-props -- Base UI Select ScrollDownArrow applies these classes to its own rendered element.
-      className={cn(
-        "bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
-        className,
-      )}
-      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI ScrollDownArrow.
-      {...props}
-    >
-      <ChevronDownIcon />
-    </SelectPrimitive.ScrollDownArrow>
   )
 }
