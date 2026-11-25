@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
+
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-319: pin the admin-bypass path through the hand-written SQL callers of
@@ -14,11 +17,11 @@ const search = async function search(
   token: string,
   slug: string,
   q: string,
-): Promise<{ status: number; body: { project_id: string }[] }> {
+): Promise<{ status: number; body: typeof ApiResults.apiSearchIssues.Type }> {
   const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
     headers: authHeaders(token, slug),
   })
-  return { status: res.status, body: (await res.json()) as { project_id: string }[] }
+  return { status: res.status, body: await readNativeJson(res, ApiResults.apiSearchIssues) }
 }
 
 /* The seedIssue() helper inserts directly into `issues`, bypassing the FTS index (which is
@@ -65,7 +68,7 @@ describe('covers PROJ-319 admin bypass pinning', () => {
       headers: authHeaders(roles.owner.token, slug),
     })
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as { leadTime: { count: number } }
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.leadTime).toBeDefined()
   })
 

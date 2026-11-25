@@ -7,8 +7,9 @@ import { authMiddleware } from '#api/middleware/auth.ts'
  * PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
  * strategy records its method + credential on the request context.
  */
+import { ApiAuthInfo } from '#contracts/api-auth.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
-import type { AuthInfo, HonoEnv } from '#types'
+import type { HonoEnv } from '#types'
 
 import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
@@ -61,14 +62,14 @@ describe('covers PROJ-889: auth middleware records method + credential', () => {
   app.use('*', authMiddleware)
   app.get('/whoami', (httpContext) => httpContext.json(httpContext.get('auth')))
 
-  const whoami = async function whoami(headers: Record<string, string> = {}): Promise<AuthInfo> {
+  const whoami = async function whoami(headers: Record<string, string> = {}): Promise<typeof ApiAuthInfo.Type> {
     const res = await app.request('/whoami', { headers }, env, {
       waitUntil: () => {},
       passThroughOnException: () => {},
       props: {},
     } as unknown as ExecutionContext)
     expect(res.status).toBe(200)
-    return (await res.json()) as AuthInfo
+    return readNativeJson(res, ApiAuthInfo)
   }
 
   const prevDev = env.DEV_USER_EMAIL

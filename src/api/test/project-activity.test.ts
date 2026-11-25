@@ -1,6 +1,7 @@
 import { Iterable, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { runIndexedInOrder } from '#tests/run-effect.ts'
@@ -473,7 +474,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
       headers,
     })
     expect(res.status).toBe(200)
-    const events = (await res.json()) as { type: string; summary: string }[]
+    const events = await readNativeJson(res, ApiResults.apiListProjectActivity)
     const created = events.filter((selectedEvent) => selectedEvent.type === 'issue_created')
     expect(created).toHaveLength(1)
     expect(created[0].summary).toBe('REST activity issue')

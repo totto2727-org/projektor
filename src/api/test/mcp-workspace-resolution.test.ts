@@ -1,8 +1,9 @@
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedMember, seedToken } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { ErrorMessageResponse, readNativeJson } from './response-json.ts'
+import { ErrorMessageResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-348: the MCP endpoint (POST /mcp/<workspaceId>) must resolve its workspace
@@ -34,7 +35,8 @@ describe('covers MCP workspace resolution without X-Workspace-Slug (PROJ-348)', 
     const fixture = await seedFixture()
     const res = await mcpRequest(fixture.workspace.id, fixture.token)
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { result?: { tools: unknown[] } }
+    const rpcTools = Schema.Struct({ result: Schema.optional(Schema.Struct({ tools: JsonListResponse })) })
+    const body = await readNativeJson(res, rpcTools)
     expect(Array.isArray(body.result?.tools)).toBe(true)
   })
 

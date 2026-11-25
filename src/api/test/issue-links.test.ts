@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -46,11 +47,11 @@ describe('issue Links API', () => {
 
   const listLinks = async function listLinks(
     issueId: string,
-  ): Promise<{ res: Response; links: Record<string, unknown>[] }> {
+  ): Promise<{ res: Response; links: typeof ApiResults.apiListLinksForIssue.Type }> {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/links`, {
       headers: authHeaders(token, slug),
     })
-    return { res, links: (await res.json()) as Record<string, unknown>[] }
+    return { res, links: await readNativeJson(res, ApiResults.apiListLinksForIssue) }
   }
 
   test('creates a blocks link and lists it from both sides', async () => {

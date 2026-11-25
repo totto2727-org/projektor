@@ -2,6 +2,7 @@ import { Schema, Iterable } from 'effect'
 import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { issuesTools } from '#api/mcp/issues.ts'
+import { ApiResults } from '#contracts/api-results.ts'
 import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
@@ -85,11 +86,7 @@ interface IssueProjectFixture {
 }
 
 describe('issues API', () => {
-  type IssuesPage = {
-    items: Record<string, unknown>[]
-    nextCursor: number | null
-    total: number
-  }
+  type IssuesPage = typeof ApiResults.apiListIssues.Type
 
   const seedScenarioFixture = async function seedScenarioFixture(): Promise<
     IssueProjectFixture & {
@@ -103,7 +100,7 @@ describe('issues API', () => {
 
     const listIssues = async function listIssues(url = 'http://localhost/api/issues') {
       const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
-      return { res, page: (await res.json()) as IssuesPage }
+      return { res, page: await readNativeJson(res, ApiResults.apiListIssues) }
     }
 
     /*

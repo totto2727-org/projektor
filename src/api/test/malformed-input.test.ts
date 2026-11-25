@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import { authHeaders, seedIssueFixture, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { McpRpcResponse, readNativeJson } from './response-json.ts'
 
 let f: Awaited<ReturnType<typeof seedIssueFixture>>
 let unhandled: ReturnType<typeof vi.spyOn>
@@ -57,8 +58,10 @@ describe('covers MCP: parse and envelope errors', () => {
       method: 'POST',
     })
   }
-  const errorCode = async (res: Response): Promise<undefined | number> =>
-    ((await res.json()) as { error?: { code: number } }).error?.code
+  const errorCode = async function errorCode(res: Response): Promise<undefined | number> {
+    const rpc = await readNativeJson(res, McpRpcResponse)
+    return rpc.error?.code
+  }
 
   test('invalid JSON → -32700', async () => {
     const res = await mcp('{bad')

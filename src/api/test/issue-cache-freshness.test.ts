@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 
 import { getIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { ApiResults } from '#contracts/api-results.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers.ts'
@@ -12,18 +13,6 @@ import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
  */
 import { IdResponse, readNativeJson } from './response-json.ts'
 
-interface IssueBody {
-  project_key: string
-  status_name: string | null
-  sprint_id: string | null
-  url: string
-  links: {
-    linkedIssueId: string
-    linkedIssueTitle: string
-    linkedIssueStatusCategory: string
-  }[]
-}
-
 let f: Awaited<ReturnType<typeof seedIssueFixture>>
 let otherId: string
 
@@ -32,8 +21,10 @@ const call = (method: string, path: string, body?: unknown): Promise<Response> =
     `http://localhost${path}`,
     requestOptionsWithBody(method, authHeaders(f.token, f.slug), body === undefined ? undefined : JSON.stringify(body)),
   )
-const get = async (id: string): Promise<IssueBody> =>
-  (await (await call('GET', `/api/issues/${id}`)).json()) as IssueBody
+const get = async function get(id: string): Promise<typeof ApiResults.apiGetIssue.Type> {
+  const response = await call('GET', `/api/issues/${id}`)
+  return readNativeJson(response, ApiResults.apiGetIssue)
+}
 
 // These tests make more calls per token than vite.config.ts's RATE_LIMIT_API_MAX.
 const prevApiMax = env.RATE_LIMIT_API_MAX

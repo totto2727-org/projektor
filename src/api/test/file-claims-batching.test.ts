@@ -12,6 +12,7 @@ import type { ServiceCtx } from '#commands/types.ts'
  * Query budgets cover shared domain work, not private Core authentication overhead.
  * Conflict/force/stale semantics remain asserted at 100-path scale.
  */
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 
@@ -149,11 +150,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       })
 
       expect(res.status).toBe(201)
-      const body = (await res.json()) as {
-        created: { path: string }[]
-        overridden: { path: string }[]
-        reclaimed: { path: string }[]
-      }
+      const body = await readNativeJson(res, ApiResults.apiClaimFiles)
       expect(body.created).toHaveLength(100)
       expect(body.overridden).toHaveLength(10)
       expect(body.reclaimed).toHaveLength(5)
