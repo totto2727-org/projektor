@@ -7,6 +7,7 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -512,13 +513,13 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/search supports limit/offset pagination', async () => {
-    for (let index = 0; index < 3; index += 1) {
+    await runIndexedInOrder(3, async (index): Promise<void> => {
       await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({ content: 'shared-search-term', title: `Paginated Page ${index}` }),
         headers: authHeaders(token, slug),
         method: 'POST',
       })
-    }
+    })
     const page1 = await fetchNativeApi('http://localhost/api/wiki/search?q=shared-search-term&limit=2', {
       headers: authHeaders(token, slug),
     })
@@ -542,7 +543,8 @@ describe('wiki API', () => {
      * slug-collision 409s; the rate_limit reset avoids tripping the 5-req/window cap
      * (RATE_LIMIT_API_MAX) across the create + fetch calls below.
      */
-    for (let index = 0; index < 3; index += 1) {
+    expect.hasAssertions()
+    await runIndexedInOrder(3, async (index): Promise<void> => {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
           content: 'tie-rank-search-term',
@@ -552,7 +554,7 @@ describe('wiki API', () => {
         method: 'POST',
       })
       expect(createRes.status).toBe(201)
-    }
+    })
     await resetRateLimits()
 
     const fetchAll = async (): Promise<{ id: string }[]> => {
@@ -902,9 +904,10 @@ describe('wiki API', () => {
   })
 
   test('handles POST /api/wiki rejects when max nesting depth (5) is exceeded', async () => {
+    expect.hasAssertions()
     let parentId: string | null = null
     // Create 5 levels deep (root → L1 → L2 → L3 → L4 → L5)
-    for (let index = 0; index < 5; index += 1) {
+    await runIndexedInOrder(5, async (index): Promise<void> => {
       const body: Record<string, unknown> = { title: `Level ${index}`, content: '' }
       if (Predicate.isNotNullish(parentId) && String.isNonEmpty(parentId)) {
         body.parentId = parentId
@@ -917,7 +920,7 @@ describe('wiki API', () => {
       expect(res.status).toBe(201)
       const created = await readNativeJson(res, IdResponse)
       parentId = created.id
-    }
+    })
 
     // Reset rate limit so the validation check (not the limiter) fires on the 6th request.
     await resetRateLimits()
@@ -938,9 +941,10 @@ describe('wiki API', () => {
 
   test('handles PUT /api/wiki/:slug rejects a reparent whose moved SUBTREE would exceed max depth (PROJ-820)', async () => {
     // Build a 4-level chain: L0 -> L1 -> L2 -> L3 (L3 sits at depth 3).
+    expect.hasAssertions()
     let chainParentId: string | null = null
     let l3Id = ''
-    for (let index = 0; index < 4; index += 1) {
+    await runIndexedInOrder(4, async (index): Promise<void> => {
       const body: Record<string, unknown> = { title: `Chain ${index}`, content: '' }
       if (Predicate.isNotNullish(chainParentId) && String.isNonEmpty(chainParentId)) {
         body.parentId = chainParentId
@@ -954,7 +958,7 @@ describe('wiki API', () => {
       const created = await readNativeJson(res, IdResponse)
       chainParentId = created.id
       l3Id = created.id
-    }
+    })
 
     await resetRateLimits()
 

@@ -2,6 +2,7 @@ import { Schema, Iterable } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import {
   authHeaders,
@@ -814,9 +815,9 @@ describe('covers MCP endpoint', () => {
   test('get_prioritized_issues respects limit parameter', async () => {
     const { headers, projectId, workspaceId } = await seedTestData()
     const { user } = await seedFixture()
-    for (let index = 0; index < 5; index += 1) {
+    await runIndexedInOrder(5, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, user.id, { title: `Issue ${index}` })
-    }
+    })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,

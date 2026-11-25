@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochMilliseconds } from '#contracts/time.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -187,12 +188,13 @@ describe('discovery endpoints are rate-limited', () => {
      * exceed it. Without the /.well-known/* limiter mount these would all be 200:
      * rateLimitMiddleware was previously mounted on /api/* and /mcp/* only.
      */
+    expect.hasAssertions()
     env.RATE_LIMIT_TEST_NOW_MS = String(currentEpochMilliseconds())
     const ip = { 'CF-Connecting-IP': '203.0.113.7' }
-    for (let index = 0; index < 3; index += 1) {
+    await runIndexedInOrder(3, async (): Promise<void> => {
       const response = await fetchNativeApi(AS_URL, { headers: ip })
       expect(response.status).toBe(200)
-    }
+    })
     const apiResponse = await fetchNativeApi(AS_URL, { headers: ip })
     expect(apiResponse.status).toBe(429)
     env.RATE_LIMIT_TEST_NOW_MS = undefined

@@ -5,6 +5,7 @@ import { relyingPartyHost } from '#commands/oauth.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { purgeExpiredOAuthData } from '#core/api/maintenance.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 import type { Env } from '#types'
 
 import { env, resetCoreAuthCaches } from './fixture-api.ts'
@@ -314,10 +315,11 @@ describe('dynamic client registration', () => {
   })
 
   test('rate limits anonymous registrations independently of token requests', async () => {
-    for (let index = 0; index < 3; index += 1) {
+    expect.hasAssertions()
+    await runIndexedInOrder(3, async (): Promise<void> => {
       const result = await registerClient()
       expect(result.status).toBe(201)
-    }
+    })
     const resolvedValue = await registerClient()
     expect(resolvedValue.status).toBe(429)
     const response = await exchange({ grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }, clientIp)
@@ -942,12 +944,13 @@ describe('the token endpoint is rate-limited', () => {
      * vite.config.ts sets RATE_LIMIT_AUTH_MAX=3 and setup.ts clears the counter
      * before each test, so the 4th request here is the first over the line.
      */
+    expect.hasAssertions()
     const ip = '192.0.2.44'
     const body = { grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }
-    for (let index = 0; index < 3; index += 1) {
+    await runIndexedInOrder(3, async (): Promise<void> => {
       const exchangeResponse = await exchange(body, ip)
       expect(exchangeResponse.status).not.toBe(429)
-    }
+    })
     await expect(exchange(body, ip)).resolves.toHaveProperty('status', 429)
   })
 })
@@ -1000,6 +1003,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
   const API_LIMIT = 5
 
   test("survives a token rotation, and does not spill onto the user's other grants", async () => {
+    expect.hasAssertions()
     const workspace = await seedWorkspace()
     const email = `limited-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -1007,9 +1011,9 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
 
     env.RATE_LIMIT_TEST_NOW_MS = String(currentEpochMilliseconds())
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
-    for (let index = 0; index < API_LIMIT; index += 1) {
+    await runIndexedInOrder(API_LIMIT, async (): Promise<void> => {
       await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
-    }
+    })
 
     const refreshed = await exchange({
       grant_type: 'refresh_token',

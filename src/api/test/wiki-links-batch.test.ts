@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
  * not 1–3 per link, and produces the same wiki_links rows as before.
  */
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
@@ -34,14 +35,14 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
 
     // 80 pages linked by their current slug.
     const direct: string[] = []
-    for (let index = 0; index < 80; index += 1) {
+    await runIndexedInOrder(80, async (index): Promise<void> => {
       const id = crypto.randomUUID()
       direct.push(id)
       await insertPage(id, `direct-${index}`, `Direct ${index}`)
-    }
+    })
     // 40 pages linked by an old slug (redirect) — 5 of them trashed, so unresolved.
     const redirected: string[] = []
-    for (let index = 0; index < 40; index += 1) {
+    await runIndexedInOrder(40, async (index): Promise<void> => {
       const id = crypto.randomUUID()
       redirected.push(id)
       await insertPage(id, `renamed-${index}`, `Renamed ${index}`, index < 5 ? now : null)
@@ -50,7 +51,7 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
       )
         .bind(crypto.randomUUID(), workspace.id, `old-${index}`, id, now)
         .run()
-    }
+    })
 
     const links = [
       ...Array.from({ length: 80 }, (_value, index) => `[d${index}](/wiki/direct-${index})`),

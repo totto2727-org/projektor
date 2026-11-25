@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
@@ -89,13 +90,13 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
 
   test('bounds D1 calls for 200 pages regardless of page count', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
-    for (let index = 0; index < 200; index += 1) {
+    await runIndexedInOrder(200, async (index): Promise<void> => {
       await insertPage(workspace.id, user.id, {
         slug: `page-${index}`,
         title: `Page ${index}`,
         content: index > 0 ? `[[Page ${index - 1}]]` : '',
       })
-    }
+    })
 
     const selects: string[] = []
     const origPrepare = env.DB.prepare.bind(env.DB)
@@ -129,7 +130,7 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const now = currentEpochSeconds()
     const ids: string[] = []
-    for (let index = 0; index < 10; index += 1) {
+    await runIndexedInOrder(10, async (index): Promise<void> => {
       ids.push(
         await insertPage(workspace.id, user.id, {
           slug: `p${index}`,
@@ -137,7 +138,7 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
           updatedAt: now + index,
         }),
       )
-    }
+    })
 
     const first = await backfill(token, workspace.slug, { pageBudget: 4 })
     expect(first.processed).toBe(4)

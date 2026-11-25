@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 import { LIMITER_TIMEOUT_MS } from '#api/middleware/rate-limit.ts'
 import { currentEpochMilliseconds } from '#contracts/time.ts'
 import { bumpRateCounter } from '#services/request-rate-limit.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 import type { Env } from '#types'
 
 import { configureCore, env, getCoreLimiterCalls } from './fixture-api.ts'
@@ -225,13 +226,14 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
   }
 
   test('handles GET requests write nothing to D1', async () => {
+    expect.hasAssertions()
     const fixture = await seedFixture()
-    for (let index = 0; index < 3; index += 1) {
+    await runIndexedInOrder(3, async (): Promise<void> => {
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       expect(res.status).toBe(200)
-    }
+    })
     // IP-keyed, unauthenticated
     await fetchNativeApi(ENDPOINT)
     await expect(rateLimitRows()).resolves.toBe(0)

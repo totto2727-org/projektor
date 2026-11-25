@@ -8,7 +8,7 @@ import { listLinksForIssue } from '#services/issue-links.ts'
 import * as queries from '#services/issues.ts'
 import { listTaskStatuses } from '#services/task-statuses.ts'
 import { listTaskTypes } from '#services/task-types.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runIndexedInOrder, runTestEffect } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -70,12 +70,12 @@ describe('shared issue queries over the API D1 pool', () => {
   })
 
   test('keeps cursor tie-breaking, first-page totals, optional body/rollups and assignee metadata', async () => {
-    for (let index = 0; index < 3; index += 1) {
+    await runIndexedInOrder(3, async (): Promise<void> => {
       await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
         createdAt: 100,
         assigneeId: fixture.userId,
       })
-    }
+    })
     const page = await runTestEffect(
       queries.listIssues(env.DB, fixture.workspaceId, { limit: 2, includeRollups: true }),
     )

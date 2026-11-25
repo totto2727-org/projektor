@@ -2,6 +2,7 @@ import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -141,16 +142,17 @@ describe('share tokens', () => {
   })
 
   test('handles GET /api/share/:token is reusable — multiple requests all return 200', async () => {
+    expect.hasAssertions()
     const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
     const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
-    for (let index = 0; index < 3; index += 1) {
+    await runIndexedInOrder(3, async (): Promise<void> => {
       const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
       expect(res.status).toBe(200)
-    }
+    })
   })
 
   test('covers PROJ-240: viewer role cannot create a share link', async () => {

@@ -4,6 +4,7 @@ import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 import { batchLoadCustomFields } from '#commands/custom-fields.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -647,11 +648,11 @@ describe('covers PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
     // > CHUNK_SIZE (90), so ids span two queries
     const COUNT = 95
     const issueIds: string[] = []
-    for (let index = 0; index < COUNT; index += 1) {
+    await runIndexedInOrder(COUNT, async (index): Promise<void> => {
       const issue = await seedIssue(ws.workspace.id, proj.id, ws.user.id)
       await seedCustomFieldValue(issue.id, def.id, String(index))
       issueIds.push(issue.id)
-    }
+    })
 
     const loaded = await batchLoadCustomFields(env.DB, ws.workspace.id, issueIds)
 

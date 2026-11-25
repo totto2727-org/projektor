@@ -7,6 +7,7 @@ import {
   purgeExpiredRetentionData,
   runFtsDedupeOnce,
 } from '#core/api/maintenance.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 import type { Env } from '#types'
 
 import { env } from './fixture-api.ts'
@@ -286,14 +287,14 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   test('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
     const creator = await seedUser(`cron-purge-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const workspaceIds: string[] = []
-    for (let index = 0; index < 50; index += 1) {
+    await runIndexedInOrder(50, async (index): Promise<void> => {
       const ws = await seedWorkspace(`cron-purge-ws-${index}-${crypto.randomUUID().slice(0, 6)}`)
       workspaceIds.push(ws.id)
-    }
+    })
 
     const pageIds: string[] = []
     const workspaceIdByPageId = new Map<string, string>()
-    for (let index = 0; index < 300; index += 1) {
+    await runIndexedInOrder(300, async (index): Promise<void> => {
       const workspaceId = workspaceIds[index % workspaceIds.length]
       const id = crypto.randomUUID()
       workspaceIdByPageId.set(id, workspaceId)
@@ -318,9 +319,9 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         )
         .run()
       pageIds.push(id)
-    }
+    })
 
-    for (let index = 0; index < 100; index += 1) {
+    await runIndexedInOrder(100, async (index): Promise<void> => {
       // Spread across ~1/3 of the pages
       const pageId = pageIds[index * 3]
       const workspaceId = workspaceIdByPageId.get(pageId)
@@ -343,7 +344,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
           EXPIRED_AT,
         )
         .run()
-    }
+    })
 
     /*
      * Run the real cron function repeatedly (as separate scheduled fires would),
@@ -395,7 +396,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     const ws = await seedWorkspace(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 6)}`)
 
     const pageIds: string[] = []
-    for (let index = 0; index < 500; index += 1) {
+    await runIndexedInOrder(500, async (index): Promise<void> => {
       const id = crypto.randomUUID()
       await env.DB.prepare(
         `INSERT INTO wiki_pages
@@ -419,7 +420,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         )
         .run()
       pageIds.push(id)
-    }
+    })
 
     let iterations = 0
     let remainingPages = 500

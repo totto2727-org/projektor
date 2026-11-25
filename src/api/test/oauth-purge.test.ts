@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { providerOptions } from '#contracts/oauth-provider.ts'
 import { OAUTH_PURGE_STATE_KEY, purgeOAuthPage } from '#core/api/oauth-purge.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 
@@ -88,7 +89,7 @@ describe('official OAuth cleanup durable pagination', () => {
     try {
       await env.KV.delete(OAUTH_PURGE_STATE_KEY)
       await env.OAUTH_KV.put(keys[0], JSON.stringify({ clientId }))
-      for (let index = 0; index < 202; index += 1) {
+      await runIndexedInOrder(202, async (index): Promise<void> => {
         const id = String(index).padStart(3, '0')
         const key = `grant:${userId}:${id}`
         keys.push(key)
@@ -96,7 +97,7 @@ describe('official OAuth cleanup durable pagination', () => {
           key,
           JSON.stringify({ id, userId, clientId, ...(index === 201 ? { expiresAt: 1 } : {}) }),
         )
-      }
+      })
       await expect(purgeOAuthPage(env, provider)).resolves.toMatchObject({ grantsChecked: 200, phase: 'grants' })
       const checkpoint = await env.KV.get<{ phase: string; cursor: string }>(OAUTH_PURGE_STATE_KEY, 'json')
       expect(checkpoint).toMatchObject({ cursor: expect.any(String), phase: 'grants' })

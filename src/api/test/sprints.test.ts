@@ -2,6 +2,7 @@ import { Schema } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -293,10 +294,10 @@ describe('sprints API', () => {
       const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
       const issueIds: string[] = []
-      for (let index = 0; index < 500; index += 1) {
+      await runIndexedInOrder(500, async (index): Promise<void> => {
         const issue = await seedIssue(workspaceId, projectId, userId, { title: `Bulk ${index}` })
         issueIds.push(issue.id)
-      }
+      })
 
       /*
        * Warm the per-issue KV cache first, so the GET after the move proves sprint_id

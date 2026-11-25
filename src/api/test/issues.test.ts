@@ -6,6 +6,7 @@ import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -432,12 +433,12 @@ describe('issues API', () => {
   test('defaults to 30 rows per page when no limit is given (PROJ-201)', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const base = 1_700_000_000
-    for (let index = 0; index < 35; index += 1) {
+    await runIndexedInOrder(35, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, {
         title: `Issue ${index}`,
         createdAt: base + index,
       })
-    }
+    })
 
     // No explicit limit → the service default (30) applies, with a cursor for the rest.
     const { page: first } = await listIssues('http://localhost/api/issues')
@@ -452,12 +453,12 @@ describe('issues API', () => {
   test('reports the real total match count, not just the loaded page size (PROJ-303)', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const base = 1_700_000_000
-    for (let index = 0; index < 35; index += 1) {
+    await runIndexedInOrder(35, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, {
         title: `Issue ${index}`,
         createdAt: base + index,
       })
-    }
+    })
 
     /*
      * The first page only loads 30 rows, but `total` must reflect all 35 matches —
@@ -490,19 +491,19 @@ describe('issues API', () => {
     // Seed a second project with many newer issues so workspace-wide listing would return them first
     const newerProject = await seedProject(workspaceId, 'NEW')
     const base = currentEpochSeconds()
-    for (let index = 0; index < 55; index += 1) {
+    await runIndexedInOrder(55, async (index): Promise<void> => {
       await seedIssue(workspaceId, newerProject.id, userId, {
         title: `Newer issue ${index}`,
         createdAt: base + index + 1,
       })
-    }
+    })
     // Seed issues in projectId with older timestamps — would be cut off by workspace-wide limit=50
-    for (let index = 0; index < 10; index += 1) {
+    await runIndexedInOrder(10, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, {
         title: `Older issue ${index}`,
         createdAt: base - 1000 + index,
       })
-    }
+    })
 
     // Without projectId: only newest 50 come back — all from newerProject
     const { page: all } = await listIssues('http://localhost/api/issues?limit=50')
@@ -2168,9 +2169,9 @@ describe('get_prioritized_issues MCP tool', () => {
      * are ~100 open issues; this guards the inChunks split and that results merge across
      * chunk boundaries. (SQLite's cap is higher, so this asserts correctness, not the cap.) */
     const COUNT = 105
-    for (let index = 0; index < COUNT; index += 1) {
+    await runIndexedInOrder(COUNT, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, { title: `Open ${index}`, priority: 'medium' })
-    }
+    })
 
     const body = await callPrioritized({ includeNotReady: true, limit: 100 })
     expect(body.error).toBeUndefined()
@@ -2395,9 +2396,9 @@ describe('handles GET /api/issues/prioritized', () => {
    */
   test('limit is honoured', async () => {
     const { getPrioritized, projectId, userId, workspaceId } = await seedPrioritizedApiFixture()
-    for (let index = 0; index < 5; index += 1) {
+    await runIndexedInOrder(5, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
-    }
+    })
 
     const { res, body } = await getPrioritized({ limit: '3', includeNotReady: 'true' })
     expect(res.status).toBe(200)

@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
@@ -315,9 +316,9 @@ describe('list_project_activity MCP tool', () => {
 
   test('respects the limit parameter', async () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
-    for (let index = 0; index < 5; index += 1) {
+    await runIndexedInOrder(5, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
-    }
+    })
 
     const res = (await mcpCall<McpContent>(
       workspaceId,
@@ -474,9 +475,9 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
 
   test('respects the limit query param', async () => {
     const { headers, projectId, userId, workspaceId } = await seedTestData()
-    for (let index = 0; index < 5; index += 1) {
+    await runIndexedInOrder(5, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
-    }
+    })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity?limit=2`, {
       headers,
