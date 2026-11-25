@@ -1,5 +1,5 @@
 import { makeRpcStub } from 'alchemy/Cloudflare/Workers'
-import { Effect, Schema } from 'effect'
+import { Effect, Result, Schema, pipe } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
@@ -19,6 +19,9 @@ vi.mock(import('#contracts/oauth-provider.ts'), () => ({
     throw new Error('OAuth provider must not resolve before interactive authorization')
   },
 }))
+
+const decodeBackfill = Schema.decodeUnknownResult(ApiResults.apiBackfillWikiLinks)
+const decodeWorkflow = Schema.decodeUnknownResult(ApiResults.apiGetWorkflow)
 
 const PublicIssue = Schema.Struct({
   id: Schema.String,
@@ -124,15 +127,19 @@ describe('covers API facade reply boundary', () => {
 
   test('preserves maintenance cursor compatibility and conditional workflow variants', () => {
     const backfill = { processed: 2, pagesProcessed: 2, nextCursor: { updatedAt: 9, id: 'page' } }
-    expect(Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)(backfill)).toStrictEqual(backfill)
+    expect(decodeBackfill(backfill)).toStrictEqual(Result.succeed(backfill))
     const unchanged = { unchanged: true, version: 'current' }
-    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(unchanged)).toStrictEqual(unchanged)
+    expect(decodeWorkflow(unchanged)).toStrictEqual(Result.succeed(unchanged))
     const full = { title: 'Workflow', description: 'Rules', content: 'Do work', version: 'current' }
-    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(full)).toStrictEqual(full)
-    expect(() => Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)({ version: 'current' })).toThrow('["title"]')
-    expect(() =>
-      Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)({ ...backfill, nextCursor: { id: 'page' } }),
-    ).toThrow('["nextCursor"]["updatedAt"]')
+    expect(decodeWorkflow(full)).toStrictEqual(Result.succeed(full))
+    const missingWorkflowTitle = pipe(decodeWorkflow({ version: 'current' }), Result.flip, Result.getOrUndefined)
+    expect(missingWorkflowTitle?.message).toContain('["title"]')
+    const incompleteBackfillCursor = pipe(
+      decodeBackfill({ ...backfill, nextCursor: { id: 'page' } }),
+      Result.flip,
+      Result.getOrUndefined,
+    )
+    expect(incompleteBackfillCursor?.message).toContain('["nextCursor"]["updatedAt"]')
   })
 
   test('dispatches a concrete issue operation with the current actor and workspace only', async () => {

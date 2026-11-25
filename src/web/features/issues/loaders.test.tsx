@@ -1,4 +1,4 @@
-import { Iterable, Effect, Schema } from 'effect'
+import { Iterable, Effect, Result, Schema } from 'effect'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -24,6 +24,8 @@ import {
 } from './server.tsx'
 import { issueDataFixture } from './test/data-fixture.ts'
 import { issue, project, scope, secondProject, taskTypes, workspace } from './test/fixtures.ts'
+
+const decodeAttachment = Schema.decodeUnknownResult(AttachmentSchema)
 
 vi.mock('../../attachment-actions', () => ({
   uploadAttachment: vi.fn<typeof AttachmentActions.uploadAttachment>(),
@@ -84,9 +86,8 @@ describe('complete direct D1 issues SSR loaders', () => {
       const value = { ...attachment, reviewStatus }
       expect(Schema.is(AttachmentSchema)(value)).toBe(true)
       expect(Schema.is(ApiResults.apiGetAttachment)(value)).toBe(true)
-      expect(normalizeAttachments([Schema.decodeUnknownSync(AttachmentSchema)(value)])[0]?.reviewStatus).toBe(
-        reviewStatus,
-      )
+      const decoded = Result.getOrThrow(decodeAttachment(value))
+      expect(normalizeAttachments([decoded])[0]?.reviewStatus).toBe(reviewStatus)
     })
     const { reviewStatus: _status, ...omitted } = attachment
     expect(Schema.is(AttachmentSchema)(omitted)).toBe(false)

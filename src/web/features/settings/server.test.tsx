@@ -1,4 +1,4 @@
-import { Iterable, Effect, Schema } from 'effect'
+import { Iterable, Effect, Result, Schema, pipe } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -14,6 +14,11 @@ import { createTestDatabase } from '@/test/database.ts'
 import type * as Actions from './actions.ts'
 import { ConnectorSchema, GroupDetailSchema, McpInfoSchema, TokenSchema } from './schemas.ts'
 import { renderConnectAgent, renderConnectors, renderGroups, renderTokens } from './server.tsx'
+
+const decodeToken = Schema.decodeUnknownResult(TokenSchema)
+const decodeConnector = Schema.decodeUnknownResult(ConnectorSchema)
+const decodeGroupDetail = Schema.decodeUnknownResult(GroupDetailSchema)
+const decodeMcpInfo = Schema.decodeUnknownResult(McpInfoSchema)
 
 vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }))
 vi.mock('./actions', () => ({
@@ -269,19 +274,27 @@ describe('settings authorized direct D1 SSR', () => {
   })
 
   test('keeps concrete DTO validation for metadata, group roles and MCP config', () => {
-    expect(() => Schema.decodeUnknownSync(TokenSchema)({ ...token, scopes: ['read'] })).toThrow('["scopes"]')
-    expect(() => Schema.decodeUnknownSync(ConnectorSchema)({ ...connector, expiresAt: 'tomorrow' })).toThrow(
-      '["expiresAt"]',
+    const invalidTokenScopes = pipe(decodeToken({ ...token, scopes: ['read'] }), Result.flip, Result.getOrUndefined)
+    expect(invalidTokenScopes?.message).toContain('["scopes"]')
+    const invalidConnectorExpiry = pipe(
+      decodeConnector({ ...connector, expiresAt: 'tomorrow' }),
+      Result.flip,
+      Result.getOrUndefined,
     )
-    expect(() =>
-      Schema.decodeUnknownSync(GroupDetailSchema)({
+    expect(invalidConnectorExpiry?.message).toContain('["expiresAt"]')
+    const invalidGroupRole = pipe(
+      decodeGroupDetail({
         id: 'g1',
         name: 'Team',
         description: null,
         members: [],
         grants: [{ projectId: 'p1', projectName: 'Project', projectKey: 'PROJ', role: 'owner' }],
       }),
-    ).toThrow('["grants"][0]["role"]')
-    expect(() => Schema.decodeUnknownSync(McpInfoSchema)({ mcpUrl: 42 })).toThrow('["mcpUrl"]')
+      Result.flip,
+      Result.getOrUndefined,
+    )
+    expect(invalidGroupRole?.message).toContain('["grants"][0]["role"]')
+    const invalidMcpUrl = pipe(decodeMcpInfo({ mcpUrl: 42 }), Result.flip, Result.getOrUndefined)
+    expect(invalidMcpUrl?.message).toContain('["mcpUrl"]')
   })
 })

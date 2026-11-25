@@ -15,9 +15,10 @@ import { publicDomainFailure } from '#core/domain-errors.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
 const success = Schema.Struct({ ok: Schema.Literal(true) })
+const decodeReply = Schema.decodeUnknownResult(coreReplyCodec(success))
 const failure = async function failure(cause: unknown) {
   const encoded = await runTestEffect(coreReply('testBrowserCommand', success, Effect.fail(publicDomainFailure(cause))))
-  const decoded = Schema.decodeUnknownSync(coreReplyCodec(success))(encoded)
+  const decoded = Result.getOrThrow(decodeReply(encoded))
   if (Result.isSuccess(decoded)) {
     throw new Error('Expected encoded failure')
   }

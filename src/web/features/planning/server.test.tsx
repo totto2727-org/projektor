@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Effect, Result, Schema, pipe } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
@@ -34,6 +34,10 @@ vi.hoisted(() =>
     })),
   ),
 )
+
+const decodeSprints = Schema.decodeUnknownResult(SprintsSchema, { errors: 'all' })
+const decodeMetrics = Schema.decodeUnknownResult(MetricsSchema, { errors: 'all' })
+const decodeHeatmap = Schema.decodeUnknownResult(HeatmapSchema)
 
 function runWithDatabase<T>(
   database: ReturnType<typeof featureDatabase>,
@@ -232,19 +236,20 @@ describe('planning SSR named shared queries on real migrated D1', () => {
   })
 
   test('decodes the existing concrete sprint, metrics and heatmap DTO contracts', () => {
-    expect(() =>
-      Schema.decodeUnknownSync(SprintsSchema, { errors: 'all' })({ items: [{ id: 's1', status: 'archived' }] }),
-    ).toThrow('["items"][0]["status"]')
-    expect(() => Schema.decodeUnknownSync(MetricsSchema, { errors: 'all' })({ bugTypeTracked: 'false' })).toThrow(
-      '["bugTypeTracked"]',
+    const invalidSprintStatus = pipe(
+      decodeSprints({ items: [{ id: 's1', status: 'archived' }] }),
+      Result.flip,
+      Result.getOrUndefined,
     )
-    expect(() =>
-      Schema.decodeUnknownSync(HeatmapSchema)({
-        prefix: '',
-        totalDistinctIssues: '1',
-        entries: [],
-      }),
-    ).toThrow('["totalDistinctIssues"]')
+    expect(invalidSprintStatus?.message).toContain('["items"][0]["status"]')
+    const invalidBugTrackedFlag = pipe(decodeMetrics({ bugTypeTracked: 'false' }), Result.flip, Result.getOrUndefined)
+    expect(invalidBugTrackedFlag?.message).toContain('["bugTypeTracked"]')
+    const invalidDistinctIssueTotal = pipe(
+      decodeHeatmap({ prefix: '', totalDistinctIssues: '1', entries: [] }),
+      Result.flip,
+      Result.getOrUndefined,
+    )
+    expect(invalidDistinctIssueTotal?.message).toContain('["totalDistinctIssues"]')
   })
 
   test('keeps the six-week weekly default and date normalization', () => {
