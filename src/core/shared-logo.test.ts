@@ -25,8 +25,8 @@ const fixture = async function fixture() {
   const buffer = vi.fn<() => never>(() => {
     throw new Error('Logo transfer must not buffer bytes')
   })
-  const get = vi.fn(async () => ({
-    body: new ReadableStream({
+  const get = vi.fn<() => Promise<Pick<R2ObjectBody, 'body' | 'arrayBuffer' | 'httpMetadata'>>>(async () => ({
+    body: new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(bytes)
       },

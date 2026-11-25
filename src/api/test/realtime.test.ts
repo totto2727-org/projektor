@@ -30,7 +30,7 @@ const socket = function socket(initial: SocketAttachment) {
       attachment = next
     }),
     deserializeAttachment: vi.fn<() => SocketAttachment>(() => attachment),
-    close: vi.fn(),
+    close: vi.fn<WebSocket['close']>(),
   }
   return ws
 }
@@ -40,7 +40,7 @@ type Socket = ReturnType<typeof socket>
 const hubFor = function hubFor(sockets: Socket[] = []) {
   const state = {
     acceptWebSocket: vi.fn<(ws: WebSocket) => void>(),
-    getWebSockets: vi.fn(() => sockets),
+    getWebSockets: vi.fn<(tag?: string) => Socket[]>(() => sockets),
   }
   const hub = new WorkspaceHub(state as unknown as DurableObjectState, env as unknown as ApiEnv)
   return { hub, state }
@@ -352,10 +352,12 @@ describe('realtime WebSockets (Opt-In)', () => {
   })
 
   test('dispatches a broadcast event when creating an issue with a WORKSPACE_HUB stub', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ recipientCount: 1 })))
+    const fetchMock = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ recipientCount: 1 })))
     const namespace = {
-      idFromName: vi.fn().mockReturnValue('mock-do-id'),
-      get: vi.fn().mockReturnValue({ fetch: fetchMock }),
+      idFromName: vi.fn<(name: string) => string>().mockReturnValue('mock-do-id'),
+      get: vi.fn<(id: string) => { fetch: typeof fetchMock }>().mockReturnValue({ fetch: fetchMock }),
     }
     const ctx: ServiceCtx = {
       db: env.DB,

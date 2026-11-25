@@ -12,7 +12,9 @@ import type { IssueData } from './issue-detail-helpers.ts'
 import { BodySection, CommentsSection } from './issue-detail-parts.tsx'
 
 vi.mock(import('@/components/attachment-upload.tsx'), () => ({ AttachmentUpload: () => createElement(Fragment) }))
-vi.mock('../../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
+vi.mock('../../../effront', () => ({
+  EFFRONT: { ServerFn: { make: vi.fn<(definition: unknown) => () => void>(() => vi.fn<() => void>()) } },
+}))
 vi.mock('../actions', () => ({
   updateIssue: vi.fn<typeof Actions.updateIssue>(),
   addComment: vi.fn<typeof Actions.addComment>(),

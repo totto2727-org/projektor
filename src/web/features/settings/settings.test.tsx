@@ -12,8 +12,8 @@ import { GroupManager } from './group-manager.tsx'
 import { TokenManager } from './token-manager.tsx'
 import type { ConnectorGrant, GroupData, Token } from './types.ts'
 
-const request = vi.hoisted(() => vi.fn())
-const nativeSubmitted = vi.hoisted(() => vi.fn())
+const request = vi.hoisted(() => vi.fn<(operation: string, input: unknown) => unknown>())
+const nativeSubmitted = vi.hoisted(() => vi.fn<(operation: string, previous: unknown, data: FormData) => void>())
 vi.mock('./actions', () => ({
   createGroup: (previous: unknown, data: FormData) => {
     nativeSubmitted('createGroup', previous, data)

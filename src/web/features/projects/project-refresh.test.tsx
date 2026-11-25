@@ -13,7 +13,9 @@ import { ProjectLanding } from './project-landing.tsx'
 import { ProjectList } from './project-list.tsx'
 import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas.ts'
 
-vi.mock('../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
+vi.mock('../../effront', () => ({
+  EFFRONT: { ServerFn: { make: vi.fn<(definition: unknown) => () => void>(() => vi.fn<() => void>()) } },
+}))
 
 vi.mock('./actions', () => ({
   createProject: vi.fn<typeof Actions.createProject>(),

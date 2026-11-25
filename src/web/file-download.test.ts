@@ -23,11 +23,13 @@ const fixture = function fixture(contentType = 'image/png', filename = 'diagram.
     .run(filename, contentType)
   const bytes = new Uint8Array([0, 255, 7, 128])
   const consume = vi.fn<() => Promise<ArrayBuffer>>(async () => bytes.buffer)
-  const get = vi.fn(async (): Promise<{ body: ReadableStream<Uint8Array>; arrayBuffer: typeof consume } | null> => {
-    const { body } = new Response(bytes)
-    assert.exists(body)
-    return { arrayBuffer: consume, body }
-  })
+  const get = vi.fn<() => Promise<{ body: ReadableStream<Uint8Array>; arrayBuffer: typeof consume } | null>>(
+    async () => {
+      const { body } = new Response(bytes)
+      assert.exists(body)
+      return { arrayBuffer: consume, body }
+    },
+  )
   const head = vi.fn<() => Promise<{ size: number }>>(async () => ({ size: bytes.length }))
   const r2 = { get, head } as unknown as R2Bucket
   const transport = vi.fn<typeof fetch>(async () => {

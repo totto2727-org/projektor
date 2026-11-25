@@ -11,8 +11,8 @@ import { calendarOffset, calendarTimestamp } from './input-schemas.ts'
 import { SprintManager } from './sprint-manager.tsx'
 import type { Sprint, SprintIssue } from './types.ts'
 
-const request = vi.hoisted(() => vi.fn())
-const nativeSubmitted = vi.hoisted(() => vi.fn())
+const request = vi.hoisted(() => vi.fn<(operation: string, input: unknown) => unknown>())
+const nativeSubmitted = vi.hoisted(() => vi.fn<(previous: unknown, data: FormData) => void>())
 vi.mock('./actions', () => ({
   createSprint: (previous: unknown, data: FormData) => {
     nativeSubmitted(previous, data)
