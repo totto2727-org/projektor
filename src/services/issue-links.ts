@@ -1,10 +1,12 @@
 import { and, asc, eq, inArray, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
+import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
 import { inChunks } from './custom-fields.ts'
 import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export interface IssueLinkRow {
   id: string
@@ -24,7 +26,7 @@ export const listLinksForIssue = function listLinksForIssue(
   workspaceId: string,
   issueId: string,
   visibility?: SQL,
-) {
+): Effect.Effect<IssueLinkRow[], DataQueryError> {
   return queryEffect('listLinksForIssue', async (): Promise<IssueLinkRow[]> => {
     const orm = drizzle(db, { schema })
     const rows = await orm

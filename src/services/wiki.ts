@@ -1,11 +1,13 @@
 import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { Array, Iterable, Predicate, Number } from 'effect'
+import type { Effect } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 /** Validated filters. Authorization predicates are supplied by the calling app. */
 export interface WikiScopeOptions {
@@ -124,7 +126,10 @@ export const listWikiTreeRows = function listWikiTreeRows(
   db: D1Database,
   workspaceId: string,
   opts: WikiScopeOptions = {},
-) {
+): Effect.Effect<
+  Pick<typeof schema.wikiPages.$inferSelect, 'id' | 'slug' | 'title' | 'parentId' | 'projectId' | 'type'>[],
+  DataQueryError
+> {
   return queryEffect('listWikiTreeRows', () =>
     drizzle(db, { schema })
       .select({
@@ -296,7 +301,7 @@ export const getLatestWikiRevisionId = function getLatestWikiRevisionId(
   db: D1Database,
   workspaceId: string,
   pageId: string,
-) {
+): Effect.Effect<string | null, DataQueryError> {
   return queryEffect('getLatestWikiRevisionId', async () => {
     const row = await drizzle(db, { schema })
       .select({ id: schema.wikiRevisions.id })
@@ -328,7 +333,7 @@ export const searchWiki = function searchWiki(
   workspaceId: string,
   ftsQuery: string,
   opts: WikiSearchOptions,
-) {
+): Effect.Effect<WikiSearchResult[], DataQueryError> {
   return queryEffect('searchWiki', async () => {
     if (!ftsQuery) {
       return []
@@ -379,7 +384,15 @@ export const searchWiki = function searchWiki(
   })
 }
 
-export const getWikiDraft = function getWikiDraft(db: D1Database, workspaceId: string, pageId: string, userId: string) {
+export const getWikiDraft = function getWikiDraft(
+  db: D1Database,
+  workspaceId: string,
+  pageId: string,
+  userId: string,
+): Effect.Effect<
+  Pick<typeof schema.wikiDrafts.$inferSelect, 'title' | 'content' | 'baseRevisionId' | 'updatedAt'> | null,
+  DataQueryError
+> {
   return queryEffect('getWikiDraft', async () => {
     const row = await drizzle(db, { schema })
       .select({

@@ -10,6 +10,7 @@ import { drizzle, schema } from '#db'
 import { batchLoadCustomFields, inChunks } from './custom-fields.ts'
 import type { CustomFieldValue } from './custom-fields.ts'
 import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
 export interface IssueListOptions {
@@ -107,7 +108,11 @@ export interface IssuePage {
 }
 
 /** Reference syntax is validated by the application before calling. No authorization occurs here. */
-export const getIssue = function getIssue(db: D1Database, workspaceId: string, options: { id?: string; ref?: string }) {
+export const getIssue = function getIssue(
+  db: D1Database,
+  workspaceId: string,
+  options: { id?: string; ref?: string },
+): Effect.Effect<IssueRow | null, DataQueryError> {
   return queryEffect('getIssue', async () => {
     const { ref } = options
     const match = Predicate.isNullish(ref) ? undefined : ISSUE_REF_PATTERN.exec(ref)
@@ -124,7 +129,11 @@ export const getIssue = function getIssue(db: D1Database, workspaceId: string, o
     )
   })
 }
-export const findIssueIdByRef = function findIssueIdByRef(db: D1Database, workspaceId: string, ref: string) {
+export const findIssueIdByRef = function findIssueIdByRef(
+  db: D1Database,
+  workspaceId: string,
+  ref: string,
+): Effect.Effect<string | null, DataQueryError> {
   return queryEffect('findIssueIdByRef', async () => {
     const match = ISSUE_REF_PATTERN.exec(ref)
     if (!match) {
@@ -145,7 +154,11 @@ export const findIssueIdByRef = function findIssueIdByRef(db: D1Database, worksp
     return row?.id ?? null
   })
 }
-export const findIssueCustomField = function findIssueCustomField(db: D1Database, workspaceId: string, key: string) {
+export const findIssueCustomField = function findIssueCustomField(
+  db: D1Database,
+  workspaceId: string,
+  key: string,
+): Effect.Effect<Pick<typeof schema.customFieldDefinitions.$inferSelect, 'id' | 'type'> | null, DataQueryError> {
   return queryEffect(
     'findIssueCustomField',
     async () =>
@@ -268,7 +281,7 @@ export const getChildRollups = function getChildRollups(
   db: D1Database,
   workspaceId: string,
   parentIds: Readonly<string[]>,
-) {
+): Effect.Effect<Record<string, ChildRollup>, DataQueryError> {
   return queryEffect('getChildRollups', async () => {
     const orm = drizzle(db, { schema })
     const rows = await inChunks(parentIds, (chunk) =>
@@ -291,7 +304,11 @@ export const getChildRollups = function getChildRollups(
     return Object.fromEntries(parentIds.map((id) => [id, computeChildRollup(grouped[id] ?? [])]))
   })
 }
-export const getIssueExtras = function getIssueExtras(db: D1Database, workspaceId: string, issueId: string) {
+export const getIssueExtras = function getIssueExtras(
+  db: D1Database,
+  workspaceId: string,
+  issueId: string,
+): Effect.Effect<{ rollup: ChildRollup; customFields: CustomFieldValue[] }, DataQueryError> {
   return Effect.gen(function* () {
     const rollups = yield* getChildRollups(db, workspaceId, [issueId])
     const fields = yield* batchLoadCustomFields(db, workspaceId, [issueId])
@@ -306,7 +323,7 @@ export const listIssues = function listIssues(
   workspaceId: string,
   options: IssueListOptions,
   visibility?: SQL,
-) {
+): Effect.Effect<IssuePage, DataQueryError> {
   return Effect.gen(function* () {
     const page = yield* queryEffect('listIssues', async () => {
       const orm = drizzle(db, { schema })
@@ -468,7 +485,7 @@ export const searchIssues = function searchIssues(
   workspaceId: string,
   options: IssueSearchOptions,
   visibility?: IssueSearchVisibility,
-) {
+): Effect.Effect<IssueSearchRow[], DataQueryError> {
   return queryEffect('searchIssues', async (): Promise<IssueSearchRow[]> => {
     const query = options.query
       .trim()

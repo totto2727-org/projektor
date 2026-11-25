@@ -1,11 +1,13 @@
 import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { Iterable, Predicate } from 'effect'
+import type { Effect } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export interface CustomFieldValue {
   key: string
@@ -64,7 +66,7 @@ export const batchLoadCustomFields = function batchLoadCustomFields(
   db: D1Database,
   workspaceId: string,
   issueIds: Readonly<string[]>,
-) {
+): Effect.Effect<Record<string, CustomFieldValue[]>, DataQueryError> {
   return queryEffect('batchLoadCustomFields', async () => {
     const orm = drizzle(db, { schema })
     const rows = await inChunks(issueIds, (chunk) =>
