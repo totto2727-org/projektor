@@ -1,6 +1,7 @@
 'use client'
 import type { JSX } from 'react'
 
+import type { Issue } from '@/features/issues/components/board-utils.ts'
 import { ReviewTargetsSummary } from '@/features/issues/components/review-targets-summary.tsx'
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
@@ -8,14 +9,19 @@ import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 import { IssueSelectionControl } from './bulk-actions.tsx'
 import { statusBadge } from './issue-render-helpers.tsx'
 import { PrioritySelect } from './priority-select.tsx'
-import type { IssueListRowsProps } from './types-view.ts'
+
+type MobileCardsProps = Readonly<{
+  issues: Readonly<Issue[]>
+  updatingPriorityId: string | null
+  changePriority: (issueId: string, priority: string) => void
+}>
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MobileCards = function MobileCards({
   issues,
   updatingPriorityId,
   changePriority,
-}: IssueListRowsProps): JSX.Element {
+}: MobileCardsProps): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
       {issues.map((issue) => (

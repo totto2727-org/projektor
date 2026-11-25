@@ -51,14 +51,7 @@ export function ListSection({
       )}
 
       {isMobile !== false && (
-        <MobileCards
-          issues={issues}
-          statuses={statuses}
-          updatingId={updatingId}
-          updatingPriorityId={updatingPriorityId}
-          changeStatus={changeStatus}
-          changePriority={changePriority}
-        />
+        <MobileCards issues={issues} updatingPriorityId={updatingPriorityId} changePriority={changePriority} />
       )}
 
       <PageNavigation {...pagination} />
