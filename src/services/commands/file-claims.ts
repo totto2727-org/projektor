@@ -224,23 +224,16 @@ const buildReleaseByIdsStatements = function buildReleaseByIdsStatements(
   now: number,
   reason: string,
 ): D1PreparedStatement[] {
-  return chunk(ids, ID_CHUNK_SIZE).map((idChunk) =>
-    toD1Statement(
-      ctx,
-      orm
-        .update(schema.issueFileClaims)
-        .set({ releaseReason: reason, releasedAt: now })
-        .where(
-          and(
-            eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
-            inArray(schema.issueFileClaims.id, idChunk),
-            isNull(schema.issueFileClaims.releasedAt),
-          ),
-        )
-        .returning({ id: schema.issueFileClaims.id })
-        .toSQL(),
-    ),
-  )
+  return chunk(ids, ID_CHUNK_SIZE).map((idChunk) => {
+    const update = orm.update(schema.issueFileClaims).set({ releaseReason: reason, releasedAt: now })
+    const activeClaims = and(
+      eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
+      inArray(schema.issueFileClaims.id, idChunk),
+      isNull(schema.issueFileClaims.releasedAt),
+    )
+    const query = update.where(activeClaims).returning({ id: schema.issueFileClaims.id }).toSQL()
+    return toD1Statement(ctx, query)
+  })
 }
 
 const releasedIdsFrom = function releasedIdsFrom(results: Readonly<D1Result[]>): Set<string> {
@@ -271,6 +264,15 @@ const formatPathList = function formatPathList(paths: Readonly<string[]>, overhe
     out = next
   }
   return out
+}
+
+const formatClaimOverrideMessage = function formatClaimOverrideMessage(
+  paths: Readonly<string[]>,
+  render: (list: string) => string,
+): string {
+  const overhead = render('').length
+  const pathList = formatPathList(paths, overhead)
+  return render(pathList)
 }
 
 const buildConflictInsertStatements = function buildConflictInsertStatements(
@@ -434,12 +436,12 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
       messages.push({
         scope: `issue:${issueId}`,
         agentId: agentId ?? undefined,
-        body: toHolder(formatPathList(displacedIssuePaths, toHolder('').length)),
+        body: formatClaimOverrideMessage(displacedIssuePaths, toHolder),
       })
       messages.push({
         scope: `issue:${displacedIssueId}`,
         agentId: agentId ?? undefined,
-        body: toDisplaced(formatPathList(displacedIssuePaths, toDisplaced('').length)),
+        body: formatClaimOverrideMessage(displacedIssuePaths, toDisplaced),
       })
     })
     statements.push(...buildPostMessageStatements(ctx, orm, messages))
@@ -739,18 +741,12 @@ export const buildReleaseClaimsForClosedIssueStatement = function buildReleaseCl
 ): D1PreparedStatement {
   const orm = drizzle(ctx.db, { schema })
   const now = currentEpochSeconds()
-  return toD1Statement(
-    ctx,
-    orm
-      .update(schema.issueFileClaims)
-      .set({ releaseReason: 'issue_closed', releasedAt: now })
-      .where(
-        and(
-          eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
-          eq(schema.issueFileClaims.issueId, issueId),
-          isNull(schema.issueFileClaims.releasedAt),
-        ),
-      )
-      .toSQL(),
+  const update = orm.update(schema.issueFileClaims).set({ releaseReason: 'issue_closed', releasedAt: now })
+  const activeClaims = and(
+    eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
+    eq(schema.issueFileClaims.issueId, issueId),
+    isNull(schema.issueFileClaims.releasedAt),
   )
+  const query = update.where(activeClaims).toSQL()
+  return toD1Statement(ctx, query)
 }
