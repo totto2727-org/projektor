@@ -1,5 +1,7 @@
 import { Iterable } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { agentMessagesTools } from './agent-messages.ts'
 import { agentsTools } from './agents.ts'
 import { codeHeatmapTools } from './code-heatmap.ts'
@@ -40,59 +42,40 @@ export interface ToolDomain {
   tools: MCPTool[]
 }
 
+type ToolDomainEntry = Readonly<[domain: string, title: string, group: ToolDomain['group'], tools: ToolDomain['tools']]>
+
+const toolDomain = function toolDomain([domain, title, group, tools]: ToolDomainEntry): ToolDomain {
+  return fieldsInOrder([
+    ['domain', domain],
+    ['title', title],
+    ['group', group],
+    ['tools', tools],
+  ])
+}
+
 export const TOOL_DOMAINS: ToolDomain[] = [
-  {
-    domain: 'workspaces',
-    title: 'Workspaces & members',
-    group: 'Project data',
-    tools: workspacesTools,
-  },
-  { domain: 'groups', title: 'Groups & access', group: 'Project data', tools: groupsTools },
-  { domain: 'projects', title: 'Projects', group: 'Project data', tools: projectsTools },
-  {
-    domain: 'project-activity',
-    title: 'Project activity',
-    group: 'Project data',
-    tools: projectActivityTools,
-  },
-  { domain: 'issues', title: 'Issues', group: 'Project data', tools: issuesTools },
-  { domain: 'issue-links', title: 'Issue links', group: 'Project data', tools: issueLinksTools },
-  { domain: 'comments', title: 'Comments', group: 'Project data', tools: commentsTools },
-  { domain: 'wiki', title: 'Wiki', group: 'Project data', tools: wikiTools },
-  { domain: 'files', title: 'Attachments', group: 'Project data', tools: filesTools },
-  { domain: 'task-types', title: 'Task types', group: 'Project data', tools: taskTypesTools },
-  {
-    domain: 'task-statuses',
-    title: 'Task statuses',
-    group: 'Project data',
-    tools: taskStatusesTools,
-  },
-  {
-    domain: 'custom-fields',
-    title: 'Custom fields',
-    group: 'Project data',
-    tools: customFieldsTools,
-  },
-  { domain: 'sprints', title: 'Sprints', group: 'Project data', tools: sprintsTools },
-  { domain: 'feedback', title: 'Feedback', group: 'Project data', tools: feedbackTools },
-  { domain: 'agents', title: 'Agent sessions', group: 'Coordination', tools: agentsTools },
-  { domain: 'file-claims', title: 'File claims', group: 'Coordination', tools: fileClaimsTools },
-  { domain: 'issue-leases', title: 'Issue leases', group: 'Coordination', tools: issueLeasesTools },
-  {
-    domain: 'agent-messages',
-    title: 'Agent messages',
-    group: 'Coordination',
-    tools: agentMessagesTools,
-  },
-  { domain: 'workflow', title: 'Workflow spec', group: 'Coordination', tools: workflowTools },
-  { domain: 'playbooks', title: 'Playbooks', group: 'Coordination', tools: playbooksTools },
-  { domain: 'flow-metrics', title: 'Flow metrics', group: 'Project data', tools: flowMetricsTools },
-  {
-    domain: 'code-heatmap',
-    title: 'Code heatmap',
-    group: 'Project data',
-    tools: codeHeatmapTools,
-  },
+  toolDomain(['workspaces', 'Workspaces & members', 'Project data', workspacesTools]),
+  toolDomain(['groups', 'Groups & access', 'Project data', groupsTools]),
+  toolDomain(['projects', 'Projects', 'Project data', projectsTools]),
+  toolDomain(['project-activity', 'Project activity', 'Project data', projectActivityTools]),
+  toolDomain(['issues', 'Issues', 'Project data', issuesTools]),
+  toolDomain(['issue-links', 'Issue links', 'Project data', issueLinksTools]),
+  toolDomain(['comments', 'Comments', 'Project data', commentsTools]),
+  toolDomain(['wiki', 'Wiki', 'Project data', wikiTools]),
+  toolDomain(['files', 'Attachments', 'Project data', filesTools]),
+  toolDomain(['task-types', 'Task types', 'Project data', taskTypesTools]),
+  toolDomain(['task-statuses', 'Task statuses', 'Project data', taskStatusesTools]),
+  toolDomain(['custom-fields', 'Custom fields', 'Project data', customFieldsTools]),
+  toolDomain(['sprints', 'Sprints', 'Project data', sprintsTools]),
+  toolDomain(['feedback', 'Feedback', 'Project data', feedbackTools]),
+  toolDomain(['agents', 'Agent sessions', 'Coordination', agentsTools]),
+  toolDomain(['file-claims', 'File claims', 'Coordination', fileClaimsTools]),
+  toolDomain(['issue-leases', 'Issue leases', 'Coordination', issueLeasesTools]),
+  toolDomain(['agent-messages', 'Agent messages', 'Coordination', agentMessagesTools]),
+  toolDomain(['workflow', 'Workflow spec', 'Coordination', workflowTools]),
+  toolDomain(['playbooks', 'Playbooks', 'Coordination', playbooksTools]),
+  toolDomain(['flow-metrics', 'Flow metrics', 'Project data', flowMetricsTools]),
+  toolDomain(['code-heatmap', 'Code heatmap', 'Project data', codeHeatmapTools]),
 ]
 
 /** Total number of MCP tools across all domains. */

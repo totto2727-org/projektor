@@ -19,11 +19,21 @@
  */
 
 import { Array, Iterable, Predicate } from 'effect'
+
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 type Schema = Record<string, unknown>
 
 export interface ArgIssue {
   path: string
   message: string
+}
+
+const argumentIssue = function argumentIssue(path: string, message: string): ArgIssue {
+  return fieldsInOrder([
+    ['path', path],
+    ['message', message],
+  ])
 }
 
 const typeOf = function typeOf(v: unknown): string {
@@ -81,43 +91,40 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
       ? [declared]
       : []
   if (Array.isArrayNonEmpty(types) && !types.some((type) => matchesType(value, type))) {
-    issues.push({ path, message: `must be ${types.join(' or ')}, got ${typeOf(value)}` })
+    issues.push(argumentIssue(path, `must be ${types.join(' or ')}, got ${typeOf(value)}`))
     return
   }
 
   if (globalThis.Array.isArray(schema.enum) && !schema.enum.some((e) => e === value)) {
-    issues.push({
-      path,
-      message: `must be one of ${schema.enum.map((e) => JSON.stringify(e)).join(', ')}`,
-    })
+    issues.push(argumentIssue(path, `must be one of ${schema.enum.map((e) => JSON.stringify(e)).join(', ')}`))
     return
   }
 
   if (Predicate.isString(value)) {
     if (Predicate.isNumber(schema.minLength) && value.length < schema.minLength) {
-      issues.push({ path, message: `must be at least ${schema.minLength} characters` })
+      issues.push(argumentIssue(path, `must be at least ${schema.minLength} characters`))
     }
     if (Predicate.isNumber(schema.maxLength) && value.length > schema.maxLength) {
-      issues.push({ path, message: `must be at most ${schema.maxLength} characters` })
+      issues.push(argumentIssue(path, `must be at most ${schema.maxLength} characters`))
     }
   }
 
   if (Predicate.isNumber(value) || isNumericString(value)) {
     const n = Number(value)
     if (Predicate.isNumber(schema.minimum) && n < schema.minimum) {
-      issues.push({ path, message: `must be >= ${schema.minimum}` })
+      issues.push(argumentIssue(path, `must be >= ${schema.minimum}`))
     }
     if (Predicate.isNumber(schema.maximum) && n > schema.maximum) {
-      issues.push({ path, message: `must be <= ${schema.maximum}` })
+      issues.push(argumentIssue(path, `must be <= ${schema.maximum}`))
     }
   }
 
   if (globalThis.Array.isArray(value)) {
     if (Predicate.isNumber(schema.minItems) && value.length < schema.minItems) {
-      issues.push({ path, message: `must have at least ${schema.minItems} items` })
+      issues.push(argumentIssue(path, `must have at least ${schema.minItems} items`))
     }
     if (Predicate.isNumber(schema.maxItems) && value.length > schema.maxItems) {
-      issues.push({ path, message: `must have at most ${schema.maxItems} items` })
+      issues.push(argumentIssue(path, `must have at most ${schema.maxItems} items`))
     }
     const { items } = schema
     if (Predicate.isObject(items)) {
@@ -139,7 +146,7 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   if (globalThis.Array.isArray(schema.required)) {
     Iterable.forEach(schema.required, (key) => {
       if (Predicate.isString(key) && obj[key] === undefined) {
-        issues.push({ path: `${prefix}${key}`, message: 'is required' })
+        issues.push(argumentIssue(`${prefix}${key}`, 'is required'))
       }
     })
   }
