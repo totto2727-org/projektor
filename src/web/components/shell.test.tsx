@@ -173,7 +173,7 @@ describe('generated Base UI Shell', () => {
     await waitFor(() => {
       expect(screen.queryByRole('menuitem', { name: 'Refresh session' })).toBeNull()
     })
-    expect(document.getElementById(refreshForm.id)).toBe(refreshForm)
+    expect(document.querySelector(`[id="${refreshForm.id}"]`)).toBe(refreshForm)
   })
 
   test('lets the generated provider collapse desktop navigation and persist cosmetic preferences', () => {

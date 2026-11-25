@@ -1,3 +1,4 @@
+import { Order } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
@@ -52,8 +53,9 @@ describe('covers PROJ-319 admin bypass pinning', () => {
 
     const result = await search(roles.owner.token, slug, 'sentinel-bypass-token')
     expect(result.status).toBe(200)
-    const projectIds = result.body.map((i) => i.project_id).toSorted()
-    expect(projectIds).toStrictEqual([p1.id, p2.id].toSorted())
+    const compareProjectIds = Order.mapInput(Order.String, globalThis.String)
+    const projectIds = result.body.map((i) => i.project_id).toSorted(compareProjectIds)
+    expect(projectIds).toStrictEqual([p1.id, p2.id].toSorted(compareProjectIds))
   })
 
   test("owner's get_flow_metrics returns real data for an ungranted project", async () => {

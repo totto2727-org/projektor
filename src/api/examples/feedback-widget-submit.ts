@@ -32,6 +32,7 @@ export const submitFeedback = async function submitFeedback(
   token: string,
   feedback: FeedbackPayload,
 ): Promise<{ id: string }> {
+  // oxlint-disable-next-line rules/no-fetch -- The standalone feedback example uses platform APIs so it can be copied into any browser client.
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {

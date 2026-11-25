@@ -20,7 +20,7 @@ import { LocalLayer, ProductionLayer, localDevelopment } from './worker-environm
 import type { EnvironmentLayer } from './worker-environment.ts'
 import { deployment } from './worker-graph.ts'
 import CoreEntrypoint from './workers/core.ts'
-import Frontend from './workers/frontend.ts'
+import FrontendWorker from './workers/frontend.ts'
 
 const configured = function configured<A, E, R>(
   effect: Effect.Effect<A, E, R>,
@@ -98,7 +98,7 @@ const expectNoStorage = function expectNoStorage(stack: Stack['Service'], id: 'A
 describe('source-owned private Core deployment', () => {
   test.each([
     { id: 'Core', entrypoint: CoreEntrypoint },
-    { id: 'Frontend', entrypoint: Frontend },
+    { id: 'Frontend', entrypoint: FrontendWorker },
   ])('selects the $id default export from its configured production module', async ({ id, entrypoint }) => {
     const { stack } = await register(false)
     const main = stack.resources[id].Props.main
@@ -110,8 +110,8 @@ describe('source-owned private Core deployment', () => {
   test.each([
     { local: false, entrypoint: CoreEntrypoint.pipe(Effect.asVoid), ids: ['Core'] },
     { local: true, entrypoint: CoreEntrypoint.pipe(Effect.asVoid), ids: ['Core'] },
-    { local: false, entrypoint: Frontend.pipe(Effect.asVoid), ids: ['Core', 'Frontend'] },
-    { local: true, entrypoint: Frontend.pipe(Effect.asVoid), ids: ['Core', 'Frontend'] },
+    { local: false, entrypoint: FrontendWorker.pipe(Effect.asVoid), ids: ['Core', 'Frontend'] },
+    { local: true, entrypoint: FrontendWorker.pipe(Effect.asVoid), ids: ['Core', 'Frontend'] },
   ])('captures $ids without deployment inputs (dev=$local)', async ({ local, entrypoint, ids }) => {
     const stack: Stack['Service'] = {
       name: 'projektor',

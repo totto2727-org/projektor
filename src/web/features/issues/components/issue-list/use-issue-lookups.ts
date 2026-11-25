@@ -8,7 +8,7 @@ interface IssueLookups {
   projects: ProjectSummary[]
   projectsLoaded: boolean
   sprintDetail: IssuesInitialData['sprintDetail']
-  sprints: Array<IssuesInitialData['sprints'][number]>
+  sprints: IssuesInitialData['sprints'][number][]
   statuses: Status[]
   taskTypes: TaskType[]
   taskTypesLoaded: boolean

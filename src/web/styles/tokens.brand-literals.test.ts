@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 import { describe, expect, test } from 'vite-plus/test'
 
-const tokensCss = readFileSync(join(__dirname, 'tokens.css'), 'utf-8')
+const tokensCss = readFileSync(new URL('./tokens.css', import.meta.url), 'utf-8')
 
 const BRAND_DERIVED_PROPERTIES = [
   'priority-medium-text',

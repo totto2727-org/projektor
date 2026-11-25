@@ -381,7 +381,7 @@ export function AgingWipScatter({
           ...point,
           x: (point.status === 'in_progress' ? 0 : 1) + (hashJitter(point.id) - 0.5) * 0.5,
         }))
-        .sort((left, right) => left.x - right.x),
+        .toSorted((left, right) => left.x - right.x),
     [data],
   )
   const maxAge = Math.max(0, ...data.map((point) => point.ageSeconds), p50 ?? 0, p90 ?? 0)
