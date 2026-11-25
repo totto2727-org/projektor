@@ -10,14 +10,10 @@ import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 
 import { IssueSelectionControl } from './bulk-actions.tsx'
-import {
-  getStoryPoints,
-  PrioritySelect,
-  SortableHeader,
-  StatusSelect,
-  spBadge,
-  statusBadge,
-} from './issue-render-helpers.tsx'
+import { getStoryPoints, spBadge, statusBadge } from './issue-render-helpers.tsx'
+import { PrioritySelect } from './priority-select.tsx'
+import { SortableHeader } from './sortable-header.tsx'
+import { StatusSelect } from './status-select.tsx'
 
 const applyBacklogOrder = function applyBacklogOrder(
   issues: Readonly<Issue[]>,

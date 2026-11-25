@@ -9,16 +9,12 @@ import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 import { useMediaQuery } from '@/features/issues/utils/use-media-query.ts'
 
 import { IssueSelectionControl } from './bulk-actions.tsx'
-import {
-  getStoryPoints,
-  PrioritySelect,
-  SortableHeader,
-  StatusSelect,
-  spBadge,
-  statusBadge,
-} from './issue-render-helpers.tsx'
+import { getStoryPoints, spBadge, statusBadge } from './issue-render-helpers.tsx'
 import { PageNavigation } from './page-navigation.tsx'
 import type { IssuePagination } from './page-navigation.tsx'
+import { PrioritySelect } from './priority-select.tsx'
+import { SortableHeader } from './sortable-header.tsx'
+import { StatusSelect } from './status-select.tsx'
 
 interface ListSectionProps {
   issues: Issue[]

@@ -17,7 +17,8 @@ import { ReviewTargetsSummary } from '@/features/issues/components/review-target
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 
 import { IssueSelectionControl } from './bulk-actions.tsx'
-import { getStoryPoints, priorityBadge, StatusSelect, spBadge } from './issue-render-helpers.tsx'
+import { getStoryPoints, priorityBadge, spBadge } from './issue-render-helpers.tsx'
+import { StatusSelect } from './status-select.tsx'
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const BoardCard = function BoardCard({
