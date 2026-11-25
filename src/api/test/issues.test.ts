@@ -1,5 +1,5 @@
 import { Predicate, Schema, Iterable } from 'effect'
-import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { issuesTools } from '#api/mcp/issues.ts'
 import { ApiResults } from '#contracts/api-results.ts'
@@ -2467,54 +2467,67 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
   })
 })
 
-describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => {
-  let token: string, slug: string, workspaceId: string, projectId: string, userId: string, projectKey: string
+const readFixtureProjectKey = async function readFixtureProjectKey(projectId: string): Promise<string> {
+  const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
+  assert.exists(row)
+  return row.key
+}
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({
-      role: 'owner',
-    }))
-    const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    assert.exists(row)
-    projectKey = row.key
+const seedIssueRefFixture = async function seedIssueRefFixture(): Promise<
+  IssueProjectFixture & { projectKey: string }
+> {
+  const fixture = await seedProjectFixture({
+    role: 'owner',
   })
+  return { ...fixture, projectKey: await readFixtureProjectKey(fixture.projectId) }
+}
 
-  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
-    return callMcpTool(workspaceId, token, slug, params)
-  }
+const callIssueFixtureMcpTool = async function callIssueFixtureMcpTool(
+  { slug, token, workspaceId }: IssueProjectFixture,
+  params: unknown,
+): ReturnType<typeof callMcpTool> {
+  return callMcpTool(workspaceId, token, slug, params)
+}
 
+describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => {
   test('update_issue accepts a ref in place of id', async () => {
+    const issueMcpFixture = await seedIssueRefFixture()
+    const { projectId, projectKey, userId, workspaceId } = issueMcpFixture
     const { number } = await seedIssue(workspaceId, projectId, userId, { title: 'Ref update' })
     const ref = `${projectKey}-${number}`
 
-    const res = await mcpCall({
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { id: ref, title: 'Renamed via ref' },
       name: 'update_issue',
     })
     expect(res.error).toBeUndefined()
 
-    const getRes = await mcpCall({ arguments: { ref }, name: 'get_issue' })
+    const getRes = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { ref }, name: 'get_issue' })
     const issue = parseNativeMcpText(readNativeMcpResultText(getRes.result), Schema.Struct({ title: Schema.String }))
     expect(issue.title).toBe('Renamed via ref')
   })
 
   test('delete_issue accepts a ref in place of id', async () => {
+    const issueMcpFixture = await seedIssueRefFixture()
+    const { projectId, projectKey, userId, workspaceId } = issueMcpFixture
     const { number } = await seedIssue(workspaceId, projectId, userId, { title: 'Ref delete' })
     const ref = `${projectKey}-${number}`
 
-    const res = await mcpCall({ arguments: { id: ref }, name: 'delete_issue' })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { id: ref }, name: 'delete_issue' })
     expect(res.error).toBeUndefined()
 
-    const getRes = await mcpCall({ arguments: { ref }, name: 'get_issue' })
+    const getRes = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { ref }, name: 'get_issue' })
     expect(getRes.error).toBeUndefined()
     expect(toolError(getRes)?.code).toBe('not_found')
   })
 
   test('create_issue_link accepts refs for sourceIssueId/targetIssueId', async () => {
+    const issueMcpFixture = await seedIssueRefFixture()
+    const { projectId, projectKey, userId, workspaceId } = issueMcpFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
 
-    const res = await mcpCall({
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'create_issue_link',
       arguments: {
         sourceIssueId: `${projectKey}-${issue.number}`,
@@ -2524,7 +2537,10 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     })
     expect(res.error).toBeUndefined()
 
-    const linksRes = await mcpCall({ name: 'list_issue_links', arguments: { issueId: issue.id } })
+    const linksRes = await callIssueFixtureMcpTool(issueMcpFixture, {
+      name: 'list_issue_links',
+      arguments: { issueId: issue.id },
+    })
     const links = parseNativeMcpText(
       readNativeMcpResultText(linksRes.result),
       Schema.Array(Schema.Struct({ linkedIssueId: Schema.String })).pipe(Schema.mutable),
@@ -2533,14 +2549,19 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('create_issue accepts a project key in place of projectId', async () => {
-    const res = await mcpCall({
+    const issueMcpFixture = await seedIssueRefFixture()
+    const { projectId, projectKey } = issueMcpFixture
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'create_issue',
       arguments: { projectId: projectKey, title: 'Via project key' },
     })
     expect(res.error).toBeUndefined()
     const { id } = parseNativeMcpText(readNativeMcpResultText(res.result), IdResponse)
 
-    const getRes = await mcpCall({ arguments: { id, verbose: true }, name: 'get_issue' })
+    const getRes = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { id, verbose: true },
+      name: 'get_issue',
+    })
     const issue = parseNativeMcpText(
       readNativeMcpResultText(getRes.result),
       Schema.Struct({ project_id: Schema.String }),
@@ -2549,22 +2570,32 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('list_issues accepts a project key in place of projectId', async () => {
+    const issueMcpFixture = await seedIssueRefFixture()
+    const { projectId, projectKey, userId, workspaceId } = issueMcpFixture
     await seedIssue(workspaceId, projectId, userId, { title: 'In project' })
 
-    const res = await mcpCall({ name: 'list_issues', arguments: { projectId: projectKey } })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
+      name: 'list_issues',
+      arguments: { projectId: projectKey },
+    })
     expect(res.error).toBeUndefined()
     const page = parseNativeMcpText(readNativeMcpResultText(res.result), TitleItemsResponse)
     expect(page.items.map((item) => item.title)).toContain('In project')
   })
 
   test('an unresolvable ref returns NotFoundError, not a silent empty result', async () => {
-    const res = await mcpCall({ arguments: { id: 'NOPE-1', title: 'x' }, name: 'update_issue' })
+    const issueMcpFixture = await seedIssueRefFixture()
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { id: 'NOPE-1', title: 'x' },
+      name: 'update_issue',
+    })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('not_found')
   })
 
   test('an unresolvable project key returns NotFoundError, not a silent empty result', async () => {
-    const res = await mcpCall({
+    const issueMcpFixture = await seedIssueRefFixture()
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { projectId: 'NOPE', title: 'x' },
       name: 'create_issue',
     })
@@ -2573,6 +2604,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('update_issue with a parentId ref to an invisible project fails the same as an unresolvable ref', async () => {
+    await seedIssueRefFixture()
     const roles = await seedWorkspaceRoles()
     const writableProject = await seedProject(roles.workspace.id, 'WRIT')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, writableProject.id, 'member')
@@ -2605,6 +2637,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test("list_issues with a project key the caller can't see returns an empty page, not a 404, same as a nonexistent key", async () => {
+    await seedIssueRefFixture()
     const roles = await seedWorkspaceRoles()
     const hiddenProject = await seedProject(roles.workspace.id, 'HIDE')
     await seedIssue(roles.workspace.id, hiddenProject.id, roles.owner.user.id, {
@@ -2629,13 +2662,15 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('search_issues with a visible project key returns matching results', async () => {
-    const createRes = await mcpCall({
+    const issueMcpFixture = await seedIssueRefFixture()
+    const { projectId, projectKey } = issueMcpFixture
+    const createRes = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'create_issue',
       arguments: { projectId, title: 'Findable via key search' },
     })
     expect(createRes.error).toBeUndefined()
 
-    const res = await mcpCall({
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'search_issues',
       arguments: { query: 'Findable', projectId: projectKey },
     })
@@ -2645,12 +2680,14 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('get_prioritized_issues with a visible project key returns results', async () => {
+    const issueMcpFixture = await seedIssueRefFixture()
+    const { projectId, projectKey, userId, workspaceId } = issueMcpFixture
     await seedIssue(workspaceId, projectId, userId, {
       priority: 'urgent',
       title: 'Prioritizable',
     })
 
-    const res = await mcpCall({
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'get_prioritized_issues',
       arguments: { projectId: projectKey, includeNotReady: true },
     })
@@ -2660,7 +2697,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('list_issues rejects an unrecognized param with the field name in the error', async () => {
-    const res = await mcpCall({
+    const issueMcpFixture = await seedIssueRefFixture()
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { parentRef: 'PROJ-1' },
       name: 'list_issues',
     })
@@ -2818,21 +2856,13 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
 })
 
 describe('covers PROJ-931 — compact MCP responses', () => {
-  let token: string, slug: string, workspaceId: string, projectId: string, userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({
-      role: 'owner',
-    }))
-  })
-
-  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
-    return callMcpTool(workspaceId, token, slug, params)
-  }
-
   test('covers MCP tool result text is minified (no pretty-printing whitespace)', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     await seedIssue(workspaceId, projectId, userId, { title: 'Minified check' })
-    const res = await mcpCall({ arguments: {}, name: 'list_issues' })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: {}, name: 'list_issues' })
     expect(res.error).toBeUndefined()
     const text = readNativeMcpResultText(res.result)
     expect(text).not.toContain('\n')
@@ -2841,6 +2871,9 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('covers REST get_issue is still pretty-shaped (unaffected) and keeps null/empty fields', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({
+      role: 'owner',
+    })
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'REST unaffected' })
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -2855,8 +2888,12 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issue omits empty links/rollup/customFields and null sprint/assignee/parent/labels by default', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Compact me' })
-    const res = await mcpCall({ arguments: { id }, name: 'get_issue' })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { id }, name: 'get_issue' })
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(issue).not.toHaveProperty('links')
@@ -2871,8 +2908,12 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issue with verbose:true restores the full shape', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Verbose me' })
-    const res = await mcpCall({ arguments: { id, verbose: true }, name: 'get_issue' })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { id, verbose: true }, name: 'get_issue' })
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(issue).toHaveProperty('links', [])
@@ -2884,6 +2925,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issue keeps non-empty links/customFields/rollup/assignee/parent/labels', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const assignee = await seedUser('proj931-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
     const parent = await seedIssue(workspaceId, projectId, userId, { title: 'Parent' })
@@ -2894,13 +2939,16 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       parentId: parent.id,
     })
     await seedCustomFieldValue(childId, field.id, 'hello')
-    await mcpCall({
+    await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { id: childId, labels: ['bug'] },
       name: 'update_issue',
     })
     await seedIssue(workspaceId, projectId, userId, { title: 'Grandchild', parentId: parent.id })
 
-    const parentRes = await mcpCall({ name: 'get_issue', arguments: { id: parent.id } })
+    const parentRes = await callIssueFixtureMcpTool(issueMcpFixture, {
+      name: 'get_issue',
+      arguments: { id: parent.id },
+    })
     const parentIssue = parseNativeMcpText(readNativeMcpResultText(parentRes.result), JsonRecordResponse)
     expect(parentIssue.rollup).toStrictEqual({
       byStatus: { backlog: 2 },
@@ -2909,7 +2957,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       total: 2,
     })
 
-    const childRes = await mcpCall({ arguments: { id: childId }, name: 'get_issue' })
+    const childRes = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { id: childId }, name: 'get_issue' })
     const child = parseNativeMcpText(readNativeMcpResultText(childRes.result), JsonRecordResponse)
     expect(child.assignee_id).toBe(assignee.id)
     expect(child.parent_id).toBe(parent.id)
@@ -2918,8 +2966,15 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('list_issues items are compacted the same way as get_issue', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     await seedIssue(workspaceId, projectId, userId, { title: 'Compact list item' })
-    const res = await mcpCall({ arguments: { includeRollups: true }, name: 'list_issues' })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { includeRollups: true },
+      name: 'list_issues',
+    })
     expect(res.error).toBeUndefined()
     const page = parseNativeMcpText(readNativeMcpResultText(res.result), RecordItemsResponse)
     expect(page.items[0]).not.toHaveProperty('rollup')
@@ -2928,11 +2983,15 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('fields:[...] returns only the named fields', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const { id } = await seedIssue(workspaceId, projectId, userId, {
       priority: 'high',
       title: 'Fields test',
     })
-    const res = await mcpCall({
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { fields: ['id', 'title', 'priority'], id },
       name: 'get_issue',
     })
@@ -2943,13 +3002,20 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issues fetches up to 50 issues in one call by ref and id', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Batch A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Batch B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
     assert.exists(row)
     const ref = `${row.key}-${issue.number}`
 
-    const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [currentIssue.id] } })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
+      name: 'get_issues',
+      arguments: { refs: [ref], ids: [currentIssue.id] },
+    })
     expect(res.error).toBeUndefined()
     const data = parseNativeMcpText(readNativeMcpResultText(res.result), TitleItemsResponse)
     const titles = data.items.map((item) => item.title).toSorted()
@@ -2957,8 +3023,12 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('fields:[...] always returns every named key: real value, or null when unset', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Null fields test' })
-    const res = await mcpCall({
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { fields: ['id', 'assignee_id', 'sprint_id', 'links', 'rollup'], id },
       name: 'get_issue',
     })
@@ -2976,13 +3046,20 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issues rejects more than 50 combined ids', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
     const ids = Array.from({ length: 51 }, () => crypto.randomUUID())
-    const res = await mcpCall({ name: 'get_issues', arguments: { ids } })
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, { name: 'get_issues', arguments: { ids } })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('validation')
   })
 
   test('get_issues preserves request order and reports unresolved/invisible refs+ids as missing', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Order A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Order B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
@@ -2991,7 +3068,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const missingRef = `${row.key}-999999`
     const missingId = crypto.randomUUID()
 
-    const res = await mcpCall({
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'get_issues',
       arguments: { refs: [missingRef, refA], ids: [missingId, currentIssue.id] },
     })
@@ -3007,7 +3084,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(data.missing).toStrictEqual([missingRef, missingId])
   })
 
-  test("every compacting tool's description states the omission contract", () => {
+  test("every compacting tool's description states the omission contract", async () => {
+    await seedProjectFixture({
+      role: 'owner',
+    })
     Iterable.forEach(['get_issue', 'list_issues', 'get_issues'], (name) => {
       const tool = issuesTools.find((t) => t.name === name)
       expect(tool?.description).toContain('Omitted keys are null/empty/false; pass verbose:true for the raw shape.')
@@ -3015,19 +3095,29 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('verbose/fields wrong types are rejected with a validation tool error before reaching the service', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Bad opts' })
     const errorCode = (
       res: unknown,
     ): undefined | 'validation' | 'not_found' | 'forbidden' | 'conflict' | 'payload_too_large' | 'rate_limited' =>
       toolError(res)?.code
 
-    const badVerbose = await mcpCall({ arguments: { id, verbose: 'yes' }, name: 'get_issue' })
+    const badVerbose = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { id, verbose: 'yes' },
+      name: 'get_issue',
+    })
     expect(errorCode(badVerbose)).toBe('validation')
 
-    const badFields = await mcpCall({ arguments: { fields: 'nope', id }, name: 'get_issue' })
+    const badFields = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { fields: 'nope', id },
+      name: 'get_issue',
+    })
     expect(errorCode(badFields)).toBe('validation')
 
-    const badFieldsList = await mcpCall({
+    const badFieldsList = await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { fields: [1, 2] },
       name: 'list_issues',
     })
@@ -3035,6 +3125,9 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('covers REST GET /api/issues/batch has parity with the MCP get_issues tool', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({
+      role: 'owner',
+    })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch B' })
     const res = await fetchNativeApi(`http://localhost/api/issues/batch?ids=${issue.id},${currentIssue.id}`, {
@@ -3049,6 +3142,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('covers PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, slug, token, userId, workspaceId } = issueMcpFixture
     /*
      * A "typical" seeded issue per the ticket: no assignee, no custom fields, no
      * children/parent, no links — exactly the empty/default fields PROJ-931 targets.
@@ -3069,7 +3166,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const beforeBytes = JSON.stringify(fullIssue, undefined, 2).length
 
     // "After": the actual MCP get_issue tool result (minified + compacted).
-    const mcpRes = await mcpCall({ arguments: { id }, name: 'get_issue' })
+    const mcpRes = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { id }, name: 'get_issue' })
     const afterBytes = readNativeMcpResultText(mcpRes.result).length
 
     const reduction = (beforeBytes - afterBytes) / beforeBytes
@@ -3079,16 +3176,14 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(afterBytes).toBeLessThan(JSON.stringify(fullIssue).length * 0.8)
   })
 
-  const projectKey = async function projectKey(): Promise<string> {
-    const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    assert.exists(row)
-    return row.key
-  }
-
   test('get_issues resolves zero-padded refs like get_issue does', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Padded' })
-    const padded = `${await projectKey()}-00${issue.number}`
-    const res = await mcpCall({ arguments: { refs: [padded] }, name: 'get_issues' })
+    const padded = `${await readFixtureProjectKey(projectId)}-00${issue.number}`
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { refs: [padded] }, name: 'get_issues' })
     const data = parseNativeMcpText(
       readNativeMcpResultText(res.result),
       Schema.Struct({
@@ -3101,8 +3196,12 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issues lists a repeated missing ref once', async () => {
-    const ref = `${await projectKey()}-999999`
-    const res = await mcpCall({ arguments: { refs: [ref, ref] }, name: 'get_issues' })
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId } = issueMcpFixture
+    const ref = `${await readFixtureProjectKey(projectId)}-999999`
+    const res = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { refs: [ref, ref] }, name: 'get_issues' })
     const data = parseNativeMcpText(
       readNativeMcpResultText(res.result),
       Schema.Struct({ missing: Schema.Array(Schema.String).pipe(Schema.mutable) }),
@@ -3111,12 +3210,19 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('get_issues omits body unless includeBody:true', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Bodied' })
     await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?').bind('hello', issue.id).run()
-    const without = await mcpCall({ name: 'get_issues', arguments: { ids: [issue.id] } })
+    const without = await callIssueFixtureMcpTool(issueMcpFixture, {
+      name: 'get_issues',
+      arguments: { ids: [issue.id] },
+    })
     const parsedResult = parseNativeMcpText(readNativeMcpResultText(without.result), RecordItemsResponse)
     expect(parsedResult.items[0]).not.toHaveProperty('body')
-    const withBody = await mcpCall({
+    const withBody = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'get_issues',
       arguments: { ids: [issue.id], includeBody: true },
     })
@@ -3125,20 +3231,36 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test('fields keeps false as false and rejects unknown field names', async () => {
+    const issueMcpFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { projectId, userId, workspaceId } = issueMcpFixture
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Audit flag' })
-    const ok = await mcpCall({ arguments: { fields: ['needs_audit'], id }, name: 'get_issue' })
+    const ok = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { fields: ['needs_audit'], id },
+      name: 'get_issue',
+    })
     const issue = parseNativeMcpText(readNativeMcpResultText(ok.result), JsonRecordResponse)
     expect(issue.needs_audit).toBe(false)
 
-    const typo = await mcpCall({ arguments: { fields: ['titel'], id }, name: 'get_issue' })
+    const typo = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { fields: ['titel'], id },
+      name: 'get_issue',
+    })
     expect(toolError(typo)?.code).toBe('validation')
-    const proto = await mcpCall({ arguments: { fields: ['constructor'], id }, name: 'get_issue' })
+    const proto = await callIssueFixtureMcpTool(issueMcpFixture, {
+      arguments: { fields: ['constructor'], id },
+      name: 'get_issue',
+    })
     expect(toolError(proto)?.code).toBe('validation')
   })
 
   test('covers REST /api/issues/batch: refs with spaces, missing in request order, 400 over 50', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({
+      role: 'owner',
+    })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST ref A' })
-    const key = await projectKey()
+    const key = await readFixtureProjectKey(projectId)
     const gone = `${key}-999999`
     const res = await fetchNativeApi(
       `http://localhost/api/issues/batch?refs=${encodeURIComponent(`${gone}, ${key}-${issue.number}`)}`,
