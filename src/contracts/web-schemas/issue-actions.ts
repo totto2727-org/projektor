@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 
+import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '#contracts/issue-limits.ts'
 import { ReviewTargetSchema } from '#contracts/review-targets.ts'
 
 const NonEmpty = Schema.String.check(Schema.isMinLength(1))
@@ -22,8 +23,11 @@ export const CreateIssueSchema = Schema.Struct({
   ...SelectorFields,
   projectId: NonEmpty,
   // Preserve the existing schema output while checking the title at runtime.
-  title: Schema.String.check(Schema.isPattern(/\S/u, { toJsonSchema: () => [{}, true] }), Schema.isMaxLength(500)),
-  body: Schema.optional(Schema.String.check(Schema.isMaxLength(50_000))),
+  title: Schema.String.check(
+    Schema.isPattern(/\S/u, { toJsonSchema: () => [{}, true] }),
+    Schema.isMaxLength(MAX_ISSUE_TITLE_LENGTH),
+  ),
+  body: Schema.optional(Schema.String.check(Schema.isMaxLength(MAX_ISSUE_BODY_LENGTH))),
   priority: Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])),
   statusId: Schema.optional(NonEmpty),
   typeId: Schema.optional(NonEmpty),

@@ -1,0 +1,3 @@
+export const MAX_ISSUE_TITLE_LENGTH = 500
+export const MAX_ISSUE_BODY_LENGTH = 50_000
+export const MAX_ISSUE_COMMENT_LENGTH = 10_000

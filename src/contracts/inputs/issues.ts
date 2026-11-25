@@ -1,11 +1,10 @@
 import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
+import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '../issue-limits.ts'
 import { BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
 import { CustomFieldFilterSchema } from './custom-fields.ts'
 
-const MAX_TITLE_LENGTH = 500
-const MAX_BODY_LENGTH = 50_000
 const MAX_LABEL_LENGTH = 50
 const MAX_LABEL_COUNT = 20
 const MIN_PAGE_SIZE = 1
@@ -18,8 +17,8 @@ const MAX_BATCH_SIZE = 50
 export const CreateIssueSchema = z
   .object({
     projectId: z.string(),
-    title: z.string().nonempty().max(MAX_TITLE_LENGTH),
-    body: z.string().max(MAX_BODY_LENGTH).optional(),
+    title: z.string().nonempty().max(MAX_ISSUE_TITLE_LENGTH),
+    body: z.string().max(MAX_ISSUE_BODY_LENGTH).optional(),
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),
@@ -47,8 +46,8 @@ export const CompletionReportSchema = z.object({
 
 export const UpdateIssueSchema = z
   .object({
-    title: z.string().nonempty().max(MAX_TITLE_LENGTH).optional(),
-    body: z.string().max(MAX_BODY_LENGTH).optional(),
+    title: z.string().nonempty().max(MAX_ISSUE_TITLE_LENGTH).optional(),
+    body: z.string().max(MAX_ISSUE_BODY_LENGTH).optional(),
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),

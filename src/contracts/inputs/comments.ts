@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
-const MAX_COMMENT_LENGTH = 10_000
+import { MAX_ISSUE_COMMENT_LENGTH } from '../issue-limits.ts'
 
-const body = z.string().nonempty().max(MAX_COMMENT_LENGTH)
+const body = z.string().nonempty().max(MAX_ISSUE_COMMENT_LENGTH)
 
 export const ListCommentsSchema = z.object({
   issueId: z.string(),

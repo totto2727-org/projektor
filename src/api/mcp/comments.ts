@@ -1,4 +1,5 @@
 import { addComment, deleteComment, listComments, updateComment } from '#api/services/comments.ts'
+import { MAX_ISSUE_COMMENT_LENGTH } from '#contracts/issue-limits.ts'
 
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import { requiredObjectInputSchema } from './input-schema.ts'
@@ -23,7 +24,7 @@ export const commentsTools: MCPTool[] = [
     },
     inputSchema: requiredObjectInputSchema(['issueId', 'body'], {
       issueId: { type: 'string' },
-      body: { type: 'string', minLength: 1, maxLength: 10_000 },
+      body: { type: 'string', minLength: 1, maxLength: MAX_ISSUE_COMMENT_LENGTH },
     }),
     name: 'add_comment',
   },
@@ -36,7 +37,7 @@ export const commentsTools: MCPTool[] = [
     inputSchema: requiredObjectInputSchema(['issueId', 'commentId', 'body'], {
       issueId: { type: 'string' },
       commentId: { type: 'string' },
-      body: { type: 'string', minLength: 1, maxLength: 10_000 },
+      body: { type: 'string', minLength: 1, maxLength: MAX_ISSUE_COMMENT_LENGTH },
     }),
     name: 'update_comment',
   },
