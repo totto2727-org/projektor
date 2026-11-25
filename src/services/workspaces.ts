@@ -51,7 +51,14 @@ export const findWorkspaceBySlug = function findWorkspaceBySlug(
   )
 }
 
-/** Return the membership relation. The app decides what its role permits. */
+/**
+ * Return the membership relation. The app decides what its role permits.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @param {string} userId The user whose membership is being checked.
+ * @returns {Effect.Effect<WorkspaceMemberRelation | undefined, DataQueryError>} An effect that reads the relation when it exists.
+ */
 export const findWorkspaceMembership = function findWorkspaceMembership(
   db: D1Database,
   workspaceId: string,
@@ -101,7 +108,13 @@ export const readWorkspaceBrand = function readWorkspaceBrand(
   })
 }
 
-/** Secret token hashes/values are deliberately absent from this projection. */
+/**
+ * Secret token hashes/values are deliberately absent from this projection.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @returns {Effect.Effect<WorkspaceTokenMetadata[], DataQueryError>} An effect that reads the workspace token metadata.
+ */
 export const listWorkspaceTokenMetadata = function listWorkspaceTokenMetadata(
   db: D1Database,
   workspaceId: string,

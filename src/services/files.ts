@@ -92,7 +92,14 @@ const metadataQuery = function metadataQuery(
 		ORDER BY a.created_at ASC`)
     .bind(...(linked?.params ?? []), workspaceId, ...values, ...(owner?.params ?? []))
 }
-/** The caller supplies policy predicates. The query always retains tenant and entity scope. */
+/**
+ * The caller supplies policy predicates. The query always retains tenant and entity scope.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @param {AttachmentListOptions} options The owner entity and caller-supplied visibility predicates.
+ * @returns {Effect.Effect<AttachmentMetadata[], DataQueryError>} An effect that reads matching metadata in creation order.
+ */
 export const listAttachments = function listAttachments(
   db: D1Database,
   workspaceId: string,
@@ -121,7 +128,14 @@ export const findAttachment = function findAttachment(
   })
 }
 
-/** Callers authorize the issue set first. Every query independently retains workspace and owner scope. */
+/**
+ * Callers authorize the issue set first. Every query independently retains workspace and owner scope.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @param {Readonly<string[]>} issueIds The issue IDs authorized by the caller.
+ * @returns {Effect.Effect<Map<string, ReviewTarget[]>, DataQueryError>} An effect that groups the selected review targets by issue ID.
+ */
 export const listIssueReviewTargets = function listIssueReviewTargets(
   db: D1Database,
   workspaceId: string,

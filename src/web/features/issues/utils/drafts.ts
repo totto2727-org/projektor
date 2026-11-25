@@ -20,12 +20,22 @@ interface StoredDraft {
 /**
  * Build a storage key for one editable field. Scoped by workspace so a draft can never
  * surface under a different tenant.
+ *
+ * @param {string | undefined} workspaceSlug The workspace containing the edited record.
+ * @param {string} scope The entity or editor scope for the field.
+ * @param {string} field The editable field name.
+ * @returns {string} The session storage key for the draft.
  */
 export const draftKey = function draftKey(workspaceSlug: string | undefined, scope: string, field: string): string {
   return `${PREFIX}${workspaceSlug ?? '-'}:${scope}:${field}`
 }
 
-/** Returns the stored draft, or null if absent, expired or unreadable. */
+/**
+ * Returns the stored draft, or null if absent, expired or unreadable.
+ *
+ * @param {string} key The session storage key for the draft.
+ * @returns {string | null} The saved text, or null when storage has no usable draft.
+ */
 export const loadDraft = function loadDraft(key: string): string | null {
   try {
     const raw = sessionStorage.getItem(key)
@@ -48,7 +58,12 @@ export const loadDraft = function loadDraft(key: string): string | null {
   }
 }
 
-/** Persists a draft. Empty/whitespace-only values clear the entry rather than storing it. */
+/**
+ * Persists a draft. Empty/whitespace-only values clear the entry rather than storing it.
+ *
+ * @param {string} key The session storage key for the draft.
+ * @param {string} value The current user input.
+ */
 export const saveDraft = function saveDraft(key: string, value: string): void {
   try {
     if (!value.trim()) {

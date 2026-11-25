@@ -73,6 +73,9 @@ const resolveAutoJoinRole = function resolveAutoJoinRole(raw?: string): Role | n
  *   {"example.com": {"slug": "example-team", "role": "member"}}
  * Invalid entries are skipped; a malformed value yields an empty map (so the
  * default-workspace behaviour applies, never a crash).
+ *
+ * @param {unknown} value The decoded entry for one email domain.
+ * @returns { {slug: string, role: Role} | null } The workspace and normalized role, or null for an invalid entry.
  */
 const parseDomainMapValue = function parseDomainMapValue(value: unknown): { slug: string; role: Role } | null {
   if (!value || typeof value !== 'object') {
@@ -135,6 +138,10 @@ const resolveDomainMapping = function resolveDomainMapping(
  * appeared in the meantime (an invite, or another isolate provisioning the same admin) an
  * insert-if-absent would be silently discarded and leave the admin under-privileged —
  * previously self-healing on the next request, but now cached for the whole TTL.
+ *
+ * @param {ReturnType<typeof drizzle>} orm The Drizzle connection used for workspace writes.
+ * @param {string} workspaceId The workspace where the admin can receive ownership.
+ * @param {string} userId The admin user ID.
  */
 const grantOwner = async function grantOwner(
   orm: ReturnType<typeof drizzle>,
@@ -160,6 +167,12 @@ const grantOwner = async function grantOwner(
 /**
  * Provision an admin: they own EVERY workspace on this instance. The first admin to log in
  * also bootstraps the default workspace if it doesn't exist yet (first-run).
+ *
+ * @param {ReturnType<typeof drizzle>} orm The Drizzle connection used for workspace writes.
+ * @param {ProvisioningEnvironment} env The provisioning configuration and storage bindings.
+ * @param {Readonly<{id: string, email: string}>} user The signed-in instance administrator.
+ * @param {string} slug The configured default workspace slug.
+ * @param {string} name The default workspace display name.
  */
 const provisionAdmin = async function provisionAdmin(
   orm: ReturnType<typeof drizzle>,
@@ -289,6 +302,9 @@ export const resetProvisioningCacheForTests = function resetProvisioningCacheFor
 /**
  * Test-only: forget a specific user in *both* layers, so the next call really re-provisions.
  * Clearing the isolate-local map alone isn't enough — the KV marker would still short-circuit.
+ *
+ * @param {ProvisioningEnvironment} env The provisioning configuration and storage bindings.
+ * @param {string} userId The test user whose cached provisioning markers must be cleared.
  */
 export const forgetProvisionedForTests = async function forgetProvisionedForTests(
   env: ProvisioningEnvironment,
@@ -326,6 +342,9 @@ export const forgetProvisionedForTests = async function forgetProvisionedForTest
  * provisioning_removals, and grantOwner / the domain-map and auto-join paths above all check
  * it before re-adding — so a config match (ADMIN_EMAILS, AUTO_JOIN_ROLE, WORKSPACE_DOMAIN_MAP)
  * no longer undoes an explicit removal. inviteMember clears the tombstone.
+ *
+ * @param {ProvisioningEnvironment} env The provisioning configuration and storage bindings.
+ * @param { {id: string, email: string} } user The authenticated user eligible for provisioning.
  */
 export const ensureUserProvisioned = async function ensureUserProvisioned(
   env: ProvisioningEnvironment,

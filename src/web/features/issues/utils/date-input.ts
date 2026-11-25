@@ -11,7 +11,12 @@ import { formatTimestampDate } from '@/features/timestamp.ts'
  * earlier anywhere west of UTC.)
  */
 
-/** "YYYY-MM-DD" → unix seconds at local midnight; empty/invalid → null. */
+/**
+ * "YYYY-MM-DD" → unix seconds at local midnight; empty/invalid → null.
+ *
+ * @param {string} value The date input text.
+ * @returns {number | null} Local midnight in Unix seconds, or null if the input cannot be converted.
+ */
 export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
   const parts = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u.exec(value.trim())?.groups
   if (!parts) {
@@ -21,7 +26,12 @@ export const dateInputToUnix = function dateInputToUnix(value: string): number |
   return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / MILLISECONDS_PER_SECOND)
 }
 
-/** Unix seconds → "YYYY-MM-DD" in local time; null → "". */
+/**
+ * Unix seconds → "YYYY-MM-DD" in local time; null → "".
+ *
+ * @param {number | null | undefined} ts The Unix timestamp in seconds, when supplied.
+ * @returns {string} The local calendar date for the input, or an empty string when absent.
+ */
 export const unixToDateInput = function unixToDateInput(ts: number | null | undefined): string {
   if (ts === null || Predicate.isNullish(ts)) {
     return ''
@@ -33,7 +43,12 @@ export const unixToDateInput = function unixToDateInput(ts: number | null | unde
   return `${year}-${month}-${day}`
 }
 
-/** Unix seconds → a UTC date for display; null → "—". */
+/**
+ * Unix seconds → a UTC date for display; null → "—".
+ *
+ * @param {number | null | undefined} ts The Unix timestamp in seconds, when supplied.
+ * @returns {string} The formatted UTC date, or an em dash when absent.
+ */
 export const formatUnixDate = function formatUnixDate(ts: number | null | undefined): string {
   if (ts === null || Predicate.isNullish(ts)) {
     return '—'

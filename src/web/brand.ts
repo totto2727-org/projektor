@@ -33,7 +33,14 @@ export const deploymentBrand = function deploymentBrand(env: BrandEnvironment): 
   }
 }
 
-/** Cosmetic failures do not turn otherwise valid project data into an error page. */
+/**
+ * Cosmetic failures do not turn otherwise valid project data into an error page.
+ *
+ * @param {Env} env The deployment defaults and Core binding.
+ * @param {RequestScope | null} scope The workspace or project selection, when available.
+ * @param {Request} [request] The incoming request used for the Core read.
+ * @returns {Effect.Effect<BrandConfig>} An effect that resolves the brand using deployment defaults and any available workspace overrides.
+ */
 export const loadBrand = function loadBrand(
   env: Env,
   scope: RequestScope | null,
@@ -70,7 +77,12 @@ export const loadBrand = function loadBrand(
   )
 }
 
-/** Emit preferences before paint without a client-side, cross-workspace brand cache. */
+/**
+ * Emit preferences before paint without a client-side, cross-workspace brand cache.
+ *
+ * @param {BrandConfig} brand The resolved brand preferences.
+ * @returns {CSSProperties} The configured CSS custom properties for theme colors.
+ */
 export const brandStyles = function brandStyles(brand: BrandConfig): CSSProperties {
   const styles: CSSProperties & Record<string, string> = {}
   if (isNonEmptyText(brand.accent)) {

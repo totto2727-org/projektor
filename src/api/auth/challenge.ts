@@ -39,6 +39,10 @@ const bearerChallenge = function bearerChallenge(params: Readonly<Record<string,
  * included, so pointing at an origin-level document fails the match (PROJ-655).
  * Derived from the request rather than a configured origin so it stays correct on
  * every hostname an instance is reachable at.
+ *
+ * @param {string} requestUrl The incoming MCP request URL.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @returns {string} The protected resource metadata URL on the request origin.
  */
 export const protectedResourceMetadataUrl = function protectedResourceMetadataUrl(
   requestUrl: string,
@@ -48,7 +52,13 @@ export const protectedResourceMetadataUrl = function protectedResourceMetadataUr
   return `${origin}/.well-known/oauth-protected-resource/mcp/${encodeURIComponent(workspaceId)}`
 }
 
-/** `WWW-Authenticate` for an unauthenticated MCP request (401). */
+/**
+ * `WWW-Authenticate` for an unauthenticated MCP request (401).
+ *
+ * @param {string} requestUrl The incoming MCP request URL.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @returns {string} The Bearer challenge for the workspace and its supported scopes.
+ */
 export const unauthorizedChallenge = function unauthorizedChallenge(requestUrl: string, workspaceId: string): string {
   return bearerChallenge({
     resource_metadata: protectedResourceMetadataUrl(requestUrl, workspaceId),
@@ -65,6 +75,10 @@ export const unauthorizedChallenge = function unauthorizedChallenge(requestUrl: 
  * the client touched a different operation, and with exactly two scopes there is no
  * meaningful over-ask: `projektor:write` already implies read internally, so the
  * complete set is what any grant that can satisfy this request looks like anyway.
+ *
+ * @param {string} requestUrl The incoming MCP request URL.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @returns {string} The Bearer challenge with the insufficient-scope error and supported scopes.
  */
 export const insufficientScopeChallenge = function insufficientScopeChallenge(
   requestUrl: string,
