@@ -39,9 +39,9 @@ export interface BrowserPrincipal {
   auth: AuthInfo
 }
 export class BrowserAuthenticationError extends Error {
-  readonly status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE
-  readonly _tag = 'BrowserAuthenticationError'
-  constructor(status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE, message: string) {
+  public readonly status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE
+  public readonly _tag = 'BrowserAuthenticationError'
+  public constructor(status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE, message: string) {
     super(message)
     this.status = status
     this.name = 'BrowserAuthenticationError'

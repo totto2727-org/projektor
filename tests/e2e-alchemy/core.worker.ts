@@ -17,8 +17,8 @@ let initializing: Promise<{ migrations: number }> | undefined
 /** Acceptance-only entrypoint. Production Core never imports or applies migrations. */
 // oxlint-disable-next-line import/no-default-export -- Workerd loads the test Core service class from the default export.
 export default class FixtureCore extends NativeCore {
-  declare readonly env: CoreEnvironment
-  async initializeFixture(): Promise<{ migrations: number }> {
+  declare public readonly env: CoreEnvironment
+  public async initializeFixture(): Promise<{ migrations: number }> {
     initializing ??= this.applyFixtureMigrations().catch((error: unknown) => {
       initializing = undefined
       throw error
@@ -27,7 +27,7 @@ export default class FixtureCore extends NativeCore {
   }
 
   /** Re-enter migration application without resetting the database or its ledger. */
-  async reinitializeFixture(): Promise<{ migrations: number }> {
+  public async reinitializeFixture(): Promise<{ migrations: number }> {
     await this.initializeFixture()
     return this.applyFixtureMigrations()
   }

@@ -7,9 +7,9 @@ import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from './a
 
 /** Provider mechanics validate clients, redirect URIs and PKCE. This contract binds the workspace audience. */
 export class OAuthRequestError extends Error {
-  readonly code: 'invalid_target' | 'invalid_scope'
-  readonly reason: string
-  constructor(code: 'invalid_target' | 'invalid_scope', reason: string) {
+  public readonly code: 'invalid_target' | 'invalid_scope'
+  public readonly reason: string
+  public constructor(code: 'invalid_target' | 'invalid_scope', reason: string) {
     super(reason)
     this.code = code
     this.reason = reason

@@ -110,21 +110,21 @@ const plainTextExcerpt = function plainTextExcerpt(markdown: string, maxLen = 20
 class AttrSetter {
   private attr: string
   private value: string
-  constructor(attr: string, value: string) {
+  public constructor(attr: string, value: string) {
     this.attr = attr
     this.value = value
   }
-  element(el: Element): void {
+  public element(el: Element): void {
     el.setAttribute(this.attr, this.value)
   }
 }
 
 class TextSetter {
   private value: string
-  constructor(value: string) {
+  public constructor(value: string) {
     this.value = value
   }
-  element(el: Element): void {
+  public element(el: Element): void {
     el.setInnerContent(this.value)
   }
 }

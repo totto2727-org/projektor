@@ -25,49 +25,49 @@ export abstract class ServiceError extends Error {
 }
 
 export class ValidationError extends ServiceError {
-  readonly issues: ZodFlattenOutput
-  readonly kind = 'validation' as const
-  constructor(issues: ZodFlattenOutput) {
+  public readonly issues: ZodFlattenOutput
+  public readonly kind = 'validation' as const
+  public constructor(issues: ZodFlattenOutput) {
     super('Validation failed')
     this.issues = issues
   }
 }
 
 export class NotFoundError extends ServiceError {
-  readonly details?: Record<string, unknown>
-  readonly kind = 'not_found' as const
-  constructor(message = 'Not found', details?: Record<string, unknown>) {
+  public readonly details?: Record<string, unknown>
+  public readonly kind = 'not_found' as const
+  public constructor(message = 'Not found', details?: Record<string, unknown>) {
     super(message)
     this.details = details
   }
 }
 
 export class ForbiddenError extends ServiceError {
-  readonly kind = 'forbidden' as const
-  constructor(message = 'Forbidden') {
+  public readonly kind = 'forbidden' as const
+  public constructor(message = 'Forbidden') {
     super(message)
   }
 }
 
 export class ConflictError extends ServiceError {
-  readonly details?: Record<string, unknown>
-  readonly kind = 'conflict' as const
-  constructor(message = 'Conflict', details?: Record<string, unknown>) {
+  public readonly details?: Record<string, unknown>
+  public readonly kind = 'conflict' as const
+  public constructor(message = 'Conflict', details?: Record<string, unknown>) {
     super(message)
     this.details = details
   }
 }
 
 export class PayloadTooLargeError extends ServiceError {
-  readonly kind = 'payload_too_large' as const
-  constructor(message = 'Payload too large') {
+  public readonly kind = 'payload_too_large' as const
+  public constructor(message = 'Payload too large') {
     super(message)
   }
 }
 
 export class UnsupportedMediaTypeError extends ServiceError {
-  readonly kind = 'unsupported_media_type' as const
-  constructor(message = 'Unsupported media type') {
+  public readonly kind = 'unsupported_media_type' as const
+  public constructor(message = 'Unsupported media type') {
     super(message)
   }
 }
@@ -82,7 +82,7 @@ export class ApiError extends Data.TaggedError('ApiError')<{
   readonly cause?: Redacted.Redacted<unknown>
   readonly details?: Readonly<Record<string, unknown>>
 }> {
-  constructor(
+  public constructor(
     kind: ApiFailureKind,
     status: number,
     message: string,
@@ -105,7 +105,7 @@ export class ScopeError extends Data.TaggedError('ScopeError')<
     message: string
   }>
 > {
-  constructor(status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_NOT_FOUND, message: string) {
+  public constructor(status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_NOT_FOUND, message: string) {
     super({ status, message })
   }
 }

@@ -70,8 +70,8 @@ describe('covers ProjectNav SSR width fallback', () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        observe(): void {}
-        disconnect(): void {}
+        public observe(): void {}
+        public disconnect(): void {}
       },
     )
     render(<ProjectNav scope={scope} url={url} />)

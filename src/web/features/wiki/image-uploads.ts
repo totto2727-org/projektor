@@ -8,9 +8,9 @@ interface UploadAnchor {
 }
 
 class ImageUploads {
-  readonly anchors = new Set<UploadAnchor>()
+  public readonly anchors = new Set<UploadAnchor>()
 
-  update(update: ViewUpdate): void {
+  public update(update: ViewUpdate): void {
     if (!update.docChanged) {
       return
     }
@@ -19,14 +19,14 @@ class ImageUploads {
     })
   }
 
-  cancel(): void {
+  public cancel(): void {
     Iterable.forEach(this.anchors, (anchor) => {
       anchor.active = false
     })
     this.anchors.clear()
   }
 
-  destroy(): void {
+  public destroy(): void {
     this.cancel()
   }
 }

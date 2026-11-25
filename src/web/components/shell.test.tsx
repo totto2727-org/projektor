@@ -43,9 +43,9 @@ beforeEach(() => {
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
+      public observe(): void {}
+      public unobserve(): void {}
+      public disconnect(): void {}
     },
   )
 })

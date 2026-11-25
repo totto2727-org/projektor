@@ -8,22 +8,22 @@ class PluginRegistry {
   // Workspace IDs map to sets of plugin IDs
   private workspacePlugins = new Map<string, Set<string>>()
 
-  register(plugin: Plugin): void {
+  public register(plugin: Plugin): void {
     this.plugins.set(plugin.id, plugin)
   }
 
-  enableForWorkspace(workspaceId: string, pluginId: string): void {
+  public enableForWorkspace(workspaceId: string, pluginId: string): void {
     const set = this.workspacePlugins.get(workspaceId) ?? new Set()
     set.add(pluginId)
     this.workspacePlugins.set(workspaceId, set)
   }
 
-  getToolsForWorkspace(workspaceId: string): MCPTool[] {
+  public getToolsForWorkspace(workspaceId: string): MCPTool[] {
     const ids = this.workspacePlugins.get(workspaceId) ?? new Set()
     return [...ids].flatMap((id) => this.plugins.get(id)?.mcpTools ?? [])
   }
 
-  getAll(): Plugin[] {
+  public getAll(): Plugin[] {
     return [...this.plugins.values()]
   }
 }

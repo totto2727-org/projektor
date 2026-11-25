@@ -32,15 +32,15 @@ const isWorkspaceAdmin = function isWorkspaceAdmin(role: Role | undefined): bool
 }
 
 export class WorkspaceHub {
-  ctx: DurableObjectState
-  env: ApiEnv
+  public ctx: DurableObjectState
+  public env: ApiEnv
 
-  constructor(ctx: DurableObjectState, env: ApiEnv) {
+  public constructor(ctx: DurableObjectState, env: ApiEnv) {
     this.ctx = ctx
     this.env = env
   }
 
-  async fetch(request: Request): Promise<Response> {
+  public async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
     if (url.pathname === '/broadcast' && request.method === 'POST') {
       try {
@@ -118,7 +118,7 @@ export class WorkspaceHub {
     }
   }
 
-  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+  public async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (!Predicate.isString(message)) {
       return
     }
@@ -186,18 +186,18 @@ export class WorkspaceHub {
     }
   }
 
-  async webSocketClose(ws: WebSocket, code: number, _reason: string, _wasClean: boolean): Promise<void> {
+  public async webSocketClose(ws: WebSocket, code: number, _reason: string, _wasClean: boolean): Promise<void> {
     const registered = code >= 1000 && code <= 1014 && ![1004, 1005, 1006].includes(code)
     const application = code >= 3000 && code <= 4999
     const replyCode = Number.isInteger(code) && (registered || application) ? code : 1000
     ws.close(replyCode, 'Closed')
   }
 
-  async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {
+  public async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {
     ws.close(1011, 'Internal error')
   }
 
-  async broadcast(event: RealtimeEvent): Promise<{ recipientCount: number }> {
+  public async broadcast(event: RealtimeEvent): Promise<{ recipientCount: number }> {
     const sockets = this.ctx.getWebSockets()
     let recipientCount = 0
     const payload = JSON.stringify(event)

@@ -291,8 +291,8 @@ const objectMetadata = function objectMetadata(object: R2Object) {
 /** Only this native-test artifact exports fixture storage operations, never production Core. */
 // oxlint-disable-next-line import/no-default-export -- Workerd loads the native test Core service class from the default export.
 export default class NativeFixtureCore extends FixtureCore {
-  declare readonly env: CoreEnvironment
-  fixtureEnvironment() {
+  declare public readonly env: CoreEnvironment
+  public fixtureEnvironment() {
     return {
       database: Predicate.isFunction(this.env.DB.prepare),
       cache: Predicate.isFunction(this.env.KV.get),
@@ -302,7 +302,7 @@ export default class NativeFixtureCore extends FixtureCore {
     }
   }
 
-  async fixtureD1(query: FixtureQuery): Promise<unknown> {
+  public async fixtureD1(query: FixtureQuery): Promise<unknown> {
     const statement = this.env.DB.prepare(query.sql).bind(...query.params)
     switch (query.method) {
       case 'all':
@@ -316,15 +316,15 @@ export default class NativeFixtureCore extends FixtureCore {
     }
   }
 
-  async fixtureD1Batch(statements: Readonly<FixtureStatement[]>): Promise<D1Result[]> {
+  public async fixtureD1Batch(statements: Readonly<FixtureStatement[]>): Promise<D1Result[]> {
     return this.env.DB.batch(statements.map(({ sql, params }) => this.env.DB.prepare(sql).bind(...params)))
   }
 
-  async fixtureD1Exec(sql: string): Promise<D1ExecResult> {
+  public async fixtureD1Exec(sql: string): Promise<D1ExecResult> {
     return this.env.DB.exec(sql)
   }
 
-  async fixtureKV(
+  public async fixtureKV(
     namespace: 'KV' | 'OAUTH_KV',
     method: 'get' | 'getWithMetadata' | 'put' | 'delete' | 'list',
     args: unknown[],
@@ -333,7 +333,7 @@ export default class NativeFixtureCore extends FixtureCore {
     return Reflect.apply(kv[method], kv, args)
   }
 
-  async fixtureR2(method: 'get' | 'head' | 'put' | 'delete' | 'list', args: unknown[]): Promise<unknown> {
+  public async fixtureR2(method: 'get' | 'head' | 'put' | 'delete' | 'list', args: unknown[]): Promise<unknown> {
     const bucket = this.env.R2
     if (method === 'delete') {
       return Reflect.apply(bucket[method], bucket, args)
@@ -353,18 +353,18 @@ export default class NativeFixtureCore extends FixtureCore {
   }
 
   /** A native loopback binding keeps fixture policy request-local, without a custom RPC codec. */
-  fixtureSession(settings: FixtureConfiguration) {
+  public fixtureSession(settings: FixtureConfiguration) {
     const exports = this.ctx.exports as unknown as {
       Session: (options: { props: FixtureConfiguration }) => Fetcher
     }
     return exports.Session({ props: settings })
   }
 
-  fixtureResetAuthCaches(): void {
+  public fixtureResetAuthCaches(): void {
     resetAuthCachesForTests()
   }
 
-  fixtureObservations(epoch: string): FixtureObservations {
+  public fixtureObservations(epoch: string): FixtureObservations {
     return (
       observations.get(epoch) ?? {
         authenticateCalls: 0,
@@ -377,11 +377,11 @@ export default class NativeFixtureCore extends FixtureCore {
     )
   }
 
-  fixtureResetObservations(epoch: string): void {
+  public fixtureResetObservations(epoch: string): void {
     observations.delete(epoch)
   }
 
-  fixtureLimiterCalls(epoch: string): number {
+  public fixtureLimiterCalls(epoch: string): number {
     return fixtureLimiterCalls.get(epoch) ?? 0
   }
 }
@@ -416,7 +416,7 @@ function resolveFixtureEnvironment(props: unknown, env: object) {
 
 /** Same official bridge and handlers, with invocation-local fixture settings. */
 export class Session extends NativeFixtureCore {
-  constructor(context: ExecutionContext, env: CoreEnvironment) {
+  public constructor(context: ExecutionContext, env: CoreEnvironment) {
     const resolved = resolveFixtureEnvironment(context.props, env)
     if (!isCoreEnvironment(resolved)) {
       throw new Error('Invalid native fixture bindings')

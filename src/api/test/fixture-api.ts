@@ -114,31 +114,31 @@ export const getCoreLimiterCalls = async function getCoreLimiterCalls(): Promise
 }
 
 class FixturePreparedStatement {
-  readonly sql: string
-  readonly params: unknown[]
+  public readonly sql: string
+  public readonly params: unknown[]
 
-  constructor(sql: string, params: unknown[] = []) {
+  public constructor(sql: string, params: unknown[] = []) {
     this.sql = sql
     this.params = params
   }
 
-  bind(...params: unknown[]): FixturePreparedStatement {
+  public bind(...params: unknown[]): FixturePreparedStatement {
     return new FixturePreparedStatement(this.sql, params)
   }
 
-  all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
+  public all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'all' }) as Promise<D1Result<T>>
   }
 
-  run<T = Record<string, unknown>>(): Promise<D1Result<T>> {
+  public run<T = Record<string, unknown>>(): Promise<D1Result<T>> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'run' }) as Promise<D1Result<T>>
   }
 
-  first<T = Record<string, unknown>>(column?: string): Promise<T | null> {
+  public first<T = Record<string, unknown>>(column?: string): Promise<T | null> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'first', column }) as Promise<T | null>
   }
 
-  raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<T[]> {
+  public raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<T[]> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'raw', options }) as Promise<T[]>
   }
 }
