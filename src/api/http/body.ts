@@ -9,9 +9,9 @@ import type { HonoEnv } from '#types'
  * 400 validation shape (via serviceErrToResponse, or app.onError for calls outside a
  * route's try).
  */
-// Same `any` as c.req.json() so call sites that spread the body keep compiling; every
-// consumer validates it with the service's Zod schema.
-// Mirrors c.req.json(); validated downstream
+/* Same `any` as c.req.json() so call sites that spread the body keep compiling; every
+ * consumer validates it with the service's Zod schema.
+ * Mirrors c.req.json(); validated downstream */
 export const jsonBody = async function jsonBody(httpContext: Context<HonoEnv>): Promise<any> {
   try {
     return await httpContext.req.json()

@@ -105,7 +105,7 @@ const fileClaimLiveExpr = function fileClaimLiveExpr(cutoff: number, agentlessCu
 
 type ActiveClaim = typeof schema.issueFileClaims.$inferSelect & { live: boolean }
 
-// inChunks keeps each query under D1's 100-bound-parameter cap. See services/sql.ts.
+// The inChunks helper keeps each query under D1's 100-bound-parameter cap. See services/sql.ts.
 const loadActiveClaimsByPath = async function loadActiveClaimsByPath(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
@@ -146,11 +146,11 @@ const loadActiveClaimsByPath = async function loadActiveClaimsByPath(
       claim.path,
       {
         ...claim,
-        // agentId is nullable — a claim can be made without a session, and the
-        // agent_id FK is ON DELETE SET NULL. There is no heartbeat to judge those by,
-        // so staleness is judged by claim age instead (PROJ-928): live until
-        // FILE_CLAIM_TTL_SECONDS has elapsed since claimedAt, then reclaimable by the
-        // next claimer just like a claim whose agent session went stale.
+        /* The agentId field is nullable — a claim can be made without a session, and the
+         * agent_id FK is ON DELETE SET NULL. There is no heartbeat to judge those by,
+         * so staleness is judged by claim age instead (PROJ-928): live until
+         * FILE_CLAIM_TTL_SECONDS has elapsed since claimedAt, then reclaimable by the
+         * next claimer just like a claim whose agent session went stale. */
         live: Predicate.isNullish(claim.agentId)
           ? claim.claimedAt > agentlessCutoff
           : sessionStatus === 'active' && (sessionHeartbeat ?? 0) > cutoff,
@@ -464,9 +464,9 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
   const orm = drizzle(ctx.db, { schema })
   const now = currentEpochSeconds()
 
-  // inChunks keeps each read under D1's 100-bound-parameter cap (paths are caller-scaled).
-  // projectId is joined in directly (PROJ-864) so the broadcast below needs no follow-up
-  // query, whether or not issueId was given.
+  /* The inChunks helper keeps each read under D1's 100-bound-parameter cap (paths are caller-scaled).
+   * projectId is joined in directly (PROJ-864) so the broadcast below needs no follow-up
+   * query, whether or not issueId was given. */
   const toRelease = await inChunks(paths, (pathChunk) => {
     const conditions = [
       eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),

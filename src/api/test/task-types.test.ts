@@ -32,7 +32,7 @@ describe('task Types API', () => {
   let projectId: string
 
   beforeEach(async () => {
-    // seedFixture uses seedWorkspace (raw insert, no seeding of task types)
+    // The seedFixture helper uses seedWorkspace (raw insert, no seeding of task types)
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 

@@ -125,7 +125,7 @@ describe('agent Messages API', () => {
     expect(msg3.scope).toBe(scope)
     expect(msg3.body).toBe('message three')
 
-    // token2 for list operations — verify all 3 are visible, then grab page 2
+    // Use token2 for list operations — verify all 3 are visible, then grab page 2
     const token2 = await seedToken(workspaceId, userId)
 
     // Confirm all 3 messages land in the scope before testing pagination
@@ -138,7 +138,7 @@ describe('agent Messages API', () => {
     const all = await readNativeJson(allRes, allShape)
     expect(all.items).toHaveLength(3)
 
-    // token3 for page 1 (fresh budget)
+    // Use token3 for page 1 (fresh budget)
     const token3 = await seedToken(workspaceId, userId)
 
     // Page 1: limit=2 — composite cursor is "createdAt:id" for same-second stability
@@ -251,7 +251,7 @@ describe('agent Messages API', () => {
     const a2Body = await readNativeJson(agent2Res, RpcTextResponse)
     const agent2 = parseNativeMcpText(a2Body.result.content[0].text, IdResponse)
 
-    // agent1 claims path A
+    // Agent 1 claims path A
     const claimRes = await mcpCall('claim_files', {
       issueId: issue2.id,
       agentId: agent1.id,
@@ -263,7 +263,7 @@ describe('agent Messages API', () => {
       created: [{ path: 'src/coord.ts' }],
     })
 
-    // agent2 tries to claim path A without force — expect conflict
+    // Agent 2 tries to claim path A without force — expect conflict
     const conflictRes = await mcpCall('claim_files', {
       issueId: issue2.id,
       agentId: agent2.id,
@@ -275,7 +275,7 @@ describe('agent Messages API', () => {
     expect(conflictBody.error).toBeUndefined()
     expect(toolError(conflictBody)?.code).toBe('conflict')
 
-    // agent2 posts a message to the issue channel
+    // Agent 2 posts a message to the issue channel
     const postMsgRes = await mcpCall('post_message', {
       scope,
       agentId: agent2.id,
@@ -294,11 +294,11 @@ describe('agent Messages API', () => {
     const readData = parseNativeMcpText(readBody.result.content[0].text, MessageBodiesResponse)
     expect(readData.items.some((item) => item.body.includes('can you release?'))).toBe(true)
 
-    // agent1 releases path A
+    // Agent 1 releases path A
     const releaseRes = await mcpCall('release_files', { paths: ['src/coord.ts'], issueId: issue2.id }, token2, slug)
     expect(releaseRes.status).toBe(200)
 
-    // agent2 re-claims path A successfully
+    // Agent 2 re-claims path A successfully
     const reclaimRes = await mcpCall(
       'claim_files',
       {
@@ -317,7 +317,7 @@ describe('agent Messages API', () => {
     )
     expect(reclaimData.created[0].issueId).toBe(issue2.id)
 
-    // agent1 claims path B so agent2 can force-steal it
+    // Agent 1 claims path B so agent2 can force-steal it
     const claimBRes = await mcpCall(
       'claim_files',
       {

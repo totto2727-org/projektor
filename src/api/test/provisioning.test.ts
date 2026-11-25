@@ -20,9 +20,9 @@ import { seedMember, seedUser, seedWorkspace } from './helpers.ts'
  */
 beforeEach(resetProvisioningCacheForTests)
 
-// ensureUserProvisioned reads its config from the Env it's handed, so each test builds an
-// Env by spreading the test bindings and overriding the provisioning vars. Unique slugs +
-// emails per test keep the shared D1 from leaking state across cases.
+/* The ensureUserProvisioned helper reads its config from the Env it's handed, so each test builds an
+ * Env by spreading the test bindings and overriding the provisioning vars. Unique slugs +
+ * emails per test keep the shared D1 from leaking state across cases. */
 const envWith = function envWith(overrides: Partial<Env>): Env {
   return { ...(env as unknown as Env), ...overrides }
 }

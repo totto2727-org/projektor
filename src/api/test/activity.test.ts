@@ -82,7 +82,7 @@ describe('activity audit log', () => {
 
   test('records a created row when a project is created', async () => {
     await seedProjectFixture()
-    // createProject requires owner or admin role
+    // The createProject operation requires owner or admin role
     const ownerFixture = await seedFixture({ role: 'owner' })
     const res = await fetchNativeApi(
       'http://localhost/api/projects',

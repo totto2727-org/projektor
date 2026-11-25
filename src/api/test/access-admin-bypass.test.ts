@@ -21,9 +21,9 @@ const search = async function search(
   return { status: res.status, body: (await res.json()) as { project_id: string }[] }
 }
 
-// seedIssue() inserts directly into `issues`, bypassing the FTS index (which is
-// populated by the create-issue service, not a DB trigger); go through the REST
-// route so search can actually find these issues.
+/* The seedIssue() helper inserts directly into `issues`, bypassing the FTS index (which is
+ * populated by the create-issue service, not a DB trigger); go through the REST
+ * route so search can actually find these issues. */
 const createIssue = async function createIssue(
   token: string,
   slug: string,

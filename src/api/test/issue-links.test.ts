@@ -127,7 +127,7 @@ describe('issue Links API', () => {
 
   test('rejects duplicate blocks/blocked_by pairs', async () => {
     await createLink(issueA.id, issueB.id, 'blocks')
-    // blocked_by is the same canonical pair
+    // The blocked_by link is the same canonical pair
     const res = await createLink(issueB.id, issueA.id, 'blocked_by')
     expect(res.status).toBe(409)
   })
@@ -192,7 +192,7 @@ describe('issue Links API', () => {
       )
       .run()
 
-    // workspace1's issueA should still have no links
+    // The issueA fixture in workspace1 should still have no links
     const { links } = await listLinks(issueA.id)
     expect(links).toHaveLength(0)
   })

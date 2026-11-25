@@ -523,7 +523,7 @@ describe('issues API', () => {
 
   test('handles GET /api/issues/KEY-NUMBER looks up by ref', async () => {
     const { projectId, slug, token } = await seedScenarioFixture()
-    // beforeEach seeds a project with key='PROJ'; first issue in it is PROJ-1
+    // The beforeEach hook seeds a project with key='PROJ'; first issue in it is PROJ-1
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Ref issue' }),
       headers: authHeaders(token, slug),
@@ -1369,7 +1369,7 @@ describe('issues API', () => {
     await patch(rejected.id, { status: 'in_review' })
     await patch(rejected.id, { status: 'in_progress' })
     await expect(gateRejectionCountOf(rejected.id)).resolves.toBe(1)
-    // review_bounce_count still counts it (PROJ-328's aggregate is unchanged).
+    // The review_bounce_count metric still counts it (PROJ-328's aggregate is unchanged).
     const result = await reviewFieldsOf(rejected.id)
     expect(result.review_bounce_count).toBe(1)
   })
@@ -1458,7 +1458,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     const { id: parentId } = await readNativeJson(parentRes, IdResponse)
     await seedIssue(workspaceId, otherProject.id, userId, { parentId, status: 'done' })
 
-    // getIssue's own rollup (unaffected by this change) — the baseline to match.
+    // The rollup from getIssue (unaffected by this change) — the baseline to match.
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${parentId}`, {
       headers: authHeaders(token, slug),
     })
@@ -2157,10 +2157,10 @@ describe('get_prioritized_issues MCP tool', () => {
 
   test('handles more open issues than a single D1 query can bind (chunked enrichment)', async () => {
     const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
-    // getPrioritizedIssues fetches every open issue, then batch-loads links + story points
-    // keyed by those ids. On real D1 (100-param cap) an un-chunked load throws once there
-    // are ~100 open issues; this guards the inChunks split and that results merge across
-    // chunk boundaries. (SQLite's cap is higher, so this asserts correctness, not the cap.)
+    /* The getPrioritizedIssues operation fetches every open issue, then batch-loads links + story points
+     * keyed by those ids. On real D1 (100-param cap) an un-chunked load throws once there
+     * are ~100 open issues; this guards the inChunks split and that results merge across
+     * chunk boundaries. (SQLite's cap is higher, so this asserts correctness, not the cap.) */
     const COUNT = 105
     for (let index = 0; index < COUNT; index += 1) {
       await seedIssue(workspaceId, projectId, userId, { title: `Open ${index}`, priority: 'medium' })

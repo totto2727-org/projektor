@@ -29,11 +29,11 @@ beforeAll(async () => {
   }
 })
 
-// @cloudflare/vitest-pool-workers ≥0.13 isolates storage per *file*, not per
-// *Test* (the old `isolatedStorage` per-test rollback was removed). The transient
-// rate-limit counter therefore accumulates across tests in a file and trips the
-// low test limits (AUTH_LIMIT=3). Reset it before each test so every test starts
-// from a clean window — restoring the per-test freshness the old isolation gave.
+/* The @cloudflare/vitest-pool-workers package has isolated storage per file since version 0.13.
+ * The old `isolatedStorage` per-test rollback was removed. The transient
+ * rate-limit counter therefore accumulates across tests in a file and trips the
+ * low test limits (AUTH_LIMIT=3). Reset it before each test so every test starts
+ * from a clean window — restoring the per-test freshness the old isolation gave. */
 beforeEach(async () => {
   await resetRateLimits()
   await configureCore()

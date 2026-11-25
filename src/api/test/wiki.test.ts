@@ -2660,9 +2660,9 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     )
     expect(body.currentRevisionId).toBe(currentLatest.id)
     expect(typeof body.diff).toBe('string')
-    // staleRevision snapshots the pre-edit content of the FIRST edit ("v1"), i.e. the
-    // content the caller actually had once that edit landed is the NEXT revision's
-    // snapshot ("v2"). The diff base is therefore "v2", not staleRevision's own "v1".
+    /* The staleRevision value snapshots the pre-edit content of the FIRST edit ("v1"), i.e. the
+     * content the caller actually had once that edit landed is the NEXT revision's
+     * snapshot ("v2"). The diff base is therefore "v2", not staleRevision's own "v1". */
     expect(body.diff).toContain('v2')
     expect(body.diff).toContain('v3')
 
@@ -2772,9 +2772,9 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     if (conflictErr) {
       const data = conflictErr.details as { currentRevisionId: string; diff: string }
       expect(data.currentRevisionId).toBe(currentLatest.id)
-      // staleRevision snapshots the pre-edit content of the FIRST edit ("v1"); the
-      // content the caller actually had is the NEXT revision's snapshot ("v2"), which
-      // is the correct diff base — not staleRevision's own "v1".
+      /* The staleRevision value snapshots the pre-edit content of the FIRST edit ("v1"); the
+       * content the caller actually had is the NEXT revision's snapshot ("v2"), which
+       * is the correct diff base — not staleRevision's own "v1". */
       expect(data.diff).toContain('v2')
       expect(data.diff).toContain('v3')
     }
@@ -4511,12 +4511,12 @@ describe('wiki write atomicity (PROJ-511)', () => {
 
   test("a slug race during create leaves wiki_links with only the winner's link, never a partial write", async () => {
     const { slug, token } = await seedTestData()
-    // createWikiPage's assertSlugAvailable-then-insert isn't atomic (services/wiki.ts):
-    // two concurrent creates with the same title/slug can both pass the availability
-    // check, so one loses to a UNIQUE constraint failure inside the ctx.db.batch() call
-    // itself. PROJ-511 batches the page insert, its wiki_fts row, and its wiki_links
-    // rows together, so the loser's batch must fail as a whole — never leaving a
-    // dangling wiki_links row for a page insert that didn't happen.
+    /* The assertSlugAvailable-then-insert sequence in createWikiPage isn't atomic (services/wiki.ts):
+     * two concurrent creates with the same title/slug can both pass the availability
+     * check, so one loses to a UNIQUE constraint failure inside the ctx.db.batch() call
+     * itself. PROJ-511 batches the page insert, its wiki_fts row, and its wiki_links
+     * rows together, so the loser's batch must fail as a whole — never leaving a
+     * dangling wiki_links row for a page insert that didn't happen. */
     const [resA, resB] = await Promise.all([
       fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
@@ -6854,8 +6854,8 @@ describe('wiki trash (PROJ-496)', () => {
     const childRow = await env.DB.prepare('SELECT parent_id FROM wiki_pages WHERE id = ?')
       .bind(child.id)
       .first<{ parent_id: string | null }>()
-    // parent_id must not dangle — it either got nulled or repointed at a surviving
-    // ancestor, never left pointing at grandparent/parent (both now purged).
+    /* The parent_id value must not dangle — it either got nulled or repointed at a surviving
+     * ancestor, never left pointing at grandparent/parent (both now purged). */
     expect(childRow?.parent_id === null || Predicate.isNullish(childRow?.parent_id)).toBe(true)
   })
 

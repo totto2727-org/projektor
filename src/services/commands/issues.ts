@@ -1489,8 +1489,8 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
         .toSQL(),
     ),
     ctx.db.prepare('DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
-    // share_tokens has no FK at all (0017), so nothing ever removed a deleted issue's
-    // public share links.
+    /* Table share_tokens has no FK at all (0017), so nothing ever removed a deleted issue's
+     * public share links. */
     ctx.db.prepare('DELETE FROM share_tokens WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
     // ON DELETE CASCADE rows — delete outright.
     toD1Statement(ctx, orm.delete(schema.issueComments).where(eq(schema.issueComments.issueId, id)).toSQL()),

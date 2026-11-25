@@ -51,7 +51,7 @@ export const DESTRUCTIVE: MCPToolAnnotations = WRITE({ destructive: true })
  * against this exact set.
  */
 export const DESTRUCTIVE_TOOLS: Readonly<string[]> = [
-  // delete_*
+  // Tools matching delete_*
   'delete_comment',
   'delete_custom_field_def',
   'delete_attachment',
@@ -64,20 +64,20 @@ export const DESTRUCTIVE_TOOLS: Readonly<string[]> = [
   'delete_task_type',
   'delete_wiki_page',
   'delete_workspace',
-  // remove_*
+  // Tools matching remove_*
   'remove_group_member',
   'remove_group_grant',
   'remove_member',
-  // purge_wiki_trash
+  // Tools matching purge_wiki_trash
   'purge_wiki_trash',
-  // rotate_* or revoke_*
+  // Tools matching rotate_* or revoke_*
   'rotate_feedback_source_token',
   'revoke_feedback_source',
-  // update_member_role
+  // Tools matching update_member_role
   'update_member_role',
-  // discard_wiki_draft
+  // Tools matching discard_wiki_draft
   'discard_wiki_draft',
-  // release_*
+  // Tools matching release_*
   'release_files',
   'release_issue',
 ]

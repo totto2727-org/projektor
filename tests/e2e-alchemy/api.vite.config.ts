@@ -7,8 +7,8 @@ import { deployment } from '#worker-graph'
 
 import { apiWorkerOptions } from './api-host.ts'
 
-// Build the unchanged API adapter with the official host. Preview is owned by
-// the single frontend runtime, whose public extension adds the API service.
+/* Build the unchanged API adapter with the official host. Preview is owned by
+ * the single frontend runtime, whose public extension adds the API service. */
 // oxlint-disable-next-line import/no-default-export -- Vite loads the API build configuration from the default export.
 export default defineConfig((environment) => {
   if (environment.isPreview === true) {

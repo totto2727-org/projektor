@@ -97,7 +97,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     path: string,
   ): Promise<void> {
     const now = currentEpochSeconds()
-    // agentId NULL: an agentless claim is live until its claim TTL expires.
+    // A NULL agentId: an agentless claim is live until its claim TTL expires.
     await env.DB.prepare(
       `INSERT INTO issue_file_claims
 				(id, workspace_id, issue_id, agent_id, path, claimed_at, released_at, release_reason)

@@ -2601,8 +2601,8 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     latestDraftStateRef.current = options
   }, [options])
 
-  // save() clears the draft itself right before leaving edit mode; set this to
-  // suppress the flush below so it doesn't resurrect the just-cleared draft.
+  /* The save() function clears the draft itself right before leaving edit mode; set this to
+   * suppress the flush below so it doesn't resurrect the just-cleared draft. */
   const skipLeaveFlushRef = useRef(false)
   /*
    * PROJ-799: whether a server draft for this page is known to exist (this session
@@ -3600,10 +3600,10 @@ function createWikiActions(
     }
     const deletedPage = page
     try {
-      // cascade=true trashes the children together with the page under one
-      // trash_batch_id — which is what the dialog promises, and what lets Undo bring
-      // the whole subtree back. Without it the API re-parents the children one level
-      // up instead, and undelete could only restore the page on its own.
+      /* The cascade=true option trashes the children together with the page under one
+       * trash_batch_id — which is what the dialog promises, and what lets Undo bring
+       * the whole subtree back. Without it the API re-parents the children one level
+       * up instead, and undelete could only restore the page on its own. */
       unwrapResult(await trashWikiPage({ workspaceSlug, slug: page.slug }))
       setPage(null)
       setSlug('')

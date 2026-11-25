@@ -49,7 +49,7 @@ export const createShareToken = async function createShareToken(
   const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
   const expiresAt = now + SHARE_LINK_LIFETIME_DAYS * SECONDS_PER_DAY
 
-  // share_tokens.id stores sha256(token), never the raw token — see PROJ-239
+  // Table share_tokens.id stores sha256(token), never the raw token — see PROJ-239
   const id = await hashToken(token)
   await ctx.db
     .prepare(

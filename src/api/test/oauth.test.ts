@@ -1240,10 +1240,10 @@ describe('hardening the consent screen itself', () => {
   })
 
   test("lets the approval reach the client's redirect origin, and nowhere else", async () => {
-    // form-action is enforced on the redirect the POST lands on, not just the URL
-    // the form names. With 'self' alone the browser blocks the submission and
-    // reports it against /oauth/authorize — which is same-origin, so the report
-    // reads as a false positive while the connector flow is dead in every browser.
+    /* The form-action directive is enforced on the redirect the POST lands on, not just the URL
+     * the form names. With 'self' alone the browser blocks the submission and
+     * reports it against /oauth/authorize — which is same-origin, so the report
+     * reads as a false positive while the connector flow is dead in every browser. */
     const csp = (await consentPage()).headers.get('Content-Security-Policy') ?? ''
 
     expect(csp).toContain(`form-action 'self' ${new URL(CLIENT_REDIRECT).origin}`)

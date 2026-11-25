@@ -60,7 +60,7 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
       .bind(testFixture.projectId)
       .first<{ id: string }>()
 
-    // v1.0.0: 2 thumbs up, 1 thumbs down, 1 with a comment
+    // Version v1.0.0: 2 thumbs up, 1 thumbs down, 1 with a comment
     await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.0.0',
       createdAt: 100,
@@ -80,7 +80,7 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
       rating: -1,
       ratingScale: 'thumbs',
     })
-    // v1.1.0 (more recent): 5-star avg of 4.5
+    // Version v1.1.0 (more recent): 5-star avg of 4.5
     await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.1.0',
       createdAt: 200,

@@ -130,7 +130,7 @@ describe('covers KV caching', () => {
     })
 
     test('projects list is cached — MCP list_projects returns data even after D1 is cleared', async () => {
-      // projectId was already seeded in beforeEach via seedProject
+      // The projectId value was already seeded in beforeEach via seedProject
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 

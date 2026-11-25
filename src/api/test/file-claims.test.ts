@@ -560,9 +560,9 @@ describe('file Claims API', () => {
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Takes over' })
       await claimFiles({ issueId: issue2.id, paths: ['src/no-conflict.ts'] })
 
-      // claim_conflicts drives the heatmap's contention mode, whose argument is that a
-      // repeatedly-hot path says something about how the work was sliced. Fleet mortality
-      // is not contention, so counting it there would corrupt the signal.
+      /* Table claim_conflicts drives the heatmap's contention mode, whose argument is that a
+       * repeatedly-hot path says something about how the work was sliced. Fleet mortality
+       * is not contention, so counting it there would corrupt the signal. */
       const conflicts = await env.DB.prepare('SELECT COUNT(*) AS n FROM claim_conflicts WHERE path = ?')
         .bind('src/no-conflict.ts')
         .first<{ n: number }>()
@@ -797,9 +797,9 @@ describe('file Claims API', () => {
       expect(body.items[0].issueRef).toBe(`${projectKey}-${issueRow?.number}`)
     })
 
-    // projectId must exclude a claim in a SECOND project in the SAME workspace, not just
-    // a claim that happens to live in another workspace (which the plain visibility
-    // filter would already have excluded, passing even with the filter absent).
+    /* The projectId filter must exclude a claim in a SECOND project in the SAME workspace, not just
+     * a claim that happens to live in another workspace (which the plain visibility
+     * filter would already have excluded, passing even with the filter absent). */
     test("projectId filters to the granted project's claim, excluding a second same-workspace project's (by key and uuid)", async () => {
       const otherProject = await seedProject(workspaceId, 'OTHR')
       const otherIssue = await seedIssue(workspaceId, otherProject.id, userId, {

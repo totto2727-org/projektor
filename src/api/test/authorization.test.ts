@@ -526,7 +526,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   // PATCH /:slug/members/:userId — owner-only role-change
 
   test('member cannot PATCH /api/workspaces/:slug/members/:userId (role-change)', async () => {
-    // viewerUser is already in the workspace from seedWorkspaceRoles
+    // The viewerUser fixture is already in the workspace from seedWorkspaceRoles
     const viewerRow = await env.DB.prepare(
       "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
     )

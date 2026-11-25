@@ -173,7 +173,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
     const fixture = await seedIssueFixture({ role: 'admin' })
     const { workspaceId, userId, issueId } = fixture
 
-    // wiki_notifications: one older than 90 days, one recent.
+    // Table wiki_notifications: one older than 90 days, one recent.
     const expiredNotificationId = crypto.randomUUID()
     const freshNotificationId = crypto.randomUUID()
     await env.DB.prepare(
@@ -191,8 +191,8 @@ describe('scheduled retention purge (PROJ-869)', () => {
       .bind(freshNotificationId, workspaceId, userId, now() - 1 * DAY)
       .run()
 
-    // agent_sessions: one ended 91 days ago with NO lease (should be purged), one ended
-    // 91 days ago that STILL has a lease (must survive — flow metrics need it), one live.
+    /* Table agent_sessions: one ended 91 days ago with NO lease (should be purged), one ended
+     * 91 days ago that STILL has a lease (must survive — flow metrics need it), one live. */
     const expiredNoLeaseId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO agent_sessions

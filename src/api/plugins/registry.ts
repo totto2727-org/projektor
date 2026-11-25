@@ -5,7 +5,7 @@ type Plugin = Omit<DomainPlugin, 'mcpTools'> & { mcpTools?: MCPTool[] }
 
 class PluginRegistry {
   private plugins = new Map<string, Plugin>()
-  // workspaceId -> Set of pluginIds
+  // Workspace IDs map to sets of plugin IDs
   private workspacePlugins = new Map<string, Set<string>>()
 
   register(plugin: Plugin): void {

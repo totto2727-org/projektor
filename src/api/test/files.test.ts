@@ -154,7 +154,7 @@ describe('files API', () => {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
-    // text/plain is not in the inline allowlist — served as octet-stream to prevent XSS
+    // The text/plain media type is not in the inline allowlist — served as octet-stream to prevent XSS
     expect(getRes.headers.get('Content-Type')).toBe('application/octet-stream')
     expect(getRes.headers.get('Content-Disposition')).toContain('attachment')
     expect(getRes.headers.get('X-Content-Type-Options')).toBe('nosniff')
@@ -1156,9 +1156,9 @@ describe('attachment project visibility', () => {
   })
 
   test('still lists an attachment whose entity_id resolves to nothing', async () => {
-    // entity_id is not a foreign key, so free-floating attachments are legal and have no
-    // project to authorise against. Requiring a *visible* owner rather than the absence
-    // of an invisible one would make these vanish from their own uploader's view.
+    /* The entity_id column is not a foreign key, so free-floating attachments are legal and have no
+     * project to authorise against. Requiring a *visible* owner rather than the absence
+     * of an invisible one would make these vanish from their own uploader's view. */
     const orphanId = crypto.randomUUID()
     await seedAttachment('issue', orphanId, 'orphan.txt')
 

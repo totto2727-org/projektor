@@ -285,8 +285,8 @@ export const moveIssuesToSprint = async function moveIssuesToSprint(
   }
 
   const now = currentEpochSeconds()
-  // inChunks: issueIds is a caller-supplied batch, so keep each UPDATE under D1's
-  // 100-bound-parameter cap. See services/sql.ts.
+  /* Use inChunks because issueIds is a caller-supplied batch, so keep each UPDATE under D1's
+   * 100-bound-parameter cap. See services/sql.ts. */
   await inChunks(issueIds, async (chunk) => {
     await orm
       .update(schema.issues)

@@ -63,10 +63,10 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       title: 'Child issue',
     })
 
-    // issue_comments (CASCADE)
+    // Table issue_comments (CASCADE)
     await seedComment(issueId, userId)
 
-    // issue_links (CASCADE), both directions
+    // Table issue_links (CASCADE), both directions
     await env.DB.prepare(
       `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
 			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`,
@@ -80,11 +80,11 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(crypto.randomUUID(), workspaceId, otherIssueId, issueId, userId, currentEpochSeconds())
       .run()
 
-    // custom_field_values (CASCADE)
+    // Table custom_field_values (CASCADE)
     const field = await seedCustomFieldDef(workspaceId, { key: 'severity' })
     await seedCustomFieldValue(issueId, field.id, 'high')
 
-    // issue_file_claims (CASCADE)
+    // Table issue_file_claims (CASCADE)
     await env.DB.prepare(
       `INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)
 			 VALUES (?, ?, ?, NULL, ?, ?, NULL)`,
@@ -92,10 +92,10 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(crypto.randomUUID(), workspaceId, issueId, 'src/foo.ts', currentEpochSeconds())
       .run()
 
-    // issue_leases (CASCADE) + agent_sessions.issue_id (SET NULL)
+    // Table issue_leases (CASCADE) + agent_sessions.issue_id (SET NULL)
     const { agentSessionId } = await seedAgentLease(workspaceId, issueId)
 
-    // claim_conflicts (CASCADE on both rejected_issue_id and holding_issue_id)
+    // Table claim_conflicts (CASCADE on both rejected_issue_id and holding_issue_id)
     await env.DB.prepare(
       `INSERT INTO claim_conflicts (id, workspace_id, path, rejected_issue_id, holding_issue_id, forced, occurred_at)
 			 VALUES (?, ?, ?, ?, ?, 0, ?)`,
@@ -103,7 +103,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(crypto.randomUUID(), workspaceId, 'src/bar.ts', issueId, otherIssueId, currentEpochSeconds())
       .run()
 
-    // wip_cap_denials (CASCADE)
+    // Table wip_cap_denials (CASCADE)
     await env.DB.prepare(
       `INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, occurred_at)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -111,7 +111,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(crypto.randomUUID(), workspaceId, projectId, issueId, agentSessionId, currentEpochSeconds())
       .run()
 
-    // share_tokens (no FK at all)
+    // Table share_tokens (no FK at all)
     await env.DB.prepare(
       `INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -119,7 +119,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(crypto.randomUUID(), issueId, workspaceId, 'someone', 9_999_999_999, 0)
       .run()
 
-    // issue_gate_rejections (CASCADE)
+    // Table issue_gate_rejections (CASCADE)
     await env.DB.prepare(
       `INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at)
 			 VALUES (?, ?, ?, ?)`,

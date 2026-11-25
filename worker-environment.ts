@@ -92,8 +92,8 @@ export const ProductionLayer = Layer.mergeAll(
       const secretEnv: WorkerBindingProps = Option.isSome(secret) ? { JWT_SECRET: secret.value } : {}
       const sharedEnvironment = {
         ...commonApplicationEnvironment,
-        // databaseId is stable and resolves before migrations. This nonstable output
-        // gates every Worker on completed D1 reconciliation, even with unchanged Core.
+        /* The databaseId value is stable and resolves before migrations. This nonstable output
+         * gates every Worker on completed D1 reconciliation, even with unchanged Core. */
         ENVIRONMENT: Output.map(database.migrationsHashes, () => 'production'),
         ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
       }

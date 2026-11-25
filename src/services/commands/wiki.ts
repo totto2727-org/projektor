@@ -80,7 +80,7 @@ const assertWikiPageVisible = async function assertWikiPageVisible(
   if (Predicate.isNullish(projectId)) {
     return
   }
-  // projectId comes from a wiki_pages row already loaded under ctx.workspaceId.
+  // The projectId value comes from a wiki_pages row already loaded under ctx.workspaceId.
   await assertProjectAccess(ctx, projectId, 'read', {
     notFoundMessage: 'Wiki page not found',
     projectLoadedFromWorkspaceRow: true,
@@ -350,8 +350,8 @@ const validateParentDepth = async function validateParentDepth(
       )
     }
   }
-  // forbidPageId is only passed when moving an existing page (validateUpdatedPageParent) —
-  // a brand-new page (validateNewPageParent) has no subtree yet, so height is 0.
+  /* The forbidPageId flag is only passed when moving an existing page (validateUpdatedPageParent) —
+   * a brand-new page (validateNewPageParent) has no subtree yet, so height is 0. */
   const subtreeHeight =
     Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId)
       ? await getSubtreeHeight(db, forbidPageId, workspaceId)

@@ -304,8 +304,8 @@ function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: Epics
   if (Array.isArrayEmpty(filteredEpics)) {
     return <EmptyState title='No epics match the active filters.' />
   }
-  // sortIssues' signature is Issue[] => Issue[]; the sort is a pure reorder, so the
-  // rollup field carried by EpicItem survives — safe to cast back.
+  /* The sortIssues signature is Issue[] => Issue[]; the sort is a pure reorder, so the
+   * rollup field carried by EpicItem survives — safe to cast back. */
   const sorted = sortIssues(filteredEpics, sortBy, sortDir) as EpicItem[]
   return (
     <>

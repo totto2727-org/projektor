@@ -107,7 +107,7 @@ describe('covers PROJ-91: user-scoped token — non-member workspace', () => {
     await seedMember(ws1.id, user.id, 'member')
     const userToken = await seedUserToken(user.id)
 
-    // ws2: user has NO membership
+    // In ws2, the user has NO membership
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
 
     const res = await getIssues(userToken, ws2.slug)

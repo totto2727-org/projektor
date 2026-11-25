@@ -90,7 +90,7 @@ describe('covers PROJ-894: stateless agent identity', () => {
       .bind(id)
       .first<{ auth_method: string; credential_id: string; token_id: string }>()
     const credentialId = await credentialIdOf(token)
-    // seedToken mints a `tok_` token, which the auth middleware classifies as a PAT.
+    // The seedToken helper mints a `tok_` token, which the auth middleware classifies as a PAT.
     expect(row).toStrictEqual({
       auth_method: 'pat',
       credential_id: credentialId,

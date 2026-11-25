@@ -336,7 +336,7 @@ const PROJECT_CLEANUP_SQL: Readonly<string[]> = [
 	   ORDER BY p.created_at, p.id LIMIT 1)
 	 WHERE workspace_id = ?2 AND target_page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM attachments WHERE workspace_id = ?2 AND entity_type = 'wiki_page' AND entity_id IN (${PAGES_OF_PROJECT})`,
-  // wiki_ref attachments elsewhere pointing at this project's pages (the FK column).
+  // Find wiki_ref attachments elsewhere pointing at this project's pages (the FK column).
   `DELETE FROM attachments WHERE workspace_id = ?2 AND linked_wiki_page_id IN (${PAGES_OF_PROJECT})`,
   // Project-level rows.
   'DELETE FROM sprints WHERE project_id = ?1 AND workspace_id = ?2',

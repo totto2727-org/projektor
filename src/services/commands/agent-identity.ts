@@ -120,9 +120,9 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
 
   const cutoff = currentEpochSeconds() - LIVE_TTL_SECONDS
   let rows = await find([gt(schema.agentSessions.lastHeartbeatAt, cutoff)])
-  // heartbeat/end must be able to reach a session that has just gone stale (that call
-  // revives it) — but only when no live session exists, so an abandoned session left
-  // behind by a crash can't make a lone agent's id-less heartbeat ambiguous.
+  /* Heartbeat and end must be able to reach a session that has just gone stale (that call
+   * revives it) — but only when no live session exists, so an abandoned session left
+   * behind by a crash can't make a lone agent's id-less heartbeat ambiguous. */
   if (Array.isArrayEmpty(rows) && opts.includeStale === true) {
     rows = await find([])
   }

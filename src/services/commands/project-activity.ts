@@ -35,7 +35,7 @@ const fetchActivityRows = async function fetchActivityRows(
   const sinceParams = Predicate.isNotNullish(since) ? [since] : []
 
   const [issues, comments, statusChanges, wikiPages, sprints] = await Promise.all([
-    // issue_created
+    // Activity events issue_created
     ctx.db
       .prepare(
         `SELECT 'issue_created' AS type, i.created_by_id AS actor,
@@ -49,7 +49,7 @@ const fetchActivityRows = async function fetchActivityRows(
       .bind(projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // issue_commented
+    // Activity events issue_commented
     ctx.db
       .prepare(
         `SELECT 'issue_commented' AS type, ic.author_id AS actor,
@@ -65,13 +65,13 @@ const fetchActivityRows = async function fetchActivityRows(
       .bind(projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // issue_status_changed (via activity log)
-    // PROJ-869: this used to json_extract over a `diff` blob that could carry the
-    // issue's full new body text (services/issues.ts's buildUpdateDiffCore stored
-    // `diff.body` verbatim), so parsing it to check for `$.status` cost a full-body
-    // JSON parse on every row. Update diffs now only record a `bodyChanged` marker
-    // (not the text), so `diff` is always small and this json_extract stays cheap
-    // regardless of the issue's body size.
+    /* Activity events issue_status_changed (via activity log)
+     * PROJ-869: this used to json_extract over a `diff` blob that could carry the
+     * issue's full new body text (services/issues.ts's buildUpdateDiffCore stored
+     * `diff.body` verbatim), so parsing it to check for `$.status` cost a full-body
+     * JSON parse on every row. Update diffs now only record a `bodyChanged` marker
+     * (not the text), so `diff` is always small and this json_extract stays cheap
+     * regardless of the issue's body size. */
     ctx.db
       .prepare(
         `SELECT 'issue_status_changed' AS type, a.actor_id AS actor,
@@ -90,7 +90,7 @@ const fetchActivityRows = async function fetchActivityRows(
       .bind(ctx.workspaceId, projectId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // wiki_page_created + wiki_page_edited (2-term UNION, well under D1 limit)
+    // Activity events wiki_page_created + wiki_page_edited (2-term UNION, well under D1 limit)
     ctx.db
       .prepare(
         `SELECT 'wiki_page_created' AS type, wp.created_by_id AS actor,
@@ -110,7 +110,7 @@ const fetchActivityRows = async function fetchActivityRows(
       .bind(projectId, ctx.workspaceId, ...sinceParams, projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // sprint_started + sprint_completed (2-term UNION)
+    // Activity events sprint_started + sprint_completed (2-term UNION)
     ctx.db
       .prepare(
         `SELECT 'sprint_started' AS type, NULL AS actor,

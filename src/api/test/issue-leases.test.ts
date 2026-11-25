@@ -86,7 +86,7 @@ describe('issue leases API (PROJ-184)', () => {
 
     const resolvedValue = await claim(issue.id, a1)
     expect(resolvedValue.status).toBe(201)
-    // a1 goes dark — its session is now stale, so its lease is reclaimable.
+    // Session a1 goes dark — its session is now stale, so its lease is reclaimable.
     await backdateHeartbeat(a1)
 
     const res = await claim(issue.id, a2)
@@ -128,7 +128,7 @@ describe('issue leases API (PROJ-184)', () => {
     })
     expect(endRes.status).toBe(200)
 
-    // a1's lease was released on end → a2 can claim.
+    // The lease for a1 was released on end → a2 can claim.
     expect((await claim(issue.id, a2)).status).toBe(201)
   })
 
@@ -628,11 +628,11 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     expect(items[0].issueRef).toBe(`${projectKey}-${issue.number}`)
   })
 
-  // projectId must exclude a lease in a SECOND project in the SAME workspace, not just a
-  // lease that happens to live in another workspace (which the plain visibility filter
-  // would already have excluded, passing even with the filter absent). Leases are seeded
-  // directly (bypassing the register/claim API calls) to stay well under the test
-  // environment's per-token rate limit (RATE_LIMIT_API_MAX=5).
+  /* The projectId filter must exclude a lease in a SECOND project in the SAME workspace, not just a
+   * lease that happens to live in another workspace (which the plain visibility filter
+   * would already have excluded, passing even with the filter absent). Leases are seeded
+   * directly (bypassing the register/claim API calls) to stay well under the test
+   * environment's per-token rate limit (RATE_LIMIT_API_MAX=5). */
   test("projectId filters to the granted project's lease, excluding a second same-workspace project's (by key and uuid)", async () => {
     const otherProject = await seedProject(workspaceId, 'OTHR')
 

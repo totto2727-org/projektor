@@ -50,7 +50,7 @@ export const IssueSchema = Schema.Struct({
   type_name: nullable,
   parent_id: nullable,
   assignee_id: nullable,
-  // listIssues joins users, while getIssue intentionally omits this list-only alias.
+  // The listIssues query joins users, while getIssue intentionally omits this list-only alias.
   assignee_name: Schema.optional(nullable),
   sprint_id: Schema.optional(nullable),
   created_at: Schema.Number,

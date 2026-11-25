@@ -168,7 +168,7 @@ describe('comments REST API', () => {
   test('handles GET returns 404 for issue in another workspace', async () => {
     const { issueId } = await seedTestData()
     const other = await seedFixture()
-    // issueId belongs to the first workspace; use other workspace's token+slug
+    // The issueId value belongs to the first workspace; use other workspace's token+slug
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(other.token, other.workspace.slug),
     })

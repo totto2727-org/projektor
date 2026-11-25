@@ -418,7 +418,7 @@ describe('agents API', () => {
       // Same ConflictError as claim_files today
       expect(res.status).toBe(409)
 
-      // issue2 never ended up with a live lease — the failed file claim rolled it back.
+      // The issue2 fixture never ended up with a live lease — the failed file claim rolled it back.
       const lease = await env.DB.prepare('SELECT id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL')
         .bind(issue2.id)
         .first()
@@ -584,8 +584,8 @@ describe('agents API', () => {
       expect(item?.live).toBe(false)
     })
 
-    // includeStale widens the heartbeat check on an *active* session; it must never reach
-    // into ended sessions, which end_agent explicitly moves out of the pool for good.
+    /* The includeStale option widens the heartbeat check on an *active* session; it must never reach
+     * into ended sessions, which end_agent explicitly moves out of the pool for good. */
     test('never returns an ended session, with or without includeStale', async () => {
       const res = await registerAgent({ name: 'ended-agent-932' })
       const session = await readNativeJson(res, IdResponse)

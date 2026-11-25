@@ -36,8 +36,8 @@ describe('listProjectsAcrossWorkspaces: open vs backlog counts (PROJ-849)', () =
     // Todo and in_progress: open, not backlog.
     await seedIssue(ws.id, project.id, user.id, { status: 'todo' })
     await seedIssue(ws.id, project.id, user.id, { status: 'in_progress' })
-    // Empty-category (no status_id, a custom legacy key that isn't done/cancelled/backlog):
-    // falls back to the raw `status` column, still open, not backlog.
+    /* Empty-category (no status_id, a custom legacy key that isn't done/cancelled/backlog):
+     * falls back to the raw `status` column, still open, not backlog. */
     await seedIssue(ws.id, project.id, user.id, { status: 'triage' })
 
     const rows = await listProjectsAcrossWorkspaces(user.id, env.DB)

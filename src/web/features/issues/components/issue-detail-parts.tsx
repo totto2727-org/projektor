@@ -1766,8 +1766,8 @@ export const CommentsSection = function CommentsSection({
           }}
           placeholder='Add a comment…'
           rows={4}
-          // Text-base (16px) on phones: below 16px iOS Safari zooms the viewport
-          // when the field takes focus. sm:text-sm keeps desktop as it was.
+          /* Text-base (16px) on phones: below 16px iOS Safari zooms the viewport
+           * when the field takes focus. sm:text-sm keeps desktop as it was. */
           className={
             'w-full px-3 py-2 border border-border rounded text-base sm:text-sm ' +
             'resize-y box-border mb-2 bg-bg text-text-base'

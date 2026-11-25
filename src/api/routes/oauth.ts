@@ -259,10 +259,10 @@ oauthRouter.get('/authorize', async (httpContext) => {
     return errorPage(httpContext, HTTP_INTERNAL_SERVER_ERROR, 'Not configured', NO_SIGNING_KEY)
   }
 
-  // parseAuthRequest is also the client and redirect-URI validator: it resolves the
-  // client (fetching and checking the CIMD document for a URL client_id) and rejects
-  // a redirect_uri the client has not registered. Everything after this point can
-  // therefore trust authRequest.redirectUri.
+  /* The parseAuthRequest function is also the client and redirect-URI validator: it resolves the
+   * client (fetching and checking the CIMD document for a URL client_id) and rejects
+   * a redirect_uri the client has not registered. Everything after this point can
+   * therefore trust authRequest.redirectUri. */
   let authRequest: AuthRequest
   try {
     authRequest = await helpers(httpContext).parseAuthRequest(httpContext.req.raw)

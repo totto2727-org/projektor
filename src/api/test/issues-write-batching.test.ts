@@ -325,8 +325,8 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
   })
 
   test("reports a cycle (not the depth cap) when the issue is the parent's 5th ancestor", async () => {
-    // chain[0] is the 5th ancestor of chain[5] — the same step at which the cap fires.
-    // The original loop checked the cycle before the cap on each step; so must the CTE.
+    /* The chain[0] entry is the 5th ancestor of chain[5] — the same step at which the cap fires.
+     * The original loop checked the cycle before the cap on each step; so must the CTE. */
     const chain = await seedChain(f, 6)
     await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).resolves.toStrictEqual([
       'Setting this parent would create a cycle',

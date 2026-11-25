@@ -94,10 +94,10 @@ describe('covers BoardView — mobile viewport', () => {
   })
 
   test('blocks the drop itself below 640px, even with data already set', () => {
-    // onDragStart already blocks setData below 640px, so the desktop/mobile
-    // tests above can't tell whether the drop handler's own width guard does
-    // anything. Seed dataTransfer at desktop width, then drop at mobile width
-    // to isolate that guard.
+    /* The onDragStart handler already blocks setData below 640px, so the desktop/mobile
+     * tests above can't tell whether the drop handler's own width guard does
+     * anything. Seed dataTransfer at desktop width, then drop at mobile width
+     * to isolate that guard. */
     const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     setViewportWidth(1024)
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
