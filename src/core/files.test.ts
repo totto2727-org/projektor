@@ -1,5 +1,5 @@
 import { Iterable } from 'effect'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, assert, describe, expect, test, vi } from 'vite-plus/test'
 
 import { createTestDatabase } from '@/test/database.ts'
 
@@ -71,7 +71,9 @@ describe('core narrow same-binding binary transfer', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('image/png')
     expect(response.headers.get('x-projektor-filename')).toBe('image.png')
-    const reader = response.body!.getReader()
+    const { body } = response
+    assert.exists(body)
+    const reader = body.getReader()
     const result = await reader.read()
     expect(result.value).toStrictEqual(testFixture.bytes)
     await reader.cancel('client canceled')

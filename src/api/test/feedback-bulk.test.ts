@@ -1,5 +1,5 @@
 import { Schema, Iterable } from 'effect'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { SQL_NULL } from '#db/sql-null.ts'
 
@@ -59,7 +59,8 @@ const firstSourceId = async function firstSourceId(projectId: string): Promise<s
   const row = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
     .bind(projectId)
     .first<{ id: string }>()
-  return row!.id
+  assert.exists(row)
+  return row.id
 }
 
 describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
@@ -108,7 +109,8 @@ describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
     const row = await env.DB.prepare('SELECT status FROM feedback WHERE id = ?')
       .bind(foreignId)
       .first<{ status: string }>()
-    expect(row!.status).toBe('new')
+    assert.exists(row)
+    expect(row.status).toBe('new')
   })
 
   test('403s for a viewer', async () => {
@@ -166,9 +168,10 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
     const issue = await env.DB.prepare('SELECT title, body FROM issues WHERE id = ?')
       .bind(created.id)
       .first<{ title: string; body: string }>()
-    expect(issue!.title).toBe('2 feedback items')
-    expect(issue!.body).toContain('Love it')
-    expect(issue!.body).toContain('a@b.com')
+    assert.exists(issue)
+    expect(issue.title).toBe('2 feedback items')
+    expect(issue.body).toContain('Love it')
+    expect(issue.body).toContain('a@b.com')
   })
 
   test('rejects the whole batch (creates no issue, mutates nothing) if any row is already converted', async () => {
@@ -199,13 +202,16 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
     const fresh = await env.DB.prepare('SELECT linked_issue_id, status FROM feedback WHERE id = ?')
       .bind(freshId)
       .first<{ linked_issue_id: string | null; status: string }>()
-    expect(fresh!.linked_issue_id).toBeNull()
-    expect(fresh!.status).toBe('new')
+    assert.exists(fresh)
+    expect(fresh.linked_issue_id).toBeNull()
+    expect(fresh.status).toBe('new')
 
     const issueCountAfter = await env.DB.prepare('SELECT COUNT(*) as count FROM issues WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ count: number }>()
-    expect(issueCountAfter!.count).toBe(issueCountBefore!.count)
+    assert.exists(issueCountAfter)
+    assert.exists(issueCountBefore)
+    expect(issueCountAfter.count).toBe(issueCountBefore.count)
   })
 
   test("404s if a feedbackId doesn't belong to the project", async () => {

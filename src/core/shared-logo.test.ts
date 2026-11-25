@@ -1,5 +1,5 @@
 import { Iterable } from 'effect'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, assert, describe, expect, test, vi } from 'vite-plus/test'
 
 import { createShareToken } from '#commands/share.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -54,9 +54,12 @@ describe('core shared logo binary delivery', () => {
   test('streams the exact body and forwards cancellation without buffering', async () => {
     const testFixture = await fixture()
     const response = await handleSharedLogoRequest(testFixture.request(), testFixture.env)
-    expect(response?.status).toBe(200)
-    expect(response?.headers.get('content-type')).toBe('image/png')
-    const reader = response!.body!.getReader()
+    assert.exists(response)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('image/png')
+    const { body } = response
+    assert.exists(body)
+    const reader = body.getReader()
     const result = await reader.read()
     expect(result.value).toStrictEqual(testFixture.bytes)
     await reader.cancel('disconnected')

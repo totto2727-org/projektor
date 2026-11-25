@@ -1,5 +1,5 @@
 import { Iterable } from 'effect'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, assert, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { CoreActor } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
@@ -59,9 +59,12 @@ describe('covers API Core binary workspace logos', () => {
   test('streams bytes without buffering and propagates consumer cancellation', async () => {
     const testFixture = fixture()
     const response = await handleApiBinaryRequest(testFixture.request(), testFixture.env)
-    expect(response?.status).toBe(200)
-    expect(response?.headers.get('content-type')).toBe('image/png')
-    const reader = response!.body!.getReader()
+    assert.exists(response)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('image/png')
+    const { body } = response
+    assert.exists(body)
+    const reader = body.getReader()
     const result = await reader.read()
     expect(result.value).toStrictEqual(testFixture.bytes)
     await reader.cancel('consumer canceled')

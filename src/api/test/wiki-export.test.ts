@@ -1,5 +1,5 @@
 import { unzipSync } from 'fflate'
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { afterAll, assert, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -95,7 +95,8 @@ const exportZip = async function exportZip(
   return { status: res.status, entries: unzipSync(buf) }
 }
 
-const entryText = function entryText(entries: Record<string, Uint8Array>, path: string): string {
+const entryText = function entryText(entries: Record<string, Uint8Array> | undefined, path: string): string {
+  assert.exists(entries)
   return new TextDecoder().decode(entries[path])
 }
 
@@ -125,11 +126,11 @@ describe('wiki export (PROJ-497)', () => {
     const names = Object.keys(entries ?? {}).toSorted()
     expect(names).toStrictEqual(['pages/note-two.md', 'pages/runbook-one.md'])
 
-    expect(entryText(entries!, 'pages/runbook-one.md')).toContain('type: runbook')
-    expect(entryText(entries!, 'pages/runbook-one.md')).toContain('Body one')
+    expect(entryText(entries, 'pages/runbook-one.md')).toContain('type: runbook')
+    expect(entryText(entries, 'pages/runbook-one.md')).toContain('Body one')
 
     // Page with no frontmatter block gets a minimal one synthesized (title only).
-    const noteText = entryText(entries!, 'pages/note-two.md')
+    const noteText = entryText(entries, 'pages/note-two.md')
     expect(noteText).toMatch(/^---\ntitle: Note Two\n---\n/u)
     expect(noteText).toContain('Plain body, no frontmatter')
   })
@@ -175,7 +176,7 @@ describe('wiki export (PROJ-497)', () => {
       'attachments/with-attachment/notes.txt',
       'pages/with-attachment.md',
     ])
-    expect(entryText(entries!, 'attachments/with-attachment/notes.txt')).toBe('attachment bytes')
+    expect(entryText(entries, 'attachments/with-attachment/notes.txt')).toBe('attachment bytes')
   })
 
   test("never leaks another workspace's pages into a space export", async () => {
@@ -249,7 +250,7 @@ describe('wiki export (PROJ-497)', () => {
       .toSorted()
     expect(names).toHaveLength(3)
 
-    const contents = names.map((n) => entryText(entries!, n)).sort()
+    const contents = names.map((n) => entryText(entries, n)).sort()
     expect(contents).toStrictEqual(['first', 'second', 'third'])
   })
 
@@ -374,13 +375,13 @@ describe('wiki export (PROJ-497)', () => {
       const space = await exportZip(token, slug, 'scope=space')
       const spaceNames = Object.keys(space.entries ?? {}).toSorted()
       expect(spaceNames).toStrictEqual(['pages/live-child.md', `pages/${live.slug}.md`])
-      expect(entryText(space.entries!, `pages/${live.slug}.md`)).toContain('live body')
-      expect(entryText(space.entries!, `pages/${live.slug}.md`)).not.toContain('old secret')
+      expect(entryText(space.entries, `pages/${live.slug}.md`)).toContain('live body')
+      expect(entryText(space.entries, `pages/${live.slug}.md`)).not.toContain('old secret')
 
       const sub = await exportZip(token, slug, `scope=subtree&pageId=${live.slug}`)
       expect(sub.status).toBe(200)
       expect(Object.keys(sub.entries ?? {}).toSorted()).toStrictEqual(['pages/live-child.md', `pages/${live.slug}.md`])
-      expect(entryText(sub.entries!, `pages/${live.slug}.md`)).toContain('live body')
+      expect(entryText(sub.entries, `pages/${live.slug}.md`)).toContain('live body')
     })
 
     test('excludes a trashed descendant from a subtree export and 404s a trashed root', async () => {

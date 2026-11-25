@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 import { FetchHttpClient, HttpServerResponse } from 'effect/http'
-import { describe, expect, test, vi } from 'vite-plus/test'
+import { assert, describe, expect, test, vi } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
 
@@ -23,10 +23,11 @@ const fixture = function fixture(contentType = 'image/png', filename = 'diagram.
     .run(filename, contentType)
   const bytes = new Uint8Array([0, 255, 7, 128])
   const consume = vi.fn<() => Promise<ArrayBuffer>>(async () => bytes.buffer)
-  const get = vi.fn(async (): Promise<{ body: ReadableStream<Uint8Array>; arrayBuffer: typeof consume } | null> => ({
-    body: new Response(bytes).body!,
-    arrayBuffer: consume,
-  }))
+  const get = vi.fn(async (): Promise<{ body: ReadableStream<Uint8Array>; arrayBuffer: typeof consume } | null> => {
+    const { body } = new Response(bytes)
+    assert.exists(body)
+    return { arrayBuffer: consume, body }
+  })
   const head = vi.fn<() => Promise<{ size: number }>>(async () => ({ size: bytes.length }))
   const r2 = { get, head } as unknown as R2Bucket
   const transport = vi.fn<typeof fetch>(async () => {

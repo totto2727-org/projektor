@@ -1,5 +1,5 @@
 import { Predicate } from 'effect'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
 import type { ServiceCtx } from '#commands/types.ts'
@@ -67,7 +67,8 @@ describe('native D1 atomic feedback conversion', () => {
       .bind(testFixture.projectId)
       .all<{ id: string; number: number }>()
     expect(issues.results).toHaveLength(1)
-    const issue = issues.results[0]!
+    const [issue] = issues.results
+    assert.exists(issue)
     expect(issue.number).toBe(1)
     await expect(
       env.DB.prepare('SELECT linked_issue_id FROM feedback WHERE id=?').bind(id).first('linked_issue_id'),
