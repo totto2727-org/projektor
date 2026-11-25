@@ -532,63 +532,73 @@ describe('custom Fields — story_points seed', () => {
 
 // ─── MCP parity ──────────────────────────────────────────────────────────────
 
-describe('custom Fields — MCP parity', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+interface McpParityCredentials {
+  slug: string
+  token: string
+  workspaceId: string
+}
 
-  beforeEach(async () => {
-    const fixture = await seedFixture({ role: 'owner' })
-    ;({ token } = fixture)
-    ;({ slug } = fixture.workspace)
-    workspaceId = fixture.workspace.id
+interface McpParityTestContext {
+  requestAuth: McpParityCredentials
+}
+
+const mcpCall = async function mcpCall(
+  { slug, token, workspaceId }: McpParityCredentials,
+  method: string,
+  params: unknown,
+): Promise<{ result?: { content: { text: string }[] }; error?: { message: string } }> {
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+      stringifyOrderedFields([
+        ['jsonrpc', '2.0'],
+        ['id', 1],
+        ['method', method],
+        ['params', params],
+      ]),
+    ),
+  )
+  return res.json() as Promise<{
+    result?: { content: { text: string }[] }
+    error?: { message: string }
+  }>
+}
+
+describe('custom Fields — MCP parity', () => {
+  beforeEach<McpParityTestContext>(async (context) => {
+    const { token, workspace } = await seedFixture({ role: 'owner' })
+    context.requestAuth = { slug: workspace.slug, token, workspaceId: workspace.id }
   })
 
-  const mcpCall = async function mcpCall(
-    method: string,
-    params: unknown,
-  ): Promise<{ result?: { content: { text: string }[] }; error?: { message: string } }> {
-    const res = await fetchNativeApi(
-      `http://localhost/mcp/${workspaceId}`,
-      requestOptionsWithBody(
-        'POST',
-        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-      ),
-    )
-    return res.json() as Promise<{
-      result?: { content: { text: string }[] }
-      error?: { message: string }
-    }>
-  }
-
-  test('list_custom_field_defs returns empty list', async () => {
-    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_custom_field_defs' })
+  test<McpParityTestContext>('list_custom_field_defs returns empty list', async ({ requestAuth }) => {
+    const resp = await mcpCall(requestAuth, 'tools/call', { arguments: {}, name: 'list_custom_field_defs' })
     expect(resp.error).toBeUndefined()
     const data = parseNativeMcpText(readNativeMcpResultText(resp.result), JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
 
-  test('create_custom_field_def then list returns it', async () => {
-    await mcpCall('tools/call', {
+  test<McpParityTestContext>('create_custom_field_def then list returns it', async ({ requestAuth }) => {
+    await mcpCall(requestAuth, 'tools/call', {
       arguments: { key: 'effort', label: 'Effort', type: 'number' },
       name: 'create_custom_field_def',
     })
-    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_custom_field_defs' })
+    const resp = await mcpCall(requestAuth, 'tools/call', { arguments: {}, name: 'list_custom_field_defs' })
     const data = parseNativeMcpText(readNativeMcpResultText(resp.result), KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('effort')
   })
 
-  test('delete_custom_field_def via MCP returns ok', async () => {
-    const createResp = await mcpCall('tools/call', {
+  test<McpParityTestContext>('delete_custom_field_def via MCP returns ok', async ({ requestAuth }) => {
+    const createResp = await mcpCall(requestAuth, 'tools/call', {
       arguments: { key: 'tmp', label: 'Tmp', type: 'text' },
       name: 'create_custom_field_def',
     })
     const created = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
-    const deleteResp = await mcpCall('tools/call', {
+    const deleteResp = await mcpCall(requestAuth, 'tools/call', {
       name: 'delete_custom_field_def',
       arguments: { id: created.id },
     })
@@ -596,8 +606,8 @@ describe('custom Fields — MCP parity', () => {
     expect(deleted.ok).toBe(true)
   })
 
-  test('list_custom_field_defs appears in tools/list', async () => {
-    const resp = await mcpCall('tools/list', {})
+  test<McpParityTestContext>('list_custom_field_defs appears in tools/list', async ({ requestAuth }) => {
+    const resp = await mcpCall(requestAuth, 'tools/list', {})
     const { tools } = resp.result as unknown as { tools: { name: string }[] }
     const names = tools.map((tool) => tool.name)
     expect(names).toContain('list_custom_field_defs')

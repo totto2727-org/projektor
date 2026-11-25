@@ -558,68 +558,73 @@ describe('task Statuses — issue integration', () => {
   })
 })
 
-describe('task Statuses — MCP parity', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+interface McpParityCredentials {
+  slug: string
+  token: string
+  workspaceId: string
+}
 
-  beforeEach(async () => {
-    const fixture = await seedFixture({ role: 'owner' })
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
+interface McpParityTestContext {
+  requestAuth: McpParityCredentials
+}
+
+const mcpCall = async function mcpCall(
+  { slug, token, workspaceId }: McpParityCredentials,
+  method: string,
+  params: unknown,
+): Promise<{ result?: { content: { text: string }[] }; error?: { message: string } }> {
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+      stringifyOrderedFields([
+        ['jsonrpc', '2.0'],
+        ['id', 1],
+        ['method', method],
+        ['params', params],
+      ]),
+    ),
+  )
+  return res.json() as Promise<{
+    result?: { content: { text: string }[] }
+    error?: { message: string }
+  }>
+}
+
+describe('task Statuses — MCP parity', () => {
+  beforeEach<McpParityTestContext>(async (context) => {
+    const { token, workspace } = await seedFixture({ role: 'owner' })
+    context.requestAuth = { slug: workspace.slug, token, workspaceId: workspace.id }
   })
 
-  const mcpCall = async function mcpCall(
-    method: string,
-    params: unknown,
-  ): Promise<{ result?: { content: { text: string }[] }; error?: { message: string } }> {
-    const res = await fetchNativeApi(
-      `http://localhost/mcp/${workspaceId}`,
-      requestOptionsWithBody(
-        'POST',
-        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        stringifyOrderedFields([
-          ['jsonrpc', '2.0'],
-          ['id', 1],
-          ['method', method],
-          ['params', params],
-        ]),
-      ),
-    )
-    return res.json() as Promise<{
-      result?: { content: { text: string }[] }
-      error?: { message: string }
-    }>
-  }
-
-  test('list_task_statuses returns empty list', async () => {
-    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_statuses' })
+  test<McpParityTestContext>('list_task_statuses returns empty list', async ({ requestAuth }) => {
+    const resp = await mcpCall(requestAuth, 'tools/call', { arguments: {}, name: 'list_task_statuses' })
     expect(resp.error).toBeUndefined()
     const data = parseNativeMcpText(readNativeMcpResultText(resp.result), JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
 
-  test('create_task_status then list returns the status', async () => {
-    await mcpCall('tools/call', {
+  test<McpParityTestContext>('create_task_status then list returns the status', async ({ requestAuth }) => {
+    await mcpCall(requestAuth, 'tools/call', {
       arguments: { key: 'done', name: 'Done', category: 'done', position: 1 },
       name: 'create_task_status',
     })
-    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_statuses' })
+    const resp = await mcpCall(requestAuth, 'tools/call', { arguments: {}, name: 'list_task_statuses' })
     const data = parseNativeMcpText(readNativeMcpResultText(resp.result), KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('done')
   })
 
-  test('delete_task_status via MCP returns ok', async () => {
-    const createResp = await mcpCall('tools/call', {
+  test<McpParityTestContext>('delete_task_status via MCP returns ok', async ({ requestAuth }) => {
+    const createResp = await mcpCall(requestAuth, 'tools/call', {
       arguments: { key: 'tmp', name: 'Tmp', category: 'cancelled' },
       name: 'create_task_status',
     })
     const created = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
-    const deleteResp = await mcpCall('tools/call', {
+    const deleteResp = await mcpCall(requestAuth, 'tools/call', {
       name: 'delete_task_status',
       arguments: { id: created.id },
     })
