@@ -3,26 +3,13 @@
 import { query } from '@effront/core/query'
 import { useForm, useStore } from '@tanstack/react-form'
 import { String, Array, Iterable, Predicate, Effect, Schema } from 'effect'
-import {
-  createContext,
-  Fragment,
-  useCallback,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX, RefObject } from 'react'
 
 import { hasMultipleItems } from '#contracts/item-count.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { uploadInlineImage as uploadEditorImage } from '@/attachment-actions.ts'
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
-import { AttachmentUpload } from '@/components/attachment-upload.tsx'
-import { FormErrors } from '@/components/form-errors.tsx'
 import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 import { Button } from '@/components/ui/button.tsx'
@@ -30,7 +17,6 @@ import { Popover } from '@/components/ui/popover.tsx'
 import { Select } from '@/components/ui/select.tsx'
 import type { SelectOption } from '@/components/ui/select.tsx'
 import { formatTimestamp, formatTimestampDate } from '@/features/timestamp.ts'
-import { formatBytes } from '@/lib/file-size.ts'
 
 import {
   createWikiPage,
@@ -47,12 +33,15 @@ import {
   trashWikiPage,
   verifyWikiPage,
 } from './actions.ts'
-import { AttachmentFields, CreateFields, EditFields, FilterFields, MoveFields, SearchFields } from './form-schemas.ts'
+import type { Attachment } from './attachment-entry.tsx'
+import { AttachmentsPanel } from './attachments-panel.tsx'
+import { CreateFields, EditFields, FilterFields, MoveFields, SearchFields } from './form-schemas.ts'
 import { LazyMarkdownEditor as MarkdownEditor } from './lazy-markdown-editor.tsx'
 import { navigateFeature } from './navigation.ts'
 import { stripFrontmatter } from './render-markdown.ts'
 import { RevisionsHistory } from './revisions-history.tsx'
 import type { WikiRevision } from './revisions-history.tsx'
+import { SeedContext, usePublicViewer, useWikiSeed } from './wiki-seed-context.ts'
 
 /*
  * PROJ-804: pure and exported so it's unit-testable without mounting WikiPage. Turns
@@ -105,17 +94,6 @@ export interface WikiSeed {
   brandName: string
   /** Compiled in request scope so first server HTML includes body and hash targets. */
   renderedMarkdown?: RenderedMarkdown
-}
-const SeedContext = createContext<WikiSeed | null>(null)
-function useWikiSeed(): WikiSeed {
-  const seed = useContext(SeedContext)
-  if (!seed) {
-    throw new Error('Wiki server DTO is required.')
-  }
-  return seed
-}
-function usePublicViewer(_workspaceSlug?: string): boolean {
-  return useWikiSeed().publicViewer
 }
 function slugify(title: string): string {
   return title
@@ -510,14 +488,6 @@ interface UndoToast {
    * already restored, so "Undo failed" would be false.
    */
   afterUndo?: (result: string) => void | Promise<void>
-}
-
-interface Attachment {
-  id: string
-  filename: string
-  contentType: string
-  size: number
-  createdAt: number
 }
 
 interface Props {
@@ -1673,210 +1643,6 @@ function DraftRestoreBanner({
           Discard
         </Button>
       </div>
-    </div>
-  )
-}
-
-/*
- * PROJ-494: whether an attachment's id appears anywhere in the page's current markdown
- * (e.g. as part of an inline `![alt](/api/files/:id...)` ref). A plain substring check —
- * good enough to tell "referenced" from "orphaned" without parsing markdown image syntax,
- * and it also catches an id pasted into a manual link or wiki_ref-style reference.
- */
-function isReferenced(attachmentId: string, content: string): boolean {
-  return content.includes(attachmentId)
-}
-
-const REFERENCED_BADGE_CLASS =
-  'inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold ' +
-  'uppercase tracking-wide shrink-0'
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function AttachmentEntry({
-  attachment,
-  workspaceSlug,
-  referenced,
-  onDelete,
-  isPublicViewer,
-}: {
-  attachment: Attachment
-  workspaceSlug?: string
-  referenced: boolean
-  onDelete: (attachmentId: string) => void
-  isPublicViewer: boolean
-}): JSX.Element {
-  const qs =
-    Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug) ? `?workspace=${workspaceSlug}` : ''
-  return (
-    <div className='flex items-center gap-3 px-3 py-2 border border-border rounded-md bg-surface'>
-      <a
-        href={`/api/files/${attachment.id}${qs}`}
-        target='_blank'
-        rel='noreferrer'
-        className='text-accent text-sm no-underline hover:underline flex-1 min-w-0 truncate'
-      >
-        {attachment.filename}
-      </a>
-      <span
-        className={REFERENCED_BADGE_CLASS}
-        style={
-          referenced
-            ? { background: 'var(--status-done-bg)', color: 'var(--status-done)' }
-            : { background: 'var(--priority-low-bg)', color: 'var(--priority-low-text)' }
-        }
-      >
-        {referenced ? 'In page' : 'Unreferenced'}
-      </span>
-      <span className='text-xs text-text-muted shrink-0'>{formatBytes(attachment.size)}</span>
-      {!isPublicViewer && (
-        <Button
-          size='sm'
-          onClick={() => {
-            onDelete(attachment.id)
-          }}
-          aria-label={`Delete ${attachment.filename}`}
-          className='bg-transparent border-none text-text-muted px-[0.125rem] leading-none'
-        >
-          ×
-        </Button>
-      )}
-    </div>
-  )
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function AttachmentUploadForm({
-  uploadError,
-  onCancel,
-}: {
-  uploadError: string | undefined
-  onCancel: () => void
-}): undefined | JSX.Element {
-  const seed = useWikiSeed()
-  const form = useForm({
-    defaultValues: { file: null as File | null },
-    validators: {
-      onMount: Schema.toStandardSchemaV1(AttachmentFields),
-      onChange: Schema.toStandardSchemaV1(AttachmentFields),
-    },
-  })
-  const uploadFile = useStore(form.store, (state) => state.values.file)
-  const valid = useStore(form.store, (state) => state.isValid)
-  const errors = useStore(form.store, (state) => state.fieldMeta.file?.errors ?? [])
-  const validatedSubmit = useRef(false)
-  const submit = async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
-    if (validatedSubmit.current) {
-      validatedSubmit.current = false
-      return
-    }
-    event.preventDefault()
-    const nativeForm = event.currentTarget
-    await form.validate('change')
-    if (!form.state.isValid) {
-      return
-    }
-    validatedSubmit.current = true
-    nativeForm.requestSubmit()
-  }
-  if (!seed.page) {
-    return undefined
-  }
-  return (
-    <AttachmentUpload
-      workspaceSlug={seed.workspaceSlug}
-      entityType='wiki_page'
-      entityId={seed.page.id}
-      onSubmit={submit}
-    >
-      <div className='flex flex-wrap gap-2 items-center'>
-        <label className='relative cursor-pointer'>
-          <input
-            type='file'
-            name='file'
-            required
-            className='sr-only'
-            onChange={(event) => {
-              form.setFieldValue('file', event.currentTarget.files?.[0] ?? null)
-            }}
-          />
-          <Button as='span' variant='outline' size='sm'>
-            {uploadFile ? uploadFile.name : 'Choose file'}
-          </Button>
-        </label>
-        <Button type='submit' variant='primary' disabled={!valid}>
-          Upload
-        </Button>
-        <Button type='button' variant='outline' onClick={onCancel}>
-          Cancel
-        </Button>
-        {uploadError && (
-          <span role='alert' className='text-[0.8rem] text-danger-text self-center'>
-            {uploadError}
-          </span>
-        )}
-        {uploadFile && <FormErrors errors={errors} />}
-      </div>
-    </AttachmentUpload>
-  )
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function AttachmentsPanel({
-  attachments,
-  workspaceSlug,
-  content,
-  uploadFormOpen,
-  uploadError,
-  onToggleUploadForm,
-  onCancelUpload,
-  onDeleteAttachment,
-}: {
-  attachments: Attachment[]
-  workspaceSlug?: string
-  content: string
-  uploadFormOpen: boolean
-  uploadError: string | undefined
-  onToggleUploadForm: (open: boolean) => void
-  onCancelUpload: () => void
-  onDeleteAttachment: (attachmentId: string) => void
-}): JSX.Element {
-  const isPublicViewer = usePublicViewer(workspaceSlug)
-  return (
-    <div className='mt-8'>
-      <h3 className='text-xs uppercase tracking-[0.05em] text-text-muted font-semibold mb-3 pb-2 border-b border-border'>
-        {`Attachments${Array.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`}
-      </h3>
-
-      {Array.isArrayNonEmpty(attachments) && (
-        <div className='mb-4 flex flex-col gap-2'>
-          {attachments.map((attachment) => (
-            <AttachmentEntry
-              key={attachment.id}
-              attachment={attachment}
-              workspaceSlug={workspaceSlug}
-              referenced={isReferenced(attachment.id, content)}
-              onDelete={onDeleteAttachment}
-              isPublicViewer={isPublicViewer}
-            />
-          ))}
-        </div>
-      )}
-
-      {!isPublicViewer &&
-        (uploadFormOpen ? (
-          <AttachmentUploadForm uploadError={uploadError} onCancel={onCancelUpload} />
-        ) : (
-          <button
-            type='button'
-            onClick={() => {
-              onToggleUploadForm(true)
-            }}
-            className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1'
-          >
-            <span className='text-base leading-none'>+</span>
-            <span>Attach file</span>
-          </button>
-        ))}
     </div>
   )
 }
