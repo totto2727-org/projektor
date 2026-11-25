@@ -15,7 +15,7 @@ import {
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { issuePath } from '#contracts/urls.ts'
-import { drizzle, schema } from '#db'
+import { SQLITE_TRUE, drizzle, schema } from '#db'
 import * as issueQueries from '#services/issues.ts'
 
 import {
@@ -344,7 +344,7 @@ const resolveTypeId = async function resolveTypeId(
   const def = await orm
     .select({ id: schema.taskTypes.id })
     .from(schema.taskTypes)
-    .where(and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.isDefault, 1)))
+    .where(and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.isDefault, SQLITE_TRUE)))
     .get()
   return def?.id ?? null
 }
@@ -1289,7 +1289,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown):
   const existing = {
     ...existingFields,
     statusIsReviewStep: Predicate.isNotNullish(statusReviewFlag)
-      ? statusReviewFlag === 1
+      ? statusReviewFlag === SQLITE_TRUE
       : existingRow.status === 'in_review',
   }
 
@@ -1816,7 +1816,7 @@ const toPrioritizedIssue = function toPrioritizedIssue(row: PrioritizedRow) {
       story_points: row.story_points,
     },
   }
-  if (row.dor_ready === 1) {
+  if (row.dor_ready === SQLITE_TRUE) {
     return issue
   }
   return {

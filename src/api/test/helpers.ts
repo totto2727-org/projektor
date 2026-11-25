@@ -2,6 +2,7 @@ import { Predicate } from 'effect'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
+import { SQLITE_FALSE, SQLITE_TRUE } from '#db/sqlite-boolean.ts'
 
 import { env } from './fixture-api.ts'
 
@@ -10,8 +11,6 @@ const HEX_DIGITS_PER_BYTE = 2
 const UUID_PREFIX_START = 0
 const UUID_PREFIX_LENGTH = 8
 const INITIAL_TASK_POSITION = 0
-const SQLITE_TRUE = 1
-const SQLITE_FALSE = 0
 const ENDED_AGENT_HEARTBEAT_OFFSET_SECONDS = 1000
 
 export interface JsonRpcResult<T = unknown> {

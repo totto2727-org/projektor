@@ -6,7 +6,7 @@ import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '#contracts/inputs/task-statuses.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
-import { drizzle, schema } from '#db'
+import { SQLITE_FALSE, SQLITE_TRUE, drizzle, schema } from '#db'
 import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
 
 import * as cache from './cache.ts'
@@ -14,6 +14,8 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validati
 import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'
 import { prepareQuery } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
+
+const INITIAL_TASK_POSITION = 0
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
@@ -81,9 +83,9 @@ export const createTaskStatus = async function createTaskStatus(ctx: ServiceCtx,
       ['name', name],
       ['category', category],
       ['color', color ?? null],
-      ['position', position ?? 0],
-      ['isDefault', isDefault === true ? 1 : 0],
-      ['isReviewStep', isReviewStep === true ? 1 : 0],
+      ['position', position ?? INITIAL_TASK_POSITION],
+      ['isDefault', isDefault === true ? SQLITE_TRUE : SQLITE_FALSE],
+      ['isReviewStep', isReviewStep === true ? SQLITE_TRUE : SQLITE_FALSE],
     ]),
   )
 
@@ -108,10 +110,10 @@ const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpd
     setObj.position = data.position
   }
   if (Predicate.isNotNullish(data.isDefault)) {
-    setObj.isDefault = data.isDefault ? 1 : 0
+    setObj.isDefault = data.isDefault ? SQLITE_TRUE : SQLITE_FALSE
   }
   if (Predicate.isNotNullish(data.isReviewStep)) {
-    setObj.isReviewStep = data.isReviewStep ? 1 : 0
+    setObj.isReviewStep = data.isReviewStep ? SQLITE_TRUE : SQLITE_FALSE
   }
   return setObj
 }
@@ -204,7 +206,7 @@ export const deleteTaskStatus = async function deleteTaskStatus(ctx: ServiceCtx,
   if (!row) {
     throw new NotFoundError('Task status not found')
   }
-  if (row.isDefault === 1) {
+  if (row.isDefault === SQLITE_TRUE) {
     throw new ConflictError('Cannot delete the default task status')
   }
 
@@ -322,7 +324,7 @@ export const resolveStatus = async function resolveStatus(
   }
   const fromRow = (row: Row): { isReviewStep: boolean; id: string; key: string; category: string | null } => ({
     ...row,
-    isReviewStep: row.isReviewStep === 1,
+    isReviewStep: row.isReviewStep === SQLITE_TRUE,
   })
   // No task_statuses row backs the key: only the built-in "in_review" is a review step.
   const fromKey = (key: string): { id: null; key: string; category: null; isReviewStep: boolean } => ({
@@ -357,7 +359,7 @@ export const resolveStatus = async function resolveStatus(
   const def = await orm
     .select(cols)
     .from(schema.taskStatuses)
-    .where(and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.isDefault, 1)))
+    .where(and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.isDefault, SQLITE_TRUE)))
     .get()
   return def ? fromRow(def) : fromKey('backlog')
 }

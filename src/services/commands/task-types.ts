@@ -5,13 +5,15 @@ import { z } from 'zod'
 import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '#contracts/inputs/task-types.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
-import { drizzle, schema } from '#db'
+import { SQLITE_FALSE, SQLITE_TRUE, drizzle, schema } from '#db'
 import { listTaskTypes as queryTypes } from '#services/task-types.ts'
 
 import * as cache from './cache.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { prepareQuery } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
+
+const INITIAL_TASK_POSITION = 0
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
@@ -41,7 +43,7 @@ const buildTaskTypeUpdateSet = function buildTaskTypeUpdateSet(
     setObj.position = data.position
   }
   if (Predicate.isNotNullish(data.isDefault)) {
-    setObj.isDefault = data.isDefault ? 1 : 0
+    setObj.isDefault = data.isDefault ? SQLITE_TRUE : SQLITE_FALSE
   }
   return setObj
 }
@@ -98,8 +100,8 @@ export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw
       ['name', name],
       ['color', color ?? null],
       ['icon', icon ?? null],
-      ['position', position ?? 0],
-      ['isDefault', isDefault === true ? 1 : 0],
+      ['position', position ?? INITIAL_TASK_POSITION],
+      ['isDefault', isDefault === true ? SQLITE_TRUE : SQLITE_FALSE],
     ]),
   )
 
