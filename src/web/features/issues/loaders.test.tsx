@@ -315,14 +315,14 @@ describe('complete direct D1 issues SSR loaders', () => {
 
   test('pages through each authenticated membership for MyIssues without imposing the selected project', async () => {
     const data = fixture()
-    for (let index = 0; index < 103; index += 1) {
+    Iterable.forEach(Iterable.range(0, 103 - 1), (index): void => {
       data.insertIssue({
         id: `my-${String(index).padStart(3, '0')}`,
         number: index + 2,
         assigneeId: scope.user.id,
         createdAt: 5,
       })
-    }
+    })
     const other = { ...workspace, id: 'workspace-b', slug: 'other' }
     const otherProject = {
       ...project,
@@ -348,9 +348,9 @@ describe('complete direct D1 issues SSR loaders', () => {
 
   test('rejects oversized board aggregates but keeps the ordinary list paginated', async () => {
     const data = fixture()
-    for (let index = 0; index < 1000; index += 1) {
+    Iterable.forEach(Iterable.range(0, 1000 - 1), (index): void => {
       data.insertIssue({ id: `budget-${index}`, number: 100 + index })
-    }
+    })
     await expect(
       data.run(
         loadIssues(selected, new URL('https://front.test/issues?workspace=workspace&projectId=project-a&view=board')),
@@ -387,7 +387,7 @@ describe('complete direct D1 issues SSR loaders', () => {
       priority: 'low',
       createdAt: 0,
     })
-    for (let index = 0; index < 103; index += 1) {
+    Iterable.forEach(Iterable.range(0, 103 - 1), (index): void => {
       data.insertIssue({
         id: `new-${index}`,
         number: index + 2,
@@ -395,7 +395,7 @@ describe('complete direct D1 issues SSR loaders', () => {
         assigneeId: scope.user.id,
         createdAt: 10,
       })
-    }
+    })
     data.insertIssue({
       id: 'closed',
       number: 201,
@@ -416,14 +416,14 @@ describe('complete direct D1 issues SSR loaders', () => {
 
   test('loads complete board sets and performs project-scoped real FTS search', async () => {
     const data = fixture()
-    for (let index = 0; index < 102; index += 1) {
+    Iterable.forEach(Iterable.range(0, 102 - 1), (index): void => {
       data.insertIssue({
         id: `board-${String(index).padStart(3, '0')}`,
         number: index + 2,
         title: 'needle',
         createdAt: 5,
       })
-    }
+    })
     const result = await data.run(
       loadIssues(
         selected,

@@ -1,5 +1,5 @@
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { providerOptions } from '#contracts/oauth-provider.ts'
@@ -124,11 +124,11 @@ describe('official OAuth cleanup durable pagination', () => {
 
   test('passes more than 200 live grants and tokens without starving either phase', async () => {
     const testFixture = fixture()
-    for (let index = 0; index < 405; index += 1) {
+    Iterable.forEach(Iterable.range(0, 405 - 1), (index): void => {
       const id = String(index).padStart(3, '0')
       testFixture.grant(id)
       testFixture.put(`token:u:000:${id}`, { userId: 'u', grantId: '000' })
-    }
+    })
     testFixture.grant('expired', 'z', { expiresAt: 1 })
     testFixture.grant('orphan', 'z', { clientId: 'deleted-client' })
     testFixture.put('token:z:expired:access', { userId: 'z', grantId: 'expired' })
@@ -156,9 +156,9 @@ describe('official OAuth cleanup durable pagination', () => {
 
   test('does not advance a saved cursor when an item in the next page fails', async () => {
     const testFixture = fixture()
-    for (let index = 0; index < 205; index += 1) {
+    Iterable.forEach(Iterable.range(0, 205 - 1), (index): void => {
       testFixture.grant(String(index).padStart(3, '0'), 'u', index === 201 ? { expiresAt: 1 } : {})
-    }
+    })
     testFixture.grant('expired', 'z', { expiresAt: 1 })
     await testFixture.run()
     const before = testFixture.state()
@@ -186,9 +186,9 @@ describe('official OAuth cleanup durable pagination', () => {
   test('bounds nested SDK revocation calls without advancing past a partially processed grant', async () => {
     const testFixture = fixture()
     testFixture.grant('expired', 'z', { expiresAt: 1 })
-    for (let index = 0; index < 850; index += 1) {
+    Iterable.forEach(Iterable.range(0, 850 - 1), (index): void => {
       testFixture.put(`token:z:expired:${index}`, { userId: 'z', grantId: 'expired' })
-    }
+    })
     await expect(testFixture.run()).rejects.toThrow('OAuth purge KV call budget exhausted')
     expect(testFixture.state()).toBeNull()
     expect(testFixture.storage.values.has('grant:z:expired')).toBe(true)

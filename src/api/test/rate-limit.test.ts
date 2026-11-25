@@ -242,12 +242,12 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
   test('still enforces the token limit (API max 5) from the Durable Object counter', async () => {
     const fixture = await seedFixture()
     const statuses: number[] = []
-    for (let index = 0; index < API_LIMIT + 1; index += 1) {
+    await runIndexedInOrder(API_LIMIT + 1, async () => {
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       statuses.push(res.status)
-    }
+    })
     expect(statuses.slice(0, API_LIMIT).every((selectedStatus) => selectedStatus === 200)).toBe(true)
     expect(statuses[API_LIMIT]).toBe(429)
     await expect(rateLimitRows()).resolves.toBe(0)
@@ -261,9 +261,9 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
     try {
       const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`
       let res: Response | undefined
-      for (let index = 0; index < AUTH_LIMIT + 1; index += 1) {
+      await runIndexedInOrder(AUTH_LIMIT + 1, async () => {
         res = await fetchNativeApi(ENDPOINT, { headers: { 'CF-Connecting-IP': ip } })
-      }
+      })
       expect(res?.status).toBe(429)
       expect(res?.headers.get('Retry-After')).toBe(String(WINDOW_SECS - 20))
       await expect(res?.json()).resolves.toStrictEqual({ error: 'Too Many Requests' })

@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Iterable, Schema } from 'effect'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { getFlowMetrics } from '#commands/flow-metrics.ts'
@@ -257,9 +257,9 @@ describe('covers PROJ-866: D1 query bound at scale', () => {
       return id
     }
     const longAgo = since - 20 * WEEK
-    for (let index = 0; index < 1000; index += 1) {
+    Iterable.forEach(Iterable.range(0, 1000 - 1), (index): void => {
       insertIssue(index + 1, longAgo, longAgo + 100, longAgo + 200)
-    }
+    })
     for (let index = 0; index < IN_WINDOW; index += 1) {
       const claimedAt = since + 60 * index
       const id = insertIssue(1001 + index, since - 86_400, claimedAt, claimedAt + 1000)

@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Iterable, Effect } from 'effect'
 import { isValidElement } from 'react'
 import type { ComponentProps } from 'react'
 import { describe, expect, test, vi } from 'vite-plus/test'
@@ -114,9 +114,9 @@ describe('project pages read named shared queries against migrated D1', () => {
     const insert = database.sqlite.prepare(
       "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at) VALUES (?,'w1','p1',?,?,'u1',?,?)",
     )
-    for (let index = 0; index < 40; index += 1) {
+    Iterable.forEach(Iterable.range(0, 40 - 1), (index): void => {
       insert.run(`recent-${index}`, index + 1, `Issue ${index}`, index + 100, index + 100)
-    }
+    })
     insert.run('old-edited', 41, 'Old edited issue', 1, 1000)
     const url = new URL('https://front.example/projects/view?projectId=p1&workspace=alpha')
     const node = await runWithDatabase(database, url, (scope) => renderOverview(scope, url)).result

@@ -22,19 +22,19 @@ const fixture = function fixture() {
     (id,workspace_id,kind,r2_key,filename,content_type,size,url,review_status,entity_type,entity_id,created_by_id,created_at)
     VALUES (?,?,'url','','Design','',0,'https://example.test',?,'issue',?,'user-a',1)`)
       .run(`attachment-${id}`, workspaceId, status, id)
-  for (let index = 0; index < 35; index += 1) {
+  Iterable.forEach(Iterable.range(0, 35 - 1), (index): void => {
     const id = `active-${globalThis.String(index).padStart(2, '0')}`
     const projectId = index % 2 === 0 ? 'project-a' : 'project-b'
     const status = states[index % states.length] ?? 'fixing'
     database.insertIssue({ id, projectId, number: 100 + index, title: 'Needle review target', createdAt: index + 100 })
     attach(id, status)
     selected.push({ id, projectId, status })
-  }
-  for (let index = 0; index < 25; index += 1) {
+  })
+  Iterable.forEach(Iterable.range(0, 25 - 1), (index): void => {
     const id = `unselected-${index}`
     database.insertIssue({ id, number: 200 + index, title: 'Needle', createdAt: 1000 + index })
     attach(id, index % 2 === 0 ? null : 'done')
-  }
+  })
   database.insertIssue({
     id: 'selected-hidden',
     projectId: 'hidden-project',
