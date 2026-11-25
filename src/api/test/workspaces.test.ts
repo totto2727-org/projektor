@@ -57,7 +57,7 @@ describe('workspaces MCP', () => {
   beforeEach(async () => {
     const fixture = await seedFixture({ role: 'owner' })
     workspaceId = fixture.workspace.id
-    slug = fixture.workspace.slug
+    ;({ slug } = fixture.workspace)
     userId = fixture.user.id
     userToken = await seedUserToken(fixture.user.id)
     userHeaders = authHeaders(userToken, slug)
@@ -351,7 +351,7 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
     const workspaceId = fixture.workspace.id
-    const slug = fixture.workspace.slug
+    const { slug } = fixture.workspace
     const ownerToken = fixture.token
     const ownerHeaders = authHeaders(ownerToken, slug)
     return { ownerHeaders, ownerToken, slug, workspaceId }
@@ -501,7 +501,7 @@ describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'member' })
     const workspaceId = fixture.workspace.id
-    const slug = fixture.workspace.slug
+    const { slug } = fixture.workspace
     const memberToken = fixture.token
     const memberHeaders = authHeaders(memberToken, slug)
     return { memberHeaders, memberToken, slug, workspaceId }
@@ -558,7 +558,7 @@ describe('workspace brand (PROJ-761)', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const owner = await seedFixture({ role: 'owner' })
-    const slug = owner.workspace.slug
+    const { slug } = owner.workspace
     const ownerHeaders = authHeaders(owner.token, slug)
 
     const memberUser = await seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`)

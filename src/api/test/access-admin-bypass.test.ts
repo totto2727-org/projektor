@@ -41,7 +41,7 @@ const createIssue = async function createIssue(
 describe('covers PROJ-319 admin bypass pinning', () => {
   test("owner's search sees issues across projects they hold no group grant on", async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const p1 = await seedProject(roles.workspace.id, 'P1')
     const p2 = await seedProject(roles.workspace.id, 'P2')
     await createIssue(roles.owner.token, slug, p1.id, 'sentinel-bypass-token')
@@ -55,7 +55,7 @@ describe('covers PROJ-319 admin bypass pinning', () => {
 
   test("owner's get_flow_metrics returns real data for an ungranted project", async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'UNGRANTED')
     await seedIssue(roles.workspace.id, project.id, roles.owner.user.id, {
       title: 'Metrics issue',
@@ -71,7 +71,7 @@ describe('covers PROJ-319 admin bypass pinning', () => {
 
   test('a non-admin member granted only P1 sees only P1 in search (contrast)', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const p1 = await seedProject(roles.workspace.id, 'MP1')
     const p2 = await seedProject(roles.workspace.id, 'MP2')
     await createIssue(roles.owner.token, slug, p1.id, 'sentinel-scoped-token')
@@ -85,7 +85,7 @@ describe('covers PROJ-319 admin bypass pinning', () => {
 
   test('get_flow_metrics 404s for a non-admin member with no grant on the project', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'MUNGRANTED')
     await seedIssue(roles.workspace.id, project.id, roles.owner.user.id, {
       title: 'Hidden metrics',

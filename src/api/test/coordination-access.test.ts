@@ -77,7 +77,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const ws = await seedWorkspaceRoles()
-    const slug = ws.workspace.slug
+    const { slug } = ws.workspace
     const projectA = await seedProject(ws.workspace.id, 'AAA')
     const projectB = await seedProject(ws.workspace.id, 'BBB')
     // The member can see project A only.
@@ -102,7 +102,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
 
   test('owner sees leases/claims/agents across every project', async () => {
     const { issueA, issueB, slug, ws } = await seedTestData()
-    const token = ws.owner.token
+    const { token } = ws.owner
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items.map((item) => item.issueId).toSorted(lexicalCompare)).toStrictEqual(
       [issueA, issueB].toSorted(lexicalCompare),
@@ -121,7 +121,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
 
   test("a member sees only the granted project's leases and file claims", async () => {
     const { issueA, slug, ws } = await seedTestData()
-    const token = ws.member.token
+    const { token } = ws.member
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items.map((item) => item.issueId)).toStrictEqual([issueA])
 
@@ -140,7 +140,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   test("a member with no grants at all sees none of another project's coordination data", async () => {
     const { slug, ws } = await seedTestData()
     // Viewer has no group grant
-    const token = ws.viewer.token
+    const { token } = ws.viewer
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items).toHaveLength(0)
     const claims = await mcpList('list_file_claims', token, slug, ws.workspace.id)

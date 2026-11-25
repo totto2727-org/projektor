@@ -18,11 +18,11 @@ describe('compose_playbook', () => {
 
   beforeEach(async () => {
     const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
-    token = fixture.token
-    slug = fixture.slug
-    workspaceId = fixture.workspaceId
-    projectId = fixture.projectId
-    userId = fixture.userId
+    ;({ token } = fixture)
+    ;({ slug } = fixture)
+    ;({ workspaceId } = fixture)
+    ;({ projectId } = fixture)
+    ;({ userId } = fixture)
     epicId = fixture.issueId
     /*
      * Read the seeded number directly from D1 rather than via the API — hitting
@@ -204,8 +204,8 @@ describe('handles POST /api/playbooks/:name/compose', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
-    const token = fixture.token
-    const slug = fixture.slug
+    const { token } = fixture
+    const { slug } = fixture
     const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?')
       .bind(fixture.issueId)
       .first<{ number: number }>()

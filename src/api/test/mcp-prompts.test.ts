@@ -12,9 +12,9 @@ type PromptFixture = Readonly<{
 
 const seedPromptFixture = async function seedPromptFixture(): Promise<PromptFixture> {
   const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
-  const token = fixture.token
-  const slug = fixture.slug
-  const workspaceId = fixture.workspaceId
+  const { token } = fixture
+  const { slug } = fixture
+  const { workspaceId } = fixture
   const epicId = fixture.issueId
   /*
    * Read the seeded number directly from D1, same reasoning as

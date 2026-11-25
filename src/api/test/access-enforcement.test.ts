@@ -37,7 +37,7 @@ const listIssues = async function listIssues(token: string, slug: string): Promi
 describe('covers PROJ-311 group-based project access', () => {
   test("a new member with no groups sees an empty 'pending' state", async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     await seedProject(roles.workspace.id, 'HID')
 
     const projects = await listProjects(roles.member.token, slug)
@@ -50,7 +50,7 @@ describe('covers PROJ-311 group-based project access', () => {
 
   test('owner and admin see every project regardless of groups', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     await seedProject(roles.workspace.id, 'P1')
     await seedProject(roles.workspace.id, 'P2')
 
@@ -60,7 +60,7 @@ describe('covers PROJ-311 group-based project access', () => {
 
   test('a grant makes exactly one project visible; others stay hidden', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const granted = await seedProject(roles.workspace.id, 'SEEN')
     await seedProject(roles.workspace.id, 'UNSEEN')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, granted.id, 'member')
@@ -71,7 +71,7 @@ describe('covers PROJ-311 group-based project access', () => {
 
   test('a direct fetch of an ungranted project or issue 404s (existence hidden)', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'SECRET')
     const issue = await seedIssue(roles.workspace.id, project.id, roles.owner.user.id)
 
@@ -88,7 +88,7 @@ describe('covers PROJ-311 group-based project access', () => {
 
   test('granting then revoking flips visibility on the very next request', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'TOGGLE')
     const { groupId } = await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
@@ -111,7 +111,7 @@ describe('covers PROJ-311 group-based project access', () => {
 
   test('membership in two groups yields the strongest granted role', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'MULTI')
     /*
      * A viewer grant and a member grant on the same project via two groups: the
@@ -133,7 +133,7 @@ describe('covers PROJ-311 group-based project access', () => {
 
   test('a viewer grant is read-only: the project is visible but writes are refused', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'RO')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
 
@@ -155,7 +155,7 @@ describe('covers PROJ-311 group-based project access', () => {
 
   test('a member grant allows creating and reading issues in that project', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'WORK')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
