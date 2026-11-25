@@ -9,6 +9,7 @@ import { ApiPrincipal, VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
 import type { ApiUser } from '#contracts/api-auth.ts'
 import { capabilityForMethod, tokenAllows } from '#contracts/auth-scopes.ts'
 import { HTTP_TOO_MANY_REQUESTS, HTTP_UNAUTHORIZED, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { parseRateLimitSetting } from '#contracts/request-rate-limit.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import type { HonoEnv } from '#types'
 
@@ -62,9 +63,9 @@ const authFailureLimited = async function authFailureLimited(httpContext: Contex
     const count = await bumpRateCounter(
       httpContext.env,
       `authfail:${httpContext.req.header('CF-Connecting-IP') ?? '127.0.0.1'}`,
-      parseInt(httpContext.env.RATE_LIMIT_WINDOW_SECS ?? '60', 10),
+      parseRateLimitSetting(httpContext.env.RATE_LIMIT_WINDOW_SECS ?? '60'),
     )
-    return count > parseInt(httpContext.env.RATE_LIMIT_AUTH_FAIL_MAX ?? '50', 10)
+    return count > parseRateLimitSetting(httpContext.env.RATE_LIMIT_AUTH_FAIL_MAX ?? '50')
   } catch {
     return false
   }

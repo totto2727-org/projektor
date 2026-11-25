@@ -21,6 +21,18 @@ export const RateCounterRequest = Schema.Struct({
 
 export const LIMITER_TIMEOUT_MS = 500
 
+const DECIMAL_RADIX = 10
+
+/**
+ * Read the decimal prefix of a rate-limit setting.
+ *
+ * @param {string} value The configured value or the caller's default.
+ * @returns {number} The decimal prefix, or NaN when there is no decimal prefix.
+ */
+export const parseRateLimitSetting = function parseRateLimitSetting(value: string): number {
+  return Number.parseInt(value, DECIMAL_RADIX)
+}
+
 /**
  * Share counter names with the native fixture and use unprefixed keys in production.
  *

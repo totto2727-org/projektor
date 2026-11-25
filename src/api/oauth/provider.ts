@@ -7,6 +7,7 @@ import {
   REGISTRATION_ENDPOINT,
   TOKEN_ENDPOINT,
 } from '#contracts/oauth-provider.ts'
+import { parseRateLimitSetting } from '#contracts/request-rate-limit.ts'
 import type { ApiEnv } from '#types'
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
@@ -76,8 +77,8 @@ export const oauthProviderRateLimited = async function oauthProviderRateLimited(
   }
 
   const ip = request.headers.get('CF-Connecting-IP') ?? '127.0.0.1'
-  const windowSecs = parseInt(env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
-  const limit = parseInt(env.RATE_LIMIT_AUTH_MAX ?? '300', 10)
+  const windowSecs = parseRateLimitSetting(env.RATE_LIMIT_WINDOW_SECS ?? '60')
+  const limit = parseRateLimitSetting(env.RATE_LIMIT_AUTH_MAX ?? '300')
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   const endpoint = isRegistration ? 'oauth-registration' : 'oauth-token'
 

@@ -28,6 +28,7 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
 } from '#contracts/http-status.ts'
+import { parseRateLimitSetting } from '#contracts/request-rate-limit.ts'
 import type { HonoEnv } from '#types'
 
 export const feedbackPublicRouter = new Hono<HonoEnv>()
@@ -67,9 +68,9 @@ const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
    * route runs outside the global rateLimitMiddleware chain (mounted before it),
    * and anonymous feedback traffic must not share a budget with authenticated callers.
    */
-  const windowSecs = parseInt(httpContext.env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
-  const tokenLimit = parseInt(httpContext.env.RATE_LIMIT_FEEDBACK_MAX ?? '30', 10)
-  const ipLimit = parseInt(httpContext.env.RATE_LIMIT_FEEDBACK_IP_MAX ?? '100', 10)
+  const windowSecs = parseRateLimitSetting(httpContext.env.RATE_LIMIT_WINDOW_SECS ?? '60')
+  const tokenLimit = parseRateLimitSetting(httpContext.env.RATE_LIMIT_FEEDBACK_MAX ?? '30')
+  const ipLimit = parseRateLimitSetting(httpContext.env.RATE_LIMIT_FEEDBACK_IP_MAX ?? '100')
   const ip = httpContext.req.header('CF-Connecting-IP') ?? '127.0.0.1'
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
