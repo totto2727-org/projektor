@@ -92,6 +92,11 @@ const writeText = vi.fn<Clipboard['writeText']>(async () => {
   // Record the copied text without writing to the host clipboard.
 })
 
+const submitNewGroup = function submitNewGroup(name: string): void {
+  fireEvent.change(screen.getByLabelText('New group name'), { target: { value: name } })
+  fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
+}
+
 describe('original settings controls with TanStack schemas and semantic ServerFns', () => {
   afterEach(cleanup)
 
@@ -132,10 +137,10 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('keeps native group creation drafts after typed failure and clears them only after success', async () => {
+    expect.hasAssertions()
     request.mockResolvedValueOnce({ ok: false, status: 409, message: 'Group conflict' })
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
-    fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'Retry team' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
+    submitNewGroup('Retry team')
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('Group conflict')
     })
@@ -171,6 +176,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('submits original rename/description/member/grant controls through typed semantic actions', async () => {
+    expect.hasAssertions()
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
     const submitted = async (operation: string, fields: object): Promise<void> => {
@@ -210,9 +216,9 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('creates groups without fake aggregate DTOs and requires deletion confirmation', async () => {
+    expect.hasAssertions()
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
-    fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'New team' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
+    submitNewGroup('New team')
     await waitFor(() => {
       expect(request).toHaveBeenCalledWith('createGroup', {
         name: 'New team',
@@ -258,6 +264,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('preserves token form fields on refresh and reveals/copies the one-time token and SSR MCP template', async () => {
+    expect.hasAssertions()
     const props = {
       workspaceSlug: 'alpha',
       mcpUrl: 'https://api.example/mcp/ws',
@@ -311,6 +318,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('uses Effect Standard Schema to reject whitespace group names and fractional/out-of-range token expiry', async () => {
+    expect.hasAssertions()
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.change(screen.getByLabelText('New group name'), { target: { value: '  ' } })
     await waitFor(() => {
@@ -332,6 +340,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('requires token revoke confirmation and retains expected failure/retry controls', async () => {
+    expect.hasAssertions()
     render(<TokenManager workspaceSlug='alpha' mcpUrl={null} initialTokens={[token()]} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Revoke' })[0])
     expect(request).not.toHaveBeenCalled()
@@ -350,6 +359,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('refreshes connector rows without state copies and retains disconnect confirmation/failure/retry', async () => {
+    expect.hasAssertions()
     const view = render(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant()]} />)
     view.rerender(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant('Refreshed Claude')]} />)
     expect(screen.getAllByText('Refreshed Claude')).toHaveLength(2)
@@ -371,6 +381,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   })
 
   test('preserves every guide step and copies the refreshed server URL', async () => {
+    expect.hasAssertions()
     const view = render(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/first' />)
     view.rerender(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/second' />)
     expect(screen.getByText(/leave request headers empty/u)).toBeInstanceOf(Element)
