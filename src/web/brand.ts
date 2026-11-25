@@ -89,7 +89,7 @@ export const loadBrand = function loadBrand(
         ['logoUrl', override.logoUrl ?? brand.logoUrl],
       ])
     }),
-    Effect.catch(() => Effect.succeed(brand)),
+    Effect.orElseSucceed(() => brand),
   )
 }
 
