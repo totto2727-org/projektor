@@ -46,7 +46,7 @@ const readContext = function readContext(env: CoreEnvironment, proof: BrowserCom
       requireWorkspace: true,
     })
     const workspace = yield* checked(() => requireDataWorkspace(scope))
-    const auth = scope.auth
+    const { auth } = scope
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
       return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }

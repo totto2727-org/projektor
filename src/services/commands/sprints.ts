@@ -155,7 +155,7 @@ export const updateSprint = async function updateSprint(
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
   }
-  const data = result.data
+  const { data } = result
 
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm

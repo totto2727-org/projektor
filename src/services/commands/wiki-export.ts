@@ -362,7 +362,7 @@ export const exportWiki = async function exportWiki(
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
   }
-  const data = parsed.data
+  const { data } = parsed
 
   if (data.scope === 'space') {
     await requireSpaceVisible(ctx, data.projectId ?? null)

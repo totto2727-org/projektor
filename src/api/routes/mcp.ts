@@ -237,7 +237,7 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
           jsonRpcError(body.id, { code: JSON_RPC_INVALID_PARAMS, message: 'Invalid params: `name` is required' }),
         )
       }
-      const name = body.params.name
+      const { name } = body.params
       const args = body.params.arguments ?? {}
       if (!Predicate.isObject(args)) {
         return httpContext.json(

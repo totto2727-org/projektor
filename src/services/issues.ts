@@ -311,7 +311,7 @@ export const listIssues = function listIssues(
     const page = yield* queryEffect('listIssues', async () => {
       const orm = drizzle(db, { schema })
       const conditions = listConditions(workspaceId, options, visibility)
-      const cursor = options.cursor
+      const { cursor } = options
       const pageConditions = !cursor
         ? conditions
         : [

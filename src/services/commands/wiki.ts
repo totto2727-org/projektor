@@ -1029,7 +1029,7 @@ const assertRevisionBelongsToPage = async function assertRevisionBelongsToPage(
   }
 }
 
-export const buildUnifiedDiff = wikiData.buildUnifiedDiff
+export const { buildUnifiedDiff } = wikiData
 
 /*
  * PROJ-511: converts an un-awaited drizzle query builder (insert/update/delete) into a
@@ -1829,7 +1829,7 @@ export const patchWikiPage = async function patchWikiPage(
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
   }
-  const data = parsed.data
+  const { data } = parsed
   const retryable = data.op === 'append_to_page' || data.op === 'set_frontmatter'
 
   for (let attempt = 0; ; attempt = Number.increment(attempt)) {

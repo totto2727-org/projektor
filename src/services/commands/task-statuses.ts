@@ -124,7 +124,7 @@ export const updateTaskStatus = async function updateTaskStatus(
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
   }
-  const data = result.data
+  const { data } = result
 
   const setObj = buildTaskStatusSetObj(data)
   const orm = drizzle(ctx.db, { schema })

@@ -163,7 +163,7 @@ export async function listIssues(ctx: ServiceCtx, raw: unknown) {
  * bind and D1 would reject as a type error — a 500 where a 404 belongs. Anything longer
  * than this isn't a ref, so it falls through to being treated as an id and 404s.
  */
-export const ISSUE_REF_PATTERN = issueQueries.ISSUE_REF_PATTERN
+export const { ISSUE_REF_PATTERN } = issueQueries
 
 /**
  * Accept either identifier in an `:issueId` path segment.
@@ -197,7 +197,7 @@ export async function resolveIssueIdParam(
   return id
 }
 
-const computeChildRollup = issueQueries.computeChildRollup
+const { computeChildRollup } = issueQueries
 
 /*
  * PROJ-311: an issue is only visible if its project is granted to one of the
@@ -1106,7 +1106,7 @@ const buildUpdateSetValues = async function buildUpdateSetValues(
   const setValues: SetValues = { updatedAt: now(), ...buildSimpleFields(data) }
   const statusFields = await applyStatusFields(ctx, data, existing)
   Object.assign(setValues, statusFields.setValues)
-  const reviewOrDoneTransition = statusFields.reviewOrDoneTransition
+  const { reviewOrDoneTransition } = statusFields
   if ('typeId' in data) {
     const resolvedTypeId = await resolveTypeId(ctx, data.typeId)
     await assertNotDemotingEpicWithChildren(ctx, orm, existing, resolvedTypeId)

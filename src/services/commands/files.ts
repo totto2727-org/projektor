@@ -228,7 +228,7 @@ export const createLinkAttachment = async function createLinkAttachment(
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
   }
-  const data = parsed.data
+  const { data } = parsed
 
   await assertEntityWritable(ctx, data.entityType, data.entityId)
 

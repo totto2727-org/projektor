@@ -173,7 +173,7 @@ export const updateCustomFieldDef = async function updateCustomFieldDef(
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
   }
-  const data = result.data
+  const { data } = result
 
   const orm = drizzle(ctx.db, { schema })
   const existing = await getCustomFieldDefForUpdate(orm, ctx.workspaceId, id)

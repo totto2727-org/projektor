@@ -99,8 +99,8 @@ export const authMiddleware = async function authMiddleware(
     if (!(error instanceof CorePublicError)) {
       throw error
     }
-    let status = error.status
-    let message = error.message
+    let { status } = error
+    let { message } = error
     if (
       status === HTTP_UNAUTHORIZED &&
       Predicate.isNotNullish(actor.bearer) &&

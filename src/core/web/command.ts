@@ -39,7 +39,7 @@ export const browserCommand = function browserCommand<A>(
     if (workspace.slug !== proof.workspaceSlug) {
       return yield* coreFailure(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
-    const auth = scope.auth
+    const { auth } = scope
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
       return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }

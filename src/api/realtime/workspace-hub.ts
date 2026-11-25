@@ -226,7 +226,7 @@ export class WorkspaceHub {
           }
         }
 
-        const filters = attachment.filters
+        const { filters } = attachment
 
         /*
          * Apply the client-requested project filter (already intersected with

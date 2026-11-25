@@ -119,7 +119,7 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     if (Predicate.isNumber(schema.maxItems) && value.length > schema.maxItems) {
       issues.push({ path, message: `must have at most ${schema.maxItems} items` })
     }
-    const items = schema.items
+    const { items } = schema
     if (items && typeof items === 'object' && !globalThis.Array.isArray(items)) {
       value.forEach((item, index) => {
         validate(item, items as Schema, `${path}[${index}]`, issues)
