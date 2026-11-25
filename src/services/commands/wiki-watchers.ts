@@ -168,7 +168,10 @@ export const unwatchWikiPage = async function unwatchWikiPage(
   return { ok: true }
 }
 
-export const listWikiWatches = async function listWikiWatches(ctx: ServiceCtx) {
+type WikiWatchResult = Pick<typeof schema.wikiWatchers.$inferSelect, 'id' | 'pageId' | 'subtree' | 'createdAt'> &
+  Pick<typeof schema.wikiPages.$inferSelect, 'slug' | 'title'> & { url: string }
+
+export const listWikiWatches = async function listWikiWatches(ctx: ServiceCtx): Promise<WikiWatchResult[]> {
   const orm = drizzle(ctx.db, { schema })
   const rows = await orm
     .select(
@@ -457,7 +460,15 @@ export const deleteWikiWatchersForPages = async function deleteWikiWatchersForPa
   })
 }
 
-export const listWikiNotifications = async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
+type WikiNotificationResult = Pick<
+  typeof schema.wikiNotifications.$inferSelect,
+  'id' | 'pageId' | 'action' | 'actorId' | 'summary' | 'createdAt' | 'readAt'
+> & { slug: string; title: string; url: string }
+
+export const listWikiNotifications = async function listWikiNotifications(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<WikiNotificationResult[]> {
   const parsed = ListWikiNotificationsInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))

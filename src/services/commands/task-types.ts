@@ -68,7 +68,13 @@ export const listTaskTypes = async function listTaskTypes(ctx: ServiceCtx): Prom
   return result
 }
 
-export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw: unknown) {
+interface CreatedTaskType {
+  id: ReturnType<typeof crypto.randomUUID>
+  key: string
+  name: string
+}
+
+export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw: unknown): Promise<CreatedTaskType> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
