@@ -1194,7 +1194,7 @@ describe('issues API', () => {
     const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     // 3 API requests (DB seed + 3 patch), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Will complete' })
-    const id = issue.id
+    const { id } = issue
     await expect(completedAtOf(id)).resolves.toBeNull()
 
     await patch(id, {
@@ -1267,7 +1267,7 @@ describe('issues API', () => {
     const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     // 4 API requests (seed + 4 patches), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Flows through' })
-    const id = issue.id
+    const { id } = issue
     await expect(flowTimestampsOf(id)).resolves.toStrictEqual({
       claimed_at: SQL_NULL,
       done_at: SQL_NULL,
@@ -1325,7 +1325,7 @@ describe('issues API', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Reviewed and bounced',
     })
-    const id = issue.id
+    const { id } = issue
 
     await patch(id, { status: 'in_progress' })
     await expect(reviewFieldsOf(id)).resolves.toStrictEqual({ in_review_at: SQL_NULL, review_bounce_count: 0 })

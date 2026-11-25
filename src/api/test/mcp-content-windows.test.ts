@@ -179,7 +179,7 @@ describe('covers PROJ-892: MCP tools', () => {
     expect(first).toHaveProperty('revisionId')
 
     let text = first.content
-    let next = first.next
+    let { next } = first
     while (Predicate.isNotNullish(next) && String.isNonEmpty(next)) {
       const w = await tool<{ content: string; next?: string }>('get_wiki_page', {
         slug,
@@ -187,7 +187,7 @@ describe('covers PROJ-892: MCP tools', () => {
         cursor: next,
       })
       text += w.content
-      next = w.next
+      ;({ next } = w)
     }
     expect(text).toBe(content)
   })

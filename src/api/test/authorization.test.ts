@@ -85,7 +85,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const workspaceId = roles.workspace.id
     const ownerHeaders = authHeaders(roles.owner.token, slug)
     const viewerHeaders = authHeaders(roles.viewer.token, slug)
@@ -361,7 +361,7 @@ describe('covers PROJ-78: MCP tools – viewer role → error', () => {
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
     const workspaceId = roles.workspace.id
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const ownerHeaders = authHeaders(roles.owner.token, slug)
     const viewerHeaders = authHeaders(roles.viewer.token, slug)
     return { ownerHeaders, slug, viewerHeaders, workspaceId }
@@ -433,7 +433,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   beforeEach(async () => {
     const roles = await seedWorkspaceRoles()
     workspaceId = roles.workspace.id
-    slug = roles.workspace.slug
+    ;({ slug } = roles.workspace)
     ownerEmail = roles.owner.user.email
     memberEmail = roles.member.user.email
     ownerToken = roles.owner.token

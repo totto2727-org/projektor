@@ -131,7 +131,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
       true,
       ['sign', 'verify'],
     )
-    privateKey = keyPair.privateKey
+    ;({ privateKey } = keyPair)
     publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
   })
 
@@ -1231,7 +1231,7 @@ describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes
   beforeEach(async () => {
     const fixture = await seedFixture({ role: 'owner' })
     workspaceId = fixture.workspace.id
-    slug = fixture.workspace.slug
+    ;({ slug } = fixture.workspace)
     ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), slug)
   })
 
@@ -1306,7 +1306,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
     const workspaceId = fixture.workspace.id
-    const slug = fixture.workspace.slug
+    const { slug } = fixture.workspace
     const ownerHeaders = authHeaders(fixture.token, slug)
     return { ownerHeaders, slug, workspaceId }
   }

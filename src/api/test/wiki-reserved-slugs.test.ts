@@ -23,8 +23,8 @@ describe('reserved wiki slugs (PROJ-811)', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture({ role: 'admin' })
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
     userId = fixture.user.id
   })

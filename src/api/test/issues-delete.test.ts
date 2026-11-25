@@ -43,8 +43,8 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     const workspaceId = fixture.workspace.id
     const userId = fixture.user.id
     const project = await seedProject(workspaceId)

@@ -41,8 +41,8 @@ describe('custom Field Definitions API', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     const workspaceId = fixture.workspace.id
     return { slug, token, workspaceId }
   }
@@ -538,8 +538,8 @@ describe('custom Fields — MCP parity', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture({ role: 'owner' })
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
   })
 

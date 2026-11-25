@@ -86,8 +86,8 @@ describe('files API', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
     userId = fixture.user.id
   })
@@ -832,8 +832,8 @@ describe('files MCP tools', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     const workspaceId = fixture.workspace.id
     return { slug, token, workspaceId }
   }
@@ -1026,7 +1026,7 @@ describe('attachment project visibility', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture()
-    slug = fixture.workspace.slug
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
     memberToken = fixture.token
     memberId = fixture.user.id

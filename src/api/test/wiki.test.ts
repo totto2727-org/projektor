@@ -167,8 +167,8 @@ describe('wiki API', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
     userId = fixture.user.id
   })
@@ -1397,8 +1397,8 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     const workspaceId = fixture.workspace.id
     const userId = fixture.user.id
     return { slug, token, userId, workspaceId }
@@ -4153,8 +4153,8 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
   })
 
   const createPage = async function createPage(title: string, content: string): Promise<{ id: string; slug: string }> {
@@ -4552,8 +4552,8 @@ describe('wiki write atomicity (PROJ-511)', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     return { slug, token }
   }
 
@@ -4723,8 +4723,8 @@ describe('wiki freshness model (PROJ-489)', () => {
 
   const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    const token = fixture.token
-    const slug = fixture.workspace.slug
+    const { token } = fixture
+    const { slug } = fixture.workspace
     const workspaceId = fixture.workspace.id
     const userEmail = fixture.user.email
     return { slug, token, userEmail, workspaceId }
@@ -5415,9 +5415,9 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
      * pages, which requireWikiDelete restricts to admin/owner.
      */
     const fixture = await seedFixture({ role: 'admin' })
-    token = fixture.token
+    ;({ token } = fixture)
     userId = fixture.user.id
-    slug = fixture.workspace.slug
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
   })
 
@@ -5978,8 +5978,8 @@ describe('wiki server-side drafts (PROJ-495)', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture({ role: 'admin' })
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
   })
 
@@ -6292,8 +6292,8 @@ describe('wiki trash (PROJ-496)', () => {
      * page all require admin/owner (requireWikiDelete / isWorkspaceAdmin).
      */
     const fixture = await seedFixture({ role: 'admin' })
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
   })
 
@@ -6940,8 +6940,8 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
 
   beforeEach(async () => {
     const fixture = await seedFixture({ role: 'admin' })
-    token = fixture.token
-    slug = fixture.workspace.slug
+    ;({ token } = fixture)
+    ;({ slug } = fixture.workspace)
     workspaceId = fixture.workspace.id
     userId = fixture.user.id
   })
