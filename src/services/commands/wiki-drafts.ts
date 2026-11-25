@@ -7,6 +7,7 @@ import {
   VersionedWikiDraftInputSchema,
   WikiDraftRevisionInputSchema,
 } from '#contracts/inputs/wiki.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
@@ -20,9 +21,10 @@ import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
  * services/wiki-watchers.ts's resolveWatchTarget precedent.
  */
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { assertProjectAccess } from './access.ts'
-import { ConflictError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 import { idFirst, idOrSlugMatch } from './wiki-lookup.ts'
@@ -156,7 +158,7 @@ export const getWikiDraft = async function getWikiDraft(ctx: ServiceCtx, idOrSlu
       ),
     )
     .get()
-  return row ?? null
+  return row ?? JSON_NULL
 }
 
 /*
@@ -186,15 +188,20 @@ export const readWikiDraftState = async function readWikiDraftState(
       updatedAt: number | null
     }>()
   return fieldsInOrder([
-    ['revision', row?.revision ?? null],
+    ['revision', row?.revision ?? JSON_NULL],
     [
       'draft',
       row &&
       Predicate.isNotNullish(row.title) &&
       Predicate.isNotNullish(row.content) &&
       Predicate.isNotNullish(row.updatedAt)
-        ? { title: row.title, content: row.content, baseRevisionId: row.baseRevisionId, updatedAt: row.updatedAt }
-        : null,
+        ? fieldsInOrder([
+            ['title', row.title],
+            ['content', row.content],
+            ['baseRevisionId', row.baseRevisionId],
+            ['updatedAt', row.updatedAt],
+          ])
+        : JSON_NULL,
     ],
   ])
 }
@@ -261,7 +268,7 @@ export const saveWikiDraft = async function saveWikiDraft(
         page.id,
         parsed.data.title,
         parsed.data.content,
-        parsed.data.baseRevisionId ?? null,
+        parsed.data.baseRevisionId ?? SQL_NULL,
         now,
         ctx.workspaceId,
         ctx.userId,
@@ -296,19 +303,23 @@ const discardResolvedDraft = async function discardResolvedDraft(
   return { ok: true as const, revision }
 }
 
+const DiscardDraftInput = WikiDraftRevisionInputSchema.optional()
+
+const expectedDraftRevision = function expectedDraftRevision(input: unknown): string | null | undefined {
+  const parsed = DiscardDraftInput.safeParse(input)
+  if (!parsed.success) {
+    const { formErrors, fieldErrors } = flattenError(parsed.error)
+    throw new ValidationError(validationIssues(formErrors, fieldErrors ?? {}))
+  }
+  return parsed.data?.expectedDraftRevision
+}
+
 export const discardWikiDraft = async function discardWikiDraft(
   ctx: ServiceCtx,
   idOrSlug: string,
   input?: unknown,
 ): Promise<ChangedDraft> {
-  let expected: string | null | undefined
-  if (input !== undefined) {
-    const parsed = WikiDraftRevisionInputSchema.safeParse(input)
-    if (!parsed.success) {
-      throw new ValidationError(flattenError(parsed.error))
-    }
-    expected = parsed.data.expectedDraftRevision
-  }
+  const expected = expectedDraftRevision(input)
   const page = await resolveDraftTarget(ctx, idOrSlug)
   return discardResolvedDraft(ctx, page.id, expected)
 }
@@ -359,7 +370,7 @@ export const finishWikiDraftPublish = async function finishWikiDraftPublish(
      */
     return fieldsInOrder([
       ['ok', true as const],
-      ['draftRevision', null],
+      ['draftRevision', JSON_NULL],
     ])
   }
 }
