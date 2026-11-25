@@ -90,7 +90,10 @@ const parseDomainMapValue = function parseDomainMapValue(value: unknown): { slug
   if (!slug) {
     return null
   }
-  return { slug, role }
+  return fieldsInOrder([
+    ['slug', slug],
+    ['role', role],
+  ])
 }
 
 const parseDomainMapJson = function parseDomainMapJson(raw: string): unknown {

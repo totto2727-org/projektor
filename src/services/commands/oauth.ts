@@ -4,6 +4,7 @@ import { Iterable, Predicate, Number } from 'effect'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { relyingPartyHost } from '#contracts/oauth-consent.ts'
 import type { ConsentWorkspace } from '#contracts/oauth-consent.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { NotFoundError } from './errors.ts'
 
@@ -40,7 +41,12 @@ export const lookupConsentWorkspace = async function lookupConsentWorkspace(
   if (!isNonEmptyText(row?.role)) {
     return null
   }
-  return { id: row.id, name: row.name, slug: row.slug, role: row.role }
+  return fieldsInOrder([
+    ['id', row.id],
+    ['name', row.name],
+    ['slug', row.slug],
+    ['role', row.role],
+  ])
 }
 
 export type ConnectorGrant = Readonly<{

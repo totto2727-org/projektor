@@ -228,7 +228,12 @@ export const createProject = async function createProject(ctx: ServiceCtx, input
 
   await recordActivity(ctx, { action: 'created', entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)
-  return { id, name, key, slug }
+  return fieldsInOrder([
+    ['id', id],
+    ['name', name],
+    ['key', key],
+    ['slug', slug],
+  ])
 }
 
 export const updateProject = async function updateProject(

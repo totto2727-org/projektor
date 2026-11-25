@@ -1,6 +1,7 @@
 import { String, Predicate } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 
 import { assertProjectAccess, usersWithProjectReadAccess } from './access.ts'
@@ -169,7 +170,13 @@ export const getSharedIssue = async function getSharedIssue(
   const brand = isNonEmptyText(brandDto.logoUrl) ? { ...brandDto, logoUrl: `/api/share/${token}/logo` } : brandDto
   const { workspace_id: _workspaceId, workspace_slug: _workspaceSlug, ...rest } = row
 
-  return { ...rest, customFields: cfRows.results ?? [], brand }
+  return {
+    ...rest,
+    ...fieldsInOrder([
+      ['customFields', cfRows.results ?? []],
+      ['brand', brand],
+    ]),
+  }
 }
 
 export const getSharedLogo = async function getSharedLogo(

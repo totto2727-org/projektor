@@ -11,6 +11,7 @@
 
 import { Predicate } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 export type WikiFreshnessState = 'fresh' | 'stale' | 'unverified'
 
@@ -53,9 +54,15 @@ const computeDueAt = function computeDueAt(verifiedAt: number | null, verifyInte
  */
 const computeTimeBasedFreshness = function computeTimeBasedFreshness(dueAt: number | null, now: number): WikiFreshness {
   if (Predicate.isNotNullish(dueAt) && dueAt <= now) {
-    return { state: 'stale', staleSince: dueAt }
+    return fieldsInOrder([
+      ['state', 'stale'],
+      ['staleSince', dueAt],
+    ])
   }
-  return { state: 'fresh', staleSince: null }
+  return fieldsInOrder([
+    ['state', 'fresh'],
+    ['staleSince', null],
+  ])
 }
 
 export const computeFreshness = function computeFreshness(input: ComputeFreshnessInput): WikiFreshness | null {
@@ -75,7 +82,10 @@ export const computeFreshness = function computeFreshness(input: ComputeFreshnes
    * scheduled re-verification).
    */
   if (status === 'stale' || status === 'deprecated') {
-    return { state: 'stale', staleSince: Predicate.isNotNullish(dueAt) && dueAt <= now ? dueAt : null }
+    return fieldsInOrder([
+      ['state', 'stale'],
+      ['staleSince', Predicate.isNotNullish(dueAt) && dueAt <= now ? dueAt : null],
+    ])
   }
 
   /*
@@ -83,7 +93,10 @@ export const computeFreshness = function computeFreshness(input: ComputeFreshnes
    * distinct from "verified, but overdue" (below).
    */
   if (Predicate.isNotNullish(verifyInterval) && Predicate.isNullish(verifiedAt)) {
-    return { state: 'unverified', staleSince: null }
+    return fieldsInOrder([
+      ['state', 'unverified'],
+      ['staleSince', null],
+    ])
   }
 
   return computeTimeBasedFreshness(dueAt, now)

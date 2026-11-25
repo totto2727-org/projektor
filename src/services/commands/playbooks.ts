@@ -1,3 +1,5 @@
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { NotFoundError } from './errors.ts'
 import { PLAYBOOKS } from './playbook-content.ts'
 
@@ -22,11 +24,11 @@ export const getPlaybook = function getPlaybook(name: string) {
       validNames: PLAYBOOKS.map((selectedPlaybook) => selectedPlaybook.name),
     })
   }
-  return {
-    name: playbook.name,
-    title: playbook.title,
-    description: playbook.description,
-    whenToUse: playbook.whenToUse,
-    content: playbook.body.trim(),
-  }
+  return fieldsInOrder([
+    ['name', playbook.name],
+    ['title', playbook.title],
+    ['description', playbook.description],
+    ['whenToUse', playbook.whenToUse],
+    ['content', playbook.body.trim()],
+  ])
 }

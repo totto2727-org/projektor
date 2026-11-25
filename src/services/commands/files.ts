@@ -10,6 +10,7 @@ import {
   RecordFileUploadSchema,
   SetAttachmentReviewStatusSchema,
 } from '#contracts/inputs/files.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { ReviewStatus } from '#contracts/review-targets.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
@@ -62,14 +63,17 @@ const ownerVisibleFilter = function ownerVisibleFilter(ctx: ServiceCtx): { sql: 
   if (!issue || !page) {
     return null
   }
-  return {
-    sql: `NOT EXISTS (SELECT 1 FROM issues i
+  return fieldsInOrder([
+    [
+      'sql',
+      `NOT EXISTS (SELECT 1 FROM issues i
 		        WHERE a.entity_type = 'issue' AND i.id = a.entity_id AND NOT ${issue.sql})
 		      AND NOT EXISTS (SELECT 1 FROM wiki_pages p
 		        WHERE a.entity_type = 'wiki_page' AND p.id = a.entity_id
 		          AND p.project_id IS NOT NULL AND NOT ${page.sql})`,
-    params: [...issue.params, ...page.params],
-  }
+    ],
+    ['params', [...issue.params, ...page.params] satisfies unknown[]],
+  ])
 }
 
 /**
@@ -141,19 +145,22 @@ const ALLOWED_UPLOAD_TYPES = new Set([
 ])
 
 const toDto = function toDto(row: attachmentData.AttachmentMetadata): AttachmentDto {
-  return {
-    id: row.id,
-    kind: row.kind,
-    filename: row.filename,
-    contentType: row.contentType,
-    size: row.size,
-    url: row.url,
-    createdAt: row.createdAt,
-    reviewStatus: row.reviewStatus,
-    wikiPage: row.wikiPage
-      ? { id: row.wikiPage.id, title: row.wikiPage.title, url: wikiPagePath(row.wikiPage.slug ?? '') }
-      : null,
-  }
+  return fieldsInOrder([
+    ['id', row.id],
+    ['kind', row.kind],
+    ['filename', row.filename],
+    ['contentType', row.contentType],
+    ['size', row.size],
+    ['url', row.url],
+    ['createdAt', row.createdAt],
+    ['reviewStatus', row.reviewStatus],
+    [
+      'wikiPage',
+      row.wikiPage
+        ? { id: row.wikiPage.id, title: row.wikiPage.title, url: wikiPagePath(row.wikiPage.slug ?? '') }
+        : null,
+    ],
+  ])
 }
 
 export const listAttachments = async function listAttachments(
@@ -344,7 +351,12 @@ export const uploadStoredAttachment = async function uploadStoredAttachment(
       },
       quotaBytes,
     )
-    return { id, filename: file.name, contentType, size: file.size }
+    return fieldsInOrder([
+      ['id', id],
+      ['filename', file.name],
+      ['contentType', contentType],
+      ['size', file.size],
+    ])
   } catch (error) {
     try {
       await ctx.r2.delete(r2Key)
@@ -371,7 +383,11 @@ export const getStoredAttachment = async function getStoredAttachment(
   if (!object) {
     return null
   }
-  return { body: await object.arrayBuffer(), filename: metadata.filename, contentType: metadata.contentType }
+  return fieldsInOrder([
+    ['body', await object.arrayBuffer()],
+    ['filename', metadata.filename],
+    ['contentType', metadata.contentType],
+  ])
 }
 
 /**
@@ -470,7 +486,11 @@ export async function getAttachmentForDownload(
   if (!row) {
     throw new NotFoundError('Not found')
   }
-  return { r2Key: row.r2_key, filename: row.filename, contentType: row.content_type }
+  return fieldsInOrder([
+    ['r2Key', row.r2_key],
+    ['filename', row.filename],
+    ['contentType', row.content_type],
+  ])
 }
 
 /**

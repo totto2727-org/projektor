@@ -634,7 +634,11 @@ export const backfillWikiLinks = async function backfillWikiLinks(
   const last = Array.lastNonEmpty(pages)
   // A short page (fewer rows than requested) means we've reached the end of the scope.
   const nextCursor = pages.length < pageBudget ? null : { updatedAt: last.updatedAt, id: last.id }
-  return { processed: pages.length, nextCursor, pagesProcessed: pages.length }
+  return fieldsInOrder([
+    ['processed', pages.length],
+    ['nextCursor', nextCursor],
+    ['pagesProcessed', pages.length],
+  ])
 }
 
 /*

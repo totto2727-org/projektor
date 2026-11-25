@@ -3,6 +3,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
 import { WikiFrontmatterSchema } from '#contracts/inputs/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 
 import { ValidationError, validationIssues } from './errors.ts'
@@ -116,16 +117,16 @@ const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknow
 const toFrontmatterMeta = function toFrontmatterMeta(
   d: ReturnType<typeof WikiFrontmatterSchema.parse>,
 ): WikiFrontmatterMeta {
-  return {
-    type: d.type ?? null,
-    tags: d.tags ?? [],
-    status: d.status ?? null,
-    verifiedAt: d.verified_at ?? null,
-    verifiedBy: d.verified_by ?? null,
-    owners: d.owners ?? [],
-    verifyInterval: d.verify_interval ?? null,
-    isTemplate: d.template ?? false,
-  }
+  return fieldsInOrder([
+    ['type', d.type ?? null],
+    ['tags', d.tags ?? []],
+    ['status', d.status ?? null],
+    ['verifiedAt', d.verified_at ?? null],
+    ['verifiedBy', d.verified_by ?? null],
+    ['owners', d.owners ?? []],
+    ['verifyInterval', d.verify_interval ?? null],
+    ['isTemplate', d.template ?? false],
+  ])
 }
 
 export const parseWikiFrontmatter = function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {

@@ -575,7 +575,10 @@ export const releaseFiles = async function releaseFiles(
     }
   }
 
-  return { released, count: released.length }
+  return fieldsInOrder([
+    ['released', released],
+    ['count', released.length],
+  ])
 }
 
 /**

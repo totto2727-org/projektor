@@ -262,16 +262,16 @@ const resolvePageByIdOrSlug = async function resolvePageByIdOrSlug(
    */
   const redirected = await resolveWikiPageByRedirect(orm, workspaceId, idOrSlug)
   if (redirected) {
-    return {
-      id: redirected.id,
-      slug: redirected.slug,
-      title: redirected.title,
-      content: redirected.content,
-      projectId: redirected.project_id,
-      parentId: redirected.parent_id,
-      isTemplate: redirected.is_template,
-      version: redirected.version,
-    }
+    return fieldsInOrder([
+      ['id', redirected.id],
+      ['slug', redirected.slug],
+      ['title', redirected.title],
+      ['content', redirected.content],
+      ['projectId', redirected.project_id],
+      ['parentId', redirected.parent_id],
+      ['isTemplate', redirected.is_template],
+      ['version', redirected.version],
+    ])
   }
   throw new NotFoundError('Wiki page not found')
 }
@@ -631,14 +631,19 @@ export const getWikiPage = async function getWikiPage(ctx: ServiceCtx, slugOrId:
      * as baseRevisionId. Read with the page, so a save that lands between a caller's
      * read and a separate list_wiki_revisions call can't hand them a newer base.
      */
-    revisionId: await Effect.runPromise(wikiData.getLatestWikiRevisionId(ctx.db, ctx.workspaceId, page.id)),
-    url: wikiPagePath(page.slug),
-    // PROJ-489 (R7): computed/derived, not a stored column — surfaced for the page header.
-    freshness: computeFreshness({
-      verifiedAt: page.verified_at,
-      verifyInterval: page.verify_interval,
-      status: page.status,
-    }),
+    ...fieldsInOrder([
+      ['revisionId', await Effect.runPromise(wikiData.getLatestWikiRevisionId(ctx.db, ctx.workspaceId, page.id))],
+      ['url', wikiPagePath(page.slug)],
+      // PROJ-489 (R7): computed/derived, not a stored column — surfaced for the page header.
+      [
+        'freshness',
+        computeFreshness({
+          verifiedAt: page.verified_at,
+          verifyInterval: page.verify_interval,
+          status: page.status,
+        }),
+      ],
+    ]),
   }
 }
 
@@ -897,7 +902,15 @@ export const createWikiPage = async function createWikiPage(ctx: ServiceCtx, inp
     slug,
   )
   await finalizeWikiPageCreate(ctx, { id, meta, parentId, slug, title })
-  return { id, slug, projectId: resolvedProjectId, url: wikiPagePath(slug), ...meta }
+  return {
+    ...fieldsInOrder([
+      ['id', id],
+      ['slug', slug],
+      ['projectId', resolvedProjectId],
+      ['url', wikiPagePath(slug)],
+    ]),
+    ...meta,
+  }
 }
 
 /*
@@ -1510,18 +1523,21 @@ export const verifyWikiPage = async function verifyWikiPage(ctx: ServiceCtx, idO
    * what a subsequent read would parse back out (rather than re-fetching the page).
    */
   const meta = parseWikiFrontmatter(newContent)
-  return {
-    ok: true,
-    verifiedAt: meta.verifiedAt,
-    verifiedBy: meta.verifiedBy,
-    url: wikiPagePath(page.slug),
-    freshness: computeFreshness({
-      verifiedAt: meta.verifiedAt,
-      verifyInterval: meta.verifyInterval,
-      status: meta.status,
-      now,
-    }),
-  }
+  return fieldsInOrder([
+    ['ok', true],
+    ['verifiedAt', meta.verifiedAt],
+    ['verifiedBy', meta.verifiedBy],
+    ['url', wikiPagePath(page.slug)],
+    [
+      'freshness',
+      computeFreshness({
+        verifiedAt: meta.verifiedAt,
+        verifyInterval: meta.verifyInterval,
+        status: meta.status,
+        now,
+      }),
+    ],
+  ])
 }
 
 /*
@@ -2407,7 +2423,11 @@ export const deleteWikiPage = async function deleteWikiPage(
         deletedPageIdsTruncated: allIds.length > MAX_DELETED_PAGE_IDS,
       },
     })
-    return { ok: true, deletedCount: allIds.length, linkedByCount }
+    return fieldsInOrder([
+      ['ok', true],
+      ['deletedCount', allIds.length],
+      ['linkedByCount', linkedByCount],
+    ])
   }
 
   /*
@@ -2607,13 +2627,13 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
     await notifyCascadeDescendantWatchers(ctx, descendantRows, 'updated')
   }
 
-  return {
-    ok: true,
-    id: page.id,
-    slug: page.slug,
-    url: wikiPagePath(page.slug),
-    restoredCount: allIds.length,
-  }
+  return fieldsInOrder([
+    ['ok', true],
+    ['id', page.id],
+    ['slug', page.slug],
+    ['url', wikiPagePath(page.slug)],
+    ['restoredCount', allIds.length],
+  ])
 }
 
 /*
@@ -2783,7 +2803,11 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
     return []
   })
 
-  return { purgedCount: ids.length, purgedIds: ids, moreExpired }
+  return fieldsInOrder([
+    ['purgedCount', ids.length],
+    ['purgedIds', ids],
+    ['moreExpired', moreExpired],
+  ])
 }
 
 export const getWikiTree = async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise<TreeNode[]> {
@@ -2886,5 +2910,9 @@ export const getWikiRevisionDiff = async function getWikiRevisionDiff(
     toContent = toRevision.content
   }
 
-  return { from: revisionId, to: against, diff: buildUnifiedDiff(fromRevision.content, toContent) }
+  return fieldsInOrder([
+    ['from', revisionId],
+    ['to', against],
+    ['diff', buildUnifiedDiff(fromRevision.content, toContent)],
+  ])
 }

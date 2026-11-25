@@ -589,27 +589,30 @@ const extractDeletedPageInfo = function extractDeletedPageInfo(rawDiff: string |
 } {
   const diff = parseJsonObject(rawDiff)
   if (!diff) {
-    return {
-      slug: null,
-      title: null,
-      projectId: null,
-      deletedPageIds: null,
-      deletedPageIdsTruncated: false,
-    }
+    return fieldsInOrder([
+      ['slug', null],
+      ['title', null],
+      ['projectId', null],
+      ['deletedPageIds', null],
+      ['deletedPageIdsTruncated', false],
+    ])
   }
-  return {
-    slug: Predicate.isString(diff.slug) ? diff.slug : null,
-    title: Predicate.isString(diff.title) ? diff.title : null,
-    projectId: Predicate.isString(diff.projectId) ? diff.projectId : null,
+  return fieldsInOrder([
+    ['slug', Predicate.isString(diff.slug) ? diff.slug : null],
+    ['title', Predicate.isString(diff.title) ? diff.title : null],
+    ['projectId', Predicate.isString(diff.projectId) ? diff.projectId : null],
     /*
      * PROJ-526: only present on a cascade root's diff (services/wiki.ts#deleteWikiPage);
      * includes the root's own id — see WikiChangeEvent's doc for the full contract.
      */
-    deletedPageIds: globalThis.Array.isArray(diff.deletedPageIds)
-      ? diff.deletedPageIds.filter((id): id is string => Predicate.isString(id))
-      : null,
-    deletedPageIdsTruncated: diff.deletedPageIdsTruncated === true,
-  }
+    [
+      'deletedPageIds',
+      globalThis.Array.isArray(diff.deletedPageIds)
+        ? diff.deletedPageIds.filter((id): id is string => Predicate.isString(id))
+        : null,
+    ],
+    ['deletedPageIdsTruncated', diff.deletedPageIdsTruncated === true],
+  ])
 }
 
 interface WikiActivityRow {
@@ -643,12 +646,12 @@ const eventFieldsFor = function eventFieldsFor(
   deleted: ReturnType<typeof extractDeletedPageInfo> | undefined
 } {
   const deleted = action === 'deleted' ? extractDeletedPageInfo(r.diff) : undefined
-  return {
-    slug: deleted ? deleted.slug : r.pageSlug,
-    title: deleted ? deleted.title : r.pageTitle,
-    eventProjectId: deleted ? deleted.projectId : r.pageProjectId,
-    deleted,
-  }
+  return fieldsInOrder([
+    ['slug', deleted ? deleted.slug : r.pageSlug],
+    ['title', deleted ? deleted.title : r.pageTitle],
+    ['eventProjectId', deleted ? deleted.projectId : r.pageProjectId],
+    ['deleted', deleted],
+  ])
 }
 
 const isEventVisible = async function isEventVisible(
@@ -684,18 +687,18 @@ const toWikiChangeEvent = async function toWikiChangeEvent(
     return undefined
   }
 
-  return {
-    id: r.id,
-    action,
-    pageId: r.entityId,
-    slug,
-    title,
-    projectId: eventProjectId,
-    actorId: r.actorId,
-    createdAt: r.createdAt,
-    deletedPageIds: deleted?.deletedPageIds ?? null,
-    deletedPageIdsTruncated: deleted?.deletedPageIdsTruncated ?? false,
-  }
+  return fieldsInOrder([
+    ['id', r.id],
+    ['action', action],
+    ['pageId', r.entityId],
+    ['slug', slug],
+    ['title', title],
+    ['projectId', eventProjectId],
+    ['actorId', r.actorId],
+    ['createdAt', r.createdAt],
+    ['deletedPageIds', deleted?.deletedPageIds ?? null],
+    ['deletedPageIdsTruncated', deleted?.deletedPageIdsTruncated ?? false],
+  ])
 }
 
 /*

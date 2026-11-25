@@ -158,16 +158,18 @@ export const readWikiDraftState = async function readWikiDraftState(
       baseRevisionId: string | null
       updatedAt: number | null
     }>()
-  return {
-    revision: row?.revision ?? null,
-    draft:
+  return fieldsInOrder([
+    ['revision', row?.revision ?? null],
+    [
+      'draft',
       row &&
       Predicate.isNotNullish(row.title) &&
       Predicate.isNotNullish(row.content) &&
       Predicate.isNotNullish(row.updatedAt)
         ? { title: row.title, content: row.content, baseRevisionId: row.baseRevisionId, updatedAt: row.updatedAt }
         : null,
-  }
+    ],
+  ])
 }
 
 const advanceHead = function advanceHead(
@@ -237,7 +239,12 @@ export const saveWikiDraft = async function saveWikiDraft(ctx: ServiceCtx, idOrS
       ),
   ])
   requireAdvanced(results[0], revision)
-  return { ok: true as const, pageId: page.id, updatedAt: now, revision }
+  return fieldsInOrder([
+    ['ok', true as const],
+    ['pageId', page.id],
+    ['updatedAt', now],
+    ['revision', revision],
+  ])
 }
 
 const discardResolvedDraft = async function discardResolvedDraft(
@@ -288,7 +295,11 @@ export const beginWikiDraftPublish = async function beginWikiDraftPublish(
   const revision = crypto.randomUUID()
   const result = await advanceHead(ctx, page.id, parsed.data.expectedDraftRevision, revision).all()
   requireAdvanced(result, revision)
-  return { pageId: page.id, revision, input: parsed.data }
+  return fieldsInOrder([
+    ['pageId', page.id],
+    ['revision', revision],
+    ['input', parsed.data],
+  ])
 }
 
 export const finishWikiDraftPublish = async function finishWikiDraftPublish(
@@ -299,7 +310,10 @@ export const finishWikiDraftPublish = async function finishWikiDraftPublish(
   const page = await resolveDraftTarget(ctx, pageId)
   try {
     const result = await discardResolvedDraft(ctx, page.id, reservedRevision)
-    return { ok: true as const, draftRevision: result.revision }
+    return fieldsInOrder([
+      ['ok', true as const],
+      ['draftRevision', result.revision],
+    ])
   } catch (error) {
     if (!(error instanceof ConflictError)) {
       throw error
@@ -308,7 +322,10 @@ export const finishWikiDraftPublish = async function finishWikiDraftPublish(
      * Another editor has advanced the head. Publication succeeded, but this
      * caller must reconcile that draft rather than overwrite it automatically.
      */
-    return { ok: true as const, draftRevision: null }
+    return fieldsInOrder([
+      ['ok', true as const],
+      ['draftRevision', null],
+    ])
   }
 }
 

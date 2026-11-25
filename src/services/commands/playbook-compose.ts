@@ -1,6 +1,7 @@
 import { flattenError } from 'zod'
 
 import { ComposePlaybookSchema } from '#contracts/inputs/playbooks.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 
 import { NotFoundError, ValidationError } from './errors.ts'
@@ -103,9 +104,9 @@ export const composePlaybook = async function composePlaybook(
     wipLimit,
   })
 
-  return {
-    name: playbook.name,
-    variant,
-    directive,
-  }
+  return fieldsInOrder([
+    ['name', playbook.name],
+    ['variant', variant],
+    ['directive', directive],
+  ])
 }

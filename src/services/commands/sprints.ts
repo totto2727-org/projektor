@@ -312,5 +312,8 @@ export const moveIssuesToSprint = async function moveIssuesToSprint(
    * (up to 500, 10x the free-plan subrequest limit) invalidating a field the cache no
    * longer even stores.
    */
-  return { ok: true, count: issueIds.length }
+  return fieldsInOrder([
+    ['ok', true],
+    ['count', issueIds.length],
+  ])
 }

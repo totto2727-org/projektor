@@ -241,7 +241,10 @@ const loadIssueExtras = async function loadIssueExtras(ctx: ServiceCtx, issueId:
   const key = `issue:${ctx.workspaceId}:${issueId}`
   const cached = await cache.get<CachedIssueExtras>(ctx.kv, key)
   if (cached?.rollup && cached.customFields) {
-    return { rollup: cached.rollup, customFields: cached.customFields }
+    return fieldsInOrder([
+      ['rollup', cached.rollup],
+      ['customFields', cached.customFields],
+    ])
   }
 
   const extras: CachedIssueExtras = await Effect.runPromise(
@@ -521,7 +524,13 @@ const resolveCreateIssueDeps = async function resolveCreateIssueDeps(ctx: Servic
   } = await resolveStatus(ctx, data.statusId, data.status)
   const cfWrites = data.customFields ? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields) : []
 
-  return { resolvedTypeId, resolvedStatusId, resolvedStatusKey, resolvedStatusCategory, cfWrites }
+  return fieldsInOrder([
+    ['resolvedTypeId', resolvedTypeId],
+    ['resolvedStatusId', resolvedStatusId],
+    ['resolvedStatusKey', resolvedStatusKey],
+    ['resolvedStatusCategory', resolvedStatusCategory],
+    ['cfWrites', cfWrites],
+  ])
 }
 
 export async function createIssue(ctx: ServiceCtx, raw: unknown): ReturnType<typeof createIssueInternal> {
@@ -834,7 +843,10 @@ const buildReviewTransitions = function buildReviewTransitions(
 
   const isGateRejection =
     leavingReviewNotDone && (newStatusCategory === 'in_progress' || resolvedStatusKey === 'in_progress')
-  return { setValues, isGateRejection }
+  return fieldsInOrder([
+    ['setValues', setValues],
+    ['isGateRejection', isGateRejection],
+  ])
 }
 
 const assertCompletionReportPresent = function assertCompletionReportPresent(data: UpdateIssueData): void {
@@ -869,7 +881,10 @@ const classifyStatusTransition = function classifyStatusTransition(
 
   const wasDone = existing.statusCategory === 'done' || existing.status === 'done'
   const enteringDone = (newStatusCategory === 'done' || resolvedStatusKey === 'done') && !wasDone
-  return { enteringInReview, enteringDone }
+  return fieldsInOrder([
+    ['enteringInReview', enteringInReview],
+    ['enteringDone', enteringDone],
+  ])
 }
 
 /*
@@ -949,12 +964,12 @@ const applyStatusFields = async function applyStatusFields(
   closing: boolean
 }> {
   if (Predicate.isNullish(data.status) && !('statusId' in data)) {
-    return {
-      setValues: {},
-      reviewOrDoneTransition: false,
-      gateRejectionStatement: null,
-      closing: false,
-    }
+    return fieldsInOrder([
+      ['setValues', {}],
+      ['reviewOrDoneTransition', false],
+      ['gateRejectionStatement', null],
+      ['closing', false],
+    ])
   }
 
   /*
@@ -1007,13 +1022,15 @@ const applyStatusFields = async function applyStatusFields(
         .bind(crypto.randomUUID(), ctx.workspaceId, existing.id, now())
     : null
 
-  return {
-    setValues,
-    reviewOrDoneTransition: transition.enteringInReview || transition.enteringDone,
-    gateRejectionStatement,
-    closing:
+  return fieldsInOrder([
+    ['setValues', setValues],
+    ['reviewOrDoneTransition', transition.enteringInReview || transition.enteringDone],
+    ['gateRejectionStatement', gateRejectionStatement],
+    [
+      'closing',
       isDoneState(newStatusCategory, resolvedStatusKey) || isCancelledState(newStatusCategory, resolvedStatusKey),
-  }
+    ],
+  ])
 }
 
 function formatCompletionReportComment(
@@ -1124,12 +1141,12 @@ const buildUpdateSetValues = async function buildUpdateSetValues(
   if (recordCompletionReport) {
     setValues.completionReportAt = now()
   }
-  return {
-    setValues,
-    recordCompletionReport,
-    gateRejectionStatement: statusFields.gateRejectionStatement,
-    closing: statusFields.closing,
-  }
+  return fieldsInOrder([
+    ['setValues', setValues],
+    ['recordCompletionReport', recordCompletionReport],
+    ['gateRejectionStatement', statusFields.gateRejectionStatement],
+    ['closing', statusFields.closing],
+  ])
 }
 
 /*
@@ -1624,7 +1641,13 @@ const parsePrioritizedFilters = function parsePrioritizedFilters(raw: unknown): 
   const excludeClaimed = flag(input.excludeClaimed, false)
   const includeNotReady = flag(input.includeNotReady, false)
   const projectId = Predicate.isString(input.projectId) && input.projectId ? input.projectId : undefined
-  return { limit, includeBacklog, excludeClaimed, includeNotReady, projectId }
+  return fieldsInOrder([
+    ['limit', limit],
+    ['includeBacklog', includeBacklog],
+    ['excludeClaimed', excludeClaimed],
+    ['includeNotReady', includeNotReady],
+    ['projectId', projectId],
+  ])
 }
 
 /*
@@ -1786,8 +1809,10 @@ const toPrioritizedIssue = function toPrioritizedIssue(row: PrioritizedRow) {
   }
   return {
     ...issue,
-    needsGrooming: true as const,
-    missingCriteria: JSON.parse(row.dor_missing ?? '[]') as string[],
+    ...fieldsInOrder([
+      ['needsGrooming', true as const],
+      ['missingCriteria', JSON.parse(row.dor_missing ?? '[]') as string[]],
+    ]),
   }
 }
 
@@ -1819,7 +1844,10 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    * seeing few results knows to groom (or re-query with includeNotReady).
    */
   if (Array.isArrayNonEmpty(ready)) {
-    return { issues: ready.map(toPrioritizedIssue), droppedNotReady: ready[0].not_ready_count }
+    return fieldsInOrder([
+      ['issues', ready.map(toPrioritizedIssue)],
+      ['droppedNotReady', ready[0].not_ready_count],
+    ])
   }
 
   /*
@@ -1830,11 +1858,11 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
   if (Array.isArrayEmpty(all)) {
     return { issues: [] }
   }
-  return {
-    issues: all.map(toPrioritizedIssue),
-    droppedNotReady: all[0].not_ready_count,
-    degraded: true,
-  }
+  return fieldsInOrder([
+    ['issues', all.map(toPrioritizedIssue)],
+    ['droppedNotReady', all[0].not_ready_count],
+    ['degraded', true],
+  ])
 }
 
 export async function searchIssues(ctx: ServiceCtx, raw: unknown): Promise<issueQueries.IssueSearchRow[]> {

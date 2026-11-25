@@ -7,6 +7,8 @@
 
 import { Array, String, Number } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 export interface ReadinessCheck {
   ready: boolean
   missing: string[]
@@ -123,7 +125,10 @@ export const checkDefinitionOfReady = function checkDefinitionOfReady(body: stri
     missing.push('scope/files')
   }
 
-  return { ready: Array.isArrayEmpty(missing), missing }
+  return fieldsInOrder([
+    ['ready', Array.isArrayEmpty(missing)],
+    ['missing', missing],
+  ])
 }
 
 /** PROJ-859: the stored-column form of checkDefinitionOfReady — [dor_ready, dor_missing]. */

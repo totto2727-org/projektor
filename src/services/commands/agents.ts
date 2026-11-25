@@ -149,11 +149,11 @@ export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown)
       body: `${name} started work`,
     })
 
-    return {
-      sessionId: session.id,
-      lease,
-      claimedFiles: claimed?.created ?? [],
-    }
+    return fieldsInOrder([
+      ['sessionId', session.id],
+      ['lease', lease],
+      ['claimedFiles', claimed?.created ?? []],
+    ])
   } catch (error) {
     try {
       await endAgent(ctx, { id: session.id })

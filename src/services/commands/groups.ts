@@ -69,7 +69,10 @@ const requireAdminGroup = async function requireAdminGroup(
   requireAdmin(ctx)
   const orm = drizzle(ctx.db, { schema })
   const group = await loadGroup(orm, ctx, groupId)
-  return { orm, group }
+  return fieldsInOrder([
+    ['orm', orm],
+    ['group', group],
+  ])
 }
 
 /**
@@ -117,7 +120,13 @@ export const getGroup = async function getGroup(ctx: ServiceCtx, groupId: string
   const members = await Effect.runPromise(groupData.listGroupMembers(ctx.db, ctx.workspaceId, groupId))
   const grants = await Effect.runPromise(groupData.listGroupGrants(ctx.db, ctx.workspaceId, groupId))
 
-  return { ...group, members, grants }
+  return {
+    ...group,
+    ...fieldsInOrder([
+      ['members', members],
+      ['grants', grants],
+    ]),
+  }
 }
 
 /**
@@ -171,7 +180,11 @@ export const createGroup = async function createGroup(ctx: ServiceCtx, input: un
     entityId: id,
     entityType: 'group',
   })
-  return { id, name, description: description ?? null }
+  return fieldsInOrder([
+    ['id', id],
+    ['name', name],
+    ['description', description ?? null],
+  ])
 }
 
 export const updateGroup = async function updateGroup(

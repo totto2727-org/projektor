@@ -319,12 +319,15 @@ export const visibleProjectSqlFragment = function visibleProjectSqlFragment(
   if (isWorkspaceAdmin(ctx.role)) {
     return null
   }
-  return {
-    sql: `EXISTS (SELECT 1 FROM user_group_members ugm
+  return fieldsInOrder([
+    [
+      'sql',
+      `EXISTS (SELECT 1 FROM user_group_members ugm
 			JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id
 			WHERE ugm.user_id = ? AND gpg.project_id = ${projectColExpr})`,
-    params: [ctx.userId],
-  }
+    ],
+    ['params', [ctx.userId] satisfies unknown[]],
+  ])
 }
 
 /**

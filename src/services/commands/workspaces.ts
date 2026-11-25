@@ -89,7 +89,13 @@ export const getWorkspaceWithMembers = async function getWorkspaceWithMembers(
   workspace: Readonly<{ id: string; name: string; slug: string }>,
 ) {
   const members = await Effect.runPromise(data.listWorkspaceMembers(ctx.db, ctx.workspaceId))
-  return { ...workspace, members, currentUserRole: ctx.role }
+  return {
+    ...workspace,
+    ...fieldsInOrder([
+      ['members', members],
+      ['currentUserRole', ctx.role],
+    ]),
+  }
 }
 
 export const updateWorkspace = async function updateWorkspace(
@@ -253,7 +259,13 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
     ]),
   )
 
-  return { id, token, name, scopes, expiresAt }
+  return fieldsInOrder([
+    ['id', id],
+    ['token', token],
+    ['name', name],
+    ['scopes', scopes],
+    ['expiresAt', expiresAt],
+  ])
 }
 
 export const listTokens = async function listTokens(ctx: ServiceCtx): Promise<data.WorkspaceTokenMetadata[]> {
@@ -408,12 +420,12 @@ export const getWorkspaceMcpInfo = async function getWorkspaceMcpInfo(
     mcpUrl,
     token: '{{TOKEN}}',
   })
-  return {
-    mcpUrl,
-    workspaceId: workspace.id,
-    workspaceSlug: workspace.slug,
-    mcpAddCommandTemplate,
-  }
+  return fieldsInOrder([
+    ['mcpUrl', mcpUrl],
+    ['workspaceId', workspace.id],
+    ['workspaceSlug', workspace.slug],
+    ['mcpAddCommandTemplate', mcpAddCommandTemplate],
+  ])
 }
 
 export interface WorkspaceBrandDto {
@@ -437,14 +449,14 @@ const writeBrand = async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBr
 }
 
 const toBrandDto = function toBrandDto(brand: WorkspaceBrand, workspaceSlug: string): WorkspaceBrandDto {
-  return {
-    displayName: brand.displayName ?? null,
-    accent: brand.accent ?? null,
-    onAccent: brand.onAccent ?? null,
-    fontFamily: brand.fontFamily ?? null,
-    fontUrl: brand.fontUrl ?? null,
-    logoUrl: brand.logoR2Key ? `/api/workspaces/${workspaceSlug}/brand/logo` : null,
-  }
+  return fieldsInOrder([
+    ['displayName', brand.displayName ?? null],
+    ['accent', brand.accent ?? null],
+    ['onAccent', brand.onAccent ?? null],
+    ['fontFamily', brand.fontFamily ?? null],
+    ['fontUrl', brand.fontUrl ?? null],
+    ['logoUrl', brand.logoR2Key ? `/api/workspaces/${workspaceSlug}/brand/logo` : null],
+  ])
 }
 
 export const getWorkspaceBrand = async function getWorkspaceBrand(
