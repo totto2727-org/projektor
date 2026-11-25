@@ -79,6 +79,10 @@ const ownerVisibleFilter = function ownerVisibleFilter(ctx: ServiceCtx): { sql: 
  * attachment on an issue in a project you were never granted is the write-side half of
  * the same hole. An entity_id that resolves to nothing is left to the flat
  * `requireAttachmentWrite` guard, for the reason given above.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {'issue' | 'wiki_page'} entityType The kind of row that owns the attachment.
+ * @param {string} entityId The ID of the attachment's owning row.
  */
 const assertEntityWritable = async function assertEntityWritable(
   ctx: ServiceCtx,
@@ -182,7 +186,13 @@ export const listAttachments = async function listAttachments(
   return rows.map(toDto)
 }
 
-/** Review selection requires a real writable issue in an active project, unlike legacy free-floating attachments. */
+/**
+ * Review selection requires a real writable issue in an active project, unlike legacy free-floating attachments.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The issue ID, attachment ID and requested review status.
+ * @returns {Promise<{ok: true}>} A success marker after updating the attachment.
+ */
 export const setAttachmentReviewStatus = async function setAttachmentReviewStatus(
   ctx: ServiceCtx,
   input: unknown,
@@ -277,7 +287,12 @@ const workspaceStorageUsageBytes = async function workspaceStorageUsageBytes(ctx
   return row?.total ?? 0
 }
 
-/** Validates size/type/quota for a would-be upload; throws the matching typed error. */
+/**
+ * Validates size/type/quota for a would-be upload; throws the matching typed error.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Readonly<{size: number, contentType: string, quotaBytes?: number}>} params The file size, media type and optional byte quota.
+ */
 export const assertUploadAllowed = async function assertUploadAllowed(
   ctx: ServiceCtx,
   params: Readonly<{ size: number; contentType: string; quotaBytes?: number }>,
@@ -297,7 +312,14 @@ export const assertUploadAllowed = async function assertUploadAllowed(
   }
 }
 
-/** The shared command owns R2 bytes and compensates if metadata recording fails. */
+/**
+ * The shared command owns R2 bytes and compensates if metadata recording fails.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Readonly<{file: File, entityType: 'issue' | 'wiki_page', entityId: string}>} input The file and its owning entity.
+ * @param {number} [quotaBytes] The workspace's configured storage quota in bytes.
+ * @returns {Promise<{id: string, filename: string, contentType: string, size: number}>} The saved file's public metadata.
+ */
 export const uploadStoredAttachment = async function uploadStoredAttachment(
   ctx: ServiceCtx,
   input: Readonly<{ file: File; entityType: 'issue' | 'wiki_page'; entityId: string }>,
@@ -333,7 +355,13 @@ export const uploadStoredAttachment = async function uploadStoredAttachment(
   }
 }
 
-/** Fully consume the object so callers do not retain an R2 handle across response delivery. */
+/**
+ * Fully consume the object so callers do not retain an R2 handle across response delivery.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} id The attachment ID in the caller's workspace.
+ * @returns {Promise<{body: ArrayBuffer, filename: string, contentType: string} | null>} The file bytes and metadata, or null when the stored object is missing.
+ */
 export const getStoredAttachment = async function getStoredAttachment(
   ctx: ServiceCtx,
   id: string,
@@ -346,7 +374,12 @@ export const getStoredAttachment = async function getStoredAttachment(
   return { body: await object.arrayBuffer(), filename: metadata.filename, contentType: metadata.contentType }
 }
 
-/** The shared deletion owns both storage and metadata cleanup. */
+/**
+ * The shared deletion owns both storage and metadata cleanup.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} id The attachment ID in the caller's workspace.
+ */
 export const deleteStoredAttachment = async function deleteStoredAttachment(
   ctx: ServiceCtx,
   id: string,
@@ -354,7 +387,14 @@ export const deleteStoredAttachment = async function deleteStoredAttachment(
   await deleteAttachment(ctx, { id })
 }
 
-/** Records metadata for a file already written to R2 by the shared upload command. */
+/**
+ * Records metadata for a file already written to R2 by the shared upload command.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The metadata of the file already stored in R2.
+ * @param {number} [quotaBytes] The quota to enforce on the final database write.
+ * @returns {Promise<{id: string}>} The recorded attachment ID.
+ */
 export async function recordUpload(
   ctx: ServiceCtx,
   input: unknown,
@@ -406,7 +446,13 @@ export async function recordUpload(
   return { id }
 }
 
-/** Authorized metadata used by the shared R2 download command. */
+/**
+ * Authorized metadata used by the shared R2 download command.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} id The attachment ID in the caller's workspace.
+ * @returns {Promise<{r2Key: string, filename: string, contentType: string}>} The authorized storage key and response metadata.
+ */
 export async function getAttachmentForDownload(
   ctx: ServiceCtx,
   id: string,
@@ -427,7 +473,13 @@ export async function getAttachmentForDownload(
   return { r2Key: row.r2_key, filename: row.filename, contentType: row.content_type }
 }
 
-/** Attachment metadata in the same shape `listAttachments` returns, for the MCP get_attachment tool. */
+/**
+ * Attachment metadata in the same shape `listAttachments` returns, for the MCP get_attachment tool.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The request containing the attachment ID.
+ * @returns {Promise<AttachmentDto>} The visible attachment's metadata.
+ */
 export const getAttachment = async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto> {
   const parsed = GetAttachmentSchema.safeParse(input)
   if (!parsed.success) {
@@ -449,7 +501,13 @@ export const getAttachment = async function getAttachment(ctx: ServiceCtx, input
   return toDto(row)
 }
 
-/** Deletes bytes before metadata so a storage failure retains the authorized retry key. */
+/**
+ * Deletes bytes before metadata so a storage failure retains the authorized retry key.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The request containing the attachment ID.
+ * @returns {Promise<{r2Key: string}>} The storage key from the deleted attachment metadata.
+ */
 export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise<{ r2Key: string }> {
   const parsed = DeleteAttachmentSchema.safeParse(input)
   if (!parsed.success) {

@@ -52,6 +52,10 @@ const strongestGrant = function strongestGrant(
  * The caller is expected to have already confirmed the project belongs to the
  * workspace (grants only ever reference in-workspace projects, so a project id
  * match is sufficient here).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} projectId The project ID in the caller's workspace.
+ * @returns {Promise<Role | null>} The effective role, or null when no group grants access.
  */
 export const effectiveProjectRole = async function effectiveProjectRole(
   ctx: ServiceCtx,
@@ -86,6 +90,10 @@ export const effectiveProjectRole = async function effectiveProjectRole(
  * Resolve the effective project role, throwing `NotFoundError` when the user has
  * no access. Invisible projects 404 rather than 403 so their existence never
  * leaks to a member who was never granted them.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} projectId The project ID in the caller's workspace.
+ * @returns {Promise<Role>} The effective role for a visible project.
  */
 export const requireProjectAccess = async function requireProjectAccess(
   ctx: ServiceCtx,
@@ -98,7 +106,12 @@ export const requireProjectAccess = async function requireProjectAccess(
   return role
 }
 
-/** True when the effective project role permits mutations (member/admin/owner, not viewer). */
+/**
+ * True when the effective project role permits mutations (member/admin/owner, not viewer).
+ *
+ * @param {Role} role The effective project role.
+ * @returns {boolean} Whether the role permits a project mutation.
+ */
 export const canWriteProject = function canWriteProject(role: Role): boolean {
   return role !== 'viewer'
 }
@@ -112,6 +125,9 @@ export const canWriteProject = function canWriteProject(role: Role): boolean {
  * issue/wiki creation — where owner/admin short-circuit past `effectiveProjectRole`
  * entirely, so nothing else confirms the caller-supplied `projectId` actually
  * belongs to their workspace before it gets stamped onto a new row.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} projectId The project ID in the caller's workspace.
  */
 export const requireProjectInWorkspace = async function requireProjectInWorkspace(
   ctx: ServiceCtx,
@@ -184,6 +200,12 @@ export interface AssertProjectAccessOptions {
 /**
  * Throw unless the caller may `mode` the project. Returns the effective role.
  * See the policy block above for 404-vs-403.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} projectId The project ID in the caller's workspace.
+ * @param {AccessMode} mode The required permission within the project.
+ * @param {AssertProjectAccessOptions} [opts] The 404 message and any prior workspace check.
+ * @returns {Promise<Role>} The effective role after the access check.
  */
 export async function assertProjectAccess(
   ctx: ServiceCtx,
@@ -212,6 +234,11 @@ export async function assertProjectAccess(
 /**
  * Soft variant of `assertProjectAccess` for read paths where "no access" means
  * "return nothing" rather than an error (search/list scoped to a project).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} projectId The project ID in the caller's workspace.
+ * @param {AccessMode} [mode] The required permission within the project.
+ * @returns {Promise<boolean>} Whether the caller has the requested access.
  */
 export const hasProjectAccess = async function hasProjectAccess(
   ctx: ServiceCtx,
@@ -232,6 +259,10 @@ export const hasProjectAccess = async function hasProjectAccess(
  * List-query filter: keep only rows whose project the caller can see. Returns
  * `undefined` for owner/admin (no filter). Alias of `visibleProjectPredicate`
  * under the PROJ-837 name; defaults to filtering `projects.id`.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Column | SQL} [projectColumn] The outer query's project ID column or expression.
+ * @returns {SQL | undefined} A visibility condition, or undefined for workspace owners and admins.
  */
 export const visibleProjectFilter = function visibleProjectFilter(
   ctx: ServiceCtx,
@@ -247,6 +278,10 @@ export const visibleProjectFilter = function visibleProjectFilter(
  *
  * `projectColumn` is the column the outer query exposes as the project id
  * (e.g. `schema.projects.id`, `schema.issues.projectId`).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Column | SQL} projectColumn The outer query's project ID column or expression.
+ * @returns {SQL | undefined} A visibility condition, or undefined for workspace owners and admins.
  */
 export function visibleProjectPredicate(ctx: ServiceCtx, projectColumn: Column | SQL): SQL | undefined {
   if (isWorkspaceAdmin(ctx.role)) {
@@ -296,6 +331,9 @@ export const visibleProjectSqlFragment = function visibleProjectSqlFragment(
  * - owner/admin: every project in the workspace.
  * - everyone else: the union of project grants held by the caller's groups
  *   (default-deny; scoped by workspace_id through both user_groups and projects).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @returns {Promise<string[]>} The IDs of projects visible to the caller.
  */
 export const visibleProjectIds = async function visibleProjectIds(ctx: ServiceCtx): Promise<string[]> {
   const orm = drizzle(ctx.db, { schema })
@@ -332,6 +370,10 @@ export const visibleProjectIds = async function visibleProjectIds(ctx: ServiceCt
  * stamped onto a workspace-scoped row, so we never persist a dangling or
  * wrong-workspace user reference. `field` names the offending input field in the
  * thrown error so REST/MCP callers can surface it against the right form field.
+ *
+ * @param {Pick<ServiceCtx, 'db' | 'workspaceId'>} ctx The workspace ID and database.
+ * @param {string} userId The user whose membership is required.
+ * @param {string} [field] The input field to identify in the validation error.
  */
 export const requireWorkspaceMember = async function requireWorkspaceMember(
   ctx: Pick<ServiceCtx, 'db' | 'workspaceId'>,
@@ -357,6 +399,11 @@ export const requireWorkspaceMember = async function requireWorkspaceMember(
  * - Not a member of ctx.workspaceId any more → excluded.
  * - Workspace owner/admin → included (admin bypass, as for the caller).
  * - Anyone else, project-scoped → included only with a group grant on that project.
+ *
+ * @param {Pick<ServiceCtx, 'db' | 'workspaceId'>} ctx The workspace ID and database.
+ * @param {string | null} projectId The project ID, or null for workspace-level content.
+ * @param {Readonly<string[]>} userIds The prospective readers.
+ * @returns {Promise<Set<string>>} The IDs of current members with read access.
  */
 export const usersWithProjectReadAccess = async function usersWithProjectReadAccess(
   // Only db + workspaceId are read, so unauthenticated paths (public share links,

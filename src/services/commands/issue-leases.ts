@@ -205,6 +205,10 @@ const reclaimStaleLeaseOrThrow = async function reclaimStaleLeaseOrThrow(
  *      db write lock), so a concurrent claim sees the other's just-inserted row
  *      and the count can't be undercounted.
  * A lease whose owning session has gone stale is reclaimed transparently first.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The input containing the issue ID and optional agent session ID.
+ * @returns {Promise<typeof schema.issueLeases.$inferSelect>} The newly claimed lease.
  */
 export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimIssueSchema.safeParse(raw)
@@ -290,7 +294,13 @@ export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknow
   return row!
 }
 
-/** Release the active lease on an issue, optionally only if held by `agentId`. */
+/**
+ * Release the active lease on an issue, optionally only if held by `agentId`.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The input containing the issue ID and optional holder session ID.
+ * @returns {Promise<{ok: boolean}>} A success marker after the lease is released.
+ */
 export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: unknown): Promise<{ ok: boolean }> {
   const result = ReleaseIssueSchema.safeParse(raw)
   if (!result.success) {
@@ -343,6 +353,10 @@ export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: un
  * deliberate release from a close-triggered one. Returned as a statement (PROJ-870
  * convention) so the caller (updateIssue) folds it into its single ctx.db.batch() instead
  * of spending an extra D1 round trip.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} issueId The issue ID in the caller's workspace.
+ * @returns {D1PreparedStatement} The bound lease-release update for the caller's batch.
  */
 export const buildReleaseLeaseForClosedIssueStatement = function buildReleaseLeaseForClosedIssueStatement(
   ctx: ServiceCtx,
@@ -364,7 +378,12 @@ export const buildReleaseLeaseForClosedIssueStatement = function buildReleaseLea
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-/** Release every active lease held by an agent session (called when it ends). */
+/**
+ * Release every active lease held by an agent session (called when it ends).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} agentSessionId The agent session ID in the caller's workspace.
+ */
 export const releaseLeasesForAgent = async function releaseLeasesForAgent(
   ctx: ServiceCtx,
   agentSessionId: string,
@@ -387,6 +406,9 @@ export const releaseLeasesForAgent = async function releaseLeasesForAgent(
 /**
  * The set of issue ids currently held by a LIVE lease (active row + live
  * session). Used by get_prioritized_issues' excludeClaimed filter.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @returns {Promise<Set<string>>} The issue IDs held by live sessions in the workspace.
  */
 export const liveLeasedIssueIds = async function liveLeasedIssueIds(ctx: ServiceCtx): Promise<Set<string>> {
   const orm = drizzle(ctx.db, { schema })
@@ -414,6 +436,10 @@ export const liveLeasedIssueIds = async function liveLeasedIssueIds(ctx: Service
  * time with no privilege check, so a caller could register kind:"human",
  * claim the issue, and mark it done directly if the gate trusted that label.
  * Holding a lease at all is what triggers the gate, not the declared kind.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} issueId The issue ID in the caller's workspace.
+ * @returns {Promise<boolean>} Whether a live session holds the issue's active lease.
  */
 export const issueHasLiveAgentLease = async function issueHasLiveAgentLease(
   ctx: ServiceCtx,
@@ -443,6 +469,10 @@ export const issueHasLiveAgentLease = async function issueHasLiveAgentLease(
  * kind is ignored. Scopes the human-done completion-report requirement to
  * agent-worked issues (PROJ-289) so closing ordinary human/duplicate/won't-fix
  * issues isn't blocked for a report no agent was ever going to write.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} issueId The issue ID in the caller's workspace.
+ * @returns {Promise<boolean>} Whether any agent lease exists in the issue's history.
  */
 export const issueEverHadAgentLease = async function issueEverHadAgentLease(
   ctx: ServiceCtx,
@@ -469,6 +499,10 @@ export const issueEverHadAgentLease = async function issueEverHadAgentLease(
  * is real and live. A caller can dodge the audit flag by omitting
  * agentSessionId entirely, same limitation the ticket accepts (PROJ-375: no
  * trusted CI/webhook verification here, audit-after-the-fact only).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} agentSessionId The agent session ID in the caller's workspace.
+ * @returns {Promise<boolean>} Whether the session is active within the heartbeat window.
  */
 export const isLiveAgentSessionId = async function isLiveAgentSessionId(
   ctx: ServiceCtx,
@@ -500,6 +534,11 @@ export const isLiveAgentSessionId = async function isLiveAgentSessionId(
  * session has gone stale (ended, or heartbeat past the TTL) is excluded unless
  * `includeStale` is set, restoring the pre-PROJ-932 behaviour of returning
  * every unreleased lease regardless of session health.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The optional issue, agent and project filters and stale-session policy.
+ * @returns {Promise<{items: {id: string, issueId: string, issueRef: string, agentSessionId: string, agentName: string, claimedAt: number, live: boolean}[]}>}
+ * The visible lease rows in claim order.
  */
 export const listIssueLeases = async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssueLeasesSchema.safeParse(raw)

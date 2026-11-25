@@ -110,6 +110,9 @@ const HEAL_BATCH = 200
  * ASCII-only values, which SQL lower() folds exactly). Bounded per call and a no-op
  * once a workspace is healed (partial indexes on `fold IS NULL` keep the check cheap).
  * Called before title resolution and by backfill_wiki_links.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @returns {Promise<number>} The number of page or link records repaired in this call.
  */
 export const healTitleFolds = async function healTitleFolds(ctx: ServiceCtx): Promise<number> {
   const [pages, links] = await Promise.all([
@@ -418,6 +421,12 @@ const LINK_INSERT_CHUNK_SIZE = 11
  * All resolution (parsing + the resolveLinkTargets reads) happens BEFORE this returns, so
  * by the time these statements exist there is nothing left to throw between them and the
  * delete — the whole write becomes one atomic D1 batch when passed to ctx.db.batch().
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Orm} orm The Drizzle connection for resolving links.
+ * @param {string} sourcePageId The ID of the page whose links are being indexed.
+ * @param {string} content The source page's Markdown content.
+ * @returns {Promise<D1PreparedStatement[]>} The bound delete and insertion statements in execution order.
  */
 export const buildWikiLinksReindexStatements = async function buildWikiLinksReindexStatements(
   ctx: ServiceCtx,
@@ -496,6 +505,11 @@ function buildLinkWriteStatements(
  * page-write batch themselves. services/wiki.ts's createWikiPage/updateWikiPage/
  * patchWikiPage call buildWikiLinksReindexStatements directly instead, to include these
  * statements in the same batch as the content write/revision/FTS reindex (PROJ-511).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Orm} orm The Drizzle connection for resolving links.
+ * @param {string} sourcePageId The ID of the page whose links are being indexed.
+ * @param {string} content The source page's Markdown content.
  */
 export const reindexWikiLinks = async function reindexWikiLinks(
   ctx: ServiceCtx,
@@ -538,6 +552,10 @@ export interface BackfillWikiLinksResult {
  *  - `cursor` (a page id/updated_at pair) and `pageBudget` make this incremental and
  *    resumable: callers loop, passing back `nextCursor`, until it comes back null.
  *  - `updatedSince` limits the scope to pages touched at/after that time.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} [input] The cursor, page budget and optional update-time filter.
+ * @returns {Promise<BackfillWikiLinksResult>} The processed page count and next cursor, when available.
  */
 export const backfillWikiLinks = async function backfillWikiLinks(
   ctx: ServiceCtx,
@@ -744,6 +762,9 @@ function repointSubquery(workspaceParam: string): string {
  * PROJ-814: on purge, links that pointed at the purged pages are re-pointed to another
  * live page they still match (duplicate title, same slug re-used), else unresolved.
  * Run BEFORE the pages are deleted (their FK SET NULL would clear target_page_id first).
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string[]} pageIds The IDs of the pages about to be purged.
  */
 export const repointIncomingLinks = async function repointIncomingLinks(
   ctx: ServiceCtx,
@@ -836,6 +857,10 @@ export interface WikiBacklink {
  * (id-backed — a rename of the target never breaks this). Called by
  * services/wiki.ts#getWikiBacklinks after it resolves idOrSlug and checks the caller
  * can see the target page itself.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Readonly<{id: string}>} page The target page after the caller's visibility check.
+ * @returns {Promise<WikiBacklink[]>} The visible links from live pages to the target page.
  */
 export const backlinksForResolvedPage = async function backlinksForResolvedPage(
   ctx: ServiceCtx,
@@ -919,7 +944,13 @@ export interface BrokenWikiLink {
   targetTitle: string
 }
 
-/** All unresolved (target_page_id null) wiki_links in the workspace, optionally scoped to a project. */
+/**
+ * All unresolved (target_page_id null) wiki_links in the workspace, optionally scoped to a project.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The request containing an optional source project filter.
+ * @returns {Promise<BrokenWikiLink[]>} The visible links whose targets are missing, trashed or hidden.
+ */
 export const listBrokenWikiLinks = async function listBrokenWikiLinks(
   ctx: ServiceCtx,
   input: unknown,
