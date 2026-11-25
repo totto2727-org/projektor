@@ -22,7 +22,7 @@ vi.mock(import('@effront/core/query'), () => ({ query: vi.fn() }))
 vi.mock(import('./wiki/lazy-markdown-editor.tsx'), () => ({ LazyMarkdownEditor: () => createElement(Fragment) }))
 
 const timestamp = Date.parse('2026-10-04T08:48:46Z') / 1000
-function seed(): WikiSeed {
+const seed = function seed(): WikiSeed {
   return {
     workspaceSlug: 'team',
     projectId: '',
@@ -70,7 +70,7 @@ function seed(): WikiSeed {
 const localeString = Date.prototype.toLocaleString
 // oxlint-disable-next-line typescript/unbound-method -- Each mock calls this original on its own Date instance.
 const localeDateString = Date.prototype.toLocaleDateString
-function environment(locale: string, timeZone: string): void {
+const environment = function environment(locale: string, timeZone: string): void {
   vi.spyOn(Date.prototype, 'toLocaleString').mockImplementation(function (this: Date, locales, options) {
     return localeString.call(this, locales ?? locale, { timeZone, ...options })
   })

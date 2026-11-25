@@ -53,7 +53,7 @@ vi.mock('./actions', () => ({
   updateSprint: vi.fn<typeof Actions.updateSprint>(),
 }))
 const databases: ReturnType<typeof issueDataFixture>[] = []
-function fixture() {
+const fixture = function fixture() {
   const data = issueDataFixture()
   databases.push(data)
   return data

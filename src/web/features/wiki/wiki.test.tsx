@@ -19,7 +19,7 @@ vi.mock(import('@effront/core/query'), () => ({
   },
 }))
 
-function wikiSeed(): WikiSeed {
+const wikiSeed = function wikiSeed(): WikiSeed {
   return {
     workspaceSlug: 'team',
     projectId: '',

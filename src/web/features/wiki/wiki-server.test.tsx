@@ -51,7 +51,7 @@ const scope: RequestScope = {
   projects: [project],
   selection: { kind: 'workspace', workspace },
 }
-function initialData(rendered: ReactElement) {
+const initialData = function initialData(rendered: ReactElement) {
   if (!isValidElement<ComponentProps<typeof WikiPageClient>>(rendered) || rendered.type !== WikiPageClient) {
     throw new Error('Expected the Wiki page client with server-owned initial data')
   }
@@ -59,7 +59,7 @@ function initialData(rendered: ReactElement) {
 }
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-async function fixture(currentScope: RequestScope = scope) {
+const fixture = async function fixture(currentScope: RequestScope = scope) {
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
   const database = createTestDatabase()

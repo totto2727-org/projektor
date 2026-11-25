@@ -82,7 +82,7 @@ vi.mock(import('./lazy-markdown-editor.tsx'), () => ({
     </>
   ),
 }))
-function seed(): WikiSeed & { page: NonNullable<WikiSeed['page']> } {
+const seed = function seed(): WikiSeed & { page: NonNullable<WikiSeed['page']> } {
   return {
     workspaceSlug: 'team',
     projectId: '',

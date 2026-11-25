@@ -12,7 +12,7 @@ const actions = await import('./actions.ts')
 type Fixture = ReturnType<typeof actionFixture>
 const workspace = { workspaceSlug: 'alpha' }
 const group = { ...workspace, groupId: 'g1' }
-function checkGrant(testFixture: Fixture): void {
+const checkGrant = function checkGrant(testFixture: Fixture): void {
   expect(
     testFixture.sqlite.prepare("SELECT role FROM group_project_grants WHERE group_id='g1' AND project_id='p1'").get()
       ?.role,

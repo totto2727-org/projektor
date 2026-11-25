@@ -39,7 +39,7 @@ const decodeSprints = Schema.decodeUnknownResult(SprintsSchema, { errors: 'all' 
 const decodeMetrics = Schema.decodeUnknownResult(MetricsSchema, { errors: 'all' })
 const decodeHeatmap = Schema.decodeUnknownResult(HeatmapSchema)
 
-function runWithDatabase<T>(
+const runWithDatabase = function runWithDatabase<T>(
   database: ReturnType<typeof featureDatabase>,
   url: URL,
   use: (scope: RequestScope) => Effect.Effect<T, ApiError | ScopeError, RequestServices>,
@@ -60,7 +60,7 @@ function runWithDatabase<T>(
   )
   return { result, transport }
 }
-function issueRows(database: ReturnType<typeof featureDatabase>, count: number): void {
+const issueRows = function issueRows(database: ReturnType<typeof featureDatabase>, count: number): void {
   const statement = database.sqlite.prepare(
     "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at,sprint_id,status) VALUES (?, 'w1', 'p1', ?, ?, 'u1', 1, 1, 's1', 'done')",
   )
