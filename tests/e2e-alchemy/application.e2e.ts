@@ -12,6 +12,25 @@ import { runInOrder } from '#tests/run-effect.ts'
 
 import { createReaderFixtures } from './reader-fixtures.ts'
 
+const JSON_INDENT = 2
+const NO_MATCHES = 0
+const SINGLE_MATCH = 1
+const ZERO_PIXELS = 0
+const DECIMAL_PIXEL_PRECISION = 1
+const WHOLE_PIXEL_PRECISION = 0
+const FIXTURE_SUFFIX_START = 0
+const FIXTURE_SUFFIX_LENGTH = 6
+const CLOCK_TICK_WAIT_MS = 1100
+const EXTENDED_SCENARIO_TIMEOUT_MS = 120_000
+const LATEST_SAMPLE_INDEX = -1
+const CFD_BAND_COUNT = 4
+const TOOLTIP_RIGHT_INSET_PX = 15
+const TOOLTIP_TOP_INSET_PX = 80
+const WIKI_DRAWER_SCROLL_PX = 300
+const ATTACHMENT_FIXTURE_BYTES = 65_536
+const SEE_OTHER_STATUS = 303
+const READER_SCENARIO_COUNT = 21
+
 interface BrowserAudit {
   pageErrors: string[]
   consoleErrors: string[]
@@ -75,7 +94,7 @@ test.afterEach(async ({ page }, testInfo) => {
   observeBrowser(page, testInfo)
   const audits = testAudits.get(testInfo.testId) ?? []
   const path = testInfo.outputPath('browser-audit.json')
-  await writeFile(path, JSON.stringify({ project: testInfo.project.name, audits }, null, 2))
+  await writeFile(path, JSON.stringify({ project: testInfo.project.name, audits }, null, JSON_INDENT))
   await testInfo.attach('browser-audit', { path, contentType: 'application/json' })
   testAudits.delete(testInfo.testId)
   Iterable.forEach(audits, (audit) => {
@@ -111,6 +130,7 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
     const content = document.querySelector<HTMLElement>('.projektor-page-content')
     const nav = content?.querySelector<HTMLElement>(':scope > .projektor-project-nav')
     const pageContent = nav?.nextElementSibling
+    const collapsedSidebarWidth = 0
     const sidebar = document.querySelector<HTMLElement>('[data-slot="sidebar-container"]')
     const topbar = document.querySelector<HTMLElement>('.projektor-topbar')
     return {
@@ -120,7 +140,9 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
           : null,
       gutter: content ? Number.parseFloat(getComputedStyle(content).paddingTop) : null,
       sidebarBorder:
-        sidebar && sidebar.getBoundingClientRect().width > 0 ? getComputedStyle(sidebar).borderRightColor : null,
+        sidebar && sidebar.getBoundingClientRect().width > collapsedSidebarWidth
+          ? getComputedStyle(sidebar).borderRightColor
+          : null,
       themeBorder: topbar ? getComputedStyle(topbar).borderBottomColor : null,
       tables: [...document.querySelectorAll('.markdown-content table')].map((table) => ({
         width: table.getBoundingClientRect().width,
@@ -131,8 +153,11 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
     }
   })
   if (Predicate.isNotNullish(layout.gap)) {
-    expect(layout.gutter, `${name}: page gutter must be positive`).toBeGreaterThan(0)
-    expect(layout.gap, `${name}: content must not touch the project navigation border`).toBeCloseTo(layout.gutter!, 1)
+    expect(layout.gutter, `${name}: page gutter must be positive`).toBeGreaterThan(ZERO_PIXELS)
+    expect(layout.gap, `${name}: content must not touch the project navigation border`).toBeCloseTo(
+      layout.gutter!,
+      DECIMAL_PIXEL_PRECISION,
+    )
   }
   if (Predicate.isNotNullish(layout.sidebarBorder)) {
     expect(layout.sidebarBorder, `${name}: sidebar divider must use the theme border color`).toBe(layout.themeBorder)
@@ -141,7 +166,10 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
     expect(table.display, `${name}: Markdown must preserve native table layout`).toBe('table')
     expect(table.wrap, `${name}: wide table cells must not collapse into single-letter columns`).toBe('normal')
     if (Predicate.isNotNullish(table.rowWidth)) {
-      expect(table.rowWidth, `${name}: Markdown rows must fill the table`).toBeCloseTo(table.width, 0)
+      expect(table.rowWidth, `${name}: Markdown rows must fill the table`).toBeCloseTo(
+        table.width,
+        WHOLE_PIXEL_PRECISION,
+      )
     }
   })
   observeBrowser(page, testInfo).checkpoints.push({
@@ -167,7 +195,7 @@ const verifyMigrationReplay = async function verifyMigrationReplay(
 }
 
 test('API and Web share private Core persistence without adapter DB bindings', async ({ request, page }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const name = `Shared D1 ${suffix}`
   const write = await request.post('http://127.0.0.1:4392/api/projects', {
     headers: { 'X-Workspace-Slug': 'projektor' },
@@ -182,11 +210,11 @@ test('API and Web share private Core persistence without adapter DB bindings', a
   // Reapplying the Core-owned fixture ledger must not replay historical DDL or lose data.
   const migrationNamesResult = await readdir(new URL('../../migrations/', import.meta.url))
   const migrationNames = migrationNamesResult.filter((migrationName) => /^\d{4}_.+\.sql$/u.test(migrationName))
-  expect(migrationNames.length).toBeGreaterThan(0)
+  expect(migrationNames.length).toBeGreaterThan(NO_MATCHES)
   await verifyMigrationReplay(request, migrationNames.length)
   await verifyMigrationReplay(request, migrationNames.length)
   const link = page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) })
-  await expect(link).toHaveCount(1)
+  await expect(link).toHaveCount(SINGLE_MATCH)
   expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('projectId')).toBe(project.id)
   await checkpoint(page, testInfo, 'api-write-core-web-read')
   await link.click()
@@ -200,7 +228,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   request,
   page,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
   expect(session.status()).toBe(HTTP_OK)
@@ -243,19 +271,19 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   await create({ priority: 'urgent', project: 0, status: 'todo', title: 'Unassigned hidden' }, false)
   // API timestamps have second precision. Ensure the new equal-priority work has a later persisted update.
   await new Promise((resolve) => {
-    setTimeout(resolve, 1100)
+    setTimeout(resolve, CLOCK_TICK_WAIT_MS)
   })
   await create({ priority: 'high', project: 0, status: 'in_progress', title: 'Progress high new' })
   await page.goto('/my-issues?workspace=projektor')
   await expect(page.getByRole('heading', { exact: true, name: 'My Issues' })).toBeVisible()
-  await expect(page.locator('table')).toHaveCount(1)
+  await expect(page.locator('table')).toHaveCount(SINGLE_MATCH)
   await expect(page.locator('table th')).toHaveText(['#', 'Title', 'Priority', 'Status'])
   await runInOrder(projects, async (project): Promise<void> => {
-    await expect(page.getByRole('heading', { name: project.name })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: project.name })).toHaveCount(NO_MATCHES)
   })
-  await expect(page.getByText('Include done', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Include done', { exact: true })).toHaveCount(NO_MATCHES)
   await runInOrder(['Completed hidden', 'Cancelled hidden', 'Unassigned hidden'], async (title): Promise<void> => {
-    await expect(page.getByRole('link', { exact: true, name: `${title} ${suffix}` })).toHaveCount(0)
+    await expect(page.getByRole('link', { exact: true, name: `${title} ${suffix}` })).toHaveCount(NO_MATCHES)
   })
   const expected = [
     'Review first',
@@ -289,8 +317,8 @@ const assertShell = async function assertShell(page: Page): Promise<void> {
       height: element.getBoundingClientRect().height,
       viewportHeight: innerHeight,
     }))
-    expect(modal.top).toBeCloseTo(0, 0)
-    expect(modal.height).toBeCloseTo(modal.viewportHeight, 0)
+    expect(modal.top).toBeCloseTo(ZERO_PIXELS, WHOLE_PIXEL_PRECISION)
+    expect(modal.height).toBeCloseTo(modal.viewportHeight, WHOLE_PIXEL_PRECISION)
     await page.keyboard.press('Escape')
     await expect(menu).toBeFocused()
   } else {
@@ -305,8 +333,8 @@ test('issue review targets persist optional selection and four statuses across f
   browser,
   baseURL,
 }, testInfo) => {
-  test.setTimeout(120_000)
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  test.setTimeout(EXTENDED_SCENARIO_TIMEOUT_MS)
+  const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
   expect(session.status()).toBe(HTTP_OK)
@@ -390,7 +418,7 @@ test('issue review targets persist optional selection and four statuses across f
     targets.getByRole('combobox', { exact: true, name: `${name}のレビューステータス` })
   await runInOrder([filename, urlLabel, ordinaryLabel], async (name): Promise<void> => {
     await expect(selected(name)).not.toBeChecked()
-    await expect(status(name)).toHaveCount(0)
+    await expect(status(name)).toHaveCount(NO_MATCHES)
   })
   await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'review-targets-default-optional')
@@ -430,7 +458,7 @@ test('issue review targets persist optional selection and four statuses across f
     },
   )
   await selected(filename).click()
-  await expect(status(filename)).toHaveCount(0)
+  await expect(status(filename)).toHaveCount(NO_MATCHES)
   await page.reload()
   await expect(selected(filename)).not.toBeChecked()
   const attachments = page.locator('section').filter({ has: page.getByText('Attachments (3)', { exact: true }) })
@@ -471,7 +499,7 @@ test('issue review targets persist optional selection and four statuses across f
     }
     await page.goto(route.path)
     const summary = page.getByRole('link', { exact: true, name: prioritySummary }).filter({ visible: true })
-    await expect(summary).toHaveCount(1)
+    await expect(summary).toHaveCount(SINGLE_MATCH)
     await expect(summary).toContainText('+1')
     await expect(summary).not.toContainText('レビュー不要')
     await expect(
@@ -517,7 +545,7 @@ test('issue review targets persist optional selection and four statuses across f
   }
   await runInOrder([filename, urlLabel], async (name): Promise<void> => {
     await status(name).selectOption('done')
-    await expect(status(name)).toHaveCount(0)
+    await expect(status(name)).toHaveCount(NO_MATCHES)
   })
   await page.goto(`/issues?${scope}&view=list`)
   const completedSummary = page
@@ -528,10 +556,10 @@ test('issue review targets persist optional selection and four statuses across f
   await expect(completedSummary).toBeVisible()
   await expect(completedSummary).not.toContainText('+1')
   await page.goto(issueUrl)
-  await expect(status(filename)).toHaveCount(0)
-  await expect(status(urlLabel)).toHaveCount(0)
-  await expect(selected(filename)).toHaveCount(0)
-  await expect(selected(urlLabel)).toHaveCount(0)
+  await expect(status(filename)).toHaveCount(NO_MATCHES)
+  await expect(status(urlLabel)).toHaveCount(NO_MATCHES)
+  await expect(selected(filename)).toHaveCount(NO_MATCHES)
+  await expect(selected(urlLabel)).toHaveCount(NO_MATCHES)
   await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
   await expect(selected(ordinaryLabel)).not.toBeChecked()
   await expect(attachments.getByRole('link', { exact: true, name: ordinaryLabel })).toBeVisible()
@@ -576,11 +604,11 @@ test('issue review targets persist optional selection and four statuses across f
         reviewStatus: terminal === 'done' && attachment.filename !== ordinaryLabel ? 'done' : null,
       })
       await expect(attachments.getByRole('link', { exact: true, name: attachment.filename })).toBeVisible()
-      await expect(status(attachment.filename)).toHaveCount(0)
+      await expect(status(attachment.filename)).toHaveCount(NO_MATCHES)
       if (terminal === 'cancelled' || attachment.filename === ordinaryLabel) {
         await expect(selected(attachment.filename)).not.toBeChecked()
       } else {
-        await expect(selected(attachment.filename)).toHaveCount(0)
+        await expect(selected(attachment.filename)).toHaveCount(NO_MATCHES)
       }
     })
     await checkpoint(page, testInfo, `review-targets-owner-${terminal}-attachments-preserved`)
@@ -593,8 +621,8 @@ test('workspace review spans projects and unassigned issues with native filtered
   browser,
   baseURL,
 }, testInfo) => {
-  test.setTimeout(120_000)
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  test.setTimeout(EXTENDED_SCENARIO_TIMEOUT_MS)
+  const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const workspaceSlug = `review-${suffix.toLowerCase()}`
   const createdWorkspace = await request.post('http://127.0.0.1:4392/api/workspaces', {
     data: { name: `Cross review workspace ${suffix}`, slug: workspaceSlug },
@@ -672,7 +700,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       if (expected.includes(issue)) {
         await expect(link).toBeVisible()
       } else {
-        await expect(link).toHaveCount(0)
+        await expect(link).toHaveCount(NO_MATCHES)
       }
     })
   }
@@ -715,7 +743,7 @@ test('workspace review spans projects and unassigned issues with native filtered
   const paged = new URL(reviewUrl)
   paged.searchParams.set('limit', '1')
   await page.goto(paged.href)
-  await expect(visibleTitles()).toHaveCount(1)
+  await expect(visibleTitles()).toHaveCount(SINGLE_MATCH)
   const firstTitle = await visibleTitles().innerText()
   const pagination = page.getByRole('navigation', { exact: true, name: 'Issue pagination' })
   await pagination.getByRole('button', { exact: true, name: 'Next page' }).click()
@@ -725,7 +753,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       url.searchParams.get('review') === 'in_review' &&
       url.searchParams.get('limit') === '1',
   )
-  await expect(visibleTitles()).toHaveCount(1)
+  await expect(visibleTitles()).toHaveCount(SINGLE_MATCH)
   await expect(visibleTitles()).not.toHaveText(firstTitle)
   await expect(pagination.getByRole('link', { exact: true, name: 'First page' })).toBeVisible()
   await checkpoint(page, testInfo, 'cross-project-review-native-next-page')
@@ -772,7 +800,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       if (Predicate.isNotNullish(issue.review) && issue.review !== 'done') {
         await expect(link).toBeVisible()
       } else {
-        await expect(link).toHaveCount(0)
+        await expect(link).toHaveCount(NO_MATCHES)
       }
     })
     await cold
@@ -797,7 +825,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   request,
   page,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const created = await request.post('http://127.0.0.1:4392/api/projects', {
     headers,
@@ -809,7 +837,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   const projectNavigationResponse = await page.goto(`/projects/view?${query}`)
   expect(projectNavigationResponse?.status()).toBe(HTTP_OK)
   await expect(page.getByText('No issues in this window yet', { exact: true })).toBeVisible()
-  await expect(page.getByTestId('flow-chart-cfd')).toHaveCount(0)
+  await expect(page.getByTestId('flow-chart-cfd')).toHaveCount(NO_MATCHES)
   await checkpoint(page, testInfo, 'charts-empty-no-zero-band')
 
   // Public API transitions stamp the persisted timestamps read through Core by Web.
@@ -837,33 +865,41 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   })
   expect(metricsResponse.status(), await metricsResponse.text()).toBe(HTTP_OK)
   const metrics = await metricsResponse.json()
-  expect(metrics.cfdOverTime.at(-1)).toMatchObject({ backlogTodo: 1, done: 1, inProgress: 2, inReview: 1 })
-  await testInfo.attach('chart-api-data', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' })
+  expect(metrics.cfdOverTime.at(LATEST_SAMPLE_INDEX)).toMatchObject({
+    backlogTodo: 1,
+    done: 1,
+    inProgress: 2,
+    inReview: 1,
+  })
+  await testInfo.attach('chart-api-data', {
+    body: JSON.stringify(metrics, null, JSON_INDENT),
+    contentType: 'application/json',
+  })
   await page.reload()
   const chart = page.getByTestId('flow-chart-cfd')
   const areas = chart.locator('.recharts-area-area')
-  await expect(areas).toHaveCount(4)
+  await expect(areas).toHaveCount(CFD_BAND_COUNT)
   await runInOrder(await areas.all(), async (area): Promise<void> => {
     await expect(area).toHaveAttribute('d', /[zZ]$/u)
-    expect(await area.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0)
+    expect(await area.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(ZERO_PIXELS)
   })
   await runInOrder(['Backlog/todo', 'In progress', 'In review', 'Done'], async (label): Promise<void> => {
     await expect(chart.getByText(label, { exact: true })).toBeVisible()
   })
-  await expect(page.getByTestId('flow-chart-throughput').locator('.recharts-bar-rectangle')).not.toHaveCount(0)
+  await expect(page.getByTestId('flow-chart-throughput').locator('.recharts-bar-rectangle')).not.toHaveCount(NO_MATCHES)
   await checkpoint(page, testInfo, 'charts-overview-filled-bands')
   const surface = chart.locator('svg.recharts-surface')
   const box = await surface.boundingBox()
   if (!box) {
     throw new Error('CFD chart has no rendered surface')
   }
-  await page.mouse.move(box.x + box.width - 15, box.y + 80)
+  await page.mouse.move(box.x + box.width - TOOLTIP_RIGHT_INSET_PX, box.y + TOOLTIP_TOP_INSET_PX)
   const tooltip = chart.locator('.recharts-tooltip-wrapper')
   await expect(tooltip).toBeVisible()
   await expect(tooltip.getByText('In progress', { exact: true }).locator('../..')).toHaveText(/In progress\s*2$/u)
   await expect(tooltip.getByText('Backlog/todo', { exact: true }).locator('../..')).toHaveText(/Backlog\/todo\s*1$/u)
   await checkpoint(page, testInfo, 'charts-tooltip-raw-not-cumulative')
-  await page.mouse.move(0, 0)
+  await page.mouse.move(ZERO_PIXELS, ZERO_PIXELS)
   const lightFill = await areas.last().evaluate((element) => getComputedStyle(element).fill)
   await page.emulateMedia({ colorScheme: 'dark' })
   await expect.poll(() => areas.last().evaluate((element) => getComputedStyle(element).fill)).not.toBe(lightFill)
@@ -871,7 +907,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   await page.emulateMedia({ colorScheme: 'light' })
   const metricsPageResponse = await page.goto(`/metrics?${query}`)
   expect(metricsPageResponse?.status()).toBe(HTTP_OK)
-  await expect(page.getByTestId('flow-chart-cfd').locator('.recharts-area-area')).toHaveCount(4)
+  await expect(page.getByTestId('flow-chart-cfd').locator('.recharts-area-area')).toHaveCount(CFD_BAND_COUNT)
   await checkpoint(page, testInfo, 'charts-metrics-shared-cfd')
 
   const wikiResponse = await request.post('http://127.0.0.1:4392/api/wiki', {
@@ -900,6 +936,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
         const header = document.querySelector<HTMLElement>('.projektor-topbar')!
         const overlay = document.querySelector<HTMLElement>('.wiki-drawer-overlay-open')!
         const sidebar = document.querySelector<HTMLElement>('.wiki-sidebar-open')!
+        const midpointDivisor = 2
         const rect = header.getBoundingClientRect()
         return {
           headerBottom: rect.bottom,
@@ -910,13 +947,13 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
           drawerZ: Number(getComputedStyle(sidebar).zIndex),
           headerHit: Boolean(
             document
-              .elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+              .elementFromPoint(rect.left + rect.width / midpointDivisor, rect.top + rect.height / midpointDivisor)
               ?.closest('.projektor-topbar'),
           ),
         }
       })
-      expect(layers.overlayTop).toBeCloseTo(layers.headerBottom, 0)
-      expect(layers.drawerTop).toBeCloseTo(layers.headerBottom, 0)
+      expect(layers.overlayTop).toBeCloseTo(layers.headerBottom, WHOLE_PIXEL_PRECISION)
+      expect(layers.drawerTop).toBeCloseTo(layers.headerBottom, WHOLE_PIXEL_PRECISION)
       expect(layers.headerZ).toBeGreaterThan(layers.drawerZ)
       expect(layers.headerZ).toBeGreaterThan(layers.overlayZ)
       expect(layers.headerHit).toBe(true)
@@ -924,15 +961,15 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     }
     await assertHeaderLayer()
     await checkpoint(page, testInfo, 'wiki-drawer-header-in-front')
-    await page.mouse.wheel(0, 300)
+    await page.mouse.wheel(ZERO_PIXELS, WIKI_DRAWER_SCROLL_PX)
     await assertHeaderLayer()
     await page.keyboard.press('Escape')
-    await expect(drawer).toHaveCount(0)
+    await expect(drawer).toHaveCount(NO_MATCHES)
     await expect(trigger).toBeFocused()
     await trigger.click()
     await expect(drawer).toBeVisible()
     await backdrop.click({ position: { x: 350, y: 100 } })
-    await expect(drawer).toHaveCount(0)
+    await expect(drawer).toHaveCount(NO_MATCHES)
     await checkpoint(page, testInfo, 'wiki-drawer-backdrop-close')
     await assertShell(page)
   }
@@ -958,7 +995,7 @@ test('cold protected initial HTML is usable without JavaScript', async ({ browse
       await expect(menu).toBeVisible()
       await expect(menu).toBeDisabled()
     }
-    await expect(page.getByText(/temporarily unavailable|session has expired/i)).toHaveCount(0)
+    await expect(page.getByText(/temporarily unavailable|session has expired/i)).toHaveCount(NO_MATCHES)
     await checkpoint(page, testInfo, 'initial-no-js')
   } finally {
     await context.close()
@@ -971,7 +1008,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   baseURL,
   request,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const projectName = `Alchemy acceptance ${suffix}`
   const projectKey = `E${suffix}`
   const issueTitle = `Native issue ${suffix}`
@@ -987,7 +1024,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await checkpoint(page, testInfo, 'native-project-form')
   await page.getByRole('button', { exact: true, name: 'Create project' }).click()
   const projectLink = page.getByRole('link').filter({ hasText: projectName })
-  await expect(projectLink).toHaveCount(1)
+  await expect(projectLink).toHaveCount(SINGLE_MATCH)
   await checkpoint(page, testInfo, 'project-created-canonical-list')
   await projectLink.click()
   await expect(page.getByRole('heading', { exact: true, level: 1, name: projectName })).toBeVisible()
@@ -1032,7 +1069,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await expect(page.locator('.markdown-content').getByText(issueBody, { exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'issue-updated-body-reload')
   const filename = `native-attachment-${suffix}.txt`
-  const bytes = Buffer.alloc(65_536, 'native-effront-attachment\n')
+  const bytes = Buffer.alloc(ATTACHMENT_FIXTURE_BYTES, 'native-effront-attachment\n')
   await page.getByRole('button', { name: /Attach file/u }).click()
   await page.getByLabel('Choose file', { exact: true }).setInputFiles({
     name: filename,
@@ -1068,9 +1105,9 @@ test('native create project and issue refresh canonical reads and navigation', a
   expect(Buffer.concat(chunks)).toEqual(bytes)
   await checkpoint(page, testInfo, 'native-attachment-download')
   await page.getByRole('button', { exact: true, name: `Remove ${filename}` }).click()
-  await expect(attachment).toHaveCount(0)
+  await expect(attachment).toHaveCount(NO_MATCHES)
   await page.reload()
-  await expect(attachment).toHaveCount(0)
+  await expect(attachment).toHaveCount(NO_MATCHES)
   const removedFile = await request.get(`http://127.0.0.1:4392${filePath}`, {
     headers: { 'X-Workspace-Slug': 'projektor' },
   })
@@ -1137,7 +1174,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await page.getByRole('button', { name: /^Account(?::|$)/u }).click()
   await page.getByRole('menuitem', { exact: true, name: 'Refresh session' }).click()
   const refreshedResponse = await refreshPost
-  expect(refreshedResponse.status()).toBe(303)
+  expect(refreshedResponse.status()).toBe(SEE_OTHER_STATUS)
   await refreshedDocument
   await expect(page).toHaveURL(wikiUrl)
   await expect(page.getByRole('heading', { exact: true, level: 1, name: wikiTitle })).toBeVisible()
@@ -1171,7 +1208,7 @@ test('all final page routes and aliases render real populated HTML with and with
   baseURL,
   page,
 }, testInfo) => {
-  test.setTimeout(120_000)
+  test.setTimeout(EXTENDED_SCENARIO_TIMEOUT_MS)
   const { project, issue, wiki, sourceId, sourceName, shareToken, epic, group, sprints, feedbackBody } =
     await createReaderFixtures(request)
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
@@ -1267,7 +1304,7 @@ test('all final page routes and aliases render real populated HTML with and with
       path: `/share/${shareToken}`,
     },
   ]
-  expect(cases).toHaveLength(21)
+  expect(cases).toHaveLength(READER_SCENARIO_COUNT)
   await runInOrder([false, true], async (javaScriptEnabled): Promise<void> => {
     const context = await browser.newContext({
       baseURL,
@@ -1376,7 +1413,7 @@ test('two real memberships require native selection and preserve workspace acros
   request,
   page,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toLowerCase()
+  const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toLowerCase()
   const slug = `second-${suffix}`
   const createdWorkspace = await request.post('http://127.0.0.1:4392/api/workspaces', {
     data: { name: `Second workspace ${suffix}`, slug },
@@ -1411,7 +1448,7 @@ test('two real memberships require native selection and preserve workspace acros
   await checkpoint(page, testInfo, 'explicit-second-workspace-native-form')
   await page.getByRole('button', { exact: true, name: 'Create project' }).click()
   const link = page.getByRole('link').filter({ has: page.getByText(projectName, { exact: true }) })
-  await expect(link).toHaveCount(1)
+  await expect(link).toHaveCount(SINGLE_MATCH)
   expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('workspace')).toBe(slug)
   await link.click()
   await expect(page.getByRole('heading', { exact: true, level: 1, name: projectName })).toBeVisible()
