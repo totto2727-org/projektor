@@ -12,14 +12,15 @@ import type { ApiError, ScopeError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 
+import type * as Actions from './actions.ts'
 import type { ProjectLanding } from './project-landing.tsx'
 import type { ProjectList } from './project-list.tsx'
 import { renderOverview, renderProjects } from './server.tsx'
 
 vi.mock('./actions', () => ({
-  createProject: vi.fn(),
-  updateDescription: vi.fn(),
-  archiveProject: vi.fn(),
+  createProject: vi.fn<typeof Actions.createProject>(),
+  updateDescription: vi.fn<typeof Actions.updateDescription>(),
+  archiveProject: vi.fn<typeof Actions.archiveProject>(),
 }))
 
 const runWithDatabase = function runWithDatabase<T>(

@@ -1,12 +1,13 @@
-// @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
+// @vitest-environment jsdom
+import type * as Actions from '@/features/issues/actions.ts'
 
 import { EpicList } from './epic-list.tsx'
 
-vi.mock('../actions', () => ({ createIssue: vi.fn() }))
+vi.mock('../actions', () => ({ createIssue: vi.fn<typeof Actions.createIssue>() }))
 
 const project = {
   id: 'project',

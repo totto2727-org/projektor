@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import type { ReviewStatus } from '#contracts/review-targets.ts'
+import type * as Actions from '@/features/issues/actions.ts'
 import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
 import type { Attachment } from '@/features/issues/types.ts'
 import type { IssueDetailInitialData } from '@/features/issues/views/issue-detail-page.tsx'
@@ -12,7 +13,10 @@ import type { IssueDetailInitialData } from '@/features/issues/views/issue-detai
 import { IssueDetail } from './issue-detail.tsx'
 import { ReviewTargetsSection } from './review-targets-section.tsx'
 
-vi.mock('../actions', () => ({ setAttachmentReviewStatus: vi.fn(), updateIssue: vi.fn() }))
+vi.mock('../actions', () => ({
+  setAttachmentReviewStatus: vi.fn<typeof Actions.setAttachmentReviewStatus>(),
+  updateIssue: vi.fn<typeof Actions.updateIssue>(),
+}))
 vi.mock('./issue-detail-parts.tsx', () => ({
   AttachmentsSection: () => <p>Full attachments</p>,
   BodySection: () => <p>Full description</p>,

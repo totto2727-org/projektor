@@ -1,16 +1,17 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
 
+// @vitest-environment jsdom
+import type * as Actions from './actions.ts'
 import { rotateFeedbackSourceToken } from './actions.ts'
 import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
 
 vi.mock('./actions', () => ({
-  rotateFeedbackSourceToken: vi.fn(),
-  revokeFeedbackSource: vi.fn(),
-  setFeedbackSourceActive: vi.fn(),
+  rotateFeedbackSourceToken: vi.fn<typeof Actions.rotateFeedbackSourceToken>(),
+  revokeFeedbackSource: vi.fn<typeof Actions.revokeFeedbackSource>(),
+  setFeedbackSourceActive: vi.fn<typeof Actions.setFeedbackSourceActive>(),
 }))
 
 // The transport is deferred so repeated confirmation arrives before completion.

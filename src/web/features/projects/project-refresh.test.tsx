@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { JSON_NULL } from '#tests/json-null.ts'
 import { RuntimeProvider } from '@/client/runtime.tsx'
 
+import type * as Actions from './actions.ts'
 import { archiveProject, createProject } from './actions.ts'
 import { ProjectLanding } from './project-landing.tsx'
 import { ProjectList } from './project-list.tsx'
@@ -15,9 +16,9 @@ import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schema
 vi.mock('../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
 
 vi.mock('./actions', () => ({
-  createProject: vi.fn(),
-  updateDescription: vi.fn(),
-  archiveProject: vi.fn(),
+  createProject: vi.fn<typeof Actions.createProject>(),
+  updateDescription: vi.fn<typeof Actions.updateDescription>(),
+  archiveProject: vi.fn<typeof Actions.archiveProject>(),
 }))
 vi.mock(import('@/client/functions.ts'), () => ({
   unwrapResult: <T,>(result: { ok: true; value: T } | { ok: false; message: string }) => {

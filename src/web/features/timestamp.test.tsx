@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { act } from '@testing-library/react'
 import { Fragment, createElement } from 'react'
 import { hydrateRoot } from 'react-dom/client'
@@ -6,14 +5,17 @@ import type { Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+// @vitest-environment jsdom
+import type * as AttachmentActions from '@/attachment-actions.ts'
+
 import { formatTimestamp, formatTimestampDate } from './timestamp.ts'
 import { WikiPageClient } from './wiki/wiki-page-client.tsx'
 import type { WikiSeed } from './wiki/wiki-page-client.tsx'
 
 vi.mock(import('./wiki/actions.ts'), () => ({}))
 vi.mock('../attachment-actions', () => ({
-  uploadAttachment: vi.fn(),
-  uploadInlineImage: vi.fn(),
+  uploadAttachment: vi.fn<typeof AttachmentActions.uploadAttachment>(),
+  uploadInlineImage: vi.fn<typeof AttachmentActions.uploadInlineImage>(),
 }))
 vi.mock(import('@effront/core/query'), () => ({ query: vi.fn() }))
 vi.mock(import('./wiki/lazy-markdown-editor.tsx'), () => ({ LazyMarkdownEditor: () => createElement(Fragment) }))
