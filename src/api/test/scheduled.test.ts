@@ -122,7 +122,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
     const pageRes = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Scheduled Purge Page', content: 'content' }),
+      body: JSON.stringify({ content: 'content', title: 'Scheduled Purge Page' }),
     })
     const page = await readNativeJson(pageRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${page.slug}`, {
@@ -136,7 +136,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
     const otherPageRes = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ title: 'Scheduled Purge Other Page', content: 'content' }),
+      body: JSON.stringify({ content: 'content', title: 'Scheduled Purge Other Page' }),
     })
     const otherPage = await readNativeJson(otherPageRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {

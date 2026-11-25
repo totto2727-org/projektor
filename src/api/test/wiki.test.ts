@@ -2686,7 +2686,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Snapshot Title', content: 'v1' }),
+        JSON.stringify({ content: 'v1', title: 'Snapshot Title' }),
       ),
     )
     await req(
@@ -3135,7 +3135,7 @@ describe('wiki patch operations (PROJ-490)', () => {
   ): Promise<{ id: string; slug: string }> {
     const res = await req(
       'http://localhost/api/wiki',
-      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title, content, slug: pageSlug })),
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ content, slug: pageSlug, title })),
     )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
@@ -5387,7 +5387,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   ): Promise<{ id: string; slug: string }> {
     const res = await req(
       'http://localhost/api/wiki',
-      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title, content, slug: pageSlug })),
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ content, slug: pageSlug, title })),
     )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
@@ -5404,7 +5404,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({ title, content, slug: pageSlug, parentId }),
+        JSON.stringify({ content, parentId, slug: pageSlug, title }),
       ),
     )
     expect(res.status).toBe(201)
@@ -5958,7 +5958,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   ): Promise<{ id: string; slug: string }> {
     const res = await req(
       'http://localhost/api/wiki',
-      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title, content, slug: pageSlug })),
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ content, slug: pageSlug, title })),
     )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
@@ -6052,7 +6052,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Draft Publish', content: 'draft content', baseRevisionId }),
+        JSON.stringify({ baseRevisionId, content: 'draft content', title: 'Draft Publish' }),
       ),
     )
 
@@ -6065,7 +6065,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ content: 'draft content', baseRevisionId }),
+        JSON.stringify({ baseRevisionId, content: 'draft content' }),
       ),
     )
     expect(publishRes.status).toBe(200)
@@ -6107,9 +6107,9 @@ describe('wiki server-side drafts (PROJ-495)', () => {
         'PUT',
         authHeaders(token, slug),
         JSON.stringify({
-          title: 'Draft Conflict',
-          content: 'in-progress draft edit',
           baseRevisionId: draftBaseRevisionId,
+          content: 'in-progress draft edit',
+          title: 'Draft Conflict',
         }),
       ),
     )
@@ -6133,7 +6133,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ content: 'stale draft content', baseRevisionId: draftBaseRevisionId }),
+        JSON.stringify({ baseRevisionId: draftBaseRevisionId, content: 'stale draft content' }),
       ),
     )
     expect(publishRes.status).toBe(409)

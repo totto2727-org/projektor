@@ -134,7 +134,7 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(testFixture.token, testFixture.slug),
-        JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
+        JSON.stringify({ category: 'todo', key: 'triage', name: 'Triage' }),
       ),
     )
     expect(post.status).toBe(201)

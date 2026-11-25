@@ -455,9 +455,9 @@ describe('files API', () => {
           'POST',
           headers,
           JSON.stringify({
-            kind: 'wiki_ref',
-            entityType: 'issue',
             entityId: ENTITY_ID,
+            entityType: 'issue',
+            kind: 'wiki_ref',
             wikiPageId,
           }),
         ),
@@ -539,9 +539,9 @@ describe('files API', () => {
           'POST',
           { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
           JSON.stringify({
-            kind: 'url',
-            entityType: 'issue',
             entityId: ENTITY_ID,
+            entityType: 'issue',
+            kind: 'url',
             url,
           }),
         ),
@@ -558,9 +558,9 @@ describe('files API', () => {
             'POST',
             { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
             JSON.stringify({
-              kind: 'url',
-              entityType: 'issue',
               entityId: ENTITY_ID,
+              entityType: 'issue',
+              kind: 'url',
               url,
             }),
           ),
@@ -621,9 +621,9 @@ describe('files API', () => {
           'POST',
           { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
           JSON.stringify({
-            kind: 'wiki_ref',
-            entityType: 'issue',
             entityId: ENTITY_ID,
+            entityType: 'issue',
+            kind: 'wiki_ref',
             wikiPageId: restrictedPageId,
           }),
         ),
@@ -656,9 +656,9 @@ describe('files API', () => {
       const entityId = crypto.randomUUID()
       const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
         body: JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
           entityId,
+          entityType: 'issue',
+          kind: 'wiki_ref',
           wikiPageId: restrictedPageId,
         }),
         headers: adminHeaders,
@@ -696,7 +696,7 @@ describe('files API', () => {
 
       const entityId = crypto.randomUUID()
       const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
-        body: JSON.stringify({ kind: 'wiki_ref', entityType: 'issue', entityId, wikiPageId }),
+        body: JSON.stringify({ entityId, entityType: 'issue', kind: 'wiki_ref', wikiPageId }),
         headers: adminHeaders,
         method: 'POST',
       })

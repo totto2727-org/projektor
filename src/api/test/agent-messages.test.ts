@@ -389,7 +389,7 @@ describe('agent Messages API', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(other.token, other.workspace.slug),
-        JSON.stringify({ scope: otherScope, body: 'workspace-Y message' }),
+        JSON.stringify({ body: 'workspace-Y message', scope: otherScope }),
       ),
     )
     expect(otherPostRes.status).toBe(201)

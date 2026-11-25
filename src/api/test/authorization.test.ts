@@ -194,7 +194,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
       requestOptionsWithBody(
         'POST',
         viewerHeaders,
-        JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
+        JSON.stringify({ category: 'todo', key: 'triage', name: 'Triage' }),
       ),
     )
     expect(res.status).toBe(403)
@@ -204,7 +204,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
     const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi(
       'http://localhost/api/task-statuses',
-      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' })),
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ category: 'todo', key: 'triage', name: 'Triage' })),
     )
     expect(res.status).toBe(201)
   })
