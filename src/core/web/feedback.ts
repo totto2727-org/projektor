@@ -1,10 +1,13 @@
 import { String, Predicate, Iterable, Effect, Schema } from 'effect'
+import type { Types } from 'effect'
 
 import * as sources from '#commands/feedback-sources.ts'
 import * as commands from '#commands/feedback.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { ScopeError } from '#contracts/errors.ts'
 import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { requireDataProject, requireDataWorkspace } from '#contracts/web-data.ts'
 import {
@@ -15,9 +18,11 @@ import {
   Converted,
   Ok,
 } from '#contracts/web-schemas/feedback.ts'
+import type { Source, Summary } from '#contracts/web-schemas/feedback.ts'
 import type { CoreReply } from '#core/contract.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
+import { SQLITE_TRUE } from '#db/sqlite-boolean.ts'
 import * as queries from '#services/feedback.ts'
 
 import { loadBrowserScope, publicWebFailure } from './authentication.ts'
@@ -34,61 +39,71 @@ const admin = function admin(role: string): void {
     throw new ScopeError(HTTP_FORBIDDEN, 'Insufficient permissions')
   }
 }
-const sourceDto = function sourceDto(row: queries.FeedbackSourceListRow) {
+const TOKEN_PREVIEW_LENGTH = 12
+const NO_RATINGS = 0
+const PERCENT_UNIT = 100
+
+type SourceProjection = Omit<Types.Mutable<typeof Source.Type>, 'allowedOrigins'> & { allowedOrigins: unknown }
+type SummaryProjection = Types.DeepMutable<typeof Summary.Type> & { sourceName: string | null }
+type SummaryQueryError = Effect.Error<ReturnType<typeof queries.readFeedbackSummary>>
+
+const parseAllowedOrigins = function parseAllowedOrigins(origins: string | null): unknown {
+  return isNonEmptyText(origins) ? JSON.parse(origins) : JSON_NULL
+}
+
+const sourceDto = function sourceDto(row: queries.FeedbackSourceListRow): SourceProjection {
   return fieldsInOrder([
     ['id', row.id],
     ['name', row.name],
     ['description', row.description],
-    ['isActive', row.is_active === 1],
-    ['allowedOrigins', row.allowed_origins ? JSON.parse(row.allowed_origins) : null],
-    ['tokenPreview', `${row.token_hash.slice(0, 12)}…`],
+    ['isActive', row.is_active === SQLITE_TRUE],
+    ['allowedOrigins', parseAllowedOrigins(row.allowed_origins)],
+    ['tokenPreview', `${String.takeLeft(row.token_hash, TOKEN_PREVIEW_LENGTH)}…`],
     ['createdAt', row.created_at],
     ['revokedAt', row.revoked_at],
   ])
 }
-const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
-  const map = new Map<
-    string,
-    {
-      sourceId: string
-      sourceName: string | null
-      totalCount: number
-      versions: {
-        appVersion: string | null
-        totalCount: number
-        withCommentCount: number
-        thumbsUpPct: number | null
-        avgFiveStar: number | null
-        lastSeenAt: number
-      }[]
-    }
-  >()
+const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]): SummaryProjection[] {
+  const map = new Map<string, SummaryProjection>()
   Iterable.forEach(rows, (row) => {
-    let source = map.get(row.source_id)
-    if (!source) {
-      source = { sourceId: row.source_id, sourceName: row.source_name, totalCount: 0, versions: [] }
+    const existing = map.get(row.source_id)
+    const source = existing ?? { sourceId: row.source_id, sourceName: row.source_name, totalCount: 0, versions: [] }
+    if (!existing) {
       map.set(row.source_id, source)
     }
     source.totalCount += row.total
-    source.versions.push({
-      appVersion: row.app_version,
-      totalCount: row.total,
-      withCommentCount: row.with_comment_count,
-      thumbsUpPct: row.thumbs_total > 0 ? Math.round((row.thumbs_up / row.thumbs_total) * 100) : null,
-      avgFiveStar: row.five_star_total > 0 ? row.five_star_avg : null,
-      lastSeenAt: row.last_seen_at,
-    })
+    source.versions.push(
+      fieldsInOrder([
+        ['appVersion', row.app_version],
+        ['totalCount', row.total],
+        ['withCommentCount', row.with_comment_count],
+        [
+          'thumbsUpPct',
+          row.thumbs_total > NO_RATINGS ? Math.round((row.thumbs_up / row.thumbs_total) * PERCENT_UNIT) : JSON_NULL,
+        ],
+        ['avgFiveStar', row.five_star_total > NO_RATINGS ? row.five_star_avg : JSON_NULL],
+        ['lastSeenAt', row.last_seen_at],
+      ]),
+    )
   })
   return [...map.values()]
 }
-const loadSources = function loadSources(env: CoreEnvironment, workspaceId: string, projectId: string) {
+const loadSources = function loadSources(
+  env: CoreEnvironment,
+  workspaceId: string,
+  projectId: string,
+): Effect.Effect<SourceProjection[], unknown> {
   return queries
     .listFeedbackSources(env.DB, workspaceId, { projectId })
     .pipe(
       Effect.flatMap((rows) => Effect.try({ catch: publicWebFailure, try: () => rows.map((row) => sourceDto(row)) })),
     )
 }
-const loadSummaries = function loadSummaries(env: CoreEnvironment, workspaceId: string, projectId: string) {
+const loadSummaries = function loadSummaries(
+  env: CoreEnvironment,
+  workspaceId: string,
+  projectId: string,
+): Effect.Effect<SummaryProjection[], SummaryQueryError> {
   return queries.readFeedbackSummary(env.DB, workspaceId, { projectId }).pipe(Effect.map(summaryDtos))
 }
 
