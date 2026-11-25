@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { loadMigrations } from '#db/test/helpers.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { createTestResources, testEnvironment } from '@/server/test/resources.ts'
@@ -158,6 +158,7 @@ const fixture = async function fixture(
 }
 describe('wiki semantic ServerFn contracts', () => {
   test('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
+    expect.hasAssertions()
     const test = await fixture()
     await expect(
       test.run(saveWikiDraft, { workspaceSlug: 'team', slug: 'guide', title: 'Missing token', content: 'No write' }),
@@ -177,7 +178,7 @@ describe('wiki semantic ServerFn contracts', () => {
       expectedDraftRevision: null,
     })
     const head = test.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision
-    for (const operation of [saveWikiDraft, discardWikiDraft, saveWikiPage]) {
+    await runInOrder([saveWikiDraft, discardWikiDraft, saveWikiPage], async (operation): Promise<void> => {
       await expect(
         test.run(operation, {
           workspaceSlug: 'team',
@@ -188,7 +189,7 @@ describe('wiki semantic ServerFn contracts', () => {
           expectedDraftRevision: null,
         }),
       ).resolves.toMatchObject({ ok: false, status: 409 })
-    }
+    })
     await expect(test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
       ok: true,
       value: { revision: head, draft: { content: 'Keep B' } },
@@ -234,12 +235,13 @@ describe('wiki semantic ServerFn contracts', () => {
   )
 
   test("does not grant an archived project's page or revision to an ungranted member", async () => {
+    expect.hasAssertions()
     const test = await fixture({ archived: true, pageProject: '00000000-0000-4000-8000-000000000002' })
-    for (const operation of [getWikiPage, getWikiDraft, getWikiRevisionDiff]) {
+    await runInOrder([getWikiPage, getWikiDraft, getWikiRevisionDiff], async (operation): Promise<void> => {
       await expect(
         test.run(operation, { workspaceSlug: 'team', slug: 'guide', revisionId: 'revision' }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
-    }
+    })
   })
 
   test('rejects cross-origin writes before any backend request and invalidates failed mutation scope', async () => {
@@ -368,13 +370,14 @@ describe('wiki semantic ServerFn contracts', () => {
   })
 
   test('re-authorizes the actual entity project rather than trusting a page selector', async () => {
+    expect.hasAssertions()
     const test = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
-    for (const operation of [getWikiPage, getWikiDraft, duplicateWikiPage]) {
+    await runInOrder([getWikiPage, getWikiDraft, duplicateWikiPage], async (operation): Promise<void> => {
       await expect(test.run(operation, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
-    }
+    })
     expect(
       sqliteRowFields(
         test.sqlite
@@ -388,6 +391,7 @@ describe('wiki semantic ServerFn contracts', () => {
   })
 
   test('binds revision diffs and restore reads to the authorized page and workspace', async () => {
+    expect.hasAssertions()
     const test = await fixture()
     test.sqlite.exec("UPDATE wiki_pages SET content = 'Current' WHERE id = '00000000-0000-4000-8000-000000000001'")
     await expect(
@@ -400,7 +404,7 @@ describe('wiki semantic ServerFn contracts', () => {
       ok: true,
       value: { diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Current' },
     })
-    for (const operation of [getWikiRevisionDiff, restoreWikiRevision]) {
+    await runInOrder([getWikiRevisionDiff, restoreWikiRevision], async (operation): Promise<void> => {
       await expect(
         test.run(operation, {
           workspaceSlug: 'team',
@@ -409,7 +413,7 @@ describe('wiki semantic ServerFn contracts', () => {
           baseRevisionId: 'revision',
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
-    }
+    })
     expect(readGuideContent(test.sqlite)).toStrictEqual({
       content: 'Current',
     })

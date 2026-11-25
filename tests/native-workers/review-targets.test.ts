@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { configureCore, env } from '#api/test/fixture-api.ts'
 import { CommandOkSchema } from '#core/web/command-contract.ts'
 import type { BrowserCommand } from '#core/web/command-contract.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 
 let proof: BrowserCommand
 let issueId: string
@@ -85,11 +85,12 @@ const persistedStatus = async function persistedStatus(): Promise<Record<string,
 
 describe('native named review target browser command', () => {
   test('persists nullable review transitions across the actual Core service binding', async () => {
+    expect.hasAssertions()
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: null })
-    for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
       await expect(update(status)).resolves.toStrictEqual({ ok: true })
       await expect(persistedStatus()).resolves.toStrictEqual({ review_status: status })
-    }
+    })
   })
 
   test('rejects cross-origin native commands without writing', async () => {

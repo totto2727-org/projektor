@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { runInOrder } from '#tests/run-effect.ts'
+
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedToken, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
@@ -67,7 +69,8 @@ const mcpUpdate = async function mcpUpdate(
 
 describe('review target MCP tool through the real API and Core Workers', () => {
   test('sets all review statuses and clears selection with canonical metadata readback', async () => {
-    for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
+    expect.hasAssertions()
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
       await resetRateLimits()
       const reply = await mcpUpdate(status)
       expect(reply).not.toHaveProperty('error')
@@ -78,7 +81,7 @@ describe('review target MCP tool through the real API and Core Workers', () => {
       expect(reply.result.content).toHaveLength(1)
       expect(JSON.parse(reply.result.content[0].text)).toStrictEqual({ ok: true })
       await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: status })
-    }
+    })
   })
 
   test('returns a safe validation tool error without changing selection', async () => {
@@ -102,14 +105,15 @@ describe('review target MCP tool through the real API and Core Workers', () => {
 
 describe('review targets REST through the real API and Core Workers', () => {
   test('selects, updates and removes a review target and exposes canonical attachment metadata', async () => {
+    expect.hasAssertions()
     await expect(readMetadata()).resolves.toMatchObject({ id: attachmentId, kind: 'url', reviewStatus: null })
-    for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
       await resetRateLimits()
       const response = await update(status)
       expect(response.status).toBe(200)
       await expect(response.json()).resolves.toStrictEqual({ ok: true })
       await expect(readMetadata()).resolves.toMatchObject({ id: attachmentId, reviewStatus: status })
-    }
+    })
   })
 
   test.each(['invalid', '', 1, {}])('rejects malformed review status %j without a write', async (status) => {
@@ -119,14 +123,15 @@ describe('review targets REST through the real API and Core Workers', () => {
   })
 
   test('rejects malformed JSON and missing status', async () => {
-    for (const body of ['{', JSON.stringify({ issueId: fixture.issueId })]) {
+    expect.hasAssertions()
+    await runInOrder(['{', JSON.stringify({ issueId: fixture.issueId })], async (body): Promise<void> => {
       const response = await fetchNativeApi(`http://localhost/api/files/${attachmentId}/review-status`, {
         body,
         headers: authHeaders(fixture.token, fixture.slug),
         method: 'PATCH',
       })
       expect(response.status).toBe(400)
-    }
+    })
     await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
   })
 

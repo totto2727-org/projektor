@@ -8,6 +8,7 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
  * one `{items, next}` pagination shape, and a hard per-result size cap.
  */
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
@@ -335,9 +336,9 @@ describe('covers PROJ-891: MCP tools', () => {
   })
 
   test('search_wiki and list_wiki_changes page with next/cursor', async () => {
-    for (const t of ['Alpha Guide', 'Alpha Notes', 'Alpha Ideas']) {
+    await runInOrder(['Alpha Guide', 'Alpha Notes', 'Alpha Ideas'], async (t): Promise<void> => {
       await tool('create_wiki_page', { title: t, content: 'alpha content' })
-    }
+    })
     const p1 = await tool<{ items: unknown[]; next?: string }>('search_wiki', {
       query: 'alpha',
       limit: 2,

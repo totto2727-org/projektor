@@ -13,6 +13,7 @@ import type { ServiceCtx } from '#commands/types.ts'
  * Conflict/force/stale semantics remain asserted at 100-path scale.
  */
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture } from './helpers.ts'
@@ -119,12 +120,12 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
       expect(paths).toHaveLength(100)
 
-      for (const path of conflictPaths) {
+      await runInOrder(conflictPaths, async (path): Promise<void> => {
         await seedLiveClaim(workspaceId, holder.id, path)
-      }
-      for (const path of stalePaths) {
+      })
+      await runInOrder(stalePaths, async (path): Promise<void> => {
         await seedStaleClaim(workspaceId, holder.id, path)
-      }
+      })
 
       if (boundary === 'shared command') {
         const tracker = trackD1RoundTrips()
@@ -170,12 +171,12 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       const freshPaths = Array.from({ length: 85 }, (_value, index) => `src/rfresh-${index}.ts`)
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
 
-      for (const path of conflictPaths) {
+      await runInOrder(conflictPaths, async (path): Promise<void> => {
         await seedLiveClaim(workspaceId, holder.id, path)
-      }
-      for (const path of stalePaths) {
+      })
+      await runInOrder(stalePaths, async (path): Promise<void> => {
         await seedStaleClaim(workspaceId, holder.id, path)
-      }
+      })
 
       if (boundary === 'shared command') {
         const tracker = trackD1RoundTrips()
@@ -343,6 +344,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
   })
 
   test('force-claim notifications stay within the 5,000-char message cap', async () => {
+    expect.hasAssertions()
     const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
     const holder = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
     // 100 paths of ~300 chars: the untruncated path list alone would be ~30,000 chars.
@@ -350,9 +352,9 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       { length: 100 },
       (_value, index) => `src/${'deep/'.repeat(58)}file-${String(index).padStart(3, '0')}.ts`,
     )
-    for (const path of paths) {
+    await runInOrder(paths, async (path): Promise<void> => {
       await seedLiveClaim(workspaceId, holder.id, path)
-    }
+    })
 
     const res = await fetchNativeApi('http://localhost/api/file-claims', {
       body: JSON.stringify({ issueId, paths, force: true }),

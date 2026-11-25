@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { runInOrder } from '#tests/run-effect.ts'
 import { actionFixture, formData } from '@/features/planning/action-test-fixture.ts'
 
 // Only the Node host entrypoint is substituted. Real OAuth helpers and KV operations execute.
@@ -141,24 +142,27 @@ const memberFixture = function memberFixture() {
   return test
 }
 const seedConnectors = async function seedConnectors(test: Fixture): Promise<void> {
-  for (const [id, userId, workspaceId] of [
-    ['c1', 'u1', 'w1'],
-    ['c2', 'u1', 'w2'],
-    ['c3', 'u2', 'w1'],
-  ]) {
-    await test.oauthKV.put(
-      `grant:${userId}:${id}`,
-      JSON.stringify({
-        id,
-        userId,
-        clientId: 'https://claude.ai',
-        scope: ['projektor:read'],
-        metadata: { workspaceId },
-        createdAt: 1,
-        expiresAt: 2_000_000_000,
-      }),
-    )
-  }
+  await runInOrder(
+    [
+      ['c1', 'u1', 'w1'],
+      ['c2', 'u1', 'w2'],
+      ['c3', 'u2', 'w1'],
+    ],
+    async ([id, userId, workspaceId]): Promise<void> => {
+      await test.oauthKV.put(
+        `grant:${userId}:${id}`,
+        JSON.stringify({
+          id,
+          userId,
+          clientId: 'https://claude.ai',
+          scope: ['projektor:read'],
+          metadata: { workspaceId },
+          createdAt: 1,
+          expiresAt: 2_000_000_000,
+        }),
+      )
+    },
+  )
   await test.oauthKV.put('token:u1:c1:secret', 'opaque-token')
 }
 
@@ -191,20 +195,21 @@ describe('explicit settings ServerFns use real shared commands and authoritative
   test.each(grantCases)(
     '$label rejects foreign, missing and ungranted member targets before mutation',
     async (operation) => {
+      expect.hasAssertions()
       const foreign = settingsFixture()
       foreign.sqlite.exec("UPDATE projects SET workspace_id='w2', archived_at=2 WHERE id='p1'")
       const missing = settingsFixture()
       missing.sqlite.exec("DELETE FROM projects WHERE id='p1'")
       const member = memberFixture()
       member.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p1'")
-      for (const test of [foreign, missing, member]) {
+      await runInOrder([foreign, missing, member], async (test): Promise<void> => {
         await expect(operation.invoke(test)).resolves.toMatchObject({ ok: false, status: 404 })
         expect(
           test.sqlite.prepare("SELECT role FROM group_project_grants WHERE group_id='g1' AND project_id='p1'").get(),
         ).toBeUndefined()
         expect(test.transport).not.toHaveBeenCalled()
         expect(test.invalidated).toHaveBeenCalledOnce()
-      }
+      })
     },
   )
 
@@ -337,14 +342,15 @@ describe('explicit settings ServerFns use real shared commands and authoritative
   })
 
   test('cannot revoke a connector owned by another user or workspace', async () => {
+    expect.hasAssertions()
     const test = settingsFixture()
     await seedConnectors(test)
-    for (const connectorId of ['c2', 'c3']) {
+    await runInOrder(['c2', 'c3'], async (connectorId): Promise<void> => {
       await expect(test.invoke(actions.disconnectConnector, { ...workspace, connectorId })).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
-    }
+    })
     await expect(test.oauthKV.get('grant:u1:c2')).resolves.not.toBeNull()
     await expect(test.oauthKV.get('grant:u2:c3')).resolves.not.toBeNull()
   })

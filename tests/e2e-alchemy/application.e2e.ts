@@ -4,23 +4,12 @@ import { readdir, writeFile } from 'node:fs/promises'
 
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test'
-import { Effect, Iterable, Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { HTTP_FORBIDDEN, HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
-
-const runInOrder = async function runInOrder<Item>(
-  items: globalThis.Iterable<Item>,
-  step: (item: Item) => Promise<void>,
-): Promise<void> {
-  const sequence = Effect.forEach(items, (item) => Effect.promise(async () => step(item)), {
-    concurrency: 1,
-    discard: true,
-  })
-  await runTestEffect(sequence)
-}
+import { runInOrder } from '#tests/run-effect.ts'
 
 interface BrowserAudit {
   pageErrors: string[]

@@ -4,7 +4,7 @@ import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { RateLimitResult } from '#contracts/request-rate-limit.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 
 import type NativeFixtureCore from './core.worker'
 
@@ -29,6 +29,7 @@ const core = fixtureBinding(Reflect.get(nativeApiEnv, 'CORE'))
 
 describe('actual native API and Core topology', () => {
   test('does not give the public API database, cache or file capabilities', () => {
+    expect.hasAssertions()
     Iterable.forEach(['DB', 'KV', 'R2'], (name) => {
       expect(name in nativeApiEnv).toBe(false)
     })
@@ -39,8 +40,9 @@ describe('actual native API and Core topology', () => {
   })
 
   test('dispatches the official named Core RPC protocol through root and configured session bindings', async () => {
+    expect.hasAssertions()
     const session = await core.fixtureSession({ DEV_USER_EMAIL: '' })
-    for (const binding of [core, session]) {
+    await runInOrder([core, session], async (binding): Promise<void> => {
       const wire = await runTestEffect(makeCoreClient(binding).apiCheckRateLimit({}))
       expect(typeof wire).toBe('string')
       expect(JSON.parse(wire)).toHaveProperty('_tag')
@@ -48,7 +50,7 @@ describe('actual native API and Core topology', () => {
         decodeCoreReply(RateLimitResult, makeCoreClient(binding).apiCheckRateLimit({})),
       )
       expect(decoded).toBeNull()
-    }
+    })
   })
 
   test('applies each session policy inside actual named Core handlers, not only fixture inspection', async () => {

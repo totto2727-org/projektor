@@ -7,7 +7,7 @@ import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
 import { SearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import { IssuePageSchema } from '#contracts/web-schemas/issues.ts'
 import type { WebRequest } from '#core/web/scope.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 
 let request: WebRequest
 let workspaceId: string
@@ -204,8 +204,9 @@ describe('cross-project review filters through actual named Core bindings', () =
   })
 
   test('rejects malformed review query values at the native Core boundary', async () => {
-    for (const review of ['done', 'invalid', '']) {
+    expect.hasAssertions()
+    await runInOrder(['done', 'invalid', ''], async (review): Promise<void> => {
       await expect(page(`review=${review}`)).rejects.toMatchObject({ status: 400 })
-    }
+    })
   })
 })

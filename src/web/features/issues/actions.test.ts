@@ -1,7 +1,7 @@
 import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { sqliteRowFields } from '#tests/sqlite-records.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { inMemoryKV, inMemoryR2, testEnvironment } from '@/server/test/resources.ts'
@@ -132,17 +132,18 @@ describe('individual issue ServerFn authorization and contracts', () => {
   })
 
   test('updates a sprint directly while preserving tenant and project grant checks', async () => {
+    expect.hasAssertions()
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO sprints (id,workspace_id,project_id,name,status,created_at,updated_at) VALUES ('sprint-a','workspace-a','project-a','Original','planned',1,1),('sprint-hidden','workspace-a','hidden-project','Hidden','planned',1,1),('sprint-other','workspace-b','other-project','Other','planned',1,1)",
     )
     const patch = { name: 'Updated', goal: 'Direct command', status: 'active', startDate: null, endDate: null }
-    for (const sprintId of ['sprint-hidden', 'sprint-other']) {
+    await runInOrder(['sprint-hidden', 'sprint-other'], async (sprintId): Promise<void> => {
       await expect(invoke(updateSprint, { workspaceSlug: workspace.slug, sprintId, patch })).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
-    }
+    })
     await expect(
       invoke(updateSprint, { workspaceSlug: workspace.slug, sprintId: 'sprint-a', patch }),
     ).resolves.toMatchObject({
@@ -204,11 +205,12 @@ describe('individual issue ServerFn authorization and contracts', () => {
   })
 
   test('preserves comment ownership and issue association for edit and delete commands', async () => {
+    expect.hasAssertions()
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO users (id,email,name,created_at) VALUES ('author-b','other@example.test','Other',1); INSERT INTO issue_comments (id,issue_id,author_id,body,created_at,updated_at) VALUES ('foreign-comment','issue-a','author-b','Unchanged',1,1),('other-comment','issue-b','user-a','Other issue',1,1)",
     )
-    for (const action of [editComment, deleteComment]) {
+    await runInOrder([editComment, deleteComment], async (action): Promise<void> => {
       await expect(
         invoke(action, {
           workspaceSlug: workspace.slug,
@@ -225,7 +227,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
           body: 'Changed',
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
-    }
+    })
     expect(
       sqliteRowFields(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'foreign-comment'").get()),
     ).toStrictEqual({
@@ -469,6 +471,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
   })
 
   test('independently authorizes comments, links, attachments and wiki searches before direct reads', async () => {
+    expect.hasAssertions()
     const { invoke, database, invalidated } = fixture()
     const identity = { workspaceSlug: workspace.slug, issueId: 'A-1' }
     await expect(invoke(readComments, identity)).resolves.toMatchObject({
@@ -489,7 +492,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
         { id: 'wiki-global', title: 'Workspace guide', slug: 'workspace-guide', project_id: null },
       ]),
     })
-    for (const read of [readIssue, readComments, readLinks, readAttachments]) {
+    await runInOrder([readIssue, readComments, readLinks, readAttachments], async (read): Promise<void> => {
       await expect(invoke(read, { workspaceSlug: workspace.slug, issueId: 'hidden-issue' })).resolves.toMatchObject({
         ok: false,
         status: 404,
@@ -501,7 +504,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
           issueId: 'issue-b',
         }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
-    }
+    })
     expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
       count: 4,
     })
@@ -572,6 +575,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
   })
 
   test("will not delete an attachment absent from the issue's server-loaded attachment set", async () => {
+    expect.hasAssertions()
     const { invoke, database } = fixture()
     database.sqlite.exec(`
       INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at) VALUES
@@ -579,15 +583,18 @@ describe('individual issue ServerFn authorization and contracts', () => {
         ('foreign-workspace','workspace-b','url','','Other workspace','text/uri-list',0,'https://example.test','issue','issue-a','user-a',1),
         ('wiki-attachment','workspace-a','url','','Wiki','text/uri-list',0,'https://example.test','wiki_page','issue-a','user-a',1);
     `)
-    for (const attachmentId of ['foreign-attachment', 'foreign-workspace', 'wiki-attachment', 'missing-attachment']) {
-      await expect(
-        invoke(deleteAttachment, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          attachmentId,
-        }),
-      ).resolves.toMatchObject({ ok: false, status: 404 })
-    }
+    await runInOrder(
+      ['foreign-attachment', 'foreign-workspace', 'wiki-attachment', 'missing-attachment'],
+      async (attachmentId): Promise<void> => {
+        await expect(
+          invoke(deleteAttachment, {
+            workspaceSlug: workspace.slug,
+            issueId: 'issue-a',
+            attachmentId,
+          }),
+        ).resolves.toMatchObject({ ok: false, status: 404 })
+      },
+    )
     expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
       count: 4,
     })
