@@ -1,3 +1,4 @@
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 import type { Issue } from '@/features/issues/types.ts'
 import type { RequestScope } from '@/server/request-context.ts'
@@ -70,4 +71,14 @@ export const comment = {
   author_name: 'User',
   author_email: 'user@example.test',
   created_at: 1,
+}
+
+export const issueIdentity = function issueIdentity(
+  workspaceSlug: string,
+  issueId: string,
+): { issueId: string; workspaceSlug: string } {
+  return fieldsInOrder([
+    ['workspaceSlug', workspaceSlug],
+    ['issueId', issueId],
+  ])
 }

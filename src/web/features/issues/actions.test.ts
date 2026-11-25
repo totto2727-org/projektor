@@ -29,7 +29,7 @@ import {
   updateIssue,
 } from './actions.ts'
 import { issueDataFixture } from './test/data-fixture.ts'
-import { project, scope, workspace } from './test/fixtures.ts'
+import { issueIdentity, project, scope, workspace } from './test/fixtures.ts'
 const databases: ReturnType<typeof issueDataFixture>[] = []
 
 /*
@@ -95,7 +95,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     database.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('review-file','workspace-a','file','w/file','review.pdf','application/pdf',1,'issue','issue-a','user-a',1)",
     )
-    const input = { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'review-file', status: 'fixing' }
+    const input = { ...issueIdentity(workspace.slug, 'issue-a'), attachmentId: 'review-file', status: 'fixing' }
     await expect(invoke(setAttachmentReviewStatus, input)).resolves.toStrictEqual({ ok: true, value: { ok: true } })
     expect(
       sqliteRowFields(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()),
@@ -124,8 +124,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     const { invoke, invalidated } = fixture({ origin: 'https://evil.test' })
     await expect(
       invoke(setAttachmentReviewStatus, {
-        workspaceSlug: workspace.slug,
-        issueId: 'issue-a',
+        ...issueIdentity(workspace.slug, 'issue-a'),
         attachmentId: 'missing',
         status: 'fixing',
       }),
@@ -175,7 +174,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     )
     await r2.put('workspace-a/file-a', 'data')
     await expect(
-      invoke(deleteAttachment, { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'file-a' }),
+      invoke(deleteAttachment, { ...issueIdentity(workspace.slug, 'issue-a'), attachmentId: 'file-a' }),
     ).resolves.toMatchObject({ ok: true, value: { ok: true } })
     await expect(r2.get('workspace-a/file-a')).resolves.toBeNull()
     expect(database.sqlite.prepare("SELECT id FROM attachments WHERE id = 'file-a'").get()).toBeUndefined()
@@ -184,7 +183,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
 
   test('persists comment creation, editing and deletion with authenticated authorship', async () => {
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
+    const identity = issueIdentity(workspace.slug, 'issue-a')
     await expect(invoke(addComment, { ...identity, body: 'Added directly' })).resolves.toMatchObject({
       ok: true,
       value: { id: expect.any(globalThis.String) },
@@ -220,20 +219,10 @@ describe('individual issue ServerFn authorization and contracts', () => {
     )
     await runInOrder([editComment, deleteComment], async (action): Promise<void> => {
       await expect(
-        invoke(action, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          commentId: 'foreign-comment',
-          body: 'Changed',
-        }),
+        invoke(action, { ...issueIdentity(workspace.slug, 'issue-a'), commentId: 'foreign-comment', body: 'Changed' }),
       ).resolves.toMatchObject({ ok: false, status: 403 })
       await expect(
-        invoke(action, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          commentId: 'other-comment',
-          body: 'Changed',
-        }),
+        invoke(action, { ...issueIdentity(workspace.slug, 'issue-a'), commentId: 'other-comment', body: 'Changed' }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
     })
     expect(
@@ -251,7 +240,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
 
   test('persists canonical links and refuses deletion under a different issue', async () => {
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
+    const identity = issueIdentity(workspace.slug, 'issue-a')
     await expect(
       invoke(addIssueLink, { ...identity, targetIssueId: 'issue-b', type: 'blocked_by' }),
     ).resolves.toMatchObject({
@@ -264,7 +253,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(link).toMatchObject({ source_issue_id: 'issue-b', target_issue_id: 'issue-a', type: 'blocks' })
     database.insertIssue({ id: 'issue-c', number: 3 })
     await expect(
-      invoke(deleteIssueLink, { workspaceSlug: workspace.slug, issueId: 'issue-c', linkId: link.id }),
+      invoke(deleteIssueLink, { ...issueIdentity(workspace.slug, 'issue-c'), linkId: link.id }),
     ).resolves.toMatchObject({ ok: false, status: 404 })
     expect(database.sqlite.prepare('SELECT id FROM issue_links WHERE id = ?').get(link.id)).toBeDefined()
     await expect(invoke(deleteIssueLink, { ...identity, linkId: link.id })).resolves.toMatchObject({
@@ -277,7 +266,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
 
   test('persists hashed share tokens and link attachment DTOs through concrete commands', async () => {
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
+    const identity = issueIdentity(workspace.slug, 'issue-a')
     const result = (await invoke(shareIssue, identity)) as { ok: true; value: { token: string; url: string } }
     expect(result).toMatchObject({
       ok: true,
@@ -307,11 +296,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     async (url) => {
       const { invoke, database } = fixture()
       await expect(
-        invoke(addAttachmentLink, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          link: { kind: 'url', url },
-        }),
+        invoke(addAttachmentLink, { ...issueIdentity(workspace.slug, 'issue-a'), link: { kind: 'url', url } }),
       ).resolves.toMatchObject({ ok: true, value: { id: expect.any(globalThis.String), kind: 'url' } })
       expect(
         sqliteRowFields(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)),
@@ -325,11 +310,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       const { invoke, database, invalidated } = fixture()
       const before = database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()
       await expect(
-        invoke(addAttachmentLink, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          link: { kind: 'url', url },
-        }),
+        invoke(addAttachmentLink, { ...issueIdentity(workspace.slug, 'issue-a'), link: { kind: 'url', url } }),
       ).rejects.toThrow('["link"]["url"]')
       expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toStrictEqual(before)
       expect(invalidated).not.toHaveBeenCalled()
@@ -339,7 +320,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
   test('enforces actual read-only project grants for issue, link, share and attachment commands', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec("UPDATE group_project_grants SET role = 'viewer' WHERE project_id = 'project-a'")
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
+    const identity = issueIdentity(workspace.slug, 'issue-a')
     await expect(invoke(updateIssue, { ...identity, patch: { title: 'Denied' } })).resolves.toMatchObject({
       ok: false,
       status: 403,
@@ -373,20 +354,14 @@ describe('individual issue ServerFn authorization and contracts', () => {
 
   test('resolves an entity in the explicit workspace and checks its authorized catalog project', async () => {
     const valid = fixture()
-    await expect(valid.invoke(readIssue, { workspaceSlug: workspace.slug, issueId: 'issue-a' })).resolves.toMatchObject(
-      {
-        ok: true,
-        value: { id: 'issue-a', workspaceSlug: workspace.slug },
-      },
-    )
+    await expect(valid.invoke(readIssue, issueIdentity(workspace.slug, 'issue-a'))).resolves.toMatchObject({
+      ok: true,
+      value: { id: 'issue-a', workspaceSlug: workspace.slug },
+    })
     expect(valid.invalidated).not.toHaveBeenCalled()
     const hidden = fixture()
     await expect(
-      hidden.invoke(updateIssue, {
-        workspaceSlug: workspace.slug,
-        issueId: 'hidden-issue',
-        patch: { title: 'Changed' },
-      }),
+      hidden.invoke(updateIssue, { ...issueIdentity(workspace.slug, 'hidden-issue'), patch: { title: 'Changed' } }),
     ).resolves.toMatchObject({ ok: false, status: 404 })
     expect(
       sqliteRowFields(hidden.database.sqlite.prepare("SELECT title FROM issues WHERE id = 'hidden-issue'").get()),
@@ -451,11 +426,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     const { invoke, database } = fixture()
     database.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id IN ('project-a', 'hidden-project')")
     await expect(
-      invoke(updateIssue, {
-        workspaceSlug: workspace.slug,
-        issueId: 'issue-a',
-        patch: { title: 'Changed' },
-      }),
+      invoke(updateIssue, { ...issueIdentity(workspace.slug, 'issue-a'), patch: { title: 'Changed' } }),
     ).resolves.toMatchObject({ ok: false, status: 404 })
     await expect(
       invoke(updateIssue, {
@@ -481,7 +452,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
   test('independently authorizes comments, links, attachments and wiki searches before direct reads', async () => {
     expect.hasAssertions()
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'A-1' }
+    const identity = issueIdentity(workspace.slug, 'A-1')
     await expect(invoke(readComments, identity)).resolves.toMatchObject({
       ok: true,
       value: [{ id: 'comment-a', author_id: scope.user.id }],
@@ -501,7 +472,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ]),
     })
     await runInOrder([readIssue, readComments, readLinks, readAttachments], async (read): Promise<void> => {
-      await expect(invoke(read, { workspaceSlug: workspace.slug, issueId: 'hidden-issue' })).resolves.toMatchObject({
+      await expect(invoke(read, issueIdentity(workspace.slug, 'hidden-issue'))).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
@@ -567,8 +538,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     const { invoke, database, invalidated } = fixture()
     await expect(
       invoke(updateIssue, {
-        workspaceSlug: workspace.slug,
-        issueId: 'issue-a',
+        ...issueIdentity(workspace.slug, 'issue-a'),
         patch: { title: 'Changed', path: '/api/workspaces/other' },
         method: 'DELETE',
       }),
