@@ -164,7 +164,9 @@ function useIsMobileViewport(): boolean {
       setIsMobile(e.matches)
     }
     mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
+    return () => {
+      mq.removeEventListener('change', onChange)
+    }
   }, [])
   return isMobile
 }
@@ -1456,7 +1458,13 @@ function PageActionOverflowMenu({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-label='More page actions'
-        onClick={() => (open ? setOpen(false) : openMenu())}
+        onClick={() => {
+          if (open) {
+            setOpen(false)
+          } else {
+            openMenu()
+          }
+        }}
       >
         ⋯
       </button>
@@ -1475,7 +1483,9 @@ function PageActionOverflowMenu({
             tabIndex={-1}
             className='page-action-menu-item'
             onClick={() => {
-              runAndClose(() => onStartCreateChild(pageId))
+              runAndClose(() => {
+                onStartCreateChild(pageId)
+              })
             }}
           >
             + Child page
@@ -2263,11 +2273,17 @@ function useWikiFilters(
   const typeOptions = useMemo(() => buildTypeFilterOptions(collectTreeTypes(pageTree)), [pageTree])
   return {
     filterType,
-    setFilterType: (value: string) => filterForm.setFieldValue('type', value),
+    setFilterType: (value: string) => {
+      filterForm.setFieldValue('type', value)
+    },
     filterStatus,
-    setFilterStatus: (value: string) => filterForm.setFieldValue('status', value),
+    setFilterStatus: (value: string) => {
+      filterForm.setFieldValue('status', value)
+    },
     filterTags,
-    setFilterTags: (value: string) => filterForm.setFieldValue('tags', value),
+    setFilterTags: (value: string) => {
+      filterForm.setFieldValue('tags', value)
+    },
     filteredResults: seed.filteredPages,
     filteredLoading: false,
     hasActiveFilters: Boolean(seed.filterType || seed.filterStatus || seed.filterTags.trim()),
@@ -2291,7 +2307,9 @@ function useWikiSearch(
   }, [searchForm, seed.searchQuery])
   return {
     searchQuery,
-    setSearchQuery: (value: string) => searchForm.setFieldValue('query', value),
+    setSearchQuery: (value: string) => {
+      searchForm.setFieldValue('query', value)
+    },
     searchResults: seed.searchResults,
     searchLoading: false,
   }
@@ -2435,7 +2453,9 @@ function useTableOfContents(
     headings.forEach((element) => {
       observer.observe(element)
     })
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+    }
   }, [toc, contentRef, contentMountToken])
 
   return { toc, activeHeadingId }
@@ -3007,7 +3027,9 @@ function useWikiEditing(
     editVersionRef.current += 1
     editForm.setFieldValue('content', value)
   }
-  const setBaseRevisionId = (value: string | null | undefined): void => editForm.setFieldValue('baseRevisionId', value)
+  const setBaseRevisionId = (value: string | null | undefined): void => {
+    editForm.setFieldValue('baseRevisionId', value)
+  }
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string>()
   // PROJ-797: the last save hit a 409 (someone else saved first).
@@ -3385,7 +3407,9 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
     validators: { onChange: Schema.toStandardSchemaV1(MoveFields) },
   })
   const moveTargetId = useStore(moveForm.store, (state) => state.values.parentId)
-  const setMoveTargetId = (value: string): void => moveForm.setFieldValue('parentId', value)
+  const setMoveTargetId = (value: string): void => {
+    moveForm.setFieldValue('parentId', value)
+  }
   const [moveSaving, setMoveSaving] = useState(false)
   const [moveError, setMoveError] = useState<string>()
 
@@ -3476,11 +3500,21 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
     parentId: createParentId,
     templateSlug: createTemplateSlug,
   } = useStore(createForm.store, (state) => state.values)
-  const setCreateTitle = (value: string): void => createForm.setFieldValue('title', value)
-  const setCreateSlug = (value: string): void => createForm.setFieldValue('slug', value)
-  const setCreateContent = (value: string): void => createForm.setFieldValue('content', value)
-  const setCreateParentId = (value: string | null): void => createForm.setFieldValue('parentId', value)
-  const setCreateTemplateSlug = (value: string): void => createForm.setFieldValue('templateSlug', value)
+  const setCreateTitle = (value: string): void => {
+    createForm.setFieldValue('title', value)
+  }
+  const setCreateSlug = (value: string): void => {
+    createForm.setFieldValue('slug', value)
+  }
+  const setCreateContent = (value: string): void => {
+    createForm.setFieldValue('content', value)
+  }
+  const setCreateParentId = (value: string | null): void => {
+    createForm.setFieldValue('parentId', value)
+  }
+  const setCreateTemplateSlug = (value: string): void => {
+    createForm.setFieldValue('templateSlug', value)
+  }
   const [createError, setCreateError] = useState<string>()
   const [createSaving, setCreateSaving] = useState(false)
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
@@ -4161,7 +4195,9 @@ function buildArticleProps(
     renderedHtml: article.renderedHtml,
     revisions: article.revisions,
     showHistory: article.showHistory,
-    onToggleHistory: () => article.setShowHistory((h) => !h),
+    onToggleHistory: () => {
+      article.setShowHistory((h) => !h)
+    },
     onRestoreRevision: article.onRestoreRevision,
     restoringRevisionId: article.restoringRevisionId,
     attachments: article.attach.attachments,
@@ -4295,7 +4331,9 @@ function useAssembledWikiPageProps(state: ReturnType<typeof useWikiPageState>, w
     rawSubmitCreate: createForm.submitCreate,
     cancelMove: move.cancelMove,
     showUndoToast: setUndoToast,
-    navigate: (path: string) => navigateFeature(wikiHref(seed, path)),
+    navigate: (path: string) => {
+      navigateFeature(wikiHref(seed, path))
+    },
   })
 
   const { latestRevision, breadcrumbs, showToc, createParentTitle, moveOptions } = deriveWikiPageState(
@@ -4518,7 +4556,9 @@ function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugPr
     setUndoToast,
   } = state
   const { navigateTo, startCreate, createProps, articleProps } = useAssembledWikiPageProps(state, workspaceSlug)
-  const dismissUndoToast = useCallback(() => setUndoToast(null), [setUndoToast])
+  const dismissUndoToast = useCallback(() => {
+    setUndoToast(null)
+  }, [setUndoToast])
 
   return (
     <>
@@ -4533,7 +4573,9 @@ function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugPr
         pageTree={pageTree}
         slug={slug}
         onNavigate={navigateTo}
-        onCreate={() => startCreate(null)}
+        onCreate={() => {
+          startCreate(null)
+        }}
         filters={filters}
         stale={stale}
         mainContentProps={{
