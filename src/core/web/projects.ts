@@ -4,6 +4,7 @@ import { Effect } from 'effect'
 import * as commands from '#commands/projects.ts'
 import { defaultFlowMetricsStartDate } from '#contracts/flow-metrics-range.ts'
 import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { LAST_SECOND_OF_DAY, MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import {
   CreatedProjectSchema,
@@ -115,7 +116,12 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
                 ],
                 { concurrency: 3 },
               )
-              return { project, issues, wiki, flow }
+              return fieldsInOrder([
+                ['project', project],
+                ['issues', issues],
+                ['wiki', wiki],
+                ['flow', flow],
+              ])
             }),
           projectId,
         ),

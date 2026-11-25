@@ -6,7 +6,9 @@ import * as wiki from '#commands/wiki.ts'
 import { ApiError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '#contracts/inputs/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
+import { requireDataWorkspace } from '#contracts/web-data.ts'
 import {
   Created,
   Deleted,
@@ -24,17 +26,14 @@ import { coreFailure, coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import * as data from '#services/wiki.ts'
 
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
 import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'
+import { checked } from './issue-data.ts'
 import type { RequestScope } from './scope.ts'
 import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
 export const WikiDiffSchema = Schema.Struct({ diff: Schema.String })
-
-import { requireDataWorkspace } from '#contracts/web-data.ts'
-
-import { loadBrowserScope, publicWebFailure } from './authentication.ts'
-import { checked } from './issue-data.ts'
 
 const importScope = function importScope(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
@@ -81,8 +80,10 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
           return {
             ...page,
-            revisionId: yield* data.getLatestWikiRevisionId(env.DB, workspace.id, page.id),
-            freshness: pageFreshness(page),
+            ...fieldsInOrder([
+              ['revisionId', yield* data.getLatestWikiRevisionId(env.DB, workspace.id, page.id)],
+              ['freshness', pageFreshness(page)],
+            ]),
           }
         }),
       ),
@@ -118,7 +119,10 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         await wiki.updateWikiPage(ctx, slug, reserved.input)
         return drafts.finishWikiDraftPublish(ctx, reserved.pageId, reserved.revision).catch((cause: unknown) => {
           console.error('[core] wiki draft cleanup failed after publication', cause)
-          return { ok: true as const, draftRevision: null }
+          return fieldsInOrder([
+            ['ok', true as const],
+            ['draftRevision', null],
+          ])
         })
       }),
     webSaveWikiDraft: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>

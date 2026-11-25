@@ -5,6 +5,7 @@ import { String, Predicate, Effect, Schema } from 'effect'
 import { ScopeError } from '#contracts/errors.ts'
 import type { ApiError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
 import type { ReviewFilter, ReviewTarget } from '#contracts/review-targets.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -93,24 +94,27 @@ const listOptions = function listOptions(params: URLSearchParams, scope: Request
         const [createdAt, id] = cursor?.split(':') ?? []
         const boolean = (value: string | undefined): undefined | boolean =>
           Predicate.isNullish(value) ? undefined : value === '1' || value === 'true'
-        return {
-          options: {
-            ...fields,
-            limit: fields.limit ?? 30,
-            cursor:
-              Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)
-                ? { createdAt: Number(createdAt), id }
-                : undefined,
-            noParent: boolean(noParent),
-            includeRollups: boolean(includeRollups),
-            includeBody: boolean(includeBody),
-            needsAudit: boolean(needsAudit),
-            assignee: assignee === 'me' ? scope.user.id : assignee,
-          } satisfies issueQueries.IssueListOptions,
-          cfKey,
-          cfValue,
-          cfOp,
-        }
+        return fieldsInOrder([
+          [
+            'options',
+            {
+              ...fields,
+              limit: fields.limit ?? 30,
+              cursor:
+                Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)
+                  ? { createdAt: Number(createdAt), id }
+                  : undefined,
+              noParent: boolean(noParent),
+              includeRollups: boolean(includeRollups),
+              includeBody: boolean(includeBody),
+              needsAudit: boolean(needsAudit),
+              assignee: assignee === 'me' ? scope.user.id : assignee,
+            } satisfies issueQueries.IssueListOptions,
+          ],
+          ['cfKey', cfKey],
+          ['cfValue', cfValue],
+          ['cfOp', cfOp],
+        ])
       },
     ),
   )

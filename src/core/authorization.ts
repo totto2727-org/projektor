@@ -6,6 +6,7 @@ import { VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
 import { capabilityForOAuthScope, parseScopes, tokenAllows } from '#contracts/auth-scopes.ts'
 import type { Capability } from '#contracts/auth-scopes.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_UNAUTHORIZED } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import {
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_DAY,
@@ -101,18 +102,21 @@ const authenticateOpaqueToken = async function authenticateOpaqueToken(
       await audit
     }
   }
-  return {
-    user: { id: row.user_id, email: row.email, name: row.name },
-    auth: {
-      kind: 'agent',
-      method: token.startsWith('pk_') ? 'pk' : 'pat',
-      credentialId: row.id,
-      scopes,
-      workspaceId: row.workspace_id,
-    },
-    tokenWorkspaceId: row.workspace_id,
-    tokenScopes: scopes,
-  }
+  return fieldsInOrder([
+    ['user', { id: row.user_id, email: row.email, name: row.name }],
+    [
+      'auth',
+      {
+        kind: 'agent',
+        method: token.startsWith('pk_') ? 'pk' : 'pat',
+        credentialId: row.id,
+        scopes,
+        workspaceId: row.workspace_id,
+      },
+    ],
+    ['tokenWorkspaceId', row.workspace_id],
+    ['tokenScopes', scopes],
+  ])
 }
 
 /**
@@ -149,25 +153,34 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
       .filter((scope): scope is Capability => Predicate.isNotNullish(scope))
     const parts = actor.bearer?.split(':')
     const credentialId = grant.credentialId ?? (parts?.length === 3 ? parts[1] : undefined)
-    return {
-      user,
-      auth: {
-        kind: 'agent',
-        method: 'oauth',
-        credentialId,
-        clientId: grant.clientId,
-        scopes,
-        workspaceId: grant.workspaceId,
-      },
-      tokenWorkspaceId: grant.workspaceId,
-      tokenScopes: scopes,
-    }
+    return fieldsInOrder([
+      ['user', user],
+      [
+        'auth',
+        {
+          kind: 'agent',
+          method: 'oauth',
+          credentialId,
+          clientId: grant.clientId,
+          scopes,
+          workspaceId: grant.workspaceId,
+        },
+      ],
+      ['tokenWorkspaceId', grant.workspaceId],
+      ['tokenScopes', scopes],
+    ])
   }
 
   if (Predicate.isNotNullish(actor.accessJwt)) {
     try {
       const principal = await authenticateAccessJwt(actor.accessJwt, env)
-      return { ...principal, tokenWorkspaceId: undefined, tokenScopes: undefined }
+      return {
+        ...principal,
+        ...fieldsInOrder([
+          ['tokenWorkspaceId', undefined],
+          ['tokenScopes', undefined],
+        ]),
+      }
     } catch (error) {
       if (error instanceof BrowserAuthenticationError) {
         throw coreFailure(error.status, error.message)
@@ -184,13 +197,24 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
   if (!/^\/mcp\/[^/]+$/u.test(url.pathname)) {
     const principal = await authenticateDevelopment(env)
     if (principal) {
-      return { ...principal, tokenWorkspaceId: undefined, tokenScopes: undefined }
+      return {
+        ...principal,
+        ...fieldsInOrder([
+          ['tokenWorkspaceId', undefined],
+          ['tokenScopes', undefined],
+        ]),
+      }
     }
   }
   if (['true', '1', 'yes'].includes(env.PUBLIC_READ_ONLY?.trim().toLowerCase() ?? '')) {
     const user = await upsertUserByEmail(PUBLIC_VIEWER_EMAIL, env.DB, env.KV)
     await provisionPublicViewer(env, user)
-    return { user, auth: { kind: 'human', method: 'public' }, tokenWorkspaceId: undefined, tokenScopes: undefined }
+    return fieldsInOrder([
+      ['user', user],
+      ['auth', { kind: 'human', method: 'public' }],
+      ['tokenWorkspaceId', undefined],
+      ['tokenScopes', undefined],
+    ])
   }
   throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
 }
@@ -229,17 +253,17 @@ export const resolveCoreServiceCtx = async function resolveCoreServiceCtx(
     throw coreFailure(HTTP_FORBIDDEN, 'Forbidden')
   }
   const ttl = Number(env.FILE_CLAIM_TTL_SECONDS)
-  return {
-    db: env.DB,
-    kv: env.KV,
-    r2: env.R2,
-    userId: principal.user.id,
-    workspaceId,
-    role: principal.auth.method === 'public' ? 'viewer' : role,
-    auth: principal.auth,
-    authKind: principal.auth.kind,
-    workspaceHub: env.WORKSPACE_HUB,
-    waitUntil: env.invocation?.waitUntil,
-    config: { fileClaimTtlSeconds: Number.isFinite(ttl) && ttl > 0 ? ttl : SECONDS_PER_DAY },
-  }
+  return fieldsInOrder([
+    ['db', env.DB],
+    ['kv', env.KV],
+    ['r2', env.R2],
+    ['userId', principal.user.id],
+    ['workspaceId', workspaceId],
+    ['role', principal.auth.method === 'public' ? 'viewer' : role],
+    ['auth', principal.auth],
+    ['authKind', principal.auth.kind],
+    ['workspaceHub', env.WORKSPACE_HUB],
+    ['waitUntil', env.invocation?.waitUntil],
+    ['config', { fileClaimTtlSeconds: Number.isFinite(ttl) && ttl > 0 ? ttl : SECONDS_PER_DAY }],
+  ])
 }

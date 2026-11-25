@@ -11,6 +11,7 @@ import {
   ApiSubmittedFeedback,
 } from '#contracts/api-public.ts'
 import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import type { CoreReply } from '#core/contract.ts'
@@ -59,12 +60,12 @@ export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
         ApiRealtimeSnapshot,
         attempt(async (env) => {
           const ctx = await resolveCoreServiceCtx(actor, workspaceId, 'read', env)
-          return {
-            userId: ctx.userId,
-            workspaceId: ctx.workspaceId,
-            role: ctx.role ?? 'viewer',
-            visibleProjectIds: await visibleProjectIds(ctx),
-          }
+          return fieldsInOrder([
+            ['userId', ctx.userId],
+            ['workspaceId', ctx.workspaceId],
+            ['role', ctx.role ?? 'viewer'],
+            ['visibleProjectIds', await visibleProjectIds(ctx)],
+          ])
         }),
       ),
   }

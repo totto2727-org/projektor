@@ -1,6 +1,7 @@
 import { Predicate, Effect, Schema } from 'effect'
 
 import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { RateCounterRequest, RateLimitRequest, RateLimitResult } from '#contracts/request-rate-limit.ts'
 import type { RateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
 import type { CoreReply } from '#core/contract.ts'
@@ -18,11 +19,13 @@ const policyEnvironment = function policyEnvironment(
   }
   return {
     ...env,
-    RATE_LIMIT_TEST_EPOCH: policy.epoch ?? env.RATE_LIMIT_TEST_EPOCH,
-    RATE_LIMIT_TEST_NOW_MS: policy.nowMs ?? env.RATE_LIMIT_TEST_NOW_MS,
-    RATE_LIMIT_AUTH_MAX: policy.authMax ?? env.RATE_LIMIT_AUTH_MAX,
-    RATE_LIMIT_API_MAX: policy.apiMax ?? env.RATE_LIMIT_API_MAX,
-    RATE_LIMIT_WINDOW_SECS: policy.windowSecs ?? env.RATE_LIMIT_WINDOW_SECS,
+    ...fieldsInOrder([
+      ['RATE_LIMIT_TEST_EPOCH', policy.epoch ?? env.RATE_LIMIT_TEST_EPOCH],
+      ['RATE_LIMIT_TEST_NOW_MS', policy.nowMs ?? env.RATE_LIMIT_TEST_NOW_MS],
+      ['RATE_LIMIT_AUTH_MAX', policy.authMax ?? env.RATE_LIMIT_AUTH_MAX],
+      ['RATE_LIMIT_API_MAX', policy.apiMax ?? env.RATE_LIMIT_API_MAX],
+      ['RATE_LIMIT_WINDOW_SECS', policy.windowSecs ?? env.RATE_LIMIT_WINDOW_SECS],
+    ]),
   }
 }
 

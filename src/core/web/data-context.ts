@@ -5,6 +5,7 @@ import { Predicate } from 'effect'
 
 import { ApiError } from '#contracts/errors.ts'
 import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { requireDataWorkspace } from '#contracts/web-data.ts'
 import type { ProjectSummaryVisibility } from '#services'
 
@@ -20,13 +21,16 @@ export {
 } from '#contracts/web-data.ts'
 
 export const projectSummaryVisibility = function projectSummaryVisibility(userId: string): ProjectSummaryVisibility {
-  return {
-    sql: `wm.role IN ('owner','admin') OR EXISTS (
+  return fieldsInOrder([
+    [
+      'sql',
+      `wm.role IN ('owner','admin') OR EXISTS (
       SELECT 1 FROM user_group_members ugm
       JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id
       WHERE ugm.user_id = ? AND gpg.project_id = p.id)`,
-    bindings: [userId],
-  }
+    ],
+    ['bindings', [userId]],
+  ])
 }
 
 export const requireDataDatabase = function requireDataDatabase(db: D1Database): D1Database {

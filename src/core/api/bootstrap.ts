@@ -3,6 +3,7 @@ import { seedDefaultTaskStatuses } from '#commands/task-statuses.ts'
 import { seedDefaultTaskTypes } from '#commands/task-types.ts'
 import { HTTP_FORBIDDEN, HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { coreFailure } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -59,11 +60,11 @@ export const bootstrapDevelopment = async function bootstrapDevelopment(
     .bind(crypto.randomUUID(), workspace.id, user.id, hash, now)
     .run()
   const mcpUrl = `${new URL(requestUrl).origin}/mcp/${workspace.id}`
-  return {
-    workspace,
-    user,
-    token,
-    mcpUrl,
-    mcpAddCommand: buildMcpAddCommand({ workspaceSlug: workspace.slug, mcpUrl, token }),
-  }
+  return fieldsInOrder([
+    ['workspace', workspace],
+    ['user', user],
+    ['token', token],
+    ['mcpUrl', mcpUrl],
+    ['mcpAddCommand', buildMcpAddCommand({ workspaceSlug: workspace.slug, mcpUrl, token })],
+  ])
 }

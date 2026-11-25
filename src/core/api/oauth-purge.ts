@@ -2,6 +2,7 @@ import type { OAuthProvider } from '@cloudflare/workers-oauth-provider'
 import { String, Predicate } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 export const OAUTH_PURGE_STATE_KEY = 'cron:oauth-purge:continuation:v1'
 const PAGE_SIZE = 200
@@ -66,7 +67,11 @@ export const purgeOAuthPage = async function purgeOAuthPage(
     })
     scanned = page.list_complete ? { complete: true } : { complete: false, cursor: page.cursor }
     // This adapter exposes exactly the selected page, not the entire namespace.
-    return { keys: page.keys, cacheStatus: page.cacheStatus, list_complete: true }
+    return fieldsInOrder([
+      ['keys', page.keys],
+      ['cacheStatus', page.cacheStatus],
+      ['list_complete', true],
+    ])
   }
   const oauth = new Proxy(env.OAUTH_KV, {
     get(target, key, receiver): unknown {
@@ -104,9 +109,11 @@ export const purgeOAuthPage = async function purgeOAuthPage(
   await env.KV.put(OAUTH_PURGE_STATE_KEY, JSON.stringify(next))
   return {
     ...result,
-    done: previous.phase === 'tokens' && scanned.complete,
-    phase: previous.phase,
-    nextPhase: next.phase,
-    kvCalls: calls,
+    ...fieldsInOrder([
+      ['done', previous.phase === 'tokens' && scanned.complete],
+      ['phase', previous.phase],
+      ['nextPhase', next.phase],
+      ['kvCalls', calls],
+    ]),
   }
 }

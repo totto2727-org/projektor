@@ -5,6 +5,7 @@ import * as commands from '#commands/feedback.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { ScopeError } from '#contracts/errors.ts'
 import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { requireDataProject, requireDataWorkspace } from '#contracts/web-data.ts'
 import {
   FeedbackIndexSchema,
@@ -32,16 +33,16 @@ const admin = function admin(role: string): void {
   }
 }
 const sourceDto = function sourceDto(row: queries.FeedbackSourceListRow) {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    isActive: row.is_active === 1,
-    allowedOrigins: row.allowed_origins ? JSON.parse(row.allowed_origins) : null,
-    tokenPreview: `${row.token_hash.slice(0, 12)}…`,
-    createdAt: row.created_at,
-    revokedAt: row.revoked_at,
-  }
+  return fieldsInOrder([
+    ['id', row.id],
+    ['name', row.name],
+    ['description', row.description],
+    ['isActive', row.is_active === 1],
+    ['allowedOrigins', row.allowed_origins ? JSON.parse(row.allowed_origins) : null],
+    ['tokenPreview', `${row.token_hash.slice(0, 12)}…`],
+    ['createdAt', row.created_at],
+    ['revokedAt', row.revoked_at],
+  ])
 }
 const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
   const map = new Map<
@@ -171,20 +172,22 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                     })
                     .pipe(
                       Effect.map((rows) =>
-                        rows.map((item) => ({
-                          id: item.id,
-                          sourceId: item.source_id,
-                          sourceName: item.source_name,
-                          rating: item.rating,
-                          ratingScale: item.rating_scale,
-                          body: item.body,
-                          submitterLabel: item.submitter_label,
-                          sourceUrl: item.source_url,
-                          appVersion: item.app_version,
-                          status: item.status,
-                          linkedIssueId: item.linked_issue_id,
-                          createdAt: item.created_at,
-                        })),
+                        rows.map((item) =>
+                          fieldsInOrder([
+                            ['id', item.id],
+                            ['sourceId', item.source_id],
+                            ['sourceName', item.source_name],
+                            ['rating', item.rating],
+                            ['ratingScale', item.rating_scale],
+                            ['body', item.body],
+                            ['submitterLabel', item.submitter_label],
+                            ['sourceUrl', item.source_url],
+                            ['appVersion', item.app_version],
+                            ['status', item.status],
+                            ['linkedIssueId', item.linked_issue_id],
+                            ['createdAt', item.created_at],
+                          ]),
+                        ),
                       ),
                     ),
                 },
@@ -194,15 +197,15 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
               if (!source) {
                 return null
               }
-              return {
-                source,
-                sources: loaded.sources,
-                rows: loaded.rows,
-                summary: loaded.summaries.find((item) => item.sourceId === sourceId) ?? null,
-                status: filter.status,
-                projectId,
-                workspaceSlug: workspace.slug,
-              }
+              return fieldsInOrder([
+                ['source', source],
+                ['sources', loaded.sources],
+                ['rows', loaded.rows],
+                ['summary', loaded.summaries.find((item) => item.sourceId === sourceId) ?? null],
+                ['status', filter.status],
+                ['projectId', projectId],
+                ['workspaceSlug', workspace.slug],
+              ])
             }
             return null
           }).pipe(Effect.mapError(publicWebFailure)),

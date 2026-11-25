@@ -6,6 +6,7 @@ import { Iterable, Effect, Schema } from 'effect'
 import { readWikiDraftState } from '#commands/wiki-drafts.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
 import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import {
   Attachment,
@@ -143,7 +144,10 @@ export const loadWikiData = function loadWikiData(
           const predicate = visibleProjectPredicate(scope, workspace.id, column)
           return predicate ? new SQLiteSyncDialect().sqlToQuery(sql`${column} IS NULL OR ${predicate}`) : undefined
         }
-        return { search: fragment(sql`p.project_id`), linkedWiki: fragment(sql`w.project_id`) }
+        return fieldsInOrder([
+          ['search', fragment(sql`p.project_id`)],
+          ['linkedWiki', fragment(sql`w.project_id`)],
+        ])
       },
     })
     const data = yield* Effect.all(

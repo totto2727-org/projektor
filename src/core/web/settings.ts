@@ -6,6 +6,7 @@ import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import * as workspaces from '#commands/workspaces.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import {
   ConnectorsSchema,
   CreatedGroupSchema,
@@ -61,7 +62,11 @@ const readContext = function readContext(env: CoreEnvironment, proof: BrowserCom
       auth,
       workspaceHub: env.WORKSPACE_HUB,
     }
-    return { ctx, workspace, scope }
+    return fieldsInOrder([
+      ['ctx', ctx],
+      ['workspace', workspace],
+      ['scope', scope],
+    ])
   })
 }
 const authorizeGrantProject = function authorizeGrantProject(
@@ -195,7 +200,13 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
               catch: publicDomainFailure,
               try: async () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
             }).pipe(Effect.catch(() => Effect.succeed(null)))
-            return { tokens, tokensDenied: !admin(ctx.role), grants, connectorsDenied: false, info }
+            return fieldsInOrder([
+              ['tokens', tokens],
+              ['tokensDenied', !admin(ctx.role)],
+              ['grants', grants],
+              ['connectorsDenied', false],
+              ['info', info],
+            ])
           }).pipe(Effect.mapError(publicWebFailure)),
         ),
       ),
