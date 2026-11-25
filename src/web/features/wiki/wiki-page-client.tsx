@@ -3180,7 +3180,7 @@ function useWikiEditing(
     setDraftBanner(null)
   }
 
-  const saveWithBase = async function saveWithBase(baseOverride: string | null | undefined): Promise<void> {
+  const saveWithBase = async function saveWithBase(baseOverride?: string | null): Promise<void> {
     if (!page || operationRef.current) {
       return
     }
@@ -3263,7 +3263,7 @@ function useWikiEditing(
 
   // Wired straight to onClick, so it must not take the event as an argument.
   const save = function save(): Promise<void> {
-    return saveWithBase(undefined)
+    return saveWithBase()
   }
 
   /*

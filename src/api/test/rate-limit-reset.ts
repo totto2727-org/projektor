@@ -38,7 +38,9 @@ export const seedRateLimitCounter = async function seedRateLimitCounter(
   const intoWindow = currentEpochMilliseconds() % windowMs
   const HEADROOM_MS = 5000
   if (intoWindow > windowMs - HEADROOM_MS) {
-    await new Promise((resolve) => setTimeout(resolve, windowMs - intoWindow + 50))
+    await new Promise((resolve) => {
+      setTimeout(resolve, windowMs - intoWindow + 50)
+    })
   }
   const ns = env.RATE_LIMITER
   if (!ns) {

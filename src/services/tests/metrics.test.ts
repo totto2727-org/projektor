@@ -266,7 +266,9 @@ describe('shared metrics migrated SQLite reads', () => {
 
   test('defers SQL execution and reports query failures with the package DataQueryError', async () => {
     let queries = 0
-    const tracked = readDatabase(sqlite, () => queries++)
+    const tracked = readDatabase(sqlite, () => {
+      queries++
+    })
     const flow = getFlowMetrics(tracked, 'wa', { projectId: 'pa', since: DAY, until: now, granularity: 'day' }, now)
     const heatmap = getCodeHeatmap(tracked, 'wa', { projectId: 'pa' }, now)
     expect(queries).toBe(0)

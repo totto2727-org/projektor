@@ -113,7 +113,9 @@ describe('covers SSR timestamp hydration', () => {
     try {
       await act(async () => {
         root = hydrateRoot(container, element, {
-          onRecoverableError: (error) => errors.push(error),
+          onRecoverableError: (error) => {
+            errors.push(error)
+          },
         })
       })
       expect(errors).toStrictEqual([])
