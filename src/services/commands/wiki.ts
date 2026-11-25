@@ -1535,6 +1535,38 @@ export const updateWikiPage = async function updateWikiPage(
   return { ok: true, url: wikiPagePath(slug ?? page.slug) }
 }
 
+interface WikiVerificationReply {
+  freshness: WikiFreshness | null
+  ok: true
+  url: string
+  verifiedAt: WikiFrontmatterMeta['verifiedAt']
+  verifiedBy: WikiFrontmatterMeta['verifiedBy']
+}
+
+const wikiVerificationReply = function wikiVerificationReply(
+  meta: WikiFrontmatterMeta,
+  page: Pick<Awaited<ReturnType<typeof resolvePageByIdOrSlug>>, 'slug'>,
+  now: number,
+): WikiVerificationReply {
+  return fieldsInOrder([
+    ['ok', true],
+    ['verifiedAt', meta.verifiedAt],
+    ['verifiedBy', meta.verifiedBy],
+    ['url', wikiPagePath(page.slug)],
+    [
+      'freshness',
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', meta.verifiedAt],
+          ['verifyInterval', meta.verifyInterval],
+          ['status', meta.status],
+          ['now', now],
+        ]),
+      ),
+    ],
+  ])
+}
+
 /*
  * PROJ-489 (R7): stamps verified_at/verified_by using the CALLING user's identity —
  * never a caller-supplied value, so an agent can't backdate/forge another user's
@@ -1573,28 +1605,22 @@ export const verifyWikiPage = async function verifyWikiPage(ctx: ServiceCtx, idO
 
   const now = currentEpochSeconds()
   const newContent = stampWikiFrontmatterVerification(current.content, now, user.email)
-  await updateWikiPage(ctx, page.id, { content: newContent, summary: 'Verified', baseRevisionId })
+  await updateWikiPage(
+    ctx,
+    page.id,
+    fieldsInOrder([
+      ['content', newContent],
+      ['summary', 'Verified'],
+      ['baseRevisionId', baseRevisionId],
+    ]),
+  )
 
   /*
    * Re-derive from the same frontmatter just written, so the response matches exactly
    * what a subsequent read would parse back out (rather than re-fetching the page).
    */
   const meta = parseWikiFrontmatter(newContent)
-  return fieldsInOrder([
-    ['ok', true],
-    ['verifiedAt', meta.verifiedAt],
-    ['verifiedBy', meta.verifiedBy],
-    ['url', wikiPagePath(page.slug)],
-    [
-      'freshness',
-      computeFreshness({
-        verifiedAt: meta.verifiedAt,
-        verifyInterval: meta.verifyInterval,
-        status: meta.status,
-        now,
-      }),
-    ],
-  ])
+  return wikiVerificationReply(meta, page, now)
 }
 
 /*
@@ -2064,71 +2090,80 @@ export const listWikiTemplates = async function listWikiTemplates(ctx: ServiceCt
 }
 
 const DEFAULT_WIKI_TEMPLATES: { slug: string; title: string; type: string; body: string }[] = [
-  {
-    slug: 'templates-runbook',
-    title: 'Runbook Template',
-    type: 'runbook',
-    body: [
-      '# Runbook: [Title]',
-      '',
-      '## Purpose',
-      '',
-      'What this runbook is for and when to use it.',
-      '',
-      '## Preconditions',
-      '',
-      '-',
-      '',
-      '## Steps',
-      '',
-      '1.',
-      '2.',
-      '3.',
-      '',
-      '## Rollback',
-      '',
-      '## Verification',
-      '',
-    ].join('\n'),
-  },
-  {
-    slug: 'templates-adr',
-    title: 'ADR Template',
-    type: 'adr',
-    body: [
-      '# ADR NNNN: [Title]',
-      '',
-      '## Status',
-      '',
-      'Proposed',
-      '',
-      '## Context',
-      '',
-      '## Decision',
-      '',
-      '## Consequences',
-      '',
-    ].join('\n'),
-  },
-  {
-    slug: 'templates-spec',
-    title: 'Spec Template',
-    type: 'spec',
-    body: [
-      '# [Feature] Spec',
-      '',
-      '## Problem',
-      '',
-      '## Goals',
-      '',
-      '## Non-goals',
-      '',
-      '## Design',
-      '',
-      '## Open questions',
-      '',
-    ].join('\n'),
-  },
+  fieldsInOrder([
+    ['slug', 'templates-runbook'],
+    ['title', 'Runbook Template'],
+    ['type', 'runbook'],
+    [
+      'body',
+      [
+        '# Runbook: [Title]',
+        '',
+        '## Purpose',
+        '',
+        'What this runbook is for and when to use it.',
+        '',
+        '## Preconditions',
+        '',
+        '-',
+        '',
+        '## Steps',
+        '',
+        '1.',
+        '2.',
+        '3.',
+        '',
+        '## Rollback',
+        '',
+        '## Verification',
+        '',
+      ].join('\n'),
+    ],
+  ]),
+  fieldsInOrder([
+    ['slug', 'templates-adr'],
+    ['title', 'ADR Template'],
+    ['type', 'adr'],
+    [
+      'body',
+      [
+        '# ADR NNNN: [Title]',
+        '',
+        '## Status',
+        '',
+        'Proposed',
+        '',
+        '## Context',
+        '',
+        '## Decision',
+        '',
+        '## Consequences',
+        '',
+      ].join('\n'),
+    ],
+  ]),
+  fieldsInOrder([
+    ['slug', 'templates-spec'],
+    ['title', 'Spec Template'],
+    ['type', 'spec'],
+    [
+      'body',
+      [
+        '# [Feature] Spec',
+        '',
+        '## Problem',
+        '',
+        '## Goals',
+        '',
+        '## Non-goals',
+        '',
+        '## Design',
+        '',
+        '## Open questions',
+        '',
+      ].join('\n'),
+    ],
+  ]),
 ]
 
 /*
@@ -2358,6 +2393,8 @@ const requireWikiDelete = async function requireWikiDelete(ctx: ServiceCtx, proj
   }
 }
 
+const SINGLE_WIKI_PAGE_DELETED = 1
+
 /*
  * PROJ-496 (R14): deletes are now SOFT — this stamps deleted_at instead of removing
  * rows. Everything the pre-R14 hard delete used to clean up immediately (R2 attachment
@@ -2387,14 +2424,14 @@ export const deleteWikiPage = async function deleteWikiPage(
 
   const orm = drizzle(ctx.db, { schema })
   const resolved = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
-  const page = {
-    id: resolved.id,
-    slug: resolved.slug,
-    title: resolved.title,
-    projectId: resolved.projectId,
-    parentId: resolved.parentId,
-    isTemplate: resolved.isTemplate,
-  }
+  const page = fieldsInOrder([
+    ['id', resolved.id],
+    ['slug', resolved.slug],
+    ['title', resolved.title],
+    ['projectId', resolved.projectId],
+    ['parentId', resolved.parentId],
+    ['isTemplate', resolved.isTemplate],
+  ])
 
   await requireWikiDelete(ctx, page.projectId)
 
@@ -2406,7 +2443,11 @@ export const deleteWikiPage = async function deleteWikiPage(
    * still enforce the workspace-scoping/project-visibility invariant for it — see
    * wiki-watchers.ts#extractDeletedPageInfo.
    */
-  const deleteDiffBase = { slug: page.slug, title: page.title, projectId: page.projectId }
+  const deleteDiffBase = fieldsInOrder([
+    ['slug', page.slug],
+    ['title', page.title],
+    ['projectId', page.projectId],
+  ])
 
   if (cascade) {
     /*
@@ -2543,7 +2584,11 @@ export const deleteWikiPage = async function deleteWikiPage(
       ['diff', deleteDiffBase],
     ]),
   )
-  return { ok: true, deletedCount: 1, linkedByCount }
+  return fieldsInOrder([
+    ['ok', true],
+    ['deletedCount', SINGLE_WIKI_PAGE_DELETED],
+    ['linkedByCount', linkedByCount],
+  ])
 }
 
 /*
@@ -2788,6 +2833,8 @@ export const listWikiTrash = async function listWikiTrash(ctx: ServiceCtx, input
  */
 export const WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT = 200
 
+const NO_WIKI_PAGES_PURGED = 0
+
 export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
   ctx: ServiceCtx,
   options: { limit?: number } = {},
@@ -2821,7 +2868,11 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
   const expired = moreExpired ? expiredPlusOne.slice(PREFIX_START_INDEX, limit) : expiredPlusOne
   const ids = expired.map((expiredPage) => expiredPage.id)
   if (Array.isArrayEmpty(ids)) {
-    return { purgedCount: 0, purgedIds: [], moreExpired: false }
+    return fieldsInOrder([
+      ['purgedCount', NO_WIKI_PAGES_PURGED],
+      ['purgedIds', Array.empty<string>()],
+      ['moreExpired', false],
+    ])
   }
 
   /*
@@ -2924,14 +2975,17 @@ export const getWikiTree = async function getWikiTree(ctx: ServiceCtx, input: un
   )
   const map = new Map<string, TreeNode>()
   Iterable.forEach(rows, (row) => {
-    map.set(row.id, {
-      id: row.id,
-      slug: row.slug,
-      title: row.title,
-      url: wikiPagePath(row.slug),
-      type: row.type,
-      children: [],
-    })
+    map.set(
+      row.id,
+      fieldsInOrder([
+        ['id', row.id],
+        ['slug', row.slug],
+        ['title', row.title],
+        ['url', wikiPagePath(row.slug)],
+        ['type', row.type],
+        ['children', Array.empty<TreeNode>()],
+      ]),
+    )
   })
 
   const roots: TreeNode[] = []
