@@ -277,6 +277,8 @@ const resolvePageByIdOrSlug = async function resolvePageByIdOrSlug(
   throw new NotFoundError('Wiki page not found')
 }
 
+const EMPTY_SUBTREE_HEIGHT = 0
+
 /*
  * PROJ-820: the height (in extra levels) of the subtree rooted at `pageId` — 0 for a
  * leaf, 1 if it has children, etc. Computed with a single workspace-scoped recursive
@@ -310,7 +312,7 @@ const getSubtreeHeight = async function getSubtreeHeight(
     )
     .bind(pageId, workspaceId, Number.increment(WIKI_MAX_NESTING_DEPTH))
     .first<{ maxDepth: number | null }>()
-  return row?.maxDepth ?? 0
+  return row?.maxDepth ?? EMPTY_SUBTREE_HEIGHT
 }
 
 /*
@@ -362,7 +364,7 @@ const validateParentDepth = async function validateParentDepth(
   const subtreeHeight =
     Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId)
       ? await getSubtreeHeight(db, forbidPageId, workspaceId)
-      : 0
+      : EMPTY_SUBTREE_HEIGHT
   if (Number.increment(parentDepth) + subtreeHeight > Number.decrement(WIKI_MAX_NESTING_DEPTH)) {
     throw new ValidationError(validationIssues([`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`], {}))
   }
@@ -715,6 +717,9 @@ const resolveTemplateContent = async function resolveTemplateContent(
   return stripTemplateFlag(template.content)
 }
 
+const PREFIX_START_INDEX = 0
+const RANDOM_SLUG_SUFFIX_LENGTH = 8
+
 /*
  * PROJ-517: slugify's charset can't produce "/", but a symbol-only or non-Latin title
  * can still derive an empty or over-length slug — run it through the same SlugSchema
@@ -726,7 +731,7 @@ const resolveTemplateContent = async function resolveTemplateContent(
 const deriveSlugFromTitle = function deriveSlugFromTitle(title: string): string {
   const derivedSlug = SlugSchema.safeParse(slugify(title))
   if (!derivedSlug.success) {
-    return `page-${crypto.randomUUID().slice(0, 8)}`
+    return `page-${crypto.randomUUID().slice(PREFIX_START_INDEX, RANDOM_SLUG_SUFFIX_LENGTH)}`
   }
   /*
    * PROJ-811/812: a title that derives a reserved or id-shaped slug gets a suffix
@@ -1065,15 +1070,20 @@ const assertRevisionBelongsToPage = async function assertRevisionBelongsToPage(
 
 export const { buildUnifiedDiff } = wikiData
 
+const FTS_ROWID_RANDOM_WORD_COUNT = 2
+const FTS_ROWID_MINIMUM = 1_099_511_627_776
+const FTS_ROWID_HIGH_WORD_MASK = 0b1111_1111_1111_1111_1111
+const UINT32_RANGE = 4_294_967_296
+
 /*
  * PROJ-816: a new page's wiki_fts rowid. Random 52-bit (safe JS integer), offset past
  * the small rowids migration 0065 backfilled from wiki_pages.rowid; the unique index on
  * wiki_pages.search_rowid backs it.
  */
 export function newSearchRowid(): number {
-  const [hi, lo] = crypto.getRandomValues(new Uint32Array(2))
+  const [hi, lo] = crypto.getRandomValues(new Uint32Array(FTS_ROWID_RANDOM_WORD_COUNT))
   // 20 + 32 = 52 random bits; + 2^40 stays below Number.MAX_SAFE_INTEGER (2^53).
-  return 2 ** 40 + ((hi & 0b1111_1111_1111_1111_1111) * 2 ** 32 + lo)
+  return FTS_ROWID_MINIMUM + ((hi & FTS_ROWID_HIGH_WORD_MASK) * UINT32_RANGE + lo)
 }
 
 /*
@@ -1598,7 +1608,7 @@ export const listStaleWikiPages = async function listStaleWikiPages(ctx: Service
  * separate sections rather than being folded into their parent's — flat and
  * predictable, and it's what makes the heading lookup a simple linear scan.
  */
-const ATX_HEADING_RE = /^(#{1,6})\s+(.+?)\s*#*\s*$/
+const ATX_HEADING_RE = /^(?<markers>#{1,6})\s+(?<heading>.+?)\s*#*\s*$/u
 
 /*
  * PROJ-490: a `#` at the start of a line is only a heading in ordinary block context.
@@ -1611,6 +1621,8 @@ const ATX_HEADING_RE = /^(#{1,6})\s+(.+?)\s*#*\s*$/
  */
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/u
 const FRONTMATTER_DELIM_RE = /^---\s*$/u
+
+const FIRST_MARKDOWN_LINE = 0
 
 interface HeadingSection {
   heading: string
@@ -1627,7 +1639,7 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
   let inFrontmatter = Array.isArrayNonEmpty(lines) && FRONTMATTER_DELIM_RE.test(lines[0])
   lines.forEach((line, idx) => {
     if (inFrontmatter) {
-      if (idx > 0 && FRONTMATTER_DELIM_RE.test(line)) {
+      if (idx > FIRST_MARKDOWN_LINE && FRONTMATTER_DELIM_RE.test(line)) {
         inFrontmatter = false
       }
       return
@@ -1708,7 +1720,7 @@ const applySectionOp = function applySectionOp(
   op: Extract<PatchWikiPageInput, { op: 'append_to_section' | 'replace_section' | 'insert_after_heading' }>,
 ): string {
   const lines = content.split('\n')
-  const before = lines.slice(0, section.startLine)
+  const before = lines.slice(FIRST_MARKDOWN_LINE, section.startLine)
   const headingLine = lines[section.startLine]
   const bodyLines = lines.slice(Number.increment(section.startLine), section.endLine)
   const afterLines = lines.slice(section.endLine)
@@ -2439,7 +2451,7 @@ export const deleteWikiPage = async function deleteWikiPage(
             ...deleteDiffBase,
             cascade: true,
             deletedCount: allIds.length,
-            deletedPageIds: allIds.slice(0, MAX_DELETED_PAGE_IDS),
+            deletedPageIds: allIds.slice(PREFIX_START_INDEX, MAX_DELETED_PAGE_IDS),
             deletedPageIdsTruncated: allIds.length > MAX_DELETED_PAGE_IDS,
           },
         ],
@@ -2673,6 +2685,8 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
   ])
 }
 
+const MISSING_DELETION_TIMESTAMP = 0
+
 /*
  * PROJ-496 (R14): trash listing, scoped the same way listWikiPages is — a project-scoped
  * trashed page is only listed for callers who could see that project (workspace admins
@@ -2702,7 +2716,7 @@ export const listWikiTrash = async function listWikiTrash(ctx: ServiceCtx, input
     ...row,
     // PROJ-496: purge is due 30 days after deletedAt — surfaced so a UI/agent can show
     // "N days left" without re-deriving the retention constant.
-    purgeAfter: (row.deleted_at ?? 0) + WIKI_TRASH_RETENTION_SECONDS,
+    purgeAfter: (row.deleted_at ?? MISSING_DELETION_TIMESTAMP) + WIKI_TRASH_RETENTION_SECONDS,
   }))
 }
 
@@ -2754,7 +2768,7 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
     .orderBy(asc(schema.wikiPages.deletedAt))
     .limit(Number.increment(limit))
   const moreExpired = expiredPlusOne.length > limit
-  const expired = moreExpired ? expiredPlusOne.slice(0, limit) : expiredPlusOne
+  const expired = moreExpired ? expiredPlusOne.slice(PREFIX_START_INDEX, limit) : expiredPlusOne
   const ids = expired.map((expiredPage) => expiredPage.id)
   if (Array.isArrayEmpty(ids)) {
     return { purgedCount: 0, purgedIds: [], moreExpired: false }
