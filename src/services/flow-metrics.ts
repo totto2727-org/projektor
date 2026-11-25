@@ -4,6 +4,7 @@ import { Iterable, Array, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
 import { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import {
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_DAY,
@@ -12,9 +13,21 @@ import {
   formatUtcDatePrefix,
 } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
+
+const MIN_DURATION_SECONDS = 0
+const LAST_INDEX_OFFSET = 1
+const MEDIAN_FRACTION = 0.5
+const P90_FRACTION = 0.9
+const TIMESTAMP_STEP_SECONDS = 1
+const ADD_TO_COUNT = 1
+const REMOVE_FROM_COUNT = -1
+const NO_EVENTS = 0
+const EMPTY_RATIO = 0
+const FULL_RATIO = 1
 
 /** App-validated range. Authorization and input validation belong to the caller. */
 export interface FlowMetricsRange {
@@ -33,13 +46,13 @@ export interface Distribution {
 
 const summarize = function summarize(durations: Readonly<number[]>): Distribution {
   if (Array.isReadonlyArrayEmpty(durations)) {
-    return { count: 0, avg: null, p50: null, p90: null }
+    return { count: 0, avg: JSON_NULL, p50: JSON_NULL, p90: JSON_NULL }
   }
   const sorted = [...durations].toSorted((left, right) => left - right)
-  const avg = sorted.reduce((sum, duration) => sum + duration, 0) / sorted.length
+  const avg = sorted.reduce((sum, duration) => sum + duration, MIN_DURATION_SECONDS) / sorted.length
   const percentile = (fraction: number): number =>
-    sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))]
-  return { count: sorted.length, avg, p50: percentile(0.5), p90: percentile(0.9) }
+    sorted[Math.min(sorted.length - LAST_INDEX_OFFSET, Math.floor(fraction * sorted.length))]
+  return { count: sorted.length, avg, p50: percentile(MEDIAN_FRACTION), p90: percentile(P90_FRACTION) }
 }
 
 type FlowIssueRow = {
@@ -97,7 +110,7 @@ const bucketRanges = function bucketRanges(
 ): { start: number; end: number }[] {
   return starts.map((bucketStart) => ({
     start: Math.max(bucketStart, since),
-    end: Math.min(bucketStart + bucketSize, until + 1),
+    end: Math.min(bucketStart + bucketSize, until + TIMESTAMP_STEP_SECONDS),
   }))
 }
 
@@ -148,9 +161,9 @@ const buildWipOverTime = function buildWipOverTime(
     if (Predicate.isNullish(issue.claimedAt)) {
       return
     }
-    events.push([issue.claimedAt, 1])
+    events.push([issue.claimedAt, ADD_TO_COUNT])
     if (Predicate.isNotNullish(issue.doneAt)) {
-      events.push([issue.doneAt, -1])
+      events.push([issue.doneAt, REMOVE_FROM_COUNT])
     }
   })
   events.sort((left, right) => left[0] - right[0])
@@ -211,7 +224,7 @@ const buildBugShareOverTime = function buildBugShareOverTime(
       bucketStart: dateLabel(bucketStart),
       total: group.length,
       bugCount,
-      bugSharePercent: Array.isArrayNonEmpty(group) ? bugCount / group.length : null,
+      bugSharePercent: Array.isArrayNonEmpty(group) ? bugCount / group.length : JSON_NULL,
     }
   })
 }
@@ -274,6 +287,12 @@ const buildArrivalVsCompletion = function buildArrivalVsCompletion(
  */
 type CfdBand = 'excluded' | 'backlogTodo' | 'inProgress' | 'inReview' | 'done'
 
+interface CfdEvent {
+  time: number
+  band: Exclude<CfdBand, 'excluded'>
+  delta: typeof ADD_TO_COUNT | typeof REMOVE_FROM_COUNT
+}
+
 const classifyCfdBand = function classifyCfdBand(issue: FlowIssueRow, sampleAt: number): CfdBand {
   if (issue.createdAt > sampleAt) {
     return 'excluded'
@@ -299,10 +318,8 @@ const classifyCfdBand = function classifyCfdBand(issue: FlowIssueRow, sampleAt: 
  * correct regardless of whether an issue's timestamps happen to be in the "expected"
  * created <= claimed <= in_review <= done order.
  */
-const buildCfdEvents = function buildCfdEvents(
-  issues: Readonly<FlowIssueRow[]>,
-): { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] {
-  const events: { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] = []
+const buildCfdEvents = function buildCfdEvents(issues: Readonly<FlowIssueRow[]>): CfdEvent[] {
+  const events: CfdEvent[] = []
   Iterable.forEach(issues, (issue): void => {
     const thresholds = [
       ...new Set(
@@ -318,10 +335,10 @@ const buildCfdEvents = function buildCfdEvents(
         return
       }
       if (prevBand !== 'excluded') {
-        events.push({ time: threshold, band: prevBand, delta: -1 })
+        events.push({ time: threshold, band: prevBand, delta: REMOVE_FROM_COUNT })
       }
       if (band !== 'excluded') {
-        events.push({ time: threshold, band, delta: 1 })
+        events.push({ time: threshold, band, delta: ADD_TO_COUNT })
       }
       prevBand = band
     })
@@ -372,7 +389,7 @@ const buildCfdOverTime = function buildCfdOverTime(
   const counts = { backlogTodo: 0, inProgress: 0, inReview: 0, done: doneBeforeWindow }
   let idx = 0
   return starts.map((bucketStart) => {
-    const sampleAt = Math.min(bucketStart + bucketSize - 1, until, now)
+    const sampleAt = Math.min(bucketStart + bucketSize - TIMESTAMP_STEP_SECONDS, until, now)
     while (idx < events.length && events[idx].time <= sampleAt) {
       counts[events[idx].band] += events[idx].delta
       idx++
@@ -432,12 +449,12 @@ const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
     .where(and(eq(schema.issueLeases.workspaceId, workspaceId), issueScope))
   const held = new Map<string, number>()
   Iterable.forEach(rows, (row) => {
-    const end = row.releasedAt ?? row.doneAt ?? null
+    const end = row.releasedAt ?? row.doneAt ?? SQL_NULL
     if (Predicate.isNullish(end)) {
       return
     }
-    const seconds = Math.max(0, end - row.claimedAt)
-    held.set(row.issueId, (held.get(row.issueId) ?? 0) + seconds)
+    const seconds = Math.max(MIN_DURATION_SECONDS, end - row.claimedAt)
+    held.set(row.issueId, (held.get(row.issueId) ?? MIN_DURATION_SECONDS) + seconds)
   })
   return held
 }
@@ -495,7 +512,7 @@ const computeHumanInterventions = function computeHumanInterventions(
 ): number[] {
   return issues
     .filter((issue) => Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt))
-    .map((issue) => (humanCommentCounts.get(issue.id) ?? 0) + issue.reviewBounceCount)
+    .map((issue) => (humanCommentCounts.get(issue.id) ?? NO_EVENTS) + issue.reviewBounceCount)
 }
 
 /*
@@ -515,11 +532,11 @@ const computeAutonomyRatios = function computeAutonomyRatios(
     .map((issue) => {
       // Filtered above
       const cycle = issue.doneAt! - issue.claimedAt!
-      if (cycle <= 0) {
-        return 0
+      if (cycle <= MIN_DURATION_SECONDS) {
+        return EMPTY_RATIO
       }
-      const held = leaseHeldSeconds.get(issue.id) ?? 0
-      return Math.min(1, held / cycle)
+      const held = leaseHeldSeconds.get(issue.id) ?? MIN_DURATION_SECONDS
+      return Math.min(FULL_RATIO, held / cycle)
     })
 }
 
@@ -544,11 +561,11 @@ const computeFlowEfficiencies = function computeFlowEfficiencies(
     .map((issue) => {
       // Filtered above
       const leadTime = issue.doneAt! - issue.readyAt!
-      if (leadTime <= 0) {
-        return 0
+      if (leadTime <= MIN_DURATION_SECONDS) {
+        return EMPTY_RATIO
       }
-      const held = leaseHeldSeconds.get(issue.id) ?? 0
-      return Math.min(1, held / leadTime)
+      const held = leaseHeldSeconds.get(issue.id) ?? MIN_DURATION_SECONDS
+      return Math.min(FULL_RATIO, held / leadTime)
     })
 }
 
@@ -692,11 +709,11 @@ const fetchWindowCounts = async function fetchWindowCounts(
     .get()
 
   return {
-    leaseExpiries: Number(row?.leaseExpiries ?? 0),
-    abandonedClaims: Number(row?.abandonedClaims ?? 0),
-    gateRejections: Number(row?.gateRejections ?? 0),
-    wipCapPressure: Number(row?.wipCapPressure ?? 0),
-    doneBeforeWindow: Number(row?.doneBeforeWindow ?? 0),
+    leaseExpiries: Number(row?.leaseExpiries ?? NO_EVENTS),
+    abandonedClaims: Number(row?.abandonedClaims ?? NO_EVENTS),
+    gateRejections: Number(row?.gateRejections ?? NO_EVENTS),
+    wipCapPressure: Number(row?.wipCapPressure ?? NO_EVENTS),
+    doneBeforeWindow: Number(row?.doneBeforeWindow ?? NO_EVENTS),
   }
 }
 
