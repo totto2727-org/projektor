@@ -1654,42 +1654,64 @@ interface HeadingSection {
   endLine: number
 }
 
+type HeadingStart = Omit<HeadingSection, 'endLine'>
+
+interface HeadingScan {
+  fence: string | undefined
+  headings: HeadingStart[]
+  inFrontmatter: boolean
+}
+
+const recordHeadingStart = function recordHeadingStart(headings: HeadingStart[], line: string, index: number): void {
+  const match = ATX_HEADING_RE.exec(line)
+  if (match) {
+    headings.push(
+      fieldsInOrder([
+        ['level', match[1].length],
+        ['heading', match[2].trim()],
+        ['startLine', index],
+      ]),
+    )
+  }
+}
+
+const scanHeadingLine = function scanHeadingLine(state: HeadingScan, line: string, index: number): HeadingScan {
+  if (state.inFrontmatter) {
+    return index > FIRST_MARKDOWN_LINE && FRONTMATTER_DELIM_RE.test(line) ? { ...state, inFrontmatter: false } : state
+  }
+  const fenceMatch = FENCE_RE.exec(line)
+  const { fence } = state
+  if (Predicate.isNotNullish(fence)) {
+    // A closing fence must use the same character and be at least as long.
+    return fenceMatch && fenceMatch[1].startsWith(fence[0]) && fenceMatch[1].length >= fence.length
+      ? { ...state, fence: undefined }
+      : state
+  }
+  if (fenceMatch) {
+    return { ...state, fence: fenceMatch[1] }
+  }
+  recordHeadingStart(state.headings, line, index)
+  return state
+}
+
 const parseHeadingSections = function parseHeadingSections(content: string): HeadingSection[] {
   const lines = content.split('\n')
-  const headings: { level: number; heading: string; startLine: number }[] = []
-  let fence: string | null = null
   // A frontmatter block only counts when `---` is the very first line.
-  let inFrontmatter = Array.isArrayNonEmpty(lines) && FRONTMATTER_DELIM_RE.test(lines[0])
-  lines.forEach((line, idx) => {
-    if (inFrontmatter) {
-      if (idx > FIRST_MARKDOWN_LINE && FRONTMATTER_DELIM_RE.test(line)) {
-        inFrontmatter = false
-      }
-      return
-    }
-    const fenceMatch = FENCE_RE.exec(line)
-    if (Predicate.isNotNullish(fence)) {
-      // A closing fence must use the same character and be at least as long.
-      if (fenceMatch && fenceMatch[1].startsWith(fence[0]) && fenceMatch[1].length >= fence.length) {
-        fence = null
-      }
-      return
-    }
-    if (fenceMatch) {
-      fence = fenceMatch[1]
-      return
-    }
-    const match = ATX_HEADING_RE.exec(line)
-    if (match) {
-      headings.push({ level: match[1].length, heading: match[2].trim(), startLine: idx })
-    }
+  const initial: HeadingScan = {
+    fence: undefined,
+    headings: [],
+    inFrontmatter: Array.isArrayNonEmpty(lines) && FRONTMATTER_DELIM_RE.test(lines[0]),
+  }
+  const { headings } = Iterable.reduce(lines, initial, scanHeadingLine)
+  return headings.map((heading, index) => {
+    const nextIndex = Number.increment(index)
+    return fieldsInOrder([
+      ['heading', heading.heading],
+      ['level', heading.level],
+      ['startLine', heading.startLine],
+      ['endLine', nextIndex < headings.length ? headings[nextIndex].startLine : lines.length],
+    ])
   })
-  return headings.map((heading, index) => ({
-    heading: heading.heading,
-    level: heading.level,
-    startLine: heading.startLine,
-    endLine: Number.increment(index) < headings.length ? headings[Number.increment(index)].startLine : lines.length,
-  }))
 }
 
 const findSections = function findSections(sections: Readonly<HeadingSection[]>, heading: string): HeadingSection[] {
