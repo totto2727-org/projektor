@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-import { MAX_ISSUE_COMMENT_LENGTH } from '../issue-limits.ts'
+import { MAX_ISSUE_COMMENT_LENGTH } from '#contracts/issue-limits.ts'
+
 import { objectInOrder } from './common.ts'
 
 const body = z.string().nonempty().max(MAX_ISSUE_COMMENT_LENGTH)
