@@ -10,7 +10,7 @@ export const handleSharedLogoRequest = async function handleSharedLogoRequest(
   request: Request,
   env: CoreEnvironment,
 ): Promise<Response | undefined> {
-  const match = /^\/share-logo\/([^/]+)$/.exec(new URL(request.url).pathname)
+  const match = /^\/share-logo\/([^/]+)$/u.exec(new URL(request.url).pathname)
   if (!match) {
     return undefined
   }

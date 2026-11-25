@@ -97,10 +97,10 @@ export const resolveWikiPageForSsr = async function resolveWikiPageForSsr(
 
 const plainTextExcerpt = function plainTextExcerpt(markdown: string, maxLen = 200): string {
   const plain = markdown
-    .replaceAll(/```[\s\S]*?```/g, ' ')
-    .replaceAll(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-    .replaceAll(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replaceAll(/\[\[([^\]|]*)(\|[^\]]*)?\]\]/g, '$1')
+    .replaceAll(/```[\s\S]*?```/gu, ' ')
+    .replaceAll(/!\[[^\]]*\]\([^)]*\)/gu, ' ')
+    .replaceAll(/\[([^\]]*)\]\([^)]*\)/gu, '$1')
+    .replaceAll(/\[\[([^\]|]*)(\|[^\]]*)?\]\]/gu, '$1')
     .replaceAll(/[#>*_`~-]/gu, ' ')
     .replaceAll(/\s+/gu, ' ')
     .trim()

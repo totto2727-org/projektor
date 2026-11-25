@@ -16,8 +16,8 @@ const logoResponse = function logoResponse(request: Request) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const pathname = new URL(request.url).pathname
-    const publicLogo = /^\/api\/share\/([^/]+)\/logo$/.exec(pathname)
-    const workspaceLogo = /^\/api\/workspaces\/([^/]+)\/brand\/logo$/.exec(pathname)
+    const publicLogo = /^\/api\/share\/([^/]+)\/logo$/u.exec(pathname)
+    const workspaceLogo = /^\/api\/workspaces\/([^/]+)\/brand\/logo$/u.exec(pathname)
     const value = publicLogo?.[1] ?? workspaceLogo?.[1]
     if (Predicate.isNullish(value) || String.isEmpty(value)) {
       return yield* new ScopeError(HTTP_NOT_FOUND, 'Not found')
@@ -70,10 +70,10 @@ export const makeWebWorker = () =>
           destination.origin === url.origin ? `${destination.pathname}${destination.search}${destination.hash}` : '/'
         return HttpServerResponse.redirect(location, { status: 302, headers: { 'cache-control': 'private, no-store' } })
       }
-      if (/^\/api\/files\/[^/]+$/.test(url.pathname)) {
+      if (/^\/api\/files\/[^/]+$/u.test(url.pathname)) {
         return yield* downloadFile(request).pipe(Effect.provide(RequestServicesLive))
       }
-      if (/^\/api\/(?:share\/[^/]+\/logo|workspaces\/[^/]+\/brand\/logo)$/.test(url.pathname)) {
+      if (/^\/api\/(?:share\/[^/]+\/logo|workspaces\/[^/]+\/brand\/logo)$/u.test(url.pathname)) {
         if (request.method !== 'GET' && request.method !== 'HEAD') {
           return HttpServerResponse.empty({ status: 405, headers: { allow: 'GET, HEAD' } })
         }

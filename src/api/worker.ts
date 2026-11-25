@@ -221,14 +221,14 @@ app.get('*', async (httpContext) => {
     return httpContext.notFound()
   }
   const { pathname } = new URL(httpContext.req.url)
-  const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/.exec(pathname)
-  const fallbackPath = /^\/projects\/[^/]+\/issues\/\d+\//.test(pathname)
+  const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/u.exec(pathname)
+  const fallbackPath = /^\/projects\/[^/]+\/issues\/\d+\//u.test(pathname)
     ? '/issues/view/index.html'
-    : /^\/projects\/view\/[^/]+/.test(pathname)
+    : /^\/projects\/view\/[^/]+/u.test(pathname)
       ? '/projects/view/index.html'
       : pathname.startsWith('/share/')
         ? '/share/view/index.html'
-        : /^\/feedback\/[^/]+/.test(pathname)
+        : /^\/feedback\/[^/]+/u.test(pathname)
           ? '/feedback/view/index.html'
           : wikiSlugMatch
             ? '/wiki/view/index.html'

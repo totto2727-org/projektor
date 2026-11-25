@@ -17,7 +17,7 @@ export const downloadFile = function downloadFile(
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const url = new URL(request.url)
-    const match = /^\/api\/files\/([^/]+)$/.exec(url.pathname)
+    const match = /^\/api\/files\/([^/]+)$/u.exec(url.pathname)
     if (!match) {
       return yield* new ScopeError(HTTP_NOT_FOUND, 'Not found')
     }

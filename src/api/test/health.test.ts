@@ -86,7 +86,7 @@ describe('covers SPA catch-all (ASSETS absent in test env)', () => {
  * directly — kept in sync with the literal in worker.ts.
  */
 describe('covers SSR wiki-path regex (worker.ts wikiSlugMatch, PROJ-517 finding 4)', () => {
-  const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/
+  const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/u
 
   test('matches a bare single-segment slug', () => {
     expect(wikiSlugMatch.exec('/wiki/roadmap')?.[1]).toBe('roadmap')
