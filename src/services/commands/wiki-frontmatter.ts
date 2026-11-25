@@ -3,6 +3,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
 import { WikiFrontmatterSchema } from '#contracts/inputs/wiki.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 
@@ -26,16 +27,16 @@ export interface WikiFrontmatterMeta {
   isTemplate: boolean
 }
 
-const EMPTY_WIKI_FRONTMATTER: WikiFrontmatterMeta = {
-  type: null,
-  tags: [],
-  status: null,
-  verifiedAt: null,
-  verifiedBy: null,
-  owners: [],
-  verifyInterval: null,
-  isTemplate: false,
-}
+const EMPTY_WIKI_FRONTMATTER: WikiFrontmatterMeta = fieldsInOrder([
+  ['type', JSON_NULL],
+  ['tags', Array.empty<string>()],
+  ['status', JSON_NULL],
+  ['verifiedAt', JSON_NULL],
+  ['verifiedBy', JSON_NULL],
+  ['owners', Array.empty<string>()],
+  ['verifyInterval', JSON_NULL],
+  ['isTemplate', false],
+])
 
 /*
  * YAML 1.1 (what the `yaml` package parses by default) auto-converts an unquoted
@@ -46,8 +47,8 @@ const EMPTY_WIKI_FRONTMATTER: WikiFrontmatterMeta = {
  * anything else, or an unparseable string.
  */
 const normalizeVerifiedAt = function normalizeVerifiedAt(value: unknown): number | null {
-  if (value === null) {
-    return null
+  if (value === JSON_NULL) {
+    return JSON_NULL
   }
   if (value instanceof Date) {
     return Math.floor(value.getTime() / MILLISECONDS_PER_SECOND)
@@ -78,7 +79,7 @@ const parseFrontmatterYaml = function parseFrontmatterYaml(yamlBlock: string): u
 }
 
 const normalizeFrontmatterRecord = function normalizeFrontmatterRecord(raw: object): Record<string, unknown> {
-  const normalized: Record<string, unknown> = { ...(raw as Record<string, unknown>) }
+  const normalized: Record<string, unknown> = { ...raw }
   if ('verified_at' in normalized) {
     try {
       normalized.verified_at = normalizeVerifiedAt(normalized.verified_at)
@@ -102,9 +103,11 @@ const normalizeFrontmatterRecord = function normalizeFrontmatterRecord(raw: obje
  * rather than an error, since it's an easy no-op state to end up in when editing.
  * Anything else that isn't a plain mapping (a list, a scalar) is a genuine error.
  */
-const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null {
+const requireFrontmatterMapping = function requireFrontmatterMapping(
+  raw: unknown,
+): Record<string, unknown> | undefined {
   if (Predicate.isNullish(raw)) {
-    return null
+    return undefined
   }
   if (!Predicate.isObject(raw)) {
     throw new ValidationError(
@@ -115,17 +118,17 @@ const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknow
 }
 
 const toFrontmatterMeta = function toFrontmatterMeta(
-  d: ReturnType<typeof WikiFrontmatterSchema.parse>,
+  data: ReturnType<typeof WikiFrontmatterSchema.parse>,
 ): WikiFrontmatterMeta {
   return fieldsInOrder([
-    ['type', d.type ?? null],
-    ['tags', d.tags ?? []],
-    ['status', d.status ?? null],
-    ['verifiedAt', d.verified_at ?? null],
-    ['verifiedBy', d.verified_by ?? null],
-    ['owners', d.owners ?? []],
-    ['verifyInterval', d.verify_interval ?? null],
-    ['isTemplate', d.template ?? false],
+    ['type', data.type ?? JSON_NULL],
+    ['tags', data.tags ?? []],
+    ['status', data.status ?? JSON_NULL],
+    ['verifiedAt', data.verified_at ?? JSON_NULL],
+    ['verifiedBy', data.verified_by ?? JSON_NULL],
+    ['owners', data.owners ?? []],
+    ['verifyInterval', data.verify_interval ?? JSON_NULL],
+    ['isTemplate', data.template ?? false],
   ])
 }
 
@@ -176,6 +179,16 @@ export const stripTemplateFlag = function stripTemplateFlag(content: string): st
   return `---\n${yamlText}\n---\n${rest}`
 }
 
+const editableFrontmatterRecord = function editableFrontmatterRecord(
+  match: RegExpExecArray | null,
+): Record<string, unknown> {
+  if (Predicate.isNullish(match)) {
+    return {}
+  }
+  const parsed: unknown = parseYaml(match[1])
+  return Predicate.isObject(parsed) ? { ...parsed } : {}
+}
+
 export const setWikiFrontmatterFields = function setWikiFrontmatterFields(
   content: string,
   values: Record<string, unknown>,
@@ -183,16 +196,10 @@ export const setWikiFrontmatterFields = function setWikiFrontmatterFields(
   const match = FRONTMATTER_RE.exec(content)
   const rest = match ? content.slice(match[0].length) : content
 
-  let raw: Record<string, unknown> = {}
-  if (match) {
-    const parsedRaw = parseYaml(match[1])
-    if (Predicate.isObject(parsedRaw)) {
-      raw = { ...(parsedRaw as Record<string, unknown>) }
-    }
-  }
+  const raw = editableFrontmatterRecord(match)
 
   Iterable.forEach(Object.entries(values), ([key, value]) => {
-    if (value === null) {
+    if (value === JSON_NULL) {
       delete raw[key]
     } else {
       raw[key] = value
@@ -215,13 +222,7 @@ export const stampWikiFrontmatterVerification = function stampWikiFrontmatterVer
   const match = FRONTMATTER_RE.exec(content)
   const rest = match ? content.slice(match[0].length) : content
 
-  let raw: Record<string, unknown> = {}
-  if (match) {
-    const parsedRaw = parseYaml(match[1])
-    if (Predicate.isObject(parsedRaw)) {
-      raw = { ...(parsedRaw as Record<string, unknown>) }
-    }
-  }
+  const raw = editableFrontmatterRecord(match)
   raw.verified_at = new Date(verifiedAtSeconds * MILLISECONDS_PER_SECOND).toISOString()
   raw.verified_by = verifiedBy
 
