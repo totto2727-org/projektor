@@ -417,9 +417,9 @@ describe('issues API', () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     // Seed with explicit distinct timestamps so cursor (created_at <) math works correctly
     const base = 1_700_000_000
-    await seedIssue(workspaceId, projectId, userId, { title: 'Issue 1', createdAt: base + 100 })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Issue 2', createdAt: base + 200 })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Issue 3', createdAt: base + 300 })
+    await seedIssue(workspaceId, projectId, userId, { createdAt: base + 100, title: 'Issue 1' })
+    await seedIssue(workspaceId, projectId, userId, { createdAt: base + 200, title: 'Issue 2' })
+    await seedIssue(workspaceId, projectId, userId, { createdAt: base + 300, title: 'Issue 3' })
 
     const { page: first } = await listIssues('http://localhost/api/issues?limit=2')
     expect(first.items).toHaveLength(2)
@@ -436,8 +436,8 @@ describe('issues API', () => {
     const base = 1_700_000_000
     await runIndexedInOrder(35, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, {
-        title: `Issue ${index}`,
         createdAt: base + index,
+        title: `Issue ${index}`,
       })
     })
 
@@ -456,8 +456,8 @@ describe('issues API', () => {
     const base = 1_700_000_000
     await runIndexedInOrder(35, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, {
-        title: `Issue ${index}`,
         createdAt: base + index,
+        title: `Issue ${index}`,
       })
     })
 
@@ -494,15 +494,15 @@ describe('issues API', () => {
     const base = currentEpochSeconds()
     await runIndexedInOrder(55, async (index): Promise<void> => {
       await seedIssue(workspaceId, newerProject.id, userId, {
-        title: `Newer issue ${index}`,
         createdAt: base + index + 1,
+        title: `Newer issue ${index}`,
       })
     })
     // Seed issues in projectId with older timestamps — would be cut off by workspace-wide limit=50
     await runIndexedInOrder(10, async (index): Promise<void> => {
       await seedIssue(workspaceId, projectId, userId, {
-        title: `Older issue ${index}`,
         createdAt: base - 1000 + index,
+        title: `Older issue ${index}`,
       })
     })
 
@@ -989,8 +989,8 @@ describe('issues API', () => {
     const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     // A → B → C; try to set A.parentId = C (cycle: A is ancestor of C)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
-    const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: issue.id })
-    const c = await seedIssue(workspaceId, projectId, userId, { title: 'C', parentId: currentIssue.id })
+    const currentIssue = await seedIssue(workspaceId, projectId, userId, { parentId: issue.id, title: 'B' })
+    const c = await seedIssue(workspaceId, projectId, userId, { parentId: currentIssue.id, title: 'C' })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       body: JSON.stringify({ parentId: c.id }),
@@ -1004,11 +1004,11 @@ describe('issues API', () => {
     const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     // Build a chain root → L1 → L2 → L3 → L4 → L5 (L5 is at depth 5)
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
-    const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
-    const l2 = await seedIssue(workspaceId, projectId, userId, { title: 'L2', parentId: l1.id })
-    const l3 = await seedIssue(workspaceId, projectId, userId, { title: 'L3', parentId: l2.id })
-    const l4 = await seedIssue(workspaceId, projectId, userId, { title: 'L4', parentId: l3.id })
-    const l5 = await seedIssue(workspaceId, projectId, userId, { title: 'L5', parentId: l4.id })
+    const l1 = await seedIssue(workspaceId, projectId, userId, { parentId: root.id, title: 'L1' })
+    const l2 = await seedIssue(workspaceId, projectId, userId, { parentId: l1.id, title: 'L2' })
+    const l3 = await seedIssue(workspaceId, projectId, userId, { parentId: l2.id, title: 'L3' })
+    const l4 = await seedIssue(workspaceId, projectId, userId, { parentId: l3.id, title: 'L4' })
+    const l5 = await seedIssue(workspaceId, projectId, userId, { parentId: l4.id, title: 'L5' })
 
     // L5 is at depth 5; adding a child would be depth 6 — must be rejected
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -1022,10 +1022,10 @@ describe('issues API', () => {
   test('handles POST accepts parent at depth 4 (child at depth 5 is allowed)', async () => {
     const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
-    const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
-    const l2 = await seedIssue(workspaceId, projectId, userId, { title: 'L2', parentId: l1.id })
-    const l3 = await seedIssue(workspaceId, projectId, userId, { title: 'L3', parentId: l2.id })
-    const l4 = await seedIssue(workspaceId, projectId, userId, { title: 'L4', parentId: l3.id })
+    const l1 = await seedIssue(workspaceId, projectId, userId, { parentId: root.id, title: 'L1' })
+    const l2 = await seedIssue(workspaceId, projectId, userId, { parentId: l1.id, title: 'L2' })
+    const l3 = await seedIssue(workspaceId, projectId, userId, { parentId: l2.id, title: 'L3' })
+    const l4 = await seedIssue(workspaceId, projectId, userId, { parentId: l3.id, title: 'L4' })
 
     // L4 is at depth 4; adding a child would be depth 5 — must be allowed
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -1039,8 +1039,8 @@ describe('issues API', () => {
   test('handles GET /api/issues?parentId= filters to direct children', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const parent = await seedIssue(workspaceId, projectId, userId, { title: 'Parent' })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Child 1', parentId: parent.id })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Child 2', parentId: parent.id })
+    await seedIssue(workspaceId, projectId, userId, { parentId: parent.id, title: 'Child 1' })
+    await seedIssue(workspaceId, projectId, userId, { parentId: parent.id, title: 'Child 2' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Top-level issue' })
 
     const { page } = await listIssues(`http://localhost/api/issues?parentId=${parent.id}`)
@@ -1091,16 +1091,16 @@ describe('issues API', () => {
     })
 
     await seedIssue(workspaceId, projectId, userId, {
-      title: 'Todo item',
       statusId: s1.id,
+      title: 'Todo item',
     })
     await seedIssue(workspaceId, projectId, userId, {
-      title: 'Done item',
       statusId: s2.id,
+      title: 'Done item',
     })
     await seedIssue(workspaceId, projectId, userId, {
-      title: 'In progress item',
       statusId: s3.id,
+      title: 'In progress item',
     })
 
     const { page } = await listIssues(`http://localhost/api/issues?statusIds=${s1.id},${s2.id}`)
@@ -2179,7 +2179,7 @@ describe('get_prioritized_issues MCP tool', () => {
      * chunk boundaries. (SQLite's cap is higher, so this asserts correctness, not the cap.) */
     const COUNT = 105
     await runIndexedInOrder(COUNT, async (index): Promise<void> => {
-      await seedIssue(workspaceId, projectId, userId, { title: `Open ${index}`, priority: 'medium' })
+      await seedIssue(workspaceId, projectId, userId, { priority: 'medium', title: `Open ${index}` })
     })
 
     const body = await callPrioritized({ includeNotReady: true, limit: 100 })
@@ -2956,16 +2956,16 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const parent = await seedIssue(workspaceId, projectId, userId, { title: 'Parent' })
     const field = await seedCustomFieldDef(workspaceId, { key: 'proj931_cf', type: 'text' })
     const { id: childId } = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Child with everything',
       assigneeId: assignee.id,
       parentId: parent.id,
+      title: 'Child with everything',
     })
     await seedCustomFieldValue(childId, field.id, 'hello')
     await callIssueFixtureMcpTool(issueMcpFixture, {
       arguments: { id: childId, labels: ['bug'] },
       name: 'update_issue',
     })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Grandchild', parentId: parent.id })
+    await seedIssue(workspaceId, projectId, userId, { parentId: parent.id, title: 'Grandchild' })
 
     const parentRes = await callIssueFixtureMcpTool(issueMcpFixture, {
       name: 'get_issue',
