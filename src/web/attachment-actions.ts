@@ -26,6 +26,8 @@ import { ApiError } from './server/errors.ts'
 import { resolveFunctionContext } from './server/function-context.ts'
 import { checkSameOriginMutation } from './server/mutation.ts'
 
+const decodeUploadedAttachment = Schema.decodeUnknownEffect(UploadedAttachmentSchema)
+
 const uploadToCore = function uploadToCore(input: UploadAttachmentInput, workspaceId: string) {
   const form = new FormData()
   form.set('file', input.file)
@@ -51,7 +53,7 @@ const uploadToCore = function uploadToCore(input: UploadAttachmentInput, workspa
     })
   }).pipe(
     Effect.flatMap((response) => Effect.tryPromise(() => response.json())),
-    Effect.flatMap(Schema.decodeUnknownEffect(UploadedAttachmentSchema)),
+    Effect.flatMap(decodeUploadedAttachment),
     Effect.mapError((error) =>
       error instanceof ApiError
         ? error

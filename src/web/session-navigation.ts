@@ -10,6 +10,8 @@ const SessionForm = Schema.Struct({
   redirect_url: Schema.optional(Schema.String),
 })
 
+const decodeSessionForm = Schema.decodeUnknownEffect(SessionForm)
+
 /** Native POST forms bypass Flight and discard the previous identity's JS runtime. */
 export const sessionNavigation = function sessionNavigation(
   request: Request,
@@ -38,9 +40,9 @@ export const sessionNavigation = function sessionNavigation(
       Stream.mkString,
       Effect.mapError(() => new ApiError('request', HTTP_BAD_REQUEST, 'Invalid session navigation form.')),
     )
-    const form = yield* Schema.decodeUnknownEffect(SessionForm)(
-      UrlParams.toRecord(UrlParams.fromInput(new URLSearchParams(text))),
-    ).pipe(Effect.mapError(() => new ApiError('request', HTTP_BAD_REQUEST, 'Invalid session navigation form.')))
+    const form = yield* decodeSessionForm(UrlParams.toRecord(UrlParams.fromInput(new URLSearchParams(text)))).pipe(
+      Effect.mapError(() => new ApiError('request', HTTP_BAD_REQUEST, 'Invalid session navigation form.')),
+    )
     let location = '/cdn-cgi/access/logout'
     if (form.action === 'login') {
       const { origin } = new URL(request.url)

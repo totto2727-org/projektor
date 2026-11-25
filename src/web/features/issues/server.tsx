@@ -49,6 +49,8 @@ type EpicsLoaderData = Readonly<{
   workspaceSlug: string
   initialData: EpicsInitialData
 }>
+const decodeReviewFilter = Schema.decodeUnknownEffect(ReviewFilterSchema)
+
 const CONCURRENCY = 4
 type ReadFailure = ApiError | ScopeError
 
@@ -157,7 +159,7 @@ export const loadIssues = function loadIssues(
     }
     const { statuses, taskTypes } = yield* lookups(scope, workspace.id)
     const review = url.searchParams.has('review')
-      ? yield* Schema.decodeUnknownEffect(ReviewFilterSchema)(url.searchParams.get('review')).pipe(
+      ? yield* decodeReviewFilter(url.searchParams.get('review')).pipe(
           Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid review filter.')),
         )
       : undefined

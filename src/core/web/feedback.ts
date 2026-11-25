@@ -27,6 +27,8 @@ import { checked } from './issue-data.ts'
 import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 
+const decodeFeedbackStatusQuery = Schema.decodeUnknownEffect(StatusFields)
+
 const admin = function admin(role: string): void {
   if (role !== 'owner' && role !== 'admin') {
     throw new ScopeError(HTTP_FORBIDDEN, 'Insufficient permissions')
@@ -142,7 +144,7 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                 ['projectHint', ''],
               ]),
             )
-            const filter = yield* Schema.decodeUnknownEffect(StatusFields)({ status }).pipe(
+            const filter = yield* decodeFeedbackStatusQuery({ status }).pipe(
               Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid feedback status.')),
             )
             const candidates =

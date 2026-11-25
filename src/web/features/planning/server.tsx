@@ -19,6 +19,10 @@ import { IssuePageSchema } from './schemas.ts'
 import type { SprintIssue } from './types.ts'
 import { MetricsDashboard, SprintManager } from './widgets.tsx'
 
+const decodeIssuePage = Schema.decodeUnknownEffect(IssuePageSchema)
+const decodeSprintListMode = Schema.decodeUnknownEffect(SprintListModeSchema)
+const decodeMetricsWindow = Schema.decodeUnknownEffect(MetricsWindowSchema)
+
 const selectedProject = function selectedProject(scope: RequestScope, projectId: string, workspaceId: string) {
   return Effect.try({
     catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
@@ -51,7 +55,7 @@ export const loadSprintIssues = function loadSprintIssues(
         query.set('cursor', cursor)
       }
       const page = yield* readDataIssuePage(scope, workspace.id, query).pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(IssuePageSchema)),
+        Effect.flatMap(decodeIssuePage),
         Effect.mapError(dataError),
       )
       issues.push(...page.items)
@@ -84,7 +88,7 @@ export const renderSprints = function renderSprints(scope: RequestScope, url: UR
     }
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
-    const mode = yield* Schema.decodeUnknownEffect(SprintListModeSchema)(url.searchParams.get('status') ?? 'all').pipe(
+    const mode = yield* decodeSprintListMode(url.searchParams.get('status') ?? 'all').pipe(
       Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid sprint status view.')),
     )
     const [sprints, issues] = yield* Effect.all(
@@ -113,7 +117,7 @@ export const renderMetrics = function renderMetrics(scope: RequestScope, url: UR
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
     const fallback = rangeFromUrl(new URL(url.pathname, url.origin))
-    const window = yield* Schema.decodeUnknownEffect(MetricsWindowSchema)({
+    const window = yield* decodeMetricsWindow({
       projectId: project.id,
       workspaceSlug: workspace.slug,
       since: url.searchParams.get('since') ?? fallback.since,

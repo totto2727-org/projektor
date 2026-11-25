@@ -28,6 +28,8 @@ export type FunctionOptions = Readonly<{
   requireProject?: boolean
 }>
 
+const decodeFunctionSelector = Schema.decodeUnknownEffect(FunctionSelectorSchema)
+
 /** Resolve only authentication and selection, including independently callable queries. */
 export const resolveFunctionContext = function resolveFunctionContext(
   selector: FunctionSelector,
@@ -35,7 +37,7 @@ export const resolveFunctionContext = function resolveFunctionContext(
 ): Effect.Effect<FunctionContext, ApiError | ScopeError, RequestServices> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
-    const input = yield* Schema.decodeUnknownEffect(FunctionSelectorSchema)(selector).pipe(
+    const input = yield* decodeFunctionSelector(selector).pipe(
       Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid workspace or project selection.')),
     )
     const scope = yield* services.scope({

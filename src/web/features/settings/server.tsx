@@ -17,6 +17,8 @@ import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from 
 
 type SettingsView = Effect.Effect<JSX.Element, PageFailure, RequestServices>
 
+const decodeGroupView = Schema.decodeUnknownEffect(GroupViewSchema)
+
 const choose = (scope: RequestScope): WorkspaceMembership | null =>
   scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
 const forbidden = (error: { status: number }): boolean => error.status === HTTP_FORBIDDEN
@@ -98,7 +100,7 @@ export const renderGroups = function renderGroups(scope: RequestScope, url: URL)
       return <p className='text-text-muted'>Select a workspace to manage groups.</p>
     }
     yield* selected(scope)
-    const view = yield* Schema.decodeUnknownEffect(GroupViewSchema)(url.searchParams.get('view') ?? 'groups').pipe(
+    const view = yield* decodeGroupView(url.searchParams.get('view') ?? 'groups').pipe(
       Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid groups view.')),
     )
     const services = yield* RequestServices

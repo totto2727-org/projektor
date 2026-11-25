@@ -8,6 +8,8 @@ import { ApiError } from './server/errors.ts'
 
 const BinaryFailure = Schema.Struct({ error: Schema.String })
 
+const decodeBinaryFailure = Schema.decodeUnknownEffect(BinaryFailure)
+
 /** Same-binding binary transport, with request-local proof and no buffering of file bytes. */
 export const transferCoreBinary = function transferCoreBinary(
   path: string,
@@ -46,7 +48,7 @@ export const transferCoreBinary = function transferCoreBinary(
     })
     if (!response.ok) {
       const problem = yield* Effect.tryPromise(() => response.json()).pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(BinaryFailure)),
+        Effect.flatMap(decodeBinaryFailure),
         Effect.catch(() => Effect.succeed({ error: 'The operation could not be completed.' })),
       )
       return yield* new ApiError('request', response.status, problem.error)

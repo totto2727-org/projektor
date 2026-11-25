@@ -89,8 +89,12 @@ const IssueListQuerySchema = Schema.fromURLSearchParams(
     ),
   ),
 )
+const decodeIssueListQuery = Schema.decodeUnknownEffect(IssueListQuerySchema)
+const decodeOptionalReviewFilter = Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))
+const decodeWikiSearchResults = Schema.decodeUnknownEffect(WikiSearchResultsSchema)
+
 const listOptions = function listOptions(params: URLSearchParams, scope: RequestScope) {
-  return Schema.decodeUnknownEffect(IssueListQuerySchema)(params).pipe(
+  return decodeIssueListQuery(params).pipe(
     Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid issue filters or cursor.')),
     Effect.map(
       ({ cursor, noParent, includeRollups, includeBody, needsAudit, assignee, cfKey, cfValue, cfOp, ...fields }) => {
@@ -202,7 +206,7 @@ export const searchDataIssues = function searchDataIssues(
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
-    const reviewFilter = yield* Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))(review).pipe(
+    const reviewFilter = yield* decodeOptionalReviewFilter(review).pipe(
       Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid review filter.')),
     )
     if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
@@ -307,6 +311,6 @@ export const searchDataWikiAttachments = function searchDataWikiAttachments(
       visibilitySql,
     }).pipe(Effect.mapError(dataError))
     // Wiki searches expose broad metadata, while this picker deliberately consumes identity only.
-    return yield* Schema.decodeUnknownEffect(WikiSearchResultsSchema)(rows).pipe(Effect.mapError(dataError))
+    return yield* decodeWikiSearchResults(rows).pipe(Effect.mapError(dataError))
   })
 }
