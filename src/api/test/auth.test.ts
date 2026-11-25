@@ -121,7 +121,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   const TEST_EMAIL = 'cf-user@example.com'
 
   beforeAll(async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -130,9 +130,9 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
+    )
     privateKey = keyPair.privateKey
-    publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
   })
 
   test('valid signed JWT with correct audience and issuer is accepted', async () => {
@@ -404,7 +404,7 @@ describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
 
 describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
   test('second CF Access login succeeds after both KV cache entries are deleted', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -413,8 +413,8 @@ describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = 'test-cf-access.example.com'
     const audience = 'proj-354-audience'
@@ -550,7 +550,7 @@ describe('covers PROJ-358: JWKS force-refresh on signature verification failure'
         },
         true,
         ['sign', 'verify'],
-      ) as Promise<CryptoKeyPair>
+      )
 
     /*
      * `otherKeyPair` is never returned by the Core network fixture, so a token signed
@@ -559,7 +559,7 @@ describe('covers PROJ-358: JWKS force-refresh on signature verification failure'
      */
     const currentKeyPair = await genKeyPair()
     const otherKeyPair = await genKeyPair()
-    const currentPublicJwk = (await crypto.subtle.exportKey('jwk', currentKeyPair.publicKey)) as JsonWebKey
+    const currentPublicJwk = await crypto.subtle.exportKey('jwk', currentKeyPair.publicKey)
 
     const domain = `proj-358-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-358-audience'
@@ -621,7 +621,7 @@ describe('covers PROJ-358: JWKS force-refresh on signature verification failure'
 
 describe("covers PROJ-730: JWKS cache write failure doesn't fail auth", () => {
   test('a successful JWKS fetch still authenticates when caching it in KV fails', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -630,8 +630,8 @@ describe("covers PROJ-730: JWKS cache write failure doesn't fail auth", () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-730-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-730-audience'
@@ -671,7 +671,7 @@ describe("covers PROJ-730: JWKS cache write failure doesn't fail auth", () => {
 
 describe('covers PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => {
   test("a KV read error doesn't fail auth — falls through to fetching fresh certs", async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -680,8 +680,8 @@ describe('covers PROJ-735: JWKS cache read failure falls back to a fresh fetch',
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-735-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-735-audience'
@@ -720,7 +720,7 @@ describe('covers PROJ-735: JWKS cache read failure falls back to a fresh fetch',
 
 describe('covers PROJ-746: user-by-email cache read failure falls back to the DB upsert', () => {
   test("a KV read error on the user cache doesn't fail auth — falls through to the DB", async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -729,8 +729,8 @@ describe('covers PROJ-746: user-by-email cache read failure falls back to the DB
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-746-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-746-audience'
@@ -977,7 +977,7 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
   })
 
   test('a real CF Access session is not demoted to anonymous viewer when PUBLIC_READ_ONLY is also on', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -986,8 +986,8 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-373-cf.example.com`
     const audience = 'proj-373-audience'
@@ -1434,7 +1434,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
 
 describe('covers PROJ-430: CF Access certs fetch failure', () => {
   test('returns 503, not 401 or 500, when the JWKS endpoint is unreachable', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -1443,7 +1443,7 @@ describe('covers PROJ-430: CF Access certs fetch failure', () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
+    )
 
     const domain = 'proj-430-unreachable.example.com'
     const audience = 'proj-430-audience'

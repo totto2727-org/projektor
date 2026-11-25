@@ -56,7 +56,7 @@ const b64url = function b64url(bytes: Uint8Array): string {
 let signingKey: CryptoKey
 
 const installAccessKeys = async function installAccessKeys(): Promise<void> {
-  const pair = (await crypto.subtle.generateKey(
+  const pair = await crypto.subtle.generateKey(
     {
       name: 'RSASSA-PKCS1-v1_5',
       modulusLength: 2048,
@@ -65,7 +65,7 @@ const installAccessKeys = async function installAccessKeys(): Promise<void> {
     },
     true,
     ['sign', 'verify'],
-  )) as CryptoKeyPair
+  )
   signingKey = pair.privateKey
   await resetCoreAuthCaches()
   env.CF_ACCESS_TEAM_DOMAIN = CF_DOMAIN
