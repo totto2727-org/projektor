@@ -1,5 +1,5 @@
 import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
-import { Predicate, Effect } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
 import type { CoreEnv } from '#types/env.ts'
 
@@ -18,6 +18,8 @@ const hasMethods = function hasMethods(value: unknown, methods: Readonly<string[
     methods.every((key) => key in value && Predicate.isFunction(Reflect.get(value, key)))
   )
 }
+
+const isMissingBinding = Schema.is(Schema.Undefined)
 
 /** Validate native binding capabilities at the sole untyped runtime boundary. */
 export const isCoreEnvironment = function isCoreEnvironment(value: unknown): value is CoreEnvironment {
@@ -76,18 +78,14 @@ export const isCoreEnvironment = function isCoreEnvironment(value: unknown): val
     'ACTIVITY_RETENTION_DAYS',
     'FILE_CLAIM_TTL_SECONDS',
   ] satisfies Readonly<(keyof CoreEnvironment)[]>
-  if (!optionalStrings.every((key) => get(key) === undefined || Predicate.isString(get(key)))) {
+  if (!optionalStrings.every((key) => isMissingBinding(get(key)) || Predicate.isString(get(key)))) {
     return false
   }
-  for (const key of ['WORKSPACE_HUB', 'RATE_LIMITER']) {
-    if (get(key) !== undefined && !hasMethods(get(key), ['idFromName', 'get'])) {
-      return false
-    }
-  }
-  if (get('invocation') !== undefined && !hasMethods(get('invocation'), ['waitUntil'])) {
+  const namespaceKeys = ['WORKSPACE_HUB', 'RATE_LIMITER']
+  if (!namespaceKeys.every((key) => isMissingBinding(get(key)) || hasMethods(get(key), ['idFromName', 'get']))) {
     return false
   }
-  return true
+  return isMissingBinding(get('invocation')) || hasMethods(get('invocation'), ['waitUntil'])
 }
 
 /** A stable Effect description, resolved anew inside each native invocation. */

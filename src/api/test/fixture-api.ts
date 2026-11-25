@@ -1,5 +1,5 @@
 import { env as nativeEnv } from 'cloudflare:workers'
-import { Iterable, Predicate } from 'effect'
+import { Iterable, Predicate, Schema } from 'effect'
 
 import type NativeFixtureCore from '#tests/native-workers/core.worker.ts'
 import type { Env } from '#types'
@@ -32,10 +32,13 @@ const originalCore = core()
 let explicitSettings: Readonly<Record<string, string | null>> = {}
 let settingsSnapshot: Record<string, string | null> = {}
 
+const isOptionalSetting = Schema.is(Schema.UndefinedOr(Schema.String))
+const isMissingMetadata = Schema.is(Schema.Undefined)
+
 const synchronizeConfiguration = function synchronizeConfiguration(): void {
   const configuration: Record<string, string | null> = {}
   Iterable.forEach(Object.entries(nativeEnv), ([key, value]) => {
-    if (key !== 'CORE_FIXTURE_CONFIGURATION' && (Predicate.isString(value) || value === undefined)) {
+    if (key !== 'CORE_FIXTURE_CONFIGURATION' && isOptionalSetting(value)) {
       configuration[key] = value ?? null
     }
   })
@@ -187,9 +190,9 @@ const r2Object = function r2Object(value: unknown): unknown {
         contentLanguage: 'content-language',
         contentType: 'content-type',
       }
-      Iterable.forEach(Object.entries(metadata ?? {}), ([key, entry]) => {
-        if (entry !== undefined) {
-          headers.set(names[key] ?? key, entry instanceof Date ? entry.toUTCString() : String(entry))
+      Iterable.forEach(Object.entries(metadata ?? {}), ([key, entry]: [string, string | Date | undefined]): void => {
+        if (!isMissingMetadata(entry)) {
+          headers.set(names[key] ?? key, entry instanceof Date ? entry.toUTCString() : entry)
         }
       })
     },
@@ -235,7 +238,7 @@ export const env: Env = new Proxy(nativeEnv, {
   },
   set(target, key, value): boolean {
     const applied = Reflect.set(target, key, value)
-    if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && (Predicate.isString(value) || value === undefined)) {
+    if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && isOptionalSetting(value)) {
       if (Predicate.isString(key)) {
         explicitSettings = { ...explicitSettings, [key]: value ?? null }
       }
@@ -246,7 +249,7 @@ export const env: Env = new Proxy(nativeEnv, {
   deleteProperty(target, key): boolean {
     const value: unknown = Reflect.get(target, key)
     const applied = Reflect.deleteProperty(target, key)
-    if (applied && Predicate.isString(key) && (Predicate.isString(value) || value === undefined)) {
+    if (applied && Predicate.isString(key) && isOptionalSetting(value)) {
       explicitSettings = { ...explicitSettings, [key]: null }
       synchronizeConfiguration()
     }

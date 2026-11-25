@@ -1,5 +1,5 @@
 import { Request as WorkerRequest, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
-import { Predicate, Cache, Context, Data, Effect, Exit, Layer, Option } from 'effect'
+import { Predicate, Cache, Context, Data, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { makeCoreClient } from 'projektor/core-client'
 import type { ReactNode } from 'react'
@@ -27,6 +27,8 @@ export type Env = Pick<
 > &
   Readonly<{ CORE: Readonly<{ fetch: (request: Request) => Promise<Response> }> }>
 
+const isMissingBinding = Schema.is(Schema.Undefined)
+
 export const isWebEnvironment = function isWebEnvironment(value: unknown): value is Env {
   if (!Predicate.isObjectOrArray(value)) {
     return false
@@ -42,7 +44,7 @@ export const isWebEnvironment = function isWebEnvironment(value: unknown): value
   }
   const limiter: unknown = Reflect.get(value, 'RATE_LIMITER')
   if (
-    limiter !== undefined &&
+    !isMissingBinding(limiter) &&
     (!Predicate.isObjectOrArray(limiter) ||
       !Predicate.isFunction(Reflect.get(limiter, 'get')) ||
       !Predicate.isFunction(Reflect.get(limiter, 'idFromName')))
@@ -61,7 +63,9 @@ export const isWebEnvironment = function isWebEnvironment(value: unknown): value
     'BRAND_ON_ACCENT',
     'BRAND_LOGO_URL',
   ] satisfies Readonly<(keyof Env)[]>
-  return strings.every((key) => Reflect.get(value, key) === undefined || Predicate.isString(Reflect.get(value, key)))
+  return strings.every(
+    (key) => isMissingBinding(Reflect.get(value, key)) || Predicate.isString(Reflect.get(value, key)),
+  )
 }
 
 export type PageFailure = ApiError | ScopeError
