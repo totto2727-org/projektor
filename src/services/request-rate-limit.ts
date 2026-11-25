@@ -1,3 +1,5 @@
+import { Predicate } from 'effect'
+
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
 import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
@@ -36,18 +38,13 @@ export const checkRateLimit = async function checkRateLimit(
   const now = Math.floor(nowMs / MILLISECONDS_PER_SECOND)
 
   const authHeader = request.headers.get('Authorization')
-  let key: string
-  let limit: number
-
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7)
-    key = `tok:${oauthGrantKey(token) ?? (await sha256Prefix(token))}`
-    limit = parseInt(env.RATE_LIMIT_API_MAX ?? '600', 10)
-  } else {
-    const ip = request.headers.get('CF-Connecting-IP') ?? '127.0.0.1'
-    key = `ip:${ip}`
-    limit = parseInt(env.RATE_LIMIT_AUTH_MAX ?? '300', 10)
-  }
+  const bearerPrefix = 'Bearer '
+  const token = authHeader?.startsWith(bearerPrefix) === true ? authHeader.slice(bearerPrefix.length) : undefined
+  const hasBearer = Predicate.isNotNullish(token)
+  const key = hasBearer
+    ? `tok:${oauthGrantKey(token) ?? (await sha256Prefix(token))}`
+    : `ip:${request.headers.get('CF-Connecting-IP') ?? '127.0.0.1'}`
+  const limit = parseInt(hasBearer ? (env.RATE_LIMIT_API_MAX ?? '600') : (env.RATE_LIMIT_AUTH_MAX ?? '300'), 10)
 
   // PROJ-430: a limiter error or stall is an outage, not a client problem.
   let count: number
