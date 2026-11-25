@@ -228,7 +228,7 @@ describe('groups REST', () => {
       headers: ownerHeaders,
     })
     const ownerList = (await ownerListResponse.json()) as { name: string }[]
-    expect(ownerList.map((g) => g.name).sort()).toStrictEqual(['Mine', 'Theirs'])
+    expect(ownerList.map((g) => g.name).toSorted()).toStrictEqual(['Mine', 'Theirs'])
   })
 
   test('member-groups lists every member with a pending (empty) entry', async () => {
@@ -317,7 +317,7 @@ describe('groups MCP parity', () => {
       content: { text: string }[]
     }>
     const ownerGroups = mcpData(ownerList, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
-    expect(ownerGroups.map((g) => g.name).sort()).toStrictEqual(['G1', 'G2'])
+    expect(ownerGroups.map((g) => g.name).toSorted()).toStrictEqual(['G1', 'G2'])
   })
 
   test('full admin loop over MCP: group -> grant -> member', async () => {

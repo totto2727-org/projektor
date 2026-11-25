@@ -101,8 +101,8 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=issues',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    expect(dupRes.result.tools.map((tool) => tool.name).sort()).toStrictEqual(
-      straightRes.result.tools.map((tool) => tool.name).sort(),
+    expect(dupRes.result.tools.map((tool) => tool.name).toSorted()).toStrictEqual(
+      straightRes.result.tools.map((tool) => tool.name).toSorted(),
     )
 
     const forwardRes = (await mcpCall<{ tools: { name: string }[] }>(
@@ -119,8 +119,8 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=wiki,issues',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    expect(forwardRes.result.tools.map((tool) => tool.name).sort()).toStrictEqual(
-      reversedRes.result.tools.map((tool) => tool.name).sort(),
+    expect(forwardRes.result.tools.map((tool) => tool.name).toSorted()).toStrictEqual(
+      reversedRes.result.tools.map((tool) => tool.name).toSorted(),
     )
   })
 

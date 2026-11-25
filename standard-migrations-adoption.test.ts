@@ -30,7 +30,7 @@ test.each([
   `)
   const files = readdirSync(directory)
     .filter((name) => name.endsWith('.sql') && name <= alreadyApplied)
-    .sort()
+    .toSorted()
   const insertApplied = db.prepare('INSERT INTO d1_migrations (name, applied_at) VALUES (?, ?)')
   const hashes = new Map<string, string>()
   Iterable.forEach(files, (name) => {

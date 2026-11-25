@@ -23,7 +23,7 @@ const splitStatements = function splitStatements(sql: string): string[] {
 export const loadMigrations = function loadMigrations(): string[] {
   return readdirSync(MIGRATIONS_DIR)
     .filter((file) => file.endsWith('.sql'))
-    .sort()
+    .toSorted()
     .map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8'))
 }
 

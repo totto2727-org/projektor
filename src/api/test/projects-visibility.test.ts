@@ -22,7 +22,7 @@ const viewerCtx = function viewerCtx(workspaceId: string, userId: string): Servi
 }
 
 const ids = async function ids(p: Promise<unknown>): Promise<string[]> {
-  return ((await p) as { id: string }[]).map((r) => r.id).sort()
+  return ((await p) as { id: string }[]).map((r) => r.id).toSorted()
 }
 
 describe('covers PROJ-581: viewers see projects only through grants, consistently on both lists', () => {

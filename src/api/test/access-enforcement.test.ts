@@ -55,7 +55,7 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedProject(roles.workspace.id, 'P2')
 
     const owned = await listProjects(roles.owner.token, slug)
-    expect(owned.body.map((p) => p.key).sort()).toStrictEqual(['P1', 'P2'])
+    expect(owned.body.map((p) => p.key).toSorted()).toStrictEqual(['P1', 'P2'])
   })
 
   test('a grant makes exactly one project visible; others stay hidden', async () => {
@@ -193,11 +193,11 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ownerCtx)
-    expect(ids.sort()).toStrictEqual([p1.id, p2.id].toSorted())
+    expect(ids.toSorted()).toStrictEqual([p1.id, p2.id].toSorted())
 
     const adminCtx = { ...ownerCtx, userId: roles.owner.user.id, role: 'admin' as const }
     const result = await visibleProjectIds(adminCtx)
-    expect(result.sort()).toStrictEqual([p1.id, p2.id].toSorted())
+    expect(result.toSorted()).toStrictEqual([p1.id, p2.id].toSorted())
   })
 
   test('returns only granted projects for a non-admin member', async () => {

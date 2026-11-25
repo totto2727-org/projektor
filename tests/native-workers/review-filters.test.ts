@@ -157,12 +157,12 @@ describe('cross-project review filters through actual named Core bindings', () =
       const expected = selected
         .filter((row) => row.status === review)
         .map((row) => row.id)
-        .sort()
+        .toSorted()
       const result = await page(`review=${review}&limit=100`)
       expect(result.total).toBe(expected.length)
-      expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
+      expect(result.items.map((row) => row.id).toSorted()).toStrictEqual(expected)
       const resolvedValue = await search(review)
-      expect(resolvedValue.map((row) => row.id).sort()).toStrictEqual(expected)
+      expect(resolvedValue.map((row) => row.id).toSorted()).toStrictEqual(expected)
     },
   )
 
@@ -177,11 +177,11 @@ describe('cross-project review filters through actual named Core bindings', () =
     const expected = selected
       .filter((row) => row.projectId === secondProject)
       .map((row) => row.id)
-      .sort()
+      .toSorted()
     const result = await page(`review=active&project=${secondProject}&limit=100`)
-    expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect(result.items.map((row) => row.id).toSorted()).toStrictEqual(expected)
     const resolvedValue = await search('active', secondProject)
-    expect(resolvedValue.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect(resolvedValue.map((row) => row.id).toSorted()).toStrictEqual(expected)
     await expect(page(`review=active&project=${hiddenProject}`)).rejects.toMatchObject({ status: 404 })
     await expect(search('active', hiddenProject)).rejects.toMatchObject({ status: 404 })
     await expect(page('review=active', foreignWorkspaceId)).rejects.toMatchObject({ status: 403 })
@@ -195,12 +195,12 @@ describe('cross-project review filters through actual named Core bindings', () =
     const expected = selected
       .filter((row) => row.projectId === firstProject)
       .map((row) => row.id)
-      .sort()
+      .toSorted()
     const result = await page('review=active&limit=100')
     expect(result.total).toBe(expected.length)
-    expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect(result.items.map((row) => row.id).toSorted()).toStrictEqual(expected)
     const resolvedValue = await search('active')
-    expect(resolvedValue.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect(resolvedValue.map((row) => row.id).toSorted()).toStrictEqual(expected)
   })
 
   test('rejects malformed review query values at the native Core boundary', async () => {

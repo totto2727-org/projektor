@@ -17,7 +17,7 @@ const pageId = 'abcdef12-0000-4000-8000-000000000001'
 const migrations = loadMigrations()
 const filenames = readdirSync(new URL('../../../migrations/', import.meta.url))
   .filter((file) => file.endsWith('.sql'))
-  .sort()
+  .toSorted()
 
 const seedWorkspace = function seedWorkspace(db: DatabaseSync): void {
   db.exec(`INSERT INTO workspaces(id,name,slug,created_at) VALUES ('w','Workspace','workspace',0);

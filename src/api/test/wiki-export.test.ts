@@ -250,7 +250,7 @@ describe('wiki export (PROJ-497)', () => {
       .toSorted()
     expect(names).toHaveLength(3)
 
-    const contents = names.map((n) => entryText(entries, n)).sort()
+    const contents = names.map((n) => entryText(entries, n)).toSorted()
     expect(contents).toStrictEqual(['first', 'second', 'third'])
   })
 

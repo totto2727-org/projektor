@@ -194,7 +194,7 @@ describe('sprints API', () => {
     })
     const page = await readNativeJson(listRes, pageShape)
     expect(page.items).toHaveLength(2)
-    const titles = page.items.map((item) => item.title).sort()
+    const titles = page.items.map((item) => item.title).toSorted()
     expect(titles).toStrictEqual(['Issue A', 'Issue B'])
   })
 

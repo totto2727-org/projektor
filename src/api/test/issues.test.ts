@@ -213,7 +213,7 @@ describe('issues API', () => {
       })
     }
     const { page } = await listIssues()
-    const numbers = (page.items as { number: number }[]).map((i) => i.number).sort((left, right) => left - right)
+    const numbers = (page.items as { number: number }[]).map((i) => i.number).toSorted((left, right) => left - right)
     expect(numbers).toStrictEqual([1, 2, 3])
   })
 
@@ -1101,7 +1101,7 @@ describe('issues API', () => {
 
     const { page } = await listIssues(`http://localhost/api/issues?statusIds=${s1.id},${s2.id}`)
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
+    const titles = (page.items as { title: string }[]).map((i) => i.title).toSorted()
     expect(titles).toStrictEqual(['Done item', 'Todo item'])
   })
 
@@ -1125,7 +1125,7 @@ describe('issues API', () => {
 
     const { page } = await listIssues('http://localhost/api/issues?priorities=urgent,high')
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
+    const titles = (page.items as { title: string }[]).map((i) => i.title).toSorted()
     expect(titles).toStrictEqual(['High issue', 'Urgent issue'])
   })
 
@@ -1176,7 +1176,7 @@ describe('issues API', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'A plain issue' })
 
     const { page } = await listIssues(`http://localhost/api/issues?excludeTypeIds=${epic.id}`)
-    const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
+    const titles = (page.items as { title: string }[]).map((i) => i.title).toSorted()
     // The epic is excluded; the untyped (NULL type_id) issue must NOT be dropped.
     expect(titles).toStrictEqual(['A plain issue'])
   })
@@ -2942,7 +2942,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [currentIssue.id] } })
     expect(res.error).toBeUndefined()
     const data = parseNativeMcpText(res.result!.content[0].text, TitleItemsResponse)
-    const titles = data.items.map((item) => item.title).sort()
+    const titles = data.items.map((item) => item.title).toSorted()
     expect(titles).toStrictEqual(['Batch A', 'Batch B'])
   })
 
@@ -3033,7 +3033,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
     })
     const data = await readNativeJson(res, dataShape)
-    expect(data.items.map((item) => item.title).sort()).toStrictEqual(['REST Batch A', 'REST Batch B'])
+    expect(data.items.map((item) => item.title).toSorted()).toStrictEqual(['REST Batch A', 'REST Batch B'])
   })
 
   test('covers PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {

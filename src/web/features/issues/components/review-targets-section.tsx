@@ -158,7 +158,7 @@ export const ReviewTargetsSection = function ReviewTargetsSection({
   const eligible = attachments.filter((attachment) => attachment.kind === 'file' || attachment.kind === 'url')
   const selected = eligible
     .filter((attachment) => Predicate.isNotNullish(attachment.reviewStatus) && attachment.reviewStatus !== 'done')
-    .sort((left, right) => {
+    .toSorted((left, right) => {
       const priority = Number(right.reviewStatus === 'in_review') - Number(left.reviewStatus === 'in_review')
       return priority || left.createdAt - right.createdAt || left.id.localeCompare(right.id, 'en')
     })

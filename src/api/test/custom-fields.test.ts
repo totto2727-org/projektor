@@ -471,7 +471,7 @@ describe('custom Fields — list_issues filter', () => {
     })
     const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(2)
-    const titles = page.items.map((item) => item.title).sort()
+    const titles = page.items.map((item) => item.title).toSorted()
     expect(titles).toStrictEqual(['SP13', 'SP8'])
   })
 
@@ -676,7 +676,7 @@ describe('covers PROJ-837: custom field definitions respect project access', () 
       headers: authHeaders(token, workspace.slug),
     })
     expect(all.status).toBe(200)
-    const keys = ((await all.json()) as { key: string }[]).map((d) => d.key).sort()
+    const keys = ((await all.json()) as { key: string }[]).map((d) => d.key).toSorted()
     expect(keys).toStrictEqual(['open_field', 'ws_field'])
 
     const scoped = await fetchNativeApi(`http://localhost/api/custom-fields?projectId=${restricted.id}`, {

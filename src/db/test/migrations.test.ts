@@ -20,7 +20,7 @@ describe('migrations', () => {
   test('discovers every root migration file in filename order', () => {
     const files = readdirSync(MIGRATIONS_DIR)
       .filter((file) => file.endsWith('.sql'))
-      .sort()
+      .toSorted()
     expect(files.length).toBeGreaterThan(0)
     expect(loadMigrations()).toStrictEqual(files.map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8')))
   })
@@ -124,7 +124,7 @@ describe('schema constraints', () => {
   test('0035_project_slug backfill dedupes colliding slugs instead of aborting', () => {
     const migrationFiles = readdirSync(MIGRATIONS_DIR)
       .filter((file) => file.endsWith('.sql'))
-      .sort()
+      .toSorted()
     const preSlugFiles = migrationFiles.filter((f) => f < '0035')
     const slugFile = migrationFiles.find((f) => f.startsWith('0035'))
     if (Predicate.isNullish(slugFile) || String.isEmpty(slugFile)) {

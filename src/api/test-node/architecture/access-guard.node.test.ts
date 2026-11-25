@@ -241,7 +241,7 @@ describe('covers PROJ-837: project-scoped service operations reach the access gu
     const unguarded = targets
       .filter(([key]) => !guarded.has(key) && !(key in ACCESS_GUARD_ALLOWLIST))
       .map(([key]) => key)
-      .sort()
+      .toSorted()
     expect(
       unguarded,
       'These exported services take a project-scoped id but never reach services/access.ts. ' +

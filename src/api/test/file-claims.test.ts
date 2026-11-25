@@ -314,7 +314,7 @@ describe('file Claims API', () => {
     expect(rows.results).toHaveLength(2)
     const paths = rows.results
       .map((result) => (result as Record<string, unknown>).path)
-      .sort((selectedLeft, selectedRight) => {
+      .toSorted((selectedLeft, selectedRight) => {
         const left = String(selectedLeft)
         const right = String(selectedRight)
         return left < right ? -1 : left > right ? 1 : 0

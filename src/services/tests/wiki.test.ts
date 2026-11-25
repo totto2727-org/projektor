@@ -158,7 +158,7 @@ describe('pure wiki reads', () => {
     )
     const opts = { now: 100, limit: 10, offset: 0 }
     const rows = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', opts))
-    expect(rows.map((row) => row.id).sort()).toStrictEqual(['child', 'root'])
+    expect(rows.map((row) => row.id).toSorted()).toStrictEqual(['child', 'root'])
     expect(rows.find((row) => row.id === 'root')?.owners).toStrictEqual(['u'])
     const restricted = await runTestEffect(
       wiki.searchWiki(db, 'wa', 'needle*', {

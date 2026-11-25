@@ -139,7 +139,7 @@ const reference = async function reference(
         0.2 * (1 / (storyPoints[o.id] ?? 1))
       return { id: o.id, score, ready: checkDefinitionOfReady(o.body).ready }
     })
-    .sort((left, right) => right.score - left.score)
+    .toSorted((left, right) => right.score - left.score)
 }
 
 describe('covers PROJ-859: prioritization parity with the in-memory algorithm', () => {

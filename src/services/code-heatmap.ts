@@ -128,7 +128,9 @@ const groupClaimsByNextSegment = function groupClaimsByNextSegment(
       distinctIssueCount: group.ids.size,
       claimCount: group.count,
     }))
-    .sort((left, right) => right.distinctIssueCount - left.distinctIssueCount || left.path.localeCompare(right.path))
+    .toSorted(
+      (left, right) => right.distinctIssueCount - left.distinctIssueCount || left.path.localeCompare(right.path),
+    )
 }
 
 const groupConflictsByNextSegment = function groupConflictsByNextSegment(
@@ -146,7 +148,7 @@ const groupConflictsByNextSegment = function groupConflictsByNextSegment(
       distinctRejectedIssueCount: group.ids.size,
       conflictCount: group.count,
     }))
-    .sort(
+    .toSorted(
       (left, right) =>
         right.distinctRejectedIssueCount - left.distinctRejectedIssueCount || left.path.localeCompare(right.path),
     )

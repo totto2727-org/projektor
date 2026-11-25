@@ -820,7 +820,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await widenedRes.json()) as { title: string }[]).map((page) => page.title).sort()).toStrictEqual([
+    expect(((await widenedRes.json()) as { title: string }[]).map((page) => page.title).toSorted()).toStrictEqual([
       'Scoped Page',
       'Shared Page',
     ])
@@ -831,7 +831,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await treeRes.json()) as { title: string }[]).map((page) => page.title).sort()).toStrictEqual([
+    expect(((await treeRes.json()) as { title: string }[]).map((page) => page.title).toSorted()).toStrictEqual([
       'Scoped Page',
       'Shared Page',
     ])
@@ -2258,7 +2258,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     const results = await readNativeJson(res, TitleListResponse)
-    expect(results.map((result) => result.title).sort()).toStrictEqual(['Tagged Frontend', 'Tagged Ops'])
+    expect(results.map((result) => result.title).toSorted()).toStrictEqual(['Tagged Frontend', 'Tagged Ops'])
   })
 
   test('covers MCP list_wiki_pages filters by tags (any-of), parity with REST', async () => {
@@ -4139,7 +4139,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       res,
       Schema.Array(Schema.Struct({ slug: Schema.String, title: Schema.String })).pipe(Schema.mutable),
     )
-    expect(backlinks.map((backlink) => backlink.slug).sort()).toStrictEqual(['alpha', 'beta'])
+    expect(backlinks.map((backlink) => backlink.slug).toSorted()).toStrictEqual(['alpha', 'beta'])
   })
 
   test('a same-workspace wiki URL link resolves a backlink', async () => {
@@ -5001,7 +5001,7 @@ describe('wiki freshness model (PROJ-489)', () => {
     })
     expect(res.status).toBe(200)
     const results = await readNativeJson(res, TitleListResponse)
-    const titles = results.map((result) => result.title).sort()
+    const titles = results.map((result) => result.title).toSorted()
     expect(titles).toStrictEqual(['Explicitly Stale Page', 'Never Verified Page', 'Overdue Page'])
   })
 
@@ -5297,7 +5297,7 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
       Schema.Struct({ title: Schema.String, type: Schema.Union([Schema.String, Schema.Null]) }),
     ).pipe(Schema.mutable)
     const templates = await readNativeJson(listRes, templatesShape)
-    expect(templates.map((template) => template.title).sort()).toStrictEqual([
+    expect(templates.map((template) => template.title).toSorted()).toStrictEqual([
       'ADR Template',
       'Runbook Template',
       'Spec Template',
@@ -5825,7 +5825,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       changes: { action: string; pageId: string; deletedPageIds: string[] | null }[]
     }
     const deleteEvent = body.changes.find((change) => change.action === 'deleted' && change.pageId === parent.id)
-    expect(deleteEvent?.deletedPageIds?.sort()).toStrictEqual([child.id, parent.id].toSorted())
+    expect(deleteEvent?.deletedPageIds?.toSorted()).toStrictEqual([child.id, parent.id].toSorted())
 
     // Non-cascade events (e.g. the earlier "created" events) carry no deletedPageIds.
     const createdEvent = body.changes.find((change) => change.action === 'created' && change.pageId === parent.id)

@@ -79,7 +79,7 @@ export const listConnectorGrants = async function listConnectorGrants(
     }
     cursor = result.cursor
   }
-  return grants.sort((left, right) => right.grantedAt - left.grantedAt)
+  return grants.toSorted((left, right) => right.grantedAt - left.grantedAt)
 }
 
 /** The provider enforces user ownership. This lookup additionally prevents cross-workspace revocation. */

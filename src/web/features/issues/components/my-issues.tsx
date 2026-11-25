@@ -170,7 +170,7 @@ function IssuesTable({ issues }: { issues: ScopedIssue[] }): JSX.Element {
 export function MyIssues({ initialData }: { initialData: MyIssuesInitialData }): JSX.Element {
   const visible = initialData.issues
     .filter((issue) => OPEN_CATEGORIES.has(issue.status_category ?? ''))
-    .sort(compareIssues)
+    .toSorted(compareIssues)
   const hasAny = Array.isArrayNonEmpty(visible)
 
   return (

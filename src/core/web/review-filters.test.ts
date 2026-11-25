@@ -94,12 +94,12 @@ describe('cross-project review filters at the Core data boundary', () => {
       const expected = testFixture.selected
         .filter((entry) => entry.status === review)
         .map((entry) => entry.id)
-        .sort()
+        .toSorted()
       const page = await testFixture.page(`review=${review}&limit=100`)
       expect(page.total).toBe(expected.length)
-      expect(page.items.map((entry) => entry.id).sort()).toStrictEqual(expected)
+      expect(page.items.map((entry) => entry.id).toSorted()).toStrictEqual(expected)
       const result = await testFixture.search(review)
-      expect(result.map((entry) => entry.id).sort()).toStrictEqual(expected)
+      expect(result.map((entry) => entry.id).toSorted()).toStrictEqual(expected)
     },
   )
 
@@ -116,12 +116,12 @@ describe('cross-project review filters at the Core data boundary', () => {
     const expected = testFixture.selected
       .filter((entry) => entry.projectId === 'project-b')
       .map((entry) => entry.id)
-      .sort()
+      .toSorted()
     const page = await testFixture.page('review=active&project=project-b&limit=100')
     expect(page.total).toBe(expected.length)
-    expect(page.items.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect(page.items.map((row) => row.id).toSorted()).toStrictEqual(expected)
     const result = await testFixture.search('active', 'project-b')
-    expect(result.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect(result.map((row) => row.id).toSorted()).toStrictEqual(expected)
   })
 
   test('does not multiply issue counts when multiple attachments match the same filter', async () => {

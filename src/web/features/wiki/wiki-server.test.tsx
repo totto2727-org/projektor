@@ -201,7 +201,7 @@ describe('wiki direct request-owned queries', () => {
     const test = await fixture()
     const rendered = await runTestEffect(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
     const initial = initialData(rendered)
-    expect(initial.searchResults.map((page) => page.id).sort()).toStrictEqual(['child', 'page', 'visible-page'])
+    expect(initial.searchResults.map((page) => page.id).toSorted()).toStrictEqual(['child', 'page', 'visible-page'])
     expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toStrictEqual({
       staleSince: 86_401,
       state: 'stale',

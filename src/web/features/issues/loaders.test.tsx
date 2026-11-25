@@ -169,7 +169,10 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(second?.initialData.page.nextCursor).toBeNull()
     const searchUrl = new URL(`${listUrl}&review=in_review&q=issue`)
     const search = await data.run(loadIssues(scope, searchUrl))
-    expect(search?.initialData.search.results?.map((entry) => entry.id).sort()).toStrictEqual(['issue-a', 'issue-b'])
+    expect(search?.initialData.search.results?.map((entry) => entry.id).toSorted()).toStrictEqual([
+      'issue-a',
+      'issue-b',
+    ])
     data.sqlite.exec("UPDATE attachments SET review_status='done' WHERE id='review-b'")
     const refreshed = await data.run(loadIssues(scope, searchUrl))
     expect(refreshed?.initialData.search.results?.map((entry) => entry.id)).toStrictEqual(['issue-a'])
