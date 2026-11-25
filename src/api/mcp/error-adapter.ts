@@ -6,11 +6,14 @@ import { ConflictError, NotFoundError, ServiceError, ValidationError } from '#co
 import type { ZodFlattenOutput } from '#contracts/errors.ts'
 import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
-const ValidationIssues = z.object({
-  formErrors: z.array(z.string()),
-  fieldErrors: z.record(z.string(), z.array(z.string()).optional()),
-})
+const validationIssueFields = fieldsInOrder([
+  ['formErrors', z.array(z.string())],
+  ['fieldErrors', z.record(z.string(), z.array(z.string()).optional())],
+])
+
+const ValidationIssues = z.object(validationIssueFields)
 
 const MAX_DETAIL_VALUE_CHARS = 80
 const MAX_DETAIL_SUMMARY_CHARS = 300
@@ -201,7 +204,15 @@ export interface ToolErrorContext {
 }
 
 export const toolErrorResult = function toolErrorResult(error: ToolErrorBody): ToolErrorResult {
-  return { content: [{ type: 'text', text: JSON.stringify({ error }) }], isError: true }
+  return {
+    content: [
+      fieldsInOrder([
+        ['type', 'text'],
+        ['text', JSON.stringify({ error })],
+      ]),
+    ],
+    isError: true,
+  }
 }
 
 const definedFields = function definedFields(
@@ -279,35 +290,46 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
     }
     if (err.kind === 'not_found') {
       return toolErrorResult({
-        code: 'not_found',
-        message: err.message,
-        hint: notFoundHint(err.message, ctx.toolName),
+        ...fieldsInOrder([
+          ['code', 'not_found'],
+          ['message', err.message],
+          ['hint', notFoundHint(err.message, ctx.toolName)],
+        ]),
         ...(hasDetails(err.details) ? { details: err.details } : {}),
       })
     }
     if (err.kind === 'conflict') {
       return toolErrorResult({
-        code: 'conflict',
-        message: err.message,
-        hint: conflictHint(err.message, err.details),
+        ...fieldsInOrder([
+          ['code', 'conflict'],
+          ['message', err.message],
+          ['hint', conflictHint(err.message, err.details)],
+        ]),
         ...(hasDetails(err.details) ? { details: err.details } : {}),
       })
     }
     if (err.kind === 'forbidden') {
-      return toolErrorResult({
-        code: 'forbidden',
-        message: err.message,
-        hint: isNonEmptyText(ctx.role)
-          ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
-          : 'Your role does not allow this; members write, admins and owners manage.',
-      })
+      return toolErrorResult(
+        fieldsInOrder([
+          ['code', 'forbidden'],
+          ['message', err.message],
+          [
+            'hint',
+            isNonEmptyText(ctx.role)
+              ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
+              : 'Your role does not allow this; members write, admins and owners manage.',
+          ],
+        ]),
+      )
     }
     if (err.kind === 'payload_too_large') {
-      return toolErrorResult({
-        code: 'payload_too_large',
-        message: err.message,
-        hint: 'Send less data, or split it across several calls.',
-      })
+      return toolErrorResult(
+        fieldsInOrder([
+          ['code', 'payload_too_large'],
+          ['message', err.message],
+          ['hint', 'Send less data, or split it across several calls.'],
+        ]),
+      )
     }
     return null
   }
@@ -331,36 +353,47 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
     case 'not_found': {
       const details = err instanceof NotFoundError ? err.details : undefined
       return toolErrorResult({
-        code: 'not_found',
-        message: err.message,
-        hint: notFoundHint(err.message, ctx.toolName),
+        ...fieldsInOrder([
+          ['code', 'not_found'],
+          ['message', err.message],
+          ['hint', notFoundHint(err.message, ctx.toolName)],
+        ]),
         ...(hasDetails(details) ? { details } : {}),
       })
     }
     case 'forbidden': {
-      return toolErrorResult({
-        code: 'forbidden',
-        message: err.message,
-        hint: isNonEmptyText(ctx.role)
-          ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
-          : 'Your role does not allow this; members write, admins and owners manage.',
-      })
+      return toolErrorResult(
+        fieldsInOrder([
+          ['code', 'forbidden'],
+          ['message', err.message],
+          [
+            'hint',
+            isNonEmptyText(ctx.role)
+              ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
+              : 'Your role does not allow this; members write, admins and owners manage.',
+          ],
+        ]),
+      )
     }
     case 'conflict': {
       const details = err instanceof ConflictError ? err.details : undefined
       return toolErrorResult({
-        code: 'conflict',
-        message: err.message,
-        hint: conflictHint(err.message, details),
+        ...fieldsInOrder([
+          ['code', 'conflict'],
+          ['message', err.message],
+          ['hint', conflictHint(err.message, details)],
+        ]),
         ...(hasDetails(details) ? { details } : {}),
       })
     }
     case 'payload_too_large': {
-      return toolErrorResult({
-        code: 'payload_too_large',
-        message: err.message,
-        hint: 'Send less data, or split it across several calls.',
-      })
+      return toolErrorResult(
+        fieldsInOrder([
+          ['code', 'payload_too_large'],
+          ['message', err.message],
+          ['hint', 'Send less data, or split it across several calls.'],
+        ]),
+      )
     }
     default: {
       return null

@@ -154,10 +154,13 @@ export const wikiWatchTools: MCPTool[] = [
       const events = result.changes as { createdAt: number }[]
       const page = toPage(events, result.nextSince > (rest.since as number) ? result.nextSince : null)
       // `since` is exclusive, so a cut must not split events sharing one second.
-      return capPage(page, {
-        cursorOf: (index) => globalThis.String(events[index].createdAt),
-        canCutAt: (kept) => events[kept - 1].createdAt !== events[kept]?.createdAt,
-      })
+      return capPage(
+        page,
+        fieldsInOrder([
+          ['cursorOf', (index: number) => globalThis.String(events[index].createdAt)],
+          ['canCutAt', (kept: number) => events[kept - 1].createdAt !== events[kept]?.createdAt],
+        ]),
+      )
     },
     inputSchema: objectInputSchema(
       fieldsInOrder([

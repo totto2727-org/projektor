@@ -178,20 +178,24 @@ export const wikiReadTools: MCPTool[] = [
         const sectionWindow = windowText(body, { cursor, max })
         return {
           ...rest,
-          outline,
-          section,
-          content: sectionWindow.text,
-          totalChars: sectionWindow.totalChars,
-          contentTruncated: true,
+          ...fieldsInOrder([
+            ['outline', outline],
+            ['section', section],
+            ['content', sectionWindow.text],
+            ['totalChars', sectionWindow.totalChars],
+            ['contentTruncated', true],
+          ]),
           ...(isNonEmptyText(sectionWindow.next) ? { next: sectionWindow.next } : {}),
         }
       }
       const contentWindow = windowText(full, { cursor, max })
       return {
         ...rest,
-        outline,
-        content: contentWindow.text,
-        totalChars: contentWindow.totalChars,
+        ...fieldsInOrder([
+          ['outline', outline],
+          ['content', contentWindow.text],
+          ['totalChars', contentWindow.totalChars],
+        ]),
         ...(isNonEmptyText(contentWindow.next) || Predicate.isNotNullish(cursor) ? { contentTruncated: true } : {}),
         ...(isNonEmptyText(contentWindow.next) ? { next: contentWindow.next } : {}),
       }

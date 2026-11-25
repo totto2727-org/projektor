@@ -1,5 +1,6 @@
 import { Predicate } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { MCPToolAnnotations } from '#types'
 
 /**
@@ -16,7 +17,10 @@ import type { MCPToolAnnotations } from '#types'
  */
 
 /** Annotations for a read-only tool (list_/get_/search_/wiki_tree). */
-export const READ: MCPToolAnnotations = { readOnlyHint: true, openWorldHint: false }
+export const READ: MCPToolAnnotations = fieldsInOrder([
+  ['readOnlyHint', true],
+  ['openWorldHint', false],
+])
 
 /**
  * Annotations for a non-read (mutating) tool.
@@ -26,9 +30,11 @@ export const READ: MCPToolAnnotations = { readOnlyHint: true, openWorldHint: fal
  */
 export const WRITE = function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCPToolAnnotations {
   return {
-    readOnlyHint: false,
-    openWorldHint: false,
-    destructiveHint: opts.destructive,
+    ...fieldsInOrder([
+      ['readOnlyHint', false],
+      ['openWorldHint', false],
+      ['destructiveHint', opts.destructive],
+    ]),
     ...(Predicate.isNotNullish(opts.idempotent) ? { idempotentHint: opts.idempotent } : {}),
   }
 }

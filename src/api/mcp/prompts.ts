@@ -1,5 +1,6 @@
 import { composePlaybook } from '#api/services/playbook-compose.ts'
 import { NotFoundError } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import type { PluginContext } from './types.ts'
 
@@ -26,21 +27,43 @@ interface MCPPromptDescriptor {
  * real case.
  */
 const PROMPTS: MCPPromptDescriptor[] = [
-  {
-    name: 'epic-goal',
-    description: 'Compose a standing goal directive for autonomously working an epic (or ticket list) to completion.',
-    arguments: [
-      { name: 'epicRef', description: 'Epic ref, e.g. "PROJ-596"', required: true },
-      { name: 'variant', description: '"bounded" (default) or "full"', required: false },
-      { name: 'reviewModel', description: 'Review model name, default "opus"', required: false },
-      { name: 'cadence', description: 'Ticket review cadence, default 2', required: false },
-      {
-        name: 'checkpointInterval',
-        description: 'Human checkpoint interval in tickets, default 10',
-        required: false,
-      },
+  fieldsInOrder([
+    ['name', 'epic-goal'],
+    [
+      'description',
+      'Compose a standing goal directive for autonomously working an epic (or ticket list) to completion.',
     ],
-  },
+    [
+      'arguments',
+      [
+        fieldsInOrder([
+          ['name', 'epicRef'],
+          ['description', 'Epic ref, e.g. "PROJ-596"'],
+          ['required', true],
+        ]),
+        fieldsInOrder([
+          ['name', 'variant'],
+          ['description', '"bounded" (default) or "full"'],
+          ['required', false],
+        ]),
+        fieldsInOrder([
+          ['name', 'reviewModel'],
+          ['description', 'Review model name, default "opus"'],
+          ['required', false],
+        ]),
+        fieldsInOrder([
+          ['name', 'cadence'],
+          ['description', 'Ticket review cadence, default 2'],
+          ['required', false],
+        ]),
+        fieldsInOrder([
+          ['name', 'checkpointInterval'],
+          ['description', 'Human checkpoint interval in tickets, default 10'],
+          ['required', false],
+        ]),
+      ] satisfies MCPPromptArgument[],
+    ],
+  ]),
 ]
 
 export const listPrompts = function listPrompts(): MCPPromptDescriptor[] {
@@ -59,22 +82,28 @@ export const getPrompt = async function getPrompt(ctx: PluginContext, name: stri
    */
   const { directive } = await composePlaybook(ctx, {
     name: 'epic-goal',
-    params: {
-      epicRef: args.epicRef,
-      variant: args.variant || undefined,
-      reviewModel: args.reviewModel || undefined,
-      cadence: args.cadence ? Number(args.cadence) : undefined,
-      checkpointInterval: args.checkpointInterval ? Number(args.checkpointInterval) : undefined,
-    },
+    params: fieldsInOrder([
+      ['epicRef', args.epicRef],
+      ['variant', args.variant || undefined],
+      ['reviewModel', args.reviewModel || undefined],
+      ['cadence', args.cadence ? Number(args.cadence) : undefined],
+      ['checkpointInterval', args.checkpointInterval ? Number(args.checkpointInterval) : undefined],
+    ]),
   })
 
   return {
     description: prompt.description,
     messages: [
-      {
-        role: 'user',
-        content: { type: 'text', text: directive },
-      },
+      fieldsInOrder([
+        ['role', 'user'],
+        [
+          'content',
+          fieldsInOrder([
+            ['type', 'text'],
+            ['text', directive],
+          ]),
+        ],
+      ]),
     ],
   }
 }

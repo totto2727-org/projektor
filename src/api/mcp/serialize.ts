@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
 import { JSON_NULL } from '#contracts/json-null.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 /*
  * PROJ-891 (builds on PROJ-931): MCP-only response shaping. Applied in the MCP layer, not
@@ -66,41 +67,50 @@ export const ISSUE_FIELD_NAMES = [
 ] as const
 
 export const VIEW_FIELDS_PROPS = {
-  view: {
-    type: 'string',
-    enum: ['summary', 'full'],
-    description:
+  view: fieldsInOrder([
+    ['type', 'string'],
+    ['enum', ['summary', 'full']],
+    [
+      'description',
       'summary = {ref,title,status,priority,type,parent?,assignee?,updated} per issue; ' +
-      'full (default) = every non-empty field. See ' +
-      RESPONSE_CONVENTIONS_DOC,
-  },
-  verbose: {
-    type: 'boolean',
-    description: 'Include normally-omitted empty/default/internal fields (default false)',
-  },
-  fields: {
-    type: ['array', 'string'],
-    items: { type: 'string' },
-    description:
+        'full (default) = every non-empty field. See ' +
+        RESPONSE_CONVENTIONS_DOC,
+    ],
+  ]),
+  verbose: fieldsInOrder([
+    ['type', 'boolean'],
+    ['description', 'Include normally-omitted empty/default/internal fields (default false)'],
+  ]),
+  fields: fieldsInOrder([
+    ['type', ['array', 'string']],
+    ['items', { type: 'string' }],
+    [
+      'description',
       'Return only these fields (array, or comma-separated string), with their real values ' +
-      '(null if the issue has no such value). Every named field is always present. Unknown ' +
-      `names are rejected. See ${RESPONSE_CONVENTIONS_DOC}`,
-  },
+        '(null if the issue has no such value). Every named field is always present. Unknown ' +
+        `names are rejected. See ${RESPONSE_CONVENTIONS_DOC}`,
+    ],
+  ]),
 } as const
 
-const ShapeOptsSchema = z.object({
-  view: z.enum(['summary', 'full']).optional(),
-  verbose: z.boolean().optional(),
-  fields: z
-    .union([z.string(), z.array(z.string())])
-    .transform((csv) =>
-      (Predicate.isString(csv) ? csv.split(',') : csv)
-        .map((entry) => entry.trim())
-        .filter((entry) => String.isNonEmpty(entry)),
-    )
-    .pipe(z.array(z.enum(ISSUE_FIELD_NAMES)).max(ISSUE_FIELD_NAMES.length))
-    .optional(),
-})
+const shapeOptionFields = fieldsInOrder([
+  ['view', z.enum(['summary', 'full']).optional()],
+  ['verbose', z.boolean().optional()],
+  [
+    'fields',
+    z
+      .union([z.string(), z.array(z.string())])
+      .transform((csv) =>
+        (Predicate.isString(csv) ? csv.split(',') : csv)
+          .map((entry) => entry.trim())
+          .filter((entry) => String.isNonEmpty(entry)),
+      )
+      .pipe(z.array(z.enum(ISSUE_FIELD_NAMES)).max(ISSUE_FIELD_NAMES.length))
+      .optional(),
+  ],
+])
+
+const ShapeOptsSchema = z.object(shapeOptionFields)
 
 export type ShapeOpts = z.infer<typeof ShapeOptsSchema>
 
@@ -113,7 +123,13 @@ export type ShapeOpts = z.infer<typeof ShapeOptsSchema>
  */
 export const splitShapeOpts = function splitShapeOpts(input: unknown): { rest: Record<string, unknown> } & ShapeOpts {
   const { view, verbose, fields, ...rest } = (input ?? {}) as Record<string, unknown>
-  const result = ShapeOptsSchema.safeParse({ view, verbose, fields })
+  const result = ShapeOptsSchema.safeParse(
+    fieldsInOrder([
+      ['view', view],
+      ['verbose', verbose],
+      ['fields', fields],
+    ]),
+  )
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
   }

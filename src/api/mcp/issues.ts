@@ -57,7 +57,10 @@ const splitBodyChars = function splitBodyChars(rest: Record<string, unknown>): {
     )
   }
   const previewChars = bodyChars as number
-  return { rest: previewChars > 0 ? { ...others, includeBody: true } : others, bodyChars: previewChars }
+  return fieldsInOrder([
+    ['rest', previewChars > 0 ? { ...others, includeBody: true } : others],
+    ['bodyChars', previewChars],
+  ])
 }
 
 const withBodyPreview = function withBodyPreview(
