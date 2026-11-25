@@ -42,6 +42,7 @@ import { inChunks, prepareQuery, sanitizeFtsQuery } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 import { deleteWikiDraftsForPages } from './wiki-drafts.ts'
 import { computeFreshness } from './wiki-freshness.ts'
+import type { ComputeFreshnessInput, WikiFreshness } from './wiki-freshness.ts'
 import {
   parseWikiFrontmatter,
   setWikiFrontmatterFields,
@@ -525,6 +526,21 @@ export const listWikiPages = async function listWikiPages(ctx: ServiceCtx, input
   return rows.map((row) => ({ ...row, url: wikiPagePath(row.slug) }))
 }
 
+interface WikiFreshnessRow {
+  status: ComputeFreshnessInput['status']
+  verified_at: ComputeFreshnessInput['verifiedAt']
+  verify_interval: ComputeFreshnessInput['verifyInterval']
+}
+
+const freshnessForWikiRow = function freshnessForWikiRow(row: WikiFreshnessRow, now?: number): WikiFreshness | null {
+  const metadata = fieldsInOrder([
+    ['verifiedAt', row.verified_at],
+    ['verifyInterval', row.verify_interval],
+    ['status', row.status],
+  ])
+  return computeFreshness(Predicate.isNullish(now) ? metadata : { ...metadata, now })
+}
+
 export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unknown) {
   const parsed = SearchWikiInputSchema.safeParse(input)
   if (!parsed.success) {
@@ -548,42 +564,39 @@ export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unkn
     Predicate.isNullish(projectId) || String.isEmpty(projectId) || includeWorkspacePages
       ? visibleProjectSqlFragment(ctx, 'p.project_id')
       : undefined
-  const rows = await Effect.runPromise(
-    wikiData.searchWiki(ctx.db, ctx.workspaceId, ftsQuery, {
-      ...parsed.data,
-      now,
-      visibilitySql: visible ? { sql: `p.project_id IS NULL OR ${visible.sql}`, params: visible.params } : undefined,
-    }),
-  )
-  return rows.map((row) => ({
-    ...row,
-    freshness: computeFreshness({
-      verifiedAt: row.verified_at,
-      verifyInterval: row.verify_interval,
-      status: row.status,
-      now,
-    }),
-  }))
+  const { db, workspaceId } = ctx
+  const options = {
+    ...parsed.data,
+    now,
+    visibilitySql: visible
+      ? fieldsInOrder([
+          ['sql', `p.project_id IS NULL OR ${visible.sql}`],
+          ['params', visible.params],
+        ])
+      : undefined,
+  }
+  const rows = await Effect.runPromise(wikiData.searchWiki(db, workspaceId, ftsQuery, options))
+  return rows.map((row) => ({ ...row, freshness: freshnessForWikiRow(row, now) }))
 }
 
-const wikiPageDetailColumns = {
-  id: schema.wikiPages.id,
-  slug: schema.wikiPages.slug,
-  title: schema.wikiPages.title,
-  content: schema.wikiPages.content,
-  parent_id: schema.wikiPages.parentId,
-  project_id: schema.wikiPages.projectId,
-  updated_at: schema.wikiPages.updatedAt,
+const wikiPageDetailColumns = fieldsInOrder([
+  ['id', schema.wikiPages.id],
+  ['slug', schema.wikiPages.slug],
+  ['title', schema.wikiPages.title],
+  ['content', schema.wikiPages.content],
+  ['parent_id', schema.wikiPages.parentId],
+  ['project_id', schema.wikiPages.projectId],
+  ['updated_at', schema.wikiPages.updatedAt],
   // PROJ-488 (R6): denormalized frontmatter metadata.
-  type: schema.wikiPages.type,
-  tags: schema.wikiPages.tags,
-  status: schema.wikiPages.status,
-  verified_at: schema.wikiPages.verifiedAt,
-  verified_by: schema.wikiPages.verifiedBy,
-  owners: schema.wikiPages.owners,
-  verify_interval: schema.wikiPages.verifyInterval,
-  is_template: schema.wikiPages.isTemplate,
-}
+  ['type', schema.wikiPages.type],
+  ['tags', schema.wikiPages.tags],
+  ['status', schema.wikiPages.status],
+  ['verified_at', schema.wikiPages.verifiedAt],
+  ['verified_by', schema.wikiPages.verifiedBy],
+  ['owners', schema.wikiPages.owners],
+  ['verify_interval', schema.wikiPages.verifyInterval],
+  ['is_template', schema.wikiPages.isTemplate],
+])
 
 /*
  * PROJ-483: a slug with no live page may still be a former slug of one — recorded in
@@ -638,14 +651,7 @@ export const getWikiPage = async function getWikiPage(ctx: ServiceCtx, slugOrId:
       ['revisionId', await Effect.runPromise(wikiData.getLatestWikiRevisionId(ctx.db, ctx.workspaceId, page.id))],
       ['url', wikiPagePath(page.slug)],
       // PROJ-489 (R7): computed/derived, not a stored column — surfaced for the page header.
-      [
-        'freshness',
-        computeFreshness({
-          verifiedAt: page.verified_at,
-          verifyInterval: page.verify_interval,
-          status: page.status,
-        }),
-      ],
+      ['freshness', freshnessForWikiRow(page)],
     ]),
   }
 }
@@ -1611,13 +1617,10 @@ export const listStaleWikiPages = async function listStaleWikiPages(ctx: Service
   )
   return rows.map((row) => ({
     ...row,
-    url: wikiPagePath(row.slug),
-    freshness: computeFreshness({
-      verifiedAt: row.verified_at,
-      verifyInterval: row.verify_interval,
-      status: row.status,
-      now,
-    }),
+    ...fieldsInOrder([
+      ['url', wikiPagePath(row.slug)],
+      ['freshness', freshnessForWikiRow(row, now)],
+    ]),
   }))
 }
 
