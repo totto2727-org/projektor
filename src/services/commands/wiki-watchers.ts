@@ -561,8 +561,8 @@ const parseJsonObject = function parseJsonObject(raw: string | null): Record<str
     return undefined
   }
   try {
-    const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : undefined
+    const parsed: unknown = JSON.parse(raw)
+    return Predicate.isObject(parsed) ? parsed : undefined
   } catch {
     return undefined
   }

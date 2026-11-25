@@ -7225,7 +7225,7 @@ describe('wiki trash (PROJ-496)', () => {
       .first<{ parent_id: string | null }>()
     /* The parent_id value must not dangle — it either got nulled or repointed at a surviving
      * ancestor, never left pointing at grandparent/parent (both now purged). */
-    expect(childRow?.parent_id === null || Predicate.isNullish(childRow?.parent_id)).toBe(true)
+    expect(Predicate.isNullish(childRow?.parent_id)).toBe(true)
   })
 
   test('purge deletes wiki_revisions rows for purged pages', async () => {

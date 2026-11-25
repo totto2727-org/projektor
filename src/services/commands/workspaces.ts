@@ -502,7 +502,7 @@ export const updateWorkspaceBrand = async function updateWorkspaceBrand(
       return
     }
     const value = parsed.data[key]
-    if (value === null || Predicate.isNullish(value)) {
+    if (Predicate.isNullish(value)) {
       delete next[key]
     } else {
       next[key] = value

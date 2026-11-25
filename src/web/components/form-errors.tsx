@@ -29,10 +29,10 @@ const messagesFrom = function messagesFrom(error: unknown): string[] {
   if (Predicate.isString(issue.message) && issue.message.trim()) {
     return [issue.message]
   }
-  const errorMap =
-    issue.errorMap && typeof issue.errorMap === 'object'
-      ? Object.values(issue.errorMap).flatMap((entry) => messagesFrom(entry))
-      : messagesFrom(issue.errorMap)
+  const rawErrorMap = issue.errorMap
+  const errorMap = Predicate.isObjectOrArray(rawErrorMap)
+    ? Object.values(rawErrorMap).flatMap((entry) => messagesFrom(entry))
+    : messagesFrom(rawErrorMap)
   return [messagesFrom(issue.errors), errorMap].flat()
 }
 

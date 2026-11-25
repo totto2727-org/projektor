@@ -33,7 +33,7 @@ export const dateInputToUnix = function dateInputToUnix(value: string): number |
  * @returns {string} The local calendar date for the input, or an empty string when absent.
  */
 export const unixToDateInput = function unixToDateInput(ts: number | null | undefined): string {
-  if (ts === null || Predicate.isNullish(ts)) {
+  if (Predicate.isNullish(ts)) {
     return ''
   }
   const date = new Date(ts * MILLISECONDS_PER_SECOND)
@@ -50,7 +50,7 @@ export const unixToDateInput = function unixToDateInput(ts: number | null | unde
  * @returns {string} The formatted UTC date, or an em dash when absent.
  */
 export const formatUnixDate = function formatUnixDate(ts: number | null | undefined): string {
-  if (ts === null || Predicate.isNullish(ts)) {
+  if (Predicate.isNullish(ts)) {
     return '—'
   }
   return formatTimestampDate(ts)
