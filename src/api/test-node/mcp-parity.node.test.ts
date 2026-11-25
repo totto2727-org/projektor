@@ -24,7 +24,7 @@ import { Iterable, String, Array, Predicate } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { TOOL_DOMAINS } from '#api/mcp/catalog.ts'
 import { coreMCPTools } from '#api/routes/mcp.ts'
@@ -172,7 +172,7 @@ const parseSource = function parseSource(path: string, source: string): ts.Sourc
       .getProject(configFile)
       ?.program.getSourceFile(path)
     if (!ast) {
-      throw new Error(`Could not parse parity source: ${path}`)
+      assert.fail(`Could not parse parity source: ${path}`)
     }
     return ast
   } finally {
@@ -262,7 +262,7 @@ const coreMethodName = /^api[A-Z]/u
 
 const recordCoreMethod = function recordCoreMethod(module: SourceModule, name: string, node: ts.Node): void {
   if (coreMethods.has(name)) {
-    throw new Error(`Duplicate named Core operation: ${name}`)
+    assert.fail(`Duplicate named Core operation: ${name}`)
   }
   coreMethods.set(name, { module, node })
 }
@@ -459,7 +459,7 @@ const domainOperations = function domainOperations(
     if (handler) {
       merge(domainOperations(handler.module, handler.node, undefined, new Set([...visited, name])))
     } else {
-      throw new Error(`No concrete Core handler for ${name}`)
+      assert.fail(`No concrete Core handler for ${name}`)
     }
   }
   const binaryRequest = function binaryRequest(pathname: string, method: string): void {
@@ -509,7 +509,7 @@ const domainOperations = function domainOperations(
       if (imported?.name === 'coreFileRequest') {
         const pathname = pathLiteral(child.arguments[1])
         if (Predicate.isNullish(pathname) || String.isEmpty(pathname)) {
-          throw new Error(`Unresolved Core file path in ${module.path}`)
+          assert.fail(`Unresolved Core file path in ${module.path}`)
         }
         binaryRequest(pathname, method)
       } else if (ts.isPropertyAccessExpression(expression) && coreMethodName.test(expression.name.text)) {
@@ -526,7 +526,7 @@ const domainOperations = function domainOperations(
             ? pathLiteral(request.arguments?.[0])
             : undefined
         if (Predicate.isNullish(pathname) || String.isEmpty(pathname)) {
-          throw new Error(`Unresolved native fetch address in ${module.path}`)
+          assert.fail(`Unresolved native fetch address in ${module.path}`)
         }
         binaryRequest(new URL(pathname).pathname, method)
       } else if (imported) {
@@ -675,7 +675,7 @@ Iterable.forEach(expandToFiles(join(SRC, 'mcp')), (path): void => {
       )
       if (Predicate.isNotNullish(name) && Predicate.isNotNullish(handler)) {
         if (toolOperations.has(name)) {
-          throw new Error(`Duplicate MCP tool source: ${name}`)
+          assert.fail(`Duplicate MCP tool source: ${name}`)
         }
         toolOperations.set(name, domainOperations(module, handler))
       }

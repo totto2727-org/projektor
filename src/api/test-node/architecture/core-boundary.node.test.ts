@@ -5,7 +5,7 @@ import { String, Predicate, Iterable } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 import { z } from 'zod'
 
 const ROOT = resolve(import.meta.dirname, '../../../..')
@@ -50,13 +50,13 @@ const analyze = function analyze(sources: Readonly<Record<string, string>>): Map
   try {
     const project = api.updateSnapshot({ openProjects: [configFile] }).getProject(configFile)
     if (!project) {
-      throw new Error('Could not parse the Core boundary source graph.')
+      assert.fail('Could not parse the Core boundary source graph.')
     }
     const graph = new Map<string, ModuleInfo>()
     Iterable.forEach(Object.keys(sources), (path) => {
       const source = project.program.getSourceFile(path)
       if (!source) {
-        throw new Error(`Could not parse ${path}`)
+        assert.fail(`Could not parse ${path}`)
       }
       const imports: string[] = []
       const capabilities: string[] = []
@@ -136,7 +136,7 @@ const resolveModule = function resolveModule(
     const key = specifier === packageDefinition.name ? '.' : `.${specifier.slice(packageDefinition.name.length)}`
     const exported = packageDefinition.exports[key]
     if (!exported) {
-      throw new Error(`Unresolved self-reference ${specifier} from ${relative(ROOT, from)}`)
+      assert.fail(`Unresolved self-reference ${specifier} from ${relative(ROOT, from)}`)
     }
     target = resolve(ROOT, exported)
   } else if (specifier.startsWith('#')) {
@@ -170,7 +170,7 @@ const resolveModule = function resolveModule(
   const candidates = [target, `${target}.ts`, `${target}.tsx`, join(target, 'index.ts'), join(target, 'index.tsx')]
   const found = candidates.find((candidate) => graph.has(candidate))
   if (Predicate.isNullish(found) || String.isEmpty(found)) {
-    throw new Error(`Unresolved application import ${specifier} from ${relative(ROOT, from)}`)
+    assert.fail(`Unresolved application import ${specifier} from ${relative(ROOT, from)}`)
   }
   return found
 }
@@ -188,7 +188,7 @@ const violations = function violations(
     visited.add(path)
     const info = graph.get(path)
     if (!info) {
-      throw new Error(`Missing application entrypoint ${path}`)
+      assert.fail(`Missing application entrypoint ${path}`)
     }
     const localPath = relative(ROOT, path)
     const next = [...chain, localPath]
