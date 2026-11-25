@@ -9,12 +9,12 @@ import { formatTimestamp, formatTimestampDate } from './timestamp.ts'
 import { WikiPageClient } from './wiki/wiki-page-client.tsx'
 import type { WikiSeed } from './wiki/wiki-page-client.tsx'
 
-vi.mock('./wiki/actions', () => ({}))
+vi.mock(import('./wiki/actions.ts'), () => ({}))
 vi.mock('../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
   uploadInlineImage: vi.fn(),
 }))
-vi.mock('@effront/core/query', () => ({ query: vi.fn() }))
+vi.mock(import('@effront/core/query'), () => ({ query: vi.fn() }))
 vi.mock('./wiki/lazy-markdown-editor.tsx', () => ({ LazyMarkdownEditor: () => null }))
 
 const timestamp = Date.parse('2026-10-04T08:48:46Z') / 1000

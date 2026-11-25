@@ -12,7 +12,7 @@ import { createTestDatabase } from '@/test/database.ts'
 
 import { renderFeedback, renderFeedbackDetail } from './server.tsx'
 
-vi.mock('./actions', () => ({}))
+vi.mock(import('./actions.ts'), () => ({}))
 const workspace = { id: 'workspace', name: 'Team', slug: 'team', role: 'owner' as const }
 const project = {
   id: 'actual',

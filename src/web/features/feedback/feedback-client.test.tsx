@@ -18,7 +18,7 @@ import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
 import type { FeedbackSource } from './feedback-source-settings.tsx'
 import { NewSourceModal } from './new-source-modal.tsx'
 
-vi.mock('../wiki/navigation', () => ({ navigateFeature: vi.fn() }))
+vi.mock(import('@/features/wiki/navigation.ts'), () => ({ navigateFeature: vi.fn<typeof navigateFeature>() }))
 
 vi.mock('./actions', () => ({
   markFeedbackReviewed: vi.fn(),

@@ -6,7 +6,9 @@ import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { CreateIssueModal } from './create-issue-modal.tsx'
 
-vi.mock('../lazy-markdown-editor.tsx', () => ({ IssueMarkdownEditor: () => <textarea aria-label='Description' /> }))
+vi.mock(import('@/features/issues/components/lazy-markdown-editor.tsx'), () => ({
+  IssueMarkdownEditor: () => <textarea aria-label='Description' />,
+}))
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function CreateHarness(): JSX.Element {

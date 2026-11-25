@@ -8,12 +8,12 @@ import { renderMd, renderMdWithWikilinks } from './render-markdown.ts'
 import { WikiPageClient } from './wiki-page-client.tsx'
 import type { WikiSeed } from './wiki-page-client.tsx'
 
-vi.mock('./actions', () => ({}))
+vi.mock(import('./actions.ts'), () => ({}))
 vi.mock('../../attachment-actions', () => ({
   uploadAttachment: () => {},
   uploadInlineImage: () => {},
 }))
-vi.mock('@effront/core/query', () => ({
+vi.mock(import('@effront/core/query'), () => ({
   query: () => {
     throw new Error('No client bootstrap during SSR')
   },

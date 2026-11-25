@@ -21,7 +21,7 @@ import {
 // These mocks observe the public Recharts data/primitive boundary, not visual appearance.
 // MetricsDashboard.test.tsx separately renders actual Recharts components.
 const calls = vi.hoisted(() => new Map<string, Record<string, unknown>[]>())
-vi.mock('recharts', () => {
+vi.mock(import('recharts'), () => {
   // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires the chart test double to remain an expression.
   const primitive = (name: string) => (props: Record<string, unknown> & { children?: ReactNode }) => {
     const entries = calls.get(name) ?? []

@@ -7,7 +7,7 @@ import { MarkdownPreview } from './markdown-preview.tsx'
 import { renderMarkdownDocument } from './render.ts'
 import type { RenderedMarkdown } from './render.ts'
 
-vi.mock('./render', () => ({ renderMarkdownDocument: vi.fn() }))
+vi.mock(import('./render.ts'), () => ({ renderMarkdownDocument: vi.fn() }))
 const renderDocument = vi.mocked(renderMarkdownDocument)
 const document = (text: string): RenderedMarkdown => ({ html: `<p>${text}</p>`, toc: [] })
 

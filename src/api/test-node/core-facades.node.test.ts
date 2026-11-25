@@ -14,7 +14,7 @@ import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
-vi.mock('../../contracts/oauth-provider', () => ({
+vi.mock(import('#contracts/oauth-provider.ts'), () => ({
   oauthApi: () => {
     throw new Error('OAuth provider must not resolve before interactive authorization')
   },

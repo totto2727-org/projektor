@@ -10,7 +10,7 @@ import { IssueReviewNavigation } from './issue-review-navigation.tsx'
 import { IssuesPage } from './issues-page.tsx'
 import type { IssuesInitialData } from './issues-page.tsx'
 
-vi.mock('../components/issue-list.tsx', () => ({
+vi.mock(import('@/features/issues/components/issue-list.tsx'), () => ({
   IssueList: ({ initialData }: { initialData: IssuesInitialData }) => (
     <ul aria-label='Canonical issues'>
       {initialData.page.items.map((entry) => (

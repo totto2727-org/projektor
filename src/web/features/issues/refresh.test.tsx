@@ -18,7 +18,7 @@ import type { IssueDetailInitialData } from './views/issue-detail-page.tsx'
 import { IssuesPage } from './views/issues-page.tsx'
 import type { IssuesInitialData } from './views/issues-page.tsx'
 
-vi.mock('./components/lazy-markdown-editor.tsx', () => ({
+vi.mock(import('./components/lazy-markdown-editor.tsx'), () => ({
   IssueMarkdownEditor: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea
       aria-label='Markdown editor'

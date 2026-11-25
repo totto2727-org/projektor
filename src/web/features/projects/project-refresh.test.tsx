@@ -19,7 +19,7 @@ vi.mock('./actions', () => ({
   updateDescription: vi.fn(),
   archiveProject: vi.fn(),
 }))
-vi.mock('../../client/functions', () => ({
+vi.mock(import('@/client/functions.ts'), () => ({
   unwrapResult: <T,>(result: { ok: true; value: T } | { ok: false; message: string }) => {
     if (!result.ok) {
       throw new Error(result.message)

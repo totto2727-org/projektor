@@ -38,7 +38,7 @@ const databases: ReturnType<typeof issueDataFixture>[] = []
 vi.mock('../../effront', () => ({
   EFFRONT: { ServerFn: { make: (definition: unknown) => ({ definition }) } },
 }))
-vi.mock('@effront/core/workers', async () => {
+vi.mock(import('@effront/core/workers'), async () => {
   const { Effect } = await import('effect')
   return {
     getWorkersRequestContext: () => Effect.die('Worker context is supplied by this operation test.'),

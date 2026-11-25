@@ -24,7 +24,7 @@ vi.mock('../actions', () => ({
   searchWikiAttachments: vi.fn(),
   shareIssue: vi.fn(),
 }))
-vi.mock('./lazy-markdown-editor.tsx', () => ({
+vi.mock(import('./lazy-markdown-editor.tsx'), () => ({
   IssueMarkdownEditor: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea
       aria-label='Markdown draft'
@@ -35,7 +35,7 @@ vi.mock('./lazy-markdown-editor.tsx', () => ({
     />
   ),
 }))
-vi.mock('../../../components/markdown/markdown-preview.tsx', () => ({
+vi.mock(import('@/components/markdown/markdown-preview.tsx'), () => ({
   MarkdownPreview: ({ content }: { content: string }) => <p>{content}</p>,
 }))
 

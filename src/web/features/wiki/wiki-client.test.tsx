@@ -17,7 +17,7 @@ vi.mock('../../attachment-actions', () => ({
   uploadInlineImage: vi.fn(),
 }))
 
-vi.mock('./navigation', () => ({ navigateFeature: vi.fn() }))
+vi.mock(import('./navigation.ts'), () => ({ navigateFeature: vi.fn<typeof navigateFeature>() }))
 
 vi.mock('./actions', () => ({
   createWikiPage: vi.fn(),
@@ -42,7 +42,7 @@ vi.mock('@effront/core/query', () => ({
   query: (operation: (input: unknown) => Promise<unknown>) => (input: unknown) =>
     Effect.promise(() => operation(input)),
 }))
-vi.mock('./lazy-markdown-editor.tsx', () => ({
+vi.mock(import('./lazy-markdown-editor.tsx'), () => ({
   LazyMarkdownEditor: ({
     value,
     onChange,
