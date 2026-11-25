@@ -8,6 +8,7 @@ import {
   MarkWikiNotificationsReadInputSchema,
   WatchWikiPageInputSchema,
 } from '#contracts/inputs/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 /*
@@ -49,13 +50,15 @@ const resolveWatchTarget = async function resolveWatchTarget(
 ): Promise<ResolvedWatchTarget> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
-    .select({
-      id: schema.wikiPages.id,
-      slug: schema.wikiPages.slug,
-      title: schema.wikiPages.title,
-      projectId: schema.wikiPages.projectId,
-      parentId: schema.wikiPages.parentId,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.wikiPages.id],
+        ['slug', schema.wikiPages.slug],
+        ['title', schema.wikiPages.title],
+        ['projectId', schema.wikiPages.projectId],
+        ['parentId', schema.wikiPages.parentId],
+      ]),
+    )
     .from(schema.wikiPages)
     .where(
       and(
@@ -80,13 +83,15 @@ const resolveWatchTarget = async function resolveWatchTarget(
       .get()
     if (redirect) {
       page = await orm
-        .select({
-          id: schema.wikiPages.id,
-          slug: schema.wikiPages.slug,
-          title: schema.wikiPages.title,
-          projectId: schema.wikiPages.projectId,
-          parentId: schema.wikiPages.parentId,
-        })
+        .select(
+          fieldsInOrder([
+            ['id', schema.wikiPages.id],
+            ['slug', schema.wikiPages.slug],
+            ['title', schema.wikiPages.title],
+            ['projectId', schema.wikiPages.projectId],
+            ['parentId', schema.wikiPages.parentId],
+          ]),
+        )
         .from(schema.wikiPages)
         .where(
           and(
@@ -126,14 +131,16 @@ export const watchWikiPage = async function watchWikiPage(
   const now = currentEpochSeconds()
   await orm
     .insert(schema.wikiWatchers)
-    .values({
-      id: crypto.randomUUID(),
-      workspaceId: ctx.workspaceId,
-      userId: ctx.userId,
-      pageId: page.id,
-      subtree: parsed.data.subtree,
-      createdAt: now,
-    })
+    .values(
+      fieldsInOrder([
+        ['id', crypto.randomUUID()],
+        ['workspaceId', ctx.workspaceId],
+        ['userId', ctx.userId],
+        ['pageId', page.id],
+        ['subtree', parsed.data.subtree],
+        ['createdAt', now],
+      ]),
+    )
     .onConflictDoUpdate({
       target: [schema.wikiWatchers.workspaceId, schema.wikiWatchers.userId, schema.wikiWatchers.pageId],
       set: { subtree: parsed.data.subtree },
@@ -163,14 +170,16 @@ export const unwatchWikiPage = async function unwatchWikiPage(
 export const listWikiWatches = async function listWikiWatches(ctx: ServiceCtx) {
   const orm = drizzle(ctx.db, { schema })
   const rows = await orm
-    .select({
-      id: schema.wikiWatchers.id,
-      pageId: schema.wikiWatchers.pageId,
-      subtree: schema.wikiWatchers.subtree,
-      createdAt: schema.wikiWatchers.createdAt,
-      slug: schema.wikiPages.slug,
-      title: schema.wikiPages.title,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.wikiWatchers.id],
+        ['pageId', schema.wikiWatchers.pageId],
+        ['subtree', schema.wikiWatchers.subtree],
+        ['createdAt', schema.wikiWatchers.createdAt],
+        ['slug', schema.wikiPages.slug],
+        ['title', schema.wikiPages.title],
+      ]),
+    )
     .from(schema.wikiWatchers)
     .innerJoin(schema.wikiPages, eq(schema.wikiPages.id, schema.wikiWatchers.pageId))
     .where(
@@ -393,7 +402,12 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
     pages.map((page) => page.id),
     (chunk) =>
       orm
-        .select({ userId: schema.wikiWatchers.userId, pageId: schema.wikiWatchers.pageId })
+        .select(
+          fieldsInOrder([
+            ['userId', schema.wikiWatchers.userId],
+            ['pageId', schema.wikiWatchers.pageId],
+          ]),
+        )
         .from(schema.wikiWatchers)
         .where(and(eq(schema.wikiWatchers.workspaceId, ctx.workspaceId), inArray(schema.wikiWatchers.pageId, chunk))),
   )
@@ -459,17 +473,19 @@ export const listWikiNotifications = async function listWikiNotifications(ctx: S
   }
 
   const rows = await orm
-    .select({
-      id: schema.wikiNotifications.id,
-      pageId: schema.wikiNotifications.pageId,
-      slug: schema.wikiNotifications.pageSlug,
-      title: schema.wikiNotifications.pageTitle,
-      action: schema.wikiNotifications.action,
-      actorId: schema.wikiNotifications.actorId,
-      summary: schema.wikiNotifications.summary,
-      createdAt: schema.wikiNotifications.createdAt,
-      readAt: schema.wikiNotifications.readAt,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.wikiNotifications.id],
+        ['pageId', schema.wikiNotifications.pageId],
+        ['slug', schema.wikiNotifications.pageSlug],
+        ['title', schema.wikiNotifications.pageTitle],
+        ['action', schema.wikiNotifications.action],
+        ['actorId', schema.wikiNotifications.actorId],
+        ['summary', schema.wikiNotifications.summary],
+        ['createdAt', schema.wikiNotifications.createdAt],
+        ['readAt', schema.wikiNotifications.readAt],
+      ]),
+    )
     .from(schema.wikiNotifications)
     .where(and(...conditions))
     .orderBy(desc(schema.wikiNotifications.createdAt))
@@ -825,27 +841,32 @@ export const listWikiChanges = async function listWikiChanges(
 
   const orm = drizzle(ctx.db, { schema })
   const rows = await orm
-    .select({
-      id: schema.activity.id,
-      action: schema.activity.action,
-      entityId: schema.activity.entityId,
-      actorId: schema.activity.actorId,
-      /*
-       * PROJ-869: only 'deleted' events read `diff` at all (extractDeletedPageInfo,
-       * for the small slug/title/projectId/deletedPageIds fields it captures) — every
-       * other action returns NULL here instead of D1 shipping the full diff blob back
-       * for every row, which is what made list_wiki_changes' response size scale with
-       * page content size.
-       */
-      diff: sql<
-        string | null
-      >`CASE WHEN ${schema.activity.action} = 'deleted' THEN ${schema.activity.diff} ELSE NULL END`,
-      createdAt: schema.activity.createdAt,
-      pageSlug: schema.wikiPages.slug,
-      pageTitle: schema.wikiPages.title,
-      pageProjectId: schema.wikiPages.projectId,
-      pageDeletedAt: schema.wikiPages.deletedAt,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.activity.id],
+        ['action', schema.activity.action],
+        ['entityId', schema.activity.entityId],
+        ['actorId', schema.activity.actorId],
+        /*
+         * PROJ-869: only 'deleted' events read `diff` at all (extractDeletedPageInfo,
+         * for the small slug/title/projectId/deletedPageIds fields it captures) — every
+         * other action returns NULL here instead of D1 shipping the full diff blob back
+         * for every row, which is what made list_wiki_changes' response size scale with
+         * page content size.
+         */
+        [
+          'diff',
+          sql<
+            string | null
+          >`CASE WHEN ${schema.activity.action} = 'deleted' THEN ${schema.activity.diff} ELSE NULL END`,
+        ],
+        ['createdAt', schema.activity.createdAt],
+        ['pageSlug', schema.wikiPages.slug],
+        ['pageTitle', schema.wikiPages.title],
+        ['pageProjectId', schema.wikiPages.projectId],
+        ['pageDeletedAt', schema.wikiPages.deletedAt],
+      ]),
+    )
     .from(schema.activity)
     .leftJoin(schema.wikiPages, eq(schema.wikiPages.id, schema.activity.entityId))
     .where(

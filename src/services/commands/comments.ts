@@ -8,6 +8,7 @@ import {
   ListCommentsSchema,
   UpdateCommentSchema,
 } from '#contracts/inputs/comments.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import { listComments as queryComments } from '#services/comments.ts'
@@ -103,19 +104,21 @@ export function buildAddCommentInsertStatement(
 ): D1PreparedStatement {
   const query = orm
     .insert(schema.issueComments)
-    .values({
-      id: opts.id,
-      issueId: opts.issueId,
-      authorId: ctx.userId,
-      body: opts.body,
-      createdAt: opts.now,
-      updatedAt: opts.now,
-      /*
-       * PROJ-328: stamped from the authenticated principal type, not a caller-supplied
-       * field — see ServiceCtx.authKind.
-       */
-      authorKind: ctx.authKind ?? null,
-    })
+    .values(
+      fieldsInOrder([
+        ['id', opts.id],
+        ['issueId', opts.issueId],
+        ['authorId', ctx.userId],
+        ['body', opts.body],
+        ['createdAt', opts.now],
+        ['updatedAt', opts.now],
+        /*
+         * PROJ-328: stamped from the authenticated principal type, not a caller-supplied
+         * field — see ServiceCtx.authKind.
+         */
+        ['authorKind', ctx.authKind ?? null],
+      ]),
+    )
     .toSQL()
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
@@ -131,7 +134,12 @@ export const updateComment = async function updateComment(ctx: ServiceCtx, input
 
   const orm = drizzle(ctx.db, { schema })
   const comment = await orm
-    .select({ id: schema.issueComments.id, authorId: schema.issueComments.authorId })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issueComments.id],
+        ['authorId', schema.issueComments.authorId],
+      ]),
+    )
     .from(schema.issueComments)
     .where(and(eq(schema.issueComments.id, commentId), eq(schema.issueComments.issueId, issueId)))
     .get()
@@ -168,7 +176,12 @@ export const deleteComment = async function deleteComment(ctx: ServiceCtx, input
 
   const orm = drizzle(ctx.db, { schema })
   const comment = await orm
-    .select({ id: schema.issueComments.id, authorId: schema.issueComments.authorId })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issueComments.id],
+        ['authorId', schema.issueComments.authorId],
+      ]),
+    )
     .from(schema.issueComments)
     .where(and(eq(schema.issueComments.id, commentId), eq(schema.issueComments.issueId, issueId)))
     .get()

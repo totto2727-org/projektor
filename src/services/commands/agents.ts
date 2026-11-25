@@ -10,6 +10,7 @@ import {
   RegisterAgentSchema,
   StartWorkSchema,
 } from '#contracts/inputs/agents.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
@@ -345,8 +346,10 @@ export const listActiveAgents = async function listActiveAgents(
   const rows = await orm
     .select({
       ...AGENT_SESSION_COLUMNS,
-      projectKey: schema.projects.key,
-      issueNumber: schema.issues.number,
+      ...fieldsInOrder([
+        ['projectKey', schema.projects.key],
+        ['issueNumber', schema.issues.number],
+      ]),
     })
     .from(schema.agentSessions)
     .leftJoin(

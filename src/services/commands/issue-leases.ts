@@ -3,6 +3,7 @@ import { String, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '#contracts/inputs/issue-leases.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import { isUniqueConstraintError } from '#services/errors.ts'
@@ -78,10 +79,12 @@ const assertAgentSessionLive = async function assertAgentSessionLive(
   cutoff: number,
 ): Promise<void> {
   const session = await orm
-    .select({
-      status: schema.agentSessions.status,
-      heartbeat: schema.agentSessions.lastHeartbeatAt,
-    })
+    .select(
+      fieldsInOrder([
+        ['status', schema.agentSessions.status],
+        ['heartbeat', schema.agentSessions.lastHeartbeatAt],
+      ]),
+    )
     .from(schema.agentSessions)
     .where(and(eq(schema.agentSessions.id, agentId), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()
@@ -162,12 +165,14 @@ const reclaimStaleLeaseOrThrow = async function reclaimStaleLeaseOrThrow(
   now: number,
 ): Promise<void> {
   const existing = await orm
-    .select({
-      id: schema.issueLeases.id,
-      agentSessionId: schema.issueLeases.agentSessionId,
-      sessionStatus: schema.agentSessions.status,
-      sessionHeartbeat: schema.agentSessions.lastHeartbeatAt,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issueLeases.id],
+        ['agentSessionId', schema.issueLeases.agentSessionId],
+        ['sessionStatus', schema.agentSessions.status],
+        ['sessionHeartbeat', schema.agentSessions.lastHeartbeatAt],
+      ]),
+    )
     .from(schema.issueLeases)
     .innerJoin(schema.agentSessions, eq(schema.issueLeases.agentSessionId, schema.agentSessions.id))
     .where(
@@ -322,7 +327,12 @@ export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: un
   }
 
   const active = await orm
-    .select({ id: schema.issueLeases.id, agentSessionId: schema.issueLeases.agentSessionId })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issueLeases.id],
+        ['agentSessionId', schema.issueLeases.agentSessionId],
+      ]),
+    )
     .from(schema.issueLeases)
     .where(and(...conditions))
     .get()
@@ -578,17 +588,19 @@ export const listIssueLeases = async function listIssueLeases(ctx: ServiceCtx, r
   }
 
   const rows = await orm
-    .select({
-      id: schema.issueLeases.id,
-      issueId: schema.issueLeases.issueId,
-      agentSessionId: schema.issueLeases.agentSessionId,
-      agentName: schema.agentSessions.name,
-      claimedAt: schema.issueLeases.claimedAt,
-      sessionStatus: schema.agentSessions.status,
-      sessionHeartbeat: schema.agentSessions.lastHeartbeatAt,
-      projectKey: schema.projects.key,
-      issueNumber: schema.issues.number,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issueLeases.id],
+        ['issueId', schema.issueLeases.issueId],
+        ['agentSessionId', schema.issueLeases.agentSessionId],
+        ['agentName', schema.agentSessions.name],
+        ['claimedAt', schema.issueLeases.claimedAt],
+        ['sessionStatus', schema.agentSessions.status],
+        ['sessionHeartbeat', schema.agentSessions.lastHeartbeatAt],
+        ['projectKey', schema.projects.key],
+        ['issueNumber', schema.issues.number],
+      ]),
+    )
     .from(schema.issueLeases)
     .innerJoin(schema.agentSessions, eq(schema.issueLeases.agentSessionId, schema.agentSessions.id))
     .innerJoin(

@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '#contracts/inputs/task-statuses.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
 
@@ -71,17 +72,19 @@ export const createTaskStatus = async function createTaskStatus(ctx: ServiceCtx,
   }
 
   const id = crypto.randomUUID()
-  await orm.insert(schema.taskStatuses).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    key,
-    name,
-    category,
-    color: color ?? null,
-    position: position ?? 0,
-    isDefault: isDefault === true ? 1 : 0,
-    isReviewStep: isReviewStep === true ? 1 : 0,
-  })
+  await orm.insert(schema.taskStatuses).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['key', key],
+      ['name', name],
+      ['category', category],
+      ['color', color ?? null],
+      ['position', position ?? 0],
+      ['isDefault', isDefault === true ? 1 : 0],
+      ['isReviewStep', isReviewStep === true ? 1 : 0],
+    ]),
+  )
 
   await invalidateTaskStatusesCache(ctx)
   return { id, key, name }
@@ -130,7 +133,12 @@ export const updateTaskStatus = async function updateTaskStatus(
   const orm = drizzle(ctx.db, { schema })
 
   const existing = await orm
-    .select({ id: schema.taskStatuses.id, category: schema.taskStatuses.category })
+    .select(
+      fieldsInOrder([
+        ['id', schema.taskStatuses.id],
+        ['category', schema.taskStatuses.category],
+      ]),
+    )
     .from(schema.taskStatuses)
     .where(and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
     .get()

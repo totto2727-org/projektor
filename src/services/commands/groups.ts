@@ -8,6 +8,7 @@ import {
   SetGroupGrantSchema,
   UpdateGroupSchema,
 } from '#contracts/inputs/groups.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as groupData from '#services/groups.ts'
@@ -154,13 +155,15 @@ export const createGroup = async function createGroup(ctx: ServiceCtx, input: un
 
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
-  await orm.insert(schema.userGroups).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    name,
-    description: description ?? null,
-    createdAt: now,
-  })
+  await orm.insert(schema.userGroups).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['name', name],
+      ['description', description ?? null],
+      ['createdAt', now],
+    ]),
+  )
 
   await recordActivity(ctx, {
     action: 'created',
@@ -266,7 +269,14 @@ export const addGroupMember = async function addGroupMember(
   const now = currentEpochSeconds()
   await orm
     .insert(schema.userGroupMembers)
-    .values({ groupId, userId, addedBy: ctx.userId, addedAt: now })
+    .values(
+      fieldsInOrder([
+        ['groupId', groupId],
+        ['userId', userId],
+        ['addedBy', ctx.userId],
+        ['addedAt', now],
+      ]),
+    )
     .onConflictDoNothing()
 
   await recordActivity(ctx, {

@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Column, SQL } from 'drizzle-orm'
 import { Array, Iterable, Predicate } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 import type { Role } from '#types'
 
@@ -418,7 +419,12 @@ export const usersWithProjectReadAccess = async function usersWithProjectReadAcc
   const orm = drizzle(ctx.db, { schema })
   const members = await inChunks([...userIds], (chunk) =>
     orm
-      .select({ userId: schema.workspaceMembers.userId, role: schema.workspaceMembers.role })
+      .select(
+        fieldsInOrder([
+          ['userId', schema.workspaceMembers.userId],
+          ['role', schema.workspaceMembers.role],
+        ]),
+      )
       .from(schema.workspaceMembers)
       .where(
         and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), inArray(schema.workspaceMembers.userId, chunk)),

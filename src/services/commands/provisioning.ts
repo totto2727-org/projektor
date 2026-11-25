@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { String, Iterable, Predicate } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import type { Env } from '#types'
@@ -157,7 +158,14 @@ const grantOwner = async function grantOwner(
   }
   await orm
     .insert(schema.workspaceMembers)
-    .values({ workspaceId, userId, role: 'owner', joinedAt: currentEpochSeconds() })
+    .values(
+      fieldsInOrder([
+        ['workspaceId', workspaceId],
+        ['userId', userId],
+        ['role', 'owner'],
+        ['joinedAt', currentEpochSeconds()],
+      ]),
+    )
     .onConflictDoUpdate({
       target: [schema.workspaceMembers.workspaceId, schema.workspaceMembers.userId],
       set: { role: 'owner' },
@@ -188,11 +196,13 @@ const provisionAdmin = async function provisionAdmin(
    * state is now this single read and no writes.
    */
   const rows = await orm
-    .select({
-      id: schema.workspaces.id,
-      slug: schema.workspaces.slug,
-      role: schema.workspaceMembers.role,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.workspaces.id],
+        ['slug', schema.workspaces.slug],
+        ['role', schema.workspaceMembers.role],
+      ]),
+    )
     .from(schema.workspaces)
     .leftJoin(
       schema.workspaceMembers,
@@ -351,12 +361,14 @@ const runProvisioning = async function runProvisioning(
     }
     await orm
       .insert(schema.workspaceMembers)
-      .values({
-        workspaceId: ws.id,
-        userId: user.id,
-        role: mapped.role,
-        joinedAt: currentEpochSeconds(),
-      })
+      .values(
+        fieldsInOrder([
+          ['workspaceId', ws.id],
+          ['userId', user.id],
+          ['role', mapped.role],
+          ['joinedAt', currentEpochSeconds()],
+        ]),
+      )
       .onConflictDoNothing()
     return true
   }
@@ -384,12 +396,14 @@ const runProvisioning = async function runProvisioning(
   }
   await orm
     .insert(schema.workspaceMembers)
-    .values({
-      workspaceId: ws.id,
-      userId: user.id,
-      role,
-      joinedAt: currentEpochSeconds(),
-    })
+    .values(
+      fieldsInOrder([
+        ['workspaceId', ws.id],
+        ['userId', user.id],
+        ['role', role],
+        ['joinedAt', currentEpochSeconds()],
+      ]),
+    )
     .onConflictDoNothing()
   return true
 }
@@ -487,24 +501,28 @@ export const provisionPublicViewer = async function provisionPublicViewer(
 
   await orm
     .insert(schema.workspaceMembers)
-    .values({
-      workspaceId: ws.id,
-      userId: user.id,
-      role: 'viewer',
-      joinedAt: currentEpochSeconds(),
-    })
+    .values(
+      fieldsInOrder([
+        ['workspaceId', ws.id],
+        ['userId', user.id],
+        ['role', 'viewer'],
+        ['joinedAt', currentEpochSeconds()],
+      ]),
+    )
     .onConflictDoNothing()
 
   const now = currentEpochSeconds()
   await orm
     .insert(schema.userGroups)
-    .values({
-      id: crypto.randomUUID(),
-      workspaceId: ws.id,
-      name: PUBLIC_VIEWERS_GROUP_NAME,
-      description: 'Anonymous PUBLIC_READ_ONLY visitors. Grant a project to this group to publish it read-only.',
-      createdAt: now,
-    })
+    .values(
+      fieldsInOrder([
+        ['id', crypto.randomUUID()],
+        ['workspaceId', ws.id],
+        ['name', PUBLIC_VIEWERS_GROUP_NAME],
+        ['description', 'Anonymous PUBLIC_READ_ONLY visitors. Grant a project to this group to publish it read-only.'],
+        ['createdAt', now],
+      ]),
+    )
     .onConflictDoNothing()
   const group = await orm
     .select({ id: schema.userGroups.id })
@@ -514,7 +532,14 @@ export const provisionPublicViewer = async function provisionPublicViewer(
   if (group) {
     await orm
       .insert(schema.userGroupMembers)
-      .values({ groupId: group.id, userId: user.id, addedBy: user.id, addedAt: now })
+      .values(
+        fieldsInOrder([
+          ['groupId', group.id],
+          ['userId', user.id],
+          ['addedBy', user.id],
+          ['addedAt', now],
+        ]),
+      )
       .onConflictDoNothing()
   }
   await markProvisioned(env, marker)

@@ -5,6 +5,7 @@ import { flattenError } from 'zod'
 
 import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
 import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '#contracts/inputs/file-claims.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
@@ -135,18 +136,20 @@ const loadActiveClaimsByPath = async function loadActiveClaimsByPath(
        * Columns enumerated rather than `.select()` because the session fields have to
        * come along; LEFT JOIN, not INNER, so an agentless claim still appears.
        */
-      .select({
-        id: schema.issueFileClaims.id,
-        workspaceId: schema.issueFileClaims.workspaceId,
-        issueId: schema.issueFileClaims.issueId,
-        agentId: schema.issueFileClaims.agentId,
-        path: schema.issueFileClaims.path,
-        claimedAt: schema.issueFileClaims.claimedAt,
-        releasedAt: schema.issueFileClaims.releasedAt,
-        releaseReason: schema.issueFileClaims.releaseReason,
-        sessionStatus: schema.agentSessions.status,
-        sessionHeartbeat: schema.agentSessions.lastHeartbeatAt,
-      })
+      .select(
+        fieldsInOrder([
+          ['id', schema.issueFileClaims.id],
+          ['workspaceId', schema.issueFileClaims.workspaceId],
+          ['issueId', schema.issueFileClaims.issueId],
+          ['agentId', schema.issueFileClaims.agentId],
+          ['path', schema.issueFileClaims.path],
+          ['claimedAt', schema.issueFileClaims.claimedAt],
+          ['releasedAt', schema.issueFileClaims.releasedAt],
+          ['releaseReason', schema.issueFileClaims.releaseReason],
+          ['sessionStatus', schema.agentSessions.status],
+          ['sessionHeartbeat', schema.agentSessions.lastHeartbeatAt],
+        ]),
+      )
       .from(schema.issueFileClaims)
       .leftJoin(schema.agentSessions, eq(schema.issueFileClaims.agentId, schema.agentSessions.id))
       .where(
@@ -494,17 +497,19 @@ export const releaseFiles = async function releaseFiles(
       conditions.push(eq(schema.issueFileClaims.issueId, issueId))
     }
     return orm
-      .select({
-        id: schema.issueFileClaims.id,
-        workspaceId: schema.issueFileClaims.workspaceId,
-        issueId: schema.issueFileClaims.issueId,
-        agentId: schema.issueFileClaims.agentId,
-        path: schema.issueFileClaims.path,
-        claimedAt: schema.issueFileClaims.claimedAt,
-        releasedAt: schema.issueFileClaims.releasedAt,
-        releaseReason: schema.issueFileClaims.releaseReason,
-        projectId: schema.issues.projectId,
-      })
+      .select(
+        fieldsInOrder([
+          ['id', schema.issueFileClaims.id],
+          ['workspaceId', schema.issueFileClaims.workspaceId],
+          ['issueId', schema.issueFileClaims.issueId],
+          ['agentId', schema.issueFileClaims.agentId],
+          ['path', schema.issueFileClaims.path],
+          ['claimedAt', schema.issueFileClaims.claimedAt],
+          ['releasedAt', schema.issueFileClaims.releasedAt],
+          ['releaseReason', schema.issueFileClaims.releaseReason],
+          ['projectId', schema.issues.projectId],
+        ]),
+      )
       .from(schema.issueFileClaims)
       .innerJoin(schema.issues, eq(schema.issueFileClaims.issueId, schema.issues.id))
       .where(and(...conditions))
@@ -639,19 +644,21 @@ export const listFileClaims = async function listFileClaims(
   }
 
   const rows = await orm
-    .select({
-      id: schema.issueFileClaims.id,
-      workspaceId: schema.issueFileClaims.workspaceId,
-      issueId: schema.issueFileClaims.issueId,
-      agentId: schema.issueFileClaims.agentId,
-      path: schema.issueFileClaims.path,
-      claimedAt: schema.issueFileClaims.claimedAt,
-      releasedAt: schema.issueFileClaims.releasedAt,
-      releaseReason: schema.issueFileClaims.releaseReason,
-      projectKey: schema.projects.key,
-      issueNumber: schema.issues.number,
-      live: liveExpr,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issueFileClaims.id],
+        ['workspaceId', schema.issueFileClaims.workspaceId],
+        ['issueId', schema.issueFileClaims.issueId],
+        ['agentId', schema.issueFileClaims.agentId],
+        ['path', schema.issueFileClaims.path],
+        ['claimedAt', schema.issueFileClaims.claimedAt],
+        ['releasedAt', schema.issueFileClaims.releasedAt],
+        ['releaseReason', schema.issueFileClaims.releaseReason],
+        ['projectKey', schema.projects.key],
+        ['issueNumber', schema.issues.number],
+        ['live', liveExpr],
+      ]),
+    )
     .from(schema.issueFileClaims)
     .leftJoin(schema.agentSessions, eq(schema.issueFileClaims.agentId, schema.agentSessions.id))
     .innerJoin(

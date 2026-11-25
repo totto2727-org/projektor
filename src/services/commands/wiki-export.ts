@@ -6,6 +6,7 @@ import { flattenError } from 'zod'
 
 import { BYTES_PER_MEBIBYTE } from '#contracts/file-limits.ts'
 import { ExportWikiInputSchema } from '#contracts/inputs/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 
 import { assertProjectAccess } from './access.ts'
@@ -171,12 +172,14 @@ const pagesByIds = async function pagesByIds(ctx: ServiceCtx, ids: string[]): Pr
   const orm = drizzle(ctx.db, { schema })
   return inChunks(ids, (chunk) =>
     orm
-      .select({
-        id: schema.wikiPages.id,
-        slug: schema.wikiPages.slug,
-        title: schema.wikiPages.title,
-        content: schema.wikiPages.content,
-      })
+      .select(
+        fieldsInOrder([
+          ['id', schema.wikiPages.id],
+          ['slug', schema.wikiPages.slug],
+          ['title', schema.wikiPages.title],
+          ['content', schema.wikiPages.content],
+        ]),
+      )
       .from(schema.wikiPages)
       .where(
         and(

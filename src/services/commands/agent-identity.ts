@@ -4,6 +4,7 @@ import { String, Predicate, Array } from 'effect'
 
 import { hasSingleItem } from '#contracts/item-count.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
@@ -38,11 +39,13 @@ export const assertAgentSessionAccess = async function assertAgentSessionAccess(
   options: { allowAdministrativeOverride?: boolean } = {},
 ): Promise<void> {
   const session = await drizzle(ctx.db, { schema })
-    .select({
-      credentialId: schema.agentSessions.credentialId,
-      tokenId: schema.agentSessions.tokenId,
-      issueId: schema.agentSessions.issueId,
-    })
+    .select(
+      fieldsInOrder([
+        ['credentialId', schema.agentSessions.credentialId],
+        ['tokenId', schema.agentSessions.tokenId],
+        ['issueId', schema.agentSessions.issueId],
+      ]),
+    )
     .from(schema.agentSessions)
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()

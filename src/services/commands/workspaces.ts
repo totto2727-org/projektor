@@ -12,6 +12,7 @@ import {
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
 } from '#contracts/inputs/workspaces.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import type { WorkspaceBrand } from '#db'
 import { drizzle, schema } from '#db'
@@ -180,11 +181,13 @@ export const removeMember = async function removeMember(
    */
   await orm
     .insert(schema.provisioningRemovals)
-    .values({
-      workspaceId: ctx.workspaceId,
-      userId: targetUserId,
-      removedAt: currentEpochSeconds(),
-    })
+    .values(
+      fieldsInOrder([
+        ['workspaceId', ctx.workspaceId],
+        ['userId', targetUserId],
+        ['removedAt', currentEpochSeconds()],
+      ]),
+    )
     .onConflictDoUpdate({
       target: [schema.provisioningRemovals.workspaceId, schema.provisioningRemovals.userId],
       set: { removedAt: currentEpochSeconds() },
@@ -237,16 +240,18 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
   const expiresAt = expiresInDays ? now + expiresInDays * SECONDS_PER_DAY : null
 
   const orm = drizzle(ctx.db, { schema })
-  await orm.insert(schema.apiTokens).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    userId: ctx.userId,
-    name,
-    tokenHash: hash,
-    scopes,
-    expiresAt,
-    createdAt: now,
-  })
+  await orm.insert(schema.apiTokens).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['userId', ctx.userId],
+      ['name', name],
+      ['tokenHash', hash],
+      ['scopes', scopes],
+      ['expiresAt', expiresAt],
+      ['createdAt', now],
+    ]),
+  )
 
   return { id, token, name, scopes, expiresAt }
 }

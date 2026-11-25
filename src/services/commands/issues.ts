@@ -12,6 +12,7 @@ import {
   SearchIssuesInputSchema,
   UpdateIssueSchema,
 } from '#contracts/inputs/issues.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { issuePath } from '#contracts/urls.ts'
 import { drizzle, schema } from '#db'
@@ -491,16 +492,18 @@ const buildActivityInsertStatement = function buildActivityInsertStatement(
   }
   const query = orm
     .insert(schema.activity)
-    .values({
-      id: crypto.randomUUID(),
-      workspaceId: ctx.workspaceId,
-      entityType: opts.entityType,
-      entityId: opts.entityId,
-      actorId: ctx.userId,
-      action: opts.action,
-      diff: opts.diff ?? null,
-      createdAt: now(),
-    })
+    .values(
+      fieldsInOrder([
+        ['id', crypto.randomUUID()],
+        ['workspaceId', ctx.workspaceId],
+        ['entityType', opts.entityType],
+        ['entityId', opts.entityId],
+        ['actorId', ctx.userId],
+        ['action', opts.action],
+        ['diff', opts.diff ?? null],
+        ['createdAt', now()],
+      ]),
+    )
     .toSQL()
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
@@ -1232,23 +1235,25 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown):
   const orm = drizzle(ctx.db, { schema })
 
   const existingRow = await orm
-    .select({
-      id: schema.issues.id,
-      projectId: schema.issues.projectId,
-      parentId: schema.issues.parentId,
-      typeId: schema.issues.typeId,
-      title: schema.issues.title,
-      body: schema.issues.body,
-      status: schema.issues.status,
-      statusCategory: schema.issues.statusCategory,
-      readyAt: schema.issues.readyAt,
-      claimedAt: schema.issues.claimedAt,
-      doneAt: schema.issues.doneAt,
-      completionReportAt: schema.issues.completionReportAt,
-      inReviewAt: schema.issues.inReviewAt,
-      reviewBounceCount: schema.issues.reviewBounceCount,
-      statusReviewFlag: schema.taskStatuses.isReviewStep,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issues.id],
+        ['projectId', schema.issues.projectId],
+        ['parentId', schema.issues.parentId],
+        ['typeId', schema.issues.typeId],
+        ['title', schema.issues.title],
+        ['body', schema.issues.body],
+        ['status', schema.issues.status],
+        ['statusCategory', schema.issues.statusCategory],
+        ['readyAt', schema.issues.readyAt],
+        ['claimedAt', schema.issues.claimedAt],
+        ['doneAt', schema.issues.doneAt],
+        ['completionReportAt', schema.issues.completionReportAt],
+        ['inReviewAt', schema.issues.inReviewAt],
+        ['reviewBounceCount', schema.issues.reviewBounceCount],
+        ['statusReviewFlag', schema.taskStatuses.isReviewStep],
+      ]),
+    )
     .from(schema.issues)
     .leftJoin(
       schema.taskStatuses,

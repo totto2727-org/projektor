@@ -7,6 +7,7 @@ import {
   VersionedWikiDraftInputSchema,
   WikiDraftRevisionInputSchema,
 } from '#contracts/inputs/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 /*
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
@@ -41,11 +42,13 @@ const resolveDraftTarget = async function resolveDraftTarget(
 ): Promise<ResolvedDraftTarget> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
-    .select({
-      id: schema.wikiPages.id,
-      slug: schema.wikiPages.slug,
-      projectId: schema.wikiPages.projectId,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.wikiPages.id],
+        ['slug', schema.wikiPages.slug],
+        ['projectId', schema.wikiPages.projectId],
+      ]),
+    )
     .from(schema.wikiPages)
     .where(
       and(
@@ -70,11 +73,13 @@ const resolveDraftTarget = async function resolveDraftTarget(
       .get()
     if (redirect) {
       page = await orm
-        .select({
-          id: schema.wikiPages.id,
-          slug: schema.wikiPages.slug,
-          projectId: schema.wikiPages.projectId,
-        })
+        .select(
+          fieldsInOrder([
+            ['id', schema.wikiPages.id],
+            ['slug', schema.wikiPages.slug],
+            ['projectId', schema.wikiPages.projectId],
+          ]),
+        )
         .from(schema.wikiPages)
         .where(
           and(
@@ -107,12 +112,14 @@ export const getWikiDraft = async function getWikiDraft(ctx: ServiceCtx, idOrSlu
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
-    .select({
-      title: schema.wikiDrafts.title,
-      content: schema.wikiDrafts.content,
-      baseRevisionId: schema.wikiDrafts.baseRevisionId,
-      updatedAt: schema.wikiDrafts.updatedAt,
-    })
+    .select(
+      fieldsInOrder([
+        ['title', schema.wikiDrafts.title],
+        ['content', schema.wikiDrafts.content],
+        ['baseRevisionId', schema.wikiDrafts.baseRevisionId],
+        ['updatedAt', schema.wikiDrafts.updatedAt],
+      ]),
+    )
     .from(schema.wikiDrafts)
     .where(
       and(

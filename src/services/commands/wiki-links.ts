@@ -3,6 +3,7 @@ import { String, Array, Iterable, Predicate, Number } from 'effect'
 import { flattenError } from 'zod'
 
 import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '#contracts/inputs/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 /*
  * PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
@@ -228,11 +229,13 @@ const resolveSlugTargets = async function resolveSlugTargets(
 
   const direct = await inChunks(unique, (chunk) =>
     orm
-      .select({
-        id: schema.wikiPages.id,
-        title: schema.wikiPages.title,
-        slug: schema.wikiPages.slug,
-      })
+      .select(
+        fieldsInOrder([
+          ['id', schema.wikiPages.id],
+          ['title', schema.wikiPages.title],
+          ['slug', schema.wikiPages.slug],
+        ]),
+      )
       .from(schema.wikiPages)
       .where(
         and(
@@ -596,11 +599,13 @@ export const backfillWikiLinks = async function backfillWikiLinks(
   }
 
   const pages = await orm
-    .select({
-      id: schema.wikiPages.id,
-      content: schema.wikiPages.content,
-      updatedAt: schema.wikiPages.updatedAt,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.wikiPages.id],
+        ['content', schema.wikiPages.content],
+        ['updatedAt', schema.wikiPages.updatedAt],
+      ]),
+    )
     .from(schema.wikiPages)
     .where(and(...conditions))
     .orderBy(asc(schema.wikiPages.updatedAt), asc(schema.wikiPages.id))
@@ -1012,15 +1017,17 @@ export const listBrokenWikiLinks = async function listBrokenWikiLinks(
   }
 
   const rows = await orm
-    .select({
-      linkId: schema.wikiLinks.id,
-      sourcePageId: schema.wikiPages.id,
-      sourceSlug: schema.wikiPages.slug,
-      sourceTitle: schema.wikiPages.title,
-      targetTitle: schema.wikiLinks.targetTitle,
-      targetText: schema.wikiLinks.targetText,
-      hidden: sql<number>`${targetHidden}`,
-    })
+    .select(
+      fieldsInOrder([
+        ['linkId', schema.wikiLinks.id],
+        ['sourcePageId', schema.wikiPages.id],
+        ['sourceSlug', schema.wikiPages.slug],
+        ['sourceTitle', schema.wikiPages.title],
+        ['targetTitle', schema.wikiLinks.targetTitle],
+        ['targetText', schema.wikiLinks.targetText],
+        ['hidden', sql<number>`${targetHidden}`],
+      ]),
+    )
     .from(schema.wikiLinks)
     .innerJoin(schema.wikiPages, eq(schema.wikiPages.id, schema.wikiLinks.sourcePageId))
     .where(and(...conditions))

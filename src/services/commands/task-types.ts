@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '#contracts/inputs/task-types.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 import { listTaskTypes as queryTypes } from '#services/task-types.ts'
 
@@ -89,16 +90,18 @@ export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw
   }
 
   const id = crypto.randomUUID()
-  await orm.insert(schema.taskTypes).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    key,
-    name,
-    color: color ?? null,
-    icon: icon ?? null,
-    position: position ?? 0,
-    isDefault: isDefault === true ? 1 : 0,
-  })
+  await orm.insert(schema.taskTypes).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['key', key],
+      ['name', name],
+      ['color', color ?? null],
+      ['icon', icon ?? null],
+      ['position', position ?? 0],
+      ['isDefault', isDefault === true ? 1 : 0],
+    ]),
+  )
 
   await invalidateTaskTypesCache(ctx)
   return { id, key, name }

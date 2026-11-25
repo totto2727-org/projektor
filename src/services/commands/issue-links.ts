@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { CreateIssueLinkSchema, DeleteIssueLinkSchema, ListIssueLinksSchema } from '#contracts/inputs/issues.ts'
 import type { LinkTypeStoredEnum } from '#contracts/inputs/issues.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
@@ -116,15 +117,17 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
 
-  await orm.insert(schema.issueLinks).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    sourceIssueId: canon.source,
-    targetIssueId: canon.target,
-    type: canon.type,
-    createdById: ctx.userId,
-    createdAt: now,
-  })
+  await orm.insert(schema.issueLinks).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['sourceIssueId', canon.source],
+      ['targetIssueId', canon.target],
+      ['type', canon.type],
+      ['createdById', ctx.userId],
+      ['createdAt', now],
+    ]),
+  )
 
   await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${canon.source}`)
   await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${canon.target}`)

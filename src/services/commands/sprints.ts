@@ -9,6 +9,7 @@ import {
   MoveIssuesToSprintSchema,
   UpdateSprintSchema,
 } from '#contracts/inputs/sprints.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as sprintQueries from '#services/sprints.ts'
@@ -99,18 +100,20 @@ export const createSprint = async function createSprint(ctx: ServiceCtx, raw: un
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
 
-  await orm.insert(schema.sprints).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    projectId,
-    name,
-    goal: goal ?? null,
-    status: 'planned',
-    startDate: startDate ?? null,
-    endDate: endDate ?? null,
-    createdAt: now,
-    updatedAt: now,
-  })
+  await orm.insert(schema.sprints).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['projectId', projectId],
+      ['name', name],
+      ['goal', goal ?? null],
+      ['status', 'planned'],
+      ['startDate', startDate ?? null],
+      ['endDate', endDate ?? null],
+      ['createdAt', now],
+      ['updatedAt', now],
+    ]),
+  )
 
   return { id }
 }
@@ -186,7 +189,12 @@ export const completeSprint = async function completeSprint(ctx: ServiceCtx, id:
   }
   const orm = drizzle(ctx.db, { schema })
   const sprint = await orm
-    .select({ status: schema.sprints.status, projectId: schema.sprints.projectId })
+    .select(
+      fieldsInOrder([
+        ['status', schema.sprints.status],
+        ['projectId', schema.sprints.projectId],
+      ]),
+    )
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()

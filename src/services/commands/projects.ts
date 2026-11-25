@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
 import { CreateProjectSchema, UpdateProjectSchema } from '#contracts/inputs/projects.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
@@ -211,17 +212,19 @@ export const createProject = async function createProject(ctx: ServiceCtx, input
   const now = currentEpochSeconds()
   const slug = await generateUniqueSlug(orm, ctx.workspaceId, name)
 
-  await orm.insert(schema.projects).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    name,
-    key,
-    slug,
-    description: description ?? null,
-    agentWipLimit: agentWipLimit ?? null,
-    createdAt: now,
-    updatedAt: now,
-  })
+  await orm.insert(schema.projects).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['name', name],
+      ['key', key],
+      ['slug', slug],
+      ['description', description ?? null],
+      ['agentWipLimit', agentWipLimit ?? null],
+      ['createdAt', now],
+      ['updatedAt', now],
+    ]),
+  )
 
   await recordActivity(ctx, { action: 'created', entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)

@@ -19,6 +19,7 @@ import {
 } from '#contracts/inputs/wiki.ts'
 import type { PatchWikiPageInput } from '#contracts/inputs/wiki.ts'
 import { hasMultipleItems, hasSingleItem } from '#contracts/item-count.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 import { drizzle, schema } from '#db'
@@ -226,16 +227,18 @@ const resolvePageByIdOrSlug = async function resolvePageByIdOrSlug(
 }> {
   const orm = drizzle(db, { schema })
   const direct = await orm
-    .select({
-      id: schema.wikiPages.id,
-      slug: schema.wikiPages.slug,
-      title: schema.wikiPages.title,
-      content: schema.wikiPages.content,
-      projectId: schema.wikiPages.projectId,
-      parentId: schema.wikiPages.parentId,
-      isTemplate: schema.wikiPages.isTemplate,
-      version: schema.wikiPages.version,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.wikiPages.id],
+        ['slug', schema.wikiPages.slug],
+        ['title', schema.wikiPages.title],
+        ['content', schema.wikiPages.content],
+        ['projectId', schema.wikiPages.projectId],
+        ['parentId', schema.wikiPages.parentId],
+        ['isTemplate', schema.wikiPages.isTemplate],
+        ['version', schema.wikiPages.version],
+      ]),
+    )
     .from(schema.wikiPages)
     .where(
       and(
@@ -2362,12 +2365,14 @@ export const deleteWikiPage = async function deleteWikiPage(
     if (Array.isArrayNonEmpty(descendantIds)) {
       const descendants = await inChunks(descendantIds, (chunk) =>
         orm
-          .select({
-            id: schema.wikiPages.id,
-            slug: schema.wikiPages.slug,
-            title: schema.wikiPages.title,
-            isTemplate: schema.wikiPages.isTemplate,
-          })
+          .select(
+            fieldsInOrder([
+              ['id', schema.wikiPages.id],
+              ['slug', schema.wikiPages.slug],
+              ['title', schema.wikiPages.title],
+              ['isTemplate', schema.wikiPages.isTemplate],
+            ]),
+          )
           .from(schema.wikiPages)
           .where(and(inArray(schema.wikiPages.id, chunk), eq(schema.wikiPages.workspaceId, ctx.workspaceId))),
       )
@@ -2474,16 +2479,18 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
 
   const orm = drizzle(ctx.db, { schema })
   const page = await orm
-    .select({
-      id: schema.wikiPages.id,
-      slug: schema.wikiPages.slug,
-      title: schema.wikiPages.title,
-      projectId: schema.wikiPages.projectId,
-      parentId: schema.wikiPages.parentId,
-      isTemplate: schema.wikiPages.isTemplate,
-      deletedAt: schema.wikiPages.deletedAt,
-      trashBatchId: schema.wikiPages.trashBatchId,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.wikiPages.id],
+        ['slug', schema.wikiPages.slug],
+        ['title', schema.wikiPages.title],
+        ['projectId', schema.wikiPages.projectId],
+        ['parentId', schema.wikiPages.parentId],
+        ['isTemplate', schema.wikiPages.isTemplate],
+        ['deletedAt', schema.wikiPages.deletedAt],
+        ['trashBatchId', schema.wikiPages.trashBatchId],
+      ]),
+    )
     .from(schema.wikiPages)
     .where(and(eq(schema.wikiPages.id, id), eq(schema.wikiPages.workspaceId, ctx.workspaceId)))
     .get()
@@ -2509,12 +2516,14 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
   const descendantRows = Array.isArrayNonEmpty(descendantIds)
     ? await inChunks(descendantIds, (chunk) =>
         orm
-          .select({
-            id: schema.wikiPages.id,
-            slug: schema.wikiPages.slug,
-            title: schema.wikiPages.title,
-            isTemplate: schema.wikiPages.isTemplate,
-          })
+          .select(
+            fieldsInOrder([
+              ['id', schema.wikiPages.id],
+              ['slug', schema.wikiPages.slug],
+              ['title', schema.wikiPages.title],
+              ['isTemplate', schema.wikiPages.isTemplate],
+            ]),
+          )
           .from(schema.wikiPages)
           .where(and(inArray(schema.wikiPages.id, chunk), eq(schema.wikiPages.workspaceId, ctx.workspaceId))),
       )

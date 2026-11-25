@@ -4,6 +4,7 @@ import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateCustomFieldDefSchema, UpdateCustomFieldDefSchema } from '#contracts/inputs/custom-fields.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as fieldQueries from '#services/custom-fields.ts'
@@ -108,16 +109,18 @@ export const createCustomFieldDef = async function createCustomFieldDef(ctx: Ser
 
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
-  await orm.insert(schema.customFieldDefinitions).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    projectId: projectId ?? null,
-    key,
-    label,
-    type,
-    options: options && Array.isArrayNonEmpty(options) ? JSON.stringify(options) : null,
-    createdAt: now,
-  })
+  await orm.insert(schema.customFieldDefinitions).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['projectId', projectId ?? null],
+      ['key', key],
+      ['label', label],
+      ['type', type],
+      ['options', options && Array.isArrayNonEmpty(options) ? JSON.stringify(options) : null],
+      ['createdAt', now],
+    ]),
+  )
 
   return { id, key, label, type }
 }
