@@ -15,13 +15,19 @@ import { formatTimestampDate } from '@/features/timestamp.ts'
 
 import type { RangeState, SprintIssue } from './types.ts'
 
+const CALENDAR_MONTH_INDEX_OFFSET = 1
+const CALENDAR_FIELD_WIDTH = 2
+const DEFAULT_STORY_POINTS = 0
+const DISPLAY_DECIMAL_PLACES = 1
+const PERCENT_SCALE = 100
+
 /** Original local-midnight date input contract, including timezone-safe round trips. */
 export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value.trim())
   if (!match) {
     return null
   }
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  const date = new Date(Number(match[1]), Number(match[2]) - CALENDAR_MONTH_INDEX_OFFSET, Number(match[3]))
   return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / MILLISECONDS_PER_SECOND)
 }
 export const unixToDateInput = function unixToDateInput(ts: number | null): string {
@@ -29,7 +35,7 @@ export const unixToDateInput = function unixToDateInput(ts: number | null): stri
     return ''
   }
   const date = new Date(ts * MILLISECONDS_PER_SECOND)
-  return `${date.getFullYear()}-${globalThis.String(date.getMonth() + 1).padStart(2, '0')}-${globalThis.String(date.getDate()).padStart(2, '0')}`
+  return `${date.getFullYear()}-${globalThis.String(date.getMonth() + CALENDAR_MONTH_INDEX_OFFSET).padStart(CALENDAR_FIELD_WIDTH, '0')}-${globalThis.String(date.getDate()).padStart(CALENDAR_FIELD_WIDTH, '0')}`
 }
 export const formatUnixDate = function formatUnixDate(ts: number | null): string {
   return Predicate.isNullish(ts) ? '\u2013' : formatTimestampDate(ts)
@@ -37,10 +43,10 @@ export const formatUnixDate = function formatUnixDate(ts: number | null): string
 export const getStoryPoints = function getStoryPoints(issue: SprintIssue): number {
   const field = issue.customFields.find((entry) => entry.key === 'story_points')
   if (!field) {
-    return 0
+    return DEFAULT_STORY_POINTS
   }
   const value = Number.parseFloat(field.value)
-  return Number.isNaN(value) ? 0 : value
+  return Number.isNaN(value) ? DEFAULT_STORY_POINTS : value
 }
 export const issueHref = function issueHref(issue: SprintIssue, workspaceSlug: string): string {
   const query = new URLSearchParams({ id: issue.id, workspace: workspaceSlug })
@@ -95,13 +101,14 @@ export const formatDuration = function formatDuration(seconds: number | null): s
     return `${Math.round(seconds)}s`
   }
   if (abs < SECONDS_PER_HOUR) {
-    return `${(seconds / SECONDS_PER_MINUTE).toFixed(1)}m`
+    return `${(seconds / SECONDS_PER_MINUTE).toFixed(DISPLAY_DECIMAL_PLACES)}m`
   }
   if (abs < SECONDS_PER_DAY) {
-    return `${(seconds / SECONDS_PER_HOUR).toFixed(1)}h`
+    return `${(seconds / SECONDS_PER_HOUR).toFixed(DISPLAY_DECIMAL_PLACES)}h`
   }
-  return `${(seconds / SECONDS_PER_DAY).toFixed(1)}d`
+  return `${(seconds / SECONDS_PER_DAY).toFixed(DISPLAY_DECIMAL_PLACES)}d`
 }
 export const formatPercent = (value: number | null): string =>
-  Predicate.isNullish(value) ? '\u2013' : `${Math.round(value * 100)}%`
-export const formatCount = (value: number | null): string => (Predicate.isNullish(value) ? '\u2013' : value.toFixed(1))
+  Predicate.isNullish(value) ? '\u2013' : `${Math.round(value * PERCENT_SCALE)}%`
+export const formatCount = (value: number | null): string =>
+  Predicate.isNullish(value) ? '\u2013' : value.toFixed(DISPLAY_DECIMAL_PLACES)

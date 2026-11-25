@@ -8,11 +8,21 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapEntry, CodeHeatmapResponse, HeatmapMode } from './types.ts'
 
+const SINGLE_ISSUE_COUNT = 1
+const MIN_HEAT_INTENSITY_PERCENT = 14
+const HEAT_INTENSITY_RANGE_PERCENT = 70
+const NO_ISSUES = 0
+const MIN_BAR_PERCENT = 4
+const FULL_BAR_PERCENT = 100
+const MIN_SCALE_ISSUE_COUNT = 1
+const FIRST_BREADCRUMB_INDEX = 0
+const BREADCRUMB_INDEX_STEP = 1
+
 const issueCount = function issueCount(count: number): string {
-  return `${count} ${count === 1 ? 'issue' : 'issues'}`
+  return `${count} ${count === SINGLE_ISSUE_COUNT ? 'issue' : 'issues'}`
 }
 const heatBackground = function heatBackground(ratio: number): string {
-  return `color-mix(in srgb, var(--accent) ${14 + Math.round(70 * ratio)}%, var(--surface))`
+  return `color-mix(in srgb, var(--accent) ${MIN_HEAT_INTENSITY_PERCENT + Math.round(HEAT_INTENSITY_RANGE_PERCENT * ratio)}%, var(--surface))`
 }
 export const heatmapHref = function heatmapHref(initialUrl: string, mode: HeatmapMode, prefix: string): string {
   const url = new URL(initialUrl)
@@ -36,7 +46,8 @@ const HeatmapRow = function HeatmapRow({
   ratio: number
   href: string
 }): JSX.Element {
-  const count = mode === 'contention' ? (entry.distinctRejectedIssueCount ?? 0) : (entry.distinctIssueCount ?? 0)
+  const count =
+    mode === 'contention' ? (entry.distinctRejectedIssueCount ?? NO_ISSUES) : (entry.distinctIssueCount ?? NO_ISSUES)
   const content = (
     <>
       <span className='min-w-0 truncate text-[0.82rem] text-text-base' title={entry.path}>
@@ -49,7 +60,10 @@ const HeatmapRow = function HeatmapRow({
       >
         <span
           className='block h-full rounded-r-[4px]'
-          style={{ width: `${Math.max(4, ratio * 100)}%`, background: heatBackground(ratio) }}
+          style={{
+            width: `${Math.max(MIN_BAR_PERCENT, ratio * FULL_BAR_PERCENT)}%`,
+            background: heatBackground(ratio),
+          }}
         />
       </span>
       <span className='w-[5.5rem] shrink-0 text-right text-[0.78rem] tabular-nums text-text-muted'>
@@ -84,7 +98,9 @@ export const CodeHeatmap = function CodeHeatmap({
   error?: string | null
 }): JSX.Element {
   const countField = mode === 'contention' ? 'distinctRejectedIssueCount' : 'distinctIssueCount'
-  const maxCount = data ? Math.max(1, ...data.entries.map((entry) => entry[countField] ?? 0)) : 1
+  const maxCount = data
+    ? Math.max(MIN_SCALE_ISSUE_COUNT, ...data.entries.map((entry) => entry[countField] ?? NO_ISSUES))
+    : MIN_SCALE_ISSUE_COUNT
   const segments = isNonEmptyText(data?.prefix) ? data.prefix.split('/') : []
   return (
     <div className='mb-8'>
@@ -124,13 +140,13 @@ export const CodeHeatmap = function CodeHeatmap({
                 All files
               </a>
               {segments.map((segment, index) => {
-                const path = segments.slice(0, index + 1).join('/')
+                const path = segments.slice(FIRST_BREADCRUMB_INDEX, index + BREADCRUMB_INDEX_STEP).join('/')
                 return (
                   <span key={path} className='flex items-center gap-1'>
                     <span className='text-text-muted'>/</span>
                     <a
                       href={heatmapHref(initialUrl, mode, path)}
-                      className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${index === segments.length - 1 ? 'font-semibold text-text-base' : 'text-accent'}`}
+                      className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${index === segments.length - BREADCRUMB_INDEX_STEP ? 'font-semibold text-text-base' : 'text-accent'}`}
                     >
                       {segment}
                     </a>
@@ -161,7 +177,7 @@ export const CodeHeatmap = function CodeHeatmap({
                     key={entry.path}
                     entry={entry}
                     mode={mode}
-                    ratio={(entry[countField] ?? 0) / maxCount}
+                    ratio={(entry[countField] ?? NO_ISSUES) / maxCount}
                     href={heatmapHref(initialUrl, mode, entry.path)}
                   />
                 ))}

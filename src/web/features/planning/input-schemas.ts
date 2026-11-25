@@ -9,6 +9,14 @@ import {
 } from '#contracts/time.ts'
 import { MAX_METRICS_DAYS } from '#contracts/web-limits.ts'
 
+const MAX_SPRINT_NAME_LENGTH = 100
+const MAX_SPRINT_GOAL_LENGTH = 280
+const MIN_MOVE_ISSUE_COUNT = 1
+const MAX_MOVE_ISSUE_COUNT = 500
+const MAX_HEATMAP_PREFIX_LENGTH = 2000
+const EMPTY_DATE_OFFSET_MINUTES = 0
+const CALENDAR_MONTH_INDEX_OFFSET = 1
+
 export const SprintListModeSchema = Schema.Literals(['all', 'planned', 'active', 'completed'])
 export type SprintListMode = typeof SprintListModeSchema.Type
 
@@ -26,8 +34,8 @@ const date = Schema.String.check(
 )
 const optionalDate = Schema.Union([Schema.Literal(''), date])
 export const SprintDraftFields = {
-  name: required('Name', 100),
-  goal: Schema.String.check(Schema.isMaxLength(280)),
+  name: required('Name', MAX_SPRINT_NAME_LENGTH),
+  goal: Schema.String.check(Schema.isMaxLength(MAX_SPRINT_GOAL_LENGTH)),
   start: optionalDate,
   end: optionalDate,
 }
@@ -80,7 +88,9 @@ export const MoveSprintIssuesSchema = Schema.Struct({
   ...PlanningScopeFields,
   sprintId: required('Source sprint'),
   targetId: required('Destination sprint'),
-  issueIds: Schema.Array(required('Issue')).pipe(Schema.mutable).check(Schema.isMinLength(1), Schema.isMaxLength(500)),
+  issueIds: Schema.Array(required('Issue'))
+    .pipe(Schema.mutable)
+    .check(Schema.isMinLength(MIN_MOVE_ISSUE_COUNT), Schema.isMaxLength(MAX_MOVE_ISSUE_COUNT)),
 }).check(
   Schema.makeFilter(
     (value) =>
@@ -96,7 +106,7 @@ export const MetricsWindowSchema = Schema.Struct({
   until: date,
   granularity: Schema.Literals(['day', 'week']),
   heatmapMode: Schema.Literals(['claims', 'contention']),
-  prefix: Schema.String.check(Schema.isMaxLength(2000)),
+  prefix: Schema.String.check(Schema.isMaxLength(MAX_HEATMAP_PREFIX_LENGTH)),
 }).check(
   Schema.makeFilter(
     (value) =>
@@ -118,10 +128,10 @@ export const MetricsWindowSchema = Schema.Struct({
 /** Calendar input offset is semantic data, preserving original local-midnight timestamps. */
 export const calendarOffset = function calendarOffset(value: string): number {
   if (!value) {
-    return 0
+    return EMPTY_DATE_OFFSET_MINUTES
   }
   const [year, month, day] = value.split('-').map(Number)
-  return new Date(year, month - 1, day).getTimezoneOffset()
+  return new Date(year, month - CALENDAR_MONTH_INDEX_OFFSET, day).getTimezoneOffset()
 }
 export const calendarTimestamp = function calendarTimestamp(value: string, offset: number): number | null {
   return value ? utcMidnightMilliseconds(value) / MILLISECONDS_PER_SECOND + offset * SECONDS_PER_MINUTE : null

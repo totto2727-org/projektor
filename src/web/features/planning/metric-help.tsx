@@ -8,14 +8,25 @@ import { Popover } from '@/components/ui/popover.tsx'
 import { METRIC_DEFINITIONS } from './metric-definitions.ts'
 import type { MetricId } from './metric-definitions.ts'
 
+const VIEWPORT_INSET_PX = 8
+const HELP_PANEL_WIDTH_PX = 256
+const HELP_TRIGGER_GAP_PX = 4
+const ESTIMATED_HELP_HEIGHT_PX = 140
+
 export const computeMetricHelpPosition = function computeMetricHelpPosition(rect: DOMRect): {
   top: number
   left: number
 } {
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - 256 - 8))
-  const below = window.innerHeight - rect.bottom - 4 - 8
-  const above = rect.top - 4 - 8
-  const top = below < 140 && above > below ? Math.max(8, rect.top - 4 - 140) : rect.bottom + 4
+  const left = Math.max(
+    VIEWPORT_INSET_PX,
+    Math.min(rect.left, window.innerWidth - HELP_PANEL_WIDTH_PX - VIEWPORT_INSET_PX),
+  )
+  const below = window.innerHeight - rect.bottom - HELP_TRIGGER_GAP_PX - VIEWPORT_INSET_PX
+  const above = rect.top - HELP_TRIGGER_GAP_PX - VIEWPORT_INSET_PX
+  const top =
+    below < ESTIMATED_HELP_HEIGHT_PX && above > below
+      ? Math.max(VIEWPORT_INSET_PX, rect.top - HELP_TRIGGER_GAP_PX - ESTIMATED_HELP_HEIGHT_PX)
+      : rect.bottom + HELP_TRIGGER_GAP_PX
   return { top, left }
 }
 /** Original viewport-clamped toggletip, dismissed by Escape, outside clicks and scroll. */
