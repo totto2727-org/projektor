@@ -86,10 +86,10 @@ describe('covers PROJ-923: explicit cleanup on delete', () => {
       'wiki_fts',
       'activity',
     ]
-    for (const t of tables) {
-      expect(`${t}: ${await count(`SELECT COUNT(*) AS n FROM ${t} WHERE workspace_id = ?`, workspace.id)}`).toBe(
-        `${t}: 0`,
-      )
+    for (const table of tables) {
+      expect(
+        `${table}: ${await count(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`, workspace.id)}`,
+      ).toBe(`${table}: 0`)
     }
     await expect(count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).resolves.toBe(0)
     await expect(count('SELECT COUNT(*) AS n FROM workspaces WHERE id = ?', workspace.id)).resolves.toBe(0)

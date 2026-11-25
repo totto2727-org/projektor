@@ -358,7 +358,7 @@ describe('covers PROJ-438 — comments accept an issue ref', () => {
 
     expect(res.status).toBe(200)
     const comments = await readNativeJson(res, ApiResults.apiListComments)
-    const bodies = comments.map((c) => c.body)
+    const bodies = comments.map((comment) => comment.body)
     expect(bodies).toStrictEqual(['mine'])
   })
 

@@ -251,7 +251,7 @@ describe('projects REST', () => {
 
     const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const projects = await readNativeJson(listRes, KeyListResponse)
-    const keys = projects.map((p) => p.key)
+    const keys = projects.map((project) => project.key)
     expect(keys).not.toContain('ARCH1')
 
     const includeArchivedRes = await fetchNativeApi('http://localhost/api/projects?includeArchived=true', {
@@ -551,7 +551,7 @@ describe('handles GET /api/projects cross-workspace', () => {
     })
     expect(res.status).toBe(200)
     const projects = await readNativeJson(res, KeyListResponse)
-    const keys = projects.map((p) => p.key)
+    const keys = projects.map((project) => project.key)
     expect(keys).toContain('WS1P')
     expect(keys).toContain('WS2P')
   })
@@ -569,7 +569,7 @@ describe('handles GET /api/projects cross-workspace', () => {
     })
     expect(res.status).toBe(200)
     const projects = await readNativeJson(res, KeyListResponse)
-    const keys = projects.map((p) => p.key)
+    const keys = projects.map((project) => project.key)
     expect(keys).toContain('MINE')
     expect(keys).not.toContain('NOTMINE')
   })

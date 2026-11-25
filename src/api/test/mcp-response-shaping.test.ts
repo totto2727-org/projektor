@@ -201,9 +201,9 @@ describe('covers PROJ-891: MCP tools', () => {
     env.RATE_LIMIT_API_MAX = prevApiMax
   })
 
-  let f: Awaited<ReturnType<typeof seedProjectFixture>>
+  let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
   beforeEach(async () => {
-    f = await seedProjectFixture()
+    fixture = await seedProjectFixture()
   })
 
   const tool = async function tool<T = Record<string, unknown>>(
@@ -211,10 +211,10 @@ describe('covers PROJ-891: MCP tools', () => {
     args: Record<string, unknown> = {},
   ): Promise<T> {
     const res = await fetchNativeApi(
-      `http://localhost/mcp/${f.workspaceId}`,
+      `http://localhost/mcp/${fixture.workspaceId}`,
       requestOptionsWithBody(
         'POST',
-        { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+        { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
         JSON.stringify({
           id: 1,
           jsonrpc: '2.0',
@@ -238,7 +238,7 @@ describe('covers PROJ-891: MCP tools', () => {
 
   test('list_issues: summary view, {items,next} pagination, and cursor continuation', async () => {
     await runIndexedInOrder(3, async (index): Promise<void> => {
-      await seedIssue(f.workspaceId, f.projectId, f.userId, {
+      await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
         title: `Item ${index}`,
         createdAt: 1000 + index,
       })
@@ -266,7 +266,7 @@ describe('covers PROJ-891: MCP tools', () => {
   })
 
   test('get_issue full view has ref, an array of labels and no internal ids', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Shaped' })
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Shaped' })
     const got = await tool('get_issue', { id: issue.id })
     expect(got.ref).toMatch(/-\d+$/u)
     expect(got).not.toHaveProperty('workspace_id')
@@ -279,7 +279,7 @@ describe('covers PROJ-891: MCP tools', () => {
   test('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
     const pad = 'y'.repeat(400)
     await runIndexedInOrder(60, async (index): Promise<void> => {
-      await seedIssue(f.workspaceId, f.projectId, f.userId, {
+      await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
         title: `${pad} ${index}`,
         createdAt: 2000 + index,
       })
@@ -293,10 +293,10 @@ describe('covers PROJ-891: MCP tools', () => {
       truncated: Schema.optional(Schema.Boolean),
     })
     for (let guard = 0; guard < 10; guard += 1) {
-      const requestUrl = `http://localhost/mcp/${f.workspaceId}`
+      const requestUrl = `http://localhost/mcp/${fixture.workspaceId}`
       const requestOptions = requestOptionsWithBody(
         'POST',
-        { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+        { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
         JSON.stringify({
           id: 1,
           jsonrpc: '2.0',
@@ -332,14 +332,14 @@ describe('covers PROJ-891: MCP tools', () => {
   })
 
   test('list_comments and list_project_activity return {items}', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Talky' })
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Talky' })
     await tool('add_comment', { issueId: issue.id, body: 'hi' })
     const comments = await tool<{ items: { body: string }[] }>('list_comments', {
       issueId: issue.id,
     })
     expect(comments.items.map((item) => item.body)).toStrictEqual(['hi'])
     const activity = await tool<{ items: unknown[] }>('list_project_activity', {
-      projectId: f.projectId,
+      projectId: fixture.projectId,
     })
     expect(Array.isArray(activity.items)).toBe(true)
   })
@@ -379,7 +379,7 @@ describe('covers PROJ-891: MCP tools', () => {
   })
 
   test('list_comments is never cut: every comment is returned', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Chatty' })
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Chatty' })
     await runIndexedInOrder(30, async (index): Promise<void> => {
       await tool('add_comment', { issueId: issue.id, body: `${index} ${'c'.repeat(1000)}` })
     })

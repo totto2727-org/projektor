@@ -11,9 +11,9 @@ import { authHeaders, seedIssueFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 describe('covers PROJ-856: middleware runs once per request', () => {
-  let f: Awaited<ReturnType<typeof seedIssueFixture>>
+  let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
   beforeEach(async () => {
-    f = await seedIssueFixture()
+    fixture = await seedIssueFixture()
     await resetCoreObservations()
   })
 
@@ -27,7 +27,7 @@ describe('covers PROJ-856: middleware runs once per request', () => {
     ['GET', '/api/files'],
   ])('%s %s authenticates once', async (method, path) => {
     const res = await fetchNativeApi(`http://localhost${path}`, {
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(fixture.token, fixture.slug),
       method,
     })
     expect([401, 403]).not.toContain(res.status)
@@ -36,8 +36,8 @@ describe('covers PROJ-856: middleware runs once per request', () => {
   })
 
   test('handles GET /api/issues/:id authenticates once', async () => {
-    const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}`, {
-      headers: authHeaders(f.token, f.slug),
+    const res = await fetchNativeApi(`http://localhost/api/issues/${fixture.issueId}`, {
+      headers: authHeaders(fixture.token, fixture.slug),
     })
     expect(res.status).toBe(200)
     const resolvedValue = await getCoreObservations()
@@ -45,8 +45,8 @@ describe('covers PROJ-856: middleware runs once per request', () => {
   })
 
   test('handles GET /api/workspaces/:slug authenticates once', async () => {
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.slug}`, {
-      headers: authHeaders(f.token, f.slug),
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${fixture.slug}`, {
+      headers: authHeaders(fixture.token, fixture.slug),
     })
     expect([401, 403]).not.toContain(res.status)
     const observations = await getCoreObservations()
@@ -58,8 +58,8 @@ describe('covers PROJ-856: middleware runs once per request', () => {
       'http://localhost/api/issues',
       requestOptionsWithBody(
         'POST',
-        authHeaders(f.token, f.slug),
-        JSON.stringify({ projectId: f.projectId, title: 'once' }),
+        authHeaders(fixture.token, fixture.slug),
+        JSON.stringify({ projectId: fixture.projectId, title: 'once' }),
       ),
     )
     expect(res.status).toBe(201)

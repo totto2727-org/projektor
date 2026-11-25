@@ -69,13 +69,13 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
 
 type Fixture = Awaited<ReturnType<typeof seedProjectFixture>>
 
-const ownerCtx = function ownerCtx(f: Fixture): ServiceCtx {
+const ownerCtx = function ownerCtx(fixture: Fixture): ServiceCtx {
   return {
     db: env.DB,
     kv: env.KV,
     r2: env.R2,
-    workspaceId: f.workspaceId,
-    userId: f.userId,
+    workspaceId: fixture.workspaceId,
+    userId: fixture.userId,
     role: 'owner',
   }
 }
@@ -90,11 +90,11 @@ const formErrorOf = async function formErrorOf(p: Promise<unknown>): Promise<str
   return err?.issues?.formErrors ?? []
 }
 
-const seedChain = async function seedChain(f: Fixture, length: number): Promise<string[]> {
+const seedChain = async function seedChain(fixture: Fixture, length: number): Promise<string[]> {
   const ids: string[] = []
   let parentId: string | undefined
   for (let index = 0; index < length; index += 1) {
-    const { id } = await seedIssue(f.workspaceId, f.projectId, f.userId, {
+    const { id } = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       title: `L${index}`,
       parentId,
     })

@@ -84,8 +84,8 @@ describe('covers PROJ-857: issue list cursor', () => {
 })
 
 describe('covers PROJ-857: hot queries use an index (no table scan, no temp sort)', () => {
-  const plan = async function plan(q: string, ...binds: unknown[]): Promise<string> {
-    const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${q}`)
+  const plan = async function plan(query: string, ...binds: unknown[]): Promise<string> {
+    const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${query}`)
       .bind(...binds)
       .all<{ detail: string }>()
     return (rows.results ?? []).map((result) => result.detail).join(' | ')

@@ -24,14 +24,14 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     env.RATE_LIMIT_API_MAX = prevApiMax
   })
 
-  let f: Awaited<ReturnType<typeof seedIssueFixture>>
+  let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
   beforeEach(async () => {
-    f = await seedIssueFixture({ role: 'owner' })
+    fixture = await seedIssueFixture({ role: 'owner' })
   })
 
-  const post = async function post(body: unknown, token = f.token): Promise<Response> {
+  const post = async function post(body: unknown, token = fixture.token): Promise<Response> {
     return fetchNativeApi(
-      `http://localhost/mcp/${f.workspaceId}`,
+      `http://localhost/mcp/${fixture.workspaceId}`,
       requestOptionsWithBody(
         'POST',
         { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -40,14 +40,18 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     )
   }
 
-  const call = async function call(name: string, args: unknown, token = f.token): Promise<typeof McpRpcResponse.Type> {
+  const call = async function call(
+    name: string,
+    args: unknown,
+    token = fixture.token,
+  ): Promise<typeof McpRpcResponse.Type> {
     const res = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, token)
     expect(res.status).toBe(200)
     return readNativeJson(res, McpRpcResponse)
   }
 
   /** Asserts the failure is a tool result (not a JSON-RPC error) and returns its body. */
-  const failure = async function failure(name: string, args: unknown, token = f.token): Promise<ToolErrorBody> {
+  const failure = async function failure(name: string, args: unknown, token = fixture.token): Promise<ToolErrorBody> {
     const res = await call(name, args, token)
     expect(res.error, 'must not be a JSON-RPC error').toBeUndefined()
     expect(res.result?.isError).toBe(true)
@@ -184,13 +188,13 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   })
 
   test('a scope denial stays an HTTP 403 with a WWW-Authenticate challenge', async () => {
-    const readOnly = await seedToken(f.workspaceId, f.userId, { scopes: ['read'] })
+    const readOnly = await seedToken(fixture.workspaceId, fixture.userId, { scopes: ['read'] })
     const res = await post(
       {
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
-        params: { name: 'create_issue', arguments: { projectId: f.projectId, title: 'x' } },
+        params: { name: 'create_issue', arguments: { projectId: fixture.projectId, title: 'x' } },
       },
       readOnly,
     )

@@ -37,8 +37,8 @@ const rpcErrorWithData = function rpcErrorWithData(
 const MAX_DETAIL_VALUE_CHARS = 80
 const MAX_DETAIL_SUMMARY_CHARS = 300
 
-const truncate = function truncate(s: string, max: number): string {
-  return s.length > max ? `${s.slice(0, max)}…` : s
+const truncate = function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text
 }
 
 /*

@@ -17,9 +17,9 @@ import { readNativeJson } from './response-json.ts'
 const search = async function search(
   token: string,
   slug: string,
-  q: string,
+  query: string,
 ): Promise<{ status: number; body: typeof ApiResults.apiSearchIssues.Type }> {
-  const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
+  const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(query)}`, {
     headers: authHeaders(token, slug),
   })
   return { status: res.status, body: await readNativeJson(res, ApiResults.apiSearchIssues) }

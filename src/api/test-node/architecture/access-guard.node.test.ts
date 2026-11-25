@@ -75,8 +75,8 @@ interface FnInfo {
   calls: string[]
 }
 
-const paramName = function paramName(p: ts.ParameterDeclaration): string {
-  return ts.isIdentifier(p.name) ? p.name.text : ''
+const paramName = function paramName(parameter: ts.ParameterDeclaration): string {
+  return ts.isIdentifier(parameter.name) ? parameter.name.text : ''
 }
 
 const collect = function collect(): Map<string, FnInfo> {
@@ -159,12 +159,12 @@ const collect = function collect(): Map<string, FnInfo> {
         }
       })
 
-      const localNames = new Set(locals.map((l) => l.name))
-      Iterable.forEach(locals, (l) => {
+      const localNames = new Set(locals.map((local) => local.name))
+      Iterable.forEach(locals, (local) => {
         const calls: string[] = []
         const visit = (n: ts.Node): void => {
           // Any reference counts (call, or passed as a callback / predicate).
-          if (ts.isIdentifier(n) && n !== (l.node as ts.FunctionDeclaration).name) {
+          if (ts.isIdentifier(n) && n !== (local.node as ts.FunctionDeclaration).name) {
             const id = n.text
             if (file === 'access' && GUARDS.has(id)) {
               calls.push(`guard:${id}`)
@@ -176,12 +176,12 @@ const collect = function collect(): Map<string, FnInfo> {
           }
           n.forEachChild(visit)
         }
-        l.node.forEachChild(visit)
-        fns.set(`${file}:${l.name}`, {
+        local.node.forEachChild(visit)
+        fns.set(`${file}:${local.name}`, {
           file,
-          name: l.name,
-          exported: l.exported,
-          params: l.params,
+          name: local.name,
+          exported: local.exported,
+          params: local.params,
           calls,
         })
       })
@@ -221,10 +221,10 @@ const isTarget = function isTarget(fn: FnInfo): boolean {
     return false
   }
   const rest = fn.params.slice(1)
-  if (rest.some((p) => ENTITY_PARAM.test(p))) {
+  if (rest.some((parameter) => ENTITY_PARAM.test(parameter))) {
     return true
   }
-  return PROJECT_SCOPED_FILES.has(fn.file) && rest.some((p) => GENERIC_ID_PARAM.test(p))
+  return PROJECT_SCOPED_FILES.has(fn.file) && rest.some((parameter) => GENERIC_ID_PARAM.test(parameter))
 }
 
 describe('covers PROJ-837: project-scoped service operations reach the access guard', () => {

@@ -70,17 +70,17 @@ describe('covers PROJ-892: MCP tools', () => {
     env.RATE_LIMIT_API_MAX = prevApiMax
   })
 
-  let f: Awaited<ReturnType<typeof seedProjectFixture>>
+  let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
   beforeEach(async () => {
-    f = await seedProjectFixture()
+    fixture = await seedProjectFixture()
   })
 
   const call = async function call(name: string, args: Record<string, unknown> = {}): Promise<Rpc> {
     const res = await fetchNativeApi(
-      `http://localhost/mcp/${f.workspaceId}`,
+      `http://localhost/mcp/${fixture.workspaceId}`,
       requestOptionsWithBody(
         'POST',
-        { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+        { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
         JSON.stringify({
           id: 1,
           jsonrpc: '2.0',
@@ -100,11 +100,11 @@ describe('covers PROJ-892: MCP tools', () => {
 
   test('list_issues: bodyChars previews and flags truncation; default has no body', async () => {
     await tool('create_issue', {
-      projectId: f.projectId,
+      projectId: fixture.projectId,
       title: 'Long',
       body: 'z'.repeat(3000),
     })
-    await tool('create_issue', { projectId: f.projectId, title: 'Short', body: 'tiny' })
+    await tool('create_issue', { projectId: fixture.projectId, title: 'Short', body: 'tiny' })
 
     const none = await tool<{ items: Record<string, unknown>[] }>('list_issues', {})
     expect(none.items.every((item) => !('body' in item))).toBe(true)
@@ -130,7 +130,7 @@ describe('covers PROJ-892: MCP tools', () => {
     // 20,000 chars
     const body = 'abcdefghij'.repeat(2000)
     const created = await tool<{ id: string }>('create_issue', {
-      projectId: f.projectId,
+      projectId: fixture.projectId,
       title: 'Huge',
       body,
     })
@@ -153,7 +153,7 @@ describe('covers PROJ-892: MCP tools', () => {
 
   test('get_issue: a short body is returned whole with no window fields', async () => {
     const created = await tool<{ id: string }>('create_issue', {
-      projectId: f.projectId,
+      projectId: fixture.projectId,
       title: 'Small',
       body: 'hello',
     })

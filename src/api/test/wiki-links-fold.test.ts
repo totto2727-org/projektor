@@ -104,13 +104,13 @@ describe("covers PROJ-818: link reads don't reveal pages in hidden projects", ()
     })
 
     const asMember = await broken(member.token, workspace.slug)
-    const fromIndex = asMember.filter((b) => b.sourceSlug === 'public-index').map((b) => b.targetTitle)
+    const fromIndex = asMember.filter((backlink) => backlink.sourceSlug === 'public-index').map((b) => b.targetTitle)
     expect(fromIndex.toSorted()).toStrictEqual(['Secret Plan', secretBySlug.slug].toSorted())
     expect(fromIndex).not.toContain('Other Secret Title')
 
     // The owner can see the project: nothing broken.
     const asOwner = await broken(owner.token, workspace.slug)
-    expect(asOwner.filter((b) => b.sourceSlug === 'public-index')).toStrictEqual([])
+    expect(asOwner.filter((backlink) => backlink.sourceSlug === 'public-index')).toStrictEqual([])
   })
 })
 
@@ -131,7 +131,7 @@ describe("covers PROJ-818: legacy link rows don't leak a hidden page's title", (
       .bind(crypto.randomUUID(), workspace.id, src.id, secret.id)
       .run()
     const rowsResult = await broken(member.token, workspace.slug)
-    const rows = rowsResult.filter((b) => b.sourceSlug === src.slug)
+    const rows = rowsResult.filter((backlink) => backlink.sourceSlug === src.slug)
     expect(rows).toHaveLength(1)
     expect(rows[0].targetTitle).not.toContain('Hidden')
   })

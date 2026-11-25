@@ -1231,7 +1231,7 @@ describe('attachment project visibility', () => {
       headers: asMember(visibilityFixture),
     })
     const attachments = await readNativeJson(res, ApiResults.apiListAttachments)
-    expect(attachments.map((a) => a.filename)).toStrictEqual(['orphan.txt'])
+    expect(attachments.map((attachment) => attachment.filename)).toStrictEqual(['orphan.txt'])
   })
 
   test('rejects uploading onto an issue in an invisible project without orphaning the R2 object', async () => {

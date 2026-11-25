@@ -133,8 +133,8 @@ export const outlineOf = function outlineOf(content: string): string[] {
   return headings(content).map((h) => `${'#'.repeat(h.level)} ${h.text}`)
 }
 
-const slugify = function slugify(s: string): string {
-  return s
+const slugify = function slugify(text: string): string {
+  return text
     .toLowerCase()
     .replaceAll(/[^\p{L}\p{N}\s-]/gu, '')
     .trim()

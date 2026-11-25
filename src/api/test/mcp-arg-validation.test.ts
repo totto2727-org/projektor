@@ -15,21 +15,21 @@ import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 type Schema = Record<string, unknown>
 
-const schemaType = function schemaType(s: Schema): string | undefined {
-  return globalThis.Array.isArray(s.type) ? (s.type[0] as string) : (s.type as string | undefined)
+const schemaType = function schemaType(schema: Schema): string | undefined {
+  return globalThis.Array.isArray(schema.type) ? (schema.type[0] as string) : (schema.type as string | undefined)
 }
 
-const validValue = function validValue(s: Schema): unknown {
-  if (globalThis.Array.isArray(s.enum) && Array.isArrayNonEmpty(s.enum)) {
-    return s.enum[0]
+const validValue = function validValue(schema: Schema): unknown {
+  if (globalThis.Array.isArray(schema.enum) && Array.isArrayNonEmpty(schema.enum)) {
+    return schema.enum[0]
   }
-  switch (schemaType(s)) {
+  switch (schemaType(schema)) {
     case 'string': {
-      return 'x'.repeat(Math.max(1, Predicate.isNumber(s.minLength) ? s.minLength : 1))
+      return 'x'.repeat(Math.max(1, Predicate.isNumber(schema.minLength) ? schema.minLength : 1))
     }
     case 'number':
     case 'integer': {
-      return Predicate.isNumber(s.minimum) ? s.minimum : 1
+      return Predicate.isNumber(schema.minimum) ? schema.minimum : 1
     }
     case 'boolean': {
       return true
@@ -46,8 +46,8 @@ const validValue = function validValue(s: Schema): unknown {
   }
 }
 
-const wrongValue = function wrongValue(s: Schema): unknown {
-  switch (schemaType(s)) {
+const wrongValue = function wrongValue(schema: Schema): unknown {
+  switch (schemaType(schema)) {
     case 'string': {
       return 42
     }
@@ -104,14 +104,14 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
     let checked = 0
     for (const tool of tools) {
       const props = (tool.inputSchema.properties ?? {}) as Record<string, Schema>
-      const required = ((tool.inputSchema.required ?? []) as string[]).filter((k) => props[k])
-      const target = required.find((k) => wrongValue(props[k]) !== undefined)
+      const required = ((tool.inputSchema.required ?? []) as string[]).filter((key) => props[key])
+      const target = required.find((key) => wrongValue(props[key]) !== undefined)
       if (Predicate.isNullish(target) || String.isEmpty(target)) {
         continue
       }
       const args: Record<string, unknown> = {}
-      Iterable.forEach(required, (k) => {
-        args[k] = validValue(props[k])
+      Iterable.forEach(required, (key) => {
+        args[key] = validValue(props[key])
       })
       args[target] = wrongValue(props[target])
 

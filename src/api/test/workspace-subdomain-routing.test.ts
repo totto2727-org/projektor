@@ -13,12 +13,12 @@ import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { ErrorMessageResponse, readNativeJson } from './response-json.ts'
 
 describe('subdomainRoutingEnabled', () => {
-  test.each(['true', '1', 'yes', 'TRUE', 'Yes', ' true ', '1 '])('accepts %j', (v) => {
-    expect(subdomainRoutingEnabled(v)).toBe(true)
+  test.each(['true', '1', 'yes', 'TRUE', 'Yes', ' true ', '1 '])('accepts %j', (value) => {
+    expect(subdomainRoutingEnabled(value)).toBe(true)
   })
 
-  test.each([undefined, '', 'false', '0', 'no', 'on'])('rejects %j', (v) => {
-    expect(subdomainRoutingEnabled(v)).toBe(false)
+  test.each([undefined, '', 'false', '0', 'no', 'on'])('rejects %j', (value) => {
+    expect(subdomainRoutingEnabled(value)).toBe(false)
   })
 })
 

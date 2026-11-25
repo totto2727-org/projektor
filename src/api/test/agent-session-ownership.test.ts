@@ -30,47 +30,56 @@ const ownershipFixture = async function ownershipFixture(role: 'owner' | 'admin'
 type OwnershipFixture = Awaited<ReturnType<typeof ownershipFixture>>
 type ActAs = 'heartbeat' | 'message' | 'issue claim' | 'file claim' | 'issue attribution' | 'finish work'
 
-const actAs = function actAs(f: OwnershipFixture, action: ActAs): Promise<Response> {
-  const token = f.foreignToken
+const actAs = function actAs(fixture: OwnershipFixture, action: ActAs): Promise<Response> {
+  const token = fixture.foreignToken
   switch (action) {
     case 'heartbeat': {
-      return f.send(`/api/agents/${f.sessionId}/heartbeat`, { allowAdministrativeOverride: true }, token)
+      return fixture.send(`/api/agents/${fixture.sessionId}/heartbeat`, { allowAdministrativeOverride: true }, token)
     }
     case 'message': {
-      return f.send('/api/agent-messages', { scope: 'workspace', agentId: f.sessionId, body: 'Spoofed' }, token)
+      return fixture.send(
+        '/api/agent-messages',
+        { scope: 'workspace', agentId: fixture.sessionId, body: 'Spoofed' },
+        token,
+      )
     }
     case 'issue claim': {
-      return f.send(`/api/issues/${f.issueId}/claim`, { agentId: f.sessionId }, token)
+      return fixture.send(`/api/issues/${fixture.issueId}/claim`, { agentId: fixture.sessionId }, token)
     }
     case 'file claim': {
-      return f.send(
+      return fixture.send(
         '/api/file-claims',
-        { issueId: f.issueId, agentId: f.sessionId, paths: ['src/foreign.ts'], force: true },
+        { issueId: fixture.issueId, agentId: fixture.sessionId, paths: ['src/foreign.ts'], force: true },
         token,
       )
     }
     case 'issue attribution': {
-      return f.send(`/api/issues/${f.issueId}`, { title: 'Spoofed', agentSessionId: f.sessionId }, token, 'PATCH')
+      return fixture.send(
+        `/api/issues/${fixture.issueId}`,
+        { title: 'Spoofed', agentSessionId: fixture.sessionId },
+        token,
+        'PATCH',
+      )
     }
     case 'finish work': {
-      return f.send('/api/agents/finish-work', { sessionId: f.sessionId, issue: f.issueId }, token)
+      return fixture.send('/api/agents/finish-work', { sessionId: fixture.sessionId, issue: fixture.issueId }, token)
     }
   }
 }
 
-const coordinationState = async function coordinationState(f: OwnershipFixture) {
+const coordinationState = async function coordinationState(fixture: OwnershipFixture) {
   return {
-    session: await env.DB.prepare('SELECT * FROM agent_sessions WHERE id = ?').bind(f.sessionId).first(),
-    lease: await env.DB.prepare('SELECT * FROM issue_leases WHERE issue_id = ?').bind(f.issueId).first(),
+    session: await env.DB.prepare('SELECT * FROM agent_sessions WHERE id = ?').bind(fixture.sessionId).first(),
+    lease: await env.DB.prepare('SELECT * FROM issue_leases WHERE issue_id = ?').bind(fixture.issueId).first(),
     claims: await env.DB.prepare('SELECT * FROM issue_file_claims WHERE issue_id = ? ORDER BY path')
-      .bind(f.issueId)
+      .bind(fixture.issueId)
       .all()
       .then((result) => result.results),
     messages: await env.DB.prepare('SELECT * FROM agent_messages WHERE workspace_id = ? ORDER BY id')
-      .bind(f.workspaceId)
+      .bind(fixture.workspaceId)
       .all()
       .then((result) => result.results),
-    issue: await env.DB.prepare('SELECT title, status FROM issues WHERE id = ?').bind(f.issueId).first(),
+    issue: await env.DB.prepare('SELECT title, status FROM issues WHERE id = ?').bind(fixture.issueId).first(),
   }
 }
 

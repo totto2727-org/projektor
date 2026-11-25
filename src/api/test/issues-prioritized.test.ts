@@ -19,13 +19,15 @@ const NOT_READY_BODY = 'Something is off, look into it.'
 const PRIORITIES = ['urgent', 'high', 'medium', 'low', 'none'] as const
 const PRIORITY_SCORE: Record<string, number> = { high: 3, low: 1, medium: 2, none: 0, urgent: 4 }
 
-const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number): Promise<{ ctx: ServiceCtx }> {
+const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(
+  issueCount: number,
+): Promise<{ ctx: ServiceCtx }> {
   const { workspace, user } = await seedFixture({ role: 'owner' })
   const project = await seedProject(workspace.id)
   const now = currentEpochSeconds()
   const ids: string[] = []
   const stmts: D1PreparedStatement[] = []
-  for (let index = 0; index < n; index += 1) {
+  for (let index = 0; index < issueCount; index += 1) {
     const id = crypto.randomUUID()
     ids.push(id)
     // A deterministic spread: every 7th closed, every 5th in backlog, ~60% ready.
@@ -51,12 +53,12 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
     )
   }
   // Links: issue j points at issue (j*7 mod n) for the first third — uneven in-degrees.
-  for (let j = 0; j < Math.floor(n / 3); j += 1) {
+  for (let index = 0; index < Math.floor(issueCount / 3); index += 1) {
     stmts.push(
       env.DB.prepare(
         `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
 				 VALUES (?, ?, ?, ?, 'blocks', ?, ?)`,
-      ).bind(crypto.randomUUID(), workspace.id, ids[j], ids[(j * 7) % n], user.id, now),
+      ).bind(crypto.randomUUID(), workspace.id, ids[index], ids[(index * 7) % issueCount], user.id, now),
     )
   }
   // Story points on every 4th issue.
@@ -67,7 +69,7 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
 			 VALUES (?, ?, NULL, 'story_points', 'Story points', 'number', ?)`,
     ).bind(fieldId, workspace.id, now),
   )
-  for (let index = 0; index < n; index += 4) {
+  for (let index = 0; index < issueCount; index += 4) {
     stmts.push(
       env.DB.prepare('INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)').bind(
         ids[index],
@@ -76,8 +78,8 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
       ),
     )
   }
-  for (let k = 0; k < stmts.length; k += 90) {
-    await env.DB.batch(stmts.slice(k, k + 90))
+  for (let index = 0; index < stmts.length; index += 90) {
+    await env.DB.batch(stmts.slice(index, index + 90))
   }
 
   const ctx: ServiceCtx = {
@@ -116,7 +118,7 @@ const reference = async function reference(
     .bind(ctx.workspaceId)
     .all<{ issue_id: string; sp: number }>()
 
-  const openIds = new Set(open.map((o) => o.id))
+  const openIds = new Set(open.map((issue) => issue.id))
   const inDegree: Record<string, number> = {}
   Iterable.forEach(links, (link) => {
     if (openIds.has(link.target_issue_id)) {
@@ -129,15 +131,15 @@ const reference = async function reference(
       storyPoints[s.issue_id] = s.sp
     }
   })
-  const maxIn = Math.max(...open.map((o) => inDegree[o.id] ?? 0), 1)
+  const maxIn = Math.max(...open.map((issue) => inDegree[issue.id] ?? 0), 1)
 
   return open
-    .map((o) => {
+    .map((issue) => {
       const score =
-        0.4 * ((inDegree[o.id] ?? 0) / maxIn) +
-        0.4 * ((PRIORITY_SCORE[o.priority] ?? 0) / 4) +
-        0.2 * (1 / (storyPoints[o.id] ?? 1))
-      return { id: o.id, score, ready: checkDefinitionOfReady(o.body).ready }
+        0.4 * ((inDegree[issue.id] ?? 0) / maxIn) +
+        0.4 * ((PRIORITY_SCORE[issue.priority] ?? 0) / 4) +
+        0.2 * (1 / (storyPoints[issue.id] ?? 1))
+      return { id: issue.id, score, ready: checkDefinitionOfReady(issue.body).ready }
     })
     .toSorted((left, right) => right.score - left.score)
 }
@@ -158,13 +160,13 @@ describe('covers PROJ-859: prioritization parity with the in-memory algorithm', 
       droppedNotReady: number
     }
 
-    const wanted = opts.includeNotReady ? expected : expected.filter((e) => e.ready)
+    const wanted = opts.includeNotReady ? expected : expected.filter((entry) => entry.ready)
     expect(got.issues.map((issue) => issue.id)).toStrictEqual(wanted.slice(0, limit).map((e) => e.id))
     got.issues.forEach((issue, index) => {
       expect(issue._score).toBeCloseTo(wanted[index].score, 10)
       expect(issue.needsGrooming === true).toBe(!wanted[index].ready)
     })
-    expect(got.droppedNotReady).toBe(opts.includeNotReady ? 0 : expected.filter((e) => !e.ready).length)
+    expect(got.droppedNotReady).toBe(opts.includeNotReady ? 0 : expected.filter((entry) => !entry.ready).length)
   })
 })
 

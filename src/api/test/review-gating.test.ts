@@ -136,8 +136,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     })
     expect(res.status).toBe(200)
     const bodies = await commentBodies(issue.id)
-    expect(bodies.some((b) => b.includes('Did the thing'))).toBe(true)
-    expect(bodies.some((b) => b.includes('**PR:**'))).toBe(false)
+    expect(bodies.some((body) => body.includes('Did the thing'))).toBe(true)
+    expect(bodies.some((body) => body.includes('**PR:**'))).toBe(false)
   })
 
   test('still records a valid prLink URL as before', async () => {

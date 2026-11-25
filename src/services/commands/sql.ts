@@ -26,8 +26,8 @@ const D1_BOUND_PARAM_LIMIT = 100
  * etc). Wrap each whitespace-separated token in double quotes so raw user text is always
  * treated as a literal phrase search, never interpreted as FTS query syntax.
  */
-export const sanitizeFtsQuery = function sanitizeFtsQuery(q: string): string {
-  return q
+export const sanitizeFtsQuery = function sanitizeFtsQuery(query: string): string {
+  return query
     .trim()
     .split(/\s+/u)
     .filter((t) => Boolean(t) && /\w/u.test(t))

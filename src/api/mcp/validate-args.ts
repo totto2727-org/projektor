@@ -49,28 +49,31 @@ const typeOf = function typeOf(value: unknown): string {
 // Mirrors BooleanQueryParam (schemas/common.ts).
 const BOOLEAN_STRINGS = new Set(['true', '1', 'false', '0', ''])
 
-const isNumericString = function isNumericString(v: unknown): boolean {
-  return Predicate.isString(v) && /^-?\d+(?:\.\d+)?$/u.test(v.trim())
+const isNumericString = function isNumericString(value: unknown): boolean {
+  return Predicate.isString(value) && /^-?\d+(?:\.\d+)?$/u.test(value.trim())
 }
 
-const matchesType = function matchesType(v: unknown, t: string): boolean {
+const matchesType = function matchesType(value: unknown, t: string): boolean {
   switch (t) {
     case 'boolean': {
-      return Predicate.isBoolean(v) || (Predicate.isString(v) && BOOLEAN_STRINGS.has(v))
+      return Predicate.isBoolean(value) || (Predicate.isString(value) && BOOLEAN_STRINGS.has(value))
     }
     case 'string':
     case 'object':
     case 'array': {
-      return typeOf(v) === t
+      return typeOf(value) === t
     }
     case 'number': {
-      return (Predicate.isNumber(v) && Number.isFinite(v)) || isNumericString(v)
+      return (Predicate.isNumber(value) && Number.isFinite(value)) || isNumericString(value)
     }
     case 'integer': {
-      return (Predicate.isNumber(v) && Number.isInteger(v)) || (isNumericString(v) && Number.isInteger(Number(v)))
+      return (
+        (Predicate.isNumber(value) && Number.isInteger(value)) ||
+        (isNumericString(value) && Number.isInteger(Number(value)))
+      )
     }
     case 'null': {
-      return typeOf(v) === 'null'
+      return typeOf(value) === 'null'
     }
     default: {
       // Unknown type keyword: don't reject on a guess
@@ -151,15 +154,15 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   }
   const required = new Set(globalThis.Array.isArray(schema.required) ? schema.required : [])
   Iterable.forEach(Object.entries(props), ([key, sub]) => {
-    const v = obj[key]
-    if (isOmittedArgument(v) || !Predicate.isObjectOrArray(sub)) {
+    const value = obj[key]
+    if (isOmittedArgument(value) || !Predicate.isObjectOrArray(sub)) {
       return
     }
-    if (Predicate.isNullish(v) && !required.has(key)) {
+    if (Predicate.isNullish(value) && !required.has(key)) {
       // Optional field cleared
       return
     }
-    validate(v, sub, `${prefix}${key}`, issues)
+    validate(value, sub, `${prefix}${key}`, issues)
   })
 }
 
