@@ -62,7 +62,7 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   test('not_found on an issue ref: code, message, and a hint naming the ref format and search_issues', async () => {
     const toolFailure = await failure('get_issue', { ref: 'PROJ-99999' })
     expect(toolFailure.code).toBe('not_found')
-    expect(toolFailure.message).toMatch(/not found/i)
+    expect(toolFailure.message).toMatch(/not found/iu)
     expect(toolFailure.hint).toContain('PROJ-42')
     expect(toolFailure.hint).toContain('search_issues')
   })

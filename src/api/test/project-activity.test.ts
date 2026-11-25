@@ -400,7 +400,7 @@ describe('list_project_activity MCP tool', () => {
     const res = await mcpCall(workspaceId, 'list_project_activity', { projectId: crypto.randomUUID() }, headers)
     const err = toolError(res)
     expect(err?.code).toBe('not_found')
-    expect(err?.message).toMatch(/not found/i)
+    expect(err?.message).toMatch(/not found/iu)
   })
 
   test('returns error when projectId is missing', async () => {

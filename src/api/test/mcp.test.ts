@@ -467,7 +467,7 @@ describe('covers MCP endpoint', () => {
     )
     const err = toolError(res)
     expect(err?.code).toBe('not_found')
-    expect(err?.message).toMatch(/not found/i)
+    expect(err?.message).toMatch(/not found/iu)
   })
 
   // --- wiki parity tests ---

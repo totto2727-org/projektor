@@ -305,7 +305,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     const res = await claim(issues[3].id, agent)
     expect(res.status).toBe(409)
     const body = await readNativeJson(res, Schema.Struct({ error: Schema.optional(Schema.String) }))
-    expect(JSON.stringify(body)).toMatch(/WIP limit/i)
+    expect(JSON.stringify(body)).toMatch(/WIP limit/iu)
   })
 
   /*

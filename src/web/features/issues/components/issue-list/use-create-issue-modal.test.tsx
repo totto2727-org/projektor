@@ -75,7 +75,7 @@ describe('useCreateIssueModal native ActionState failures', () => {
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/failed to create issue/i)
-    expect(alert.textContent).not.toMatch(/you're offline/i)
+    expect(alert.textContent).not.toMatch(/you're offline/iu)
   })
 
   test('clears a previous failure when reopening and displays a new failed attempt', async () => {

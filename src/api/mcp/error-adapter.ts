@@ -245,7 +245,7 @@ const conflictHint = function conflictHint(message: string, details: Record<stri
   if (details && 'currentRevisionId' in details) {
     return 'The page changed since you read it. Re-read it with get_wiki_page, then apply your change with patch_wiki_page.'
   }
-  if (/wip limit/i.test(message)) {
+  if (/wip limit/iu.test(message)) {
     return 'Finish or release one of the issues listed as currently held, then claim again.'
   }
   return "Someone else's change got there first. Re-read the current state and retry."

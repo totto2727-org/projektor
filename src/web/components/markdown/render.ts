@@ -87,14 +87,14 @@ export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string):
     parser: { lowerCaseTags: false, lowerCaseAttributeNames: false },
     allowedStyles: {
       '*': {
-        color: [/^#[\da-f]{3,8}$/i],
-        'background-color': [/^#[\da-f]{3,8}$/i],
-        '--shiki-light': [/^#[\da-f]{3,8}$/i],
-        '--shiki-dark': [/^#[\da-f]{3,8}$/i],
+        color: [/^#[\da-f]{3,8}$/iu],
+        'background-color': [/^#[\da-f]{3,8}$/iu],
+        '--shiki-light': [/^#[\da-f]{3,8}$/iu],
+        '--shiki-dark': [/^#[\da-f]{3,8}$/iu],
         ...Object.fromEntries(
           ['--bg', '--fg', '--line', '--accent', '--muted', '--surface', '--border'].map((property) => [
             property,
-            [/^#[\da-f]{3,8}$/i],
+            [/^#[\da-f]{3,8}$/iu],
           ]),
         ),
         'font-style': [/^(normal|italic)$/u],

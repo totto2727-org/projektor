@@ -82,7 +82,7 @@ describe('covers PROJ-79: token expiry', () => {
     })
     expect(res.status).toBe(401)
     const body = await readNativeJson(res, ErrorMessageResponse)
-    expect(body.error).toMatch(/expired/i)
+    expect(body.error).toMatch(/expired/iu)
   })
 
   test('non-expired api_token is accepted', async () => {
@@ -1273,7 +1273,7 @@ describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes
   test('covers NotFoundError (unknown issue id) maps to a not_found tool error', async () => {
     const resp = await mcp('get_issue', { id: crypto.randomUUID() })
     const err = expectToolError(resp, 'not_found')
-    expect(err?.message).toMatch(/not found/i)
+    expect(err?.message).toMatch(/not found/iu)
   })
 
   // ForbiddenError (triggered by viewer calling a restricted tool)

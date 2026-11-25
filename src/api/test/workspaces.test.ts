@@ -250,7 +250,7 @@ describe('workspaces MCP', () => {
       )
 
       expect(toolError(res)?.code).toBe('not_found')
-      expect(toolError(res)?.message).toMatch(/not found/i)
+      expect(toolError(res)?.message).toMatch(/not found/iu)
       await expect(workspaceExists(victim.id)).resolves.toBe(true)
       await expect(workspaceExists(testFixture.workspace.id)).resolves.toBe(true)
     })
