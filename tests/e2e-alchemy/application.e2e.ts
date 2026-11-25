@@ -11,6 +11,7 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 
 import { createReaderFixtures } from './reader-fixtures.ts'
+import { readAcceptanceJson } from './response-json.ts'
 
 const JSON_INDENT = 2
 const NO_MATCHES = 0
@@ -202,7 +203,7 @@ test('API and Web share private Core persistence without adapter DB bindings', a
     data: { name, key: `D${suffix}` },
   })
   expect(write.status(), await write.text()).toBe(HTTP_CREATED)
-  const project = await write.json()
+  const project = await readAcceptanceJson(write, 'project')
   expect(project.id).toBeTruthy()
   const response = await page.goto('/?workspace=projektor')
   expect(response?.status()).toBe(HTTP_OK)
@@ -232,7 +233,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
   expect(session.status()).toBe(HTTP_OK)
-  const { user } = await session.json()
+  const { user } = await readAcceptanceJson(session, 'session')
   const projects: { id: string; key: string; name: string }[] = []
   await runInOrder(['A', 'B'], async (prefix): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
@@ -240,7 +241,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
       data: { name: `Focus ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
-    projects.push(await created.json())
+    projects.push(await readAcceptanceJson(created, 'project'))
   })
   const fixtures = [
     { priority: 'low', project: 1, status: 'in_review', title: 'Review first' },
@@ -338,20 +339,20 @@ test('issue review targets persist optional selection and four statuses across f
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
   expect(session.status()).toBe(HTTP_OK)
-  const { user } = await session.json()
+  const { user } = await readAcceptanceJson(session, 'session')
   const createdProject = await request.post('http://127.0.0.1:4392/api/projects', {
     headers,
     data: { name: `Review acceptance ${suffix}`, key: `V${suffix}` },
   })
   expect(createdProject.status(), await createdProject.text()).toBe(HTTP_CREATED)
-  const project = await createdProject.json()
+  const project = await readAcceptanceJson(createdProject, 'project')
   const createIssue = async (title: string) => {
     const response = await request.post('http://127.0.0.1:4392/api/issues', {
       headers,
       data: { projectId: project.id, title, status: 'backlog', assigneeId: user.id },
     })
     expect(response.status(), await response.text()).toBe(HTTP_CREATED)
-    return response.json()
+    return readAcceptanceJson(response, 'issue')
   }
   const title = `Review target primary ${suffix}`
   const issue = await createIssue(title)
@@ -368,7 +369,7 @@ test('issue review targets persist optional selection and four statuses across f
     },
   })
   expect(uploaded.status(), await uploaded.text()).toBe(HTTP_CREATED)
-  const uploadedAttachment = await uploaded.json()
+  const uploadedAttachment = await readAcceptanceJson(uploaded, 'attachment')
   const attachmentFixtures: { id: string; filename: string }[] = [{ id: uploadedAttachment.id, filename }]
   await runInOrder([urlLabel, ordinaryLabel], async (label): Promise<void> => {
     const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
@@ -382,7 +383,7 @@ test('issue review targets persist optional selection and four statuses across f
       },
     })
     expect(linked.status(), await linked.text()).toBe(HTTP_CREATED)
-    const linkedAttachment = await linked.json()
+    const linkedAttachment = await readAcceptanceJson(linked, 'linkedAttachment')
     attachmentFixtures.push({ id: linkedAttachment.id, filename: label })
   })
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
@@ -631,7 +632,7 @@ test('workspace review spans projects and unassigned issues with native filtered
   const headers = { 'X-Workspace-Slug': workspaceSlug }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
   expect(session.status()).toBe(HTTP_OK)
-  const { user } = await session.json()
+  const { user } = await readAcceptanceJson(session, 'session')
   const projects: { id: string; key: string; name: string }[] = []
   await runInOrder(['A', 'B'], async (prefix): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
@@ -639,7 +640,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       data: { name: `Cross project ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
-    projects.push(await created.json())
+    projects.push(await readAcceptanceJson(created, 'project'))
   })
   const cases = [
     { assigned: true, project: 0, review: 'in_review', tag: 'Review assigned' },
@@ -665,7 +666,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       data: { projectId: project.id, title, status: 'backlog', ...(fixture.assigned ? { assigneeId: user.id } : {}) },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
-    const issue = await created.json()
+    const issue = await readAcceptanceJson(created, 'issue')
     const targetLabel = `${fixture.tag} target ${suffix}`
     if (Predicate.isNotNullish(fixture.review)) {
       const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
@@ -679,7 +680,7 @@ test('workspace review spans projects and unassigned issues with native filtered
         },
       })
       expect(linked.status(), await linked.text()).toBe(HTTP_CREATED)
-      const attachment = await linked.json()
+      const attachment = await readAcceptanceJson(linked, 'linkedAttachment')
       const selected = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
         headers,
         data: { issueId: issue.id, status: fixture.review },
@@ -832,7 +833,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     data: { name: `Chart acceptance ${suffix}`, key: `C${suffix}` },
   })
   expect(created.status(), await created.text()).toBe(HTTP_CREATED)
-  const project = await created.json()
+  const project = await readAcceptanceJson(created, 'project')
   const query = new URLSearchParams({ projectId: project.id, workspace: 'projektor' })
   const projectNavigationResponse = await page.goto(`/projects/view?${query}`)
   expect(projectNavigationResponse?.status()).toBe(HTTP_OK)
@@ -850,7 +851,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
         data: { projectId: project.id, title: `Chart issue ${index} ${suffix}` },
       })
       expect(issueResponse.status(), await issueResponse.text()).toBe(HTTP_CREATED)
-      const issue = await issueResponse.json()
+      const issue = await readAcceptanceJson(issueResponse, 'issue')
       if (status !== 'backlog') {
         const updated = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
           headers,
@@ -864,7 +865,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     headers,
   })
   expect(metricsResponse.status(), await metricsResponse.text()).toBe(HTTP_OK)
-  const metrics = await metricsResponse.json()
+  const metrics = await readAcceptanceJson(metricsResponse, 'metrics')
   expect(metrics.cfdOverTime.at(LATEST_SAMPLE_INDEX)).toMatchObject({
     backlogTodo: 1,
     done: 1,
@@ -1427,7 +1428,7 @@ test('two real memberships require native selection and preserve workspace acros
       data: { name: `Collision ${workspace}`, key },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
-    projects.push(await created.json())
+    projects.push(await readAcceptanceJson(created, 'project'))
   })
   await page.goto(`/issues?project=${key}`)
   await expect(page.getByRole('heading', { exact: true, name: 'Select a project' })).toBeVisible()
