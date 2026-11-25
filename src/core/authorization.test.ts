@@ -31,7 +31,9 @@ const fixture = async function fixture() {
     DB: database.db,
     KV: {
       get: vi.fn<() => Promise<null>>(async () => null),
-      put: vi.fn<() => Promise<undefined>>(async () => undefined),
+      put: vi.fn<() => Promise<void>>(async () => {
+        // Record writes without persisting KV data in this fixture.
+      }),
     },
     R2: {},
     ENVIRONMENT: 'production',

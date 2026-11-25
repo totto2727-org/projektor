@@ -53,7 +53,12 @@ describe('covers API facade reply boundary', () => {
       // SQLite and these partial binding substitutes are a local harness, not native Worker acceptance.
       const env = {
         DB: database.db,
-        KV: { get: async () => null, put: async () => undefined },
+        KV: {
+          get: async () => null,
+          put: async (): Promise<void> => {
+            // This fixture models a missing KV entry and discards writes.
+          },
+        },
         R2: {},
         ENVIRONMENT: 'production',
         CF_ACCESS_TEAM_DOMAIN: '',

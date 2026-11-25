@@ -241,7 +241,9 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   })
   await create({ title: 'Unassigned hidden', status: 'todo', priority: 'urgent', project: 0 }, false)
   // API timestamps have second precision. Ensure the new equal-priority work has a later persisted update.
-  await new Promise((resolve) => setTimeout(resolve, 1100))
+  await new Promise((resolve) => {
+    setTimeout(resolve, 1100)
+  })
   await create({ title: 'Progress high new', status: 'in_progress', priority: 'high', project: 0 })
   await page.goto('/my-issues?workspace=projektor')
   await expect(page.getByRole('heading', { exact: true, name: 'My Issues' })).toBeVisible()

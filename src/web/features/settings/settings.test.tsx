@@ -88,7 +88,9 @@ const grant = (client = 'Claude'): ConnectorGrant => ({
   expiresAt: 2_000_000_000,
 })
 const groupScope = { workspaceSlug: 'alpha', groupId: 'g1' }
-const writeText = vi.fn().mockResolvedValue(undefined)
+const writeText = vi.fn<Clipboard['writeText']>(async () => {
+  // Record the copied text without writing to the host clipboard.
+})
 
 describe('original settings controls with TanStack schemas and semantic ServerFns', () => {
   afterEach(cleanup)

@@ -74,6 +74,7 @@ describe('frontend application data authorization', () => {
     expect(() => authorizeDataEntity(scope, 'wa', { projectId: 'hidden' })).toThrow(
       'Selected project is not accessible.',
     )
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- The required entity argument models a missing row.
     expect(() => authorizeDataEntity(scope, 'wa', undefined)).toThrow('Not found.')
     expect(() => authorizeDataEntity({ ...scope, workspaces: [] }, 'wa', wiki)).toThrow(
       'Selected workspace is not accessible.',
