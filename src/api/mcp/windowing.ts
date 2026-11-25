@@ -17,7 +17,13 @@ const isHighSurrogate = function isHighSurrogate(code: number): boolean {
   return code >= 0xd8_00 && code <= 0xdb_ff
 }
 
-/** Pull `end` back so it doesn't fall between the halves of a surrogate pair. */
+/**
+ * Adjust the exclusive end so it does not split a surrogate pair.
+ *
+ * @param {string} text The source string.
+ * @param {number} end The proposed end as a UTF-16 index.
+ * @returns {number} The original end or the preceding UTF-16 index when it follows a high surrogate.
+ */
 const safeEnd = function safeEnd(text: string, end: number): number {
   if (end > 0 && end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) {
     return end - 1
@@ -32,8 +38,12 @@ export interface TextWindow {
 }
 
 /**
- * A window of `text` from `cursor` (a previous `next`, default 0) of at most `max` chars.
- * `next` is present iff more text follows.
+ * Window the text from the previous cursor, or from the start on the first request.
+ * A window that starts with a surrogate pair allows both units so it can advance.
+ *
+ * @param {string} text The source string.
+ * @param {{max: number, cursor?: string}} opts The limit in UTF-16 units and optional continuation cursor.
+ * @returns {TextWindow} The text slice, its source length and a next cursor when more text follows.
  */
 export const windowText = function windowText(text: string, opts: { max: number; cursor?: string }): TextWindow {
   let start = 0
@@ -61,7 +71,12 @@ interface Heading {
   start: number
 }
 
-/** ATX headings outside fenced code blocks and outside a leading frontmatter block. */
+/**
+ * Read ATX headings outside fenced code blocks and the leading frontmatter block.
+ *
+ * @param {string} content The Markdown source.
+ * @returns {Heading[]} Headings and their UTF-16 offsets in document order.
+ */
 const headings = function headings(content: string): Heading[] {
   const out: Heading[] = []
   let pos = 0
@@ -104,7 +119,12 @@ const headings = function headings(content: string): Heading[] {
   return out
 }
 
-/** The page outline as `## Heading` strings, in document order. */
+/**
+ * Build an outline in document order from the page's ATX headings.
+ *
+ * @param {string} content The Markdown source.
+ * @returns {string[]} The heading lines, with a prefix such as `##` for each level.
+ */
 export const outlineOf = function outlineOf(content: string): string[] {
   return headings(content).map((h) => `${'#'.repeat(h.level)} ${h.text}`)
 }
@@ -121,6 +141,10 @@ const slugify = function slugify(s: string): string {
  * The section titled `name` (matched on heading text or its slug, case-insensitively,
  * with or without leading #s): the heading through to the next heading of the same or a
  * higher level. Undefined on a miss.
+ *
+ * @param {string} content The Markdown source.
+ * @param {string} name The heading text or slug to find.
+ * @returns {string | undefined} The heading and its full section, or undefined if the heading is absent.
  */
 export const sectionOf = function sectionOf(content: string, name: string): string | undefined {
   const wanted = name
@@ -136,7 +160,13 @@ export const sectionOf = function sectionOf(content: string, name: string): stri
   return content.slice(hs[i].start, next ? next.start : content.length).replace(/\n+$/u, '')
 }
 
-/** `bodyChars` on lists: a prefix of the body, flagged when it was cut. */
+/**
+ * Return the body preview requested by `bodyChars` on list operations.
+ *
+ * @param {unknown} body The body from the source record. Missing or non-string values read as empty text.
+ * @param {number} chars The maximum number of UTF-16 code units.
+ * @returns {{body: string, bodyTruncated?: true}} The body prefix, with a flag when the source was cut.
+ */
 export const bodyPreview = function bodyPreview(body: unknown, chars: number): { body: string; bodyTruncated?: true } {
   const text = Predicate.isString(body) ? body : ''
   if (text.length <= chars) {

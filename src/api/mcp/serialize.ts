@@ -106,6 +106,9 @@ export type ShapeOpts = z.infer<typeof ShapeOptsSchema>
 /**
  * Pulls the MCP-only view/verbose/fields options out of the raw tool input before it
  * reaches the (`.strict()`) service schema, validating them first.
+ *
+ * @param {unknown} input The unvalidated MCP tool input.
+ * @returns {{rest: Record<string, unknown>} & ShapeOpts} The validated shaping options and remaining service input.
  */
 export const splitShapeOpts = function splitShapeOpts(input: unknown): { rest: Record<string, unknown> } & ShapeOpts {
   const { view, verbose, fields, ...rest } = (input ?? {}) as Record<string, unknown>
@@ -157,14 +160,24 @@ const INTERNAL_ID_KEYS = ['workspace_id', 'project_id', 'type_id', 'status_id', 
 // `type` carries type_key, and `status` carries the state.
 const DUPLICATE_KEYS = ['project_key', 'project_name', 'type_key', 'type_name', 'status_key', 'status_name'] as const
 
-/** `PROJ-42` from a raw issue row, or undefined when the project key isn't joined in. */
+/**
+ * Derive a reference such as `PROJ-42` from the joined project key and issue number.
+ *
+ * @param {Record<string, unknown>} issue The raw issue row.
+ * @returns {string | undefined} The reference when the row contains both required fields.
+ */
 const refOf = function refOf(issue: Record<string, unknown>): string | undefined {
   return Predicate.isString(issue.project_key) && Predicate.isNumber(issue.number)
     ? `${issue.project_key}-${issue.number}`
     : undefined
 }
 
-/** The summary view: enough to triage and to address the issue again. */
+/**
+ * Select the fields needed to triage and address an issue in the summary view.
+ *
+ * @param {Record<string, unknown>} issue The raw issue row, including any requested body preview.
+ * @returns {Record<string, unknown>} The summary fields, including a reference or ID when available.
+ */
 const summarize = function summarize(issue: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   const ref = refOf(issue)
@@ -207,6 +220,10 @@ const summarize = function summarize(issue: Record<string, unknown>): Record<str
  * - `view:"summary"`: the compact triage shape.
  * - otherwise (`full`, the default): drops null/empty/false defaults and internal ids,
  *   parses `labels` to an array, and adds `ref` and `type`.
+ *
+ * @param {Record<string, unknown>} issue The raw issue result from the service.
+ * @param {ShapeOpts} [opts] The requested field allowlist, verbose mode or named view.
+ * @returns {Record<string, unknown>} The issue in the requested MCP response shape.
  */
 export const shapeIssue = function shapeIssue(
   issue: Record<string, unknown>,
@@ -283,7 +300,14 @@ export const shapeIssue = function shapeIssue(
   return out
 }
 
-/** `{items, next?}` — the one list shape. `next` is omitted when there is no further page. */
+/**
+ * Assemble the shared MCP list response shape.
+ *
+ * @param {T[]} items The rows on this page.
+ * @param {string | number | null} [next] The cursor for the following page, when available.
+ * @param {Record<string, unknown>} [extra] Additional fields supplied by the tool.
+ * @returns {{items: T[], next?: string} & Record<string, unknown>} The list response with a string cursor when present.
+ */
 export const toPage = function toPage<T>(
   items: T[],
   next?: string | number | null,
@@ -299,6 +323,11 @@ export const toPage = function toPage<T>(
  * `cursorOf(i)` returns the cursor that resumes after item `i`; when a tool has no such
  * cursor the result carries a `hint` to lower `limit` or narrow the filters instead, and
  * any pre-existing `next` is dropped (it would skip the items that were cut).
+ *
+ * @param {P} page The uncapped page, including any tool-specific fields and next cursor.
+ * @param {{max?: number, cursorOf?: (index: number) => (string | undefined), canCutAt?: (kept: number) => boolean}} [opts]
+ * The size ceiling, cursor lookup for the last kept item and optional safe-cut check.
+ * @returns {P & {truncated?: true, hint?: string}} The original or truncated page with a resume cursor or hint as available.
  */
 export const capPage = function capPage<P extends { items: unknown[]; next?: string }>(
   page: P,
