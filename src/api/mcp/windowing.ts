@@ -1,4 +1,4 @@
-import { Iterable, String, Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
@@ -13,8 +13,17 @@ export const WIKI_MAX_CHARS = 20_000
 export const ISSUE_BODY_MAX_CHARS = 16_000
 export const LIST_BODY_MAX_CHARS = 1000
 
-const isHighSurrogate = function isHighSurrogate(code: number): boolean {
-  return code >= 0xd8_00 && code <= 0xdb_ff
+const HIGH_SURROGATE_START = 0xd8_00
+const HIGH_SURROGATE_END = 0xdb_ff
+const FIRST_SUPPLEMENTARY_CODE_POINT = 0x1_00_00
+
+const isHighSurrogateAt = function isHighSurrogateAt(text: string, index: number): boolean {
+  const codePoint = text.codePointAt(index)
+  return (
+    Predicate.isNumber(codePoint) &&
+    (codePoint >= FIRST_SUPPLEMENTARY_CODE_POINT ||
+      (codePoint >= HIGH_SURROGATE_START && codePoint <= HIGH_SURROGATE_END))
+  )
 }
 
 /**
@@ -25,7 +34,7 @@ const isHighSurrogate = function isHighSurrogate(code: number): boolean {
  * @returns {number} The original end or the preceding UTF-16 index when it follows a high surrogate.
  */
 const safeEnd = function safeEnd(text: string, end: number): number {
-  if (end > 0 && end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) {
+  if (end > 0 && end < text.length && isHighSurrogateAt(text, end - 1)) {
     return end - 1
   }
   return end
@@ -56,7 +65,7 @@ export const windowText = function windowText(text: string, opts: { max: number;
   let end = safeEnd(text, Math.min(text.length, start + opts.max))
   // A window smaller than one code point (max:1 on an emoji) must still make progress.
   if (end <= start && start < text.length) {
-    end = start + (isHighSurrogate(text.charCodeAt(start)) ? 2 : 1)
+    end = start + (isHighSurrogateAt(text, start) ? 2 : 1)
   }
   return {
     text: text.slice(start, end),
@@ -71,6 +80,37 @@ interface Heading {
   start: number
 }
 
+type HeadingRegion = 'first-line' | 'frontmatter' | 'content' | '```' | '~~~'
+type HeadingScan = Readonly<{ headings: Heading[]; offset: number; region: HeadingRegion }>
+
+const regionAfterLine = function regionAfterLine(region: HeadingRegion, line: string): HeadingRegion {
+  if (region === 'first-line' && line.trim() === '---') {
+    return 'frontmatter'
+  }
+  if (region === 'frontmatter') {
+    return line.trim() === '---' ? 'content' : region
+  }
+  const marker = /^\s*(?<marker>```|~~~)/u.exec(line)?.groups?.marker
+  if (marker !== '```' && marker !== '~~~') {
+    return region === 'first-line' ? 'content' : region
+  }
+  if (region === '```' || region === '~~~') {
+    return marker === region ? 'content' : region
+  }
+  return marker
+}
+
+const scanHeading = function scanHeading(scan: HeadingScan, line: string): HeadingScan {
+  const region = regionAfterLine(scan.region, line)
+  if (region === 'content') {
+    const groups = /^(?<marks>#{1,6})\s+(?<text>.+?)\s*#*\s*$/u.exec(line)?.groups
+    if (Predicate.isNotNullish(groups)) {
+      scan.headings.push({ level: groups.marks.length, start: scan.offset, text: groups.text })
+    }
+  }
+  return { headings: scan.headings, offset: scan.offset + line.length + 1, region }
+}
+
 /**
  * Read ATX headings outside fenced code blocks and the leading frontmatter block.
  *
@@ -78,45 +118,8 @@ interface Heading {
  * @returns {Heading[]} Headings and their UTF-16 offsets in document order.
  */
 const headings = function headings(content: string): Heading[] {
-  const out: Heading[] = []
-  let pos = 0
-  let fence: string | null = null
-  let first = true
-  let inFrontmatter = false
-  Iterable.forEach(content.split('\n'), (line) => {
-    const lineStart = pos
-    pos += line.length + 1
-    if (first) {
-      first = false
-      if (line.trim() === '---') {
-        inFrontmatter = true
-        return
-      }
-    }
-    if (inFrontmatter) {
-      if (line.trim() === '---') {
-        inFrontmatter = false
-      }
-      return
-    }
-    const fenceMatch = /^\s*(```|~~~)/u.exec(line)
-    if (fenceMatch) {
-      if (Predicate.isNullish(fence)) {
-        fence = fenceMatch[1]
-      } else if (fenceMatch[1] === fence) {
-        fence = null
-      }
-      return
-    }
-    if (Predicate.isNotNullish(fence) && String.isNonEmpty(fence)) {
-      return
-    }
-    const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)
-    if (match) {
-      out.push({ level: match[1].length, text: match[2], start: lineStart })
-    }
-  })
-  return out
+  const initial: HeadingScan = { headings: [], offset: 0, region: 'first-line' }
+  return Iterable.reduce(content.split('\n'), initial, scanHeading).headings
 }
 
 /**
