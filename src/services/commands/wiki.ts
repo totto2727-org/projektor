@@ -1752,6 +1752,26 @@ const appendToPageEnd = function appendToPageEnd(content: string, text: string):
   return `${trimmed}\n\n${text.trimEnd()}\n`
 }
 
+type SectionPatch = Extract<
+  PatchWikiPageInput,
+  { op: 'append_to_section' | 'replace_section' | 'insert_after_heading' }
+>
+
+const sectionBodyAfterPatch = function sectionBodyAfterPatch(
+  bodyLines: Readonly<string[]>,
+  patch: SectionPatch,
+): string[] {
+  if (patch.op === 'append_to_section') {
+    const trimmedBody = trimTrailingBlankLines(bodyLines)
+    return Array.isArrayNonEmpty(trimmedBody) ? [...trimmedBody, '', ...patch.text.split('\n')] : patch.text.split('\n')
+  }
+  if (patch.op === 'replace_section') {
+    return String.isEmpty(patch.text.trim()) ? [] : patch.text.split('\n')
+  }
+  const trimmedBody = trimTrailingBlankLines(trimLeadingBlankLines(bodyLines))
+  return Array.isArrayNonEmpty(trimmedBody) ? [...patch.text.split('\n'), '', ...trimmedBody] : patch.text.split('\n')
+}
+
 /*
  * PROJ-490: applies one of the three heading-addressed ops to `content`, given the
  * section it resolved to (already confirmed to exist in the CURRENT content by the
@@ -1759,33 +1779,14 @@ const appendToPageEnd = function appendToPageEnd(content: string, text: string):
  * (append_to_section/replace_section) or the position right after it
  * (insert_after_heading) changes.
  */
-const applySectionOp = function applySectionOp(
-  content: string,
-  section: HeadingSection,
-  op: Extract<PatchWikiPageInput, { op: 'append_to_section' | 'replace_section' | 'insert_after_heading' }>,
-): string {
+const applySectionOp = function applySectionOp(content: string, section: HeadingSection, patch: SectionPatch): string {
   const lines = content.split('\n')
   const before = lines.slice(FIRST_MARKDOWN_LINE, section.startLine)
   const headingLine = lines[section.startLine]
   const bodyLines = lines.slice(Number.increment(section.startLine), section.endLine)
   const afterLines = lines.slice(section.endLine)
 
-  let newBodyLines: string[]
-  if (op.op === 'append_to_section') {
-    const trimmedBody = trimTrailingBlankLines(bodyLines)
-    newBodyLines = Array.isArrayNonEmpty(trimmedBody)
-      ? [...trimmedBody, '', ...op.text.split('\n')]
-      : op.text.split('\n')
-  } else if (op.op === 'replace_section') {
-    newBodyLines = String.isEmpty(op.text.trim()) ? [] : op.text.split('\n')
-  } else {
-    const trimmedBody = trimTrailingBlankLines(trimLeadingBlankLines(bodyLines))
-    newBodyLines = Array.isArrayNonEmpty(trimmedBody)
-      ? [...op.text.split('\n'), '', ...trimmedBody]
-      : op.text.split('\n')
-  }
-
-  const newSectionLines = [headingLine, ...newBodyLines]
+  const newSectionLines = [headingLine, ...sectionBodyAfterPatch(bodyLines, patch)]
   const separator = Array.isArrayNonEmpty(afterLines) ? [''] : []
   return [...before, ...newSectionLines, ...separator, ...afterLines].join('\n')
 }
@@ -1846,19 +1847,21 @@ const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
    * over convenience" principle.
    */
   if (hasMultipleItems(currentMatches)) {
-    throw new ValidationError({
-      formErrors: [
-        `Heading '${heading}' is ambiguous — it appears ${currentMatches.length} times ` +
-          `(levels ${currentMatches.map((selectedHeading) => `h${selectedHeading.level}`).join(', ')}); ` +
-          'patch operations need a unique heading',
-      ],
-      /*
-       * PROJ-523: alongside the prose, expose which heading levels collided as a
-       * structured field — an agent shouldn't have to regex the sentence to recover
-       * this, and NotFoundError's sibling case already hands back currentHeadings.
-       */
-      fieldErrors: { heading: currentMatches.map((selectedHeading) => `h${selectedHeading.level}`) },
-    })
+    throw new ValidationError(
+      validationIssues(
+        [
+          `Heading '${heading}' is ambiguous — it appears ${currentMatches.length} times ` +
+            `(levels ${currentMatches.map((selectedHeading) => `h${selectedHeading.level}`).join(', ')}); ` +
+            'patch operations need a unique heading',
+        ],
+        /*
+         * PROJ-523: alongside the prose, expose which heading levels collided as a
+         * structured field — an agent shouldn't have to regex the sentence to recover
+         * this, and NotFoundError's sibling case already hands back currentHeadings.
+         */
+        { heading: currentMatches.map((selectedHeading) => `h${selectedHeading.level}`) },
+      ),
+    )
   }
   return currentMatches[0]
 }
