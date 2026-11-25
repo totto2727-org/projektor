@@ -1,55 +1,46 @@
 import { Schema, Iterable } from 'effect'
-import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { fetchNativeApi, fetchNativeMcpTool, requestOptionsWithBody } from './native-fetch.ts'
 import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
 
+type PlaybookFixture = Awaited<ReturnType<typeof seedIssueFixture>> & Readonly<{ epicNumber: number }>
+type PlaybookAuth = Pick<PlaybookFixture, 'slug' | 'token' | 'workspaceId'>
+
+const seedPlaybookFixture = async function seedPlaybookFixture(): Promise<PlaybookFixture> {
+  const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
+  /*
+   * Read the seeded number directly from D1 rather than via the API — hitting
+   * GET /api/issues/:id here would warm getIssue's cache before children are
+   * seeded below, and compose_playbook's own getIssue call would then read a
+   * stale (childless) rollup for the rest of the test.
+   */
+  const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?')
+    .bind(fixture.issueId)
+    .first<{ number: number }>()
+  assert.exists(row)
+  return { ...fixture, epicNumber: row.number }
+}
+
+const compose = async function compose(
+  { slug, token, workspaceId }: PlaybookAuth,
+  params: Record<string, unknown>,
+  name = 'epic-goal',
+): Promise<Response> {
+  return fetchNativeMcpTool(
+    workspaceId,
+    { arguments: { name, params }, name: 'compose_playbook' },
+    authHeaders(token, slug),
+  )
+}
+
 describe('compose_playbook', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-  let epicId: string
-  let epicNumber: number
-
-  beforeEach(async () => {
-    const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
-    ;({ token } = fixture)
-    ;({ slug } = fixture)
-    ;({ workspaceId } = fixture)
-    ;({ projectId } = fixture)
-    ;({ userId } = fixture)
-    epicId = fixture.issueId
-    /*
-     * Read the seeded number directly from D1 rather than via the API — hitting
-     * GET /api/issues/:id here would warm getIssue's cache before children are
-     * seeded below, and compose_playbook's own getIssue call would then read a
-     * stale (childless) rollup for the rest of the test.
-     */
-    const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?').bind(epicId).first<{ number: number }>()
-    assert.exists(row)
-    epicNumber = row.number
-  })
-
-  const compose = async function compose(params: Record<string, unknown>): Promise<Response> {
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: { name: 'epic-goal', params }, name: 'compose_playbook' },
-      }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-    return res
-  }
-
   test('composes with defaults (bounded, opus, cadence 2), well-formed blockquote, and embeds live data', async () => {
     expect.hasAssertions()
+    const testFixture = await seedPlaybookFixture()
+    const { issueId: epicId, epicNumber, projectId, userId, workspaceId } = testFixture
     await seedIssue(workspaceId, projectId, userId, { parentId: epicId, title: 'Child 1' })
     await seedIssue(workspaceId, projectId, userId, {
       parentId: epicId,
@@ -63,7 +54,7 @@ describe('compose_playbook', () => {
      */
     await env.DB.prepare('UPDATE projects SET agent_wip_limit = ? WHERE id = ?').bind(7, projectId).run()
 
-    const res = await compose({ epicRef: `PROJ-${epicNumber}` })
+    const res = await compose(testFixture, { epicRef: `PROJ-${epicNumber}` })
     const json = await readNativeJson(res, RpcTextResponse)
     const text = readNativeMcpResultText(json.result)
     const body = parseNativeMcpText(
@@ -98,7 +89,9 @@ describe('compose_playbook', () => {
   })
 
   test('composes the full variant with a custom review model and cadence', async () => {
-    const res = await compose({
+    const testFixture = await seedPlaybookFixture()
+    const { epicNumber } = testFixture
+    const res = await compose(testFixture, {
       epicRef: `PROJ-${epicNumber}`,
       variant: 'full',
       reviewModel: 'sonnet',
@@ -116,7 +109,9 @@ describe('compose_playbook', () => {
   })
 
   test('honors a custom checkpointInterval', async () => {
-    const res = await compose({ epicRef: `PROJ-${epicNumber}`, checkpointInterval: 3 })
+    const testFixture = await seedPlaybookFixture()
+    const { epicNumber } = testFixture
+    const res = await compose(testFixture, { epicRef: `PROJ-${epicNumber}`, checkpointInterval: 3 })
     const json = await readNativeJson(res, RpcTextResponse)
     const text = readNativeMcpResultText(json.result)
     const body = parseNativeMcpText(text, Schema.Struct({ directive: Schema.String }))
@@ -125,7 +120,9 @@ describe('compose_playbook', () => {
   })
 
   test('notes when the epic has no open child tickets yet', async () => {
-    const res = await compose({ epicRef: `PROJ-${epicNumber}` })
+    const testFixture = await seedPlaybookFixture()
+    const { epicNumber } = testFixture
+    const res = await compose(testFixture, { epicRef: `PROJ-${epicNumber}` })
     const json = await readNativeJson(res, RpcTextResponse)
     const text = readNativeMcpResultText(json.result)
     const body = parseNativeMcpText(text, Schema.Struct({ directive: Schema.String }))
@@ -134,6 +131,8 @@ describe('compose_playbook', () => {
   })
 
   test("errors like an unresolvable ref when epicRef points at a project the caller can't see", async () => {
+    const testFixture = await seedPlaybookFixture()
+    const { userId, workspaceId } = testFixture
     /*
      * A second project in the same workspace that the fixture's member token
      * was never granted access to (seedIssueFixture only grants the first
@@ -145,7 +144,7 @@ describe('compose_playbook', () => {
       title: 'Confidential epic',
     })
 
-    const res = await compose({ epicRef: `SECRET-${otherEpic.number}` })
+    const res = await compose(testFixture, { epicRef: `SECRET-${otherEpic.number}` })
     const err = toolError(await res.json())
     expect(err?.code).toBe('not_found')
     expect(err?.message).toContain('not found')
@@ -153,41 +152,37 @@ describe('compose_playbook', () => {
   })
 
   test('errors on an unresolvable epicRef', async () => {
-    const res = await compose({ epicRef: 'PROJ-999999' })
+    const testFixture = await seedPlaybookFixture()
+    const res = await compose(testFixture, { epicRef: 'PROJ-999999' })
     const err = toolError(await res.json())
     expect(err?.code).toBe('not_found')
     expect(err?.message).toContain('not found')
   })
 
   test('errors on a missing epicRef', async () => {
-    const res = await compose({})
+    const testFixture = await seedPlaybookFixture()
+    const res = await compose(testFixture, {})
     expect(toolError(await res.json())?.code).toBe('validation')
   })
 
   test('errors on an invalid cadence', async () => {
-    const res = await compose({ epicRef: `PROJ-${epicNumber}`, cadence: -1 })
+    const testFixture = await seedPlaybookFixture()
+    const { epicNumber } = testFixture
+    const res = await compose(testFixture, { epicRef: `PROJ-${epicNumber}`, cadence: -1 })
     expect(toolError(await res.json())?.code).toBe('validation')
   })
 
   test('errors on an invalid checkpointInterval', async () => {
-    const res = await compose({ epicRef: `PROJ-${epicNumber}`, checkpointInterval: -1 })
+    const testFixture = await seedPlaybookFixture()
+    const { epicNumber } = testFixture
+    const res = await compose(testFixture, { epicRef: `PROJ-${epicNumber}`, checkpointInterval: -1 })
     expect(toolError(await res.json())?.code).toBe('validation')
   })
 
   test('errors on an unknown playbook name, naming valid options', async () => {
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: {
-          arguments: { name: 'does-not-exist', params: { epicRef: `PROJ-${epicNumber}` } },
-          name: 'compose_playbook',
-        },
-      }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
+    const testFixture = await seedPlaybookFixture()
+    const { epicNumber } = testFixture
+    const res = await compose(testFixture, { epicRef: `PROJ-${epicNumber}` }, 'does-not-exist')
     const err = toolError(await res.json())
     expect(err?.code).toBe('not_found')
     expect(err?.message).toContain('does-not-exist')
@@ -197,26 +192,8 @@ describe('compose_playbook', () => {
 
 // PROJ-633: REST parity for compose_playbook
 describe('handles POST /api/playbooks/:name/compose', () => {
-  type TestData = Readonly<{
-    epicNumber: number
-    slug: string
-    token: string
-  }>
-
-  const seedTestData = async function seedTestData(): Promise<TestData> {
-    const fixture = await seedIssueFixture({ issueTitle: 'Ship the widget' })
-    const { token } = fixture
-    const { slug } = fixture
-    const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?')
-      .bind(fixture.issueId)
-      .first<{ number: number }>()
-    assert.exists(row)
-    const epicNumber = row.number
-    return { epicNumber, slug, token }
-  }
-
   test('returns 200 for epic-goal with a valid params body', async () => {
-    const { epicNumber, slug, token } = await seedTestData()
+    const { epicNumber, slug, token } = await seedPlaybookFixture()
     const res = await fetchNativeApi(
       'http://localhost/api/playbooks/epic-goal/compose',
       requestOptionsWithBody(
@@ -235,7 +212,7 @@ describe('handles POST /api/playbooks/:name/compose', () => {
   })
 
   test("returns a 4xx via the service's validation for a bad body", async () => {
-    const { slug, token } = await seedTestData()
+    const { slug, token } = await seedPlaybookFixture()
     const res = await fetchNativeApi(
       'http://localhost/api/playbooks/epic-goal/compose',
       requestOptionsWithBody(
