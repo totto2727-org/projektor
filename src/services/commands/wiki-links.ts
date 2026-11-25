@@ -439,13 +439,13 @@ const buildLinkWriteStatements = function buildLinkWriteStatements(
     createdAt: now,
   }))
 
-  const statements: D1PreparedStatement[] = [
-    ctx.db
-      .prepare('DELETE FROM wiki_links WHERE source_page_id = ? AND workspace_id = ?')
-      .bind(sourcePageId, ctx.workspaceId),
-  ]
-  for (let index = 0; index < rows.length; index += LINK_INSERT_CHUNK_SIZE) {
-    const chunk = rows.slice(index, index + LINK_INSERT_CHUNK_SIZE)
+  const deleteStatement = ctx.db
+    .prepare('DELETE FROM wiki_links WHERE source_page_id = ? AND workspace_id = ?')
+    .bind(sourcePageId, ctx.workspaceId)
+  const batchCount = Math.ceil(rows.length / LINK_INSERT_CHUNK_SIZE)
+  const inserts = globalThis.Array.from({ length: batchCount }, (_entry, batchIndex): D1PreparedStatement => {
+    const offset = batchIndex * LINK_INSERT_CHUNK_SIZE
+    const chunk = rows.slice(offset, offset + LINK_INSERT_CHUNK_SIZE)
     const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
     const params = chunk.flatMap((row) => [
       row.id,
@@ -458,16 +458,14 @@ const buildLinkWriteStatements = function buildLinkWriteStatements(
       row.targetKind,
       row.createdAt,
     ])
-    statements.push(
-      ctx.db
-        .prepare(
-          `INSERT INTO wiki_links (id, workspace_id, source_page_id, target_page_id, target_title,
+    return ctx.db
+      .prepare(
+        `INSERT INTO wiki_links (id, workspace_id, source_page_id, target_page_id, target_title,
 						target_fold, target_text, target_kind, created_at) VALUES ${placeholders}`,
-        )
-        .bind(...params),
-    )
-  }
-  return statements
+      )
+      .bind(...params)
+  })
+  return [deleteStatement, ...inserts]
 }
 
 /**

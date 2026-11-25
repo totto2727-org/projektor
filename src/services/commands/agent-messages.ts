@@ -84,12 +84,13 @@ export const buildPostMessageStatements = function buildPostMessageStatements(
     body: message.body,
     createdAt: now,
   }))
-  const statements: D1PreparedStatement[] = []
-  for (let index = 0; index < rows.length; index += MESSAGE_INSERT_CHUNK_SIZE) {
-    const chunk = rows.slice(index, index + MESSAGE_INSERT_CHUNK_SIZE)
-    statements.push(toD1Statement(ctx, orm.insert(schema.agentMessages).values(chunk).toSQL()))
-  }
-  return statements
+  const batchCount = Math.ceil(rows.length / MESSAGE_INSERT_CHUNK_SIZE)
+  return Array.makeBy(batchCount, (batchIndex): D1PreparedStatement => {
+    const offset = batchIndex * MESSAGE_INSERT_CHUNK_SIZE
+    const chunk = rows.slice(offset, offset + MESSAGE_INSERT_CHUNK_SIZE)
+    const query = orm.insert(schema.agentMessages).values(chunk).toSQL()
+    return toD1Statement(ctx, query)
+  })
 }
 
 export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unknown) {

@@ -336,10 +336,11 @@ export const buildCustomFieldUpsertStatements = function buildCustomFieldUpsertS
     return []
   }
   const orm = drizzle(db, { schema })
-  const statements: D1PreparedStatement[] = []
-  for (let index = 0; index < writes.length; index += CUSTOM_FIELD_UPSERT_CHUNK_SIZE) {
+  const batchCount = Math.ceil(writes.length / CUSTOM_FIELD_UPSERT_CHUNK_SIZE)
+  return Array.makeBy(batchCount, (batchIndex): D1PreparedStatement => {
+    const offset = batchIndex * CUSTOM_FIELD_UPSERT_CHUNK_SIZE
     const rowChunk = writes
-      .slice(index, index + CUSTOM_FIELD_UPSERT_CHUNK_SIZE)
+      .slice(offset, offset + CUSTOM_FIELD_UPSERT_CHUNK_SIZE)
       .map(({ fieldId, value }) => ({ issueId, fieldId, value }))
     const query = orm
       .insert(schema.customFieldValues)
@@ -349,9 +350,8 @@ export const buildCustomFieldUpsertStatements = function buildCustomFieldUpsertS
         set: { value: sql`excluded.value` },
       })
       .toSQL()
-    statements.push(db.prepare(query.sql).bind(...query.params))
-  }
-  return statements
+    return db.prepare(query.sql).bind(...query.params)
+  })
 }
 
 export const batchLoadCustomFields = async function batchLoadCustomFields(
