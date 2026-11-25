@@ -129,20 +129,20 @@ export interface WikiSeed {
   /** Compiled in request scope so first server HTML includes body and hash targets. */
   renderedMarkdown?: RenderedMarkdown
 }
-function slugify(title: string): string {
+const slugify = function slugify(title: string): string {
   return title
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/gu, '-')
     .replaceAll(/^-|-$/gu, '')
 }
-function safeDecodeURIComponent(raw: string): string | null {
+const safeDecodeURIComponent = function safeDecodeURIComponent(raw: string): string | null {
   try {
     return decodeURIComponent(raw)
   } catch {
     return null
   }
 }
-function wikiHref(seed: Pick<WikiSeed, 'workspaceSlug' | 'projectId'>, path: string): string {
+const wikiHref = function wikiHref(seed: Pick<WikiSeed, 'workspaceSlug' | 'projectId'>, path: string): string {
   const url = new URL(path, 'https://wiki.invalid')
   url.searchParams.set('workspace', seed.workspaceSlug)
   if (seed.projectId) {
@@ -152,7 +152,10 @@ function wikiHref(seed: Pick<WikiSeed, 'workspaceSlug' | 'projectId'>, path: str
   }
   return `${url.pathname}${url.search}${url.hash}`
 }
-async function undeleteWikiPage(id: string, workspaceSlug?: string): Promise<{ slug: string }> {
+const undeleteWikiPage = async function undeleteWikiPage(
+  id: string,
+  workspaceSlug?: string,
+): Promise<{ slug: string }> {
   return unwrapResult(await restoreTrashedWikiPage({ pageId: id, workspaceSlug }))
 }
 
@@ -242,7 +245,7 @@ const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((o) => o.valu
  * doesn't produce a second, visually-indistinguishable entry alongside the well-known
  * lowercase `runbook`.
  */
-function buildTypeFilterOptions(discoveredTypes: Readonly<string[]>): SelectOption[] {
+const buildTypeFilterOptions = function buildTypeFilterOptions(discoveredTypes: Readonly<string[]>): SelectOption[] {
   const seen = new Set(globalThis.Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
   const extras: string[] = []
   Iterable.forEach(discoveredTypes, (t) => {
@@ -324,7 +327,7 @@ export interface ServerDraft {
  * PROJ-514: walks the tree already fetched by useWikiTree to discover distinct `type`
  * values for the sidebar filter dropdown, instead of issuing a second unfiltered fetch.
  */
-function collectTreeTypes(nodes: Readonly<TreeNode[]>): string[] {
+const collectTreeTypes = function collectTreeTypes(nodes: Readonly<TreeNode[]>): string[] {
   const types: string[] = []
   Iterable.forEach(nodes, (node) => {
     if (node.type) {
@@ -335,7 +338,10 @@ function collectTreeTypes(nodes: Readonly<TreeNode[]>): string[] {
   return types
 }
 
-function flattenTree(nodes: Readonly<TreeNode[]>, parentId: string | null = null): Record<string, FlatEntry> {
+const flattenTree = function flattenTree(
+  nodes: Readonly<TreeNode[]>,
+  parentId: string | null = null,
+): Record<string, FlatEntry> {
   const map: Record<string, FlatEntry> = {}
   Iterable.forEach(nodes, (node) => {
     map[node.id] = { id: node.id, slug: node.slug, title: node.title, parentId }
@@ -347,7 +353,7 @@ function flattenTree(nodes: Readonly<TreeNode[]>, parentId: string | null = null
   return map
 }
 
-function getBreadcrumbs(pageId: string, map: Record<string, FlatEntry>): FlatEntry[] {
+const getBreadcrumbs = function getBreadcrumbs(pageId: string, map: Record<string, FlatEntry>): FlatEntry[] {
   const crumbs: FlatEntry[] = []
   let cur: FlatEntry | undefined = map[pageId]
   const seen = new Set<string>()
@@ -414,7 +420,7 @@ function TreeNodeItem({
  * backend's FTS5 snippet() highlighting — split and render as <mark> instead
  * of showing the literal asterisks.
  */
-function renderHighlightedExcerpt(excerpt: string) {
+const renderHighlightedExcerpt = function renderHighlightedExcerpt(excerpt: string) {
   const parts = excerpt.split(/(\*\*[^*]*\*\*)/gu).filter((part) => String.isNonEmpty(part))
   let offset = 0
   return parts.map((part) => {
