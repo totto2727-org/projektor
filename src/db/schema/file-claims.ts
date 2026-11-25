@@ -1,32 +1,77 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { agentSessions } from './agents.ts'
 import { workspaces } from './core.ts'
 import { issues } from './issues.ts'
 
-export const issueFileClaims = sqliteTable(
-  'issue_file_claims',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
+const issueFileClaimsColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    issueId: text('issue_id')
+  ],
+  [
+    'issueId',
+    text('issue_id')
       .notNull()
       .references(() => issues.id, { onDelete: 'cascade' }),
-    agentId: text('agent_id').references(() => agentSessions.id, { onDelete: 'set null' }),
-    path: text('path').notNull(),
-    claimedAt: integer('claimed_at').notNull(),
-    releasedAt: integer('released_at'),
-    /*
-     * PROJ-334: distinguishes a deliberate release (completion) from an abandoned
-     * claim (agent session ended without releasing). NULL for claims released
-     * before this column existed, and for still-active claims.
-     */
-    releaseReason: text('release_reason'),
-  },
-  (table) => [index('idx_file_claims_issue').on(table.workspaceId, table.issueId)],
-)
+  ],
+  ['agentId', text('agent_id').references(() => agentSessions.id, { onDelete: 'set null' })],
+  ['path', text('path').notNull()],
+  ['claimedAt', integer('claimed_at').notNull()],
+  ['releasedAt', integer('released_at')],
+  /*
+   * PROJ-334: distinguishes a deliberate release (completion) from an abandoned
+   * claim (agent session ended without releasing). NULL for claims released
+   * before this column existed, and for still-active claims.
+   */
+  ['releaseReason', text('release_reason')],
+])
+
+export const issueFileClaims = sqliteTable('issue_file_claims', issueFileClaimsColumns, (table) => [
+  index('idx_file_claims_issue').on(table.workspaceId, table.issueId),
+])
+
+const claimConflictsColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+  ],
+  ['path', text('path').notNull()],
+  [
+    'rejectedIssueId',
+    text('rejected_issue_id')
+      .notNull()
+      .references(() => issues.id, { onDelete: 'cascade' }),
+  ],
+  [
+    'rejectedAgentId',
+    text('rejected_agent_id').references(() => agentSessions.id, {
+      onDelete: 'set null',
+    }),
+  ],
+  [
+    'holdingIssueId',
+    text('holding_issue_id')
+      .notNull()
+      .references(() => issues.id, { onDelete: 'cascade' }),
+  ],
+  [
+    'holdingAgentId',
+    text('holding_agent_id').references(() => agentSessions.id, {
+      onDelete: 'set null',
+    }),
+  ],
+  ['forced', integer('forced').notNull().default(0)],
+  ['occurredAt', integer('occurred_at').notNull()],
+])
 
 /*
  * PROJ-337: claim conflicts — an event log of rejected/overridden claimFiles attempts.
@@ -35,31 +80,7 @@ export const issueFileClaims = sqliteTable(
  * records the attempt directly. `forced` distinguishes a hard rejection (force: false)
  * from an override (force: true, an existing claim was evicted).
  */
-export const claimConflicts = sqliteTable(
-  'claim_conflicts',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    path: text('path').notNull(),
-    rejectedIssueId: text('rejected_issue_id')
-      .notNull()
-      .references(() => issues.id, { onDelete: 'cascade' }),
-    rejectedAgentId: text('rejected_agent_id').references(() => agentSessions.id, {
-      onDelete: 'set null',
-    }),
-    holdingIssueId: text('holding_issue_id')
-      .notNull()
-      .references(() => issues.id, { onDelete: 'cascade' }),
-    holdingAgentId: text('holding_agent_id').references(() => agentSessions.id, {
-      onDelete: 'set null',
-    }),
-    forced: integer('forced').notNull().default(0),
-    occurredAt: integer('occurred_at').notNull(),
-  },
-  (table) => [
-    index('idx_claim_conflicts_workspace_occurred').on(table.workspaceId, table.occurredAt),
-    index('idx_claim_conflicts_path').on(table.workspaceId, table.path),
-  ],
-)
+export const claimConflicts = sqliteTable('claim_conflicts', claimConflictsColumns, (table) => [
+  index('idx_claim_conflicts_workspace_occurred').on(table.workspaceId, table.occurredAt),
+  index('idx_claim_conflicts_path').on(table.workspaceId, table.path),
+])

@@ -1,42 +1,54 @@
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { users, workspaces } from './core.ts'
 import { projects } from './issues.ts'
 
-// PROJ-311: admin-managed groups that carry per-project access grants.
-export const userGroups = sqliteTable(
-  'user_groups',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
+const userGroupsColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
-    description: text('description'),
-    createdAt: integer('created_at').notNull(),
-  },
-  (table) => [uniqueIndex('user_groups_workspace_name_idx').on(table.workspaceId, table.name)],
-)
+  ],
+  ['name', text('name').notNull()],
+  ['description', text('description')],
+  ['createdAt', integer('created_at').notNull()],
+])
 
-export const userGroupMembers = sqliteTable(
-  'user_group_members',
-  {
-    groupId: text('group_id')
+// PROJ-311: admin-managed groups that carry per-project access grants.
+export const userGroups = sqliteTable('user_groups', userGroupsColumns, (table) => [
+  uniqueIndex('user_groups_workspace_name_idx').on(table.workspaceId, table.name),
+])
+
+const userGroupMembersColumns = fieldsInOrder([
+  [
+    'groupId',
+    text('group_id')
       .notNull()
       .references(() => userGroups.id, { onDelete: 'cascade' }),
-    userId: text('user_id')
+  ],
+  [
+    'userId',
+    text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    addedBy: text('added_by')
+  ],
+  [
+    'addedBy',
+    text('added_by')
       .notNull()
       .references(() => users.id),
-    addedAt: integer('added_at').notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.groupId, table.userId] }),
-    index('user_group_members_user_idx').on(table.userId),
   ],
-)
+  ['addedAt', integer('added_at').notNull()],
+])
+
+export const userGroupMembers = sqliteTable('user_group_members', userGroupMembersColumns, (table) => [
+  primaryKey({ columns: [table.groupId, table.userId] }),
+  index('user_group_members_user_idx').on(table.userId),
+])
 
 export const groupProjectGrants = sqliteTable(
   'group_project_grants',

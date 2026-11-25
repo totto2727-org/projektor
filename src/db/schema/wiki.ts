@@ -1,147 +1,90 @@
-import { sql } from 'drizzle-orm'
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { users, workspaces } from './core.ts'
-import { projects } from './issues.ts'
+import { wikiPages } from './wiki-pages.ts'
 
-export const wikiPages = sqliteTable(
-  'wiki_pages',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    projectId: text('project_id').references(() => projects.id, { onDelete: 'cascade' }),
-    slug: text('slug').notNull(),
-    title: text('title').notNull(),
-    // PROJ-818: foldWikiTitle(title), computed in JS (SQLite lower() is ASCII-only).
-    titleFold: text('title_fold'),
-    // PROJ-816: this page's wiki_fts rowid (migration 0065).
-    searchRowid: integer('search_rowid'),
-    content: text('content').notNull().default(''),
-    parentId: text('parent_id'),
-    createdById: text('created_by_id')
-      .notNull()
-      .references(() => users.id),
-    updatedById: text('updated_by_id')
-      .notNull()
-      .references(() => users.id),
-    createdAt: integer('created_at').notNull(),
-    updatedAt: integer('updated_at').notNull(),
-    /*
-     * PROJ-919: bumped by every write to the row; the wiki write guard compares it so a
-     * concurrent title/slug/parent-only write can't be silently overwritten.
-     */
-    version: integer('version').notNull().default(0),
-    /*
-     * PROJ-488 (R6): denormalized from optional YAML frontmatter parsed on write
-     * (services/wiki-frontmatter.ts). `type`/`status` are freeform TEXT — the
-     * well-known enum values are enforced at the Zod layer, not a DB CHECK
-     * constraint, so this column never blocks a write the schema layer would allow.
-     */
-    type: text('type'),
-    tags: text('tags', { mode: 'json' })
-      .$type<string[]>()
-      .notNull()
-      .$defaultFn(() => []),
-    status: text('status'),
-    verifiedAt: integer('verified_at'),
-    verifiedBy: text('verified_by'),
-    owners: text('owners', { mode: 'json' })
-      .$type<string[]>()
-      .notNull()
-      .$defaultFn(() => []),
-    verifyInterval: integer('verify_interval'),
-    /*
-     * PROJ-491 (R9): denormalized from frontmatter `template: true` (services/
-     * wiki-frontmatter.ts). Marks a page as a reusable template (conventionally
-     * living under a workspace "Templates" page) rather than regular content.
-     */
-    isTemplate: integer('is_template', { mode: 'boolean' }).notNull().default(false),
-    /*
-     * PROJ-496 (R14): unix seconds this page was soft-deleted, or NULL if live.
-     * Everything a hard delete used to clean up immediately (R2 objects, wiki_links,
-     * wiki_watchers, wiki_drafts, wiki_fts) now waits until purgeExpiredWikiPages
-     * actually removes the row, 30+ days later (services/wiki.ts).
-     */
-    deletedAt: integer('deleted_at'),
-    /*
-     * PROJ-496 follow-up: identifies which deleteWikiPage call trashed this page —
-     * every page in one cascade-trash batch shares the same value, a lone non-cascade
-     * trash gets its own unique value. Disambiguates cascade-restore batch membership
-     * without relying on deletedAt timestamp equality, which collides when two
-     * independent trashes land in the same wall-clock second.
-     */
-    trashBatchId: text('trash_batch_id'),
-  },
-  (table) => [
-    index('wiki_pages_workspace_slug_idx').on(table.workspaceId, table.slug),
-    /*
-     * PROJ-483: enforces slug uniqueness per workspace (0041_wiki_slug_unique.sql).
-     * PROJ-496: PARTIAL — only among live pages — so trashing a page immediately frees
-     * its slug for reuse rather than reserving it for the whole 30-day retention window.
-     */
-    uniqueIndex('wiki_pages_workspace_slug_unique_idx')
-      .on(table.workspaceId, table.slug)
-      .where(sql`${table.deletedAt} IS NULL`),
-    index('wiki_pages_parent_idx').on(table.parentId),
-    index('wiki_pages_project_id_idx').on(table.projectId),
-    // PROJ-488: type/status filtering (listWikiPages/searchWiki).
-    index('wiki_pages_workspace_type_idx').on(table.workspaceId, table.type),
-    index('wiki_pages_workspace_status_idx').on(table.workspaceId, table.status),
-    // PROJ-491: template picker / search+staleness exclusion filter on this flag.
-    index('wiki_pages_workspace_template_idx').on(table.workspaceId, table.isTemplate),
-    // PROJ-496: trash listing / purge job scan (services/wiki.ts#listWikiTrash,
-    // #purgeExpiredWikiPages).
-    index('wiki_pages_workspace_deleted_at_idx').on(table.workspaceId, table.deletedAt),
-    // PROJ-496 follow-up: collectCascadeTrashedDescendantIds walks this per batch id.
-    index('wiki_pages_trash_batch_id_idx').on(table.workspaceId, table.trashBatchId),
-  ],
-)
+export { wikiPages } from './wiki-pages.ts'
 
-export const wikiRevisions = sqliteTable(
-  'wiki_revisions',
-  {
-    id: text('id').primaryKey(),
-    pageId: text('page_id')
+const wikiRevisionsColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'pageId',
+    text('page_id')
       .notNull()
       .references(() => wikiPages.id, { onDelete: 'cascade' }),
-    content: text('content').notNull(),
-    // PROJ-484: page title at the time of this revision (0042_wiki_revision_title_summary.sql).
-    title: text('title').notNull().default(''),
-    // PROJ-484: optional edit message/changelog note supplied by the writer.
-    summary: text('summary'),
-    authorId: text('author_id')
+  ],
+  ['content', text('content').notNull()],
+  // PROJ-484: page title at the time of this revision (0042_wiki_revision_title_summary.sql).
+  ['title', text('title').notNull().default('')],
+  // PROJ-484: optional edit message/changelog note supplied by the writer.
+  ['summary', text('summary')],
+  [
+    'authorId',
+    text('author_id')
       .notNull()
       .references(() => users.id),
-    createdAt: integer('created_at').notNull(),
-  },
-  (table) => [index('wiki_revisions_page_idx').on(table.pageId)],
-)
+  ],
+  ['createdAt', integer('created_at').notNull()],
+])
+
+export const wikiRevisions = sqliteTable('wiki_revisions', wikiRevisionsColumns, (table) => [
+  index('wiki_revisions_page_idx').on(table.pageId),
+])
+
+const wikiRedirectsColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+  ],
+  ['oldSlug', text('old_slug').notNull()],
+  [
+    'pageId',
+    text('page_id')
+      .notNull()
+      .references(() => wikiPages.id, { onDelete: 'cascade' }),
+  ],
+  ['createdAt', integer('created_at').notNull()],
+])
 
 /*
  * PROJ-483: old slug -> page id, written whenever a page's slug changes (services/wiki.ts
  * updateWikiPage). Redirects always point at the page's current id, never at another
  * slug, so a page renamed repeatedly never forms a redirect -> redirect chain.
  */
-export const wikiRedirects = sqliteTable(
-  'wiki_redirects',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
+export const wikiRedirects = sqliteTable('wiki_redirects', wikiRedirectsColumns, (table) => [
+  uniqueIndex('wiki_redirects_workspace_old_slug_idx').on(table.workspaceId, table.oldSlug),
+  index('wiki_redirects_page_id_idx').on(table.pageId),
+])
+
+const wikiLinksColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    oldSlug: text('old_slug').notNull(),
-    pageId: text('page_id')
+  ],
+  [
+    'sourcePageId',
+    text('source_page_id')
       .notNull()
       .references(() => wikiPages.id, { onDelete: 'cascade' }),
-    createdAt: integer('created_at').notNull(),
-  },
-  (table) => [
-    uniqueIndex('wiki_redirects_workspace_old_slug_idx').on(table.workspaceId, table.oldSlug),
-    index('wiki_redirects_page_id_idx').on(table.pageId),
   ],
-)
+  ['targetPageId', text('target_page_id').references(() => wikiPages.id, { onDelete: 'set null' })],
+  ['targetTitle', text('target_title').notNull()],
+  // PROJ-818: foldWikiTitle(target_title).
+  ['targetFold', text('target_fold')],
+  // PROJ-818: the target as written (title text or slug) — see migration 0063.
+  ['targetText', text('target_text')],
+  // PROJ-814/818: 'title' | 'slug' — how the link was written (NULL: legacy row).
+  ['targetKind', text('target_kind')],
+  ['createdAt', integer('created_at').notNull()],
+])
 
 /*
  * PROJ-485: server-side wiki link graph. Recomputed (delete-then-reinsert) on every
@@ -150,31 +93,34 @@ export const wikiRedirects = sqliteTable(
  * at write time (a broken link); targetTitle always holds the raw parsed text so it
  * survives later renames and stays available for broken-link reporting/re-resolution.
  */
-export const wikiLinks = sqliteTable(
-  'wiki_links',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
+export const wikiLinks = sqliteTable('wiki_links', wikiLinksColumns, (table) => [
+  index('wiki_links_source_page_idx').on(table.sourcePageId),
+  index('wiki_links_workspace_target_idx').on(table.workspaceId, table.targetPageId),
+])
+
+const wikiWatchersColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    sourcePageId: text('source_page_id')
+  ],
+  [
+    'userId',
+    text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+  ],
+  [
+    'pageId',
+    text('page_id')
       .notNull()
       .references(() => wikiPages.id, { onDelete: 'cascade' }),
-    targetPageId: text('target_page_id').references(() => wikiPages.id, { onDelete: 'set null' }),
-    targetTitle: text('target_title').notNull(),
-    // PROJ-818: foldWikiTitle(target_title).
-    targetFold: text('target_fold'),
-    // PROJ-818: the target as written (title text or slug) — see migration 0063.
-    targetText: text('target_text'),
-    // PROJ-814/818: 'title' | 'slug' — how the link was written (NULL: legacy row).
-    targetKind: text('target_kind'),
-    createdAt: integer('created_at').notNull(),
-  },
-  (table) => [
-    index('wiki_links_source_page_idx').on(table.sourcePageId),
-    index('wiki_links_workspace_target_idx').on(table.workspaceId, table.targetPageId),
   ],
-)
+  ['subtree', integer('subtree', { mode: 'boolean' }).notNull().default(false)],
+  ['createdAt', integer('created_at').notNull()],
+])
 
 /*
  * PROJ-493 (R11): a user watching either a single page (subtree=false) or a page and its
@@ -183,27 +129,34 @@ export const wikiLinks = sqliteTable(
  * materializing per-descendant rows — a page added later under a watched subtree is
  * covered automatically.
  */
-export const wikiWatchers = sqliteTable(
-  'wiki_watchers',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
+export const wikiWatchers = sqliteTable('wiki_watchers', wikiWatchersColumns, (table) => [
+  uniqueIndex('wiki_watchers_user_page_idx').on(table.workspaceId, table.userId, table.pageId),
+  index('wiki_watchers_page_idx').on(table.workspaceId, table.pageId),
+])
+
+const wikiNotificationsColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    userId: text('user_id')
+  ],
+  [
+    'userId',
+    text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    pageId: text('page_id')
-      .notNull()
-      .references(() => wikiPages.id, { onDelete: 'cascade' }),
-    subtree: integer('subtree', { mode: 'boolean' }).notNull().default(false),
-    createdAt: integer('created_at').notNull(),
-  },
-  (table) => [
-    uniqueIndex('wiki_watchers_user_page_idx').on(table.workspaceId, table.userId, table.pageId),
-    index('wiki_watchers_page_idx').on(table.workspaceId, table.pageId),
   ],
-)
+  ['pageId', text('page_id').notNull()],
+  ['pageSlug', text('page_slug').notNull()],
+  ['pageTitle', text('page_title').notNull()],
+  ['action', text('action', { enum: ['created', 'updated', 'deleted'] }).notNull()],
+  ['actorId', text('actor_id').references(() => users.id, { onDelete: 'set null' })],
+  ['summary', text('summary').notNull()],
+  ['createdAt', integer('created_at').notNull()],
+  ['readAt', integer('read_at')],
+])
 
 /*
  * PROJ-493 (R11): per-user notification list. `pageId` is NOT a foreign key (and has no
@@ -211,45 +164,62 @@ export const wikiWatchers = sqliteTable(
  * deletion notification readable, so pageSlug/pageTitle are denormalized at write time
  * rather than joined from wiki_pages.
  */
-export const wikiNotifications = sqliteTable(
-  'wiki_notifications',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    pageId: text('page_id').notNull(),
-    pageSlug: text('page_slug').notNull(),
-    pageTitle: text('page_title').notNull(),
-    action: text('action', { enum: ['created', 'updated', 'deleted'] }).notNull(),
-    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
-    summary: text('summary').notNull(),
-    createdAt: integer('created_at').notNull(),
-    readAt: integer('read_at'),
-  },
-  (table) => [index('wiki_notifications_user_idx').on(table.workspaceId, table.userId, table.createdAt)],
-)
+export const wikiNotifications = sqliteTable('wiki_notifications', wikiNotificationsColumns, (table) => [
+  index('wiki_notifications_user_idx').on(table.workspaceId, table.userId, table.createdAt),
+])
 
-// Heads outlive scratch rows so CAS remains meaningful after discard/publication.
-export const wikiDraftHeads = sqliteTable(
-  'wiki_draft_heads',
-  {
-    workspaceId: text('workspace_id')
+const wikiDraftHeadsColumns = fieldsInOrder([
+  [
+    'workspaceId',
+    text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    userId: text('user_id')
+  ],
+  [
+    'userId',
+    text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    pageId: text('page_id')
+  ],
+  [
+    'pageId',
+    text('page_id')
       .notNull()
       .references(() => wikiPages.id, { onDelete: 'cascade' }),
-    revision: text('revision').notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.workspaceId, table.userId, table.pageId] })],
-)
+  ],
+  ['revision', text('revision').notNull()],
+])
+
+// Heads outlive scratch rows so CAS remains meaningful after discard/publication.
+export const wikiDraftHeads = sqliteTable('wiki_draft_heads', wikiDraftHeadsColumns, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.userId, table.pageId] }),
+])
+
+const wikiDraftsColumns = fieldsInOrder([
+  ['id', text('id').primaryKey()],
+  [
+    'workspaceId',
+    text('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+  ],
+  [
+    'userId',
+    text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+  ],
+  [
+    'pageId',
+    text('page_id')
+      .notNull()
+      .references(() => wikiPages.id, { onDelete: 'cascade' }),
+  ],
+  ['title', text('title').notNull()],
+  ['content', text('content').notNull()],
+  ['baseRevisionId', text('base_revision_id')],
+  ['updatedAt', integer('updated_at').notNull()],
+])
 
 /*
  * PROJ-495 (R13): per-user scratch draft, one row per (page, user) — saveWikiDraft
@@ -259,23 +229,6 @@ export const wikiDraftHeads = sqliteTable(
  * as wiki_pages/UpdatePageSchema's baseRevisionId, so publish can hand it straight to
  * updateWikiPage's existing optimistic-locking check.
  */
-export const wikiDrafts = sqliteTable(
-  'wiki_drafts',
-  {
-    id: text('id').primaryKey(),
-    workspaceId: text('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    pageId: text('page_id')
-      .notNull()
-      .references(() => wikiPages.id, { onDelete: 'cascade' }),
-    title: text('title').notNull(),
-    content: text('content').notNull(),
-    baseRevisionId: text('base_revision_id'),
-    updatedAt: integer('updated_at').notNull(),
-  },
-  (table) => [uniqueIndex('wiki_drafts_user_page_idx').on(table.workspaceId, table.userId, table.pageId)],
-)
+export const wikiDrafts = sqliteTable('wiki_drafts', wikiDraftsColumns, (table) => [
+  uniqueIndex('wiki_drafts_user_page_idx').on(table.workspaceId, table.userId, table.pageId),
+])
