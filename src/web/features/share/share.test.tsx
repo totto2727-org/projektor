@@ -21,7 +21,7 @@ const workspaceBrand = {
 }
 const body = '## Details\n\nComplete **SSR body**.\n\n<script>evil()</script>\n\n```mermaid\ngraph TD; A-->B\n```'
 const databases: ReturnType<typeof createTestDatabase>[] = []
-async function fixture() {
+const fixture = async function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`

@@ -9,7 +9,7 @@ import { issue } from '@/features/issues/test/fixtures.ts'
 
 import { ReviewTargetsSummary } from './review-targets-summary.tsx'
 
-function target(overrides: Partial<ReviewTarget> = {}): ReviewTarget {
+const target = function target(overrides: Partial<ReviewTarget> = {}): ReviewTarget {
   return {
     id: 'reference',
     kind: 'url',

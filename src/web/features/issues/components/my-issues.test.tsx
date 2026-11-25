@@ -7,15 +7,15 @@ import type { ScopedIssue } from '@/features/issues/views/my-issues-page.tsx'
 
 import { MyIssues } from './my-issues.tsx'
 
-function scoped(overrides: Partial<ScopedIssue> = {}): ScopedIssue {
+const scoped = function scoped(overrides: Partial<ScopedIssue> = {}): ScopedIssue {
   return { ...issue(), workspaceSlug: workspace.slug, ...overrides }
 }
 
-function show(issues: Readonly<ScopedIssue[]>) {
+const show = function show(issues: Readonly<ScopedIssue[]>) {
   return render(<MyIssues initialData={{ issues, memberships: [workspace] }} />)
 }
 
-function titles(): string[] {
+const titles = function titles(): string[] {
   return within(screen.getByRole('table'))
     .getAllByRole('row')
     .slice(1)

@@ -27,7 +27,7 @@ const projectScope: RequestScope = {
   },
 }
 
-function viewport(width: number): void {
+const viewport = function viewport(width: number): void {
   vi.stubGlobal('innerWidth', width)
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('max-width') && width < 768,

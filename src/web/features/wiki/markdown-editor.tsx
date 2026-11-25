@@ -120,7 +120,7 @@ function prefixLines(view: EditorView, prefix: string): boolean {
  * click, which land outside the button's own box; a genuine click on the button never
  * does. Keyboard activation reports detail 0 (and 0,0 coords) and must still pass.
  */
-function isDirectPointerActivation(event: React.MouseEvent): boolean {
+const isDirectPointerActivation = function isDirectPointerActivation(event: React.MouseEvent): boolean {
   if (event.detail === 0) {
     return true
   }
