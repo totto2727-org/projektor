@@ -150,12 +150,12 @@ describe('covers KV caching', () => {
           requestOptionsWithBody(
             'POST',
             hdrs,
-            JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'tools/call',
-              params: { name: 'list_projects', arguments: {} },
-            }),
+            stringifyOrderedFields([
+              ['jsonrpc', '2.0'],
+              ['id', 1],
+              ['method', 'tools/call'],
+              ['params', { name: 'list_projects', arguments: {} }],
+            ]),
           ),
         )
         const rpc = await readNativeJson(res, RpcTextResponse)
@@ -186,12 +186,12 @@ describe('covers KV caching', () => {
           requestOptionsWithBody(
             'POST',
             hdrs,
-            JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'tools/call',
-              params: { name: 'list_projects', arguments: {} },
-            }),
+            stringifyOrderedFields([
+              ['jsonrpc', '2.0'],
+              ['id', 1],
+              ['method', 'tools/call'],
+              ['params', { name: 'list_projects', arguments: {} }],
+            ]),
           ),
         )
         const rpc = await readNativeJson(res, RpcTextResponse)

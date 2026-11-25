@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { authHeaders, seedIssueFixture, toolError } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { fetchNativeApi, stringifyOrderedFields } from './native-fetch.ts'
 import { McpRpcResponse, readNativeJson } from './response-json.ts'
 
 let f: Awaited<ReturnType<typeof seedIssueFixture>>
@@ -50,6 +50,11 @@ describe('covers REST: invalid JSON bodies → 400', () => {
   })
 })
 
+const errorCode = async function errorCode(res: Response): Promise<undefined | number> {
+  const rpc = await readNativeJson(res, McpRpcResponse)
+  return rpc.error?.code
+}
+
 describe('covers MCP: parse and envelope errors', () => {
   const mcp = function mcp(body: string): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
@@ -57,10 +62,6 @@ describe('covers MCP: parse and envelope errors', () => {
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       method: 'POST',
     })
-  }
-  const errorCode = async function errorCode(res: Response): Promise<undefined | number> {
-    const rpc = await readNativeJson(res, McpRpcResponse)
-    return rpc.error?.code
   }
 
   test('invalid JSON → -32700', async () => {
@@ -75,19 +76,25 @@ describe('covers MCP: parse and envelope errors', () => {
   })
 
   test('tools/call with no params → -32602', async () => {
-    const res = await mcp(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call' }))
+    const res = await mcp(
+      stringifyOrderedFields([
+        ['jsonrpc', '2.0'],
+        ['id', 1],
+        ['method', 'tools/call'],
+      ]),
+    )
     expect(res.status).toBe(200)
     await expect(errorCode(res)).resolves.toBe(-32_602)
   })
 
   test('tools/call get_project with no arguments → validation tool error naming the field', async () => {
     const res = await mcp(
-      JSON.stringify({
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'tools/call',
-        params: { name: 'get_project' },
-      }),
+      stringifyOrderedFields([
+        ['jsonrpc', '2.0'],
+        ['id', 2],
+        ['method', 'tools/call'],
+        ['params', { name: 'get_project' }],
+      ]),
     )
     const body = await res.json()
     const err = toolError(body)

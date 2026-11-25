@@ -57,12 +57,12 @@ describe('task Statuses API', () => {
   test('handles POST /api/task-statuses creates a new status (owner)', async () => {
     const { slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
-      body: JSON.stringify({
-        key: 'in_progress',
-        name: 'In Progress',
-        category: 'in_progress',
-        position: 1,
-      }),
+      body: stringifyOrderedFields([
+        ['key', 'in_progress'],
+        ['name', 'In Progress'],
+        ['category', 'in_progress'],
+        ['position', 1],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -579,7 +579,12 @@ describe('task Statuses — MCP parity', () => {
       requestOptionsWithBody(
         'POST',
         { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+        stringifyOrderedFields([
+          ['jsonrpc', '2.0'],
+          ['id', 1],
+          ['method', method],
+          ['params', params],
+        ]),
       ),
     )
     return res.json() as Promise<{

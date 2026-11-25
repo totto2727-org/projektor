@@ -4939,6 +4939,13 @@ describe('computeFreshness (PROJ-489)', () => {
   })
 })
 
+const stringifyFreshnessPage = function stringifyFreshnessPage(title: string, content: string): string {
+  return stringifyOrderedFields([
+    ['title', title],
+    ['content', content],
+  ])
+}
+
 describe('wiki freshness model (PROJ-489)', () => {
   type TestData = Readonly<{
     slug: string
@@ -5248,25 +5255,22 @@ describe('wiki freshness model (PROJ-489)', () => {
   test('handles GET /api/wiki/stale-pages lists computed-stale, unverified, deprecated pages, excluding fresh', async () => {
     const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Overdue Page', content: overdueContent() }),
+      body: stringifyFreshnessPage('Overdue Page', overdueContent()),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Never Verified Page', content: unverifiedContent() }),
+      body: stringifyFreshnessPage('Never Verified Page', unverifiedContent()),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({
-        title: 'Explicitly Stale Page',
-        content: explicitStatusContent('stale'),
-      }),
+      body: stringifyFreshnessPage('Explicitly Stale Page', explicitStatusContent('stale')),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Fresh Page', content: freshContent() }),
+      body: stringifyFreshnessPage('Fresh Page', freshContent()),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -6282,6 +6286,17 @@ const seedAdminWikiDraftFixture = async function seedAdminWikiDraftFixture(): Pr
   return { createPage, req, slug, token, workspaceId }
 }
 
+const stringifyDraftWithoutBaseRevision = function stringifyDraftWithoutBaseRevision(
+  title: string,
+  content: string,
+): string {
+  return stringifyOrderedFields([
+    ['title', title],
+    ['content', content],
+    ['baseRevisionId', JSON_NULL],
+  ])
+}
+
 describe('wiki server-side drafts (PROJ-495)', () => {
   test('covers REST: no draft returns null, saving upserts, discarding clears it', async () => {
     const { createPage, req, slug, token } = await seedAdminWikiDraftFixture()
@@ -6298,7 +6313,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Draft Page', content: 'draft v1', baseRevisionId: JSON_NULL }),
+        stringifyDraftWithoutBaseRevision('Draft Page', 'draft v1'),
       ),
     )
     expect(saveRes.status).toBe(200)
@@ -6314,7 +6329,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Draft Page', content: 'draft v2', baseRevisionId: JSON_NULL }),
+        stringifyDraftWithoutBaseRevision('Draft Page', 'draft v2'),
       ),
     )
     getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
