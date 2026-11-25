@@ -2,6 +2,7 @@ import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 
 import { actionFixture, formData, planningIds } from './action-test-fixture.ts'
@@ -52,11 +53,11 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
     const testFixture = fixture()
     const missingScope = formData(draft)
     missingScope.delete('workspaceSlug')
-    await expect(testFixture.invoke(actions.createSprint, null, missingScope)).rejects.toMatchObject({
+    await expect(testFixture.invoke(actions.createSprint, JSON_NULL, missingScope)).rejects.toMatchObject({
       _tag: 'SchemaError',
     })
     await expect(
-      testFixture.invoke(actions.createSprint, null, formData({ ...draft, startOffset: 900 })),
+      testFixture.invoke(actions.createSprint, JSON_NULL, formData({ ...draft, startOffset: 900 })),
     ).rejects.toMatchObject({ _tag: 'SchemaError' })
     expect(testFixture.sqlite.prepare('SELECT count(*) AS count FROM sprints').get()?.count).toBe(5)
     expect(testFixture.transport).not.toHaveBeenCalled()
@@ -64,7 +65,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
 
   test('creates via the shared command with browser calendar offsets and normalized fields', async () => {
     const testFixture = fixture()
-    const result = await testFixture.invoke(actions.createSprint, null, formData(draft))
+    const result = await testFixture.invoke(actions.createSprint, JSON_NULL, formData(draft))
     expect(result).toMatchObject({ ok: true, value: { id: expect.any(String) } })
     const row = testFixture.sqlite
       .prepare("SELECT name,goal,start_date,end_date,project_id FROM sprints WHERE name='Sprint' AND goal='Goal'")
@@ -85,7 +86,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
     await expect(
       testFixture.invoke(
         actions.editSprint,
-        null,
+        JSON_NULL,
         formData({ ...draft, sprintId: planningIds.source, goal: '', start: '' }),
       ),
     ).resolves.toStrictEqual({ ok: true, value: { ok: true } })
@@ -130,7 +131,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
     expect.hasAssertions()
     const selector = fixture()
     await expect(
-      selector.invoke(actions.createSprint, null, formData({ ...draft, workspaceSlug: 'beta' })),
+      selector.invoke(actions.createSprint, JSON_NULL, formData({ ...draft, workspaceSlug: 'beta' })),
     ).resolves.toMatchObject({ ok: false, status: 403 })
     await runInOrder(['foreign-sprint', 'missing', 's1'], async (sprintId): Promise<void> => {
       const testFixture = fixture()
@@ -142,7 +143,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
       expect(testFixture.transport).not.toHaveBeenCalled()
     })
     const origin = fixture('https://foreign.example')
-    await expect(origin.invoke(actions.createSprint, null, formData(draft))).resolves.toMatchObject({
+    await expect(origin.invoke(actions.createSprint, JSON_NULL, formData(draft))).resolves.toMatchObject({
       ok: false,
       status: 403,
     })
@@ -233,14 +234,14 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
   test('validates whitespace-only names and reversed dates before execution', async () => {
     const testFixture = fixture()
     await expect(
-      testFixture.invoke(actions.createSprint, null, formData({ ...draft, name: '  ' })),
+      testFixture.invoke(actions.createSprint, JSON_NULL, formData({ ...draft, name: '  ' })),
     ).rejects.toMatchObject({
       _tag: 'SchemaError',
     })
     await expect(
       testFixture.invoke(
         actions.editSprint,
-        null,
+        JSON_NULL,
         formData({ ...draft, sprintId: planningIds.source, end: '2026-10-01' }),
       ),
     ).rejects.toMatchObject({ _tag: 'SchemaError' })

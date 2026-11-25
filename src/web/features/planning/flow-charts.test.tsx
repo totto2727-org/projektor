@@ -6,6 +6,7 @@ import { isValidElement } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import type { ChartTooltipContent } from '@/components/generated/chart.tsx'
 
 import {
@@ -122,7 +123,7 @@ describe('flow chart public data and primitive semantics', () => {
   test('retains fraction bounds and null gaps, including zero as a real bug-share signal', () => {
     const data = [
       { bucketStart: '2026-10-01', total: 4, bugCount: 0, bugSharePercent: 0 },
-      { bucketStart: '2026-10-02', total: 0, bugCount: 0, bugSharePercent: null },
+      { bucketStart: '2026-10-02', total: 0, bugCount: 0, bugSharePercent: JSON_NULL },
     ]
     render(<BugShareChart data={data} bugTypeTracked />)
     expect(first('LineChart').data).toBe(data)
@@ -134,7 +135,7 @@ describe('flow chart public data and primitive semantics', () => {
   test('retains review p50 and null gaps rather than filling absent samples', () => {
     const data = [
       { bucketStart: '2026-10-01', p50: 1800 },
-      { bucketStart: '2026-10-02', p50: null },
+      { bucketStart: '2026-10-02', p50: JSON_NULL },
     ]
     render(<ReviewLatencyChart data={data} />)
     expect(first('LineChart').data).toBe(data)
@@ -186,7 +187,9 @@ describe('flow chart public data and primitive semantics', () => {
   })
 
   test('omits unavailable aging guides and keeps all-zero ages renderable', () => {
-    render(<AgingWipScatter data={[{ id: 'i1', status: 'in_progress', ageSeconds: 0 }]} p50={null} p90={null} />)
+    render(
+      <AgingWipScatter data={[{ id: 'i1', status: 'in_progress', ageSeconds: 0 }]} p50={JSON_NULL} p90={JSON_NULL} />,
+    )
     expect(calls.get('ReferenceLine')).toBeUndefined()
     expect(first('YAxis').domain).toStrictEqual([0, 1])
     const props = tooltipProps()
@@ -218,7 +221,7 @@ describe('flow chart public data and primitive semantics', () => {
         <ReviewLatencyChart data={[]} />
         <WipChart data={[]} />
         <ArrivalVsCompletionChart data={[]} />
-        <AgingWipScatter data={[]} p50={null} p90={null} />
+        <AgingWipScatter data={[]} p50={JSON_NULL} p90={JSON_NULL} />
       </>,
     )
     Iterable.forEach(

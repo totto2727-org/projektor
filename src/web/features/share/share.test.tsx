@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -17,7 +18,7 @@ const workspaceBrand = {
   onAccent: '#ffffff',
   fontFamily: 'serif',
   fontUrl: 'https://example.com/fonts.css',
-  logoUrl: null,
+  logoUrl: JSON_NULL,
 }
 const body = '## Details\n\nComplete **SSR body**.\n\n<script>evil()</script>\n\n```mermaid\ngraph TD; A-->B\n```'
 const databases: ReturnType<typeof createTestDatabase>[] = []
@@ -58,7 +59,7 @@ describe('public Share SSR', () => {
     const testFixture = await fixture()
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Public share must not use HTTP'))
     const html = renderToStaticMarkup(
-      await renderShare(testFixture.env, null, new URL('https://app.test/share/view?token=public-token')),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/view?token=public-token')),
     )
     expect(fetch).not.toHaveBeenCalled()
     expect(html).toContain('Complete <strong>SSR body</strong>.')
@@ -77,17 +78,19 @@ describe('public Share SSR', () => {
     const testFixture = await fixture()
     const prepare = vi.spyOn(testFixture.db, 'prepare')
     const missing = renderToStaticMarkup(
-      await renderShare(testFixture.env, null, new URL('https://app.test/share/view')),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/view')),
     )
     expect(prepare).not.toHaveBeenCalled()
     expect(missing).toContain('Link not found or expired')
     testFixture.sqlite.exec('UPDATE share_tokens SET expires_at = 1')
     const expired = renderToStaticMarkup(
-      await renderShare(testFixture.env, null, new URL('https://app.test/share/token'), { token: testFixture.token }),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token'), {
+        token: testFixture.token,
+      }),
     )
     expect(expired).toContain('Link not found or expired')
     const unknown = renderToStaticMarkup(
-      await renderShare(testFixture.env, null, new URL('https://app.test/share/unknown'), { token: 'unknown' }),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/unknown'), { token: 'unknown' }),
     )
     expect(unknown).toContain('Link not found or expired')
   })
@@ -112,7 +115,7 @@ describe('public Share SSR', () => {
         testFixture.sqlite.exec('DELETE FROM share_tokens')
       }
       const html = renderToStaticMarkup(
-        await renderShare(testFixture.env, null, new URL('https://app.test/share/view?token=ignored'), {
+        await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/view?token=ignored'), {
           token: testFixture.token,
         }),
       )
@@ -127,22 +130,23 @@ describe('public Share SSR', () => {
       throw new Error('Sensitive driver details')
     })
     await expect(
-      renderShare(testFixture.env, null, new URL('https://app.test/share/token?token=ignored'), {
+      renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token?token=ignored'), {
         token: testFixture.token,
       }),
     ).rejects.toMatchObject({ kind: 'request', message: 'An unexpected error occurred.', status: 500 })
   })
 
   test('layers null workspace fields over native deployment defaults', async () => {
-    expect(layerBrand(DEFAULT_BRAND, { ...workspaceBrand, displayName: null, accent: null, logoUrl: null }).name).toBe(
-      'Projektor',
-    )
+    expect(
+      layerBrand(DEFAULT_BRAND, { ...workspaceBrand, displayName: JSON_NULL, accent: JSON_NULL, logoUrl: JSON_NULL })
+        .name,
+    ).toBe('Projektor')
     const testFixture = await fixture()
     testFixture.sqlite.prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'").run('{}')
     const html = renderToStaticMarkup(
       await renderShare(
         { ...testFixture.env, BRAND_NAME: 'Custom Deployment', BRAND_ACCENT: '#abcdef' },
-        null,
+        JSON_NULL,
         new URL('https://app.test/share/token'),
         { token: testFixture.token },
       ),
@@ -157,7 +161,9 @@ describe('public Share SSR', () => {
       .prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'")
       .run(JSON.stringify({ ...workspaceBrand, logoR2Key: 'workspace/workspace/brand/logo.svg' }))
     const html = renderToStaticMarkup(
-      await renderShare(testFixture.env, null, new URL('https://app.test/share/token'), { token: testFixture.token }),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token'), {
+        token: testFixture.token,
+      }),
     )
     expect(html).toContain(`/api/share/${testFixture.token}/logo`)
     expect(html).not.toContain('/api/workspaces/acme/brand/logo')
@@ -167,7 +173,7 @@ describe('public Share SSR', () => {
     const testFixture = await fixture()
     testFixture.sqlite.exec("UPDATE issues SET created_at = 'not-a-number' WHERE id = 'issue'")
     await expect(
-      renderShare(testFixture.env, null, new URL('https://app.test/share/token'), { token: testFixture.token }),
+      renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token'), { token: testFixture.token }),
     ).rejects.toMatchObject({ kind: 'request', message: 'An unexpected error occurred.', status: 500 })
   })
 })

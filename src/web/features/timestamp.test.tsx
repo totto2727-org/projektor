@@ -5,6 +5,7 @@ import type { Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 // @vitest-environment jsdom
 import type * as AttachmentActions from '@/attachment-actions.ts'
 
@@ -34,7 +35,7 @@ function seed(): WikiSeed {
     filterStatus: '',
     filterTags: '',
     searchQuery: '',
-    draft: null,
+    draft: JSON_NULL,
     draftStatus: 'ready',
     tree: [],
     revisions: [],
@@ -49,18 +50,18 @@ function seed(): WikiSeed {
       slug: 'guide',
       title: 'Guide',
       content: 'Published',
-      project_id: null,
-      parent_id: null,
+      project_id: JSON_NULL,
+      parent_id: JSON_NULL,
       revisionId: 'rev',
       updated_at: timestamp,
-      type: null,
-      status: null,
+      type: JSON_NULL,
+      status: JSON_NULL,
       tags: [],
       owners: [],
       verified_at: timestamp,
       verified_by: 'Alice',
-      verify_interval: null,
-      freshness: null,
+      verify_interval: JSON_NULL,
+      freshness: JSON_NULL,
     },
   }
 }
