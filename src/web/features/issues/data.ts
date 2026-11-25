@@ -1,9 +1,11 @@
 import { Effect, Schema } from 'effect'
+import type { Types } from 'effect'
 
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { browserRequest, coreResult } from '@/core.ts'
 import { SprintSchema } from '@/features/planning/schemas.ts'
 import { RequestServices } from '@/request.ts'
+import type { PageFailure } from '@/request.ts'
 import { dataError } from '@/server/data-context.ts'
 import { ScopeError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/request-context.ts'
@@ -26,8 +28,13 @@ import {
   normalizeStatuses,
   normalizeTaskTypes,
 } from './types.ts'
+import type { Attachment, Comment, Issue, IssueLink, IssuePage, Status, TaskType } from './types.ts'
 
-export const checked = function checked<A>(read: () => A) {
+type IssueRead<A> = Effect.Effect<A, PageFailure, RequestServices>
+type IssueSearchResult = Types.Mutable<(typeof SearchResultsSchema.Type)[number]>
+type WikiAttachmentSearchResult = Types.Mutable<(typeof WikiSearchResultsSchema.Type)[number]>
+
+export const checked = function checked<A>(read: () => A): Effect.Effect<A, PageFailure> {
   return Effect.try({ catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)), try: read })
 }
 
@@ -36,7 +43,7 @@ export const readDataIssue = function readDataIssue(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<Issue> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -49,7 +56,7 @@ export const readDataIssuePage = function readDataIssuePage(
   _scope: RequestScope,
   workspaceId: string,
   params: URLSearchParams,
-) {
+): IssueRead<IssuePage> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -64,7 +71,7 @@ export const searchDataIssues = function searchDataIssues(
   query: string,
   projectId?: string,
   review?: ReviewFilter,
-) {
+): IssueRead<IssueSearchResult[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -78,7 +85,7 @@ export const readDataComments = function readDataComments(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<Comment[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -92,7 +99,7 @@ export const readDataLinks = function readDataLinks(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<IssueLink[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -106,7 +113,7 @@ export const readDataAttachments = function readDataAttachments(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<Attachment[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -119,7 +126,7 @@ export const searchDataWikiAttachments = function searchDataWikiAttachments(
   _scope: RequestScope,
   workspaceId: string,
   query: string,
-) {
+): IssueRead<WikiAttachmentSearchResult[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -128,7 +135,9 @@ export const searchDataWikiAttachments = function searchDataWikiAttachments(
     ).pipe(Effect.map((rows) => rows.map((row) => ({ ...row }))))
   })
 }
-export const readIssueLookups = function readIssueLookups(workspaceId: string) {
+export const readIssueLookups = function readIssueLookups(
+  workspaceId: string,
+): IssueRead<{ statuses: Status[]; taskTypes: TaskType[] }> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -142,7 +151,9 @@ export const readIssueLookups = function readIssueLookups(workspaceId: string) {
     )
   })
 }
-export const readIssueMembers = function readIssueMembers(workspaceId: string) {
+export const readIssueMembers = function readIssueMembers(
+  workspaceId: string,
+): IssueRead<Readonly<(typeof MemberSchema.Type)[]>> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -151,7 +162,10 @@ export const readIssueMembers = function readIssueMembers(workspaceId: string) {
     )
   })
 }
-export const readSprints = function readSprints(workspaceId: string, projectId: string) {
+export const readSprints = function readSprints(
+  workspaceId: string,
+  projectId: string,
+): IssueRead<Readonly<(typeof SprintSchema.Type)[]>> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -160,7 +174,10 @@ export const readSprints = function readSprints(workspaceId: string, projectId: 
     )
   })
 }
-export const readSprint = function readSprint(workspaceId: string, sprintId: string) {
+export const readSprint = function readSprint(
+  workspaceId: string,
+  sprintId: string,
+): IssueRead<typeof SprintSchema.Type> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
