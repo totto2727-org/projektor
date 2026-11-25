@@ -9,7 +9,7 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { requireDataWorkspace } from '#contracts/web-data.ts'
 import type { ProjectSummaryVisibility } from '#services'
 
-import type { RequestScope } from './scope.ts'
+import type { RequestScope, WorkspaceMembership } from './scope.ts'
 
 export {
   authorizeDataEntity,
@@ -56,18 +56,30 @@ export const visibleProjectPredicate = function visibleProjectPredicate(
   )`
 }
 
+interface DataContext {
+  db: D1Database
+  scope: RequestScope
+  workspace: WorkspaceMembership
+  workspaceId: string
+  userId: string
+  visibility: (projectColumn: Column | SQL) => SQL | undefined
+}
+
 export const makeDataContext = function makeDataContext(
   services: Readonly<{ db: D1Database }>,
   scope: RequestScope,
   workspaceId?: string,
-) {
+): DataContext {
   const workspace = requireDataWorkspace(scope, workspaceId)
-  return {
-    db: requireDataDatabase(services.db),
-    scope,
-    workspace,
-    workspaceId: workspace.id,
-    userId: scope.user.id,
-    visibility: (projectColumn: Column | SQL) => visibleProjectPredicate(scope, workspace.id, projectColumn),
-  }
+  return fieldsInOrder([
+    ['db', requireDataDatabase(services.db)],
+    ['scope', scope],
+    ['workspace', workspace],
+    ['workspaceId', workspace.id],
+    ['userId', scope.user.id],
+    [
+      'visibility',
+      (projectColumn: Column | SQL): SQL | undefined => visibleProjectPredicate(scope, workspace.id, projectColumn),
+    ],
+  ])
 }
