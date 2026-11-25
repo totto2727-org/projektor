@@ -13,6 +13,7 @@ import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from 
 import { recordActivity } from './activity.ts'
 import * as cache from './cache.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { deleteR2Keys } from './r2-delete.ts'
 import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
@@ -394,13 +395,9 @@ export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: s
     ),
   )
 
-  for (let index = 0; index < r2Keys.length; index += 1000) {
-    try {
-      await ctx.r2.delete(r2Keys.slice(index, index + 1000))
-    } catch (error) {
-      console.error('deleteProject: R2 cleanup failed', { id, err: String(error) })
-    }
-  }
+  await deleteR2Keys(ctx.r2, r2Keys, (error) => {
+    console.error('deleteProject: R2 cleanup failed', { id, err: String(error) })
+  })
 
   await recordActivity(ctx, { action: 'deleted', entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)

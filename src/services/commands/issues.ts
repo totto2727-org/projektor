@@ -45,6 +45,7 @@ import {
 } from './issue-leases.ts'
 import { listLinksForIssue } from './issue-links.ts'
 import { resolveProjectIdParam, resolveVisibleProjectIdParam } from './projects.ts'
+import { deleteR2Keys } from './r2-delete.ts'
 import { broadcastWorkspaceEvent } from './realtime.ts'
 import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'
 import { resolveStatus } from './task-statuses.ts'
@@ -1562,18 +1563,13 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
    * continue other chunks if one fails so a large issue does not strand every object.
    */
   const r2Keys = fileAttachments.map((attachment) => attachment.r2Key).filter((key): key is string => Boolean(key))
-  for (let offset = 0; offset < r2Keys.length; offset += 1000) {
-    const keys = r2Keys.slice(offset, offset + 1000)
-    try {
-      await ctx.r2.delete(keys)
-    } catch (error) {
-      console.error('deleteIssue: R2 cleanup failed', {
-        id,
-        r2Keys: keys,
-        err: globalThis.String(error),
-      })
-    }
-  }
+  await deleteR2Keys(ctx.r2, r2Keys, (error, batch) => {
+    console.error('deleteIssue: R2 cleanup failed', {
+      id,
+      r2Keys: batch,
+      err: globalThis.String(error),
+    })
+  })
 
   await recordActivity(ctx, { action: 'deleted', entityId: id, entityType: 'issue' })
   const toInvalidate = new Set([id, ...affected.results.map((result) => result.id)])

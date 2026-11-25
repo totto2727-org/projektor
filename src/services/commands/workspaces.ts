@@ -28,6 +28,7 @@ import {
   ValidationError,
   validationIssues,
 } from './errors.ts'
+import { deleteR2Keys } from './r2-delete.ts'
 import { prepareQuery } from './sql.ts'
 import { buildDefaultTaskStatusStatements } from './task-statuses.ts'
 import { buildDefaultTaskTypeStatements } from './task-types.ts'
@@ -371,13 +372,9 @@ export const deleteWorkspace = async function deleteWorkspace(
     .all<{ k: string }>()
   const r2Keys = queryResult.results.map((result) => result.k)
   await ctx.db.batch(WORKSPACE_CLEANUP_SQL.map((sql) => ctx.db.prepare(sql).bind(ctx.workspaceId)))
-  for (let index = 0; index < r2Keys.length; index += 1000) {
-    try {
-      await ctx.r2.delete(r2Keys.slice(index, index + 1000))
-    } catch (error) {
-      console.error('deleteWorkspace: R2 cleanup failed', { err: String(error) })
-    }
-  }
+  await deleteR2Keys(ctx.r2, r2Keys, (error) => {
+    console.error('deleteWorkspace: R2 cleanup failed', { err: String(error) })
+  })
   if (brand.logoR2Key) {
     try {
       await ctx.r2.delete(brand.logoR2Key)

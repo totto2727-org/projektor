@@ -34,6 +34,7 @@ import {
 } from './access.ts'
 import { recordActivity } from './activity.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { deleteR2Keys } from './r2-delete.ts'
 import { inChunks, prepareQuery, sanitizeFtsQuery } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 import { deleteWikiDraftsForPages } from './wiki-drafts.ts'
@@ -2213,8 +2214,6 @@ const collectCascadeTrashedDescendantIds = async function collectCascadeTrashedD
  * deletes below: `attachments` has no other index that narrows a purge-scale scan, so an
  * unscoped query here was effectively `SCAN attachments` across every tenant.
  */
-const R2_DELETE_BATCH_SIZE = 1000
-
 const deleteWikiPageAttachments = async function deleteWikiPageAttachments(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle<typeof schema>>,
@@ -2232,9 +2231,7 @@ const deleteWikiPageAttachments = async function deleteWikiPageAttachments(
       ),
     )
   const r2Keys = fileAttachments.map((attachment) => attachment.r2Key).filter((key): key is string => Boolean(key))
-  for (let index = 0; index < r2Keys.length; index += R2_DELETE_BATCH_SIZE) {
-    await ctx.r2.delete(r2Keys.slice(index, index + R2_DELETE_BATCH_SIZE))
-  }
+  await deleteR2Keys(ctx.r2, r2Keys)
 
   await orm
     .delete(schema.attachments)
