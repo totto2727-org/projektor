@@ -257,10 +257,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const first = await tool(
       fixture,
       {
-        arguments: {
-          view: 'summary',
-          limit: 2,
-        },
+        arguments: { limit: 2, view: 'summary' },
         name: 'list_issues',
       },
       IssueCursorPage,
@@ -275,11 +272,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const second = await tool(
       fixture,
       {
-        arguments: {
-          view: 'summary',
-          limit: 2,
-          cursor: first.next,
-        },
+        arguments: { cursor: first.next, limit: 2, view: 'summary' },
         name: 'list_issues',
       },
       IssueCursorPage,
@@ -353,7 +346,7 @@ describe('covers PROJ-891: MCP tools', () => {
 
   test<ResponseShapingTestContext>('list_comments and list_project_activity return {items}', async ({ fixture }) => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Talky' })
-    await tool(fixture, { arguments: { issueId: issue.id, body: 'hi' }, name: 'add_comment' }, Schema.Unknown)
+    await tool(fixture, { arguments: { body: 'hi', issueId: issue.id }, name: 'add_comment' }, Schema.Unknown)
     const comments = await tool(
       fixture,
       {
@@ -382,16 +375,16 @@ describe('covers PROJ-891: MCP tools', () => {
     await runInOrder(['Alpha Guide', 'Alpha Notes', 'Alpha Ideas'], async (t): Promise<void> => {
       await tool(
         fixture,
-        { arguments: { title: t, content: 'alpha content' }, name: 'create_wiki_page' },
+        { arguments: { content: 'alpha content', title: t }, name: 'create_wiki_page' },
         Schema.Unknown,
       )
     })
-    const p1 = await tool(fixture, { arguments: { query: 'alpha', limit: 2 }, name: 'search_wiki' }, CursorPage)
+    const p1 = await tool(fixture, { arguments: { limit: 2, query: 'alpha' }, name: 'search_wiki' }, CursorPage)
     expect(p1.items).toHaveLength(2)
     expect(p1.next).toBe('2')
     const p2 = await tool(
       fixture,
-      { arguments: { query: 'alpha', limit: 2, cursor: p1.next }, name: 'search_wiki' },
+      { arguments: { cursor: p1.next, limit: 2, query: 'alpha' }, name: 'search_wiki' },
       CursorPage,
     )
     expect(p2.items).toHaveLength(1)
@@ -404,7 +397,7 @@ describe('covers PROJ-891: MCP tools', () => {
   })
 
   test<ResponseShapingTestContext>('wiki_tree returns {items}', async ({ fixture }) => {
-    await tool(fixture, { arguments: { title: 'Root', content: 'x' }, name: 'create_wiki_page' }, Schema.Unknown)
+    await tool(fixture, { arguments: { content: 'x', title: 'Root' }, name: 'create_wiki_page' }, Schema.Unknown)
     const tree = await tool(fixture, { arguments: {}, name: 'wiki_tree' }, ItemsResponse)
     expect(tree.items.length).toBeGreaterThan(0)
   })
@@ -414,7 +407,7 @@ describe('covers PROJ-891: MCP tools', () => {
     await runIndexedInOrder(30, async (index): Promise<void> => {
       await tool(
         fixture,
-        { arguments: { issueId: issue.id, body: `${index} ${'c'.repeat(1000)}` }, name: 'add_comment' },
+        { arguments: { body: `${index} ${'c'.repeat(1000)}`, issueId: issue.id }, name: 'add_comment' },
         Schema.Unknown,
       )
     })
@@ -435,7 +428,7 @@ describe('covers PROJ-891: MCP tools', () => {
   test<ResponseShapingTestContext>('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async ({
     fixture,
   }) => {
-    await tool(fixture, { arguments: { title: 'Some Page', content: 'x' }, name: 'create_wiki_page' }, Schema.Unknown)
+    await tool(fixture, { arguments: { content: 'x', title: 'Some Page' }, name: 'create_wiki_page' }, Schema.Unknown)
     const future = currentEpochSeconds() + 3600
     const none = await tool(
       fixture,
@@ -453,10 +446,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const empty = await tool(
       fixture,
       {
-        arguments: {
-          since: future,
-          cursor: '',
-        },
+        arguments: { cursor: '', since: future },
         name: 'list_wiki_changes',
       },
       ItemsResponse,
@@ -470,10 +460,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const result = await tool(
       fixture,
       {
-        arguments: {
-          title: 'Sect Page',
-          content: '# A\nalpha\n## B\nbeta\n',
-        },
+        arguments: { content: '# A\nalpha\n## B\nbeta\n', title: 'Sect Page' },
         name: 'create_wiki_page',
       },
       SlugResponse,
@@ -491,7 +478,7 @@ describe('covers PROJ-891: MCP tools', () => {
     )
     expect(changes.items.length).toBeGreaterThan(0)
     expect(changes.next).toBeTypeOf('string')
-    const sec = await tool(fixture, { arguments: { slug, section: 'B' }, name: 'get_wiki_page' }, WikiSectionResult)
+    const sec = await tool(fixture, { arguments: { section: 'B', slug }, name: 'get_wiki_page' }, WikiSectionResult)
     expect(sec.contentTruncated).toBe(true)
   })
 })
