@@ -12,6 +12,18 @@ import sanitizeHtml from 'sanitize-html'
 import githubDark from 'shiki/themes/github-dark.mjs'
 import githubLight from 'shiki/themes/github-light.mjs'
 
+const OPEN_NESTING = 1
+const CLOSE_NESTING = -1
+const NO_NESTING = 0
+const INITIAL_LINK_DEPTH = 0
+const WIKI_LINK_PREFIX = '[['
+
+const wikiLinkNesting = function wikiLinkNesting(
+  token: Readonly<{ type: string }>,
+): typeof OPEN_NESTING | typeof CLOSE_NESTING | typeof NO_NESTING {
+  return token.type === 'link_open' ? OPEN_NESTING : token.type === 'link_close' ? CLOSE_NESTING : NO_NESTING
+}
+
 export type MarkdownHeading = Readonly<{
   id: string
   level: number
@@ -121,7 +133,10 @@ export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string):
       '*': (tagName, attribs) => {
         Iterable.forEach(['fill', 'stroke'], (key) => {
           const paint = attribs[key]
-          if (paint && !/^(?:[a-z]+|#[\da-f]{3,8}|var\(--[\w-]+\)|url\(#[\w-]+\))$/i.test(paint)) {
+          if (
+            paint &&
+            !/^(?:[a-zA-Z]+|#[\da-fA-F]{3,8}|[vV][aA][rR]\(--[\w-]+\)|[uU][rR][lL]\(#[\w-]+\))$/u.test(paint)
+          ) {
             delete attribs[key]
           }
         })
@@ -162,11 +177,9 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
         md.inline.ruler.before('link', 'projektor_wiki_link', (state, silent) => {
           if (
             !options.pages ||
-            state.tokens.reduce(
-              (depth, token) => depth + (token.type === 'link_open' ? 1 : token.type === 'link_close' ? -1 : 0),
-              0,
-            ) > 0 ||
-            state.src.slice(state.pos, state.pos + 2) !== '[['
+            state.tokens.reduce((depth, token) => depth + wikiLinkNesting(token), INITIAL_LINK_DEPTH) >
+              INITIAL_LINK_DEPTH ||
+            state.src.slice(state.pos, state.pos + WIKI_LINK_PREFIX.length) !== WIKI_LINK_PREFIX
           ) {
             return false
           }
@@ -182,11 +195,11 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
             const label = parts?.label?.trim() ?? title
             const slug = pages.get(fold(title))
             if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
-              state.push('mdc_inline_span', 'span', 1)
-              state.push('text', '', 0).content = `${label} `
+              state.push('mdc_inline_span', 'span', OPEN_NESTING)
+              state.push('text', '', NO_NESTING).content = `${label} `
             }
             state
-              .push('link_open', 'a', 1)
+              .push('link_open', 'a', OPEN_NESTING)
               .attrSet(
                 'href',
                 scoped(
@@ -195,11 +208,12 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
                     : `/wiki?createTitle=${encodeURIComponent(title)}`,
                 ),
               )
-            state.push('text', '', 0).content = Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? label : '+'
-            state.push('link_close', 'a', -1)
+            state.push('text', '', NO_NESTING).content =
+              Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? label : '+'
+            state.push('link_close', 'a', CLOSE_NESTING)
             if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
-              state.push('mdc_inline_span', 'span', -1)
-              state.push('mdc_inline_props', '', 0).attrSet('class', 'wiki-link-broken')
+              state.push('mdc_inline_span', 'span', CLOSE_NESTING)
+              state.push('mdc_inline_props', '', NO_NESTING).attrSet('class', 'wiki-link-broken')
             }
           }
           state.pos += match[0].length
