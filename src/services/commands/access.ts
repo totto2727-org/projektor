@@ -269,7 +269,7 @@ export function visibleProjectPredicate(ctx: ServiceCtx, projectColumn: Column |
  * table-qualified identifier and throws otherwise, so a future caller can't turn
  * this into an injection vector by passing something dynamic.
  */
-const COLUMN_EXPR = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/u
+const COLUMN_EXPR = /^[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?$/u
 
 export const visibleProjectSqlFragment = function visibleProjectSqlFragment(
   ctx: ServiceCtx,

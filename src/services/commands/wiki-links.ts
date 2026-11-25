@@ -35,13 +35,13 @@ type Orm = ReturnType<typeof drizzle<typeof schema>>
  * Mirrors apps/web/src/utils/markdown.ts's resolveWikilinks regex — same link syntax
  * rules, server-side.
  */
-const WIKILINK_RE = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/gu
+const WIKILINK_RE = /\[\[(?<title>[^\]|]+?)(?:\|[^\]]+?)?\]\]/gu
 /*
  * Markdown link syntax `[label](url)` — used to catch same-workspace wiki URLs
  * (`/wiki/:slug`, `/wiki?slug=...`, or the relative `?slug=...` form markdown.ts emits
  * for already-resolved wikilinks).
  */
-const MD_LINK_RE = /\[[^\]]*\]\(([^)\s]+)\)/gu
+const MD_LINK_RE = /\[[^\]]*\]\((?<url>[^)\s]+)\)/gu
 
 type ParsedLinkTarget = { kind: 'title'; title: string } | { kind: 'slug'; slug: string }
 
@@ -57,9 +57,8 @@ const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): str
   if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(url)) {
     return null
   }
-  const pathMatch = url.match(/^\/wiki\/([a-z0-9-]+)\/?$/i)
-  const queryMatch = pathMatch ? null : url.match(/[?&]slug=([^&]+)/u)
-  const raw = pathMatch?.[1] ?? queryMatch?.[1]
+  const pathSlug = url.match(/^\/wiki\/(?<slug>[a-z0-9-]+)\/?$/i)?.groups?.slug
+  const raw = pathSlug ?? url.match(/[?&]slug=(?<slug>[^&]+)/u)?.groups?.slug
   if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return null
   }
@@ -75,13 +74,13 @@ const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): str
 export const parseWikiLinkTargets = function parseWikiLinkTargets(content: string): ParsedLinkTarget[] {
   const targets: ParsedLinkTarget[] = []
   Iterable.forEach(content.matchAll(WIKILINK_RE), (match) => {
-    const title = match[1].trim()
-    if (title) {
+    const title = match.groups?.title.trim() ?? ''
+    if (String.isNonEmpty(title)) {
       targets.push({ kind: 'title', title })
     }
   })
   Iterable.forEach(content.matchAll(MD_LINK_RE), (match) => {
-    const slug = extractWikiSlugFromUrl(match[1].trim())
+    const slug = extractWikiSlugFromUrl(match.groups?.url.trim() ?? '')
     if (Predicate.isNotNullish(slug) && String.isNonEmpty(slug)) {
       targets.push({ kind: 'slug', slug })
     }

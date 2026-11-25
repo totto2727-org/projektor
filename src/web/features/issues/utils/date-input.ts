@@ -13,11 +13,11 @@ import { formatTimestampDate } from '@/features/timestamp.ts'
 
 /** "YYYY-MM-DD" → unix seconds at local midnight; empty/invalid → null. */
 export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value.trim())
-  if (!match) {
+  const parts = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u.exec(value.trim())?.groups
+  if (!parts) {
     return null
   }
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  const date = new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day))
   return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / MILLISECONDS_PER_SECOND)
 }
 

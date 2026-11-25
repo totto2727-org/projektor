@@ -97,9 +97,9 @@ export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string):
             [/^#[\da-f]{3,8}$/iu],
           ]),
         ),
-        'font-style': [/^(normal|italic)$/u],
-        'font-weight': [/^(normal|bold|[1-9]00)$/u],
-        'text-decoration': [/^(none|underline|line-through)$/u],
+        'font-style': [/^(?:normal|italic)$/u],
+        'font-weight': [/^(?:normal|bold|[1-9]00)$/u],
+        'text-decoration': [/^(?:none|underline|line-through)$/u],
         ...Object.fromEntries(
           [
             'height',
@@ -170,13 +170,16 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
           ) {
             return false
           }
-          const match = /^\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/u.exec(state.src.slice(state.pos, state.posMax))
+          const match = /^\[\[(?<title>[^\]|]+?)(?:\|(?<label>[^\]]+?))?\]\]/u.exec(
+            state.src.slice(state.pos, state.posMax),
+          )
           if (!match) {
             return false
           }
           if (!silent) {
-            const title = match[1].trim()
-            const label = match[2]?.trim() ?? title
+            const parts: Record<string, string | undefined> | undefined = match.groups
+            const title = parts?.title?.trim() ?? ''
+            const label = parts?.label?.trim() ?? title
             const slug = pages.get(fold(title))
             if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
               state.push('mdc_inline_span', 'span', 1)
