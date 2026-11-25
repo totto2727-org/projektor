@@ -3,6 +3,8 @@ import type { JSX } from 'react'
 
 import { IssueList } from '@/features/issues/components/issue-list.tsx'
 import type { SprintDetail } from '@/features/issues/components/issue-list/sprint-banner-section.tsx'
+import type { ViewMode } from '@/features/issues/components/issue-list/types-view.ts'
+import type { IssueSearchSeed } from '@/features/issues/components/issue-list/use-issue-search.ts'
 import type { Issue, IssuePage, Status, TaskType } from '@/features/issues/types.ts'
 import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
 
@@ -10,7 +12,7 @@ import { IssueReviewNavigation } from './issue-review-navigation.tsx'
 import { SelectionRequired } from './shared.tsx'
 export type IssuesInitialData = Readonly<{
   currentUserId: string
-  view: import('../components/issue-list/types-view').ViewMode
+  view: ViewMode
   page: IssuePage
   statuses: Readonly<Status[]>
   taskTypes: Readonly<TaskType[]>
@@ -19,7 +21,7 @@ export type IssuesInitialData = Readonly<{
   epics: Readonly<Issue[]>
   sprints: Readonly<{ id: string; name: string; status: string }[]>
   sprintDetail: SprintDetail | null
-  search: import('../components/issue-list/use-issue-search.ts').IssueSearchSeed
+  search: IssueSearchSeed
 }>
 export type IssuesRoute = Readonly<{
   pathname: string

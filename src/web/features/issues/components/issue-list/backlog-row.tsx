@@ -1,5 +1,5 @@
 'use client'
-import type { JSX } from 'react'
+import type { DragEvent, JSX } from 'react'
 
 import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { ReviewTargetsSummary } from '@/features/issues/components/review-targets-summary.tsx'
@@ -20,9 +20,9 @@ interface RowProps {
   changePriority: (issueId: string, priority: string) => void
   isDragging: boolean
   isOver: boolean
-  onDragStart: (selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string) => void
-  onDragOver: (selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string) => void
-  onDrop: (selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string) => void
+  onDragStart: (selectedEvent: DragEvent<HTMLElement>, issueId: string) => void
+  onDragOver: (selectedEvent: DragEvent<HTMLElement>, issueId: string) => void
+  onDrop: (selectedEvent: DragEvent<HTMLElement>, issueId: string) => void
   onDragEnd: () => void
 }
 
@@ -47,13 +47,13 @@ export const BacklogRow = function BacklogRow({
       key={issue.id}
       className='border-b border-border group'
       draggable
-      onDragStart={(selectedEvent: import('react').DragEvent<HTMLElement>) => {
+      onDragStart={(selectedEvent: DragEvent<HTMLElement>) => {
         onDragStart(selectedEvent, issue.id)
       }}
-      onDragOver={(selectedEvent: import('react').DragEvent<HTMLElement>) => {
+      onDragOver={(selectedEvent: DragEvent<HTMLElement>) => {
         onDragOver(selectedEvent, issue.id)
       }}
-      onDrop={(selectedEvent: import('react').DragEvent<HTMLElement>) => {
+      onDrop={(selectedEvent: DragEvent<HTMLElement>) => {
         onDrop(selectedEvent, issue.id)
       }}
       onDragEnd={onDragEnd}

@@ -8,7 +8,8 @@ import {
   rateLimiterObjectName as apiObjectName,
   rateLimitMiddleware,
 } from '#api/middleware/rate-limit.ts'
-import { RateLimitRequest, RateCounterRequest, RateLimitResult } from '#contracts/request-rate-limit.ts'
+import { RateLimitResult } from '#contracts/request-rate-limit.ts'
+import type { RateLimitRequest, RateCounterRequest } from '#contracts/request-rate-limit.ts'
 import { makeApiRateLimitHandlers } from '#core/api/rate-limit.ts'
 import { decodeCoreReply } from '#core/client.ts'
 import {

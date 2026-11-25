@@ -1,4 +1,5 @@
-import { Effect, Schema } from 'effect'
+import { Effect } from 'effect'
+import type { Schema } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
 
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'

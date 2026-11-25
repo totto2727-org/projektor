@@ -1,7 +1,7 @@
 'use client'
 import { String, Predicate, Array } from 'effect'
 import { useState } from 'react'
-import type { JSX } from 'react'
+import type { DragEvent, JSX } from 'react'
 
 import {
   BOARD_COLUMNS,
@@ -39,16 +39,16 @@ export function BoardView({
             key={col.category}
             aria-label={`${col.label} column`}
             className='shrink-0 w-[270px] max-sm:w-full'
-            onDragOver={(event: import('react').DragEvent<HTMLElement>) => {
+            onDragOver={(event: DragEvent<HTMLElement>) => {
               event.preventDefault()
               setDragOverColumn(col.category)
             }}
-            onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
+            onDragLeave={(event: DragEvent<HTMLElement>) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node)) {
                 setDragOverColumn(undefined)
               }
             }}
-            onDrop={(event: import('react').DragEvent<HTMLElement>) => {
+            onDrop={(event: DragEvent<HTMLElement>) => {
               event.preventDefault()
               const issueId = event.dataTransfer?.getData('text/plain')
               if (

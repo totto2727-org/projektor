@@ -26,6 +26,7 @@ import * as data from '#services/wiki.ts'
 
 import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'
+import type { RequestScope } from './scope.ts'
 import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
 export const WikiDiffSchema = Schema.Struct({ diff: Schema.String })
@@ -43,7 +44,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
     name: string,
     schema: S,
     proof: BrowserCommand,
-    operation: (env: CoreEnvironment, scope: import('./scope').RequestScope) => Effect.Effect<A, E>,
+    operation: (env: CoreEnvironment, scope: RequestScope) => Effect.Effect<A, E>,
   ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) =>
       coreReply(

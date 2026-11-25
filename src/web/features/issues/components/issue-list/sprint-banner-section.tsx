@@ -1,6 +1,6 @@
 'use client'
 import { Schema } from 'effect'
-import type { JSX, Dispatch, SetStateAction } from 'react'
+import type { FormEvent, JSX, Dispatch, SetStateAction } from 'react'
 import { useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -84,7 +84,7 @@ interface SprintBannerProps {
   setSprintEditEnd: Dispatch<SetStateAction<string>>
   sprintEditSaving: boolean
   sprintEditError: string | null
-  saveSprintEdit: (selectedEvent: import('react').FormEvent<HTMLFormElement>) => void
+  saveSprintEdit: (selectedEvent: FormEvent<HTMLFormElement>) => void
   openSprintEdit: () => void
   setFilterSprintId: Dispatch<SetStateAction<string>>
   issues: Issue[]
@@ -366,7 +366,7 @@ export function SprintBannerSection({
     setSprintEditing(true)
   }
 
-  async function saveSprintEdit(event: import('react').FormEvent<HTMLFormElement>): Promise<void> {
+  async function saveSprintEdit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     if (!sprintDetail) {
       return

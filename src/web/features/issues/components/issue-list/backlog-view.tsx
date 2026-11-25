@@ -1,7 +1,7 @@
 'use client'
 import { Array } from 'effect'
 import { useState } from 'react'
-import type { JSX } from 'react'
+import type { DragEvent, JSX } from 'react'
 
 import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
 import type { Issue } from '@/features/issues/components/board-utils.ts'
@@ -49,23 +49,17 @@ export function BacklogView({
   }
   const orderedIssues = applyBacklogOrder(backlogIssues, backlogOrder)
 
-  const onBacklogDragStart = function onBacklogDragStart(
-    selectedEvent: import('react').DragEvent<HTMLElement>,
-    issueId: string,
-  ): void {
+  const onBacklogDragStart = function onBacklogDragStart(selectedEvent: DragEvent<HTMLElement>, issueId: string): void {
     selectedEvent.dataTransfer?.setData('text/plain', issueId)
     setBacklogDragId(issueId)
   }
 
-  const onBacklogDragOver = function onBacklogDragOver(
-    event: import('react').DragEvent<HTMLElement>,
-    issueId: string,
-  ): void {
+  const onBacklogDragOver = function onBacklogDragOver(event: DragEvent<HTMLElement>, issueId: string): void {
     event.preventDefault()
     setBacklogDragOverId(issueId)
   }
 
-  const onBacklogDrop = function onBacklogDrop(event: import('react').DragEvent<HTMLElement>, targetId: string): void {
+  const onBacklogDrop = function onBacklogDrop(event: DragEvent<HTMLElement>, targetId: string): void {
     event.preventDefault()
     const draggedId = event.dataTransfer?.getData('text/plain')
     if (!draggedId || draggedId === targetId) {
@@ -93,7 +87,7 @@ export function BacklogView({
         <table className='w-full border-collapse text-[0.9rem]'>
           <BacklogTableHead sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
           <tbody
-            onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
+            onDragLeave={(event: DragEvent<HTMLElement>) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node)) {
                 setBacklogDragOverId(undefined)
               }

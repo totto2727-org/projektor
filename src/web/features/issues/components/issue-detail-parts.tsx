@@ -2,7 +2,7 @@
 import { query as serverQuery } from '@effront/core/query'
 import { String, Array, Predicate, Effect, Schema } from 'effect'
 import { useEffect, useRef, useState } from 'react'
-import type { JSX, ReactNode } from 'react'
+import type { FormEvent, JSX, ReactNode } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { AttachmentUpload } from '@/components/attachment-upload.tsx'
@@ -1668,7 +1668,7 @@ const useNewCommentForm = function useNewCommentForm(
     saveDraft(key, value)
   }
 
-  const submitComment = async function submitComment(event: import('react').FormEvent<HTMLFormElement>): Promise<void> {
+  const submitComment = async function submitComment(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     const revision = newCommentRevision.current
     const submittedBody = newComment.trim()

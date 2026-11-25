@@ -1,5 +1,5 @@
 'use client'
-import type { JSX } from 'react'
+import type { DragEvent, JSX } from 'react'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { assigneeInitials, ISSUE_BOARD_WIDE_MIN_WIDTH } from '@/features/issues/components/board-utils.ts'
@@ -40,7 +40,7 @@ export const BoardCard = function BoardCard({
         href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
         className='block no-underline'
         draggable
-        onDragStart={(event: import('react').DragEvent<HTMLElement>) => {
+        onDragStart={(event: DragEvent<HTMLElement>) => {
           if (window.innerWidth < ISSUE_BOARD_WIDE_MIN_WIDTH) {
             event.preventDefault()
             return
