@@ -27,7 +27,7 @@ const declaredFkActions = function declaredFkActions(): Set<string> {
   Iterable.forEach(
     readdirSync(MIGRATIONS).filter((selectedFile) => selectedFile.endsWith('.sql')),
     (file): void => {
-      const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replaceAll(/--[^\n]*/g, '')
+      const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replaceAll(/--[^\n]*/gu, '')
       Iterable.forEach(sql.split(';'), (stmt) => {
         const table =
           /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(\w+)[`"]?/i.exec(stmt) ??

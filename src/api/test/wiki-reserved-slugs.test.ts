@@ -99,7 +99,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     await env.DB.batch([search.stmt, exportPage.stmt, exportTaken.stmt, trashed.stmt])
 
     const statements = m0060
-      .replaceAll(/--[^\n]*/g, '')
+      .replaceAll(/--[^\n]*/gu, '')
       .split(';')
       .map((statement) => statement.trim())
       .filter((statement) => String.isNonEmpty(statement))

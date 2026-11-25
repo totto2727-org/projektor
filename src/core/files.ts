@@ -16,7 +16,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
 ): Promise<Response> {
   try {
     const url = new URL(request.url)
-    const download = /^\/files\/([^/]+)$/.exec(url.pathname)
+    const download = /^\/files\/([^/]+)$/u.exec(url.pathname)
     const upload = url.pathname === '/files' && request.method === 'POST'
     if (!download && !upload) {
       return new Response('Not found', { status: 404 })

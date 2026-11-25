@@ -14,7 +14,7 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../m
  */
 const splitStatements = function splitStatements(sql: string): string[] {
   return sql
-    .replaceAll(/--[^\n]*/g, '')
+    .replaceAll(/--[^\n]*/gu, '')
     .split(';')
     .map((statement) => statement.trim())
     .filter((statement) => String.isNonEmpty(statement))

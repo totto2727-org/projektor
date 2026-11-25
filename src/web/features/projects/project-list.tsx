@@ -28,7 +28,7 @@ const badgeClass =
 const deriveKey = (name: string): string =>
   name
     .toUpperCase()
-    .replaceAll(/[^A-Z0-9]/g, '')
+    .replaceAll(/[^A-Z0-9]/gu, '')
     .slice(0, 10)
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.

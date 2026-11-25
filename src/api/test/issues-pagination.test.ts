@@ -110,6 +110,6 @@ describe('covers PROJ-857: hot queries use an index (no table scan, no temp sort
   ])('%s', async (_name, q, binds) => {
     const detail = await plan(q, ...(binds as unknown[]))
     expect(detail).not.toMatch(/TEMP B-TREE/u)
-    expect(detail).not.toMatch(/SCAN (?:i|issues|p|projects)\b/)
+    expect(detail).not.toMatch(/SCAN (?:i|issues|p|projects)\b/u)
   })
 })

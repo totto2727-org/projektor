@@ -162,7 +162,7 @@ const authorizeUrl = function authorizeUrl(
 
 /** The hidden signed field the consent form carries. */
 const consentTokenFrom = function consentTokenFrom(html: string): string {
-  const match = /name="consent_token" value="([^"]+)"/.exec(html)
+  const match = /name="consent_token" value="([^"]+)"/u.exec(html)
   expect(match, 'consent screen did not render a consent_token').not.toBeNull()
   return (match as RegExpExecArray)[1]
 }

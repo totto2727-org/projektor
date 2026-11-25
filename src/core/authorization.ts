@@ -181,7 +181,7 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
   }
 
   // MCP must challenge unauthenticated connectors even when the UI dev bypass is on.
-  if (!/^\/mcp\/[^/]+$/.test(url.pathname)) {
+  if (!/^\/mcp\/[^/]+$/u.test(url.pathname)) {
     const principal = await authenticateDevelopment(env)
     if (principal) {
       return { ...principal, tokenWorkspaceId: undefined, tokenScopes: undefined }

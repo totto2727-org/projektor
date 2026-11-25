@@ -103,8 +103,8 @@ export interface WikiSeed {
 function slugify(title: string): string {
   return title
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-|-$/g, '')
+    .replaceAll(/[^a-z0-9]+/gu, '-')
+    .replaceAll(/^-|-$/gu, '')
 }
 function safeDecodeURIComponent(raw: string): string | null {
   try {
@@ -413,7 +413,7 @@ function TreeNodeItem({
  * of showing the literal asterisks.
  */
 function renderHighlightedExcerpt(excerpt: string) {
-  const parts = excerpt.split(/(\*\*[^*]*\*\*)/g).filter((part) => String.isNonEmpty(part))
+  const parts = excerpt.split(/(\*\*[^*]*\*\*)/gu).filter((part) => String.isNonEmpty(part))
   let offset = 0
   return parts.map((part) => {
     const key = offset
@@ -1968,7 +1968,7 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
 function excerptOf(content: string, maxLength = 200): string {
   // PROJ-488: never let a page's frontmatter YAML become its og:description.
   const plain = stripFrontmatter(content)
-    .replaceAll(/```[\s\S]*?```/g, ' ')
+    .replaceAll(/```[\s\S]*?```/gu, ' ')
     .replaceAll(/[#*_>`[\]()!-]/gu, ' ')
     .replaceAll(/\s+/gu, ' ')
     .trim()

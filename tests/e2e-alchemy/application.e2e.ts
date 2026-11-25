@@ -181,7 +181,7 @@ test('API and Web share private Core persistence without adapter DB bindings', a
   // Both actual adapters reach the same private Core through native service bindings.
   // Reapplying the Core-owned fixture ledger must not replay historical DDL or lose data.
   const migrationNamesResult = await readdir(new URL('../../migrations/', import.meta.url))
-  const migrationNames = migrationNamesResult.filter((migrationName) => /^\d{4}_.+\.sql$/.test(migrationName))
+  const migrationNames = migrationNamesResult.filter((migrationName) => /^\d{4}_.+\.sql$/u.test(migrationName))
   expect(migrationNames.length).toBeGreaterThan(0)
   await verifyMigrationReplay(request, migrationNames.length)
   await verifyMigrationReplay(request, migrationNames.length)
