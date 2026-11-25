@@ -8,23 +8,23 @@ import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
 
 import { IssueReviewNavigation } from './issue-review-navigation.tsx'
 import { SelectionRequired } from './shared.tsx'
-export interface IssuesInitialData {
-  readonly currentUserId: string
-  readonly view: import('../components/issue-list/types-view').ViewMode
-  readonly page: IssuePage
-  readonly statuses: Readonly<Status[]>
-  readonly taskTypes: Readonly<TaskType[]>
-  readonly project: ProjectSummary | null
-  readonly projects: Readonly<ProjectSummary[]>
-  readonly epics: Readonly<Issue[]>
-  readonly sprints: Readonly<{ id: string; name: string; status: string }[]>
-  readonly sprintDetail: SprintDetail | null
-  readonly search: import('../components/issue-list/use-issue-search.ts').IssueSearchSeed
-}
-export interface IssuesRoute {
-  readonly pathname: string
-  readonly search: string
-}
+export type IssuesInitialData = Readonly<{
+  currentUserId: string
+  view: import('../components/issue-list/types-view').ViewMode
+  page: IssuePage
+  statuses: Readonly<Status[]>
+  taskTypes: Readonly<TaskType[]>
+  project: ProjectSummary | null
+  projects: Readonly<ProjectSummary[]>
+  epics: Readonly<Issue[]>
+  sprints: Readonly<{ id: string; name: string; status: string }[]>
+  sprintDetail: SprintDetail | null
+  search: import('../components/issue-list/use-issue-search.ts').IssueSearchSeed
+}>
+export type IssuesRoute = Readonly<{
+  pathname: string
+  search: string
+}>
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const IssuesPage = function IssuesPage({
   scope,

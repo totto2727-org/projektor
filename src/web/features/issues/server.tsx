@@ -35,19 +35,19 @@ import type { IssuesInitialData } from './views/issues-page.tsx'
 import { MyIssuesPage } from './views/my-issues-page.tsx'
 import type { MyIssuesInitialData, ScopedIssue } from './views/my-issues-page.tsx'
 
-export interface IssuesLoaderData {
-  readonly workspaceSlug: string
-  readonly initialData: IssuesInitialData
-}
-interface IssueLoaderData {
-  readonly scope: RequestScope
-  readonly workspaceSlug: string
-  readonly initialData: IssueDetailInitialData
-}
-interface EpicsLoaderData {
-  readonly workspaceSlug: string
-  readonly initialData: EpicsInitialData
-}
+export type IssuesLoaderData = Readonly<{
+  workspaceSlug: string
+  initialData: IssuesInitialData
+}>
+type IssueLoaderData = Readonly<{
+  scope: RequestScope
+  workspaceSlug: string
+  initialData: IssueDetailInitialData
+}>
+type EpicsLoaderData = Readonly<{
+  workspaceSlug: string
+  initialData: EpicsInitialData
+}>
 const CONCURRENCY = 4
 type ReadFailure = ApiError | ScopeError
 

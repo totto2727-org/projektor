@@ -53,7 +53,7 @@ export const visibleProjectPredicate = function visibleProjectPredicate(
 }
 
 export const makeDataContext = function makeDataContext(
-  services: { readonly db: D1Database },
+  services: Readonly<{ db: D1Database }>,
   scope: RequestScope,
   workspaceId?: string,
 ) {

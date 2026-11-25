@@ -8,11 +8,11 @@ import type { RequestScope } from '@/server/request-context.ts'
 
 export { scopedHref } from '@/urls.ts'
 
-export interface RuntimeContext {
-  readonly scope: RequestScope | null
+export type RuntimeContext = Readonly<{
+  scope: RequestScope | null
   /** Serializable URL supplied by the current Effront Page. */
-  readonly url: string
-}
+  url: string
+}>
 
 const Runtime = createContext<RuntimeContext | null>(null)
 

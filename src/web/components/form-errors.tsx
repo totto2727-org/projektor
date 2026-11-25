@@ -2,9 +2,9 @@ import { Array, Predicate } from 'effect'
 import type { ReactNode } from 'react'
 
 /** Structural subset shared by Standard Schema issues and TanStack Form error values. */
-export interface FormIssue {
-  readonly message?: unknown
-}
+export type FormIssue = Readonly<{
+  message?: unknown
+}>
 
 export interface FormErrorsProps {
   errors?: unknown

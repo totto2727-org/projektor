@@ -12,20 +12,20 @@ import sanitizeHtml from 'sanitize-html'
 import githubDark from 'shiki/themes/github-dark.mjs'
 import githubLight from 'shiki/themes/github-light.mjs'
 
-export interface MarkdownHeading {
-  readonly id: string
-  readonly level: number
-  readonly text: string
-}
-export interface RenderedMarkdown {
-  readonly html: string
-  readonly toc: Readonly<MarkdownHeading[]>
-}
-export interface MarkdownOptions {
-  readonly pages?: Readonly<{ title: string; slug: string }[]>
-  readonly workspaceSlug?: string
-  readonly projectId?: string
-}
+export type MarkdownHeading = Readonly<{
+  id: string
+  level: number
+  text: string
+}>
+export type RenderedMarkdown = Readonly<{
+  html: string
+  toc: Readonly<MarkdownHeading[]>
+}>
+export type MarkdownOptions = Readonly<{
+  pages?: Readonly<{ title: string; slug: string }[]>
+  workspaceSlug?: string
+  projectId?: string
+}>
 
 /** Final allowlist applies equally to authored HTML and plugin-generated HTML/SVG. */
 export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string): string {

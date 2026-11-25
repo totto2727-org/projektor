@@ -6,19 +6,19 @@ import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } 
 import type { RequestScope } from '@/server/request-context.ts'
 
 import { SelectionRequired } from './shared.tsx'
-export interface IssueDetailInitialData {
-  readonly issue: Issue
-  readonly comments: Readonly<Comment[]>
-  readonly links: Readonly<IssueLink[]>
-  readonly attachments: Readonly<Attachment[]>
-  readonly statuses: Readonly<Status[]>
-  readonly taskTypes: Readonly<TaskType[]>
-  readonly members: Readonly<Member[]>
-  readonly parent: Issue | null
-  readonly children: Readonly<Issue[]>
-  readonly currentUserId: string
-  readonly reviewTargetsFocused?: boolean
-}
+export type IssueDetailInitialData = Readonly<{
+  issue: Issue
+  comments: Readonly<Comment[]>
+  links: Readonly<IssueLink[]>
+  attachments: Readonly<Attachment[]>
+  statuses: Readonly<Status[]>
+  taskTypes: Readonly<TaskType[]>
+  members: Readonly<Member[]>
+  parent: Issue | null
+  children: Readonly<Issue[]>
+  currentUserId: string
+  reviewTargetsFocused?: boolean
+}>
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const IssueDetailPage = function IssueDetailPage({
   scope,

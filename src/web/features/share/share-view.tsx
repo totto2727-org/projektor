@@ -128,10 +128,10 @@ const CustomFieldsSection = function CustomFieldsSection({
 export function ShareView({
   issue,
   renderedBody,
-}: {
-  readonly issue: SharedIssue
-  readonly renderedBody?: RenderedMarkdown
-}): JSX.Element {
+}: Readonly<{
+  issue: SharedIssue
+  renderedBody?: RenderedMarkdown
+}>): JSX.Element {
   return (
     <div className='p-8'>
       {/* Banner */}

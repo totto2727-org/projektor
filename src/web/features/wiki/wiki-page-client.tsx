@@ -4434,7 +4434,7 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
 }
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-export function WikiPageClient({ initial }: { readonly initial: WikiSeed }): JSX.Element {
+export function WikiPageClient({ initial }: Readonly<{ initial: WikiSeed }>): JSX.Element {
   return (
     <SeedContext.Provider value={initial}>
       <WikiPageContent

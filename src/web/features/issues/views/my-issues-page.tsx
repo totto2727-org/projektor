@@ -5,10 +5,10 @@ import { MyIssues } from '@/features/issues/components/my-issues.tsx'
 import type { Issue } from '@/features/issues/types.ts'
 import type { RequestScope, WorkspaceMembership } from '@/server/request-context.ts'
 export type ScopedIssue = Issue & { readonly workspaceSlug: string }
-export interface MyIssuesInitialData {
-  readonly issues: Readonly<ScopedIssue[]>
-  readonly memberships: Readonly<WorkspaceMembership[]>
-}
+export type MyIssuesInitialData = Readonly<{
+  issues: Readonly<ScopedIssue[]>
+  memberships: Readonly<WorkspaceMembership[]>
+}>
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MyIssuesPage = function MyIssuesPage({
   initialData,

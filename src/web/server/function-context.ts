@@ -17,16 +17,16 @@ export const FunctionSelectorSchema = Schema.Struct({
 })
 export type FunctionSelector = typeof FunctionSelectorSchema.Type
 
-export interface FunctionContext {
-  readonly scope: RequestScope
-  readonly workspaceSlug?: string
-  readonly projectId?: string
-}
+export type FunctionContext = Readonly<{
+  scope: RequestScope
+  workspaceSlug?: string
+  projectId?: string
+}>
 
-export interface FunctionOptions {
-  readonly requireWorkspace?: boolean
-  readonly requireProject?: boolean
-}
+export type FunctionOptions = Readonly<{
+  requireWorkspace?: boolean
+  requireProject?: boolean
+}>
 
 /** Resolve only authentication and selection, including independently callable queries. */
 export const resolveFunctionContext = function resolveFunctionContext(

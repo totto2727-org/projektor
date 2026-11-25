@@ -4,10 +4,10 @@ import type { JSX } from 'react'
 import { queryFields } from '@/features/issues/utils/query-fields.ts'
 import type { IssuesRoute } from '@/features/issues/views/issues-page.tsx'
 
-export interface IssuePagination {
-  readonly route: IssuesRoute
-  readonly nextCursor: string | number | null
-}
+export type IssuePagination = Readonly<{
+  route: IssuesRoute
+  nextCursor: string | number | null
+}>
 
 /** Native GET controls keep pagination shareable and owned by Effront's public navigation. */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.

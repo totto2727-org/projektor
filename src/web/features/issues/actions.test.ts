@@ -49,10 +49,10 @@ vi.mock('@effront/core/workers', async () => {
     getWorkersRequestContext: () => Effect.die('Worker context is supplied by this operation test.'),
   }
 })
-interface Definition {
-  readonly input: Schema.Decoder<unknown> | Readonly<Schema.Decoder<unknown>[]>
-  readonly handler: (...input: Readonly<unknown[]>) => Effect.Effect<unknown, unknown, RequestServices>
-}
+type Definition = Readonly<{
+  input: Schema.Decoder<unknown> | Readonly<Schema.Decoder<unknown>[]>
+  handler: (...input: Readonly<unknown[]>) => Effect.Effect<unknown, unknown, RequestServices>
+}>
 const fixture = function fixture(options: { origin?: string } = {}) {
   const database = issueDataFixture()
   databases.push(database)

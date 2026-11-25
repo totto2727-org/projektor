@@ -12,7 +12,7 @@ export * from '#core/web/scope.ts'
 export const loadRequestScope = function loadRequestScope(
   _url: URL,
   options: ScopeOptions,
-  services: { readonly request: Request; readonly env: { readonly CORE: unknown } },
+  services: Readonly<{ request: Request; env: { readonly CORE: unknown } }>,
 ): Effect.Effect<RequestScope, ApiError | ScopeError> {
   const core = makeCoreClient(services.env.CORE)
   // Cache keys are Data.Class instances. Only a plain DTO may cross native RPC.

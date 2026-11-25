@@ -11,10 +11,10 @@ import { requireDataWorkspace } from './data-context.ts'
 import { ApiError, ScopeError } from './errors.ts'
 import type { FunctionContext } from './function-context.ts'
 
-export interface BrowserCommandClient {
-  readonly proof: BrowserCommand
-  readonly core: CoreRpcShape
-}
+export type BrowserCommandClient = Readonly<{
+  proof: BrowserCommand
+  core: CoreRpcShape
+}>
 
 /** Local composition only. Neither a callback nor a capability crosses the native binding. */
 export const runBrowserCommand = function runBrowserCommand<A, E, R>(

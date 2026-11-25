@@ -62,12 +62,12 @@ export const MarkdownPreview = function MarkdownPreview({
   initial,
   className = '',
   options,
-}: {
-  readonly content: string
-  readonly initial?: RenderedMarkdown
-  readonly className?: string
-  readonly options?: MarkdownOptions
-}): JSX.Element {
+}: Readonly<{
+  content: string
+  initial?: RenderedMarkdown
+  className?: string
+  options?: MarkdownOptions
+}>): JSX.Element {
   const { html } = useMarkdownPreview(content, options, initial)
   return (
     <div

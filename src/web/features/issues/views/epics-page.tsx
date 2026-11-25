@@ -6,14 +6,14 @@ import type { IssuePage, Status, TaskType } from '@/features/issues/types.ts'
 import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
 
 import { SelectionRequired } from './shared.tsx'
-export interface EpicsInitialData {
-  readonly page: IssuePage
-  readonly statuses: Readonly<Status[]>
-  readonly taskTypes: Readonly<TaskType[]>
-  readonly project: ProjectSummary
-  readonly projects: Readonly<ProjectSummary[]>
-  readonly search: string
-}
+export type EpicsInitialData = Readonly<{
+  page: IssuePage
+  statuses: Readonly<Status[]>
+  taskTypes: Readonly<TaskType[]>
+  project: ProjectSummary
+  projects: Readonly<ProjectSummary[]>
+  search: string
+}>
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EpicsPage = function EpicsPage({
   scope,

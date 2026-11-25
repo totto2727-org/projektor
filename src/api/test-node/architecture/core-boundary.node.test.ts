@@ -21,10 +21,10 @@ const packageDefinition = z
 const packageImports = packageDefinition.imports
 const STORAGE_CAPABILITIES = new Set(['DB', 'KV', 'R2'])
 
-interface ModuleInfo {
-  readonly imports: string[]
-  readonly capabilities: string[]
-}
+type ModuleInfo = Readonly<{
+  imports: string[]
+  capabilities: string[]
+}>
 
 const sourceFiles = function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
