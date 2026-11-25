@@ -59,27 +59,27 @@ describe('agent session ownership at shared command boundaries', () => {
   test('denies foreign admin act-as but permits explicit administrative cleanup', async () => {
     expect.hasAssertions()
     const testFixture = fixture()
-    const session = await registerAgent(testFixture.ctx, { name: 'holder', issueId: testFixture.issueId })
-    await claimIssue(testFixture.ctx, { issueId: testFixture.issueId, agentId: session.id })
-    await claimFiles(testFixture.ctx, { issueId: testFixture.issueId, agentId: session.id, paths: ['src/admin.ts'] })
+    const session = await registerAgent(testFixture.ctx, { issueId: testFixture.issueId, name: 'holder' })
+    await claimIssue(testFixture.ctx, { agentId: session.id, issueId: testFixture.issueId })
+    await claimFiles(testFixture.ctx, { agentId: session.id, issueId: testFixture.issueId, paths: ['src/admin.ts'] })
     const admin: ServiceCtx = {
       ...testFixture.ctx,
       role: 'admin',
       auth: { kind: 'agent', method: 'oauth', credentialId: 'foreign-admin' },
     }
     const actions = [
-      () => heartbeatAgent(admin, { id: session.id, allowAdministrativeOverride: true }),
-      () => postMessage(admin, { scope: 'workspace', agentId: session.id, body: 'spoofed' }),
-      () => claimIssue(admin, { issueId: testFixture.issueId, agentId: session.id }),
+      () => heartbeatAgent(admin, { allowAdministrativeOverride: true, id: session.id }),
+      () => postMessage(admin, { agentId: session.id, body: 'spoofed', scope: 'workspace' }),
+      () => claimIssue(admin, { agentId: session.id, issueId: testFixture.issueId }),
       () =>
         claimFiles(admin, {
-          issueId: testFixture.issueId,
           agentId: session.id,
-          paths: ['src/foreign.ts'],
           force: true,
+          issueId: testFixture.issueId,
+          paths: ['src/foreign.ts'],
         }),
-      () => updateIssue(admin, testFixture.issueId, { title: 'Spoofed', agentSessionId: session.id }),
-      () => finishWork(admin, { sessionId: session.id, issue: testFixture.issueId, status: 'done' }),
+      () => updateIssue(admin, testFixture.issueId, { agentSessionId: session.id, title: 'Spoofed' }),
+      () => finishWork(admin, { issue: testFixture.issueId, sessionId: session.id, status: 'done' }),
     ]
     await runInOrder(actions, async (action): Promise<void> => {
       await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
@@ -109,9 +109,9 @@ describe('agent session ownership at shared command boundaries', () => {
   test('rejects explicit cross-credential impersonation and release omissions before any mutation', async () => {
     expect.hasAssertions()
     const testFixture = fixture()
-    const session = await registerAgent(testFixture.ctx, { name: 'holder', issueId: testFixture.issueId })
-    await claimIssue(testFixture.ctx, { issueId: testFixture.issueId, agentId: session.id })
-    await claimFiles(testFixture.ctx, { issueId: testFixture.issueId, agentId: session.id, paths: ['src/a.ts'] })
+    const session = await registerAgent(testFixture.ctx, { issueId: testFixture.issueId, name: 'holder' })
+    await claimIssue(testFixture.ctx, { agentId: session.id, issueId: testFixture.issueId })
+    await claimFiles(testFixture.ctx, { agentId: session.id, issueId: testFixture.issueId, paths: ['src/a.ts'] })
     testFixture.sqlite
       .prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?')
       .run(currentEpochSeconds() - 10, session.id)
@@ -120,17 +120,17 @@ describe('agent session ownership at shared command boundaries', () => {
     const actions = [
       () => heartbeatAgent(other, { id: session.id }),
       () => endAgent(other, { id: session.id }),
-      () => claimIssue(other, { issueId: testFixture.issueId, agentId: session.id }),
-      () => claimFiles(other, { issueId: testFixture.issueId, agentId: session.id, paths: ['src/b.ts'] }),
-      () => postMessage(other, { scope: `issue:${testFixture.issueId}`, agentId: session.id, body: 'spoofed' }),
+      () => claimIssue(other, { agentId: session.id, issueId: testFixture.issueId }),
+      () => claimFiles(other, { agentId: session.id, issueId: testFixture.issueId, paths: ['src/b.ts'] }),
+      () => postMessage(other, { agentId: session.id, body: 'spoofed', scope: `issue:${testFixture.issueId}` }),
       () => releaseIssue(other, { issueId: testFixture.issueId }),
       () => releaseFiles(other, { paths: ['src/a.ts'] }),
-      () => updateIssue(other, testFixture.issueId, { title: 'Spoofed', agentSessionId: session.id }),
+      () => updateIssue(other, testFixture.issueId, { agentSessionId: session.id, title: 'Spoofed' }),
       () =>
         finishWork(other, {
-          sessionId: session.id,
-          issue: testFixture.issueId,
           completionReport: { summary: 'Spoofed', verification: 'Not performed' },
+          issue: testFixture.issueId,
+          sessionId: session.id,
         }),
     ]
     await runInOrder(actions, async (action): Promise<void> => {
@@ -157,8 +157,8 @@ describe('agent session ownership at shared command boundaries', () => {
   test('preserves shared-credential fleet operations but applies current project grants', async () => {
     const testFixture = fixture()
     testFixture.ctx.role = 'admin'
-    const first = await registerAgent(testFixture.ctx, { name: 'one', issueId: testFixture.issueId })
-    const second = await registerAgent(testFixture.ctx, { name: 'two', issueId: testFixture.issueId })
+    const first = await registerAgent(testFixture.ctx, { issueId: testFixture.issueId, name: 'one' })
+    const second = await registerAgent(testFixture.ctx, { issueId: testFixture.issueId, name: 'two' })
     await expect(heartbeatAgent(testFixture.ctx, { id: first.id })).resolves.toMatchObject({ id: first.id })
     await expect(heartbeatAgent(testFixture.ctx, { id: second.id })).resolves.toMatchObject({ id: second.id })
     testFixture.ctx.role = 'member'
