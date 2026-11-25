@@ -8,6 +8,7 @@ import {
   MarkWikiNotificationsReadInputSchema,
   WatchWikiPageInputSchema,
 } from '#contracts/inputs/wiki.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
@@ -590,17 +591,17 @@ const extractDeletedPageInfo = function extractDeletedPageInfo(rawDiff: string |
   const diff = parseJsonObject(rawDiff)
   if (!diff) {
     return fieldsInOrder([
-      ['slug', null],
-      ['title', null],
-      ['projectId', null],
-      ['deletedPageIds', null],
+      ['slug', JSON_NULL],
+      ['title', JSON_NULL],
+      ['projectId', JSON_NULL],
+      ['deletedPageIds', JSON_NULL],
       ['deletedPageIdsTruncated', false],
     ])
   }
   return fieldsInOrder([
-    ['slug', Predicate.isString(diff.slug) ? diff.slug : null],
-    ['title', Predicate.isString(diff.title) ? diff.title : null],
-    ['projectId', Predicate.isString(diff.projectId) ? diff.projectId : null],
+    ['slug', Predicate.isString(diff.slug) ? diff.slug : JSON_NULL],
+    ['title', Predicate.isString(diff.title) ? diff.title : JSON_NULL],
+    ['projectId', Predicate.isString(diff.projectId) ? diff.projectId : JSON_NULL],
     /*
      * PROJ-526: only present on a cascade root's diff (services/wiki.ts#deleteWikiPage);
      * includes the root's own id — see WikiChangeEvent's doc for the full contract.
@@ -609,7 +610,7 @@ const extractDeletedPageInfo = function extractDeletedPageInfo(rawDiff: string |
       'deletedPageIds',
       globalThis.Array.isArray(diff.deletedPageIds)
         ? diff.deletedPageIds.filter((id): id is string => Predicate.isString(id))
-        : null,
+        : JSON_NULL,
     ],
     ['deletedPageIdsTruncated', diff.deletedPageIdsTruncated === true],
   ])
@@ -696,7 +697,7 @@ const toWikiChangeEvent = async function toWikiChangeEvent(
     ['projectId', eventProjectId],
     ['actorId', r.actorId],
     ['createdAt', r.createdAt],
-    ['deletedPageIds', deleted?.deletedPageIds ?? null],
+    ['deletedPageIds', deleted?.deletedPageIds ?? JSON_NULL],
     ['deletedPageIdsTruncated', deleted?.deletedPageIdsTruncated ?? false],
   ])
 }

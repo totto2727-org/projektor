@@ -6,6 +6,7 @@ import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '#contracts/inputs/task-types.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SQLITE_FALSE, SQLITE_TRUE, drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { listTaskTypes as queryTypes } from '#services/task-types.ts'
 
 import * as cache from './cache.ts'
@@ -34,10 +35,10 @@ const buildTaskTypeUpdateSet = function buildTaskTypeUpdateSet(
     setObj.name = data.name
   }
   if ('color' in data) {
-    setObj.color = data.color ?? null
+    setObj.color = data.color ?? SQL_NULL
   }
   if ('icon' in data) {
-    setObj.icon = data.icon ?? null
+    setObj.icon = data.icon ?? SQL_NULL
   }
   if (Predicate.isNotNullish(data.position)) {
     setObj.position = data.position
@@ -98,8 +99,8 @@ export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw
       ['workspaceId', ctx.workspaceId],
       ['key', key],
       ['name', name],
-      ['color', color ?? null],
-      ['icon', icon ?? null],
+      ['color', color ?? SQL_NULL],
+      ['icon', icon ?? SQL_NULL],
       ['position', position ?? INITIAL_TASK_POSITION],
       ['isDefault', isDefault === true ? SQLITE_TRUE : SQLITE_FALSE],
     ]),
@@ -209,8 +210,8 @@ export const buildDefaultTaskTypeStatements = function buildDefaultTaskTypeState
           workspaceId,
           key: taskType.key,
           name: taskType.name,
-          color: null,
-          icon: null,
+          color: SQL_NULL,
+          icon: SQL_NULL,
           position: taskType.position,
           isDefault: taskType.isDefault,
         })
