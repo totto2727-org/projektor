@@ -1,6 +1,7 @@
 import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 
 import { env } from './fixture-api.ts'
@@ -153,7 +154,7 @@ describe('workspaces MCP', () => {
       res.result.content[0].text,
       Schema.Struct({ id: Schema.String, name: Schema.String, slug: Schema.String }),
     )
-    expect(created.id).toBeTruthy()
+    expect(isNonEmptyText(created.id)).toBe(true)
     expect(created.name).toBe('New Workspace')
     expect(created.slug).toBe('new-ws')
   })

@@ -1,6 +1,8 @@
 import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
@@ -76,7 +78,7 @@ describe('projects REST', () => {
       res,
       Schema.Struct({ id: Schema.String, key: Schema.String, name: Schema.String }),
     )
-    expect(body.id).toBeTruthy()
+    expect(isNonEmptyText(body.id)).toBe(true)
     expect(body.name).toBe('Alpha')
     expect(body.key).toBe('ALPHA')
   })
@@ -173,7 +175,7 @@ describe('projects REST', () => {
     ).pipe(Schema.mutable)
     const projects = await readNativeJson(listRes, projectsShape)
     const proj = projects.find((project) => project.key === 'NULLD')
-    expect(proj).toBeTruthy()
+    expect(proj).toBeDefined()
     expect(proj!.description).toBeNull()
   })
 
@@ -256,7 +258,7 @@ describe('projects REST', () => {
     ).pipe(Schema.mutable)
     const withArchived = await readNativeJson(includeArchivedRes, withArchivedShape)
     const archived = withArchived.find((p) => p.key === 'ARCH1')
-    expect(archived).toBeTruthy()
+    expect(archived).toBeDefined()
     expect(archived!.archived_at).not.toBeNull()
 
     await resetRateLimits()
@@ -351,7 +353,7 @@ describe('projects MCP', () => {
       result.result.content[0].text,
       Schema.Struct({ id: Schema.String, key: Schema.String }),
     )
-    expect(data.id).toBeTruthy()
+    expect(isNonEmptyText(data.id)).toBe(true)
     expect(data.key).toBe('MCP')
   })
 
@@ -415,7 +417,7 @@ describe('projects MCP', () => {
       ),
     )
     const proj = projects.find((project) => project.key === 'MCPND')
-    expect(proj).toBeTruthy()
+    expect(proj).toBeDefined()
     expect(proj!.description).toBeNull()
   })
 
@@ -440,8 +442,8 @@ describe('projects MCP', () => {
       ).pipe(Schema.mutable),
     )
     const proj = projects.find((project) => project.key === 'SHAPE')
-    expect(proj).toBeTruthy()
-    expect(proj!.workspace_id).toBeTruthy()
+    expect(proj).toBeDefined()
+    expect(isNonEmptyText(proj!.workspace_id)).toBe(true)
     expect(typeof proj!.workspace_slug).toBe('string')
     expect(typeof proj!.workspace_name).toBe('string')
     expect(typeof proj!.open_issue_count).toBe('number')
@@ -588,7 +590,7 @@ describe('handles GET /api/projects cross-workspace', () => {
       Schema.Array(Schema.Struct({ key: Schema.String, open_issue_count: Schema.Number })).pipe(Schema.mutable),
     )
     const proj = projects.find((selectedProject) => selectedProject.key === 'ICNT')
-    expect(proj).toBeTruthy()
+    expect(proj).toBeDefined()
     expect(proj!.open_issue_count).toBe(2)
   })
 })

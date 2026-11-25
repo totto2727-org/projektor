@@ -1,6 +1,8 @@
 import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -72,7 +74,7 @@ describe('comments REST API', () => {
     })
     expect(res.status).toBe(201)
     const data = await readNativeJson(res, IdResponse)
-    expect(data.id).toBeTruthy()
+    expect(isNonEmptyText(data.id)).toBe(true)
   })
 
   /*

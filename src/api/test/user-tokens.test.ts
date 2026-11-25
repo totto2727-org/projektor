@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -80,7 +82,7 @@ describe('covers PROJ-91: user-scoped token — member workspace', () => {
     const res = await postIssue(userToken, slug, projectId, 'user-token write test')
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
-    expect(body.id).toBeTruthy()
+    expect(isNonEmptyText(body.id)).toBe(true)
   })
 
   test('works across multiple workspaces the user belongs to', async () => {

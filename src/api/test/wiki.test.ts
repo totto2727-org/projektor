@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 
@@ -6091,7 +6092,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     })
     const revisions = await readNativeJson(revRes, IdListResponse)
     const draftBaseRevisionId = revisions[0]?.id
-    expect(draftBaseRevisionId).toBeTruthy()
+    expect(isNonEmptyText(draftBaseRevisionId)).toBe(true)
 
     // Save a draft frozen at that revision, exactly as the client's autosave would.
     await req(

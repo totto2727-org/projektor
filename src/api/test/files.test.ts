@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
@@ -139,7 +140,7 @@ describe('files API', () => {
       res,
       Schema.Struct({ contentType: Schema.String, filename: Schema.String, id: Schema.String, size: Schema.Number }),
     )
-    expect(body.id).toBeTruthy()
+    expect(isNonEmptyText(body.id)).toBe(true)
     expect(body.filename).toBe('test.txt')
     expect(body.contentType).toBe('text/plain')
     expect(body.size).toBe('hello world'.length)

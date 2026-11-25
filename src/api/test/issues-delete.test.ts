@@ -8,6 +8,7 @@ import { describe, expect, test } from 'vite-plus/test'
  * cascade here — those assertions are end-state checks. The non-FK references (share
  * tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
  */
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -158,7 +159,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(attachmentId)
       .first<{ r2_key: string }>()
     const r2Key = result?.r2_key
-    expect(r2Key).toBeTruthy()
+    expect(isNonEmptyText(r2Key)).toBe(true)
     await expect(env.R2.get(r2Key!)).resolves.not.toBeNull()
 
     // Sanity: every dependent row exists before delete.

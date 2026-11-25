@@ -6,6 +6,8 @@
 import { Predicate } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { env } from './fixture-api.ts'
 import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './helpers.ts'
 import type { ToolErrorBody } from './helpers.ts'
@@ -196,7 +198,7 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
       readOnly,
     )
     expect(res.status).toBe(403)
-    expect(res.headers.get('WWW-Authenticate')).toBeTruthy()
+    expect(isNonEmptyText(res.headers.get('WWW-Authenticate'))).toBe(true)
     const body = (await res.json()) as Rpc
     expect(body.error?.code).toBe(-32_003)
     expect(body.result).toBeUndefined()

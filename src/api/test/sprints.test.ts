@@ -1,6 +1,8 @@
 import { Schema } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -43,7 +45,7 @@ describe('sprints API', () => {
     const res = await createSprint({ projectId, name: 'Sprint 1' })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
-    expect(body.id).toBeTruthy()
+    expect(isNonEmptyText(body.id)).toBe(true)
   })
 
   test('handles GET /api/sprints?projectId= returns empty list initially', async () => {

@@ -1,6 +1,8 @@
 import { Schema, Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import {
   authHeaders,
   seedCustomFieldDef,
@@ -289,8 +291,8 @@ describe('covers MCP endpoint', () => {
     )
     const err = toolError(res)
     expect(err?.code).toBe('validation')
-    expect(err?.message).toBeTruthy()
-    expect(err?.fields?.title).toBeTruthy()
+    expect(isNonEmptyText(err?.message)).toBe(true)
+    expect(globalThis.Array.isArray(err?.fields?.title)).toBe(true)
     expect(err?.hint).toContain('title')
   })
 
@@ -333,7 +335,7 @@ describe('covers MCP endpoint', () => {
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const created = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
-    expect(created.id).toBeTruthy()
+    expect(isNonEmptyText(created.id)).toBe(true)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, { headers })
     const issue = await readNativeJson(getRes, Schema.Struct({ assignee_id: Schema.String, labels: Schema.String }))

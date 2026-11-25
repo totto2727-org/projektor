@@ -88,7 +88,7 @@ describe('groups REST', () => {
       ),
     )
     const g = groups.find((group) => group.name === 'Engineering')
-    expect(g).toBeTruthy()
+    expect(g).toBeDefined()
     expect(g!.memberCount).toBe(0)
     expect(g!.grantCount).toBe(0)
   })

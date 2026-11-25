@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { String, Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { uploadInlineImage } from '@/attachment-actions.ts'
 
 import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions.ts'
@@ -441,7 +442,7 @@ describe('wiki server prop adoption', () => {
     expect(screen.getByText(/10 MiB including form data/u)).toBeInstanceOf(Element)
     expect(form?.querySelectorAll('input[type="file"][name="file"]')).toHaveLength(1)
     const input = form?.querySelector<HTMLInputElement>('input[type="file"]')
-    expect(input).toBeTruthy()
+    expect(input).toBeInstanceOf(HTMLInputElement)
     const file = new File(['x'], 'large.png', { type: 'image/png' })
     Object.defineProperty(file, 'size', { value: 50 * 1024 * 1024 + 1 })
     if (!input) {
@@ -453,7 +454,7 @@ describe('wiki server prop adoption', () => {
     expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(false)
     fireEvent.change(input, { target: { files: [file] } })
     expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(true)
-    expect(screen.getByRole('alert').textContent).toBeTruthy()
+    expect(isNonEmptyText(screen.getByRole('alert').textContent)).toBe(true)
     if (!form) {
       throw new Error('Missing native attachment form')
     }

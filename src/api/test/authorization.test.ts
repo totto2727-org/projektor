@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
  * Issues do NOT enforce a viewer role — any member can write — so they are
  * intentionally excluded from the viewer-403 matrix below.
  */
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -619,8 +620,8 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
     const res = await mint(ownerEmail, 'my-token', ['read', 'write'])
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, token: Schema.String }))
-    expect(body.token).toBeTruthy()
-    expect(body.id).toBeTruthy()
+    expect(isNonEmptyText(body.token)).toBe(true)
+    expect(isNonEmptyText(body.id)).toBe(true)
   })
 
   test('member cannot DELETE /api/workspaces/:slug/tokens/:id', async () => {

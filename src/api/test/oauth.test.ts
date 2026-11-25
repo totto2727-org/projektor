@@ -2,6 +2,7 @@ import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { relyingPartyHost } from '#commands/oauth.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { purgeExpiredOAuthData } from '#core/api/maintenance.ts'
 import type { Env } from '#types'
@@ -161,7 +162,7 @@ const authorizeUrl = function authorizeUrl(
 /** The hidden signed field the consent form carries. */
 const consentTokenFrom = function consentTokenFrom(html: string): string {
   const match = /name="consent_token" value="([^"]+)"/.exec(html)
-  expect(match, 'consent screen did not render a consent_token').toBeTruthy()
+  expect(match, 'consent screen did not render a consent_token').not.toBeNull()
   return (match as RegExpExecArray)[1]
 }
 
@@ -256,7 +257,7 @@ const connect = async function connect(opts: {
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   const callback = new URL(approved.headers.get('Location') as string)
   const code = callback.searchParams.get('code')
-  expect(code).toBeTruthy()
+  expect(isNonEmptyText(code)).toBe(true)
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   expect(`${callback.origin}${callback.pathname}`).toBe(opts.redirectUri ?? CLIENT_REDIRECT)
   expect(callback.searchParams.get('state')).toBe('opaque-state')
@@ -1139,7 +1140,7 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
     const jwt = await accessJwt(email)
     const listed = await settings(second.slug, jwt)
     const [grant] = await listed.json<{ id: string }[]>()
-    expect(grant).toBeTruthy()
+    expect(isNonEmptyText(grant.id)).toBe(true)
 
     await expect((await settings(first.slug, jwt)).json()).resolves.toStrictEqual([])
     /*

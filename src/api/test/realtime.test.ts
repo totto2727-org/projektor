@@ -8,6 +8,7 @@ import { realtimeRouter } from '#api/routes/realtime.ts'
 import { createIssue } from '#commands/issues.ts'
 import { broadcastWorkspaceEvent } from '#commands/realtime.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
@@ -366,7 +367,7 @@ describe('realtime WebSockets (Opt-In)', () => {
       workspaceHub: namespace as unknown as DurableObjectNamespace,
     }
     const created = await createIssue(ctx, { projectId, title: 'Realtime test issue' })
-    expect(created.id).toBeTruthy()
+    expect(isNonEmptyText(created.id)).toBe(true)
     expect(fetchMock).toHaveBeenCalledWith(
       'http://do/broadcast',
       expect.objectContaining({ body: expect.stringContaining('"type":"issue.created"'), method: 'POST' }),

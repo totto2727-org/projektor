@@ -1,6 +1,8 @@
 import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { seedFixture, seedToken } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
@@ -27,7 +29,7 @@ const rpc = function rpc(method: string, params?: unknown): string {
 
 /** Parse `Bearer k="v", k2="v2"` into a map, so tests assert on values not substrings. */
 const parseChallenge = function parseChallenge(header: string | null): Record<string, string> {
-  expect(header).toBeTruthy()
+  expect(isNonEmptyText(header)).toBe(true)
   const bearer = header as string
   expect(bearer.startsWith('Bearer ')).toBe(true)
   const out: Record<string, string> = {}

@@ -103,7 +103,7 @@ describe('generated UI compatibility adapters', () => {
     )
     expect(screen.getByText('Priority').getAttribute('data-slot')).toBe('badge')
     expect(screen.getByText('Priority').style.color).toBe('red')
-    expect(screen.getByRole('link', { name: 'Project' }).querySelector('[data-slot="card"]')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Project' }).querySelector('[data-slot="card"]')).toBeInstanceOf(Element)
     expect(screen.getByText('No issues').getAttribute('data-slot')).toBe('empty-title')
     expect(screen.getByText('Create one')).toBeInstanceOf(Element)
     expect(screen.getByRole('button', { name: 'Create' })).toBeInstanceOf(Element)

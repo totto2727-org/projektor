@@ -83,7 +83,7 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
       updateIssue({ ...viewerCtx(ws.id, pub.id), auth: { kind: 'human', method: 'access' } }, issue.id, {
         title: 'edited by a granted viewer',
       }),
-    ).resolves.toBeTruthy()
+    ).resolves.toStrictEqual({ ok: true })
   })
 
   test("adopts an existing 'Public viewers' group and stays idempotent across runs", async () => {

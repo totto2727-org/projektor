@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import { startWork as startWorkDirect } from '#commands/agents.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -36,7 +37,7 @@ describe('agents API', () => {
     const res = await registerAgent({ name: 'test-agent', issueId: issue.id })
     expect(res.status).toBe(201)
     const session = await readNativeJson(res, Schema.Struct({ id: Schema.String, status: Schema.String }))
-    expect(session.id).toBeTruthy()
+    expect(isNonEmptyText(session.id)).toBe(true)
     expect(session.status).toBe('active')
 
     const listRes = await fetchNativeApi(`http://localhost/api/agents?issueId=${issue.id}`, {
@@ -267,7 +268,7 @@ describe('agents API', () => {
         sessionId: Schema.String,
       })
       const body = await readNativeJson(res, bodyShape)
-      expect(body.sessionId).toBeTruthy()
+      expect(isNonEmptyText(body.sessionId)).toBe(true)
       expect(body.lease.issueId).toBe(issue.id)
       expect(body.claimedFiles.map((fileClaim) => fileClaim.path).sort()).toStrictEqual(['src/a.ts', 'src/b.ts'])
 
@@ -500,7 +501,7 @@ describe('agents API', () => {
         started.body.result?.content[0].text ?? '{}',
         Schema.Struct({ sessionId: Schema.String }),
       )
-      expect(startedResult.sessionId).toBeTruthy()
+      expect(isNonEmptyText(startedResult.sessionId)).toBe(true)
 
       const finished = await mcpCall('finish_work', {
         sessionId: startedResult.sessionId,
@@ -508,7 +509,7 @@ describe('agents API', () => {
         status: 'cancelled',
       })
       expect(finished.status).toBe(200)
-      expect(finished.body.result?.isError).toBeFalsy()
+      expect(finished.body.result?.isError).not.toBe(true)
 
       const issueRow = await env.DB.prepare('SELECT status FROM issues WHERE id = ?')
         .bind(issue.id)

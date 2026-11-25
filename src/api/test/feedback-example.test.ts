@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { submitFeedback } from '#api/examples/feedback-widget-submit.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
@@ -39,7 +40,7 @@ describe('feedback widget example', () => {
       ratingScale: 'thumbs',
       body: 'Docs example works',
     })
-    expect(result.id).toBeTruthy()
+    expect(isNonEmptyText(result.id)).toBe(true)
 
     const row = await env.DB.prepare('SELECT body, rating FROM feedback WHERE id = ?')
       .bind(result.id)

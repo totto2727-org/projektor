@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 
 import {
@@ -70,7 +71,7 @@ describe('task Types API', () => {
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, key: Schema.String }))
-    expect(body.id).toBeTruthy()
+    expect(isNonEmptyText(body.id)).toBe(true)
     expect(body.key).toBe('epic')
   })
 

@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -56,7 +57,7 @@ describe('issue Links API', () => {
     const createRes = await createLink(issueA.id, issueB.id, 'blocks')
     expect(createRes.status).toBe(201)
     const { id: linkId } = await readNativeJson(createRes, IdResponse)
-    expect(linkId).toBeTruthy()
+    expect(isNonEmptyText(linkId)).toBe(true)
 
     // From A's perspective: A blocks B
     const { links: aLinks } = await listLinks(issueA.id)

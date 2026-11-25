@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
@@ -34,7 +36,7 @@ describe('activity audit log', () => {
     expect(rows[0].entity_type).toBe('issue')
     expect(rows[0].action).toBe('created')
     expect(rows[0].workspace_id).toBe(workspaceId)
-    expect(rows[0].actor_id).toBeTruthy()
+    expect(isNonEmptyText(rows[0].actor_id)).toBe(true)
   })
 
   test('records an updated row with diff when an issue is updated', async () => {

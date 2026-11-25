@@ -2,6 +2,7 @@ import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { hashFeedbackToken } from '#commands/feedback.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { configureCore, env, getCoreLimiterCalls } from './fixture-api.ts'
@@ -45,8 +46,8 @@ describe('feedback sources REST', () => {
     )
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, token: Schema.String }))
-    expect(body.id).toBeTruthy()
-    expect(body.token).toBeTruthy()
+    expect(isNonEmptyText(body.id)).toBe(true)
+    expect(isNonEmptyText(body.token)).toBe(true)
   })
 
   test('rejects source creation by a member (403)', async () => {
@@ -562,8 +563,8 @@ describe('feedback source MCP tools', () => {
       authHeaders(testFixture.token, testFixture.slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const out = mcpText<{ id: string; token: string }>(res)
-    expect(out.id).toBeTruthy()
-    expect(out.token).toBeTruthy()
+    expect(isNonEmptyText(out.id)).toBe(true)
+    expect(isNonEmptyText(out.token)).toBe(true)
   })
 
   test('create_feedback_source is forbidden for a member (forbidden)', async () => {
@@ -714,7 +715,7 @@ describe('feedback convert-to-issue', () => {
     )
     expect(res.status).toBe(201)
     const issue = await readNativeJson(res, IdResponse)
-    expect(issue.id).toBeTruthy()
+    expect(isNonEmptyText(issue.id)).toBe(true)
 
     const row = await env.DB.prepare('SELECT status, linked_issue_id FROM feedback WHERE id = ?')
       .bind(fbId)
@@ -1132,7 +1133,7 @@ describe('feedback read/triage MCP tools', () => {
       authHeaders(testFixture.token, testFixture.slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const issue = mcpText<{ id: string }>(res)
-    expect(issue.id).toBeTruthy()
+    expect(isNonEmptyText(issue.id)).toBe(true)
 
     const row = await env.DB.prepare('SELECT status, linked_issue_id FROM feedback WHERE id = ?')
       .bind(fbId)

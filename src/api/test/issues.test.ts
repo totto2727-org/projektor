@@ -137,7 +137,7 @@ describe('issues API', () => {
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
-    expect(body.id).toBeTruthy()
+    expect(body.id).toMatch(/./su)
   })
 
   /*
@@ -2824,7 +2824,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const text = res.result!.content[0].text
     expect(text).not.toContain('\n')
     expect(text).not.toContain('  ')
-    expect(JSON.parse(text)).toBeTruthy()
+    expect(parseNativeMcpText(text, ItemsResponse).items).toBeInstanceOf(globalThis.Array)
   })
 
   test('covers REST get_issue is still pretty-shaped (unaffected) and keeps null/empty fields', async () => {

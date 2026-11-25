@@ -2,6 +2,7 @@ import { Schema, Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { batchLoadCustomFields } from '#commands/custom-fields.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -65,7 +66,7 @@ describe('custom Field Definitions API', () => {
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, key: Schema.String }))
-    expect(body.id).toBeTruthy()
+    expect(isNonEmptyText(body.id)).toBe(true)
     expect(body.key).toBe('sprint')
   })
 
@@ -373,7 +374,7 @@ describe('custom Fields — resolved on read', () => {
     Iterable.forEach(page.items, (item) => {
       expect(Array.isArray(item.customFields)).toBe(true)
       const sp = item.customFields.find((field) => field.key === 'sp')
-      expect(sp).toBeTruthy()
+      expect(sp).toBeDefined()
     })
   })
 
@@ -501,7 +502,7 @@ describe('custom Fields — story_points seed', () => {
     )
       .bind(ws)
       .first<{ key: string; label: string; type: string }>()
-    expect(row).toBeTruthy()
+    expect(row).not.toBeNull()
     expect(row!.key).toBe('story_points')
     expect(row!.label).toBe('Story Points')
     expect(row!.type).toBe('number')
