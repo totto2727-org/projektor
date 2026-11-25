@@ -1,4 +1,5 @@
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { String, Array, Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
@@ -96,14 +97,29 @@ const fileClaimAgentlessCutoff = function fileClaimAgentlessCutoff(ctx: ServiceC
  * cutoff; an agent-linked claim by the session's status/heartbeat. Requires the query to
  * LEFT JOIN agent_sessions on issue_file_claims.agent_id, as listFileClaims does.
  */
-const fileClaimLiveExpr = function fileClaimLiveExpr(cutoff: number, agentlessCutoff: number) {
+const fileClaimLiveExpr = function fileClaimLiveExpr(cutoff: number, agentlessCutoff: number): SQL<number> {
   return sql<number>`(CASE
 		WHEN ${schema.issueFileClaims.agentId} IS NULL THEN (${schema.issueFileClaims.claimedAt} > ${agentlessCutoff})
 		ELSE (${schema.agentSessions.status} = 'active' AND ${schema.agentSessions.lastHeartbeatAt} > ${cutoff})
 	END)`
 }
 
-type ActiveClaim = typeof schema.issueFileClaims.$inferSelect & { live: boolean }
+type FileClaimRow = typeof schema.issueFileClaims.$inferSelect
+type ActiveClaim = FileClaimRow & { live: boolean }
+type CreatedClaim = Omit<FileClaimRow, 'id' | 'releasedAt' | 'releaseReason'> & {
+  id: ReturnType<typeof crypto.randomUUID>
+  releasedAt: null
+}
+type ReleasedClaim = Omit<FileClaimRow, 'releasedAt' | 'releaseReason'> & {
+  releaseReason: string
+  releasedAt: number
+}
+type ListedClaim = ActiveClaim & { issueRef: string }
+interface FileClaimResult {
+  created: CreatedClaim[]
+  overridden: ActiveClaim[]
+  reclaimed: (ReleasedClaim & { live: boolean })[]
+}
 
 // The inChunks helper keeps each query under D1's 100-bound-parameter cap. See services/sql.ts.
 const loadActiveClaimsByPath = async function loadActiveClaimsByPath(
@@ -271,7 +287,7 @@ const buildClaimInsertStatements = function buildClaimInsertStatements(
   )
 }
 
-export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknown) {
+export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknown): Promise<FileClaimResult> {
   const result = ClaimFilesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -451,7 +467,10 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
   return { created, overridden, reclaimed }
 }
 
-export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
+export const releaseFiles = async function releaseFiles(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ count: number; released: ReleasedClaim[] }> {
   const result = ReleaseFilesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -565,9 +584,12 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
  *
  * @param {ServiceCtx} ctx Authorized workspace context used to apply project visibility.
  * @param {unknown} raw Unvalidated issue, path, project and liveness filters.
- * @returns {Promise<{ items: Array<ActiveClaim & { issueRef: string }> }>} Visible claims in claim-time order, with issue references and liveness flags.
+ * @returns {Promise<{ items: ListedClaim[] }>} Visible claims in claim-time order, with issue references and liveness flags.
  */
-export const listFileClaims = async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
+export const listFileClaims = async function listFileClaims(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ items: ListedClaim[] }> {
   const result = ListFileClaimsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

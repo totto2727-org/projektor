@@ -44,11 +44,19 @@ const AGENT_SESSION_COLUMNS = {
   endedAt: schema.agentSessions.endedAt,
 }
 
+type AgentSession = Pick<typeof schema.agentSessions.$inferSelect, keyof typeof AGENT_SESSION_COLUMNS>
+type ActiveAgent = AgentSession & { issueRef: string | null; live: boolean }
+interface StartedWork {
+  claimedFiles: Awaited<ReturnType<typeof claimFiles>>['created']
+  lease: Awaited<ReturnType<typeof claimIssue>>
+  sessionId: string
+}
+
 const isApiTokenMethod = function isApiTokenMethod(method: string): boolean {
   return method === 'pk' || method === 'pat'
 }
 
-export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: unknown) {
+export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = RegisterAgentSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -119,7 +127,7 @@ export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: 
  * @returns {Promise<{sessionId: string, lease: Awaited<ReturnType<typeof claimIssue>>, claimedFiles: Awaited<ReturnType<typeof claimFiles>>['created']}>}
  * The created session, issue lease, and newly claimed files.
  */
-export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown) {
+export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown): Promise<StartedWork> {
   const result = StartWorkSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -155,7 +163,7 @@ export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown)
   }
 }
 
-export const heartbeatAgent = async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
+export const heartbeatAgent = async function heartbeatAgent(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = HeartbeatAgentSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -198,7 +206,7 @@ export const heartbeatAgent = async function heartbeatAgent(ctx: ServiceCtx, raw
   return row!
 }
 
-export async function endAgent(ctx: ServiceCtx, raw: unknown) {
+export async function endAgent(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = EndAgentSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -248,7 +256,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
  * @param {unknown} raw The session and issue IDs, optional status and completion report.
  * @returns {ReturnType<typeof endAgent>} The ended session after the issue update, if requested.
  */
-export const finishWork = async function finishWork(ctx: ServiceCtx, raw: unknown) {
+export const finishWork = async function finishWork(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = FinishWorkSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -288,7 +296,10 @@ export const finishWork = async function finishWork(ctx: ServiceCtx, raw: unknow
  * @returns {Promise<{items: (Awaited<ReturnType<typeof registerAgent>> & {issueRef: string | null, live: boolean})[]}>}
  * Visible active sessions with current liveness and issue references.
  */
-export const listActiveAgents = async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
+export const listActiveAgents = async function listActiveAgents(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ items: ActiveAgent[] }> {
   const result = ListActiveAgentsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
