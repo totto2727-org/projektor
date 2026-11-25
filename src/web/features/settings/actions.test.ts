@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 import { actionFixture, formData } from '@/features/planning/action-test-fixture.ts'
 
@@ -25,7 +26,7 @@ const cases: {
   {
     label: 'create group',
     invoke: (testFixture) =>
-      testFixture.invoke(actions.createGroup, null, formData({ ...workspace, name: ' New team ' })),
+      testFixture.invoke(actions.createGroup, JSON_NULL, formData({ ...workspace, name: ' New team ' })),
     check: (testFixture) => {
       expect(testFixture.sqlite.prepare("SELECT name FROM user_groups WHERE name='New team'").get()?.name).toBe(
         'New team',
@@ -34,14 +35,16 @@ const cases: {
   },
   {
     label: 'rename group',
-    invoke: (testFixture) => testFixture.invoke(actions.renameGroup, null, formData({ ...group, name: ' Renamed ' })),
+    invoke: (testFixture) =>
+      testFixture.invoke(actions.renameGroup, JSON_NULL, formData({ ...group, name: ' Renamed ' })),
     check: (testFixture) => {
       expect(testFixture.sqlite.prepare("SELECT name FROM user_groups WHERE id='g1'").get()?.name).toBe('Renamed')
     },
   },
   {
     label: 'save description',
-    invoke: (testFixture) => testFixture.invoke(actions.describeGroup, null, formData({ ...group, description: ' ' })),
+    invoke: (testFixture) =>
+      testFixture.invoke(actions.describeGroup, JSON_NULL, formData({ ...group, description: ' ' })),
     check: (testFixture) => {
       expect(
         testFixture.sqlite.prepare("SELECT description FROM user_groups WHERE id='g1'").get()?.description,
@@ -60,7 +63,8 @@ const cases: {
   },
   {
     label: 'add member',
-    invoke: (testFixture) => testFixture.invoke(actions.addGroupMember, null, formData({ ...group, userId: 'u1' })),
+    invoke: (testFixture) =>
+      testFixture.invoke(actions.addGroupMember, JSON_NULL, formData({ ...group, userId: 'u1' })),
     check: (testFixture) => {
       expect(
         testFixture.sqlite.prepare("SELECT user_id FROM user_group_members WHERE group_id='g1' AND user_id='u1'").get()
@@ -85,7 +89,7 @@ const cases: {
   {
     label: 'native create grant',
     invoke: (testFixture) =>
-      testFixture.invoke(actions.createGroupGrant, null, formData({ ...group, projectId: 'p1', role: 'admin' })),
+      testFixture.invoke(actions.createGroupGrant, JSON_NULL, formData({ ...group, projectId: 'p1', role: 'admin' })),
     check: checkGrant,
   },
   {
@@ -104,7 +108,7 @@ const cases: {
     invoke: (testFixture) =>
       testFixture.invoke(
         actions.createToken,
-        null,
+        JSON_NULL,
         formData({ ...workspace, name: ' Agent ', scope: 'read', expiry: '90' }),
       ),
     check: (testFixture) => {
@@ -189,7 +193,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     )
     const result = await testFixture.invoke(
       actions.createToken,
-      null,
+      JSON_NULL,
       formData({ ...workspace, name: 'Agent', scope: 'read', expiry: '' }),
     )
     expect(result).toMatchObject({ ok: false, status: 500 })
@@ -279,7 +283,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
   test('rejects foreign workspace/project selection before any write', async () => {
     const testFixture = settingsFixture()
     await expect(
-      testFixture.invoke(actions.createGroup, null, formData({ workspaceSlug: 'beta', name: 'Foreign team' })),
+      testFixture.invoke(actions.createGroup, JSON_NULL, formData({ workspaceSlug: 'beta', name: 'Foreign team' })),
     ).resolves.toMatchObject({ ok: false, status: 403 })
     await expect(
       testFixture.invoke(actions.setGroupGrant, { ...group, projectId: 'foreign', role: 'member' }),
@@ -314,24 +318,24 @@ describe('explicit settings ServerFns use real shared commands and authoritative
   test('validates Effect fields and preserves concrete read/write token creation shapes', async () => {
     const testFixture = settingsFixture()
     await expect(
-      testFixture.invoke(actions.createGroup, null, formData({ ...workspace, name: '  ' })),
+      testFixture.invoke(actions.createGroup, JSON_NULL, formData({ ...workspace, name: '  ' })),
     ).rejects.toMatchObject({
       _tag: 'SchemaError',
     })
     await expect(
       testFixture.invoke(
         actions.createToken,
-        null,
+        JSON_NULL,
         formData({ ...workspace, name: 'Agent', scope: 'read', expiry: '1.5' }),
       ),
     ).rejects.toMatchObject({ _tag: 'SchemaError' })
     await expect(
       testFixture.invoke(
         actions.createToken,
-        null,
+        JSON_NULL,
         formData({ ...workspace, name: 'Writer', scope: 'readwrite', expiry: '' }),
       ),
-    ).resolves.toMatchObject({ ok: true, value: { expiresAt: null, scopes: ['read', 'write'] } })
+    ).resolves.toMatchObject({ ok: true, value: { expiresAt: JSON_NULL, scopes: ['read', 'write'] } })
     expect(
       testFixture.sqlite.prepare("SELECT scopes,expires_at FROM api_tokens WHERE name='Writer'").get(),
     ).toMatchObject({
@@ -346,7 +350,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     await expect(
       testFixture.invoke(
         actions.createToken,
-        null,
+        JSON_NULL,
         formData({ ...workspace, name: 'Denied', scope: 'read', expiry: '' }),
       ),
     ).resolves.toMatchObject({ ok: false, status: 403 })
@@ -361,7 +365,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     await expect(
       testFixture.invoke(
         actions.createToken,
-        null,
+        JSON_NULL,
         formData({ ...workspace, name: 'Public token', scope: 'read', expiry: '' }),
       ),
     ).resolves.toMatchObject({ ok: false, status: 403 })

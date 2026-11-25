@@ -4,7 +4,7 @@ import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
-import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import type * as Actions from '@/features/issues/actions.ts'
 import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
 import type { Attachment } from '@/features/issues/types.ts'
@@ -13,6 +13,8 @@ import type { IssueDetailInitialData } from '@/features/issues/views/issue-detai
 import { IssueDetail } from './issue-detail.tsx'
 import { ReviewTargetsSection } from './review-targets-section.tsx'
 
+type ReviewStatus = NonNullable<Attachment['reviewStatus']>
+
 vi.mock('../actions', () => ({
   setAttachmentReviewStatus: vi.fn<typeof Actions.setAttachmentReviewStatus>(),
   updateIssue: vi.fn<typeof Actions.updateIssue>(),
@@ -20,26 +22,30 @@ vi.mock('../actions', () => ({
 vi.mock('./issue-detail-parts.tsx', () => ({
   AttachmentsSection: () => <p>Full attachments</p>,
   BodySection: () => <p>Full description</p>,
-  ChildIssuesSection: () => null,
+  ChildIssuesSection: () => JSON_NULL,
   CommentsSection: () => <p>Full comments</p>,
-  ParentBadge: () => null,
+  ParentBadge: () => JSON_NULL,
   RefChip: ({ issueRef }: { issueRef: string }) => <span>{issueRef}</span>,
-  RelationsSection: () => null,
-  ShareButton: () => null,
+  RelationsSection: () => JSON_NULL,
+  ShareButton: () => JSON_NULL,
   SidebarPanel: () => <p>Full sidebar</p>,
   TitleSection: ({ issue }: { issue: { title: string } }) => <h1>{issue.title}</h1>,
 }))
 
-function attachment(id: string, status: ReviewStatus | null = null, kind: Attachment['kind'] = 'file'): Attachment {
+function attachment(
+  id: string,
+  status: ReviewStatus | null = JSON_NULL,
+  kind: Attachment['kind'] = 'file',
+): Attachment {
   return {
     id,
     kind,
     filename: `${id}.pdf`,
     contentType: 'application/pdf',
     size: 10,
-    url: kind === 'url' ? `https://example.com/${id}` : null,
+    url: kind === 'url' ? `https://example.com/${id}` : JSON_NULL,
     createdAt: 1,
-    wikiPage: null,
+    wikiPage: JSON_NULL,
     reviewStatus: status,
   }
 }
@@ -56,9 +62,9 @@ describe('covers issue review target controls', () => {
   test.each(['file', 'url'] as const)('selects one %s attachment independently, starting at fixing', async (kind) => {
     const pending = Promise.withResolvers<Awaited<ReturnType<typeof setAttachmentReviewStatus>>>()
     vi.mocked(setAttachmentReviewStatus).mockReturnValue(pending.promise)
-    const first = attachment('first', null, kind)
+    const first = attachment('first', JSON_NULL, kind)
     const second = attachment('second')
-    const wiki = attachment('wiki', null, 'wiki_ref')
+    const wiki = attachment('wiki', JSON_NULL, 'wiki_ref')
     const attachments = [first, second, wiki]
     const { rerender } = render(<ReviewTargetsSection {...props} attachments={attachments} />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' }))
@@ -95,9 +101,9 @@ describe('covers issue review target controls', () => {
         workspaceSlug: 'workspace',
         issueId: 'issue',
         attachmentId: 'first',
-        status: null,
+        status: JSON_NULL,
       })
-      rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: null }, second]} />)
+      rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: JSON_NULL }, second]} />)
       expect(screen.getByText('first.pdf')).toBeInstanceOf(Element)
       expect(screen.queryByRole('link', { name: 'first.pdf' })).toBeNull()
       expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('checked', false)
@@ -324,7 +330,7 @@ describe('covers issue review target controls', () => {
   test.each(['file', 'url'] as const)(
     'shows an unselected %s candidate as text with selection controls but no access link',
     (kind) => {
-      render(<ReviewTargetsSection {...props} attachments={[attachment('candidate', null, kind)]} />)
+      render(<ReviewTargetsSection {...props} attachments={[attachment('candidate', JSON_NULL, kind)]} />)
       const candidates = screen.getByRole('list', { name: '選択できる添付ファイルとURL' })
       expect(within(candidates).getByText('candidate.pdf').tagName).toBe('SPAN')
       expect(within(candidates).queryByRole('link')).toBeNull()
@@ -373,17 +379,17 @@ describe('covers issue review target controls', () => {
         project_id: 'project',
         project_key: 'PROJ',
         project_name: 'Project',
-        assignee_id: null,
-        assignee_name: null,
-        parent_id: null,
-        sprint_id: null,
-        type_id: null,
-        type_key: null,
-        type_name: null,
-        status_id: null,
-        status_key: null,
-        status_name: null,
-        status_category: null,
+        assignee_id: JSON_NULL,
+        assignee_name: JSON_NULL,
+        parent_id: JSON_NULL,
+        sprint_id: JSON_NULL,
+        type_id: JSON_NULL,
+        type_key: JSON_NULL,
+        type_name: JSON_NULL,
+        status_id: JSON_NULL,
+        status_key: JSON_NULL,
+        status_name: JSON_NULL,
+        status_category: JSON_NULL,
         created_at: 1,
         updated_at: 1,
         customFields: [],
@@ -395,7 +401,7 @@ describe('covers issue review target controls', () => {
       statuses: [],
       taskTypes: [],
       members: [],
-      parent: null,
+      parent: JSON_NULL,
       children: [],
       currentUserId: 'user',
       reviewTargetsFocused: true,

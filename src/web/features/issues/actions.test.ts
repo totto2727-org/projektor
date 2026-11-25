@@ -1,6 +1,7 @@
 import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { sqliteRowFields } from '#tests/sqlite-records.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
@@ -107,14 +108,14 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: false,
       status: 404,
     })
-    await expect(invoke(setAttachmentReviewStatus, { ...input, status: null })).resolves.toStrictEqual({
+    await expect(invoke(setAttachmentReviewStatus, { ...input, status: JSON_NULL })).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
     expect(
       sqliteRowFields(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()),
     ).toStrictEqual({
-      review_status: null,
+      review_status: JSON_NULL,
     })
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
@@ -138,7 +139,13 @@ describe('individual issue ServerFn authorization and contracts', () => {
     database.sqlite.exec(
       "INSERT INTO sprints (id,workspace_id,project_id,name,status,created_at,updated_at) VALUES ('sprint-a','workspace-a','project-a','Original','planned',1,1),('sprint-hidden','workspace-a','hidden-project','Hidden','planned',1,1),('sprint-other','workspace-b','other-project','Other','planned',1,1)",
     )
-    const patch = { name: 'Updated', goal: 'Direct command', status: 'active', startDate: null, endDate: null }
+    const patch = {
+      name: 'Updated',
+      goal: 'Direct command',
+      status: 'active',
+      startDate: JSON_NULL,
+      endDate: JSON_NULL,
+    }
     await runInOrder(['sprint-hidden', 'sprint-other'], async (sprintId): Promise<void> => {
       await expect(invoke(updateSprint, { workspaceSlug: workspace.slug, sprintId, patch })).resolves.toMatchObject({
         ok: false,
@@ -490,7 +497,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: true,
       value: expect.arrayContaining([
         { id: 'wiki-a', title: 'Visible guide', slug: 'guide', project_id: project.id },
-        { id: 'wiki-global', title: 'Workspace guide', slug: 'workspace-guide', project_id: null },
+        { id: 'wiki-global', title: 'Workspace guide', slug: 'workspace-guide', project_id: JSON_NULL },
       ]),
     })
     await runInOrder([readIssue, readComments, readLinks, readAttachments], async (read): Promise<void> => {
@@ -529,7 +536,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     data.set('workspaceSlug', workspace.slug)
     data.set('projectId', project.id)
     data.set('title', 'Created')
-    await expect(invoke(createIssue, [null, data])).resolves.toMatchObject({ ok: false, status: 403 })
+    await expect(invoke(createIssue, [JSON_NULL, data])).resolves.toMatchObject({ ok: false, status: 403 })
     expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
       count: 4,
     })
@@ -545,7 +552,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     formData.set('priority', 'medium')
     formData.set('method', 'DELETE')
     formData.set('path', '/api/workspaces/other')
-    await expect(native.invoke(createIssue, [null, formData])).resolves.toMatchObject({ ok: true })
+    await expect(native.invoke(createIssue, [JSON_NULL, formData])).resolves.toMatchObject({ ok: true })
     expect(
       sqliteRowFields(
         native.database.sqlite
