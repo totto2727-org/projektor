@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 import { actionFixture, formData } from '@/features/planning/action-test-fixture.ts'
 
@@ -334,7 +335,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     expect(
       testFixture.sqlite.prepare("SELECT scopes,expires_at FROM api_tokens WHERE name='Writer'").get(),
     ).toMatchObject({
-      expires_at: null,
+      expires_at: SQL_NULL,
       scopes: '["read","write"]',
     })
     expect(testFixture.transport).not.toHaveBeenCalled()

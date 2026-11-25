@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
 import m0061 from '#migrations/0061_task_status_review_step.sql?raw'
 
 import { env } from './fixture-api.ts'
@@ -56,7 +57,7 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
 
     await expect(reviewState(issue.id)).resolves.toStrictEqual({
       gateRejections: 0,
-      in_review_at: null,
+      in_review_at: SQL_NULL,
       review_bounce_count: 0,
     })
   })

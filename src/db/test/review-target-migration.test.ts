@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite'
 
 import { describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
 import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
 
 import { loadMigrations } from './helpers.ts'
@@ -33,7 +34,7 @@ describe('covers attachment review target migration', () => {
       const before = db.prepare('SELECT * FROM attachments ORDER BY id').all()
       db.exec(migration)
       expect(sqliteRowsFields(db.prepare('SELECT * FROM attachments ORDER BY id').all())).toStrictEqual(
-        before.map((row) => ({ ...row, review_status: null })),
+        before.map((row) => ({ ...row, review_status: SQL_NULL })),
       )
       expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
       expect(sqliteRowFields(db.prepare('PRAGMA integrity_check').get())).toStrictEqual({ integrity_check: 'ok' })

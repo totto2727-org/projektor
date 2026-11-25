@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import { env } from '#api/test/fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus } from '#api/test/helpers.ts'
 import { fetchNativeApi } from '#api/test/native-fetch.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 const fixture = async function fixture() {
   const owner = await seedProjectFixture({ role: 'owner' })
@@ -21,8 +22,8 @@ const fixture = async function fixture() {
   for (const row of [
     { id: selected, owner, issue, kind: 'file', review: 'in_review' },
     { id: done, owner, issue, kind: 'url', review: 'done' },
-    { id: ordinary, owner, issue, kind: 'url', review: null },
-    { id: wiki, owner, issue, kind: 'wiki_ref', review: null },
+    { id: ordinary, owner, issue, kind: 'url', review: SQL_NULL },
+    { id: wiki, owner, issue, kind: 'wiki_ref', review: SQL_NULL },
     { id: unrelatedAttachment, owner, issue: unrelated, kind: 'url', review: 'fixing' },
     { id: foreignAttachment, owner: foreign, issue: foreignIssue, kind: 'url', review: 'changes_requested' },
   ]) {

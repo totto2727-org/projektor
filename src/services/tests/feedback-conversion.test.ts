@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
 import { createIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
@@ -159,7 +160,7 @@ describe('feedback conversion transaction', () => {
     })
     expect(testFixture.fetch).not.toHaveBeenCalled()
     expect(testFixture.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
-      linked_issue_id: null,
+      linked_issue_id: SQL_NULL,
       status: 'new',
     })
     testFixture.sqlite.exec('DROP TRIGGER fail_link')

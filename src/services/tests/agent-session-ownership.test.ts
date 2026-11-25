@@ -9,6 +9,7 @@ import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
@@ -144,13 +145,13 @@ describe('agent session ownership at shared command boundaries', () => {
     expect(
       testFixture.sqlite.prepare('SELECT released_at FROM issue_leases WHERE issue_id = ?').get(testFixture.issueId),
     ).toMatchObject({
-      released_at: null,
+      released_at: SQL_NULL,
     })
     expect(
       testFixture.sqlite
         .prepare('SELECT released_at FROM issue_file_claims WHERE issue_id = ?')
         .get(testFixture.issueId),
-    ).toMatchObject({ released_at: null })
+    ).toMatchObject({ released_at: SQL_NULL })
   })
 
   test('preserves shared-credential fleet operations but applies current project grants', async () => {
@@ -172,7 +173,7 @@ describe('agent session ownership at shared command boundaries', () => {
     const session = await registerAgent(testFixture.ctx, { name: 'browser' })
     expect(
       testFixture.sqlite.prepare('SELECT credential_id,token_id FROM agent_sessions WHERE id = ?').get(session.id),
-    ).toMatchObject({ credential_id: 'user:u', token_id: null })
+    ).toMatchObject({ credential_id: 'user:u', token_id: SQL_NULL })
     await expect(heartbeatAgent(testFixture.ctx, {})).resolves.toMatchObject({ id: session.id })
     testFixture.sqlite.prepare('UPDATE agent_sessions SET credential_id = NULL WHERE id = ?').run(session.id)
     await expect(heartbeatAgent(testFixture.ctx, { id: session.id })).rejects.toMatchObject({ kind: 'forbidden' })

@@ -1,6 +1,7 @@
 import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
 import { runInOrder } from '#tests/run-effect.ts'
 
 import { actionFixture, formData, planningIds } from './action-test-fixture.ts'
@@ -72,7 +73,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
       name: 'Sprint',
       goal: 'Goal',
       start_date: calendarTimestamp(draft.start, -540),
-      end_date: null,
+      end_date: SQL_NULL,
       project_id: scope.projectId,
     })
     expect(testFixture.transport).not.toHaveBeenCalled()
@@ -92,7 +93,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
       testFixture.sqlite
         .prepare('SELECT name,goal,start_date,end_date FROM sprints WHERE id=?')
         .get(planningIds.source),
-    ).toMatchObject({ end_date: null, goal: null, name: 'Sprint', start_date: null })
+    ).toMatchObject({ end_date: SQL_NULL, goal: SQL_NULL, name: 'Sprint', start_date: SQL_NULL })
     expect(testFixture.transport).not.toHaveBeenCalled()
   })
 

@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import { createIssue, updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -276,7 +277,7 @@ describe('covers PROJ-870 review: completion report comment limit', () => {
     const row = await env.DB.prepare('SELECT status, completion_report_at FROM issues WHERE id = ?')
       .bind(issue.id)
       .first()
-    expect(row).toStrictEqual({ completion_report_at: null, status: 'in_progress' })
+    expect(row).toStrictEqual({ completion_report_at: SQL_NULL, status: 'in_progress' })
     const comments = await env.DB.prepare('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?')
       .bind(issue.id)
       .first<{ n: number }>()
