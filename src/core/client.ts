@@ -49,7 +49,7 @@ const decodeFailure = function decodeFailure(
 export const decodeCoreReply = function decodeCoreReply<S extends Schema.Top, E, R>(
   schema: S,
   invocation: Effect.Effect<string, E, R>,
-) {
+): Effect.Effect<S['Type'], CorePublicError, R | S['DecodingServices']> {
   return invocation.pipe(
     Effect.catchCause((cause) => decodeFailure('transport', cause)),
     Effect.flatMap((wire) =>

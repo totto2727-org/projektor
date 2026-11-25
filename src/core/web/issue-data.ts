@@ -3,9 +3,10 @@ import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { String, Predicate, Effect, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
+import type { ApiError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
-import type { ReviewFilter } from '#contracts/review-targets.ts'
+import type { ReviewFilter, ReviewTarget } from '#contracts/review-targets.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import {
@@ -15,6 +16,7 @@ import {
   normalizeIssuePage,
   normalizeLinks,
 } from '#contracts/web-schemas/issues.ts'
+import type { Attachment, Comment, Issue, IssueLink, IssuePage } from '#contracts/web-schemas/issues.ts'
 import { schema } from '#db'
 import { listComments } from '#services/comments.ts'
 import { listAttachments, listIssueReviewTargets } from '#services/files.ts'
@@ -33,8 +35,10 @@ import {
 import { CoreReadServices as RequestServices } from './read-services.ts'
 import type { RequestScope } from './scope.ts'
 
+type IssueRead<A> = Effect.Effect<A, ScopeError | ApiError, RequestServices>
+
 /** Keep application policy failures, and redact storage failures before reaching a client. */
-export const checked = function checked<A>(read: () => A) {
+export const checked = function checked<A>(read: () => A): Effect.Effect<A, ScopeError | ApiError> {
   return Effect.try({
     catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     try: read,
@@ -117,7 +121,7 @@ export const readDataIssue = function readDataIssue(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<Issue> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
@@ -144,7 +148,7 @@ export const readDataIssuePage = function readDataIssuePage(
   scope: RequestScope,
   workspaceId: string,
   params: URLSearchParams,
-) {
+): IssueRead<IssuePage> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
@@ -187,7 +191,7 @@ export const searchDataIssues = function searchDataIssues(
   query: string,
   projectId?: string,
   review?: ReviewFilter,
-) {
+): IssueRead<(issueQueries.IssueSearchRow & { reviewTargets: ReviewTarget[] })[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
@@ -218,7 +222,7 @@ export const readDataComments = function readDataComments(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<Comment[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
@@ -230,7 +234,7 @@ export const readDataLinks = function readDataLinks(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<IssueLink[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
@@ -242,7 +246,7 @@ export const readDataAttachments = function readDataAttachments(
   workspaceId: string,
   identifier: string,
   projectId?: string,
-) {
+): IssueRead<Attachment[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
@@ -272,7 +276,7 @@ export const searchDataWikiAttachments = function searchDataWikiAttachments(
   scope: RequestScope,
   workspaceId: string,
   query: string,
-) {
+): IssueRead<typeof WikiSearchResultsSchema.Type> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))

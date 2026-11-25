@@ -1,5 +1,5 @@
 import { isNull, or, sql } from 'drizzle-orm'
-import type { SQL } from 'drizzle-orm'
+import type { QueryWithTypings, SQL } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { Iterable, Effect, Schema } from 'effect'
 
@@ -139,7 +139,7 @@ export const loadWikiData = function loadWikiData(
     const rawVisibility = yield* Effect.try({
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       try: () => {
-        const fragment = (column: SQL) => {
+        const fragment = (column: SQL): QueryWithTypings | undefined => {
           const predicate = visibleProjectPredicate(scope, workspace.id, column)
           return predicate ? new SQLiteSyncDialect().sqlToQuery(sql`${column} IS NULL OR ${predicate}`) : undefined
         }
