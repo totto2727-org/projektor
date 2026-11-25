@@ -133,9 +133,16 @@ describe('issue attachment review target storage and authorization', () => {
   test('rejects malformed review states and enforces storage eligibility', async () => {
     const testFixture = fixture()
     await expect(testFixture.set('a', 'review')).rejects.toBeInstanceOf(ValidationError)
-    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='wiki'")).toThrow()
-    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='page'")).toThrow()
-    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='review' WHERE id='a'")).toThrow()
+    const reviewStatusConstraint = 'CHECK constraint failed: review_status'
+    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='wiki'")).toThrow(
+      reviewStatusConstraint,
+    )
+    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='page'")).toThrow(
+      reviewStatusConstraint,
+    )
+    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='review' WHERE id='a'")).toThrow(
+      reviewStatusConstraint,
+    )
   })
 
   test.each(['done', 'cancelled'] as const)(

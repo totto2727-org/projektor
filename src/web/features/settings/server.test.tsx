@@ -266,8 +266,10 @@ describe('settings authorized direct D1 SSR', () => {
   })
 
   test('keeps concrete DTO validation for metadata, group roles and MCP config', () => {
-    expect(() => Schema.decodeUnknownSync(TokenSchema)({ ...token, scopes: ['read'] })).toThrow()
-    expect(() => Schema.decodeUnknownSync(ConnectorSchema)({ ...connector, expiresAt: 'tomorrow' })).toThrow()
+    expect(() => Schema.decodeUnknownSync(TokenSchema)({ ...token, scopes: ['read'] })).toThrow('["scopes"]')
+    expect(() => Schema.decodeUnknownSync(ConnectorSchema)({ ...connector, expiresAt: 'tomorrow' })).toThrow(
+      '["expiresAt"]',
+    )
     expect(() =>
       Schema.decodeUnknownSync(GroupDetailSchema)({
         id: 'g1',
@@ -276,7 +278,7 @@ describe('settings authorized direct D1 SSR', () => {
         members: [],
         grants: [{ projectId: 'p1', projectName: 'Project', projectKey: 'PROJ', role: 'owner' }],
       }),
-    ).toThrow()
-    expect(() => Schema.decodeUnknownSync(McpInfoSchema)({ mcpUrl: 42 })).toThrow()
+    ).toThrow('["grants"][0]["role"]')
+    expect(() => Schema.decodeUnknownSync(McpInfoSchema)({ mcpUrl: 42 })).toThrow('["mcpUrl"]')
   })
 })

@@ -349,7 +349,9 @@ describe('server scope loading', () => {
   })
 
   test('rejects weak/malformed membership and project payloads instead of casting them', () => {
-    expect(() => decodeAuthSession({ user: session.user, workspaces: [{ slug: 'alpha', role: 'owner' }] })).toThrow()
-    expect(() => decodeProjectCatalog([{ ...project, workspace_slug: null }])).toThrow()
+    expect(() => decodeAuthSession({ user: session.user, workspaces: [{ slug: 'alpha', role: 'owner' }] })).toThrow(
+      '["workspaces"][0]["id"]',
+    )
+    expect(() => decodeProjectCatalog([{ ...project, workspace_slug: null }])).toThrow('[0]["workspace_slug"]')
   })
 })

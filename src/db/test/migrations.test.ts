@@ -44,7 +44,7 @@ describe('schema constraints', () => {
       db
         .prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
         .run('w1', SQL_NULL, 'acme', 0),
-    ).toThrow()
+    ).toThrow('NOT NULL constraint failed: workspaces.name')
   })
 
   test('rejects a duplicate value in a UNIQUE column (workspaces.slug)', () => {
@@ -54,7 +54,7 @@ describe('schema constraints', () => {
       db
         .prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
         .run('w2', 'Acme Two', 'acme', 0),
-    ).toThrow()
+    ).toThrow('UNIQUE constraint failed: workspaces.slug')
   })
 
   test('rejects a duplicate value in a UNIQUE column (users.email)', () => {
@@ -64,7 +64,7 @@ describe('schema constraints', () => {
       db
         .prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)')
         .run('u2', 'a@example.com', 'A2', 0),
-    ).toThrow()
+    ).toThrow('UNIQUE constraint failed: users.email')
   })
 
   test('rejects a foreign key violation (workspace_members.workspace_id -> workspaces)', () => {
@@ -74,7 +74,7 @@ describe('schema constraints', () => {
       db
         .prepare('INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)')
         .run('no-such-workspace', 'u1', 'member', 0),
-    ).toThrow()
+    ).toThrow('FOREIGN KEY constraint failed')
   })
 
   test('cascades workspace deletion to its members', () => {
@@ -113,7 +113,7 @@ describe('schema constraints', () => {
 					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run('i2', 'w1', 'p1', 1, 'Duplicate number', 'u1', 0, 0),
-    ).toThrow()
+    ).toThrow('UNIQUE constraint failed: issues.project_id, issues.number')
   })
 
   /*
