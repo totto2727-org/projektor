@@ -1,4 +1,4 @@
-import { String, Array, Predicate } from 'effect'
+import { String, Array, Predicate, Schema } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
@@ -13,6 +13,7 @@ const RETENTION_MAX_CHUNKS_PER_CATEGORY = 20
 const WIKI_TRASH_PURGE_CURSOR_KV_KEY = 'cron:wiki-trash-purge:cursor'
 const WIKI_TRASH_SUBREQUEST_BUDGET = 100
 const WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE = 45
+const WikiTrashCursor = Schema.Struct({ workspaceIds: Schema.Array(Schema.Unknown) })
 
 /** Existing maintenance budgets and continuation policy, now executed inside Core. */
 export const runMaintenance = async function runMaintenance(env: CoreEnvironment): Promise<void> {
@@ -212,24 +213,19 @@ const wrapCallsWithBudget = function wrapCallsWithBudget<T extends object>(targe
   })
 }
 
-const loadCursor = async function loadCursor(kv: KVNamespace): Promise<string[] | null> {
+const loadCursor = async function loadCursor(kv: KVNamespace): Promise<string[] | undefined> {
   const raw = await kv.get(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
   if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
-    return null
+    return undefined
   }
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      !('workspaceIds' in parsed) ||
-      !globalThis.Array.isArray(parsed.workspaceIds)
-    ) {
-      return null
+    if (!Schema.is(WikiTrashCursor)(parsed)) {
+      return undefined
     }
-    return parsed.workspaceIds.filter((id): id is string => Predicate.isString(id))
+    return parsed.workspaceIds.filter(Predicate.isString)
   } catch {
-    return null
+    return undefined
   }
 }
 
@@ -246,12 +242,13 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
   let failed = 0
   const failedThisRun = new Set<string>()
   while (Array.isArrayNonEmpty(remaining) && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
-    const id = remaining[0]
+    const [id] = remaining
     if (failedThisRun.has(id)) {
       if (remaining.every((workspace) => failedThisRun.has(workspace))) {
         break
       }
-      remaining.push(remaining.shift()!)
+      remaining.shift()
+      remaining.push(id)
       continue
     }
     const usedBefore = budget.used()
@@ -267,7 +264,8 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
       const result = await purgeExpiredWikiPages(ctx)
       purged++
       if (result.moreExpired) {
-        remaining.push(remaining.shift()!)
+        remaining.shift()
+        remaining.push(id)
       } else {
         remaining.shift()
       }
@@ -275,7 +273,8 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
       failed++
       failedThisRun.add(id)
       console.error('scheduled wiki trash purge failed for one workspace', { workspaceId: id, error })
-      remaining.push(remaining.shift()!)
+      remaining.shift()
+      remaining.push(id)
     }
     if (budget.used() === usedBefore) {
       break
