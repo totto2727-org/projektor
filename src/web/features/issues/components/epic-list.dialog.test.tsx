@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
 
@@ -24,33 +24,35 @@ const project = {
   updated_at: 1,
 }
 
-afterEach(cleanup)
+describe('covers Epic creation dialog', () => {
+  afterEach(cleanup)
 
-test('opens epic creation with an interactive priority portal and restores focus on Escape', async () => {
-  expect.hasAssertions()
-  render(
-    <EpicList
-      workspaceSlug='workspace'
-      initialData={{
-        project,
-        projects: [project],
-        search: '',
-        page: { items: [] },
-        statuses: [],
-        taskTypes: [{ id: 'epic', key: 'epic', name: 'Epic' }],
-      }}
-    />,
-  )
-  const trigger = screen.getByRole('button', { name: '+ New Epic' })
-  trigger.focus()
-  fireEvent.click(trigger)
-  expect(screen.getByRole('dialog', { name: 'Create new epic' })).toBeInstanceOf(Element)
-  fireEvent.click(screen.getByRole('combobox', { name: 'Select priority' }))
-  const option = await screen.findByRole('option', { name: 'high' })
-  fireEvent.pointerDown(option, { pointerType: 'mouse' })
-  fireEvent.click(option)
-  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high'))
-  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
-  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  await waitFor(() => expect(document.activeElement).toBe(trigger))
+  test('opens epic creation with an interactive priority portal and restores focus on Escape', async () => {
+    expect.hasAssertions()
+    render(
+      <EpicList
+        workspaceSlug='workspace'
+        initialData={{
+          project,
+          projects: [project],
+          search: '',
+          page: { items: [] },
+          statuses: [],
+          taskTypes: [{ id: 'epic', key: 'epic', name: 'Epic' }],
+        }}
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: '+ New Epic' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('dialog', { name: 'Create new epic' })).toBeInstanceOf(Element)
+    fireEvent.click(screen.getByRole('combobox', { name: 'Select priority' }))
+    const option = await screen.findByRole('option', { name: 'high' })
+    fireEvent.pointerDown(option, { pointerType: 'mouse' })
+    fireEvent.click(option)
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high'))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
+  })
 })

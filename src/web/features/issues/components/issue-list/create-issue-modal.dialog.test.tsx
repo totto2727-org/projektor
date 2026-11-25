@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import type { JSX } from 'react'
-import { afterEach, expect, test, vi } from 'vite-plus/test'
+import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { CreateIssueModal } from './create-issue-modal.tsx'
 
@@ -53,24 +53,26 @@ function CreateHarness(): JSX.Element {
   )
 }
 
-afterEach(cleanup)
+describe('covers create issue dialog', () => {
+  afterEach(cleanup)
 
-test('keeps priority options interactive inside the dialog and dismisses with Escape', async () => {
-  render(<CreateHarness />)
-  const trigger = screen.getByRole('button', { name: 'New issue' })
-  trigger.focus()
-  fireEvent.click(trigger)
-  const dialog = screen.getByRole('dialog', { name: 'Create new issue' })
-  await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
-  const guards = document.querySelectorAll<HTMLElement>('[data-base-ui-focus-guard][data-type="inside"]')
-  guards.item(guards.length - 1).focus()
-  await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
-  fireEvent.click(screen.getByRole('combobox', { name: 'Select priority' }))
-  const option = await screen.findByRole('option', { name: 'high' })
-  fireEvent.pointerDown(option, { pointerType: 'mouse' })
-  fireEvent.click(option)
-  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high'))
-  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
-  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  await waitFor(() => expect(document.activeElement).toBe(trigger))
+  test('keeps priority options interactive inside the dialog and dismisses with Escape', async () => {
+    render(<CreateHarness />)
+    const trigger = screen.getByRole('button', { name: 'New issue' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: 'Create new issue' })
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+    const guards = document.querySelectorAll<HTMLElement>('[data-base-ui-focus-guard][data-type="inside"]')
+    guards.item(guards.length - 1).focus()
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Select priority' }))
+    const option = await screen.findByRole('option', { name: 'high' })
+    fireEvent.pointerDown(option, { pointerType: 'mouse' })
+    fireEvent.click(option)
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high'))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
+  })
 })
