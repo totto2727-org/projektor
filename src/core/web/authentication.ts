@@ -21,7 +21,7 @@ import {
   ScopeOptionsSchema,
   WebRequestSchema,
 } from './scope.ts'
-import type { WebRequest, ScopeOptions, ProjectSummary, RequestScope } from './scope.ts'
+import type { WebRequest, ScopeOptions, ProjectSummary, RequestScope, AuthSession } from './scope.ts'
 
 const decodeWebRequest = Schema.decodeEffect(WebRequestSchema)
 const decodeScopeOptions = Schema.decodeEffect(ScopeOptionsSchema)
@@ -48,11 +48,15 @@ export const publicWebFailure = function publicWebFailure(error: unknown): unkno
 type AuthenticatedRequestScope = Omit<RequestScope, 'auth'> & { auth: BrowserPrincipal['auth'] }
 type CatalogError = Effect.Error<ReturnType<typeof listProjectSummaries>>
 
-export const loadBrowserScope = function loadBrowserScope(
-  env: CoreEnvironment,
+interface BrowserScopeRequest {
+  request: Request<unknown, CfProperties>
+  selected: ScopeOptions
+}
+
+const validateBrowserScopeRequest = function validateBrowserScopeRequest(
   input: WebRequest,
-  options: ScopeOptions = {},
-): Effect.Effect<AuthenticatedRequestScope, unknown> {
+  options: ScopeOptions,
+): Effect.Effect<BrowserScopeRequest, ReturnType<typeof coreFailure>> {
   return Effect.gen(function* () {
     const decoded = yield* decodeWebRequest(input).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
@@ -64,6 +68,20 @@ export const loadBrowserScope = function loadBrowserScope(
       catch: () => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.'),
       try: () => nativeRequest(decoded),
     })
+    return { request, selected }
+  })
+}
+
+interface BrowserIdentity {
+  principal: BrowserPrincipal
+  session: AuthSession
+}
+
+const readBrowserIdentity = function readBrowserIdentity(
+  env: CoreEnvironment,
+  request: Request<unknown, CfProperties>,
+): Effect.Effect<BrowserIdentity, unknown> {
+  return Effect.gen(function* () {
     if (request.headers.has('authorization')) {
       return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }
@@ -82,6 +100,25 @@ export const loadBrowserScope = function loadBrowserScope(
           workspaces: await getUserWorkspaces({ db: env.DB, userId: principal.user.id }),
         }),
     })
+    return { principal, session }
+  })
+}
+
+const withBrowserAuth = function withBrowserAuth(
+  scope: RequestScope,
+  auth: BrowserPrincipal['auth'],
+): AuthenticatedRequestScope {
+  return { ...scope, auth }
+}
+
+export const loadBrowserScope = function loadBrowserScope(
+  env: CoreEnvironment,
+  input: WebRequest,
+  options: ScopeOptions = {},
+): Effect.Effect<AuthenticatedRequestScope, unknown> {
+  return Effect.gen(function* () {
+    const { request, selected } = yield* validateBrowserScopeRequest(input, options)
+    const { principal, session } = yield* readBrowserIdentity(env, request)
     const visibility = fieldsInOrder([
       [
         'sql',
@@ -115,10 +152,9 @@ export const loadBrowserScope = function loadBrowserScope(
         (!workspace || workspace.id === project.workspace_id),
     )
     const visible = Predicate.isNotNullish(hint) && String.isNonEmpty(hint) && !active ? yield* catalog(true) : projects
-    const scope = yield* Effect.try({
+    return yield* Effect.try({
       catch: publicWebFailure,
       try: () => resolveScope(session, visible, url, selected),
-    })
-    return { ...scope, auth: principal.auth }
+    }).pipe(Effect.map((scope) => withBrowserAuth(scope, principal.auth)))
   })
 }
