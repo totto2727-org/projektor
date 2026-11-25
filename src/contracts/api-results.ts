@@ -26,6 +26,16 @@ const structInOrder = function structInOrder<const Entries extends SchemaFields>
   return Schema.Struct(fieldsInOrder(entries))
 }
 
+const extendStructInOrder = function extendStructInOrder<
+  Base extends Schema.Struct.Fields,
+  const Entries extends SchemaFields,
+>(
+  base: Base,
+  entries: Entries & (Extract<keyof Base, FieldName<Entries[number]>> extends never ? unknown : never),
+): Schema.Struct<Base & FieldsInOrder<Entries>> {
+  return Schema.Struct({ ...base, ...fieldsInOrder<Entries>(entries) })
+}
+
 const array = <Item extends Schema.Top>(item: Item): Schema.mutable<Schema.$Array<Item>> =>
   Schema.mutable(Schema.Array(item))
 
@@ -80,13 +90,10 @@ const Message = structInOrder([
   ['createdAt', NumberSchema],
 ])
 const ReleasedClaim = Schema.Struct({ ...ClaimFields, releaseReason: NS })
-const ActiveClaim = Schema.Struct({
-  ...ClaimFields,
-  ...fieldsInOrder([
-    ['releaseReason', NS],
-    ['live', BooleanSchema],
-  ]),
-})
+const ActiveClaim = extendStructInOrder(ClaimFields, [
+  ['releaseReason', NS],
+  ['live', BooleanSchema],
+])
 const Claims = Schema.Struct({
   created: array(Claim),
   overridden: array(ActiveClaim),
@@ -129,42 +136,37 @@ const GroupFields = fieldsInOrder([
   ['description', NS],
   ['createdAt', NumberSchema],
 ])
-const Group = Schema.Struct({
-  ...GroupFields,
-  ...fieldsInOrder([
-    ['memberCount', NumberSchema],
-    ['grantCount', NumberSchema],
-  ]),
-})
-const GroupDetail = Schema.Struct({
-  ...GroupFields,
-  ...fieldsInOrder([
-    ['workspaceId', StringSchema],
-    [
-      'members',
-      array(
-        structInOrder([
-          ['userId', StringSchema],
-          ['email', StringSchema],
-          ['name', StringSchema],
-          ['addedAt', NumberSchema],
-          ['addedBy', StringSchema],
-        ]),
-      ),
-    ],
-    [
-      'grants',
-      array(
-        structInOrder([
-          ['projectId', StringSchema],
-          ['projectName', StringSchema],
-          ['projectKey', StringSchema],
-          ['role', Schema.Literals(['viewer', 'member', 'admin'])],
-        ]),
-      ),
-    ],
-  ]),
-})
+const Group = extendStructInOrder(GroupFields, [
+  ['memberCount', NumberSchema],
+  ['grantCount', NumberSchema],
+])
+const GroupGrantRole = Schema.Literals(['viewer', 'member', 'admin'])
+const GroupDetail = extendStructInOrder(GroupFields, [
+  ['workspaceId', StringSchema],
+  [
+    'members',
+    array(
+      structInOrder([
+        ['userId', StringSchema],
+        ['email', StringSchema],
+        ['name', StringSchema],
+        ['addedAt', NumberSchema],
+        ['addedBy', StringSchema],
+      ]),
+    ),
+  ],
+  [
+    'grants',
+    array(
+      structInOrder([
+        ['projectId', StringSchema],
+        ['projectName', StringSchema],
+        ['projectKey', StringSchema],
+        ['role', GroupGrantRole],
+      ]),
+    ),
+  ],
+])
 const Sprint = structInOrder([
   ['id', StringSchema],
   ['workspaceId', StringSchema],
@@ -202,21 +204,20 @@ const FeedbackSourceFields = fieldsInOrder([
   ['revokedAt', NN],
 ])
 const FeedbackSource = Schema.Struct(FeedbackSourceFields)
+const FeedbackVersionSummary = structInOrder([
+  ['appVersion', NS],
+  ['totalCount', NumberSchema],
+  ['withCommentCount', NumberSchema],
+  ['thumbsUpPct', NN],
+  ['avgFiveStar', NN],
+  ['lastSeenAt', NumberSchema],
+])
 const FeedbackSummary = array(
   Schema.Struct({
     sourceId: StringSchema,
     sourceName: NS,
     totalCount: NumberSchema,
-    versions: array(
-      structInOrder([
-        ['appVersion', NS],
-        ['totalCount', NumberSchema],
-        ['withCommentCount', NumberSchema],
-        ['thumbsUpPct', NN],
-        ['avgFiveStar', NN],
-        ['lastSeenAt', NumberSchema],
-      ]),
-    ),
+    versions: array(FeedbackVersionSummary),
   }),
 )
 const Activity = structInOrder([
@@ -247,40 +248,26 @@ const HeatmapEntryFields = fieldsInOrder([
   ['segment', StringSchema],
   ['isLeaf', BooleanSchema],
 ])
+const ClaimHeatmapEntry = extendStructInOrder(HeatmapEntryFields, [
+  ['distinctIssueCount', NumberSchema],
+  ['claimCount', NumberSchema],
+])
+const ContentionHeatmapEntry = extendStructInOrder(HeatmapEntryFields, [
+  ['distinctRejectedIssueCount', NumberSchema],
+  ['conflictCount', NumberSchema],
+])
 const Heatmap = Schema.Union([
   structInOrder([
     ['prefix', StringSchema],
     ['mode', Schema.Literal('claims')],
     ['totalDistinctIssues', NumberSchema],
-    [
-      'entries',
-      array(
-        Schema.Struct({
-          ...HeatmapEntryFields,
-          ...fieldsInOrder([
-            ['distinctIssueCount', NumberSchema],
-            ['claimCount', NumberSchema],
-          ]),
-        }),
-      ),
-    ],
+    ['entries', array(ClaimHeatmapEntry)],
   ]),
   structInOrder([
     ['prefix', StringSchema],
     ['mode', Schema.Literal('contention')],
     ['totalDistinctIssues', NumberSchema],
-    [
-      'entries',
-      array(
-        Schema.Struct({
-          ...HeatmapEntryFields,
-          ...fieldsInOrder([
-            ['distinctRejectedIssueCount', NumberSchema],
-            ['conflictCount', NumberSchema],
-          ]),
-        }),
-      ),
-    ],
+    ['entries', array(ContentionHeatmapEntry)],
   ]),
 ])
 const Project = structInOrder([
@@ -377,26 +364,20 @@ const IssueFields = fieldsInOrder([
   ['status_key', NS],
   ['status_name', NS],
 ])
-const IssueListItem = Schema.Struct({
-  ...IssueFields,
-  ...fieldsInOrder([
-    ['body', Schema.optional(StringSchema)],
-    ['assignee_name', NS],
-    ['customFields', array(FieldValue)],
-    ['rollup', Schema.optional(Rollup)],
-    ['url', StringSchema],
-  ]),
-})
-const IssueDetail = Schema.Struct({
-  ...IssueFields,
-  ...fieldsInOrder([
-    ['body', StringSchema],
-    ['rollup', Rollup],
-    ['links', array(IssueLink)],
-    ['customFields', array(FieldValue)],
-    ['url', StringSchema],
-  ]),
-})
+const IssueListItem = extendStructInOrder(IssueFields, [
+  ['body', Schema.optional(StringSchema)],
+  ['assignee_name', NS],
+  ['customFields', array(FieldValue)],
+  ['rollup', Schema.optional(Rollup)],
+  ['url', StringSchema],
+])
+const IssueDetail = extendStructInOrder(IssueFields, [
+  ['body', StringSchema],
+  ['rollup', Rollup],
+  ['links', array(IssueLink)],
+  ['customFields', array(FieldValue)],
+  ['url', StringSchema],
+])
 const PrioritizedIssue = structInOrder([
   ['id', StringSchema],
   ['title', StringSchema],
@@ -411,6 +392,7 @@ const PrioritizedIssue = structInOrder([
   ['needsGrooming', Schema.optional(Schema.Literal(true))],
   ['missingCriteria', Schema.optional(array(StringSchema))],
 ])
+const AgingWipStatus = Schema.Literals(['in_progress', 'in_review'])
 const FlowMetrics = structInOrder([
   ['leadTime', Distribution],
   ['leadTimeExcluded', NumberSchema],
@@ -471,7 +453,7 @@ const FlowMetrics = structInOrder([
     array(
       structInOrder([
         ['id', StringSchema],
-        ['status', Schema.Literals(['in_progress', 'in_review'])],
+        ['status', AgingWipStatus],
         ['ageSeconds', NumberSchema],
       ]),
     ),
@@ -510,16 +492,13 @@ const WikiIdentityFields = fieldsInOrder([
 ])
 const WikiSummaryFields = { ...WikiIdentityFields, parent_id: NS, updated_at: NumberSchema, ...WikiMetadataFields }
 const WikiSummary = Schema.Struct({ ...WikiSummaryFields, url: StringSchema })
-const WikiPage = Schema.Struct({
-  ...WikiSummaryFields,
-  ...fieldsInOrder([
-    ['content', StringSchema],
-    ['version', Schema.optional(NumberSchema)],
-    ['revisionId', NS],
-    ['url', StringSchema],
-    ['freshness', Freshness],
-  ]),
-})
+const WikiPage = extendStructInOrder(WikiSummaryFields, [
+  ['content', StringSchema],
+  ['version', Schema.optional(NumberSchema)],
+  ['revisionId', NS],
+  ['url', StringSchema],
+  ['freshness', Freshness],
+])
 const WikiRevisionFields = fieldsInOrder([
   ['id', StringSchema],
   ['title', StringSchema],
@@ -566,6 +545,12 @@ const WikiChange = structInOrder([
   ['deletedPageIdsTruncated', BooleanSchema],
 ])
 
+const BatchIssue = Schema.Struct({
+  ...IssueFields,
+  body: Schema.optional(StringSchema),
+  customFields: array(FieldValue),
+  url: StringSchema,
+})
 const apiResultEntries = [
   ['apiAuthenticate', ApiPrincipal],
   ['apiResolveWorkspace', ApiWorkspace],
@@ -617,14 +602,11 @@ const apiResultEntries = [
     'apiListFileClaims',
     Schema.Struct({
       items: array(
-        Schema.Struct({
-          ...ClaimFields,
-          ...fieldsInOrder([
-            ['releaseReason', NS],
-            ['issueRef', StringSchema],
-            ['live', BooleanSchema],
-          ]),
-        }),
+        extendStructInOrder(ClaimFields, [
+          ['releaseReason', NS],
+          ['issueRef', StringSchema],
+          ['live', BooleanSchema],
+        ]),
       ),
     }),
   ],
@@ -769,14 +751,7 @@ const apiResultEntries = [
   [
     'apiGetIssuesBatch',
     Schema.Struct({
-      items: array(
-        Schema.Struct({
-          ...IssueFields,
-          body: Schema.optional(StringSchema),
-          customFields: array(FieldValue),
-          url: StringSchema,
-        }),
-      ),
+      items: array(BatchIssue),
       missing: array(StringSchema),
     }),
   ],
@@ -872,21 +847,18 @@ const apiResultEntries = [
   [
     'apiSearchWiki',
     array(
-      Schema.Struct({
-        ...WikiIdentityFields,
-        ...fieldsInOrder([
-          ['type', NS],
-          ['tags', array(StringSchema)],
-          ['status', NS],
-          ['verified_at', NN],
-          ['verified_by', NS],
-          ['owners', array(StringSchema)],
-          ['verify_interval', NN],
-          ['excerpt', StringSchema],
-          ['rank', NumberSchema],
-          ['freshness', Freshness],
-        ]),
-      }),
+      extendStructInOrder(WikiIdentityFields, [
+        ['type', NS],
+        ['tags', array(StringSchema)],
+        ['status', NS],
+        ['verified_at', NN],
+        ['verified_by', NS],
+        ['owners', array(StringSchema)],
+        ['verify_interval', NN],
+        ['excerpt', StringSchema],
+        ['rank', NumberSchema],
+        ['freshness', Freshness],
+      ]),
     ),
   ],
   ['apiGetWikiPage', WikiPage],
@@ -934,18 +906,15 @@ const apiResultEntries = [
   [
     'apiListStaleWikiPages',
     array(
-      Schema.Struct({
-        ...WikiIdentityFields,
-        ...fieldsInOrder([
-          ['status', NS],
-          ['verified_at', NN],
-          ['verified_by', NS],
-          ['verify_interval', NN],
-          ['updated_at', NumberSchema],
-          ['url', StringSchema],
-          ['freshness', Freshness],
-        ]),
-      }),
+      extendStructInOrder(WikiIdentityFields, [
+        ['status', NS],
+        ['verified_at', NN],
+        ['verified_by', NS],
+        ['verify_interval', NN],
+        ['updated_at', NumberSchema],
+        ['url', StringSchema],
+        ['freshness', Freshness],
+      ]),
     ),
   ],
   ['apiPatchWikiPage', Schema.Struct({ ok: BooleanSchema, url: StringSchema })],
@@ -971,14 +940,11 @@ const apiResultEntries = [
   [
     'apiListWikiTrash',
     array(
-      Schema.Struct({
-        ...WikiIdentityFields,
-        ...fieldsInOrder([
-          ['parent_id', NS],
-          ['deleted_at', NN],
-          ['purgeAfter', NumberSchema],
-        ]),
-      }),
+      extendStructInOrder(WikiIdentityFields, [
+        ['parent_id', NS],
+        ['deleted_at', NN],
+        ['purgeAfter', NumberSchema],
+      ]),
     ),
   ],
   ['apiGetWikiTree', array(WikiTreeNodeCodec)],
