@@ -84,12 +84,15 @@ test.afterEach(async ({ page }, testInfo) => {
   })
 })
 
+const waitForViewTransitions = async function waitForViewTransitions(): Promise<void> {
+  if (document.activeViewTransition) {
+    await document.activeViewTransition.finished
+    await waitForViewTransitions()
+  }
+}
+
 const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-  await page.evaluate(async () => {
-    while (document.activeViewTransition) {
-      await document.activeViewTransition.finished
-    }
-  })
+  await page.evaluate(waitForViewTransitions)
   if (new URL(page.url()).pathname === '/settings/groups') {
     await expect(page.getByRole('heading', { level: 1, name: 'Groups' })).toBeVisible()
     await expect(page.getByText(/Groups grant members access to projects/u)).toBeVisible()
@@ -153,6 +156,15 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
   expect(dimensions.documentWidth, `${name}: document must fit configured viewport`).toBeLessThanOrEqual(viewportWidth)
 }
 
+const verifyMigrationReplay = async function verifyMigrationReplay(
+  request: APIRequestContext,
+  expectedMigrations: number,
+): Promise<void> {
+  const initialized = await request.post('http://127.0.0.1:4392/_fixture/reinitialize')
+  expect(initialized.status(), await initialized.text()).toBe(HTTP_OK)
+  expect(await initialized.json()).toEqual({ migrations: expectedMigrations })
+}
+
 test('API and Web share private Core persistence without adapter DB bindings', async ({ request, page }, testInfo) => {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
   const name = `Shared D1 ${suffix}`
@@ -170,11 +182,8 @@ test('API and Web share private Core persistence without adapter DB bindings', a
   const migrationNamesResult = await readdir(new URL('../../migrations/', import.meta.url))
   const migrationNames = migrationNamesResult.filter((name) => /^\d{4}_.+\.sql$/.test(name))
   expect(migrationNames.length).toBeGreaterThan(0)
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const initialized = await request.post('http://127.0.0.1:4392/_fixture/reinitialize')
-    expect(initialized.status(), await initialized.text()).toBe(HTTP_OK)
-    expect(await initialized.json()).toEqual({ migrations: migrationNames.length })
-  }
+  await verifyMigrationReplay(request, migrationNames.length)
+  await verifyMigrationReplay(request, migrationNames.length)
   const link = page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) })
   await expect(link).toHaveCount(1)
   expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('projectId')).toBe(project.id)
