@@ -59,7 +59,13 @@ const PUBLIC_VIEWER_EMAIL = 'public-viewer@projektor.local'
 const RoleSchema = Schema.Literals(['owner', 'admin', 'member', 'viewer'])
 const decodeActor = Schema.decodeUnknownSync(CoreActor)
 
-/** Re-run on every operation. A returned principal is data, not a reusable capability. */
+/**
+ * Re-run on every operation. A returned principal is data, not a reusable capability.
+ *
+ * @param {CoreActor} input Request identity and credentials supplied by the calling adapter.
+ * @param {CoreEnvironment} env Core authentication configuration and bindings.
+ * @returns {Promise<CorePrincipal>} The authenticated user and their current credential restrictions.
+ */
 export const resolveCorePrincipal = async function resolveCorePrincipal(
   input: CoreActor,
   env: CoreEnvironment,
@@ -186,7 +192,15 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
   }
 }
 
-/** Build local capabilities only after current credential confinement and membership checks. */
+/**
+ * Build local capabilities only after current credential confinement and membership checks.
+ *
+ * @param {CoreActor} actor Request identity and credentials for the operation.
+ * @param {string} workspaceId Workspace the operation will access.
+ * @param {Capability} requiredCapability Permission required by the operation.
+ * @param {CoreEnvironment} env Core configuration and local service bindings.
+ * @returns {Promise<ServiceCtx>} The service context for the authorized workspace and current principal.
+ */
 export const resolveCoreServiceCtx = async function resolveCoreServiceCtx(
   actor: CoreActor,
   workspaceId: string,

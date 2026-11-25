@@ -562,6 +562,10 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
  * FILE_CLAIM_TTL_SECONDS since claimedAt) is excluded unless `includeStale` is set,
  * restoring the pre-PROJ-932 behaviour of returning every unreleased claim regardless
  * of holder health.
+ *
+ * @param {ServiceCtx} ctx Authorized workspace context used to apply project visibility.
+ * @param {unknown} raw Unvalidated issue, path, project and liveness filters.
+ * @returns {Promise<{ items: Array<ActiveClaim & { issueRef: string }> }>} Visible claims in claim-time order, with issue references and liveness flags.
  */
 export const listFileClaims = async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
   const result = ListFileClaimsSchema.safeParse(raw)
@@ -682,6 +686,10 @@ export const releaseClaimsForAgent = async function releaseClaimsForAgent(
  * buildReleaseLeaseForClosedIssueStatement — a closed issue shouldn't keep files claimed
  * against it. Distinct release_reason from releaseFiles' "released". Returned as a
  * statement so the caller (updateIssue) folds it into its single ctx.db.batch().
+ *
+ * @param {ServiceCtx} ctx Workspace context used to prepare the update.
+ * @param {string} issueId Identifier of the closing issue.
+ * @returns {D1PreparedStatement} An unexecuted D1 update for the caller's batch.
  */
 export const buildReleaseClaimsForClosedIssueStatement = function buildReleaseClaimsForClosedIssueStatement(
   ctx: ServiceCtx,

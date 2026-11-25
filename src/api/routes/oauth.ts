@@ -172,6 +172,9 @@ const errorPage = function errorPage(
  * checked — would make the signing key identical on every deployment that skipped the
  * secret, and a forgeable consent token is a working CSRF against the one screen in
  * projektor that grants standing access.
+ *
+ * @param {Context<HonoEnv>} httpContext Request context with the deployment's secret bindings.
+ * @returns {string | null} The nonempty signing secret, or null when it is unavailable.
  */
 const consentSigningKey = function consentSigningKey(httpContext: Context<HonoEnv>): string | null {
   const secret = httpContext.env.JWT_SECRET
@@ -191,6 +194,10 @@ const NO_SIGNING_KEY =
  * unvalidated URI would make this endpoint an open redirect. Once it is populated, the
  * URI has been checked, and redirecting is not merely safe but required: a client left
  * waiting on a callback that never arrives shows the user a hung tab, not an error.
+ *
+ * @param {Context<HonoEnv>} httpContext Request context used to send the error response.
+ * @param {AuthorizationError} err Provider failure with any validated redirect URI and OAuth parameters.
+ * @returns {Response} A redirect to the validated callback or a local bad-request page.
  */
 const authorizationFailure = function authorizationFailure(
   httpContext: Context<HonoEnv>,
@@ -225,6 +232,9 @@ const authorizationFailure = function authorizationFailure(
  * every anonymous visitor on the internet. A deployment running with PUBLIC_READ_ONLY
  * and no Cloudflare Access has nobody who can authorize a connector, and must say so
  * rather than silently issuing a grant as the public viewer.
+ *
+ * @param {Context<HonoEnv>} httpContext Request context containing the authenticated identity.
+ * @returns {AuthUser | null} The Access or development user who can consent, or null for other identities.
  */
 const consentingUser = function consentingUser(httpContext: Context<HonoEnv>): AuthUser | null {
   if (httpContext.get('authKind') !== 'human' || !['access', 'dev'].includes(httpContext.get('auth')?.method ?? '')) {

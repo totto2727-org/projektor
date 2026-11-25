@@ -19,7 +19,14 @@ export {
   type ConsentWorkspace,
 } from '#contracts/oauth-consent.ts'
 
-/** Missing workspaces and missing membership are indistinguishable to the consent screen. */
+/**
+ * Missing workspaces and missing membership are indistinguishable to the consent screen.
+ *
+ * @param {D1Database} db Database that stores workspaces and memberships.
+ * @param {string} userId User requesting consent.
+ * @param {string} workspaceId Workspace selected for the grant.
+ * @returns {Promise<ConsentWorkspace | null>} The workspace and member role, or null when either is missing.
+ */
 export const lookupConsentWorkspace = async function lookupConsentWorkspace(
   db: D1Database,
   userId: string,
@@ -47,7 +54,14 @@ export type ConnectorGrant = Readonly<{
 const GRANT_PAGE_SIZE = 100
 const GRANT_MAX_PAGES = 5
 
-/** Grants are personal credentials, scoped to their consenting user and workspace. Bound the KV page walk. */
+/**
+ * Grants are personal credentials, scoped to their consenting user and workspace. Bound the KV page walk.
+ *
+ * @param {OAuthHelpers} api OAuth provider helpers for listing grants.
+ * @param {string} userId User who granted consent.
+ * @param {string} workspaceId Workspace that the grants can access.
+ * @returns {Promise<ConnectorGrant[]>} Redeemed grants from the scanned pages, newest first.
+ */
 export const listConnectorGrants = async function listConnectorGrants(
   api: OAuthHelpers,
   userId: string,
@@ -82,7 +96,15 @@ export const listConnectorGrants = async function listConnectorGrants(
   return grants.toSorted((left, right) => right.grantedAt - left.grantedAt)
 }
 
-/** The provider enforces user ownership. This lookup additionally prevents cross-workspace revocation. */
+/**
+ * The provider enforces user ownership. This lookup additionally prevents cross-workspace revocation.
+ *
+ * @param {OAuthHelpers} api OAuth provider helpers for listing and revoking grants.
+ * @param {string} userId User who granted consent.
+ * @param {string} workspaceId Workspace in which the grant must be visible.
+ * @param {string} grantId Provider identifier of the grant to revoke.
+ * @returns {Promise<{ ok: true }>} An acknowledgment after the provider revokes the grant.
+ */
 export const revokeConnectorGrant = async function revokeConnectorGrant(
   api: OAuthHelpers,
   userId: string,

@@ -48,7 +48,13 @@ export class BrowserAuthenticationError extends Error {
   }
 }
 
-/** A present but invalid Access credential never falls back to a development identity. */
+/**
+ * A present but invalid Access credential never falls back to a development identity.
+ *
+ * @param {Request} request Request carrying the Access header or authorization cookie.
+ * @param {BrowserAuthEnvironment} env Browser authentication configuration and provisioning bindings.
+ * @returns {Promise<BrowserPrincipal>} The verified Access principal or the configured development principal.
+ */
 export const authenticateBrowser = async function authenticateBrowser(
   request: Request,
   env: BrowserAuthEnvironment,
@@ -130,7 +136,15 @@ function jwtClaimsValid(
   const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
   return audiences.includes(audience) && payload.iss === issuer && Predicate.isString(payload.email)
 }
-/** Injectable keys preserve the API's native regression verifier contract. */
+/**
+ * Injectable keys preserve the API's native regression verifier contract.
+ *
+ * @param {string} jwt Compact JWT received from Access.
+ * @param {JsonWebKey[]} keys Candidate public signing keys.
+ * @param {string} audience Expected Access application audience.
+ * @param {string} issuer Expected Access team issuer URL.
+ * @returns {Promise<{ email: string } | null>} The verified email, or null if claims or signature verification fail.
+ */
 export async function verifyJwtPayload(
   jwt: string,
   keys: JsonWebKey[],
@@ -249,7 +263,14 @@ export const resetAuthCachesForTests = function resetAuthCachesForTests(): void 
   inMemoryCertsCache = null
   inMemoryUserCache.clear()
 }
-/** Shared by Access/dev and the API-only opt-in public identity strategy. */
+/**
+ * Shared by Access/dev and the API-only opt-in public identity strategy.
+ *
+ * @param {string} email Email from the authenticated identity strategy.
+ * @param {D1Database} db Database that stores user records.
+ * @param {KVNamespace} [kv] Optional cache shared across Worker instances.
+ * @returns {Promise<AuthUser>} The user record associated with the email.
+ */
 export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNamespace): Promise<AuthUser> {
   const local = inMemoryUserCache.get(email)
   if (local && local.expiresAt > currentEpochMilliseconds()) {
