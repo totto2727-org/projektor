@@ -20,7 +20,7 @@ const messagesFrom = function messagesFrom(error: unknown): string[] {
     return [error]
   }
   if (globalThis.Array.isArray(error)) {
-    return error.flatMap(messagesFrom)
+    return error.flatMap((entry) => messagesFrom(entry))
   }
   if (!Predicate.isObjectOrArray(error)) {
     return []
@@ -31,7 +31,7 @@ const messagesFrom = function messagesFrom(error: unknown): string[] {
   }
   const errorMap =
     issue.errorMap && typeof issue.errorMap === 'object'
-      ? Object.values(issue.errorMap).flatMap(messagesFrom)
+      ? Object.values(issue.errorMap).flatMap((entry) => messagesFrom(entry))
       : messagesFrom(issue.errorMap)
   return [messagesFrom(issue.errors), errorMap].flat()
 }

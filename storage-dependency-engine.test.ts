@@ -66,7 +66,7 @@ describe('covers Cloudflare storage dependency propagation', () => {
             const database = yield* Database('Database', { migration: version })
             // Alchemy can resolve the stable databaseId before reconciliation ends.
             // The nonstable migrationsHashes output waits for the migration result.
-            const env = { ENVIRONMENT: Output.map(database.migrationsHashes, () => 'production') }
+            const env = { ENVIRONMENT: Output.map(() => 'production')(database.migrationsHashes) }
             for (const id of workers) {
               yield* Worker(id, { version: id === 'Core' && scenario === 'Core is unchanged' ? 1 : version, env })
             }

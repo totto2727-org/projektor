@@ -1847,7 +1847,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
     if (Array.isArrayEmpty(rows)) {
       return { issues: [] }
     }
-    return { issues: rows.map(toPrioritizedIssue), droppedNotReady: 0 }
+    return { issues: rows.map((issue) => toPrioritizedIssue(issue)), droppedNotReady: 0 }
   }
 
   const ready = await queryPrioritized(ctx, { ...base, readyOnly: true })
@@ -1857,7 +1857,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    */
   if (Array.isArrayNonEmpty(ready)) {
     return fieldsInOrder([
-      ['issues', ready.map(toPrioritizedIssue)],
+      ['issues', ready.map((issue) => toPrioritizedIssue(issue))],
       ['droppedNotReady', ready[0].not_ready_count],
     ])
   }
@@ -1871,7 +1871,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
     return { issues: [] }
   }
   return fieldsInOrder([
-    ['issues', all.map(toPrioritizedIssue)],
+    ['issues', all.map((issue) => toPrioritizedIssue(issue))],
     ['droppedNotReady', all[0].not_ready_count],
     ['degraded', true],
   ])

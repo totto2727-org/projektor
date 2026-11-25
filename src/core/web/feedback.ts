@@ -82,7 +82,9 @@ const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
 const loadSources = function loadSources(env: CoreEnvironment, workspaceId: string, projectId: string) {
   return queries
     .listFeedbackSources(env.DB, workspaceId, { projectId })
-    .pipe(Effect.flatMap((rows) => Effect.try({ catch: publicWebFailure, try: () => rows.map(sourceDto) })))
+    .pipe(
+      Effect.flatMap((rows) => Effect.try({ catch: publicWebFailure, try: () => rows.map((row) => sourceDto(row)) })),
+    )
 }
 const loadSummaries = function loadSummaries(env: CoreEnvironment, workspaceId: string, projectId: string) {
   return queries.readFeedbackSummary(env.DB, workspaceId, { projectId }).pipe(Effect.map(summaryDtos))

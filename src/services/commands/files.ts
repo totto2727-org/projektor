@@ -190,7 +190,7 @@ export const listAttachments = async function listAttachments(
       ownerVisibility: owner,
     }),
   )
-  return rows.map(toDto)
+  return rows.map((row) => toDto(row))
 }
 
 /**

@@ -364,12 +364,12 @@ const resolveLinkTargets = async function resolveLinkTargets(
     resolveTitleTargets(
       orm,
       workspaceId,
-      targets.filter(isTitleTarget).map((target) => target.title),
+      targets.filter((target) => isTitleTarget(target)).map((target) => target.title),
     ),
     resolveSlugTargets(
       orm,
       workspaceId,
-      targets.filter(isSlugTarget).map((target) => target.slug),
+      targets.filter((target) => isSlugTarget(target)).map((target) => target.slug),
     ),
   ])
   return resolveTargetsFromMaps(targets, titleMatches, slugMatches)
@@ -392,12 +392,12 @@ const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
     resolveTitleTargets(
       orm,
       workspaceId,
-      allTargets.filter(isTitleTarget).map((target) => target.title),
+      allTargets.filter((target) => isTitleTarget(target)).map((target) => target.title),
     ),
     resolveSlugTargets(
       orm,
       workspaceId,
-      allTargets.filter(isSlugTarget).map((target) => target.slug),
+      allTargets.filter((target) => isSlugTarget(target)).map((target) => target.slug),
     ),
   ])
   const byPage = new Map<string, ResolvedLink[]>()

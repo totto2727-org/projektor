@@ -258,16 +258,63 @@ const importedSymbol = function importedSymbol(
 }
 
 const coreMethods = new Map<string, { module: SourceModule; node: ts.Node }>()
+const coreMethodName = /^api[A-Z]/u
+
+const recordCoreMethod = function recordCoreMethod(module: SourceModule, name: string, node: ts.Node): void {
+  if (coreMethods.has(name)) {
+    throw new Error(`Duplicate named Core operation: ${name}`)
+  }
+  coreMethods.set(name, { module, node })
+}
+
+const usesOrderedFields = function usesOrderedFields(module: SourceModule, expression: ts.Node): boolean {
+  const factory = importedSymbol(module, expression)
+  return factory?.path === join(SRC, '..', 'contracts', 'ordered-fields.ts') && factory.name === 'fieldsInOrder'
+}
+
+interface OrderedFieldEntry {
+  name: string
+  value: ts.Node
+}
+
+const orderedFieldEntries = function orderedFieldEntries(
+  module: SourceModule,
+  call: ts.CallExpression,
+): OrderedFieldEntry[] {
+  const entries = call.arguments.at(0)
+  if (
+    !usesOrderedFields(module, call.expression) ||
+    Predicate.isNullish(entries) ||
+    !ts.isArrayLiteralExpression(entries)
+  ) {
+    return []
+  }
+  return entries.elements.flatMap((entry): OrderedFieldEntry[] => {
+    if (!ts.isArrayLiteralExpression(entry)) {
+      return []
+    }
+    const name = entry.elements.at(0)
+    const value = entry.elements.at(1)
+    return Predicate.isNotNullish(name) && ts.isStringLiteral(name) && Predicate.isNotNullish(value)
+      ? [{ name: name.text, value }]
+      : []
+  })
+}
+
 Iterable.forEach(
   expandToFiles(join(SRC, '..', 'core', 'api')).filter((path) => !path.endsWith('.test.ts')),
   (path): void => {
     const module = sourceModule(path)
     const visit = function visit(node: ts.Node): void {
-      if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/u.test(node.name.text)) {
-        if (coreMethods.has(node.name.text)) {
-          throw new Error(`Duplicate named Core operation: ${node.name.text}`)
-        }
-        coreMethods.set(node.name.text, { module, node: node.initializer })
+      if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && coreMethodName.test(node.name.text)) {
+        recordCoreMethod(module, node.name.text, node.initializer)
+      }
+      if (ts.isCallExpression(node)) {
+        Iterable.forEach(orderedFieldEntries(module, node), ({ name, value }): void => {
+          if (coreMethodName.test(name)) {
+            recordCoreMethod(module, name, value)
+          }
+        })
       }
       node.forEachChild(visit)
     }
@@ -275,12 +322,17 @@ Iterable.forEach(
   },
 )
 
+type BinaryValue = string | boolean | undefined
+
+const isTruthyBinaryValue = (value: BinaryValue): boolean =>
+  value === true || (Predicate.isString(value) && String.isNonEmpty(value))
+
 interface BinaryContext {
   pathname: string
   method: string
-  values: Map<string, unknown>
+  values: Map<string, BinaryValue>
 }
-const valueOf = function valueOf(node: ts.Node, context: BinaryContext): unknown {
+const valueOf = function valueOf(node: ts.Node, context: BinaryContext): BinaryValue {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return node.text
   }
@@ -300,7 +352,7 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): unknown
   }
   if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
     const value = valueOf(node.operand, context)
-    return value === undefined ? undefined : !value
+    return Predicate.isNullish(value) ? undefined : !isTruthyBinaryValue(value)
   }
   if (ts.isBinaryExpression(node)) {
     const left = valueOf(node.left, context),
@@ -309,22 +361,22 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): unknown
       case ts.SyntaxKind.AmpersandAmpersandToken: {
         return left === false || right === false
           ? false
-          : left === undefined || right === undefined
+          : Predicate.isNullish(left) || Predicate.isNullish(right)
             ? undefined
-            : Boolean(left && right)
+            : isTruthyBinaryValue(left) && isTruthyBinaryValue(right)
       }
       case ts.SyntaxKind.BarBarToken: {
         return left === true || right === true
           ? true
-          : left === undefined || right === undefined
+          : Predicate.isNullish(left) || Predicate.isNullish(right)
             ? undefined
-            : Boolean(left || right)
+            : isTruthyBinaryValue(left) || isTruthyBinaryValue(right)
       }
       case ts.SyntaxKind.EqualsEqualsEqualsToken: {
-        return left === undefined || right === undefined ? undefined : left === right
+        return Predicate.isNullish(left) || Predicate.isNullish(right) ? undefined : left === right
       }
       case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
-        return left === undefined || right === undefined ? undefined : left !== right
+        return Predicate.isNullish(left) || Predicate.isNullish(right) ? undefined : left !== right
       }
     }
   }
@@ -336,7 +388,8 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): unknown
   ) {
     const text = node.expression.expression.text
     const end = text.lastIndexOf('/')
-    const input = node.arguments[0] && valueOf(node.arguments[0], context)
+    const argument = node.arguments.at(0)
+    const input = Predicate.isNotNullish(argument) ? valueOf(argument, context) : undefined
     if (Predicate.isString(input)) {
       return new RegExp(text.slice(1, end), text.slice(end + 1)).test(input)
     }
@@ -425,8 +478,8 @@ const domainOperations = function domainOperations(
   const visit = function visit(child: ts.Node, method = binary?.method ?? 'GET'): boolean {
     if (binary && ts.isIfStatement(child)) {
       const condition = valueOf(child.expression, binary)
-      if (condition !== undefined) {
-        return condition
+      if (Predicate.isNotNullish(condition)) {
+        return isTruthyBinaryValue(condition)
           ? visit(child.thenStatement, method)
           : child.elseStatement
             ? visit(child.elseStatement, method)
@@ -459,7 +512,7 @@ const domainOperations = function domainOperations(
           throw new Error(`Unresolved Core file path in ${module.path}`)
         }
         binaryRequest(pathname, method)
-      } else if (ts.isPropertyAccessExpression(expression) && /^api[A-Z]/u.test(expression.name.text)) {
+      } else if (ts.isPropertyAccessExpression(expression) && coreMethodName.test(expression.name.text)) {
         native(expression.name.text)
       } else if (
         ts.isPropertyAccessExpression(expression) &&
@@ -467,8 +520,11 @@ const domainOperations = function domainOperations(
         ts.isPropertyAccessExpression(expression.expression) &&
         expression.expression.name.text === 'CORE'
       ) {
-        const request = child.arguments[0]
-        const pathname = request && ts.isNewExpression(request) ? pathLiteral(request.arguments?.[0]) : undefined
+        const request = child.arguments.at(0)
+        const pathname =
+          Predicate.isNotNullish(request) && ts.isNewExpression(request)
+            ? pathLiteral(request.arguments?.[0])
+            : undefined
         if (Predicate.isNullish(pathname) || String.isEmpty(pathname)) {
           throw new Error(`Unresolved native fetch address in ${module.path}`)
         }
@@ -502,7 +558,7 @@ const domainOperations = function domainOperations(
 const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: string[]): Set<string> {
   const keys = new Set<string>()
   Iterable.forEach(
-    paths.flatMap(expandToFiles).filter((path) => !path.endsWith('.test.ts')),
+    paths.flatMap((path) => expandToFiles(path)).filter((path) => !path.endsWith('.test.ts')),
     (path): void => {
       const module = sourceModule(path)
       for (const statement of module.ast.statements) {
@@ -560,14 +616,19 @@ interface ServiceFn {
  */
 const FILE_IO_WRAPPERS = ['uploadStoredAttachment', 'getStoredAttachment', 'deleteStoredAttachment'] as const
 
-const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string>> {
-  const ast = parseSource(join(COMMANDS, 'files.ts'), source)
+const fileIoCalls = function fileIoCalls(module: SourceModule): Map<string, Set<string>> {
   const calls = new Map<string, Set<string>>()
-  const functions = ast.statements.filter(isFunctionStatement).flatMap(declaredFunctions)
+  const functions = module.ast.statements
+    .filter(isFunctionStatement)
+    .flatMap((statement) => declaredFunctions(statement))
   Iterable.forEach(functions, (fn): void => {
     const names = new Set<string>()
     const visit = function visit(child: ts.Node): void {
-      if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) {
+      if (
+        ts.isCallExpression(child) &&
+        ts.isIdentifier(child.expression) &&
+        !usesOrderedFields(module, child.expression)
+      ) {
         names.add(child.expression.text)
       }
       child.forEachChild(visit)
@@ -578,29 +639,45 @@ const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string
   return calls
 }
 
-const fileWrapperCalls = fileIoCalls(readFileSync(join(COMMANDS, 'files.ts'), 'utf8'))
+const fileWrapperCalls = fileIoCalls(sourceModule(join(COMMANDS, 'files.ts')))
 const restOperations = serviceOperationsUsedIn(join(SRC, 'routes'), join(SRC, 'worker.ts'))
 const mcpOperations = serviceOperationsUsedIn(join(SRC, 'mcp'))
+const sourceToolName = function sourceToolName(
+  module: SourceModule,
+  node: ts.ObjectLiteralExpression,
+): string | undefined {
+  const names = node.properties.flatMap((property): ts.Node[] => {
+    if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === 'name') {
+      return [property.initializer]
+    }
+    if (ts.isSpreadAssignment(property) && ts.isCallExpression(property.expression)) {
+      return orderedFieldEntries(module, property.expression)
+        .filter(({ name }) => name === 'name')
+        .map(({ value }) => value)
+    }
+    return []
+  })
+  const name = names.at(-1)
+  return Predicate.isNotNullish(name) && ts.isStringLiteral(name) ? name.text : undefined
+}
+
 const toolOperations = new Map<string, Set<string>>()
 Iterable.forEach(expandToFiles(join(SRC, 'mcp')), (path): void => {
   const module = sourceModule(path)
   const visit = function visit(node: ts.Node): void {
     if (ts.isObjectLiteralExpression(node)) {
-      const name = node.properties.find(
-        (property) =>
-          ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === 'name',
-      )
+      const name = sourceToolName(module, node)
       const handler = node.properties.find(
         (property) =>
           (ts.isMethodDeclaration(property) || ts.isPropertyAssignment(property)) &&
           ts.isIdentifier(property.name) &&
           property.name.text === 'handler',
       )
-      if (name && ts.isPropertyAssignment(name) && ts.isStringLiteral(name.initializer) && handler) {
-        if (toolOperations.has(name.initializer.text)) {
-          throw new Error(`Duplicate MCP tool source: ${name.initializer.text}`)
+      if (Predicate.isNotNullish(name) && Predicate.isNotNullish(handler)) {
+        if (toolOperations.has(name)) {
+          throw new Error(`Duplicate MCP tool source: ${name}`)
         }
-        toolOperations.set(name.initializer.text, domainOperations(module, handler))
+        toolOperations.set(name, domainOperations(module, handler))
       }
     }
     node.forEachChild(visit)
@@ -616,7 +693,7 @@ Iterable.forEach(expandToFiles(COMMANDS), (path): void => {
   const exportedFunctions = sourceModule(path)
     .ast.statements.filter(isFunctionStatement)
     .filter((statement) => statement.modifiers?.some(({ kind }) => kind === ts.SyntaxKind.ExportKeyword))
-    .flatMap(declaredFunctions)
+    .flatMap((statement) => declaredFunctions(statement))
   Iterable.forEach(exportedFunctions, ({ name: fn }): void => {
     serviceFns.push({
       key: `${file}:${fn}`,
@@ -747,14 +824,19 @@ describe('covers MCP surface parity (PROJ-623)', () => {
   })
 
   test('ignores comments, type references and unrelated function bodies when tracing wrapper calls', () => {
-    const calls = fileIoCalls(`
+    const calls = fileIoCalls(
+      sourceModule(
+        join(COMMANDS, 'parity-wrappers-fixture.ts'),
+        `
       export async function deleteStoredAttachment(ctx: unknown, id: string): Promise<void> {
         // getAttachmentForDownload(ctx, id) is not a call.
         const label = 'recordUpload(ctx, id)'
         await deleteAttachment(ctx, { id })
       }
       function unrelated() { recordUpload() }
-    `)
+    `,
+      ),
+    )
     expect([...(calls.get('deleteStoredAttachment') ?? [])]).toStrictEqual(['deleteAttachment'])
   })
 

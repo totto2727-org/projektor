@@ -94,7 +94,7 @@ export const ProductionLayer = Layer.mergeAll(
         ...commonApplicationEnvironment,
         /* The databaseId value is stable and resolves before migrations. This nonstable output
          * gates every Worker on completed D1 reconciliation, even with unchanged Core. */
-        ENVIRONMENT: Output.map(database.migrationsHashes, () => 'production'),
+        ENVIRONMENT: Output.map(() => 'production')(database.migrationsHashes),
         ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
       }
       return {

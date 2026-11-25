@@ -113,7 +113,7 @@ export const listAttachments = function listAttachments(
       [options.entityType, options.entityId],
       options,
     ).all<AttachmentRow>()
-    return (rows.results ?? []).map(toMetadata)
+    return (rows.results ?? []).map((row) => toMetadata(row))
   })
 }
 export const findAttachment = function findAttachment(

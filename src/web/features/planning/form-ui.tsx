@@ -6,13 +6,13 @@ const messages = function messages(value: unknown): string[] {
     return [value]
   }
   if (Array.isArray(value)) {
-    return value.flatMap(messages)
+    return value.flatMap((entry) => messages(entry))
   }
   if (Predicate.isObjectOrArray(value)) {
     if ('message' in value && Predicate.isString(value.message)) {
       return [value.message]
     }
-    return Object.values(value).flatMap(messages)
+    return Object.values(value).flatMap((entry) => messages(entry))
   }
   return []
 }
@@ -25,7 +25,7 @@ export const FormErrors = function FormErrors({
   errors: Readonly<unknown[]>
   children?: ReactNode
 }): null | JSX.Element {
-  const text = [...new Set(errors.flatMap(messages))]
+  const text = [...new Set(errors.flatMap((entry) => messages(entry)))]
   return text.length ? (
     <div role='alert' className='text-danger-text text-[0.8rem] mb-3'>
       {text.map((message) => (

@@ -767,7 +767,7 @@ const readFlowMetrics = async function readFlowMetrics(
         or(windowPredicate, inArray(schema.issues.status, ['in_progress', 'in_review'])),
       ),
     )
-  const issues = loaded.filter(inSqlWindow)
+  const issues = loaded.filter((issue) => inSqlWindow(issue))
 
   /*
    * Scope by project only, not created_at: since/until describe an activity window
