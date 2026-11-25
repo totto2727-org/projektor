@@ -9,13 +9,11 @@ import type { CoreRpcShape } from './contract.ts'
 // Consumers use this runtime entry for instanceof checks across the bundled boundary.
 export { CorePublicError } from './contract.ts'
 
-type LazyCoreClient = {
-  readonly [K in keyof CoreRpcShape]: CoreRpcShape[K] extends (
-    ...args: infer Args
-  ) => Effect.Effect<infer A, infer E, infer R>
+type LazyCoreClient = Readonly<{
+  [K in keyof CoreRpcShape]: CoreRpcShape[K] extends (...args: infer Args) => Effect.Effect<infer A, infer E, infer R>
     ? (...args: Args) => Effect.Effect<A, E, R | WorkerEnvironment>
     : never
-}
+}>
 
 /** The SDK resolves the service binding at dispatch, never at module initialization. */
 export function makeCoreClient(): LazyCoreClient

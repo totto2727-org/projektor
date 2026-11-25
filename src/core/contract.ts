@@ -8,17 +8,17 @@ import type { WebCoreRpcShape } from './web/operations.ts'
 
 export const CORE_ACTOR_HEADER = 'x-projektor-core-actor'
 
-type ClientShape<T> = {
-  readonly [K in keyof T]: T[K] extends (...args: infer Args) => Effect.Effect<infer A, infer E, infer _R>
+type ClientShape<T> = Readonly<{
+  [K in keyof T]: T[K] extends (...args: infer Args) => Effect.Effect<infer A, infer E, infer _R>
     ? (...args: Args) => Effect.Effect<A, E>
     : never
-}
+}>
 export type CoreRpcShape = ClientShape<ApiCoreRpcShape & WebCoreRpcShape>
-type InvocationShape<T> = {
-  readonly [K in keyof T]: T[K] extends (...args: infer Args) => Effect.Effect<infer A, infer E, infer R>
+type InvocationShape<T> = Readonly<{
+  [K in keyof T]: T[K] extends (...args: infer Args) => Effect.Effect<infer A, infer E, infer R>
     ? (...args: Args) => Effect.Effect<A, E, R | WorkerEnvironment | WorkerExecutionContext>
     : never
-}
+}>
 export type CoreShape = InvocationShape<CoreRpcShape> & Readonly<{ fetch: HttpEffect }>
 
 export const CoreProblem = Schema.Struct({

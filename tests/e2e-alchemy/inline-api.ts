@@ -18,7 +18,7 @@ const loopbackNetwork = 'projektor-e2e-loopback-only'
 /** Public runtime extension hosts both actual backend artifacts in the frontend workerd. */
 export class InlineApi extends Plugin.Service<
   InlineApi,
-  { readonly bind: PluginContext.BindingHook<RuntimeServices.BindingServices> }
+  Readonly<{ bind: PluginContext.BindingHook<RuntimeServices.BindingServices> }>
 >()('cloudflare-runtime/plugin/ProjektorInlineApi') {}
 
 export const inlineCoreBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
