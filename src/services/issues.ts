@@ -370,12 +370,23 @@ export interface IssueBatchOptions {
   ids?: Readonly<string[]>
   includeBody?: boolean
 }
+
+type IssueBatchItem = Omit<IssueRow, 'body'> & {
+  body?: string
+  customFields: CustomFieldValue[]
+}
+
+interface IssueBatch {
+  items: IssueBatchItem[]
+  missing: string[]
+}
+
 export const getIssuesBatch = function getIssuesBatch(
   db: D1Database,
   workspaceId: string,
   options: IssueBatchOptions,
   visibility?: SQL,
-) {
+): Effect.Effect<IssueBatch, DataQueryError> {
   return Effect.gen(function* () {
     const selection = yield* queryEffect('getIssuesBatch', async () => {
       const refs = options.refs ?? []
@@ -436,10 +447,7 @@ export const getIssuesBatch = function getIssuesBatch(
         { ...row, ...(options.includeBody === true ? { body } : {}), customFields: fields[row.id] ?? [] },
       ]),
     )
-    const items: (Omit<NonNullable<IssueRow>, 'body'> & {
-      body?: string
-      customFields: CustomFieldValue[]
-    })[] = []
+    const items: IssueBatchItem[] = []
     const missing: string[] = []
     const seen = new Set<string>()
     Iterable.forEach(selection.order, (entry) => {

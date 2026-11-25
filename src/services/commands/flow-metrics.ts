@@ -5,6 +5,7 @@ import { flattenError } from 'zod'
 import { GetFlowMetricsSchema } from '#contracts/inputs/flow-metrics.ts'
 import { drizzle, schema } from '#db'
 import { getFlowMetrics as queryFlowMetrics } from '#services/flow-metrics.ts'
+import type { FlowMetrics } from '#services/flow-metrics.ts'
 
 import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
@@ -28,7 +29,7 @@ const assertProjectExists = async function assertProjectExists(ctx: ServiceCtx, 
   }
 }
 
-export const getFlowMetrics = async function getFlowMetrics(ctx: ServiceCtx, raw: unknown) {
+export const getFlowMetrics = async function getFlowMetrics(ctx: ServiceCtx, raw: unknown): Promise<FlowMetrics> {
   const result = GetFlowMetricsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

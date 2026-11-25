@@ -16,6 +16,10 @@ export interface CustomFieldValue {
   value: string
 }
 
+type CustomFieldDefinition = Omit<typeof schema.customFieldDefinitions.$inferSelect, 'options'> & {
+  options: string[] | null
+}
+
 /** Leave room for workspace and other fixed predicates beneath D1's 100 bind cap. */
 export const inChunks = async function inChunks<I, O>(
   items: Readonly<I[]>,
@@ -33,7 +37,7 @@ export const listCustomFieldDefs = function listCustomFieldDefs(
   workspaceId: string,
   projectId?: string | null,
   visibility?: SQL,
-) {
+): Effect.Effect<CustomFieldDefinition[], DataQueryError> {
   return queryEffect('listCustomFieldDefs', async () => {
     const orm = drizzle(db, { schema })
     const conditions = [eq(schema.customFieldDefinitions.workspaceId, workspaceId)]

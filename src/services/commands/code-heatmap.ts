@@ -5,6 +5,7 @@ import { flattenError } from 'zod'
 import { GetCodeHeatmapSchema } from '#contracts/inputs/code-heatmap.ts'
 import { drizzle, schema } from '#db'
 import { getCodeHeatmap as queryCodeHeatmap } from '#services/code-heatmap.ts'
+import type { CodeHeatmap } from '#services/code-heatmap.ts'
 
 import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
@@ -28,7 +29,7 @@ const assertProjectExists = async function assertProjectExists(ctx: ServiceCtx, 
   }
 }
 
-export const getCodeHeatmap = async function getCodeHeatmap(ctx: ServiceCtx, raw: unknown) {
+export const getCodeHeatmap = async function getCodeHeatmap(ctx: ServiceCtx, raw: unknown): Promise<CodeHeatmap> {
   const result = GetCodeHeatmapSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
