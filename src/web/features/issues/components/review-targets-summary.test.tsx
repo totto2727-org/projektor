@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import type { ReviewTarget } from '#contracts/review-targets.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { issue } from '@/features/issues/test/fixtures.ts'
 
 import { ReviewTargetsSummary } from './review-targets-summary.tsx'
@@ -73,7 +74,7 @@ describe('issue review target summary', () => {
   })
 
   test('preserves fallback issue and workspace identity when opening the focused page', () => {
-    render(<ReviewTargetsSummary issue={{ ...issue(), id: 'id /?', project_key: null, workspaceSlug: 'other' }} />)
+    render(<ReviewTargetsSummary issue={{ ...issue(), id: 'id /?', project_key: JSON_NULL, workspaceSlug: 'other' }} />)
     const url = new URL(screen.getByRole('link').getAttribute('href') ?? '', 'https://front.test')
     expect(url.pathname).toBe('/issues/view')
     expect(url.searchParams.get('id')).toBe('id /?')

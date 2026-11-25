@@ -39,7 +39,7 @@ const catalogProject = (name: string) => ({
   workspace_slug: 'workspace',
   open_issue_count: 1,
   backlog_issue_count: 0,
-  archived_at: null,
+  archived_at: JSON_NULL,
   created_at: 1,
   updated_at: 1,
 })

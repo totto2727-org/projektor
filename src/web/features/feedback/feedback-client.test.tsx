@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import { navigateFeature } from '@/features/wiki/navigation.ts'
 
 import {
@@ -32,7 +33,7 @@ vi.mock('./actions', () => ({
 const row: Feedback = {
   id: 'row',
   sourceId: 'source',
-  sourceName: null,
+  sourceName: JSON_NULL,
   rating: 5,
   ratingScale: 'five_star',
   body: 'Useful feedback',
@@ -40,7 +41,7 @@ const row: Feedback = {
   sourceUrl: 'https://example.test/page?screen=home',
   appVersion: 'v1',
   status: 'new',
-  linkedIssueId: null,
+  linkedIssueId: JSON_NULL,
   createdAt: 1,
 }
 afterEach(() => {
@@ -51,12 +52,12 @@ afterEach(() => {
 const source: FeedbackSource = {
   id: 'source',
   name: 'Customer feedback',
-  description: null,
+  description: JSON_NULL,
   isActive: true,
-  allowedOrigins: null,
+  allowedOrigins: JSON_NULL,
   tokenPreview: 'pk_...',
   createdAt: 1,
-  revokedAt: null,
+  revokedAt: JSON_NULL,
 }
 describe('feedback hydrated original controls', () => {
   test('creates a source through native action-state FormData and retains its one-time token across refresh', async () => {

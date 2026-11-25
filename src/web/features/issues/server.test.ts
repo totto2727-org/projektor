@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { issueListQuery } from './query.ts'
 
 const workspace = {
@@ -13,13 +15,13 @@ const projectA = {
   name: 'Project A',
   key: 'A',
   slug: 'a',
-  description: null,
+  description: JSON_NULL,
   workspace_id: workspace.id,
   workspace_name: workspace.name,
   workspace_slug: workspace.slug,
   open_issue_count: 1,
   backlog_issue_count: 0,
-  archived_at: null,
+  archived_at: JSON_NULL,
   created_at: 1,
   updated_at: 1,
 }

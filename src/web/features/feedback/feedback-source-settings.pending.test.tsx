@@ -2,6 +2,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { rotateFeedbackSourceToken } from './actions.ts'
 import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
 
@@ -26,12 +28,12 @@ test('single-flights rapid rotation confirmation and reveals only its resulting 
       source={{
         id: 'source',
         name: 'Source',
-        description: null,
+        description: JSON_NULL,
         isActive: true,
-        allowedOrigins: null,
+        allowedOrigins: JSON_NULL,
         tokenPreview: 'old…',
         createdAt: 1,
-        revokedAt: null,
+        revokedAt: JSON_NULL,
       }}
     />,
   )
@@ -58,12 +60,12 @@ test('releases rotation confirmation after a failure so a deliberate retry can s
       source={{
         id: 'source',
         name: 'Source',
-        description: null,
+        description: JSON_NULL,
         isActive: true,
-        allowedOrigins: null,
+        allowedOrigins: JSON_NULL,
         tokenPreview: 'old…',
         createdAt: 1,
-        revokedAt: null,
+        revokedAt: JSON_NULL,
       }}
     />,
   )

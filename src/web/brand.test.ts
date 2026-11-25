@@ -1,6 +1,7 @@
 import { Iterable } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
 import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand.ts'
@@ -52,7 +53,7 @@ describe('server-rendered native brand', () => {
         BRAND_ON_ACCENT: ' ',
         BRAND_LOGO_URL: ' /logo.svg ',
       }),
-    ).toStrictEqual({ accent: '#123456', logoUrl: '/logo.svg', mark: '🐳', name: '🐳 Team', onAccent: null })
+    ).toStrictEqual({ accent: '#123456', logoUrl: '/logo.svg', mark: '🐳', name: '🐳 Team', onAccent: JSON_NULL })
     expect(deploymentBrand({ BRAND_NAME: 'Deploy', BRAND_MARK: '  xyz ' }).mark).toBe('x')
   })
 

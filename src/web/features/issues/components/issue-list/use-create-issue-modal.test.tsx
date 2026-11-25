@@ -6,12 +6,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { JSX } from 'react'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import { createIssue } from '@/features/issues/actions.ts'
 
 import { CreateIssueModal } from './create-issue-modal.tsx'
 import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
-const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
+const PROJECTS = [
+  { id: 'p1', key: 'PROJ', name: 'Projektor', description: JSON_NULL, workspace_slug: 'test-workspace' },
+]
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const Harness = function Harness(): JSX.Element {

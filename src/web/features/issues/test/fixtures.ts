@@ -18,7 +18,7 @@ export const project = {
   workspace_slug: workspace.slug,
   open_issue_count: 1,
   backlog_issue_count: 0,
-  archived_at: null,
+  archived_at: JSON_NULL,
   created_at: 1,
   updated_at: 1,
 }
@@ -59,8 +59,8 @@ export const issue = function issue(overrides: Partial<Issue> = {}): Issue {
   }
 }
 export const statuses = [
-  { id: 'todo', key: 'todo', name: 'Todo', category: 'todo', color: null },
-  { id: 'done', key: 'done', name: 'Done', category: 'done', color: null },
+  { id: 'todo', key: 'todo', name: 'Todo', category: 'todo', color: JSON_NULL },
+  { id: 'done', key: 'done', name: 'Done', category: 'done', color: JSON_NULL },
 ]
 export const taskTypes = [{ id: 'epic-type', key: 'epic', name: 'Epic' }]
 export const comment = {

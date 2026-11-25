@@ -2,6 +2,7 @@ import { Iterable, Cause, Effect, Exit } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -23,13 +24,13 @@ const project: ProjectSummary = {
   name: 'Project A',
   key: 'ALPHA',
   slug: 'alpha-project',
-  description: null,
+  description: JSON_NULL,
   workspace_id: 'workspace-a',
   workspace_name: 'Alpha',
   workspace_slug: 'alpha',
   open_issue_count: 0,
   backlog_issue_count: 0,
-  archived_at: null,
+  archived_at: JSON_NULL,
   created_at: 1,
   updated_at: 2,
 }

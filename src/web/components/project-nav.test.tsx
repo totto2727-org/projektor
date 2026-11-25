@@ -5,6 +5,7 @@ import { Iterable } from 'effect'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 
 import { ProjectNav } from './project-nav.tsx'
@@ -15,13 +16,13 @@ const project = {
   name: 'Project',
   key: 'PROJ',
   slug: 'project',
-  description: null,
+  description: JSON_NULL,
   workspace_id: workspace.id,
   workspace_name: workspace.name,
   workspace_slug: workspace.slug,
   open_issue_count: 0,
   backlog_issue_count: 0,
-  archived_at: null,
+  archived_at: JSON_NULL,
   created_at: 1,
   updated_at: 1,
 }

@@ -2,6 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { EpicList } from './epic-list.tsx'
 
 vi.mock('../actions', () => ({ createIssue: vi.fn() }))
@@ -11,13 +13,13 @@ const project = {
   key: 'PROJ',
   name: 'Project',
   slug: 'project',
-  description: null,
+  description: JSON_NULL,
   workspace_id: 'workspace',
   workspace_name: 'Workspace',
   workspace_slug: 'workspace',
   open_issue_count: 0,
   backlog_issue_count: 0,
-  archived_at: null,
+  archived_at: JSON_NULL,
   created_at: 1,
   updated_at: 1,
 }

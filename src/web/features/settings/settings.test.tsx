@@ -4,6 +4,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { ConnectAgentGuide } from './connect-agent-guide.tsx'
 import { ConnectorManager } from './connector-manager.tsx'
 import { GroupManager } from './group-manager.tsx'
@@ -73,8 +75,8 @@ const token = (name = 'Agent'): Token => ({
   id: 't1',
   name,
   scopes: '["read","write"]',
-  lastUsedAt: null,
-  expiresAt: null,
+  lastUsedAt: JSON_NULL,
+  expiresAt: JSON_NULL,
   createdAt: 1,
 })
 const grant = (client = 'Claude'): ConnectorGrant => ({
@@ -261,7 +263,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
         name: 'Unsaved agent',
         token: 'pk_test_secret',
         scopes: ['read'],
-        expiresAt: null,
+        expiresAt: JSON_NULL,
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create token' }))

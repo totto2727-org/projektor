@@ -18,7 +18,9 @@ import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { CreateIssueModal } from './create-issue-modal.tsx'
 import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
-const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
+const PROJECTS = [
+  { id: 'p1', key: 'PROJ', name: 'Projektor', description: JSON_NULL, workspace_slug: 'test-workspace' },
+]
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const Harness = function Harness(): JSX.Element {
@@ -51,7 +53,7 @@ describe('covers CreateIssueModal — Description caption (PROJ-566)', () => {
 
 const TWO_PROJECTS = [
   ...PROJECTS,
-  { id: 'p2', key: 'OTHER', name: 'Other', description: null, workspace_slug: 'test-workspace' },
+  { id: 'p2', key: 'OTHER', name: 'Other', description: JSON_NULL, workspace_slug: 'test-workspace' },
 ]
 const TASK_TYPES = [{ id: 't1', key: 'BUG', name: 'Bug' }]
 const STATUSES: TaskStatus[] = [{ id: 's1', key: 'todo', name: 'To do', category: 'todo', color: JSON_NULL }]
