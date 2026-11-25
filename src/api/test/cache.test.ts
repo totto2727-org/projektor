@@ -14,15 +14,13 @@ import {
   readNativeJson,
 } from './response-json.ts'
 
-describe('covers KV caching', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
+interface CacheTestContext {
+  projectFixture: Awaited<ReturnType<typeof seedProjectFixture>>
+}
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
+describe('covers KV caching', () => {
+  beforeEach<CacheTestContext>(async (context) => {
+    context.projectFixture = await seedProjectFixture({ role: 'owner' })
   })
 
   describe('single-issue cache (TTL 300s, write-through invalidation)', () => {
@@ -30,7 +28,9 @@ describe('covers KV caching', () => {
      * PROJ-863: the cache holds only issue-owned extras (rollup, custom fields); the
      * row itself is always read, so a deleted issue is a 404 even with a warm cache.
      */
-    test('a warm cache never resurrects a deleted issue (row is always read)', async () => {
+    test<CacheTestContext>('a warm cache never resurrects a deleted issue (row is always read)', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Cached Issue' })
       const url = `http://localhost/api/issues/${issue.id}`
       const hdrs = authHeaders(token, slug)
@@ -48,7 +48,9 @@ describe('covers KV caching', () => {
       expect(second.status).toBe(404)
     })
 
-    test('updateIssue invalidates the cache — subsequent GET reflects updated data', async () => {
+    test<CacheTestContext>('updateIssue invalidates the cache — subsequent GET reflects updated data', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Before' })
       const url = `http://localhost/api/issues/${issue.id}`
       const hdrs = authHeaders(token, slug)
@@ -71,7 +73,9 @@ describe('covers KV caching', () => {
       expect(body.title).toBe('After')
     })
 
-    test('deleteIssue invalidates the cache — subsequent GET returns 404, not stale cache', async () => {
+    test<CacheTestContext>('deleteIssue invalidates the cache — subsequent GET returns 404, not stale cache', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId)
       const url = `http://localhost/api/issues/${issue.id}`
       const hdrs = authHeaders(token, slug)
@@ -90,7 +94,9 @@ describe('covers KV caching', () => {
   })
 
   describe('workspace metadata cache (TTL 60s, write-through invalidation)', () => {
-    test('task statuses list is cached — second GET returns data even after D1 is cleared', async () => {
+    test<CacheTestContext>('task statuses list is cached — second GET returns data even after D1 is cleared', async ({
+      projectFixture: { slug, token, workspaceId },
+    }) => {
       await seedTaskStatus(workspaceId, { category: 'todo', key: 'todo', name: 'Todo' })
       const url = 'http://localhost/api/task-statuses'
       const hdrs = authHeaders(token, slug)
@@ -111,7 +117,9 @@ describe('covers KV caching', () => {
       expect(secondBody.length).toBeGreaterThan(0)
     })
 
-    test('task types list is cached — second GET returns data even after D1 is cleared', async () => {
+    test<CacheTestContext>('task types list is cached — second GET returns data even after D1 is cleared', async ({
+      projectFixture: { slug, token, workspaceId },
+    }) => {
       await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
       const url = 'http://localhost/api/task-types'
       const hdrs = authHeaders(token, slug)
@@ -129,8 +137,10 @@ describe('covers KV caching', () => {
       expect(secondBody.length).toBeGreaterThan(0)
     })
 
-    test('projects list is cached — MCP list_projects returns data even after D1 is cleared', async () => {
-      // The projectId value was already seeded in beforeEach via seedProject
+    test<CacheTestContext>('projects list is cached — MCP list_projects returns data even after D1 is cleared', async ({
+      projectFixture: { slug, token, workspaceId },
+    }) => {
+      // The project fixture already seeded the project ID
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
@@ -164,7 +174,9 @@ describe('covers KV caching', () => {
       expect(second.length).toBeGreaterThan(0)
     })
 
-    test('creating a project invalidates the cache — subsequent list_projects reflects it immediately', async () => {
+    test<CacheTestContext>('creating a project invalidates the cache — subsequent list_projects reflects it immediately', async ({
+      projectFixture: { slug, token, workspaceId },
+    }) => {
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
@@ -200,7 +212,9 @@ describe('covers KV caching', () => {
       expect(after.some((p) => p.key === 'NEWP')).toBe(true)
     })
 
-    test('creating a task status invalidates the cache — subsequent list reflects it immediately', async () => {
+    test<CacheTestContext>('creating a task status invalidates the cache — subsequent list reflects it immediately', async ({
+      projectFixture: { slug, token },
+    }) => {
       const url = 'http://localhost/api/task-statuses'
       const hdrs = authHeaders(token, slug)
 
@@ -229,7 +243,9 @@ describe('covers KV caching', () => {
       expect(afterBody.some((s) => s.key === 'blocked')).toBe(true)
     })
 
-    test('deleting a task type invalidates the cache — subsequent list reflects it immediately', async () => {
+    test<CacheTestContext>('deleting a task type invalidates the cache — subsequent list reflects it immediately', async ({
+      projectFixture: { slug, token, workspaceId },
+    }) => {
       const taskType = await seedTaskType(workspaceId, { key: 'chore', name: 'Chore' })
       const url = 'http://localhost/api/task-types'
       const hdrs = authHeaders(token, slug)

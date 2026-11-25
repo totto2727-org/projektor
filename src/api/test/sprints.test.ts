@@ -17,6 +17,22 @@ import {
 import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, ItemsResponse, readNativeJson } from './response-json.ts'
 
+interface SprintTestContext {
+  projectFixture: Awaited<ReturnType<typeof seedProjectFixture>>
+}
+type SprintRequestFixture = Pick<Awaited<ReturnType<typeof seedProjectFixture>>, 'slug' | 'token'>
+
+const createSprint = async function createSprint(
+  { slug, token }: SprintRequestFixture,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  return fetchNativeApi('http://localhost/api/sprints', {
+    body: JSON.stringify(body),
+    headers: authHeaders(token, slug),
+    method: 'POST',
+  })
+}
+
 /*
  * PROJ-311: role-guard tests grant the member a member-role and the viewer a
  * viewer-role on the project so both can see it — the assertions then verify the
@@ -24,32 +40,22 @@ import { IdResponse, ItemsResponse, readNativeJson } from './response-json.ts'
  */
 
 describe('sprints API', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
+  beforeEach<SprintTestContext>(async (context) => {
+    context.projectFixture = await seedProjectFixture()
   })
 
-  const createSprint = async function createSprint(body: Record<string, unknown>): Promise<Response> {
-    return fetchNativeApi('http://localhost/api/sprints', {
-      body: JSON.stringify(body),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-  }
-
-  test('handles POST /api/sprints creates a sprint', async () => {
-    const res = await createSprint({ projectId, name: 'Sprint 1' })
+  test<SprintTestContext>('handles POST /api/sprints creates a sprint', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    const res = await createSprint({ slug, token }, { projectId, name: 'Sprint 1' })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
     expect(isNonEmptyText(body.id)).toBe(true)
   })
 
-  test('handles GET /api/sprints?projectId= returns empty list initially', async () => {
+  test<SprintTestContext>('handles GET /api/sprints?projectId= returns empty list initially', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
@@ -59,8 +65,10 @@ describe('sprints API', () => {
     expect(body.items).toHaveLength(0)
   })
 
-  test('handles POST then GET lists the sprint', async () => {
-    await createSprint({ projectId, name: 'Sprint 1', goal: 'Ship the feature' })
+  test<SprintTestContext>('handles POST then GET lists the sprint', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    await createSprint({ slug, token }, { projectId, name: 'Sprint 1', goal: 'Ship the feature' })
 
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
@@ -75,8 +83,10 @@ describe('sprints API', () => {
     expect(body.items[0].status).toBe('planned')
   })
 
-  test('handles GET /api/sprints/:id returns the sprint', async () => {
-    const createRes = await createSprint({ projectId, name: 'Sprint 2' })
+  test<SprintTestContext>('handles GET /api/sprints/:id returns the sprint', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    const createRes = await createSprint({ slug, token }, { projectId, name: 'Sprint 2' })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
@@ -88,15 +98,19 @@ describe('sprints API', () => {
     expect(sprint.status).toBe('planned')
   })
 
-  test('handles GET /api/sprints/:id returns 404 for unknown id', async () => {
+  test<SprintTestContext>('handles GET /api/sprints/:id returns 404 for unknown id', async ({
+    projectFixture: { slug, token },
+  }) => {
     const res = await fetchNativeApi(`http://localhost/api/sprints/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  test('handles PATCH /api/sprints/:id updates sprint fields', async () => {
-    const createRes = await createSprint({ projectId, name: 'Draft Sprint' })
+  test<SprintTestContext>('handles PATCH /api/sprints/:id updates sprint fields', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    const createRes = await createSprint({ slug, token }, { projectId, name: 'Draft Sprint' })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
@@ -118,8 +132,10 @@ describe('sprints API', () => {
     expect(sprint.goal).toBe('Updated goal')
   })
 
-  test('handles POST /api/sprints/:id/complete marks active sprint completed', async () => {
-    const createRes = await createSprint({ projectId, name: 'Active Sprint' })
+  test<SprintTestContext>('handles POST /api/sprints/:id/complete marks active sprint completed', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    const createRes = await createSprint({ slug, token }, { projectId, name: 'Active Sprint' })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     // First make it active
@@ -142,8 +158,10 @@ describe('sprints API', () => {
     expect(sprint.status).toBe('completed')
   })
 
-  test('handles POST /api/sprints/:id/complete rejects planned sprint', async () => {
-    const createRes = await createSprint({ projectId, name: 'Planned Sprint' })
+  test<SprintTestContext>('handles POST /api/sprints/:id/complete rejects planned sprint', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    const createRes = await createSprint({ slug, token }, { projectId, name: 'Planned Sprint' })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
@@ -153,8 +171,10 @@ describe('sprints API', () => {
     expect(completeRes.status).toBe(400)
   })
 
-  test('handles DELETE /api/sprints/:id removes the sprint', async () => {
-    const createRes = await createSprint({ projectId, name: 'To delete' })
+  test<SprintTestContext>('handles DELETE /api/sprints/:id removes the sprint', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    const createRes = await createSprint({ slug, token }, { projectId, name: 'To delete' })
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
@@ -169,8 +189,10 @@ describe('sprints API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  test('handles POST /api/sprints/:id/move-issues bulk moves issues to sprint', async () => {
-    const sprintRes = await createSprint({ projectId, name: 'Target Sprint' })
+  test<SprintTestContext>('handles POST /api/sprints/:id/move-issues bulk moves issues to sprint', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
+    const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Target Sprint' })
     const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue A' })
@@ -199,8 +221,10 @@ describe('sprints API', () => {
     expect(titles).toStrictEqual(['Issue A', 'Issue B'])
   })
 
-  test('handles DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async () => {
-    const sprintRes = await createSprint({ projectId, name: 'Sprint to delete' })
+  test<SprintTestContext>('handles DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
+    const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Sprint to delete' })
     const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Sprint issue' })
@@ -228,8 +252,10 @@ describe('sprints API', () => {
     expect(issueData.sprint_id).toBeNull()
   })
 
-  test('covers PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async () => {
-    const sprintRes = await createSprint({ projectId, name: 'Cache Target Sprint' })
+  test<SprintTestContext>('covers PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
+    const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Cache Target Sprint' })
     const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Cache issue' })
@@ -262,7 +288,9 @@ describe('sprints API', () => {
     expect(afterBody.sprint_id).toBe(sprintId)
   })
 
-  test('handles POST /api/sprints/:id/move-issues returns 404 for unknown sprint', async () => {
+  test<SprintTestContext>('handles POST /api/sprints/:id/move-issues returns 404 for unknown sprint', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Orphan issue' })
 
     const res = await fetchNativeApi(`http://localhost/api/sprints/${crypto.randomUUID()}/move-issues`, {
@@ -289,8 +317,10 @@ describe('sprints API', () => {
       env.RATE_LIMIT_API_MAX = prevApiMax
     })
 
-    test('moving 500 issues succeeds within <=50 KV deletes, and a subsequent GET shows the new sprint', async () => {
-      const sprintRes = await createSprint({ projectId, name: 'Bulk Target Sprint' })
+    test<SprintTestContext>('moving 500 issues succeeds within <=50 KV deletes, and a subsequent GET shows the new sprint', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
+      const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Bulk Target Sprint' })
       const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
       const issueIds: string[] = []
@@ -312,18 +342,15 @@ describe('sprints API', () => {
       expect(issue.sprint_id).toBeNull()
       await expect(env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).resolves.not.toBeNull()
 
-      let kvDeletes = 0
       const origDelete = env.KV.delete.bind(env.KV)
-      vi.spyOn(env.KV, 'delete').mockImplementation((...args: Parameters<typeof origDelete>) => {
-        kvDeletes += 1
-        return origDelete(...args)
-      })
+      const deleteSpy = vi.spyOn(env.KV, 'delete').mockImplementation(origDelete)
 
       const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
         body: JSON.stringify({ issueIds }),
         headers: authHeaders(token, slug),
         method: 'POST',
       })
+      const kvDeletes = deleteSpy.mock.calls.length
       vi.restoreAllMocks()
 
       expect(moveRes.status).toBe(200)
@@ -348,10 +375,12 @@ describe('sprints API', () => {
     })
   })
 
-  test('lists multiple sprints ordered by created_at', async () => {
-    await createSprint({ projectId, name: 'First Sprint' })
-    await createSprint({ projectId, name: 'Second Sprint' })
-    await createSprint({ projectId, name: 'Third Sprint' })
+  test<SprintTestContext>('lists multiple sprints ordered by created_at', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
+    await createSprint({ slug, token }, { projectId, name: 'First Sprint' })
+    await createSprint({ slug, token }, { projectId, name: 'Second Sprint' })
+    await createSprint({ slug, token }, { projectId, name: 'Third Sprint' })
 
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
@@ -365,7 +394,9 @@ describe('sprints API', () => {
     expect(body.items[2].name).toBe('Third Sprint')
   })
 
-  test('sprints are scoped to workspace — cross-workspace sprint not visible', async () => {
+  test<SprintTestContext>('sprints are scoped to workspace — cross-workspace sprint not visible', async ({
+    projectFixture: { projectId, slug, token },
+  }) => {
     const other = await seedFixture()
     const otherProject = await seedProject(other.workspace.id, 'OTH')
 
