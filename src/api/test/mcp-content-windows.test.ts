@@ -17,8 +17,10 @@ interface Rpc {
 
 describe('covers PROJ-892: windowing (unit)', () => {
   test('never splits a surrogate pair at the window edge, and the cursor continues losslessly', () => {
-    const text = `ab${'😀'.repeat(5)}cd` // 😀 is two UTF-16 units
-    const first = windowText(text, { max: 3 }) // Would land mid-pair
+    // 😀 is two UTF-16 units
+    const text = `ab${'😀'.repeat(5)}cd`
+    // Would land mid-pair
+    const first = windowText(text, { max: 3 })
     expect(first.text).toBe('ab')
     expect(first.next).toBe('2')
     let out = first.text
@@ -120,7 +122,8 @@ describe('covers PROJ-892: MCP tools', () => {
   })
 
   test('get_issue: a body over 16,000 chars is windowed and continues via cursor', async () => {
-    const body = 'abcdefghij'.repeat(2000) // 20,000 chars
+    // 20,000 chars
+    const body = 'abcdefghij'.repeat(2000)
     const created = await tool<{ id: string }>('create_issue', {
       projectId: f.projectId,
       title: 'Huge',

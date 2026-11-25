@@ -321,7 +321,8 @@ export const validateCustomFields = async function validateCustomFields(
  * fold them into its own ctx.db.batch() alongside the issue write. Chunked for D1's
  * 100-bound-param cap: 3 params/row x 30 rows = 90, same headroom as services/sql.ts.
  */
-const CUSTOM_FIELD_UPSERT_CHUNK_SIZE = 30 // 3 cols/row
+// 3 cols/row
+const CUSTOM_FIELD_UPSERT_CHUNK_SIZE = 30
 
 export const buildCustomFieldUpsertStatements = function buildCustomFieldUpsertStatements(
   db: D1Database,

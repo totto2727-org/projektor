@@ -77,7 +77,8 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
     })
 
     const result = await backfill(token, workspace.slug)
-    expect(result.processed).toBe(1) // Only "target" — the trashed page is skipped
+    // Only "target" — the trashed page is skipped
+    expect(result.processed).toBe(1)
     expect(result.nextCursor).toBeNull()
 
     const rows = await env.DB.prepare('SELECT * FROM wiki_links WHERE source_page_id = ?').bind(trashedId).all()

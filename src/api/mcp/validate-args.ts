@@ -58,7 +58,8 @@ const matchesType = function matchesType(v: unknown, t: string): boolean {
     case 'null':
       return v === null
     default:
-      return true // Unknown type keyword: don't reject on a guess
+      // Unknown type keyword: don't reject on a guess
+      return true
   }
 }
 
@@ -143,8 +144,9 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
       return
     }
     if (Predicate.isNullish(v) && !required.has(key)) {
+      // Optional field cleared
       return
-    } // Optional field cleared
+    }
     validate(v, sub, `${prefix}${key}`, issues)
   })
 }

@@ -408,7 +408,8 @@ const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
  * services/sql.ts#inChunks (calibrated for single-param-per-item IN-list queries, not
  * multi-column inserts).
  */
-const LINK_INSERT_CHUNK_SIZE = 11 // 9 columns × 11 = 99 bound params (D1 cap: 100)
+// 9 columns × 11 = 99 bound params (D1 cap: 100)
+const LINK_INSERT_CHUNK_SIZE = 11
 
 /**
  * Builds (without executing) the DELETE + chunked re-INSERT statements that recompute a

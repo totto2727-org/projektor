@@ -300,7 +300,8 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
       requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ content: 'content', title: 'Member Page' })),
     )
     // Fetch member token from the same fixture
-    const roles = await seedWorkspaceRoles() // Second workspace — need same slug
+    // Second workspace — need same slug
+    const roles = await seedWorkspaceRoles()
     /*
      * Actually member is already in the fixture via seedWorkspaceRoles above —
      * but each beforeEach creates a NEW seedWorkspaceRoles. Use the memberHeaders directly.

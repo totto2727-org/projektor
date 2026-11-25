@@ -369,8 +369,9 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
       .where(eq(schema.workspaces.slug, mapped.slug))
       .get()
     if (!ws) {
+      // Mapped workspace doesn't exist yet — nothing to join
       return false
-    } // Mapped workspace doesn't exist yet — nothing to join
+    }
     // PROJ-436: a removed user's domain mapping no longer re-adds them to this workspace.
     if (await isRemovalTombstoned(orm, ws.id, user.id)) {
       return true
@@ -390,8 +391,9 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
   // Plain non-admin: auto-join the default workspace at AUTO_JOIN_ROLE, if it exists.
   const role = resolveAutoJoinRole(env.AUTO_JOIN_ROLE)
   if (!role) {
+    // Auto-join disabled — settled by config, nothing to retry
     return true
-  } // Auto-join disabled — settled by config, nothing to retry
+  }
 
   const ws = await orm
     .select({ id: schema.workspaces.id })
@@ -399,8 +401,9 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
     .where(eq(schema.workspaces.slug, slug))
     .get()
   if (!ws) {
+    // Wait for an admin to bootstrap the default workspace
     return false
-  } // Wait for an admin to bootstrap the default workspace
+  }
 
   // PROJ-436: a removed user isn't auto-rejoined to the default workspace.
   if (await isRemovalTombstoned(orm, ws.id, user.id)) {

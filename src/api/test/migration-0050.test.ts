@@ -124,8 +124,10 @@ describe('0050 wiki slug slash backfill', () => {
   test('truncates an oversized rewritten candidate before appending the id suffix, staying under 200 chars', async () => {
     const { userId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
-    const candidate = `${'b'.repeat(120)}-${'c'.repeat(120)}` // 241 chars
-    const slashy = `${'b'.repeat(120)}/${'c'.repeat(120)}` // Same length, collides once rewritten
+    // 241 chars
+    const candidate = `${'b'.repeat(120)}-${'c'.repeat(120)}`
+    // Same length, collides once rewritten
+    const slashy = `${'b'.repeat(120)}/${'c'.repeat(120)}`
     await insertPage(workspaceId, userId, candidate, now)
     const slashyId = await insertPage(workspaceId, userId, slashy, now + 1)
 

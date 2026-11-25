@@ -74,12 +74,13 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
   ): Promise<void> {
     const agentId = crypto.randomUUID()
     const now = currentEpochSeconds()
+    // 200s > 120s TTL — stale, but status stays 'active'
     await env.DB.prepare(
       `INSERT INTO agent_sessions
 				(id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
 			 VALUES (?, ?, NULL, NULL, 'stale-holder', 'agent', 'active', ?, ?, NULL)`,
     )
-      .bind(agentId, workspaceId, now, now - 200) // 200s > 120s TTL — stale, but status stays 'active'
+      .bind(agentId, workspaceId, now, now - 200)
       .run()
     await env.DB.prepare(
       `INSERT INTO issue_file_claims

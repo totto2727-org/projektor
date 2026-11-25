@@ -436,7 +436,8 @@ const buildWikiPageUpdateSet = function buildWikiPageUpdateSet(
   }
   if (Predicate.isNotNullish(fields.title)) {
     setData.title = fields.title
-    setData.titleFold = foldWikiTitle(fields.title) // PROJ-818
+    // PROJ-818
+    setData.titleFold = foldWikiTitle(fields.title)
   }
   if (Predicate.isNotNullish(fields.content)) {
     setData.content = fields.content
@@ -738,7 +739,8 @@ const buildCreateWikiPageInsertStatement = function buildCreateWikiPageInsertSta
       .insert(schema.wikiPages)
       .values({
         id,
-        searchRowid: newSearchRowid(), // PROJ-816
+        // PROJ-816
+        searchRowid: newSearchRowid(),
         workspaceId: ctx.workspaceId,
         projectId,
         slug,
@@ -1431,7 +1433,8 @@ export const updateWikiPage = async function updateWikiPage(
    */
   const titleChanged = Predicate.isNotNullish(title) && title !== page.title
   if (titleChanged || isRename) {
-    await healTitleFolds(ctx) // PROJ-818: link folds must be filled before matching
+    // PROJ-818: link folds must be filled before matching
+    await healTitleFolds(ctx)
     const finalTitle = title ?? page.title
     const finalSlug = slug ?? page.slug
     statements.push(
@@ -2050,7 +2053,8 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
         .insert(schema.wikiPages)
         .values({
           id: parentId,
-          searchRowid: newSearchRowid(), // PROJ-816
+          // PROJ-816
+          searchRowid: newSearchRowid(),
           workspaceId,
           projectId: null,
           slug: 'page-templates',
@@ -2090,7 +2094,8 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
           .insert(schema.wikiPages)
           .values({
             id: crypto.randomUUID(),
-            searchRowid: newSearchRowid(), // PROJ-816
+            // PROJ-816
+            searchRowid: newSearchRowid(),
             workspaceId,
             projectId: null,
             slug: template.slug,
@@ -2542,7 +2547,8 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
    * PROJ-814: every restored page (root and cascade-restored descendants) can be the
    * target other pages' still-unresolved links were waiting on — re-resolve for each.
    */
-  await healTitleFolds(ctx) // PROJ-818
+  // PROJ-818
+  await healTitleFolds(ctx)
   await ctx.db.batch([
     buildResolveIncomingLinksStatement(ctx, { id: page.id, title: page.title, slug: page.slug }),
     ...descendantRows.map((descendant) =>
@@ -2738,7 +2744,8 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
    * already have cleared target_page_id and there'd be nothing left to re-point.
    */
   await repointIncomingLinks(ctx, ids)
-  await deleteWikiFtsEntries(ctx, ids) // PROJ-816: before the pages go
+  // PROJ-816: before the pages go
+  await deleteWikiFtsEntries(ctx, ids)
   await inChunks(ids, async (chunk) => {
     await orm.delete(schema.wikiRevisions).where(inArray(schema.wikiRevisions.pageId, chunk))
     return []

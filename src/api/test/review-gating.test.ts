@@ -216,7 +216,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
 
     await patch(issue.id, {
       status: 'done',
-      agentSessionId: crypto.randomUUID(), // never existed — can't resolve to a live session
+      // Never existed — can't resolve to a live session
+      agentSessionId: crypto.randomUUID(),
       completionReport: report,
     })
     await expect(needsAuditOf(issue.id)).resolves.toBe(false)

@@ -115,7 +115,8 @@ describe('covers PROJ-866: bucket-rewrite fidelity (snapshot on a representative
      * The window is entirely in the past, so the service's clamping to "now" (the CFD
      * sample time) never applies, and every issue is in backlog, so agingWip is empty.
      */
-    const windowEnd = Date.UTC(2026, 5, 1) / 1000 // 2026-06-01T00:00:00Z, a Monday
+    // 2026-06-01T00:00:00Z, a Monday
+    const windowEnd = Date.UTC(2026, 5, 1) / 1000
     /*
      * An hour into a day, not day-aligned: wipOverTime's first sample is at that day's
      * start, before `since`, so the fixture covers the SQL lower bound being pushed

@@ -115,7 +115,8 @@ export interface AttachmentDto {
 // SVG is intentionally excluded (script execution risk).
 export const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
-export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024 // 50 MB
+// 50 MB
+export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 
 /*
  * File.type is supplied by the client and can be spoofed; this allowlist prevents accidental
@@ -260,7 +261,8 @@ export const createLinkAttachment = async function createLinkAttachment(
  * Resolve the per-workspace storage quota from env (STORAGE_QUOTA_BYTES), falling
  * back to the default for unset/invalid/non-positive values.
  */
-const DEFAULT_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024 // 1 GiB per workspace
+// 1 GiB per workspace
+const DEFAULT_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024
 
 export const storageQuotaBytes = function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {
   const quota = Number(env.STORAGE_QUOTA_BYTES)

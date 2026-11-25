@@ -778,7 +778,8 @@ describe('file Claims API', () => {
    * project (key or uuid); every item carries the linked issue's ref.
    */
   describe('covers PROJ-932: projectId filter and issueRef', () => {
-    const projectKey = 'PROJ' // seedProject's default key
+    // The default key from seedProject
+    const projectKey = 'PROJ'
 
     test("every item carries the issue's issueRef", async () => {
       await claimFiles({ issueId, paths: ['src/ref-check.ts'] })
@@ -841,12 +842,13 @@ describe('file Claims API', () => {
     const seedStaleAgentSession = async function seedStaleAgentSession(): Promise<string> {
       const id = crypto.randomUUID()
       const now = currentEpochSeconds()
+      // 200s > the 120s TTL
       await env.DB.prepare(
         `INSERT INTO agent_sessions
 				   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
 				 VALUES (?, ?, NULL, NULL, ?, 'agent', 'active', ?, ?, NULL)`,
       )
-        .bind(id, workspaceId, 'stale-session-932', now, now - 200) // 200s > the 120s TTL
+        .bind(id, workspaceId, 'stale-session-932', now, now - 200)
         .run()
       await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
         (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
@@ -878,7 +880,8 @@ describe('file Claims API', () => {
       expect((await claimFiles({ issueId, paths: ['src/expired-agentless-932.ts'] })).status).toBe(201)
       await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
         .bind(
-          currentEpochSeconds() - (24 * 60 * 60 + 1), // past the default 24h TTL
+          // Past the default 24h TTL
+          currentEpochSeconds() - (24 * 60 * 60 + 1),
           'src/expired-agentless-932.ts',
           workspaceId,
         )

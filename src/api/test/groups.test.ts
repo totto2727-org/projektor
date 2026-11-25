@@ -253,7 +253,8 @@ describe('groups REST', () => {
     const memberRow = rows.find((row) => row.userId === roles.member.user.id)
     const viewerRow = rows.find((row) => row.userId === roles.viewer.user.id)
     expect(memberRow?.groups.map((group) => group.name)).toStrictEqual(['Assigned'])
-    expect(viewerRow?.groups).toStrictEqual([]) // pending / default-deny
+    // Pending / default-deny
+    expect(viewerRow?.groups).toStrictEqual([])
   })
 
   test('delete group cascades members and grants', async () => {

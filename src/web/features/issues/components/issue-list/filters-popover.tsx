@@ -13,7 +13,8 @@ export type DateField = '' | 'completed' | 'updated'
  * scroll to reach them. Same flip/clamp/scroll shape as Select.tsx's computeMenuPosition,
  * tuned for this panel's own width and content height rather than a listbox row.
  */
-const POPOVER_WIDTH = 256 // 16rem, matches the inline minWidth below
+// 16rem, matches the inline minWidth below
+const POPOVER_WIDTH = 256
 const POPOVER_GAP = 4
 const POPOVER_MARGIN = 8
 const POPOVER_MIN_HEIGHT = 160

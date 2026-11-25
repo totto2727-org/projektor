@@ -1023,7 +1023,8 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
      * And the other direction: a second connector for the same person gets its own
      * budget, so one noisy client cannot lock the user out of the rest.
      */
-    clientIp = '203.0.113.251' // The consent screen's own IP budget is 3 per window
+    // The consent screen's own IP budget is 3 per window
+    clientIp = '203.0.113.251'
     const second = await connect({ email, workspaceId: workspace.id })
     expect((await mcpCall(workspace.id, second.tokens.access_token, 'list_projects')).status).toBe(200)
   })

@@ -299,8 +299,9 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
   const usersByProject = new Map<string | null, Set<string>>()
   Iterable.forEach(entries, (entry) => {
     if (!projectOf.has(entry.pageId)) {
+      // Page not in this workspace — never deliver
       return
-    } // Page not in this workspace — never deliver
+    }
     const projectId = projectOf.get(entry.pageId) ?? null
     const users = usersByProject.get(projectId) ?? new Set<string>()
     users.add(entry.userId)

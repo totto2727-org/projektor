@@ -28,7 +28,8 @@ interface ExportedPage {
  * against pathological page counts / attachment totals.
  */
 const MAX_EXPORT_PAGES = 500
-const MAX_EXPORT_ATTACHMENT_BYTES = 100 * 1024 * 1024 // 100 MB total per export
+// 100 MB total per export
+const MAX_EXPORT_ATTACHMENT_BYTES = 100 * 1024 * 1024
 
 const assertPageCountAllowed = function assertPageCountAllowed(pageCount: number): void {
   if (pageCount > MAX_EXPORT_PAGES) {
@@ -328,8 +329,9 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
         for (const att of attachments) {
           const obj = await ctx.r2.get(att.r2Key)
           if (!obj) {
+            // Orphaned row (object missing from storage) — skip, don't fail the export
             continue
-          } // Orphaned row (object missing from storage) — skip, don't fail the export
+          }
           const dir = safeZipPathSegment(att.pageSlug)
           const filename = safeZipPathSegment(att.filename)
           const name = reserveUniqueName(

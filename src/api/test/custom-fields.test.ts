@@ -636,12 +636,14 @@ describe('covers PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
    * (invisible in CI because SQLite allows 32766 params). batchLoadCustomFields now
    * chunks the ids; this proves results still merge correctly across chunk boundaries.
    */
+  // Seeds 95 issues sequentially; coverage instrumentation pushes this past the 5s default
   test('loads values for more issues than the chunk size (spans multiple D1 queries)', async () => {
     const ws = await seedFixture({ role: 'owner' })
     const proj = await seedProject(ws.workspace.id, 'CHK')
     const def = await seedCustomFieldDef(ws.workspace.id, { key: 'sp', label: 'Story Points' })
 
-    const COUNT = 95 // > CHUNK_SIZE (90), so ids span two queries
+    // > CHUNK_SIZE (90), so ids span two queries
+    const COUNT = 95
     const issueIds: string[] = []
     for (let index = 0; index < COUNT; index += 1) {
       const issue = await seedIssue(ws.workspace.id, proj.id, ws.user.id)
@@ -656,7 +658,7 @@ describe('covers PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
       expect(loaded[issueIds[index]]).toHaveLength(1)
       expect(loaded[issueIds[index]][0].value).toBe(String(index))
     }
-  }, 15_000) // Seeds 95 issues sequentially; coverage instrumentation pushes this past the 5s default
+  }, 15_000)
 })
 
 describe('covers PROJ-837: custom field definitions respect project access', () => {

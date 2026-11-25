@@ -166,8 +166,10 @@ const loadActiveClaimsByPath = async function loadActiveClaimsByPath(
  * these produce is folded into one ctx.db.batch() call by the caller, so it's the number of
  * batch() calls that's bounded (the AC), not the number of statements inside one.
  */
-const CLAIM_INSERT_CHUNK_SIZE = 10 // 7 cols/row
-const CONFLICT_INSERT_CHUNK_SIZE = 8 // 9 cols/row
+// 7 cols/row
+const CLAIM_INSERT_CHUNK_SIZE = 10
+// 9 cols/row
+const CONFLICT_INSERT_CHUNK_SIZE = 8
 // Single-param-per-item IN-list chunk size for id-keyed UPDATEs, mirroring services/sql.ts.
 const ID_CHUNK_SIZE = 90
 

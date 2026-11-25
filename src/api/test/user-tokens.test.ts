@@ -119,7 +119,8 @@ describe('covers PROJ-91: user-scoped token — non-member workspace', () => {
 
 describe('covers PROJ-91: workspace-scoped token regression', () => {
   test('workspace-scoped token is blocked from a different workspace even if user is a member', async () => {
-    const fixture = await seedFixture() // Token is scoped to fixture.workspace
+    // Token is scoped to fixture.workspace
+    const fixture = await seedFixture()
 
     // Add the same user to a second workspace
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)

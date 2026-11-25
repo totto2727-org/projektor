@@ -426,6 +426,7 @@ describe('issues API', () => {
     expect(second.nextCursor).toBeNull()
   })
 
+  // PROJ-248: seeds 35 issues sequentially; full-suite contention pushes this past the 5s default
   test('defaults to 30 rows per page when no limit is given (PROJ-201)', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const base = 1_700_000_000
@@ -444,7 +445,7 @@ describe('issues API', () => {
     const { page: second } = await listIssues(`http://localhost/api/issues?cursor=${first.nextCursor}`)
     expect(second.items).toHaveLength(5)
     expect(second.nextCursor).toBeNull()
-  }, 15_000) // PROJ-248: seeds 35 issues sequentially; full-suite contention pushes this past the 5s default
+  }, 15_000)
 
   test('reports the real total match count, not just the loaded page size (PROJ-303)', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
@@ -481,6 +482,7 @@ describe('issues API', () => {
     expect((page.items[0] as { title: string }).title).toBe('Project A issue')
   })
 
+  // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
   test('projectId filter returns all project issues up to limit, not just newest workspace-wide', async () => {
     const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     // Seed a second project with many newer issues so workspace-wide listing would return them first
@@ -509,7 +511,7 @@ describe('issues API', () => {
     const { page: scoped } = await listIssues(`http://localhost/api/issues?project=${projectId}&limit=100`)
     expect(scoped.items).toHaveLength(10)
     expect(scoped.items.every((item) => (item as { title: string }).title.startsWith('Older issue'))).toBe(true)
-  }, 15_000) // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
+  }, 15_000)
 
   test('handles GET /api/issues/:id returns 404 for unknown id', async () => {
     const { slug, token } = await seedScenarioFixture()
@@ -1220,7 +1222,8 @@ describe('issues API', () => {
       .run()
     await env.DB.prepare('UPDATE issues SET completed_at = ? WHERE id = ?').bind(now, recent.id).run()
 
-    const cutoff = now - 86_400 // 1 day ago
+    // 1 day ago
+    const cutoff = now - 86_400
 
     const before = await listIssues(`http://localhost/api/issues?completedBefore=${cutoff}`)
     expect((before.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Completed long ago'])

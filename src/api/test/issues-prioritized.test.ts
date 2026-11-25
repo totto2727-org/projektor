@@ -173,7 +173,8 @@ describe('covers PROJ-859: bounded query count', () => {
 
   test('limit=10 over 1,000 open issues takes <= 10 D1 queries once rows are healed', async () => {
     const { ctx } = await seedWorkspaceWithIssues(1000)
-    await getPrioritizedIssues(ctx, { limit: 10 }) // first call heals dor_* in batches
+    // The first call heals dor_* in batches
+    await getPrioritizedIssues(ctx, { limit: 10 })
 
     const stored = await env.DB.prepare('SELECT COUNT(*) AS n FROM issues WHERE workspace_id = ? AND dor_ready IS NULL')
       .bind(ctx.workspaceId)

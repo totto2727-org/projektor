@@ -71,7 +71,8 @@ interface FnInfo {
   name: string
   exported: boolean
   params: string[]
-  calls: string[] // Resolved keys "file:name", or "guard:<name>"
+  // Resolved keys "file:name", or "guard:<name>"
+  calls: string[]
 }
 
 const paramName = function paramName(p: ts.ParameterDeclaration): string {

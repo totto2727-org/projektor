@@ -392,7 +392,8 @@ describe('files API', () => {
   })
 
   test('handles POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
-    const QUOTA = 1024 * 1024 * 1024 // 1 GB
+    // 1 GB
+    const QUOTA = 1024 * 1024 * 1024
     const now = currentEpochSeconds()
     // Insert a fake attachment that consumes all but 1 byte of the quota
     await env.DB.prepare(

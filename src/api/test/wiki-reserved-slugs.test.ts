@@ -93,7 +93,8 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     }
     const search = insert('search', null)
     const exportPage = insert('export', null)
-    const exportTaken = insert('export-page', null) // Forces the second pass
+    // Forces the second pass
+    const exportTaken = insert('export-page', null)
     const trashed = insert('trash', now)
     await env.DB.batch([search.stmt, exportPage.stmt, exportTaken.stmt, trashed.stmt])
 

@@ -105,9 +105,12 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
   test('nulls ready_at only where it equals done_at', async () => {
     const { workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' })
     const rows = [
-      { id: crypto.randomUUID(), ready: 100, done: 100 }, // skipped ready
-      { id: crypto.randomUUID(), ready: 50, done: 100 }, // real lead time
-      { id: crypto.randomUUID(), ready: 50, done: null }, // still open
+      // Skipped ready
+      { id: crypto.randomUUID(), ready: 100, done: 100 },
+      // Real lead time
+      { id: crypto.randomUUID(), ready: 50, done: 100 },
+      // Still open
+      { id: crypto.randomUUID(), ready: 50, done: null },
     ]
     let n = 1000
     for (const row of rows) {

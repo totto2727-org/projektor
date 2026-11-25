@@ -201,7 +201,8 @@ describe('wiki export (PROJ-497)', () => {
 
   test('404s a space export scoped to a project the caller has no grant on', async () => {
     const member = await seedFixture({ role: 'member' })
-    const project = await seedProject(member.workspace.id) // No group grant for member.user
+    // No group grant for member.user
+    const project = await seedProject(member.workspace.id)
 
     const { status } = await exportZip(member.token, member.workspace.slug, `scope=space&projectId=${project.id}`)
     expect(status).toBe(404)

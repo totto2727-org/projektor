@@ -417,7 +417,8 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
     const other = await seedWorkspace(`del-437-${crypto.randomUUID().slice(0, 8)}`)
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${other.slug}`, {
       method: 'DELETE',
-      headers: ownerHeaders, // X-Workspace-Slug: slug (the fixture workspace, not `other`)
+      // X-Workspace-Slug: slug (the fixture workspace, not `other`)
+      headers: ownerHeaders,
     })
     expect(res.status).toBe(404)
 

@@ -53,7 +53,8 @@ beforeEach(async () => {
     type: 'blocks',
   })
   expect(link.status).toBeLessThan(300)
-  await get(f.issueId) // Warm the cache
+  // Warm the cache
+  await get(f.issueId)
 })
 afterEach(() => vi.restoreAllMocks())
 

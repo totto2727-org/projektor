@@ -54,11 +54,12 @@ describe('covers PROJ-857: issue list cursor', () => {
         total: Schema.Union([Schema.Number, Schema.Null]),
       })
       const body = await readNativeJson(res, bodyShape)
+      // Count only on the first page
       if (pages === 0) {
         firstTotal = body.total
       } else {
         expect(body.total).toBeNull()
-      } // Count only on the first page
+      }
       seen.push(...body.items.map((item) => item.id))
       cursor = body.nextCursor
       pages += 1

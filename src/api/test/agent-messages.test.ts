@@ -234,6 +234,7 @@ describe('agent Messages API', () => {
 
   // C3: CAPSTONE — spans agents + file-claims + agent-messages
   // Uses multiple tokens to stay within rate limit (5 per token)
+  // PROJ-248: many sequential MCP round-trips; full-suite contention pushes this past the 5s default
   test('c3: capstone — two agents coordinate via messages; force-claim posts override notice', async () => {
     const { mcpCall, projectId, slug, token, userId, workspaceId } = await seedAgentMessagesFixture()
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Agent Issue' })
@@ -362,7 +363,7 @@ describe('agent Messages API', () => {
     expect(
       noticeData.items.some((item) => item.body.includes('force-claimed') && item.body.includes('src/forced.ts')),
     ).toBe(true)
-  }, 15_000) // PROJ-248: many sequential MCP round-trips; full-suite contention pushes this past the 5s default
+  }, 15_000)
 
   // C4: workspace isolation; issue-scope isolation; cursor stability
   // 4 requests (post, list from other ws, post other-issue, list-ws scope) within limit

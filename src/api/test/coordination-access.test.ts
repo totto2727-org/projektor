@@ -135,7 +135,8 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
 
   test("a member with no grants at all sees none of another project's coordination data", async () => {
     const { slug, ws } = await seedTestData()
-    const token = ws.viewer.token // Viewer has no group grant
+    // Viewer has no group grant
+    const token = ws.viewer.token
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items).toHaveLength(0)
     const claims = await mcpList('list_file_claims', token, slug, ws.workspace.id)
