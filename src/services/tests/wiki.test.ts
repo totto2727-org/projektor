@@ -81,12 +81,12 @@ describe('pure wiki reads', () => {
 
   test('accepts app-authorized visibility and includes workspace pages only when requested', async () => {
     const visibility = or(isNull(schema.wikiPages.projectId), eq(schema.wikiPages.projectId, 'other'))
-    expect((await runTestEffect(wiki.listWikiPages(db, 'wa', { visibility }))).map((r) => r.id)).toStrictEqual(['root'])
-    expect(
-      (await runTestEffect(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa', includeWorkspacePages: true }))).map(
-        (r) => r.id,
-      ),
-    ).toStrictEqual(['root', 'child', 'template'])
+    const visiblePages = await runTestEffect(wiki.listWikiPages(db, 'wa', { visibility }))
+    expect(visiblePages.map((r) => r.id)).toStrictEqual(['root'])
+    const treeRows = await runTestEffect(
+      wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa', includeWorkspacePages: true }),
+    )
+    expect(treeRows.map((r) => r.id)).toStrictEqual(['root', 'child', 'template'])
     const projectTree = await runTestEffect(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa' }))
     expect(projectTree.map((row) => row.id)).toStrictEqual(['child'])
   })
@@ -103,14 +103,15 @@ describe('pure wiki reads', () => {
     const resolvedValue = await runTestEffect(wiki.findWikiPage(db, 'wa', 'root'))
     expect(resolvedValue?.id).toBe('root')
     sqlite.exec("UPDATE wiki_pages SET slug='old-root' WHERE id='child';")
-    expect((await runTestEffect(wiki.findWikiPage(db, 'wa', 'old-root')))?.id).toBe('child')
+    const page = await runTestEffect(wiki.findWikiPage(db, 'wa', 'old-root'))
+    expect(page?.id).toBe('child')
   })
 
   test('preserves maintenance/trash/template filtering and pagination without presentation fields', async () => {
-    expect(
-      (await runTestEffect(wiki.listStaleWikiPages(db, 'wa', { now: 100, limit: 10, offset: 0 }))).map((r) => r.id),
-    ).toStrictEqual(['child'])
-    expect((await runTestEffect(wiki.listWikiTemplates(db, 'wa'))).map((r) => r.id)).toStrictEqual(['template'])
+    const stalePages = await runTestEffect(wiki.listStaleWikiPages(db, 'wa', { now: 100, limit: 10, offset: 0 }))
+    expect(stalePages.map((r) => r.id)).toStrictEqual(['child'])
+    const templates = await runTestEffect(wiki.listWikiTemplates(db, 'wa'))
+    expect(templates.map((r) => r.id)).toStrictEqual(['template'])
     const trash = await runTestEffect(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 0 }))
     expect(trash).toStrictEqual([
       {
@@ -126,7 +127,8 @@ describe('pure wiki reads', () => {
   })
 
   test('orders same-second revisions by rowid and scopes every revision query to the workspace/page', async () => {
-    expect((await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root'))).map((r) => r.id)).toStrictEqual(['r2', 'r1'])
+    const revisions = await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root'))
+    expect(revisions.map((r) => r.id)).toStrictEqual(['r2', 'r1'])
     await expect(runTestEffect(wiki.getLatestWikiRevisionId(db, 'wa', 'root'))).resolves.toBe('r2')
     await expect(runTestEffect(wiki.getWikiRevision(db, 'wa', 'root', 'r1'))).resolves.toStrictEqual({
       author_id: 'u',
@@ -271,7 +273,8 @@ describe('pure wiki reads', () => {
 
   test('leaves validation, project authorization and search freshness in the API', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'viewer' } as ServiceCtx
-    expect((await apiWiki.listWikiPages(ctx, {})).map((r) => r.id)).toStrictEqual(['root'])
+    const visiblePages = await apiWiki.listWikiPages(ctx, {})
+    expect(visiblePages.map((r) => r.id)).toStrictEqual(['root'])
     await expect(apiWiki.getWikiPage(ctx, 'child')).rejects.toMatchObject({
       message: 'Wiki page not found',
     })

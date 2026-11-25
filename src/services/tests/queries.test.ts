@@ -83,18 +83,14 @@ describe('project/workspace pure queries', () => {
       updatedAt: 101,
       workspaceId: 'wa',
     })
-    expect(
-      (await runTestEffect(listProjects(db, 'wa', { includeArchived: true }))).map((project) => project.id),
-    ).toStrictEqual(['p2', 'p3', 'p1'])
-    expect(
-      (
-        await runTestEffect(
-          listProjects(db, 'wa', {
-            visibility: eq(schema.projects.id, 'p1'),
-          }),
-        )
-      ).map((project) => project.id),
-    ).toStrictEqual(['p1'])
+    const projectsIncludingArchived = await runTestEffect(listProjects(db, 'wa', { includeArchived: true }))
+    expect(projectsIncludingArchived.map((project) => project.id)).toStrictEqual(['p2', 'p3', 'p1'])
+    const visibleProjects = await runTestEffect(
+      listProjects(db, 'wa', {
+        visibility: eq(schema.projects.id, 'p1'),
+      }),
+    )
+    expect(visibleProjects.map((project) => project.id)).toStrictEqual(['p1'])
   })
 
   test('scopes id, slug and key lookups to the explicit workspace and retains missing results', async () => {
@@ -143,12 +139,10 @@ describe('project/workspace pure queries', () => {
       },
     ])
     // Even a permissive caller predicate never drops the membership relation.
-    expect(
-      (await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }))).map((p) => p.id),
-    ).toStrictEqual(['p3', 'p1'])
-    expect(
-      (await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }, true))).map((p) => p.id),
-    ).toStrictEqual(['p2', 'p3', 'p1'])
+    const projectSummaries = await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }))
+    expect(projectSummaries.map((p) => p.id)).toStrictEqual(['p3', 'p1'])
+    const archivedSummaries = await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }, true))
+    expect(archivedSummaries.map((p) => p.id)).toStrictEqual(['p2', 'p3', 'p1'])
     await expect(
       runTestEffect(listProjectSummaries(db, 'unknown', { sql: '1 = 1', bindings: [] })),
     ).resolves.toStrictEqual([])
@@ -172,7 +166,8 @@ describe('project/workspace pure queries', () => {
       workspaceId: 'wa',
     })
     await expect(runTestEffect(findWorkspaceMembership(db, 'wb', 'u1'))).resolves.toBeUndefined()
-    expect((await runTestEffect(listWorkspaceMembers(db, 'wa'))).map((member) => member.id)).toStrictEqual(['u2', 'u1'])
+    const members = await runTestEffect(listWorkspaceMembers(db, 'wa'))
+    expect(members.map((member) => member.id)).toStrictEqual(['u2', 'u1'])
   })
 
   test('decodes stored brand JSON but does not synthesize API URLs', async () => {

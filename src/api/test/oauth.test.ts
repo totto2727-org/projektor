@@ -725,7 +725,8 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     await refresh(third)
     const replay = await refresh(tokens.refresh_token)
     expect(replay.status).toBe(400)
-    expect((await replay.json<{ error: string }>()).error).toBe('invalid_grant')
+    const replayBody = await replay.json<{ error: string }>()
+    expect(replayBody.error).toBe('invalid_grant')
   })
 
   test('revokes a token at the endpoint the discovery document advertises', async () => {
@@ -944,7 +945,8 @@ describe('the token endpoint is rate-limited', () => {
     const ip = '192.0.2.44'
     const body = { grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }
     for (let index = 0; index < 3; index += 1) {
-      expect((await exchange(body, ip)).status).not.toBe(429)
+      const exchangeResponse = await exchange(body, ip)
+      expect(exchangeResponse.status).not.toBe(429)
     }
     await expect(exchange(body, ip)).resolves.toHaveProperty('status', 429)
   })
@@ -1094,12 +1096,14 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
     expect(approved.status).toBe(302)
 
     clientIp = '203.0.113.244'
-    await expect((await settings(workspace.slug, jwt)).json()).resolves.toStrictEqual([])
+    const settingsResponse = await settings(workspace.slug, jwt)
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
 
     clientIp = '203.0.113.245'
     await connect({ email, workspaceId: workspace.id })
     clientIp = '203.0.113.246'
-    const grants = await (await settings(workspace.slug, jwt)).json<{ expiresAt: number }[]>()
+    const grantsResponse = await settings(workspace.slug, jwt)
+    const grants = await grantsResponse.json<{ expiresAt: number }[]>()
     expect(grants).toHaveLength(1)
     expect(grants[0].expiresAt).toBeGreaterThan(currentEpochSeconds())
   })
@@ -1126,7 +1130,8 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
      * grant lookup that produces the props is per-request, in the provider.
      */
     await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
-    await expect((await settings(workspace.slug, jwt)).json()).resolves.toStrictEqual([])
+    const settingsResponse = await settings(workspace.slug, jwt)
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
   })
 
   test("keeps grants for another workspace off this workspace's page, and out of its reach", async () => {
@@ -1145,7 +1150,8 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
     const [grant] = await listed.json<{ id: string }[]>()
     expect(isNonEmptyText(grant.id)).toBe(true)
 
-    await expect((await settings(first.slug, jwt)).json()).resolves.toStrictEqual([])
+    const settingsResponse = await settings(first.slug, jwt)
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
     /*
      * Revoking it from the wrong workspace would disconnect a client this page never
      * showed the user.
@@ -1189,7 +1195,8 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
      * An admin, deliberately: a grant is a personal credential, so seniority in the
      * workspace does not confer visibility into it.
      */
-    await expect((await settings(workspace.slug, await accessJwt(other))).json()).resolves.toStrictEqual([])
+    const settingsResponse = await settings(workspace.slug, await accessJwt(other))
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
   })
 })
 
@@ -1247,7 +1254,8 @@ describe('hardening the consent screen itself', () => {
      * the form names. With 'self' alone the browser blocks the submission and
      * reports it against /oauth/authorize — which is same-origin, so the report
      * reads as a false positive while the connector flow is dead in every browser. */
-    const csp = (await consentPage()).headers.get('Content-Security-Policy') ?? ''
+    const consentResponse = await consentPage()
+    const csp = consentResponse.headers.get('Content-Security-Policy') ?? ''
 
     expect(csp).toContain(`form-action 'self' ${new URL(CLIENT_REDIRECT).origin}`)
     // The origin, not the callback path, and nothing wildcarded.

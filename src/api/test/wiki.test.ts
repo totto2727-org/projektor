@@ -3570,11 +3570,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       ),
     )
     expect(firstRes.status).toBe(200)
-    const revisions = (await (
-      await req('http://localhost/api/wiki/patch-append-stale-base/revisions', {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { id: string }[]
+    const revisionsResponse = await req('http://localhost/api/wiki/patch-append-stale-base/revisions', {
+      headers: authHeaders(token, slug),
+    })
+    const revisions = (await revisionsResponse.json()) as { id: string }[]
 
     const res = await req(
       'http://localhost/api/wiki/patch-append-stale-base',
@@ -3608,11 +3607,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       ),
     )
     expect(res.status).toBe(200)
-    const page = (await (
-      await req('http://localhost/api/wiki/patch-frontmatter-new', {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { content: string; status: string }
+    const pageResponse = await req('http://localhost/api/wiki/patch-frontmatter-new', {
+      headers: authHeaders(token, slug),
+    })
+    const page = (await pageResponse.json()) as { content: string; status: string }
     expect(page.status).toBe('current')
     expect(page.content).toMatch(/^---\nstatus: current\n---\n/u)
     expect(page.content).toContain(TWO_SECTIONS.trim())
@@ -3637,11 +3635,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       ),
     )
     expect(res.status).toBe(200)
-    const page = (await (
-      await req('http://localhost/api/wiki/patch-frontmatter-preserve', {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { type: string; tags: string[]; status: string }
+    const pageResponse = await req('http://localhost/api/wiki/patch-frontmatter-preserve', {
+      headers: authHeaders(token, slug),
+    })
+    const page = (await pageResponse.json()) as { type: string; tags: string[]; status: string }
     expect(page.status).toBe('deprecated')
     expect(page.type).toBe('runbook')
     expect(page.tags).toStrictEqual(['ops'])
@@ -3666,11 +3663,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       ),
     )
     expect(res.status).toBe(200)
-    const page = (await (
-      await req('http://localhost/api/wiki/patch-frontmatter-remove', {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { type: string | null; status: string }
+    const pageResponse = await req('http://localhost/api/wiki/patch-frontmatter-remove', {
+      headers: authHeaders(token, slug),
+    })
+    const page = (await pageResponse.json()) as { type: string | null; status: string }
     expect(page.type).toBeNull()
     expect(page.status).toBe('draft')
   })
@@ -3753,11 +3749,10 @@ describe('wiki patch operations (PROJ-490)', () => {
         }),
       ),
     )
-    const revisions = (await (
-      await req('http://localhost/api/wiki/patch-frontmatter-stale-base/revisions', {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { id: string }[]
+    const revisionsResponse = await req('http://localhost/api/wiki/patch-frontmatter-stale-base/revisions', {
+      headers: authHeaders(token, slug),
+    })
+    const revisions = (await revisionsResponse.json()) as { id: string }[]
 
     const res = await req(
       'http://localhost/api/wiki/patch-frontmatter-stale-base',
@@ -5492,9 +5487,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     )
     expect(watchRes.status).toBe(200)
 
-    let watches = (await (
-      await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    ).json()) as { pageId: string; subtree: boolean }[]
+    const watchesResponse = await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
+    let watches = (await watchesResponse.json()) as { pageId: string; subtree: boolean }[]
     const initial = watches.filter((watch) => watch.pageId === page.id)
     expect(initial).toHaveLength(1)
     expect(initial[0]).toMatchObject({ pageId: page.id, subtree: false })
@@ -5504,9 +5498,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       `http://localhost/api/wiki/${page.slug}/watch`,
       requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ subtree: true })),
     )
-    watches = (await (
-      await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    ).json()) as { pageId: string; subtree: boolean }[]
+    const updatedWatchesResponse = await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
+    watches = (await updatedWatchesResponse.json()) as { pageId: string; subtree: boolean }[]
     expect(watches.filter((watch) => watch.pageId === page.id)).toHaveLength(1)
     expect(watches.find((watch) => watch.pageId === page.id)?.subtree).toBe(true)
 
@@ -5515,9 +5508,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(token, slug),
     })
     expect(unwatchRes.status).toBe(200)
-    watches = (await (
-      await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    ).json()) as { pageId: string; subtree: boolean }[]
+    const removedWatchesResponse = await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
+    watches = (await removedWatchesResponse.json()) as { pageId: string; subtree: boolean }[]
     expect(watches.some((watch) => watch.pageId === page.id)).toBe(false)
   })
 
@@ -5649,9 +5641,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     expect(delRes.status).toBe(200)
 
-    const deleteNotifs = (await notifications(watcher.token)).filter(
-      (notification) => notification.action === 'deleted',
-    )
+    const workspaceNotifications = await notifications(watcher.token)
+    const deleteNotifs = workspaceNotifications.filter((notification) => notification.action === 'deleted')
     expect(deleteNotifs).toHaveLength(1)
     expect(deleteNotifs[0]).toMatchObject({ pageId: child.id, slug: 'cascade-kid' })
 
@@ -5691,9 +5682,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     expect(undeleteRes.status).toBe(200)
 
-    const restoreNotifs = (await notifications(watcher.token)).filter(
-      (notification) => notification.action === 'updated',
-    )
+    const workspaceNotifications = await notifications(watcher.token)
+    const restoreNotifs = workspaceNotifications.filter((notification) => notification.action === 'updated')
     expect(restoreNotifs).toHaveLength(1)
     expect(restoreNotifs[0]).toMatchObject({ pageId: child.id, slug: 'cascade-restore-kid' })
   })
@@ -5778,11 +5768,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(body.changes.some((change) => change.pageId === page.id && change.action === 'created')).toBe(true)
     expect(body.nextSince).toBeGreaterThanOrEqual(t0)
 
-    const empty = (await (
-      await req(`http://localhost/api/wiki/changes?since=${body.nextSince}`, {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { changes: unknown[] }
+    const emptyResponse = await req(`http://localhost/api/wiki/changes?since=${body.nextSince}`, {
+      headers: authHeaders(token, slug),
+    })
+    const empty = (await emptyResponse.json()) as { changes: unknown[] }
     expect(empty.changes).toStrictEqual([])
   })
 
@@ -5842,11 +5831,12 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(token, slug),
     })
 
-    const body = (await (
-      await req(`http://localhost/api/wiki/changes?since=${t0}`, {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { changes: { action: string; slug: string | null; title: string | null }[] }
+    const wikiResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
+      headers: authHeaders(token, slug),
+    })
+    const body = (await wikiResponse.json()) as {
+      changes: { action: string; slug: string | null; title: string | null }[]
+    }
     const deleteEvent = body.changes.find((change) => change.action === 'deleted')
     expect(deleteEvent).toMatchObject({ slug: 'delta-delete', title: 'Delta Delete' })
   })
@@ -5867,11 +5857,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     expect(delRes.status).toBe(200)
 
-    const body = (await (
-      await req(`http://localhost/api/wiki/changes?since=${t0}`, {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as {
+    const wikiResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
+      headers: authHeaders(token, slug),
+    })
+    const body = (await wikiResponse.json()) as {
       changes: { action: string; pageId: string; deletedPageIds: string[] | null }[]
     }
     const deleteEvent = body.changes.find((change) => change.action === 'deleted' && change.pageId === parent.id)
@@ -5904,19 +5893,17 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
 
     // A workspace viewer with no grant on `project` shouldn't see this change.
     const outsider = await seedWatcher('viewer')
-    const body = (await (
-      await req(`http://localhost/api/wiki/changes?since=${t0}`, {
-        headers: authHeaders(outsider.token, slug),
-      })
-    ).json()) as { changes: { slug: string | null }[] }
+    const wikiResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
+      headers: authHeaders(outsider.token, slug),
+    })
+    const body = (await wikiResponse.json()) as { changes: { slug: string | null }[] }
     expect(body.changes.some((change) => change.slug === 'restricted-delta')).toBe(false)
 
     // The grantee (the creator) does see it.
-    const ownBody = (await (
-      await req(`http://localhost/api/wiki/changes?since=${t0}`, {
-        headers: authHeaders(token, slug),
-      })
-    ).json()) as { changes: { slug: string | null }[] }
+    const ownBodyResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
+      headers: authHeaders(token, slug),
+    })
+    const ownBody = (await ownBodyResponse.json()) as { changes: { slug: string | null }[] }
     expect(ownBody.changes.some((change) => change.slug === 'restricted-delta')).toBe(true)
   })
 
@@ -5935,11 +5922,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
     )
 
-    const body = (await (
-      await req('http://localhost/api/wiki/changes?since=0&watchedOnly=true', {
-        headers: authHeaders(watcher.token, slug),
-      })
-    ).json()) as { changes: { pageId: string }[] }
+    const wikiResponse = await req('http://localhost/api/wiki/changes?since=0&watchedOnly=true', {
+      headers: authHeaders(watcher.token, slug),
+    })
+    const body = (await wikiResponse.json()) as { changes: { pageId: string }[] }
     const pageIds = body.changes.map((change) => change.pageId)
     expect(pageIds).toContain(child.id)
     expect(pageIds).not.toContain(other.id)

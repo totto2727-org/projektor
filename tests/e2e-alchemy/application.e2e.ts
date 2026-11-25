@@ -495,7 +495,8 @@ test('issue review targets persist optional selection and four statuses across f
   try {
     const cold = await coldContext.newPage()
     observeBrowser(cold, testInfo)
-    expect((await cold.goto(focusedUrl))?.status()).toBe(HTTP_OK)
+    const focusedPageResponse = await cold.goto(focusedUrl)
+    expect(focusedPageResponse?.status()).toBe(HTTP_OK)
     const coldTargets = cold.getByRole('region', { exact: true, name: 'レビュー対象' })
     await expect(coldTargets.getByRole('heading', { exact: true, name: 'レビュー対象 (2)' })).toBeVisible()
     await expect(coldTargets.getByText('レビュー待ち: 2件', { exact: true })).toBeVisible()
@@ -507,7 +508,8 @@ test('issue review targets persist optional selection and four statuses across f
       }),
     ).toBeVisible()
     await checkpoint(cold, testInfo, 'review-targets-cold-focused-no-js')
-    expect((await cold.goto(emptyIssueUrl))?.status()).toBe(HTTP_OK)
+    const emptyIssueResponse = await cold.goto(emptyIssueUrl)
+    expect(emptyIssueResponse?.status()).toBe(HTTP_OK)
     await expect(cold.getByRole('button', { name: /Add URL/u })).toBeDisabled()
   } finally {
     await coldContext.close()
@@ -762,7 +764,8 @@ test('workspace review spans projects and unassigned issues with native filtered
   try {
     const cold = await coldContext.newPage()
     observeBrowser(cold, testInfo)
-    expect((await cold.goto(page.url()))?.status()).toBe(HTTP_OK)
+    const coldPageResponse = await cold.goto(page.url())
+    expect(coldPageResponse?.status()).toBe(HTTP_OK)
     await runInOrder(issues, async (issue): Promise<void> => {
       const link = cold.getByRole('link', { exact: true, name: issue.title }).filter({ visible: true })
       if (Predicate.isNotNullish(issue.review) && issue.review !== 'done') {
@@ -802,7 +805,8 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   expect(created.status(), await created.text()).toBe(HTTP_CREATED)
   const project = await created.json()
   const query = new URLSearchParams({ projectId: project.id, workspace: 'projektor' })
-  expect((await page.goto(`/projects/view?${query}`))?.status()).toBe(HTTP_OK)
+  const projectNavigationResponse = await page.goto(`/projects/view?${query}`)
+  expect(projectNavigationResponse?.status()).toBe(HTTP_OK)
   await expect(page.getByText('No issues in this window yet', { exact: true })).toBeVisible()
   await expect(page.getByTestId('flow-chart-cfd')).toHaveCount(0)
   await checkpoint(page, testInfo, 'charts-empty-no-zero-band')
@@ -864,7 +868,8 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   await expect.poll(() => areas.last().evaluate((element) => getComputedStyle(element).fill)).not.toBe(lightFill)
   await checkpoint(page, testInfo, 'charts-system-dark-theme')
   await page.emulateMedia({ colorScheme: 'light' })
-  expect((await page.goto(`/metrics?${query}`))?.status()).toBe(HTTP_OK)
+  const metricsPageResponse = await page.goto(`/metrics?${query}`)
+  expect(metricsPageResponse?.status()).toBe(HTTP_OK)
   await expect(page.getByTestId('flow-chart-cfd').locator('.recharts-area-area')).toHaveCount(4)
   await checkpoint(page, testInfo, 'charts-metrics-shared-cfd')
 
@@ -881,7 +886,8 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     },
   })
   expect(wikiResponse.status(), await wikiResponse.text()).toBe(HTTP_CREATED)
-  expect((await page.goto(`/wiki/view?${query}&slug=drawer-${suffix.toLowerCase()}`))?.status()).toBe(HTTP_OK)
+  const wikiPageResponse = await page.goto(`/wiki/view?${query}&slug=drawer-${suffix.toLowerCase()}`)
+  expect(wikiPageResponse?.status()).toBe(HTTP_OK)
   if (testInfo.project.name === 'mobile') {
     const trigger = page.getByRole('button', { exact: true, name: 'Pages' })
     const drawer = page.locator('.wiki-sidebar.wiki-sidebar-open')
@@ -1129,7 +1135,8 @@ test('native create project and issue refresh canonical reads and navigation', a
   })
   await page.getByRole('button', { name: /^Account(?::|$)/u }).click()
   await page.getByRole('menuitem', { exact: true, name: 'Refresh session' }).click()
-  expect((await refreshPost).status()).toBe(303)
+  const refreshedResponse = await refreshPost
+  expect(refreshedResponse.status()).toBe(303)
   await refreshedDocument
   await expect(page).toHaveURL(wikiUrl)
   await expect(page.getByRole('heading', { exact: true, level: 1, name: wikiTitle })).toBeVisible()
@@ -1147,7 +1154,8 @@ test('native create project and issue refresh canonical reads and navigation', a
   try {
     const cold = await noJs.newPage()
     observeBrowser(cold, testInfo)
-    expect((await cold.goto(issueUrl))?.status()).toBe(HTTP_OK)
+    const issueNavigationResponse = await cold.goto(issueUrl)
+    expect(issueNavigationResponse?.status()).toBe(HTTP_OK)
     await expect(cold.getByRole('heading', { exact: true, name: issueTitle })).toBeVisible()
     await checkpoint(cold, testInfo, 'cold-persisted-issue-no-js')
   } finally {
@@ -1202,7 +1210,8 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
   expect(nativeFile.headers()['cache-control']).toBe('private, no-store')
   const deletedFile = await request.delete(`http://127.0.0.1:4392/api/files/${uploaded.id}`, { headers })
   expect(deletedFile.status()).toBe(HTTP_NO_CONTENT)
-  expect((await request.get(nativeFileUrl)).status()).toBe(HTTP_NOT_FOUND)
+  const fileResponse = await request.get(nativeFileUrl)
+  expect(fileResponse.status()).toBe(HTTP_NOT_FOUND)
   const createdWiki = await request.post('http://127.0.0.1:4392/api/wiki', {
     headers,
     data: {
