@@ -3,6 +3,7 @@ import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
+import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
@@ -3678,7 +3679,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const pageResponse = await req('http://localhost/api/wiki/patch-frontmatter-remove', {
       headers: authHeaders(token, slug),
     })
-    const page = (await pageResponse.json()) as { type: string | null; status: string }
+    const page = await readNativeJson(pageResponse, ApiResults.apiGetWikiPage)
     expect(page.type).toBeNull()
     expect(page.status).toBe('draft')
   })
@@ -4485,11 +4486,8 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const brokenB = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(workspaceB.token, workspaceB.workspace.slug),
     })
-    expect(
-      ((await brokenB.json()) as { targetTitle: string }[]).some(
-        (brokenLink) => brokenLink.targetTitle === 'Shared Title',
-      ),
-    ).toBe(true)
+    const brokenLinks = await readNativeJson(brokenB, ApiResults.apiListBrokenWikiLinks)
+    expect(brokenLinks.some((brokenLink) => brokenLink.targetTitle === 'Shared Title')).toBe(true)
 
     const sharedA = await fetchNativeApi('http://localhost/api/wiki/shared-title', {
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
@@ -5481,14 +5479,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(watcherToken, slug),
     })
     expect(res.status).toBe(200)
-    return (await res.json()) as {
-      id: string
-      pageId: string
-      slug: string
-      title: string
-      action: string
-      actorId: string | null
-    }[]
+    return readNativeJson(res, ApiResults.apiListWikiNotifications)
   }
 
   test('covers REST: watch/unwatch a page, watching again upserts the subtree flag instead of duplicating', async () => {
@@ -5501,7 +5492,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(watchRes.status).toBe(200)
 
     const watchesResponse = await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    let watches = (await watchesResponse.json()) as { pageId: string; subtree: boolean }[]
+    const watches = await readNativeJson(watchesResponse, ApiResults.apiListWikiWatches)
     const initial = watches.filter((watch) => watch.pageId === page.id)
     expect(initial).toHaveLength(1)
     expect(initial[0]).toMatchObject({ pageId: page.id, subtree: false })
@@ -5512,9 +5503,9 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ subtree: true })),
     )
     const updatedWatchesResponse = await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    watches = (await updatedWatchesResponse.json()) as { pageId: string; subtree: boolean }[]
-    expect(watches.filter((watch) => watch.pageId === page.id)).toHaveLength(1)
-    expect(watches.find((watch) => watch.pageId === page.id)?.subtree).toBe(true)
+    const updatedWatches = await readNativeJson(updatedWatchesResponse, ApiResults.apiListWikiWatches)
+    expect(updatedWatches.filter((watch) => watch.pageId === page.id)).toHaveLength(1)
+    expect(updatedWatches.find((watch) => watch.pageId === page.id)?.subtree).toBe(true)
 
     const unwatchRes = await req(`http://localhost/api/wiki/${page.slug}/watch`, {
       method: 'DELETE',
@@ -5522,8 +5513,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     expect(unwatchRes.status).toBe(200)
     const removedWatchesResponse = await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    watches = (await removedWatchesResponse.json()) as { pageId: string; subtree: boolean }[]
-    expect(watches.some((watch) => watch.pageId === page.id)).toBe(false)
+    const remainingWatches = await readNativeJson(removedWatchesResponse, ApiResults.apiListWikiWatches)
+    expect(remainingWatches.some((watch) => watch.pageId === page.id)).toBe(false)
   })
 
   test('a direct watcher is notified when someone else edits the page, never for their own edit', async () => {
@@ -5850,9 +5841,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const wikiResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await wikiResponse.json()) as {
-      changes: { action: string; slug: string | null; title: string | null }[]
-    }
+    const body = await readNativeJson(wikiResponse, ApiResults.apiListWikiChanges)
     const deleteEvent = body.changes.find((change) => change.action === 'deleted')
     expect(deleteEvent).toMatchObject({ slug: 'delta-delete', title: 'Delta Delete' })
   })
@@ -5876,9 +5865,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const wikiResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await wikiResponse.json()) as {
-      changes: { action: string; pageId: string; deletedPageIds: string[] | null }[]
-    }
+    const body = await readNativeJson(wikiResponse, ApiResults.apiListWikiChanges)
     const deleteEvent = body.changes.find((change) => change.action === 'deleted' && change.pageId === parent.id)
     expect(deleteEvent?.deletedPageIds?.toSorted()).toStrictEqual([child.id, parent.id].toSorted())
 
@@ -5912,14 +5899,14 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const wikiResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
       headers: authHeaders(outsider.token, slug),
     })
-    const body = (await wikiResponse.json()) as { changes: { slug: string | null }[] }
+    const body = await readNativeJson(wikiResponse, ApiResults.apiListWikiChanges)
     expect(body.changes.some((change) => change.slug === 'restricted-delta')).toBe(false)
 
     // The grantee (the creator) does see it.
     const ownBodyResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
       headers: authHeaders(token, slug),
     })
-    const ownBody = (await ownBodyResponse.json()) as { changes: { slug: string | null }[] }
+    const ownBody = await readNativeJson(ownBodyResponse, ApiResults.apiListWikiChanges)
     expect(ownBody.changes.some((change) => change.slug === 'restricted-delta')).toBe(true)
   })
 
@@ -5941,7 +5928,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const wikiResponse = await req('http://localhost/api/wiki/changes?since=0&watchedOnly=true', {
       headers: authHeaders(watcher.token, slug),
     })
-    const body = (await wikiResponse.json()) as { changes: { pageId: string }[] }
+    const body = await readNativeJson(wikiResponse, ApiResults.apiListWikiChanges)
     const pageIds = body.changes.map((change) => change.pageId)
     expect(pageIds).toContain(child.id)
     expect(pageIds).not.toContain(other.id)
@@ -6351,7 +6338,8 @@ describe('wiki trash (PROJ-496)', () => {
     await trashPage(page.slug)
 
     const listRes = await req('http://localhost/api/wiki', { headers: authHeaders(token, slug) })
-    expect(((await listRes.json()) as { id: string }[]).some((listedPage) => listedPage.id === page.id)).toBe(false)
+    const listed = await readNativeJson(listRes, ApiResults.apiListWikiPages)
+    expect(listed.some((listedPage) => listedPage.id === page.id)).toBe(false)
 
     const treeRes = await req('http://localhost/api/wiki/tree', {
       headers: authHeaders(token, slug),
@@ -6359,7 +6347,8 @@ describe('wiki trash (PROJ-496)', () => {
     type TreeNode = { id: string; children: TreeNode[] }
     const flatten = (nodes: Readonly<TreeNode[]>): string[] =>
       nodes.flatMap((node) => [node.id, ...flatten(node.children ?? [])])
-    expect(flatten((await treeRes.json()) as TreeNode[])).not.toContain(page.id)
+    const tree = await readNativeJson(treeRes, ApiResults.apiGetWikiTree)
+    expect(flatten(tree)).not.toContain(page.id)
 
     const searchRes = await req('http://localhost/api/wiki/search?q=trash-list-searchterm', {
       headers: authHeaders(token, slug),
@@ -6371,9 +6360,8 @@ describe('wiki trash (PROJ-496)', () => {
     const templatesRes = await req('http://localhost/api/wiki/templates', {
       headers: authHeaders(token, slug),
     })
-    expect(((await templatesRes.json()) as { id: string }[]).some((template) => template.id === templatePage.id)).toBe(
-      false,
-    )
+    const templates = await readNativeJson(templatesRes, ApiResults.apiListWikiTemplates)
+    expect(templates.some((template) => template.id === templatePage.id)).toBe(false)
   })
 
   test('handles GET /api/wiki/:slug and GET /api/wiki/:id both 404 for a trashed page', async () => {
@@ -6669,14 +6657,11 @@ describe('wiki trash (PROJ-496)', () => {
     const target = await createPage('Trash Broken Link Target', 'target content')
     const source = await createPage('Trash Broken Link Source', 'see [[Trash Broken Link Target]]')
 
-    let brokenRes = await req('http://localhost/api/wiki/broken-links', {
+    const brokenRes = await req('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
-    expect(
-      ((await brokenRes.json()) as { targetTitle: string }[]).some(
-        (brokenLink) => brokenLink.targetTitle === 'Trash Broken Link Target',
-      ),
-    ).toBe(false)
+    const initialBrokenLinks = await readNativeJson(brokenRes, ApiResults.apiListBrokenWikiLinks)
+    expect(initialBrokenLinks.some((brokenLink) => brokenLink.targetTitle === 'Trash Broken Link Target')).toBe(false)
 
     /*
      * The target is trashed but not yet purged — target_page_id is still set (purge
@@ -6685,11 +6670,12 @@ describe('wiki trash (PROJ-496)', () => {
      */
     await trashPage(target.slug)
 
-    brokenRes = await req('http://localhost/api/wiki/broken-links', {
+    const updatedBrokenRes = await req('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
+    const updatedBrokenLinks = await readNativeJson(updatedBrokenRes, ApiResults.apiListBrokenWikiLinks)
     expect(
-      ((await brokenRes.json()) as { targetTitle: string; sourceSlug: string }[]).some(
+      updatedBrokenLinks.some(
         (brokenLink) => brokenLink.targetTitle === 'Trash Broken Link Target' && brokenLink.sourceSlug === source.slug,
       ),
     ).toBe(true)
@@ -7015,7 +7001,8 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
       headers: authHeaders(token, slug),
     })
     expect(get.status).toBe(200)
-    expect(((await get.json()) as { id: string }).id).toBe(target.id)
+    const page = await readNativeJson(get, IdResponse)
+    expect(page.id).toBe(target.id)
 
     const put = await resetRateLimitAndFetch(
       `http://localhost/api/wiki/${target.id}`,

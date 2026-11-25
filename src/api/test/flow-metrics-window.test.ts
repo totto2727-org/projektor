@@ -16,6 +16,7 @@ import type { ServiceCtx } from '#commands/types.ts'
  *   number of D1 queries — proving the issue SELECT and lease lookup are now scoped to
  *   the window instead of the whole project.
  */
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
@@ -209,7 +210,7 @@ describe('covers PROJ-866: bucket-rewrite fidelity (snapshot on a representative
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = await res.json()
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(metrics).toMatchSnapshot()
   })
@@ -397,12 +398,7 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
 
     const res = await fetchMetrics(`since=${since}&until=${until}&granularity=week`)
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as {
-      agingWip: { id: string }[]
-      wipOverTime: { count: number }[]
-      arrivalVsCompletionOverTime: { created: number; completed: number }[]
-      cfdOverTime: { done: number; inProgress: number }[]
-    }
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.agingWip.map((issue) => issue.id).toSorted()).toStrictEqual([newer, reopened].toSorted())
     /*
      * Neither issue was active in the window: no WIP, arrivals or completions there,
