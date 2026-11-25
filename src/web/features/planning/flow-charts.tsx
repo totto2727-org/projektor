@@ -30,6 +30,22 @@ import type { ChartConfig } from '@/components/generated/chart.tsx'
 import { formatDuration, formatPercent } from './helpers.ts'
 import type { FlowMetrics } from './types.ts'
 
+const EMPTY_COUNT = 0
+const MIN_FRACTION = 0
+const MAX_FRACTION = 1
+const HASH_MULTIPLIER = 31
+const UNSIGNED_SHIFT_BITS = 0
+const JITTER_STEPS = 1000
+const IN_PROGRESS_COLUMN = 0
+const IN_REVIEW_COLUMN = 1
+const JITTER_MIDPOINT = 0.5
+const JITTER_WIDTH = 0.5
+const MIN_STATUS_AXIS = -0.5
+const MAX_STATUS_AXIS = 1.5
+const MIN_AGE_SECONDS = 0
+const EMPTY_AXIS_MAX_SECONDS = 1
+const AGE_AXIS_HEADROOM = 1.1
+
 export const formatShortDate = function formatShortDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00Z`)
   return Number.isNaN(date.getTime())
@@ -130,7 +146,7 @@ export const ThroughputChart = function ThroughputChart({
 }: {
   data: Readonly<FlowMetrics['throughputOverTime'][number][]>
 }): JSX.Element {
-  if (!data.length || data.every((point) => point.count === 0)) {
+  if (!data.length || data.every((point) => point.count === EMPTY_COUNT)) {
     return <EmptyChartState message='No completed issues yet' />
   }
   return (
@@ -159,7 +175,10 @@ const cfdConfig = {
 } satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][number][]> }): JSX.Element {
-  if (!data.length || data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === 0)) {
+  if (
+    !data.length ||
+    data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === EMPTY_COUNT)
+  ) {
     return <EmptyChartState message='No issues in this window yet' />
   }
   // Recharts stacks raw state counts. Supplying cumulative totals here would double-stack the CFD.
@@ -218,7 +237,13 @@ export function BugShareChart({
       <LineChart accessibilityLayer data={data} margin={margin}>
         <CartesianGrid vertical={false} />
         <DateAxis />
-        <YAxis domain={[0, 1]} tickFormatter={formatPercent} tickLine={false} axisLine={false} width={42} />
+        <YAxis
+          domain={[MIN_FRACTION, MAX_FRACTION]}
+          tickFormatter={formatPercent}
+          tickLine={false}
+          axisLine={false}
+          width={42}
+        />
         <DateTooltip config={bugConfig} formatValue={formatPercent} />
         <Line
           dataKey='bugSharePercent'
@@ -264,7 +289,7 @@ const timestampDate = (value: number): string => formatUtcDatePrefix(new Date(va
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.Element {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])
-  if (!data.length || data.every((point) => point.count === 0)) {
+  if (!data.length || data.every((point) => point.count === EMPTY_COUNT)) {
     return <EmptyChartState message='No WIP data yet' />
   }
   return (
@@ -312,7 +337,7 @@ const arrivalConfig = {
 } satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalVsCompletionOverTime'] }): JSX.Element {
-  if (!data.length || data.every((point) => point.created === 0 && point.completed === 0)) {
+  if (!data.length || data.every((point) => point.created === EMPTY_COUNT && point.completed === EMPTY_COUNT)) {
     return <EmptyChartState message='No arrivals or completions yet' />
   }
   return (
@@ -355,9 +380,9 @@ export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalV
 export function hashJitter(id: string): number {
   let hash = 0
   for (let index = 0; index < id.length; index++) {
-    hash = Math.imul(hash, 31) + id.charCodeAt(index)
+    hash = Math.imul(hash, HASH_MULTIPLIER) + id.charCodeAt(index)
   }
-  return ((hash >>> 0) % 1000) / 1000
+  return ((hash >>> UNSIGNED_SHIFT_BITS) % JITTER_STEPS) / JITTER_STEPS
 }
 const agingConfig = {
   ageSeconds: { label: 'Age since claim', color: sequential.inProgress },
@@ -379,12 +404,19 @@ export function AgingWipScatter({
       data
         .map((point) => ({
           ...point,
-          x: (point.status === 'in_progress' ? 0 : 1) + (hashJitter(point.id) - 0.5) * 0.5,
+          x:
+            (point.status === 'in_progress' ? IN_PROGRESS_COLUMN : IN_REVIEW_COLUMN) +
+            (hashJitter(point.id) - JITTER_MIDPOINT) * JITTER_WIDTH,
         }))
         .toSorted((left, right) => left.x - right.x),
     [data],
   )
-  const maxAge = Math.max(0, ...data.map((point) => point.ageSeconds), p50 ?? 0, p90 ?? 0)
+  const maxAge = Math.max(
+    MIN_AGE_SECONDS,
+    ...data.map((point) => point.ageSeconds),
+    p50 ?? MIN_AGE_SECONDS,
+    p90 ?? MIN_AGE_SECONDS,
+  )
   if (!data.length) {
     return <EmptyChartState message='No issues currently in progress or review' />
   }
@@ -395,16 +427,16 @@ export function AgingWipScatter({
         <XAxis
           dataKey='x'
           type='number'
-          domain={[-0.5, 1.5]}
-          ticks={[0, 1]}
-          tickFormatter={(value: number) => (value === 0 ? 'In progress' : 'In review')}
+          domain={[MIN_STATUS_AXIS, MAX_STATUS_AXIS]}
+          ticks={[IN_PROGRESS_COLUMN, IN_REVIEW_COLUMN]}
+          tickFormatter={(value: number) => (value === IN_PROGRESS_COLUMN ? 'In progress' : 'In review')}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
           dataKey='ageSeconds'
           type='number'
-          domain={[0, maxAge === 0 ? 1 : maxAge * 1.1]}
+          domain={[MIN_AGE_SECONDS, maxAge === MIN_AGE_SECONDS ? EMPTY_AXIS_MAX_SECONDS : maxAge * AGE_AXIS_HEADROOM]}
           tickFormatter={formatDuration}
           tickLine={false}
           axisLine={false}
