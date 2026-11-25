@@ -2,6 +2,7 @@ import { Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { loadMigrations } from '#db/test/helpers.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
@@ -28,6 +29,16 @@ import {
   trashWikiPage,
   verifyWikiPage,
 } from './actions.ts'
+
+const wikiPageInput = function wikiPageInput(
+  workspaceSlug: string,
+  slug: string,
+): { slug: string; workspaceSlug: string } {
+  return fieldsInOrder([
+    ['workspaceSlug', workspaceSlug],
+    ['slug', slug],
+  ])
+}
 
 interface Definition {
   input: Schema.Decoder<unknown>
@@ -164,23 +175,17 @@ describe('wiki semantic ServerFn contracts', () => {
     expect.hasAssertions()
     const { run, sqlite } = await fixture()
     await expect(
-      run(saveWikiDraft, {
-        workspaceSlug: 'team',
-        slug: 'guide',
-        title: 'Missing token',
-        content: 'No write',
-      }),
+      run(saveWikiDraft, { ...wikiPageInput('team', 'guide'), title: 'Missing token', content: 'No write' }),
     ).rejects.toThrow('["expectedDraftRevision"]')
     expect(sqliteRowFields(sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get())).toStrictEqual({
       count: 0,
     })
-    await expect(run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
+    await expect(run(getWikiDraftState, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
       value: { draft: JSON_NULL, revision: JSON_NULL },
     })
     await run(saveWikiDraft, {
-      workspaceSlug: 'team',
-      slug: 'guide',
+      ...wikiPageInput('team', 'guide'),
       title: 'Newer',
       content: 'Keep B',
       expectedDraftRevision: JSON_NULL,
@@ -189,8 +194,7 @@ describe('wiki semantic ServerFn contracts', () => {
     await runInOrder([saveWikiDraft, discardWikiDraft, saveWikiPage], async (operation): Promise<void> => {
       await expect(
         run(operation, {
-          workspaceSlug: 'team',
-          slug: 'guide',
+          ...wikiPageInput('team', 'guide'),
           title: 'Stale',
           content: 'Late A',
           baseRevisionId: 'revision',
@@ -198,7 +202,7 @@ describe('wiki semantic ServerFn contracts', () => {
         }),
       ).resolves.toMatchObject({ ok: false, status: 409 })
     })
-    await expect(run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+    await expect(run(getWikiDraftState, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
       value: { revision: head, draft: { content: 'Keep B' } },
     })
@@ -218,18 +222,14 @@ describe('wiki semantic ServerFn contracts', () => {
         role,
         granted: role === 'member',
       })
-      await expect(testFixture.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+      await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
         ok: true,
         value: { id: '00000000-0000-4000-8000-000000000001', project_id: '00000000-0000-4000-8000-000000000002' },
       })
       await expect(
-        testFixture.run(getWikiRevisionDiff, {
-          workspaceSlug: 'team',
-          slug: 'guide',
-          revisionId: 'revision',
-        }),
+        testFixture.run(getWikiRevisionDiff, { ...wikiPageInput('team', 'guide'), revisionId: 'revision' }),
       ).resolves.toMatchObject({ ok: true, value: { diff: expect.any(String) } })
-      await expect(testFixture.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
+      await expect(testFixture.run(getWikiDraft, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
         ok: true,
         value: JSON_NULL,
       })
@@ -247,7 +247,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const testFixture = await fixture({ archived: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     await runInOrder([getWikiPage, getWikiDraft, getWikiRevisionDiff], async (operation): Promise<void> => {
       await expect(
-        testFixture.run(operation, { workspaceSlug: 'team', slug: 'guide', revisionId: 'revision' }),
+        testFixture.run(operation, { ...wikiPageInput('team', 'guide'), revisionId: 'revision' }),
       ).resolves.toMatchObject({ ok: false, status: 404 })
     })
   })
@@ -333,7 +333,7 @@ describe('wiki semantic ServerFn contracts', () => {
 
   test('reads a draft without invalidating and resolves the explicit authorized workspace', async () => {
     const testFixture = await fixture()
-    await expect(testFixture.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
+    await expect(testFixture.run(getWikiDraft, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
       value: JSON_NULL,
     })
@@ -342,7 +342,7 @@ describe('wiki semantic ServerFn contracts', () => {
 
   test('duplicates server-authorized content and preserves the source entity project', async () => {
     const testFixture = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002' })
-    await expect(testFixture.run(duplicateWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
+    await expect(testFixture.run(duplicateWikiPage, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
       value: { id: expect.any(String), slug: expect.stringMatching(/^guide-copy-/u) },
     })
@@ -363,7 +363,7 @@ describe('wiki semantic ServerFn contracts', () => {
 
   test("reads the actual page DTO/revision pointer and only the current user's draft directly", async () => {
     const testFixture = await fixture()
-    await expect(testFixture.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+    await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
       value: {
         content: 'Body',
@@ -375,7 +375,7 @@ describe('wiki semantic ServerFn contracts', () => {
     testFixture.sqlite.exec(
       `INSERT INTO wiki_drafts (id,workspace_id,user_id,page_id,title,content,base_revision_id,updated_at) VALUES ('mine','workspace','user','00000000-0000-4000-8000-000000000001','Mine','Personal','revision',2),('theirs','workspace','other-user','00000000-0000-4000-8000-000000000001','Secret','Private','revision',3)`,
     )
-    await expect(testFixture.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
+    await expect(testFixture.run(getWikiDraft, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
       value: { baseRevisionId: 'revision', content: 'Personal', title: 'Mine', updatedAt: 2 },
     })
@@ -386,7 +386,7 @@ describe('wiki semantic ServerFn contracts', () => {
     expect.hasAssertions()
     const testFixture = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     await runInOrder([getWikiPage, getWikiDraft, duplicateWikiPage], async (operation): Promise<void> => {
-      await expect(testFixture.run(operation, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+      await expect(testFixture.run(operation, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
@@ -410,11 +410,7 @@ describe('wiki semantic ServerFn contracts', () => {
       "UPDATE wiki_pages SET content = 'Current' WHERE id = '00000000-0000-4000-8000-000000000001'",
     )
     await expect(
-      testFixture.run(getWikiRevisionDiff, {
-        workspaceSlug: 'team',
-        slug: 'guide',
-        revisionId: 'revision',
-      }),
+      testFixture.run(getWikiRevisionDiff, { ...wikiPageInput('team', 'guide'), revisionId: 'revision' }),
     ).resolves.toStrictEqual({
       ok: true,
       value: { diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Current' },
@@ -422,8 +418,7 @@ describe('wiki semantic ServerFn contracts', () => {
     await runInOrder([getWikiRevisionDiff, restoreWikiRevision], async (operation): Promise<void> => {
       await expect(
         testFixture.run(operation, {
-          workspaceSlug: 'team',
-          slug: 'guide',
+          ...wikiPageInput('team', 'guide'),
           revisionId: 'foreign-revision',
           baseRevisionId: 'revision',
         }),
@@ -434,8 +429,7 @@ describe('wiki semantic ServerFn contracts', () => {
     })
     await expect(
       testFixture.run(restoreWikiRevision, {
-        workspaceSlug: 'team',
-        slug: 'guide',
+        ...wikiPageInput('team', 'guide'),
         revisionId: 'revision',
         baseRevisionId: 'revision',
       }),
@@ -533,7 +527,7 @@ describe('wiki semantic ServerFn contracts', () => {
         baseRevisionId: 'revision',
       }),
     ).resolves.toEqual({ ok: true, value: { draftRevision: expect.any(String), ok: true } })
-    await expect(testFixture.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+    await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
       value: { content: '## Canonical\n\n**Body**', revisionId: expect.any(String), title: 'Published' },
     })
@@ -556,7 +550,7 @@ describe('wiki semantic ServerFn contracts', () => {
       }),
     ).resolves.toMatchObject({ ok: true, value: { id: expect.any(String), slug: 'child' } })
     await expect(
-      testFixture.run(moveWikiPage, { workspaceSlug: 'team', slug: 'child', parentId: JSON_NULL }),
+      testFixture.run(moveWikiPage, { ...wikiPageInput('team', 'child'), parentId: JSON_NULL }),
     ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
@@ -568,26 +562,25 @@ describe('wiki semantic ServerFn contracts', () => {
     })
     await expect(
       testFixture.run(moveWikiPage, {
-        workspaceSlug: 'team',
-        slug: 'child',
+        ...wikiPageInput('team', 'child'),
         parentId: '00000000-0000-4000-8000-000000000001',
       }),
     ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
-    await expect(testFixture.run(verifyWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+    await expect(testFixture.run(verifyWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
       value: { ok: true, verifiedAt: expect.any(Number), verifiedBy: 'alice@example.test' },
     })
     expect(readGuideContent(testFixture.sqlite)).toStrictEqual({
       content: expect.stringContaining('verified_by: alice@example.test'),
     })
-    await expect(testFixture.run(trashWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+    await expect(testFixture.run(trashWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
       value: { deletedCount: 2, ok: true },
     })
-    await expect(testFixture.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
+    await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: false,
       status: 404,
     })
