@@ -24,8 +24,8 @@ export function BoardView({
   statuses: TaskStatus[]
   changeStatus: (issueId: string, statusId: string) => void
 }): JSX.Element {
-  const [dragIssueId, setDragIssueId] = useState<string | null>(null)
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
+  const [dragIssueId, setDragIssueId] = useState<string>()
+  const [dragOverColumn, setDragOverColumn] = useState<string>()
 
   return (
     <div className='flex gap-4 overflow-x-auto items-start max-sm:flex-col'>
@@ -45,7 +45,7 @@ export function BoardView({
             }}
             onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                setDragOverColumn(null)
+                setDragOverColumn(undefined)
               }
             }}
             onDrop={(event: import('react').DragEvent<HTMLElement>) => {
@@ -59,7 +59,7 @@ export function BoardView({
               ) {
                 changeStatus(issueId, dropStatusId)
               }
-              setDragOverColumn(null)
+              setDragOverColumn(undefined)
             }}
           >
             <div className='px-3 py-2 bg-surface rounded-t-md border border-b-0 border-border flex justify-between items-center'>

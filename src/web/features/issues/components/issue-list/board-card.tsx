@@ -21,8 +21,8 @@ export const BoardCard = function BoardCard({
 }: {
   issue: Issue
   statuses: TaskStatus[]
-  dragIssueId: string | null
-  setDragIssueId: (id: string | null) => void
+  dragIssueId: string | undefined
+  setDragIssueId: (id: string | undefined) => void
   changeStatus: (issueId: string, statusId: string) => void
 }): JSX.Element {
   const pts = getStoryPoints(issue)
@@ -49,7 +49,7 @@ export const BoardCard = function BoardCard({
           setDragIssueId(issue.id)
         }}
         onDragEnd={() => {
-          setDragIssueId(null)
+          setDragIssueId(undefined)
         }}
       >
         <div className='font-mono text-[0.72rem] text-text-muted mb-1'>

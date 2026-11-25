@@ -40,8 +40,8 @@ export function BacklogView({
   onSort,
 }: IssueListTableProps): JSX.Element {
   const [backlogOrder, setBacklogOrder] = useState<string[]>([])
-  const [backlogDragId, setBacklogDragId] = useState<string | null>(null)
-  const [backlogDragOverId, setBacklogDragOverId] = useState<string | null>(null)
+  const [backlogDragId, setBacklogDragId] = useState<string>()
+  const [backlogDragOverId, setBacklogDragOverId] = useState<string>()
 
   const backlogIssues = getBacklogIssues(issues)
   if (Array.isArrayEmpty(backlogIssues)) {
@@ -69,8 +69,8 @@ export function BacklogView({
     event.preventDefault()
     const draggedId = event.dataTransfer?.getData('text/plain')
     if (!draggedId || draggedId === targetId) {
-      setBacklogDragId(null)
-      setBacklogDragOverId(null)
+      setBacklogDragId(undefined)
+      setBacklogDragOverId(undefined)
       return
     }
     const ids = orderedIssues.map((issue) => issue.id)
@@ -78,13 +78,13 @@ export function BacklogView({
     const targetIdx = without.indexOf(targetId)
     without.splice(targetIdx, 0, draggedId)
     setBacklogOrder(without)
-    setBacklogDragId(null)
-    setBacklogDragOverId(null)
+    setBacklogDragId(undefined)
+    setBacklogDragOverId(undefined)
   }
 
   const onBacklogDragEnd = function onBacklogDragEnd(): void {
-    setBacklogDragId(null)
-    setBacklogDragOverId(null)
+    setBacklogDragId(undefined)
+    setBacklogDragOverId(undefined)
   }
 
   return (
@@ -95,7 +95,7 @@ export function BacklogView({
           <tbody
             onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                setBacklogDragOverId(null)
+                setBacklogDragOverId(undefined)
               }
             }}
           >
