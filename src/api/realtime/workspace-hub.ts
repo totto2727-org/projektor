@@ -9,6 +9,17 @@ import type { CoreActor } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { ApiEnv, RealtimeEvent, Role } from '#types'
 
+const NORMAL_CLOSURE_CODE = 1000
+const LAST_REGISTERED_CLOSE_CODE = 1014
+const RESERVED_CLOSE_CODE = 1004
+const NO_STATUS_CLOSE_CODE = 1005
+const ABNORMAL_CLOSURE_CODE = 1006
+const FIRST_APPLICATION_CLOSE_CODE = 3000
+const LAST_APPLICATION_CLOSE_CODE = 4999
+const INTERNAL_ERROR_CLOSE_CODE = 1011
+const TOPIC_PREFIX_START = 0
+const WILDCARD_SUFFIX_START = -2
+
 export interface SubscriptionFilters {
   projects?: string[]
   eventTypes?: string[]
@@ -187,14 +198,17 @@ export class WorkspaceHub {
   }
 
   public async webSocketClose(ws: WebSocket, code: number, _reason: string, _wasClean: boolean): Promise<void> {
-    const registered = code >= 1000 && code <= 1014 && ![1004, 1005, 1006].includes(code)
-    const application = code >= 3000 && code <= 4999
-    const replyCode = Number.isInteger(code) && (registered || application) ? code : 1000
+    const registered =
+      code >= NORMAL_CLOSURE_CODE &&
+      code <= LAST_REGISTERED_CLOSE_CODE &&
+      ![RESERVED_CLOSE_CODE, NO_STATUS_CLOSE_CODE, ABNORMAL_CLOSURE_CODE].includes(code)
+    const application = code >= FIRST_APPLICATION_CLOSE_CODE && code <= LAST_APPLICATION_CLOSE_CODE
+    const replyCode = Number.isInteger(code) && (registered || application) ? code : NORMAL_CLOSURE_CODE
     ws.close(replyCode, 'Closed')
   }
 
   public async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {
-    ws.close(1011, 'Internal error')
+    ws.close(INTERNAL_ERROR_CLOSE_CODE, 'Internal error')
   }
 
   public async broadcast(event: RealtimeEvent): Promise<{ recipientCount: number }> {
@@ -241,7 +255,7 @@ export class WorkspaceHub {
         if (filters?.eventTypes && Array.isArrayNonEmpty(filters.eventTypes)) {
           const matched = filters.eventTypes.some((pattern) => {
             if (pattern.endsWith('.*')) {
-              const prefix = pattern.slice(0, -2)
+              const prefix = pattern.slice(TOPIC_PREFIX_START, WILDCARD_SUFFIX_START)
               return event.type.startsWith(`${prefix}.`) || event.type === prefix
             }
             return pattern === event.type

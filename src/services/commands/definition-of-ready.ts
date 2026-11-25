@@ -8,6 +8,11 @@
 import { Array, String, Number } from 'effect'
 
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQLITE_FALSE, SQLITE_TRUE } from '#db/sqlite-boolean.ts'
+
+const SEPARATOR_NOT_FOUND = -1
+const INLINE_LIST_START = 1
+const INLINE_LIST_END = -1
 
 export interface ReadinessCheck {
   ready: boolean
@@ -71,7 +76,7 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
   const lines = body.split(/\r?\n/u)
   const m = labelMatchers(label)
   const idx = lines.findIndex((l) => isLabelLine(l, m))
-  if (idx === -1) {
+  if (idx === SEPARATOR_NOT_FOUND) {
     return false
   }
 
@@ -80,7 +85,7 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
     .replaceAll('**', '')
     .replaceAll('`', '')
   const sepIdx = inline.search(/[:—–]/u)
-  const afterColon = sepIdx === -1 ? '' : inline.slice(Number.increment(sepIdx)).trim()
+  const afterColon = sepIdx === SEPARATOR_NOT_FOUND ? '' : inline.slice(Number.increment(sepIdx)).trim()
   if (String.isNonEmpty(afterColon)) {
     return true
   }
@@ -108,7 +113,7 @@ const hasFilePathToken = function hasFilePathToken(body: string): boolean {
     return false
   }
   return spans.some((s) => {
-    const inner = s.slice(1, -1).trim()
+    const inner = s.slice(INLINE_LIST_START, INLINE_LIST_END).trim()
     return inner.includes('/') || /[\w-]+\.[a-z]{1,5}\b/i.test(inner)
   })
 }
@@ -134,5 +139,5 @@ export const checkDefinitionOfReady = function checkDefinitionOfReady(body: stri
 /** PROJ-859: the stored-column form of checkDefinitionOfReady — [dor_ready, dor_missing]. */
 export const dorColumns = function dorColumns(body: string | null | undefined): [number, string] {
   const { ready, missing } = checkDefinitionOfReady(body ?? '')
-  return [ready ? 1 : 0, JSON.stringify(missing)]
+  return [ready ? SQLITE_TRUE : SQLITE_FALSE, JSON.stringify(missing)]
 }

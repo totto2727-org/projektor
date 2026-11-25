@@ -2,6 +2,13 @@ import { Iterable, Predicate } from 'effect'
 
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
+const TEXT_START_INDEX = 0
+const CODE_UNIT_WIDTH = 1
+const SURROGATE_PAIR_WIDTH = 2
+const LINE_BREAK_WIDTH = 1
+const FIRST_HEADING_INDEX = 0
+const HEADING_INDEX_STEP = 1
+
 /*
  * PROJ-892: windowed reads of long text (wiki pages, issue bodies) so one call never
  * returns an unbounded blob. Offsets are UTF-16 code units (JS string indices) and are
@@ -35,8 +42,8 @@ const isHighSurrogateAt = function isHighSurrogateAt(text: string, index: number
  * @returns {number} The original end or the preceding UTF-16 index when it follows a high surrogate.
  */
 const safeEnd = function safeEnd(text: string, end: number): number {
-  if (end > 0 && end < text.length && isHighSurrogateAt(text, end - 1)) {
-    return end - 1
+  if (end > TEXT_START_INDEX && end < text.length && isHighSurrogateAt(text, end - CODE_UNIT_WIDTH)) {
+    return end - CODE_UNIT_WIDTH
   }
   return end
 }
@@ -59,14 +66,14 @@ export const windowText = function windowText(text: string, opts: { max: number;
   let start = 0
   if (Predicate.isNotNullish(opts.cursor)) {
     start = Number(opts.cursor)
-    if (!Number.isInteger(start) || start < 0 || start > text.length) {
+    if (!Number.isInteger(start) || start < TEXT_START_INDEX || start > text.length) {
       throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
     }
   }
   let end = safeEnd(text, Math.min(text.length, start + opts.max))
   // A window smaller than one code point (max:1 on an emoji) must still make progress.
   if (end <= start && start < text.length) {
-    end = start + (isHighSurrogateAt(text, start) ? 2 : 1)
+    end = start + (isHighSurrogateAt(text, start) ? SURROGATE_PAIR_WIDTH : CODE_UNIT_WIDTH)
   }
   return {
     text: text.slice(start, end),
@@ -109,7 +116,7 @@ const scanHeading = function scanHeading(scan: HeadingScan, line: string): Headi
       scan.headings.push({ level: groups.marks.length, start: scan.offset, text: groups.text })
     }
   }
-  return { headings: scan.headings, offset: scan.offset + line.length + 1, region }
+  return { headings: scan.headings, offset: scan.offset + line.length + LINE_BREAK_WIDTH, region }
 }
 
 /**
@@ -157,10 +164,10 @@ export const sectionOf = function sectionOf(content: string, name: string): stri
     .toLowerCase()
   const hs = headings(content)
   const i = hs.findIndex((h) => h.text.toLowerCase() === wanted || slugify(h.text) === wanted)
-  if (i < 0) {
+  if (i < FIRST_HEADING_INDEX) {
     return undefined
   }
-  const next = hs.slice(i + 1).find((h) => h.level <= hs[i].level)
+  const next = hs.slice(i + HEADING_INDEX_STEP).find((h) => h.level <= hs[i].level)
   return content.slice(hs[i].start, next ? next.start : content.length).replace(/\n+$/u, '')
 }
 
@@ -176,5 +183,5 @@ export const bodyPreview = function bodyPreview(body: unknown, chars: number): {
   if (text.length <= chars) {
     return { body: text }
   }
-  return { body: text.slice(0, safeEnd(text, chars)), bodyTruncated: true }
+  return { body: text.slice(TEXT_START_INDEX, safeEnd(text, chars)), bodyTruncated: true }
 }
