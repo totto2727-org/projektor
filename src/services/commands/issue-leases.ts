@@ -5,6 +5,7 @@ import { flattenError } from 'zod'
 import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '#contracts/inputs/issue-leases.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
+import { isUniqueConstraintError } from '#services/errors.ts'
 
 import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
 import { assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
@@ -253,7 +254,7 @@ export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknow
      * Lost a genuine race: another claim inserted the active lease for THIS
      * issue first and the partial UNIQUE index rejected ours.
      */
-    if (caughtError instanceof Error && /UNIQUE constraint failed/i.test(caughtError.message)) {
+    if (isUniqueConstraintError(caughtError)) {
       throw new ConflictError('Issue was just leased by another agent')
     }
     throw caughtError

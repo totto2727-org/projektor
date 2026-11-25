@@ -22,6 +22,7 @@ import { hasMultipleItems, hasSingleItem } from '#contracts/item-count.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 import { drizzle, schema } from '#db'
+import { isUniqueConstraintError } from '#services/errors.ts'
 import * as wikiData from '#services/wiki.ts'
 
 import {
@@ -779,7 +780,7 @@ const writeCreateWikiPageBatch = async function writeCreateWikiPageBatch(
   try {
     await ctx.db.batch(statements as D1PreparedStatement[])
   } catch (caughtError) {
-    if (caughtError instanceof Error && /UNIQUE constraint failed/i.test(caughtError.message)) {
+    if (isUniqueConstraintError(caughtError)) {
       throw new ConflictError(`Slug '${slug}' is already in use`)
     }
     throw caughtError
@@ -1315,7 +1316,7 @@ const writeUpdateWikiPageBatch = async function writeUpdateWikiPageBatch(
     if (caughtError instanceof StaleWikiWriteError) {
       throw await staleConflict(ctx, page.id)
     }
-    if (isRename && caughtError instanceof Error && /UNIQUE constraint failed/i.test(caughtError.message)) {
+    if (isRename && isUniqueConstraintError(caughtError)) {
       throw new ConflictError(`Slug '${slug}' is already in use`)
     }
     throw caughtError
