@@ -10,6 +10,11 @@ import { purgeOAuthPage } from './oauth-purge.ts'
 const FTS_DEDUPE_ONCE_KV_KEY = 'maint:fts-dedupe-0065'
 const RETENTION_CHUNK_SIZE = 500
 const RETENTION_MAX_CHUNKS_PER_CATEGORY = 20
+const NO_ROWS_DELETED = 0
+const RETENTION_CHUNKS_PER_STEP = 1
+const DEFAULT_WIKI_NOTIFICATION_RETENTION_DAYS = 90
+const DEFAULT_AGENT_SESSION_RETENTION_DAYS = 90
+const DEFAULT_ACTIVITY_RETENTION_DAYS = 365
 const WIKI_TRASH_PURGE_CURSOR_KV_KEY = 'cron:wiki-trash-purge:cursor'
 const WIKI_TRASH_SUBREQUEST_BUDGET = 100
 const WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE = 45
@@ -47,25 +52,33 @@ const retentionCutoff = function retentionCutoff(raw: string | undefined, defaul
   return currentEpochSeconds() - (Number.isFinite(days) && days > 0 ? days : defaultDays) * SECONDS_PER_DAY
 }
 
+type RetentionTarget = Readonly<{
+  params: Readonly<unknown[]>
+  table: string
+  whereSql: string
+}>
+
+type RetentionProgress = Readonly<{ chunksRemaining: number; totalDeleted: number }>
+
 const deleteExpiredInChunks = async function deleteExpiredInChunks(
   db: D1Database,
-  table: string,
-  whereSql: string,
-  params: Readonly<unknown[]>,
+  target: RetentionTarget,
+  progress: RetentionProgress = { chunksRemaining: RETENTION_MAX_CHUNKS_PER_CATEGORY, totalDeleted: NO_ROWS_DELETED },
 ): Promise<number> {
-  let totalDeleted = 0
-  for (let index = 0; index < RETENTION_MAX_CHUNKS_PER_CATEGORY; index++) {
-    const result = await db
-      .prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${whereSql} LIMIT ?)`)
-      .bind(...params, RETENTION_CHUNK_SIZE)
-      .run()
-    const changes = result.meta.changes ?? 0
-    totalDeleted += changes
-    if (changes < RETENTION_CHUNK_SIZE) {
-      break
-    }
+  const { params, table, whereSql } = target
+  const result = await db
+    .prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${whereSql} LIMIT ?)`)
+    .bind(...params, RETENTION_CHUNK_SIZE)
+    .run()
+  const changes = result.meta.changes ?? NO_ROWS_DELETED
+  const totalDeleted = progress.totalDeleted + changes
+  if (changes < RETENTION_CHUNK_SIZE || progress.chunksRemaining === RETENTION_CHUNKS_PER_STEP) {
+    return totalDeleted
   }
-  return totalDeleted
+  return deleteExpiredInChunks(db, target, {
+    chunksRemaining: progress.chunksRemaining - RETENTION_CHUNKS_PER_STEP,
+    totalDeleted,
+  })
 }
 
 export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<void> {
@@ -76,7 +89,7 @@ export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<v
       name: 'wiki_notifications',
       table: 'wiki_notifications',
       whereSql: 'created_at < ?',
-      params: [retentionCutoff(env.WIKI_NOTIFICATION_RETENTION_DAYS, 90)],
+      params: [retentionCutoff(env.WIKI_NOTIFICATION_RETENTION_DAYS, DEFAULT_WIKI_NOTIFICATION_RETENTION_DAYS)],
     },
     {
       name: 'agent_sessions',
@@ -84,13 +97,13 @@ export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<v
       // Released leases remain indefinitely because historical flow metrics consume them.
       whereSql: `status = 'ended' AND ended_at IS NOT NULL AND ended_at < ?
         AND NOT EXISTS (SELECT 1 FROM issue_leases l WHERE l.agent_session_id = agent_sessions.id)`,
-      params: [retentionCutoff(env.AGENT_SESSION_RETENTION_DAYS, 90)],
+      params: [retentionCutoff(env.AGENT_SESSION_RETENTION_DAYS, DEFAULT_AGENT_SESSION_RETENTION_DAYS)],
     },
     {
       name: 'activity',
       table: 'activity',
       whereSql: 'created_at < ?',
-      params: [retentionCutoff(env.ACTIVITY_RETENTION_DAYS, 365)],
+      params: [retentionCutoff(env.ACTIVITY_RETENTION_DAYS, DEFAULT_ACTIVITY_RETENTION_DAYS)],
     },
   ]
   for (const category of categories) {
@@ -107,7 +120,7 @@ export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<v
           ].map((sql) => env.DB.prepare(sql).bind(...category.params)),
         )
       }
-      counts[category.name] = await deleteExpiredInChunks(env.DB, category.table, category.whereSql, category.params)
+      counts[category.name] = await deleteExpiredInChunks(env.DB, category)
     } catch (error) {
       failures.push(category.name)
       console.error('scheduled retention purge failed', { category: category.name, error })
