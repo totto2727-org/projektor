@@ -105,27 +105,33 @@ const seedChain = async function seedChain(fixture: Fixture, length: number): Pr
   return ids
 }
 
-describe('covers PROJ-870: issue write batching', () => {
-  let f: Fixture
-  let ctx: ServiceCtx
+interface IssueWriteTestContext {
+  ownerFixture: { ctx: ServiceCtx; fixture: Fixture }
+}
 
-  beforeEach(async () => {
-    f = await seedProjectFixture({ role: 'owner' })
-    ctx = ownerCtx(f)
-  })
+const seedOwnerFixture = async function seedOwnerFixture(context: IssueWriteTestContext): Promise<void> {
+  const fixture = await seedProjectFixture({ role: 'owner' })
+  const ctx = ownerCtx(fixture)
+  context.ownerFixture = { ctx, fixture }
+}
+
+describe('covers PROJ-870: issue write batching', () => {
+  beforeEach<IssueWriteTestContext>(seedOwnerFixture)
   afterEach(() => vi.restoreAllMocks())
 
-  test('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async () => {
+  test<IssueWriteTestContext>('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
     // Parent has 3 ancestors → the ancestor walk runs
-    const chain = await seedChain(f, 4)
-    const status = await seedTaskStatus(f.workspaceId, { category: 'in_progress', key: 'doing' })
-    const type = await seedTaskType(f.workspaceId, { key: 'task' })
-    await seedCustomFieldDef(f.workspaceId, { key: 'points', type: 'number' })
-    await seedCustomFieldDef(f.workspaceId, { key: 'team' })
+    const chain = await seedChain(fixture, 4)
+    const status = await seedTaskStatus(fixture.workspaceId, { category: 'in_progress', key: 'doing' })
+    const type = await seedTaskType(fixture.workspaceId, { key: 'task' })
+    await seedCustomFieldDef(fixture.workspaceId, { key: 'points', type: 'number' })
+    await seedCustomFieldDef(fixture.workspaceId, { key: 'team' })
 
     const tracker = trackD1RoundTrips()
     const created = await createIssue(ctx, {
-      projectId: f.projectId,
+      projectId: fixture.projectId,
       title: 'Batched create',
       body: 'hello body',
       parentId: chain[3],
@@ -171,11 +177,13 @@ describe('covers PROJ-870: issue write batching', () => {
     expect(activity.results).toStrictEqual([{ action: 'created' }])
   })
 
-  test('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async () => {
-    const chain = await seedChain(f, 4)
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Before' })
-    const done = await seedTaskStatus(f.workspaceId, { category: 'done', key: 'shipped' })
-    await seedCustomFieldDef(f.workspaceId, { key: 'points', type: 'number' })
+  test<IssueWriteTestContext>('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const chain = await seedChain(fixture, 4)
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Before' })
+    const done = await seedTaskStatus(fixture.workspaceId, { category: 'done', key: 'shipped' })
+    await seedCustomFieldDef(fixture.workspaceId, { key: 'points', type: 'number' })
 
     const tracker = trackD1RoundTrips()
     await updateIssue(ctx, issue.id, {
@@ -209,9 +217,11 @@ describe('covers PROJ-870: issue write batching', () => {
     expect(cf).toStrictEqual({ value: '8' })
   })
 
-  test('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async () => {
+  test<IssueWriteTestContext>('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
     const created = await createIssue(ctx, {
-      projectId: f.projectId,
+      projectId: fixture.projectId,
       title: 'Original',
       body: 'kept body',
     })
@@ -220,12 +230,14 @@ describe('covers PROJ-870: issue write batching', () => {
     expect(fts.results).toStrictEqual([{ body: 'kept body', title: 'Renamed' }])
   })
 
-  test('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
+  test<IssueWriteTestContext>('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       status: 'in_progress',
       title: 'Agent work',
     })
-    await seedAgentLease(f.workspaceId, issue.id)
+    await seedAgentLease(fixture.workspaceId, issue.id)
 
     const tracker = trackD1RoundTrips()
     await updateIssue(ctx, issue.id, {
@@ -286,28 +298,24 @@ describe('covers PROJ-870 review: completion report comment limit', () => {
 })
 
 describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
-  let f: Fixture
-  let ctx: ServiceCtx
-
-  beforeEach(async () => {
-    f = await seedProjectFixture({ role: 'owner' })
-    ctx = ownerCtx(f)
-  })
+  beforeEach<IssueWriteTestContext>(seedOwnerFixture)
   afterEach(() => vi.restoreAllMocks())
 
-  test('walks a 4-ancestor chain in one query regardless of depth', async () => {
+  test<IssueWriteTestContext>('walks a 4-ancestor chain in one query regardless of depth', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
     // Parent has 1 ancestor
-    const shallow = await seedChain(f, 2)
+    const shallow = await seedChain(fixture, 2)
     // Parent has 4 ancestors (the deepest allowed)
-    const deep = await seedChain(f, 5)
+    const deep = await seedChain(fixture, 5)
 
     let tracker = trackD1RoundTrips()
-    await createIssue(ctx, { projectId: f.projectId, title: 'shallow', parentId: shallow[1] })
+    await createIssue(ctx, { projectId: fixture.projectId, title: 'shallow', parentId: shallow[1] })
     const shallowTrips = tracker.count()
     vi.restoreAllMocks()
 
     tracker = trackD1RoundTrips()
-    await createIssue(ctx, { projectId: f.projectId, title: 'deep', parentId: deep[4] })
+    await createIssue(ctx, { projectId: fixture.projectId, title: 'deep', parentId: deep[4] })
     const deepTrips = tracker.count()
     vi.restoreAllMocks()
 
@@ -315,27 +323,35 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
     expect(deepTrips).toBe(shallowTrips)
   })
 
-  test('rejects a parent that already has 5 ancestors, allows 4', async () => {
-    const chain = await seedChain(f, 6)
+  test<IssueWriteTestContext>('rejects a parent that already has 5 ancestors, allows 4', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const chain = await seedChain(fixture, 6)
     await expect(
-      formErrorOf(createIssue(ctx, { projectId: f.projectId, title: 'too deep', parentId: chain[5] })),
+      formErrorOf(createIssue(ctx, { projectId: fixture.projectId, title: 'too deep', parentId: chain[5] })),
     ).resolves.toStrictEqual(['Maximum nesting depth (5) exceeded'])
-    await expect(createIssue(ctx, { projectId: f.projectId, title: 'ok', parentId: chain[4] })).resolves.toMatchObject({
+    await expect(
+      createIssue(ctx, { projectId: fixture.projectId, title: 'ok', parentId: chain[4] }),
+    ).resolves.toMatchObject({
       number: expect.any(Number),
     })
   })
 
-  test("reports a cycle (not the depth cap) when the issue is the parent's 5th ancestor", async () => {
+  test<IssueWriteTestContext>("reports a cycle (not the depth cap) when the issue is the parent's 5th ancestor", async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
     /* The chain[0] entry is the 5th ancestor of chain[5] — the same step at which the cap fires.
      * The original loop checked the cycle before the cap on each step; so must the CTE. */
-    const chain = await seedChain(f, 6)
+    const chain = await seedChain(fixture, 6)
     await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).resolves.toStrictEqual([
       'Setting this parent would create a cycle',
     ])
   })
 
-  test('reports a cycle on a nearer ancestor, and rejects self-parenting', async () => {
-    const chain = await seedChain(f, 3)
+  test<IssueWriteTestContext>('reports a cycle on a nearer ancestor, and rejects self-parenting', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const chain = await seedChain(fixture, 3)
     await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).resolves.toStrictEqual([
       'Setting this parent would create a cycle',
     ])
@@ -344,15 +360,19 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
     ])
   })
 
-  test("does not walk into another workspace's issues", async () => {
+  test<IssueWriteTestContext>("does not walk into another workspace's issues", async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
     const other = await seedProjectFixture({ role: 'owner' })
     const foreign = await seedIssue(other.workspaceId, other.projectId, other.userId)
-    await expect(createIssue(ctx, { projectId: f.projectId, title: 'x', parentId: foreign.id })).rejects.toThrow(
+    await expect(createIssue(ctx, { projectId: fixture.projectId, title: 'x', parentId: foreign.id })).rejects.toThrow(
       'Parent issue not found',
     )
   })
 
-  test('stops the walk at an ancestor link that leaves the workspace', async () => {
+  test<IssueWriteTestContext>('stops the walk at an ancestor link that leaves the workspace', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
     /*
      * P (this workspace) has parent_id pointing at X in another workspace, and X sits
      * under 5 more foreign ancestors. Only in-workspace rows may be walked, so P has no
@@ -361,11 +381,11 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
      */
     const other = await seedProjectFixture({ role: 'owner' })
     const foreignChain = await seedChain(other, 6)
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'P' })
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'P' })
     await env.DB.prepare('UPDATE issues SET parent_id = ? WHERE id = ?').bind(foreignChain[5], issue.id).run()
 
     await expect(
-      createIssue(ctx, { projectId: f.projectId, title: 'child of P', parentId: issue.id }),
+      createIssue(ctx, { projectId: fixture.projectId, title: 'child of P', parentId: issue.id }),
     ).resolves.toMatchObject({ number: expect.any(Number) })
   })
 })

@@ -11,22 +11,33 @@ import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { IdResponse, SlugResponse, readNativeJson } from './response-json.ts'
 
+interface WikiSlugTestContext {
+  wikiFixture: { slug: string; token: string; userId: string; workspaceId: string }
+}
+
+const applyReservedSlugMigration = async function applyReservedSlugMigration(): Promise<void> {
+  const statements = m0060
+    .replaceAll(/--[^\n]*/gu, '')
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter((statement) => String.isNonEmpty(statement))
+  for (const stmt of statements) {
+    await env.DB.prepare(stmt).run()
+  }
+}
+
 /*
  * PROJ-811: every fixed first path segment under /api/wiki is matched before the /:slug
  * catch-all, so a page with that slug could never load.
  */
 describe('reserved wiki slugs (PROJ-811)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userId: string
-
-  beforeEach(async () => {
+  beforeEach<WikiSlugTestContext>(async (context) => {
     const fixture = await seedFixture({ role: 'admin' })
-    ;({ token } = fixture)
-    ;({ slug } = fixture.workspace)
-    workspaceId = fixture.workspace.id
-    userId = fixture.user.id
+    const { token } = fixture
+    const { slug } = fixture.workspace
+    const workspaceId = fixture.workspace.id
+    const userId = fixture.user.id
+    context.wikiFixture = { slug, token, userId, workspaceId }
   })
 
   test('reserves every fixed first segment registered on the wiki router', () => {
@@ -40,7 +51,9 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     expect(missing).toStrictEqual([])
   })
 
-  test('auto-slugs a reserved title with a -page suffix, and the page loads', async () => {
+  test<WikiSlugTestContext>('auto-slugs a reserved title with a -page suffix, and the page loads', async ({
+    wikiFixture: { slug, token },
+  }) => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'body', title: 'Search' }),
       headers: authHeaders(token, slug),
@@ -56,7 +69,9 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     expect(get.status).toBe(200)
   })
 
-  test('rejects choosing a reserved slug explicitly, on create and on rename', async () => {
+  test<WikiSlugTestContext>('rejects choosing a reserved slug explicitly, on create and on rename', async ({
+    wikiFixture: { slug, token },
+  }) => {
     const created = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ slug: 'trash', title: 'Bin' }),
       headers: authHeaders(token, slug),
@@ -78,7 +93,9 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     expect(renamed.status).toBe(400)
   })
 
-  test('migration 0060 renames existing pages off reserved slugs, trashed ones included', async () => {
+  test<WikiSlugTestContext>('migration 0060 renames existing pages off reserved slugs, trashed ones included', async ({
+    wikiFixture: { userId, workspaceId },
+  }) => {
     const now = currentEpochSeconds()
     const insert = (pageSlug: string, deletedAt: number | null) => {
       const id = crypto.randomUUID()
@@ -98,14 +115,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     const trashed = insert('trash', now)
     await env.DB.batch([search.stmt, exportPage.stmt, exportTaken.stmt, trashed.stmt])
 
-    const statements = m0060
-      .replaceAll(/--[^\n]*/gu, '')
-      .split(';')
-      .map((statement) => statement.trim())
-      .filter((statement) => String.isNonEmpty(statement))
-    for (const stmt of statements) {
-      await env.DB.prepare(stmt).run()
-    }
+    await applyReservedSlugMigration()
 
     const slugOf = async (id: string): Promise<undefined | string> =>
       (
