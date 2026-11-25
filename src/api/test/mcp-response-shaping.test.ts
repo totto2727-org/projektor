@@ -14,8 +14,19 @@ import { runIndexedInOrder, runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
+import { fetchNativeMcpTool } from './native-fetch.ts'
+import type { McpToolRequest } from './native-fetch.ts'
+import {
+  ItemsResponse,
+  JsonRecordResponse,
+  McpRpcResponse,
+  MessageBodiesResponse,
+  RpcTextResponse,
+  SlugResponse,
+  parseNativeMcpText,
+  readNativeJson,
+  readNativeMcpResultText,
+} from './response-json.ts'
 
 describe('covers PROJ-891: serializer (unit)', () => {
   const raw = {
@@ -192,6 +203,35 @@ describe('covers PROJ-891 review fixes (unit)', () => {
   })
 })
 
+interface ResponseShapingTestContext {
+  fixture: Awaited<ReturnType<typeof seedProjectFixture>>
+}
+
+type ResponseShapingAuth = Pick<ResponseShapingTestContext['fixture'], 'token' | 'workspaceId'>
+
+const IssueCursorPage = Schema.Struct({
+  items: Schema.Array(JsonRecordResponse).pipe(Schema.mutable),
+  next: Schema.optional(Schema.String),
+})
+const CursorPage = Schema.Struct({ ...ItemsResponse.fields, next: Schema.optional(Schema.String) })
+const RequiredCursorPage = Schema.Struct({ ...ItemsResponse.fields, next: Schema.String })
+const TruncatedPage = Schema.Struct({ ...ItemsResponse.fields, truncated: Schema.optional(Schema.Boolean) })
+const WikiSectionResult = Schema.Struct({ contentTruncated: Schema.optional(Schema.Boolean) })
+
+const tool = async function tool<S extends Schema.Constraint>(
+  { token, workspaceId }: ResponseShapingAuth,
+  params: McpToolRequest,
+  shape: S,
+): Promise<S['Type']> {
+  const response = await fetchNativeMcpTool(workspaceId, params, {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  })
+  const body = await readNativeJson(response, McpRpcResponse)
+  expect(body.result?.isError, JSON.stringify(body)).toBeUndefined()
+  return parseNativeMcpText(body.result?.content?.[0].text ?? 'null', shape)
+}
+
 describe('covers PROJ-891: MCP tools', () => {
   const prevApiMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
@@ -201,52 +241,30 @@ describe('covers PROJ-891: MCP tools', () => {
     env.RATE_LIMIT_API_MAX = prevApiMax
   })
 
-  let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
-  beforeEach(async () => {
-    fixture = await seedProjectFixture()
+  beforeEach<ResponseShapingTestContext>(async (context) => {
+    context.fixture = await seedProjectFixture()
   })
 
-  const tool = async function tool<T = Record<string, unknown>>(
-    name: string,
-    args: Record<string, unknown> = {},
-  ): Promise<T> {
-    const res = await fetchNativeApi(
-      `http://localhost/mcp/${fixture.workspaceId}`,
-      requestOptionsWithBody(
-        'POST',
-        { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
-        JSON.stringify({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: { arguments: args, name },
-        }),
-      ),
-    )
-    const bodyShape = Schema.Struct({
-      result: Schema.optional(
-        Schema.Struct({
-          content: Schema.optional(Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable)),
-          isError: Schema.optional(Schema.Boolean),
-        }),
-      ),
-    })
-    const body = await readNativeJson(res, bodyShape)
-    expect(body.result?.isError, JSON.stringify(body)).toBeUndefined()
-    return JSON.parse(body.result?.content?.[0].text ?? 'null') as T
-  }
-
-  test('list_issues: summary view, {items,next} pagination, and cursor continuation', async () => {
+  test<ResponseShapingTestContext>('list_issues: summary view, {items,next} pagination, and cursor continuation', async ({
+    fixture,
+  }) => {
     await runIndexedInOrder(3, async (index): Promise<void> => {
       await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
         title: `Item ${index}`,
         createdAt: 1000 + index,
       })
     })
-    const first = await tool<{ items: Record<string, unknown>[]; next?: string }>('list_issues', {
-      view: 'summary',
-      limit: 2,
-    })
+    const first = await tool(
+      fixture,
+      {
+        arguments: {
+          view: 'summary',
+          limit: 2,
+        },
+        name: 'list_issues',
+      },
+      IssueCursorPage,
+    )
     expect(first.items).toHaveLength(2)
     expect(first.next).toBeTypeOf('string')
     expect(first).not.toHaveProperty('nextCursor')
@@ -254,20 +272,29 @@ describe('covers PROJ-891: MCP tools', () => {
       ['priority', 'ref', 'status', 'title', 'updated'].toSorted(),
     )
 
-    const second = await tool<{ items: Record<string, unknown>[]; next?: string }>('list_issues', {
-      view: 'summary',
-      limit: 2,
-      cursor: first.next,
-    })
+    const second = await tool(
+      fixture,
+      {
+        arguments: {
+          view: 'summary',
+          limit: 2,
+          cursor: first.next,
+        },
+        name: 'list_issues',
+      },
+      IssueCursorPage,
+    )
     expect(second.items).toHaveLength(1)
     expect(second.next).toBeUndefined()
     const refs = [...first.items, ...second.items].map((i) => i.ref)
     expect(new Set(refs).size).toBe(3)
   })
 
-  test('get_issue full view has ref, an array of labels and no internal ids', async () => {
+  test<ResponseShapingTestContext>('get_issue full view has ref, an array of labels and no internal ids', async ({
+    fixture,
+  }) => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Shaped' })
-    const got = await tool('get_issue', { id: issue.id })
+    const got = await tool(fixture, { arguments: { id: issue.id }, name: 'get_issue' }, JsonRecordResponse)
     expect(got.ref).toMatch(/-\d+$/u)
     expect(got).not.toHaveProperty('workspace_id')
     expect(got).not.toHaveProperty('project_id')
@@ -276,7 +303,9 @@ describe('covers PROJ-891: MCP tools', () => {
     expect(got).not.toHaveProperty('labels')
   })
 
-  test('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
+  test<ResponseShapingTestContext>('list_issues: a page over the cap is cut with truncated:true and resumes via next', async ({
+    fixture,
+  }) => {
     const pad = 'y'.repeat(400)
     await runIndexedInOrder(60, async (index): Promise<void> => {
       await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
@@ -293,24 +322,15 @@ describe('covers PROJ-891: MCP tools', () => {
       truncated: Schema.optional(Schema.Boolean),
     })
     for (let guard = 0; guard < 10; guard += 1) {
-      const requestUrl = `http://localhost/mcp/${fixture.workspaceId}`
-      const requestOptions = requestOptionsWithBody(
-        'POST',
+      const args = {
+        limit: 60,
+        ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { cursor } : {}),
+      }
+      const res = await fetchNativeMcpTool(
+        fixture.workspaceId,
+        { arguments: args, name: 'list_issues' },
         { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
-        JSON.stringify({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            arguments: {
-              limit: 60,
-              ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { cursor } : {}),
-            },
-            name: 'list_issues',
-          },
-        }),
       )
-      const res = await fetchNativeApi(requestUrl, requestOptions)
       const reply = await readNativeJson(res, RpcTextResponse)
       const text = readNativeMcpResultText(reply.result)
       expect(text.length).toBeLessThanOrEqual(20_000)
@@ -331,93 +351,147 @@ describe('covers PROJ-891: MCP tools', () => {
     expect(seen.size).toBe(60)
   })
 
-  test('list_comments and list_project_activity return {items}', async () => {
+  test<ResponseShapingTestContext>('list_comments and list_project_activity return {items}', async ({ fixture }) => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Talky' })
-    await tool('add_comment', { issueId: issue.id, body: 'hi' })
-    const comments = await tool<{ items: { body: string }[] }>('list_comments', {
-      issueId: issue.id,
-    })
+    await tool(fixture, { arguments: { issueId: issue.id, body: 'hi' }, name: 'add_comment' }, Schema.Unknown)
+    const comments = await tool(
+      fixture,
+      {
+        arguments: {
+          issueId: issue.id,
+        },
+        name: 'list_comments',
+      },
+      MessageBodiesResponse,
+    )
     expect(comments.items.map((item) => item.body)).toStrictEqual(['hi'])
-    const activity = await tool<{ items: unknown[] }>('list_project_activity', {
-      projectId: fixture.projectId,
-    })
+    const activity = await tool(
+      fixture,
+      {
+        arguments: {
+          projectId: fixture.projectId,
+        },
+        name: 'list_project_activity',
+      },
+      ItemsResponse,
+    )
     expect(Array.isArray(activity.items)).toBe(true)
   })
 
-  test('search_wiki and list_wiki_changes page with next/cursor', async () => {
+  test<ResponseShapingTestContext>('search_wiki and list_wiki_changes page with next/cursor', async ({ fixture }) => {
     await runInOrder(['Alpha Guide', 'Alpha Notes', 'Alpha Ideas'], async (t): Promise<void> => {
-      await tool('create_wiki_page', { title: t, content: 'alpha content' })
+      await tool(
+        fixture,
+        { arguments: { title: t, content: 'alpha content' }, name: 'create_wiki_page' },
+        Schema.Unknown,
+      )
     })
-    const p1 = await tool<{ items: unknown[]; next?: string }>('search_wiki', {
-      query: 'alpha',
-      limit: 2,
-    })
+    const p1 = await tool(fixture, { arguments: { query: 'alpha', limit: 2 }, name: 'search_wiki' }, CursorPage)
     expect(p1.items).toHaveLength(2)
     expect(p1.next).toBe('2')
-    const p2 = await tool<{ items: unknown[]; next?: string }>('search_wiki', {
-      query: 'alpha',
-      limit: 2,
-      cursor: p1.next,
-    })
+    const p2 = await tool(
+      fixture,
+      { arguments: { query: 'alpha', limit: 2, cursor: p1.next }, name: 'search_wiki' },
+      CursorPage,
+    )
     expect(p2.items).toHaveLength(1)
     expect(p2.next).toBeUndefined()
 
-    const changes = await tool<{ items: unknown[]; next: string }>('list_wiki_changes', {
-      since: 0,
-    })
+    const changes = await tool(fixture, { arguments: { since: 0 }, name: 'list_wiki_changes' }, RequiredCursorPage)
     expect(changes.items.length).toBeGreaterThanOrEqual(3)
-    const again = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
-      cursor: changes.next,
-    })
+    const again = await tool(fixture, { arguments: { cursor: changes.next }, name: 'list_wiki_changes' }, CursorPage)
     expect(again.items).toStrictEqual([])
   })
 
-  test('wiki_tree returns {items}', async () => {
-    await tool('create_wiki_page', { title: 'Root', content: 'x' })
-    const tree = await tool<{ items: unknown[] }>('wiki_tree', {})
+  test<ResponseShapingTestContext>('wiki_tree returns {items}', async ({ fixture }) => {
+    await tool(fixture, { arguments: { title: 'Root', content: 'x' }, name: 'create_wiki_page' }, Schema.Unknown)
+    const tree = await tool(fixture, { arguments: {}, name: 'wiki_tree' }, ItemsResponse)
     expect(tree.items.length).toBeGreaterThan(0)
   })
 
-  test('list_comments is never cut: every comment is returned', async () => {
+  test<ResponseShapingTestContext>('list_comments is never cut: every comment is returned', async ({ fixture }) => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Chatty' })
     await runIndexedInOrder(30, async (index): Promise<void> => {
-      await tool('add_comment', { issueId: issue.id, body: `${index} ${'c'.repeat(1000)}` })
+      await tool(
+        fixture,
+        { arguments: { issueId: issue.id, body: `${index} ${'c'.repeat(1000)}` }, name: 'add_comment' },
+        Schema.Unknown,
+      )
     })
-    const res = await tool<{ items: unknown[]; truncated?: boolean }>('list_comments', {
-      issueId: issue.id,
-    })
+    const res = await tool(
+      fixture,
+      {
+        arguments: {
+          issueId: issue.id,
+        },
+        name: 'list_comments',
+      },
+      TruncatedPage,
+    )
     expect(res.items).toHaveLength(30)
     expect(res.truncated).toBeUndefined()
   })
 
-  test('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async () => {
-    await tool('create_wiki_page', { title: 'Some Page', content: 'x' })
+  test<ResponseShapingTestContext>('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async ({
+    fixture,
+  }) => {
+    await tool(fixture, { arguments: { title: 'Some Page', content: 'x' }, name: 'create_wiki_page' }, Schema.Unknown)
     const future = currentEpochSeconds() + 3600
-    const none = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
-      since: future,
-    })
+    const none = await tool(
+      fixture,
+      {
+        arguments: {
+          since: future,
+        },
+        name: 'list_wiki_changes',
+      },
+      CursorPage,
+    )
     expect(none.items).toStrictEqual([])
     expect(none).not.toHaveProperty('next')
 
-    const empty = await tool<{ items: unknown[] }>('list_wiki_changes', {
-      since: future,
-      cursor: '',
-    })
+    const empty = await tool(
+      fixture,
+      {
+        arguments: {
+          since: future,
+          cursor: '',
+        },
+        name: 'list_wiki_changes',
+      },
+      ItemsResponse,
+    )
     expect(empty.items).toStrictEqual([])
   })
 
-  test('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async () => {
-    const result = await tool<{ slug: string }>('create_wiki_page', {
-      title: 'Sect Page',
-      content: '# A\nalpha\n## B\nbeta\n',
-    })
+  test<ResponseShapingTestContext>('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async ({
+    fixture,
+  }) => {
+    const result = await tool(
+      fixture,
+      {
+        arguments: {
+          title: 'Sect Page',
+          content: '# A\nalpha\n## B\nbeta\n',
+        },
+        name: 'create_wiki_page',
+      },
+      SlugResponse,
+    )
     const { slug } = result
-    const changes = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
-      since: 0,
-    })
+    const changes = await tool(
+      fixture,
+      {
+        arguments: {
+          since: 0,
+        },
+        name: 'list_wiki_changes',
+      },
+      CursorPage,
+    )
     expect(changes.items.length).toBeGreaterThan(0)
     expect(changes.next).toBeTypeOf('string')
-    const sec = await tool<{ contentTruncated?: boolean }>('get_wiki_page', { slug, section: 'B' })
+    const sec = await tool(fixture, { arguments: { slug, section: 'B' }, name: 'get_wiki_page' }, WikiSectionResult)
     expect(sec.contentTruncated).toBe(true)
   })
 })
