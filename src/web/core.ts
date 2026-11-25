@@ -11,10 +11,12 @@ export const browserRequest = function browserRequest(request: Request): WebRequ
   return { url: request.url, method: request.method, headers: [...request.headers] }
 }
 
+export type CoreResult<A, R = never> = Effect.Effect<A, ApiError | ScopeError, R>
+
 export const coreResult = function coreResult<S extends Schema.Top, E, R>(
   schema: S,
   invocation: Effect.Effect<string, E, R>,
-) {
+): CoreResult<S['Type'], R | S['DecodingServices']> {
   return decodeCoreReply(schema, invocation).pipe(
     Effect.mapError((error) =>
       error.status === HTTP_BAD_REQUEST || error.status === HTTP_FORBIDDEN || error.status === HTTP_NOT_FOUND
