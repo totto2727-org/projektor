@@ -6,11 +6,17 @@ import { ApiResults } from '#contracts/api-results.ts'
 
 const responseSchemas = {
   attachment: Schema.Struct({ id: Schema.String }),
+  feedbackSource: ApiResults.apiCreateFeedbackSource,
+  group: ApiResults.apiCreateGroup,
   issue: ApiResults.apiCreateIssue,
   linkedAttachment: ApiResults.apiCreateLinkAttachment,
   metrics: ApiResults.apiGetFlowMetrics,
   project: ApiResults.apiCreateProject,
   session: ApiUserBootstrap,
+  share: ApiResults.apiCreateShareToken,
+  sprint: ApiResults.apiCreateSprint,
+  taskTypes: ApiResults.apiListTaskTypes,
+  wiki: Schema.Struct({ slug: Schema.String, title: Schema.optional(Schema.String) }),
 }
 
 class AcceptanceJsonShapeError extends Data.TaggedError('AcceptanceJsonShapeError')<Readonly<{ message: string }>> {}
