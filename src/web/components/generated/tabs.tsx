@@ -19,6 +19,7 @@ export const Tabs = function Tabs({
       data-slot='tabs'
       data-orientation={orientation}
       className={cn('group/tabs flex gap-2 data-horizontal:flex-col', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve controlled state, lifecycle callbacks and children on the Base UI Root.
       {...props}
     />
   )
@@ -50,6 +51,7 @@ export const TabsList = function TabsList({
       data-slot='tabs-list'
       data-variant={variant}
       className={cn(tabsListVariants({ variant }), className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI List.
       {...props}
     />
   )
@@ -67,6 +69,7 @@ export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPri
         'after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Tab.
       {...props}
     />
   )
@@ -75,6 +78,7 @@ export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPri
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TabsContent = function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props): React.JSX.Element {
   return (
+    // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Panel.
     <TabsPrimitive.Panel data-slot='tabs-content' className={cn('flex-1 text-sm outline-none', className)} {...props} />
   )
 }

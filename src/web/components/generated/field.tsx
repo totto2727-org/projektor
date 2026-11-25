@@ -22,6 +22,7 @@ export const FieldSet = function FieldSet({
         'flex flex-col gap-4 has-[>[data-slot=checkbox-group]]:gap-3 has-[>[data-slot=radio-group]]:gap-3',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native fieldset attributes and events.
       {...props}
     />
   )
@@ -38,6 +39,7 @@ export const FieldLegend = function FieldLegend({
       data-slot='field-legend'
       data-variant={variant}
       className={cn('mb-1.5 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native legend attributes and events.
       {...props}
     />
   )
@@ -52,6 +54,7 @@ export const FieldGroup = function FieldGroup({ className, ...props }: React.Com
         'group/field-group @container/field-group flex w-full flex-col gap-5 data-[slot=checkbox-group]:gap-3 *:data-[slot=field-group]:gap-4',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -84,6 +87,7 @@ export const Field = function Field({
       data-slot='field'
       data-orientation={orientation}
       className={cn(fieldVariants({ orientation }), className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -98,6 +102,7 @@ export const FieldContent = function FieldContent({
     <div
       data-slot='field-content'
       className={cn('group/field-content flex flex-1 flex-col gap-0.5 leading-snug', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -116,6 +121,7 @@ export const FieldLabel = function FieldLabel({
         'has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Label.
       {...props}
     />
   )
@@ -130,6 +136,7 @@ export const FieldTitle = function FieldTitle({ className, ...props }: React.Com
         'flex w-fit items-center gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -149,6 +156,7 @@ export const FieldDescription = function FieldDescription({
         '[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native p attributes and events.
       {...props}
     />
   )
@@ -167,6 +175,7 @@ export const FieldSeparator = function FieldSeparator({
       data-slot='field-separator'
       data-content={!!children}
       className={cn('relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     >
       <Separator className='absolute inset-0 top-1/2' />
@@ -222,6 +231,7 @@ export const FieldError = function FieldError({
       role='alert'
       data-slot='field-error'
       className={cn('text-sm font-normal text-destructive', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     >
       {content}
