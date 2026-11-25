@@ -364,6 +364,13 @@ const validateParentDepth = async function validateParentDepth(
   }
 }
 
+const sameWikiProject = function sameWikiProject(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  return left === right || (Predicate.isNullish(left) && Predicate.isNullish(right))
+}
+
 const validateNewPageParent = async function validateNewPageParent(
   db: D1Database,
   parentId: string,
@@ -386,7 +393,7 @@ const validateNewPageParent = async function validateNewPageParent(
   if (!parentPage) {
     throw new ValidationError(validationIssues(['Parent page not found in this workspace'], {}))
   }
-  if ((projectId ?? null) !== (parentPage.projectId ?? null)) {
+  if (!sameWikiProject(projectId, parentPage.projectId)) {
     throw new ValidationError(validationIssues(['Parent page must belong to the same project'], {}))
   }
   await validateParentDepth(db, parentId, workspaceId)
@@ -414,7 +421,7 @@ const validateUpdatedPageParent = async function validateUpdatedPageParent(
   if (!parentPage) {
     throw new ValidationError(validationIssues(['Parent page not found in this workspace'], {}))
   }
-  if ((page.projectId ?? null) !== (parentPage.projectId ?? null)) {
+  if (!sameWikiProject(page.projectId, parentPage.projectId)) {
     throw new ValidationError(validationIssues(['Parent page must belong to the same project'], {}))
   }
   await validateParentDepth(db, parentId, workspaceId, page.id)

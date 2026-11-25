@@ -294,20 +294,20 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
       .from(schema.wikiPages)
       .where(and(eq(schema.wikiPages.workspaceId, ctx.workspaceId), inArray(schema.wikiPages.id, chunk))),
   )
-  const projectOf = new Map(pages.map((page) => [page.id, page.projectId ?? null]))
+  const projectOf = new Map(pages.map(({ id, projectId }) => [id, projectId ?? undefined]))
 
-  const usersByProject = new Map<string | null, Set<string>>()
+  const usersByProject = new Map<string | undefined, Set<string>>()
   Iterable.forEach(entries, (entry) => {
     if (!projectOf.has(entry.pageId)) {
       // Page not in this workspace — never deliver
       return
     }
-    const projectId = projectOf.get(entry.pageId) ?? null
+    const projectId = projectOf.get(entry.pageId)
     const users = usersByProject.get(projectId) ?? new Set<string>()
     users.add(entry.userId)
     usersByProject.set(projectId, users)
   })
-  const allowedByProject = new Map<string | null, Set<string>>()
+  const allowedByProject = new Map<string | undefined, Set<string>>()
   for (const [projectId, users] of usersByProject) {
     allowedByProject.set(projectId, await usersWithProjectReadAccess(ctx, projectId, [...users]))
   }
@@ -316,7 +316,7 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
     if (!projectOf.has(entry.pageId)) {
       return false
     }
-    return allowedByProject.get(projectOf.get(entry.pageId) ?? null)?.has(entry.userId) ?? false
+    return allowedByProject.get(projectOf.get(entry.pageId))?.has(entry.userId) ?? false
   })
 }
 

@@ -393,7 +393,7 @@ export const requireWorkspaceMember = async function requireWorkspaceMember(
 
 /**
  * PROJ-821: of `userIds`, the ones who can currently READ content in `projectId`
- * (`null` = workspace-level, visible to every member). Used when the caller acts on
+ * (null or undefined for workspace-level content visible to every member). Used when the caller acts on
  * behalf of OTHER users (e.g. fanning out notifications), where the per-caller guards
  * above don't apply.
  * - Not a member of ctx.workspaceId any more → excluded.
@@ -401,7 +401,7 @@ export const requireWorkspaceMember = async function requireWorkspaceMember(
  * - Anyone else, project-scoped → included only with a group grant on that project.
  *
  * @param {Pick<ServiceCtx, 'db' | 'workspaceId'>} ctx The workspace ID and database.
- * @param {string | null} projectId The project ID, or null for workspace-level content.
+ * @param {string | null | undefined} projectId The project ID, or a missing value for workspace-level content.
  * @param {Readonly<string[]>} userIds The prospective readers.
  * @returns {Promise<Set<string>>} The IDs of current members with read access.
  */
@@ -409,7 +409,7 @@ export const usersWithProjectReadAccess = async function usersWithProjectReadAcc
   // Only db + workspaceId are read, so unauthenticated paths (public share links,
   // PROJ-794) can call this without a caller identity.
   ctx: Pick<ServiceCtx, 'db' | 'workspaceId'>,
-  projectId: string | null,
+  projectId: string | null | undefined,
   userIds: Readonly<string[]>,
 ): Promise<Set<string>> {
   if (Array.isReadonlyArrayEmpty(userIds)) {
