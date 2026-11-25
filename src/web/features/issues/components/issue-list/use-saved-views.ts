@@ -1,6 +1,7 @@
 'use client'
 import { String, Predicate, Schema } from 'effect'
 import { useEffect, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 import {
   captureView,
@@ -13,14 +14,35 @@ import {
 import type { SavedView, SavedViewFilters } from '@/features/issues/components/saved-views.ts'
 import { RequiredText, useIssueForm } from '@/features/issues/forms.ts'
 
-/** Named entity-bearing filters remain per-tab and scoped to the authenticated identity. */
+interface SavedViews {
+  activeViewName: string | null
+  applyView: (view: SavedView) => void
+  deleteView: (name: string) => void
+  doSaveView: () => Promise<void>
+  saveViewName: string
+  savedViews: SavedView[]
+  setSaveViewName: Dispatch<SetStateAction<string>>
+  setShowSaveInput: Dispatch<SetStateAction<boolean>>
+  showSaveInput: boolean
+}
+
+/**
+ * Named entity-bearing filters remain per-tab and scoped to the authenticated identity.
+ *
+ * @param {string} filterProject Project key used to select stored views.
+ * @param {SavedViewFilters} currentFilters Active filters to compare with or save as a view.
+ * @param {(filters: SavedViewFilters) => void} onApply Applies a saved view to the issue filters.
+ * @param {string} workspaceSlug Workspace that owns the views.
+ * @param {string} userId Authenticated user used to scope the storage key.
+ * @returns {SavedViews} Visible views and controls to name, apply or remove them.
+ */
 export const useSavedViews = function useSavedViews(
   filterProject: string,
   currentFilters: SavedViewFilters,
   onApply: (filters: SavedViewFilters) => void,
   workspaceSlug: string,
   userId: string,
-) {
+): SavedViews {
   const storageKey = viewsStorageKey(`${userId}:${workspaceSlug}:${filterProject}`)
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [activeViewName, setActiveViewName] = useState<string | null>(null)

@@ -1,14 +1,39 @@
 'use client'
 import { Schema } from 'effect'
 import { useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 import type { SortKey } from '@/features/issues/components/board-utils.ts'
 import type { SavedViewFilters } from '@/features/issues/components/saved-views.ts'
 import { Text, useIssueForm } from '@/features/issues/forms.ts'
 
+import type { DateField } from './filters-popover.tsx'
 import { parseDateField, parseListParam, useFilterUrlSync } from './use-filter-url-sync.ts'
 
-const readInitialFilters = function readInitialFilters(search: string, projectKey: string) {
+interface InitialIssueFilters {
+  dateField: DateField
+  dateFrom: string
+  dateTo: string
+  epic: string
+  hideEpics: boolean
+  priorities: string[]
+  project: string
+  sprintId: string
+  statuses: string[]
+}
+
+type IssueFilters = Parameters<typeof useFilterUrlSync>[0] & {
+  applyFilters: (filters: SavedViewFilters) => void
+  filtersBundle: SavedViewFilters
+  handleHeaderClick: (key: SortKey) => void
+  setFilterType: Dispatch<SetStateAction<string>>
+  setSortBy: Dispatch<SetStateAction<SortKey>>
+  setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
+  sortBy: SortKey
+  sortDir: 'asc' | 'desc'
+}
+
+const readInitialFilters = function readInitialFilters(search: string, projectKey: string): InitialIssueFilters {
   const params = new URLSearchParams(search)
   return {
     statuses: parseListParam(params.get('status')),
@@ -23,12 +48,19 @@ const readInitialFilters = function readInitialFilters(search: string, projectKe
   }
 }
 
-/** Owns all issue-list filter/sort state, plus URL <-> state sync (PROJ-60/211/212). */
+/**
+ * Owns all issue-list filter/sort state, plus URL <-> state sync (PROJ-60/211/212).
+ *
+ * @param {string} [search] Canonical route query string used to seed the filter form.
+ * @param {string} [projectKey] Selected project key from the route data.
+ * @param {Readonly<Array<{ key: string; id: string }>>} [projects] Project keys and IDs used for navigation.
+ * @returns {IssueFilters} Editable filters, sort state and saved-view controls.
+ */
 export const useIssueFilters = function useIssueFilters(
   search: string = '',
   projectKey: string = '',
   projects: Readonly<{ key: string; id: string }[]> = [],
-) {
+): IssueFilters {
   // Server route DTOs seed filters deterministically for SSR and first hydration.
   // Only explicit field edits trigger canonical navigation.
   const initial = readInitialFilters(search, projectKey)

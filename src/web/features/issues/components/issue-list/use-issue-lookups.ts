@@ -1,6 +1,20 @@
 'use client'
+import type { Issue, Status, TaskType } from '@/features/issues/types.ts'
 import type { IssuesInitialData } from '@/features/issues/views/issues-page.tsx'
-export const useIssueLookups = function useIssueLookups(initialData: IssuesInitialData) {
+import type { ProjectSummary } from '@/server/request-context.ts'
+
+interface IssueLookups {
+  epics: Issue[]
+  projects: ProjectSummary[]
+  projectsLoaded: boolean
+  sprintDetail: IssuesInitialData['sprintDetail']
+  sprints: Array<IssuesInitialData['sprints'][number]>
+  statuses: Status[]
+  taskTypes: TaskType[]
+  taskTypesLoaded: boolean
+}
+
+export const useIssueLookups = function useIssueLookups(initialData: IssuesInitialData): IssueLookups {
   return {
     statuses: [...initialData.statuses],
     projects: [...initialData.projects],

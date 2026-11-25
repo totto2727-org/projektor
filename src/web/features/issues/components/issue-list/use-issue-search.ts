@@ -1,6 +1,7 @@
 'use client'
 import { String, Schema } from 'effect'
 import { useEffect, useRef } from 'react'
+import type { Dispatch, RefObject, SetStateAction } from 'react'
 
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 import { Text, useIssueForm } from '@/features/issues/forms.ts'
@@ -22,8 +23,24 @@ export interface IssueSearchSeed {
   results: SearchResult[] | null
 }
 
-/** Only the editable query is local. Search results and identity come from canonical SSR props. */
-export const useIssueSearch = function useIssueSearch(seed: IssueSearchSeed, route: IssuesRoute) {
+interface IssueSearch {
+  isSearchActive: boolean
+  resultQuery: string
+  route: IssuesRoute
+  searchInputRef: RefObject<HTMLInputElement | null>
+  searchQuery: string
+  searchResults: SearchResult[] | null
+  setSearchQuery: Dispatch<SetStateAction<string>>
+}
+
+/**
+ * Only the editable query is local. Search results and identity come from canonical SSR props.
+ *
+ * @param {IssueSearchSeed} seed The current server-rendered query and results.
+ * @param {IssuesRoute} route Route used by the search controls.
+ * @returns {IssueSearch} The editable query, input ref and current server-rendered results.
+ */
+export const useIssueSearch = function useIssueSearch(seed: IssueSearchSeed, route: IssuesRoute): IssueSearch {
   const searchForm = useIssueForm({ query: seed.query }, Schema.Struct({ query: Text }))
   const [searchQuery, setSearchQuery] = searchForm.field('query')
   const searchInputRef = useRef<HTMLInputElement>(null)
