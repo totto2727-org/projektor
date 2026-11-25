@@ -9,7 +9,19 @@ export const DAYS_PER_WEEK = 7
 export const SECONDS_PER_WEEK = DAYS_PER_WEEK * SECONDS_PER_DAY
 export const LAST_SECOND_OF_DAY = 86_399
 
+const ISO_DATE_START = 0
+const ISO_DATE_LENGTH = 10
 const CALENDAR_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/u
+
+/**
+ * Take the calendar prefix of the native ISO timestamp.
+ *
+ * @param {Date} date The date to format in UTC.
+ * @returns {string} The first ten characters of the ISO timestamp.
+ */
+export const formatUtcDatePrefix = function formatUtcDatePrefix(date: Date): string {
+  return date.toISOString().slice(ISO_DATE_START, ISO_DATE_LENGTH)
+}
 
 export const currentEpochMilliseconds = function currentEpochMilliseconds(): number {
   return DateTime.toEpochMillis(DateTime.nowUnsafe())

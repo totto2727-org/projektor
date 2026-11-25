@@ -17,6 +17,7 @@ import {
   YAxis,
 } from 'recharts'
 
+import { formatUtcDatePrefix } from '#contracts/time.ts'
 import {
   ChartContainer,
   ChartLegend,
@@ -259,7 +260,7 @@ export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyO
   )
 }
 const wipConfig = { count: { label: 'WIP', color: accent } } satisfies ChartConfig
-const timestampDate = (value: number): string => new Date(value).toISOString().slice(0, 10)
+const timestampDate = (value: number): string => formatUtcDatePrefix(new Date(value))
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.Element {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])

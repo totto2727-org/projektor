@@ -1,6 +1,7 @@
 import { DAYS_PER_WEEK, SECONDS_PER_DAY, SECONDS_PER_WEEK } from './time.ts'
 
 const FIRST_MONDAY_EPOCH_DAY = 4
+const SUNDAY_TO_MONDAY_INDEX_OFFSET = 6
 const DEFAULT_BUCKET_HISTORY_WEEKS = 5
 const DEFAULT_WIP_HISTORY_DAYS = 30
 
@@ -14,6 +15,20 @@ export const mondayAtOrBefore = function mondayAtOrBefore(timestamp: number): nu
   const dayIndex = Math.floor(timestamp / SECONDS_PER_DAY)
   const daysSinceMonday = ((dayIndex % DAYS_PER_WEEK) + DAYS_PER_WEEK - FIRST_MONDAY_EPOCH_DAY) % DAYS_PER_WEEK
   return (dayIndex - daysSinceMonday) * SECONDS_PER_DAY
+}
+
+/**
+ * Return the Monday that starts the default reporting window, five weeks before the current Monday.
+ *
+ * @param {Date} now The reference date.
+ * @returns {Date} The start of the reporting window at midnight UTC.
+ */
+export const defaultFlowMetricsStartDate = function defaultFlowMetricsStartDate(now: Date): Date {
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+  const dayOfMonth = monday.getUTCDate()
+  const daysSinceMonday = (monday.getUTCDay() + SUNDAY_TO_MONDAY_INDEX_OFFSET) % DAYS_PER_WEEK
+  monday.setUTCDate(dayOfMonth - daysSinceMonday - DEFAULT_BUCKET_HISTORY_WEEKS * DAYS_PER_WEEK)
+  return monday
 }
 
 /**

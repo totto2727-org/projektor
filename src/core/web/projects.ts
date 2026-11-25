@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import * as commands from '#commands/projects.ts'
+import { defaultFlowMetricsStartDate } from '#contracts/flow-metrics-range.ts'
 import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { LAST_SECOND_OF_DAY, MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import {
@@ -27,8 +28,7 @@ import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 
 const sixWeekRange = function sixWeekRange(now = new Date()): { since: number; until: number } {
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 35)
+  const monday = defaultFlowMetricsStartDate(now)
   return {
     since: Math.floor(monday.getTime() / MILLISECONDS_PER_SECOND),
     until:

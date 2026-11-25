@@ -4,7 +4,13 @@ import { Iterable, Array, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
 import { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
-import { MILLISECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_WEEK, currentEpochSeconds } from '#contracts/time.ts'
+import {
+  MILLISECONDS_PER_SECOND,
+  SECONDS_PER_DAY,
+  SECONDS_PER_WEEK,
+  currentEpochSeconds,
+  formatUtcDatePrefix,
+} from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -49,7 +55,7 @@ type FlowIssueRow = {
 }
 
 const dateLabel = function dateLabel(timestamp: number): string {
-  return new Date(timestamp * MILLISECONDS_PER_SECOND).toISOString().slice(0, 10)
+  return formatUtcDatePrefix(new Date(timestamp * MILLISECONDS_PER_SECOND))
 }
 
 const bucketSizeFor = function bucketSizeFor(granularity: 'day' | 'week'): number {

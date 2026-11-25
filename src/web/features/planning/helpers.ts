@@ -1,5 +1,6 @@
 import { String, Predicate } from 'effect'
 
+import { defaultFlowMetricsStartDate } from '#contracts/flow-metrics-range.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import {
   SECONDS_PER_DAY,
@@ -7,6 +8,7 @@ import {
   SECONDS_PER_MINUTE,
   LAST_SECOND_OF_DAY,
   MILLISECONDS_PER_SECOND,
+  formatUtcDatePrefix,
   utcMidnightMilliseconds,
 } from '#contracts/time.ts'
 import { formatTimestampDate } from '@/features/timestamp.ts'
@@ -52,11 +54,10 @@ export const issueHref = function issueHref(issue: SprintIssue, workspaceSlug: s
   return `/projects/${encodeURIComponent(issue.project_key)}/issues/${issue.number}/${slug}?workspace=${encodeURIComponent(workspaceSlug)}`
 }
 export const defaultRange = function defaultRange(now = new Date()): RangeState {
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 35)
+  const monday = defaultFlowMetricsStartDate(now)
   return {
-    since: monday.toISOString().slice(0, 10),
-    until: now.toISOString().slice(0, 10),
+    since: formatUtcDatePrefix(monday),
+    until: formatUtcDatePrefix(now),
     granularity: 'week',
   }
 }
