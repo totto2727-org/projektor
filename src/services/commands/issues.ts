@@ -74,6 +74,43 @@ const toD1Statement = function toD1Statement(
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
+const issueInWorkspace = function issueInWorkspace(ctx: ServiceCtx, id: string): ReturnType<typeof and> {
+  return and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId))
+}
+
+const issueLinkEndpoints = function issueLinkEndpoints(id: string): ReturnType<typeof or> {
+  return or(eq(schema.issueLinks.sourceIssueId, id), eq(schema.issueLinks.targetIssueId, id))
+}
+
+const issueConflictEndpoints = function issueConflictEndpoints(id: string): ReturnType<typeof or> {
+  return or(eq(schema.claimConflicts.rejectedIssueId, id), eq(schema.claimConflicts.holdingIssueId, id))
+}
+
+const issueAttachmentsInWorkspace = function issueAttachmentsInWorkspace(
+  ctx: ServiceCtx,
+  id: string,
+): ReturnType<typeof and> {
+  return and(
+    eq(schema.attachments.workspaceId, ctx.workspaceId),
+    eq(schema.attachments.entityType, 'issue'),
+    eq(schema.attachments.entityId, id),
+  )
+}
+
+const issueSessionsInWorkspace = function issueSessionsInWorkspace(
+  ctx: ServiceCtx,
+  id: string,
+): ReturnType<typeof and> {
+  return and(eq(schema.agentSessions.issueId, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId))
+}
+
+const issueChildrenInWorkspace = function issueChildrenInWorkspace(
+  ctx: ServiceCtx,
+  id: string,
+): ReturnType<typeof and> {
+  return and(eq(schema.issues.parentId, id), eq(schema.issues.workspaceId, ctx.workspaceId))
+}
+
 // Validates a candidate parentId: checks workspace scope, cycle prevention, and depth cap (max 5).
 // Pass issueId=null on create (no cycle possible yet); pass the existing issue's id on update.
 const validateParent = async function validateParent(
@@ -1284,7 +1321,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown):
       schema.taskStatuses,
       and(eq(schema.taskStatuses.id, schema.issues.statusId), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)),
     )
-    .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
+    .where(issueInWorkspace(ctx, id))
     .get()
   if (!existingRow) {
     throw new NotFoundError('Issue not found')
@@ -1352,11 +1389,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown):
    */
   const updateStatement = toD1Statement(
     ctx,
-    orm
-      .update(schema.issues)
-      .set(setValues)
-      .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-      .toSQL(),
+    orm.update(schema.issues).set(setValues).where(issueInWorkspace(ctx, id)).toSQL(),
   )
 
   const statements: D1PreparedStatement[] = [updateStatement]
@@ -1457,7 +1490,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
   const existing = await orm
     .select({ parentId: schema.issues.parentId, projectId: schema.issues.projectId })
     .from(schema.issues)
-    .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
+    .where(issueInWorkspace(ctx, id))
     .get()
   /*
    * PROJ-922: every dependent-row statement below keys on this id, several without a
@@ -1518,62 +1551,28 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
     .all<{ id: string }>()
 
   const deleteStatements: D1PreparedStatement[] = [
-    toD1Statement(
-      ctx,
-      orm
-        .delete(schema.issues)
-        .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-        .toSQL(),
-    ),
+    toD1Statement(ctx, orm.delete(schema.issues).where(issueInWorkspace(ctx, id)).toSQL()),
     ctx.db.prepare('DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
     /* Table share_tokens has no FK at all (0017), so nothing ever removed a deleted issue's
      * public share links. */
     ctx.db.prepare('DELETE FROM share_tokens WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
     // ON DELETE CASCADE rows — delete outright.
     toD1Statement(ctx, orm.delete(schema.issueComments).where(eq(schema.issueComments.issueId, id)).toSQL()),
-    toD1Statement(
-      ctx,
-      orm
-        .delete(schema.issueLinks)
-        .where(or(eq(schema.issueLinks.sourceIssueId, id), eq(schema.issueLinks.targetIssueId, id)))
-        .toSQL(),
-    ),
+    toD1Statement(ctx, orm.delete(schema.issueLinks).where(issueLinkEndpoints(id)).toSQL()),
     toD1Statement(ctx, orm.delete(schema.customFieldValues).where(eq(schema.customFieldValues.issueId, id)).toSQL()),
     toD1Statement(ctx, orm.delete(schema.issueFileClaims).where(eq(schema.issueFileClaims.issueId, id)).toSQL()),
     toD1Statement(ctx, orm.delete(schema.issueLeases).where(eq(schema.issueLeases.issueId, id)).toSQL()),
-    toD1Statement(
-      ctx,
-      orm
-        .delete(schema.claimConflicts)
-        .where(or(eq(schema.claimConflicts.rejectedIssueId, id), eq(schema.claimConflicts.holdingIssueId, id)))
-        .toSQL(),
-    ),
+    toD1Statement(ctx, orm.delete(schema.claimConflicts).where(issueConflictEndpoints(id)).toSQL()),
     toD1Statement(ctx, orm.delete(schema.wipCapDenials).where(eq(schema.wipCapDenials.issueId, id)).toSQL()),
     toD1Statement(
       ctx,
       orm.delete(schema.issueGateRejections).where(eq(schema.issueGateRejections.issueId, id)).toSQL(),
     ),
-    toD1Statement(
-      ctx,
-      orm
-        .delete(schema.attachments)
-        .where(
-          and(
-            eq(schema.attachments.workspaceId, ctx.workspaceId),
-            eq(schema.attachments.entityType, 'issue'),
-            eq(schema.attachments.entityId, id),
-          ),
-        )
-        .toSQL(),
-    ),
+    toD1Statement(ctx, orm.delete(schema.attachments).where(issueAttachmentsInWorkspace(ctx, id)).toSQL()),
     // ON DELETE SET NULL rows — null the referencing column instead.
     toD1Statement(
       ctx,
-      orm
-        .update(schema.agentSessions)
-        .set({ issueId: null })
-        .where(and(eq(schema.agentSessions.issueId, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
-        .toSQL(),
+      orm.update(schema.agentSessions).set({ issueId: null }).where(issueSessionsInWorkspace(ctx, id)).toSQL(),
     ),
     ctx.db
       .prepare('UPDATE feedback SET linked_issue_id = NULL WHERE linked_issue_id = ? AND workspace_id = ?')
@@ -1584,11 +1583,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
      */
     toD1Statement(
       ctx,
-      orm
-        .update(schema.issues)
-        .set({ parentId: null })
-        .where(and(eq(schema.issues.parentId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-        .toSQL(),
+      orm.update(schema.issues).set({ parentId: null }).where(issueChildrenInWorkspace(ctx, id)).toSQL(),
     ),
   ]
 
