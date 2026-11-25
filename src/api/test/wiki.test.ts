@@ -5,6 +5,7 @@ import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
 import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
@@ -1644,7 +1645,10 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     const res = await mcpCall(
       workspaceId,
       'update_wiki_page',
-      { slug: created.slug, newSlug: 'a/b' },
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['newSlug', 'a/b'],
+      ]),
       authHeaders(token, slug),
     )
     expect(isMcpError(res)).toBe(false)
@@ -2231,7 +2235,10 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     await mcpCall(
       workspaceId,
       'update_wiki_page',
-      { slug: created.slug, content: '---\ntype: adr\nstatus: deprecated\n---\nnew body' },
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['content', '---\ntype: adr\nstatus: deprecated\n---\nnew body'],
+      ]),
       authHeaders(token, slug),
     )
 
@@ -2290,7 +2297,10 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
        * PROJ-513: `type` is freeform now, so use an invalid `status` (still a closed
        * enum) to exercise the same "invalid frontmatter on update" path.
        */
-      { slug: created.slug, content: '---\nstatus: not-a-real-status\n---\nbody' },
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['content', '---\nstatus: not-a-real-status\n---\nbody'],
+      ]),
       authHeaders(token, slug),
     )
     expect(isMcpError(res)).toBe(false)
@@ -2551,12 +2561,23 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
       await mcpCall(workspaceId, 'create_wiki_page', { content: 'v1', title: 'Charter' }, authHeaders(token, slug)),
       SlugResponse,
     )
-    await mcpCall(workspaceId, 'update_wiki_page', { slug: created.slug, content: 'v2' }, authHeaders(token, slug))
+    await mcpCall(
+      workspaceId,
+      'update_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['content', 'v2'],
+      ]),
+      authHeaders(token, slug),
+    )
     await resetRateLimits()
     await mcpCall(
       workspaceId,
       'update_wiki_page',
-      { slug: created.slug, newSlug: 'team-charter' },
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['newSlug', 'team-charter'],
+      ]),
       authHeaders(token, slug),
     )
     await resetRateLimits()
@@ -2572,7 +2593,10 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
       await mcpCall(
         workspaceId,
         'get_wiki_revision',
-        { slug: created.slug, revisionId: revisions[0].id },
+        fieldsInOrder([
+          ['slug', created.slug],
+          ['revisionId', revisions[0].id],
+        ]),
         authHeaders(token, slug),
       ),
       Schema.Struct({ content: Schema.String, id: Schema.String }),
@@ -3066,12 +3090,33 @@ describe('wiki revision diff (PROJ-492)', () => {
 
   test('covers MCP: get_wiki_revision_diff parity with REST', async () => {
     const { mcp } = await seedScenarioFixture()
-    const created = mcpData(await mcp('create_wiki_page', { title: 'MCP Diff Doc', content: 'alpha' }), SlugResponse)
-    await mcp('update_wiki_page', { slug: created.slug, content: 'beta' })
+    const created = mcpData(
+      await mcp(
+        'create_wiki_page',
+        fieldsInOrder([
+          ['title', 'MCP Diff Doc'],
+          ['content', 'alpha'],
+        ]),
+      ),
+      SlugResponse,
+    )
+    await mcp(
+      'update_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['content', 'beta'],
+      ]),
+    )
     const [latest] = mcpData(await mcp('list_wiki_revisions', { slug: created.slug }), IdListResponse)
 
     const result = mcpData(
-      await mcp('get_wiki_revision_diff', { slug: created.slug, revisionId: latest.id }),
+      await mcp(
+        'get_wiki_revision_diff',
+        fieldsInOrder([
+          ['slug', created.slug],
+          ['revisionId', latest.id],
+        ]),
+      ),
       Schema.Struct({ diff: Schema.String, from: Schema.String, to: Schema.String }),
     )
     expect(result.to).toBe('current')
@@ -3930,27 +3975,36 @@ describe('wiki patch operations (PROJ-490)', () => {
   test('covers MCP: set_frontmatter parity — sets a key, preserves others, over MCP', async () => {
     const { mcp } = await seedWikiPatchFixture()
     const created = mcpData(
-      await mcp('create_wiki_page', {
-        title: 'MCP Frontmatter Doc',
-        content: `---\ntype: runbook\n---\n${TWO_SECTIONS}`,
-      }),
+      await mcp(
+        'create_wiki_page',
+        fieldsInOrder([
+          ['title', 'MCP Frontmatter Doc'],
+          ['content', `---\ntype: runbook\n---\n${TWO_SECTIONS}`],
+        ]),
+      ),
       SlugResponse,
     )
 
-    const ok = await mcp('patch_wiki_page', {
-      slug: created.slug,
-      op: 'set_frontmatter',
-      values: { status: 'deprecated' },
-      baseRevisionId: JSON_NULL,
-    })
+    const ok = await mcp(
+      'patch_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['op', 'set_frontmatter'],
+        ['values', { status: 'deprecated' }],
+        ['baseRevisionId', JSON_NULL],
+      ]),
+    )
     expect(isMcpError(ok)).toBe(false)
 
-    const invalid = await mcp('patch_wiki_page', {
-      slug: created.slug,
-      op: 'set_frontmatter',
-      values: { status: 'not-a-real-status' },
-      baseRevisionId: JSON_NULL,
-    })
+    const invalid = await mcp(
+      'patch_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['op', 'set_frontmatter'],
+        ['values', { status: 'not-a-real-status' }],
+        ['baseRevisionId', JSON_NULL],
+      ]),
+    )
     expect(isMcpError(invalid)).toBe(false)
     expect(toolError(invalid)?.code).toBe('validation')
 
@@ -4021,20 +4075,26 @@ describe('wiki patch operations (PROJ-490)', () => {
   test('covers MCP: patch_wiki_page rejects an ambiguous heading with formErrors as the tool error message', async () => {
     const { mcp } = await seedWikiPatchFixture()
     const created = mcpData(
-      await mcp('create_wiki_page', {
-        title: 'MCP Patch Ambiguous',
-        content: '# Notes\nOne.\n\n## Other\nx\n\n## Notes\nTwo.\n',
-      }),
+      await mcp(
+        'create_wiki_page',
+        fieldsInOrder([
+          ['title', 'MCP Patch Ambiguous'],
+          ['content', '# Notes\nOne.\n\n## Other\nx\n\n## Notes\nTwo.\n'],
+        ]),
+      ),
       SlugResponse,
     )
 
-    const result = await mcp('patch_wiki_page', {
-      slug: created.slug,
-      op: 'replace_section',
-      heading: 'Notes',
-      text: 'Replaced.',
-      baseRevisionId: JSON_NULL,
-    })
+    const result = await mcp(
+      'patch_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['op', 'replace_section'],
+        ['heading', 'Notes'],
+        ['text', 'Replaced.'],
+        ['baseRevisionId', JSON_NULL],
+      ]),
+    )
     expect(isMcpError(result)).toBe(false)
     const err = toolError(result)
     expect(err?.code).toBe('validation')
@@ -5231,13 +5291,19 @@ describe('wiki freshness model (PROJ-489)', () => {
     await mcpCall(
       workspaceId,
       'create_wiki_page',
-      { title: 'MCP Overdue Page', content: overdueContent() },
+      fieldsInOrder([
+        ['title', 'MCP Overdue Page'],
+        ['content', overdueContent()],
+      ]),
       authHeaders(token, slug),
     )
     await mcpCall(
       workspaceId,
       'create_wiki_page',
-      { title: 'MCP Fresh Page', content: freshContent() },
+      fieldsInOrder([
+        ['title', 'MCP Fresh Page'],
+        ['content', freshContent()],
+      ]),
       authHeaders(token, slug),
     )
 
@@ -5690,8 +5756,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(updatedWatches.find((watch) => watch.pageId === page.id)?.subtree).toBe(true)
 
     const unwatchRes = await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(unwatchRes.status).toBe(200)
     const removedWatchesResponse = await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
@@ -5732,8 +5798,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
     )
     await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'DELETE',
       headers: authHeaders(watcher.token, slug),
+      method: 'DELETE',
     })
     await req(
       `http://localhost/api/wiki/${page.slug}`,
@@ -5807,8 +5873,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     )
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
 
@@ -5829,8 +5895,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     )
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
 
@@ -5865,14 +5931,14 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     )
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${parent.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(200)
 
@@ -6028,10 +6094,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const { createPage, slug, token } = await seedWikiWatcherScenario()
     const t0 = currentEpochSeconds() - 1
     const page = await createPage('delta-delete', 'Delta Delete', 'content')
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'DELETE',
-      headers: authHeaders(token, slug),
-    })
+    await req(`http://localhost/api/wiki/${page.slug}`, { headers: authHeaders(token, slug), method: 'DELETE' })
 
     const wikiResponse = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
       headers: authHeaders(token, slug),
@@ -6053,8 +6116,8 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const child = await createChildPage('delta-cascade-child', 'Delta Cascade Child', 'child', parent.id)
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
 
@@ -6258,8 +6321,8 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     await expect(getRes.json()).resolves.toMatchObject({ content: 'draft v2' })
 
     const discardRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(discardRes.status).toBe(200)
     getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -6333,8 +6396,8 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     expect(pageBody.updated_at).toBeDefined()
 
     const discardRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(discardRes.status).toBe(200)
     const getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -6448,8 +6511,8 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     expect(rows.results).toHaveLength(2)
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
-      method: 'DELETE',
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
 
@@ -6467,8 +6530,8 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, workspaceId)
       .run()
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(purgeRes.status).toBe(200)
 
@@ -6496,12 +6559,15 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     }
     const page = await createPage('mcp-draft', 'MCP Draft', 'content')
 
-    const saveRes = await mcp('save_wiki_draft', {
-      slug: page.slug,
-      title: 'MCP Draft',
-      content: 'mcp draft content',
-      baseRevisionId: JSON_NULL,
-    })
+    const saveRes = await mcp(
+      'save_wiki_draft',
+      fieldsInOrder([
+        ['slug', page.slug],
+        ['title', 'MCP Draft'],
+        ['content', 'mcp draft content'],
+        ['baseRevisionId', JSON_NULL],
+      ]),
+    )
     expect(isMcpError(saveRes)).toBe(false)
 
     const draft = mcpData(await mcp('get_wiki_draft', { slug: page.slug }), OptionalWikiDraftResponse)
@@ -6716,8 +6782,8 @@ describe('wiki trash (PROJ-496)', () => {
     await trashPage(page.slug)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${page.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(200)
     await expect(undeleteRes.json()).resolves.toMatchObject({ ok: true, id: page.id, slug: page.slug })
@@ -6740,8 +6806,8 @@ describe('wiki trash (PROJ-496)', () => {
     expect(reclaimed.slug).toBe(page.slug)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${page.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(409)
   })
@@ -6749,15 +6815,15 @@ describe('wiki trash (PROJ-496)', () => {
   test("undelete 404s for an unknown id and 400s for a page that isn't actually trashed", async () => {
     const { createPage, req, slug, token } = await seedAdminWikiTrashFixture()
     const unknownRes = await req(`http://localhost/api/wiki/trash/${crypto.randomUUID()}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(unknownRes.status).toBe(404)
 
     const live = await createPage('Trash Not Trashed Page', 'content')
     const notTrashedRes = await req(`http://localhost/api/wiki/trash/${live.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(notTrashedRes.status).toBe(400)
   })
@@ -6769,8 +6835,8 @@ describe('wiki trash (PROJ-496)', () => {
     const memberToken = await seedToken(workspaceId, memberUser.id)
 
     const res = await req('http://localhost/api/wiki/purge-trash', {
-      method: 'POST',
       headers: authHeaders(memberToken, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -6832,8 +6898,8 @@ describe('wiki trash (PROJ-496)', () => {
       .run()
 
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(purgeRes.status).toBe(200)
     const purged = await readNativeJson(
@@ -6944,16 +7010,16 @@ describe('wiki trash (PROJ-496)', () => {
     )
     const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
-      method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),
+      method: 'DELETE',
     })
     await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE id = ?')
       .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, otherPage.id)
       .run()
 
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(purgeRes.status).toBe(200)
     const purged = await readNativeJson(
@@ -6979,8 +7045,8 @@ describe('wiki trash (PROJ-496)', () => {
     )
     const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
-      method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),
+      method: 'DELETE',
     })
 
     const listRes = await req('http://localhost/api/wiki/trash', {
@@ -6990,8 +7056,8 @@ describe('wiki trash (PROJ-496)', () => {
     expect(listed.some((resultPage) => resultPage.id === otherPage.id)).toBe(false)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${otherPage.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(404)
   })
@@ -7008,8 +7074,8 @@ describe('wiki trash (PROJ-496)', () => {
     await trashPage(parent.slug, true)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${parent.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(200)
     await expect(undeleteRes.json()).resolves.toMatchObject({ ok: true, restoredCount: 3 })
@@ -7043,8 +7109,8 @@ describe('wiki trash (PROJ-496)', () => {
     expect(reclaimed.slug).toBe(child.slug)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${parent.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(409)
     const body = await readNativeJson(
@@ -7082,8 +7148,8 @@ describe('wiki trash (PROJ-496)', () => {
     await trashPage(parent.slug, true)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${parent.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(200)
     await expect(undeleteRes.json()).resolves.toMatchObject({ ok: true, restoredCount: 1 })
@@ -7110,8 +7176,8 @@ describe('wiki trash (PROJ-496)', () => {
     expect(childRow?.parent_id).toBe(parent.id)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${child.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(200)
 
@@ -7136,16 +7202,16 @@ describe('wiki trash (PROJ-496)', () => {
      */
     await trashPage(grandparent.slug, true)
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${child.id}/undelete`, {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(undeleteRes.status).toBe(200)
 
     await backdateTrash()
 
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(purgeRes.status).toBe(200)
     const purged = await readNativeJson(
@@ -7178,8 +7244,8 @@ describe('wiki trash (PROJ-496)', () => {
     await backdateTrash()
 
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
-      method: 'POST',
       headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(purgeRes.status).toBe(200)
 
