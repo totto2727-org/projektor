@@ -78,7 +78,7 @@ const resolveAutoJoinRole = function resolveAutoJoinRole(raw?: string): Role | n
  * @returns { {slug: string, role: Role} | null } The workspace and normalized role, or null for an invalid entry.
  */
 const parseDomainMapValue = function parseDomainMapValue(value: unknown): { slug: string; role: Role } | null {
-  if (!value || typeof value !== 'object') {
+  if (!Predicate.isObjectOrArray(value)) {
     return null
   }
   const slug = Predicate.isString((value as { slug?: unknown }).slug) ? (value as { slug: string }).slug.trim() : ''
@@ -106,7 +106,7 @@ const parseDomainMap = function parseDomainMap(raw?: string): Map<string, { slug
     return map
   }
   const obj = parseDomainMapJson(raw)
-  if (!obj || typeof obj !== 'object') {
+  if (!Predicate.isObjectOrArray(obj)) {
     return map
   }
   Iterable.forEach(Object.entries(obj as Record<string, unknown>), ([domain, mapping]) => {

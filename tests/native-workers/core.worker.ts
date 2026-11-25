@@ -393,9 +393,7 @@ export default class NativeFixtureCore extends FixtureCore {
 function resolveFixtureEnvironment(props: unknown, env: object) {
   const settings = configuration(props ?? {})
   const mode: unknown =
-    typeof props === 'object' && Predicate.isNotNullish(props) && 'FIXTURE_LIMITER_MODE' in props
-      ? props.FIXTURE_LIMITER_MODE
-      : undefined
+    Predicate.isObjectOrArray(props) && 'FIXTURE_LIMITER_MODE' in props ? props.FIXTURE_LIMITER_MODE : undefined
   if (
     mode !== undefined &&
     Predicate.isNotNullish(mode) &&

@@ -21,7 +21,7 @@ const continuation = function continuation(value: unknown): Continuation {
   if (value === null) {
     return { phase: 'grants' }
   }
-  if (typeof value !== 'object') {
+  if (!Predicate.isObjectOrArray(value)) {
     throw new Error('Invalid OAuth purge continuation')
   }
   const phase: unknown = Reflect.get(value, 'phase')

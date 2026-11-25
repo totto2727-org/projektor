@@ -22,7 +22,7 @@ const messagesFrom = function messagesFrom(error: unknown): string[] {
   if (globalThis.Array.isArray(error)) {
     return error.flatMap(messagesFrom)
   }
-  if (!error || typeof error !== 'object') {
+  if (!Predicate.isObjectOrArray(error)) {
     return []
   }
   const issue = error as FormIssue & Readonly<{ errors?: unknown; errorMap?: unknown }>

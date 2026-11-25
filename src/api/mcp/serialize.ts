@@ -142,7 +142,7 @@ const parseLabels = function parseLabels(value: unknown): string[] | undefined {
 }
 
 const isZeroRollup = function isZeroRollup(value: unknown): boolean {
-  return !!value && typeof value === 'object' && (value as { total?: unknown }).total === 0
+  return Predicate.isObjectOrArray(value) && (value as { total?: unknown }).total === 0
 }
 
 /*

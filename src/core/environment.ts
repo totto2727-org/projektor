@@ -14,15 +14,14 @@ export type CoreEnvironmentSource = Effect.Effect<CoreEnvironment, never, Worker
 
 const hasMethods = function hasMethods(value: unknown, methods: Readonly<string[]>): boolean {
   return (
-    typeof value === 'object' &&
-    Predicate.isNotNullish(value) &&
+    Predicate.isObjectOrArray(value) &&
     methods.every((key) => key in value && Predicate.isFunction(Reflect.get(value, key)))
   )
 }
 
 /** Validate native binding capabilities at the sole untyped runtime boundary. */
 export const isCoreEnvironment = function isCoreEnvironment(value: unknown): value is CoreEnvironment {
-  if (typeof value !== 'object' || Predicate.isNullish(value)) {
+  if (!Predicate.isObjectOrArray(value)) {
     return false
   }
   const get = (key: string): unknown => Reflect.get(value, key)

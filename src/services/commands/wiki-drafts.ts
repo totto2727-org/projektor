@@ -193,11 +193,7 @@ const advanceHead = function advanceHead(
 }
 
 const requireAdvanced = function requireAdvanced(result: D1Result, revision: string): void {
-  if (
-    !result.results.some(
-      (row) => typeof row === 'object' && Predicate.isNotNullish(row) && 'revision' in row && row.revision === revision,
-    )
-  ) {
+  if (!result.results.some((row) => Predicate.isObjectOrArray(row) && 'revision' in row && row.revision === revision)) {
     throw new ConflictError('The saved draft changed. Reload its current state before saving again.')
   }
 }

@@ -28,11 +28,11 @@ export type Env = Pick<
   Readonly<{ CORE: Readonly<{ fetch: (request: Request) => Promise<Response> }> }>
 
 export const isWebEnvironment = function isWebEnvironment(value: unknown): value is Env {
-  if (typeof value !== 'object' || Predicate.isNullish(value)) {
+  if (!Predicate.isObjectOrArray(value)) {
     return false
   }
   const core: unknown = Reflect.get(value, 'CORE')
-  if (typeof core !== 'object' || Predicate.isNullish(core) || !Predicate.isFunction(Reflect.get(core, 'fetch'))) {
+  if (!Predicate.isObjectOrArray(core) || !Predicate.isFunction(Reflect.get(core, 'fetch'))) {
     return false
   }
   if (
@@ -43,8 +43,7 @@ export const isWebEnvironment = function isWebEnvironment(value: unknown): value
   const limiter: unknown = Reflect.get(value, 'RATE_LIMITER')
   if (
     limiter !== undefined &&
-    (typeof limiter !== 'object' ||
-      Predicate.isNullish(limiter) ||
+    (!Predicate.isObjectOrArray(limiter) ||
       !Predicate.isFunction(Reflect.get(limiter, 'get')) ||
       !Predicate.isFunction(Reflect.get(limiter, 'idFromName')))
   ) {

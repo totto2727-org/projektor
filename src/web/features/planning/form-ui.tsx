@@ -8,7 +8,7 @@ const messages = function messages(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.flatMap(messages)
   }
-  if (value && typeof value === 'object') {
+  if (Predicate.isObjectOrArray(value)) {
     if ('message' in value && Predicate.isString(value.message)) {
       return [value.message]
     }

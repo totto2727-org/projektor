@@ -15,8 +15,8 @@ interface FixtureBinding {
 
 const fixtureBinding = function fixtureBinding(value: unknown): FixtureBinding {
   if (
-    value === null ||
-    typeof value !== 'object' ||
+    !Predicate.isObjectKeyword(value) ||
+    Predicate.isFunction(value) ||
     !Predicate.isFunction(Reflect.get(value, 'fixtureEnvironment')) ||
     !Predicate.isFunction(Reflect.get(value, 'fixtureSession'))
   ) {

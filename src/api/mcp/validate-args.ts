@@ -120,9 +120,9 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
       issues.push({ path, message: `must have at most ${schema.maxItems} items` })
     }
     const { items } = schema
-    if (items && typeof items === 'object' && !globalThis.Array.isArray(items)) {
+    if (Predicate.isObject(items)) {
       value.forEach((item, index) => {
-        validate(item, items as Schema, `${path}[${index}]`, issues)
+        validate(item, items, `${path}[${index}]`, issues)
       })
     }
   }
@@ -146,7 +146,7 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   const required = new Set(globalThis.Array.isArray(schema.required) ? schema.required : [])
   Iterable.forEach(Object.entries(props), ([key, sub]) => {
     const v = obj[key]
-    if (v === undefined || !sub || typeof sub !== 'object') {
+    if (v === undefined || !Predicate.isObjectOrArray(sub)) {
       return
     }
     if (Predicate.isNullish(v) && !required.has(key)) {

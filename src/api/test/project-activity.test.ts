@@ -434,7 +434,7 @@ describe('list_project_activity MCP tool', () => {
 
     Iterable.forEach(events, (event) => {
       Iterable.forEach(Object.values(event), (val) => {
-        expect(typeof val === 'object' && Predicate.isNotNullish(val) && !Array.isArray(val)).toBe(false)
+        expect(Predicate.isObject(val)).toBe(false)
       })
     })
   })

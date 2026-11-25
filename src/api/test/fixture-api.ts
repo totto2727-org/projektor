@@ -172,7 +172,7 @@ const fixtureKV = function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
 }
 
 const r2Object = function r2Object(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') {
+  if (!Predicate.isObjectKeyword(value) || Predicate.isFunction(value)) {
     return value
   }
   const metadata = Reflect.get(value, 'httpMetadata') as R2HTTPMetadata | undefined

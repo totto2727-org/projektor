@@ -105,12 +105,12 @@ const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknow
   if (Predicate.isNullish(raw)) {
     return null
   }
-  if (typeof raw !== 'object' || globalThis.Array.isArray(raw)) {
+  if (!Predicate.isObject(raw)) {
     throw new ValidationError(
       validationIssues(['Frontmatter must be a YAML mapping (key: value pairs), not a list or scalar'], {}),
     )
   }
-  return raw as Record<string, unknown>
+  return raw
 }
 
 const toFrontmatterMeta = function toFrontmatterMeta(
@@ -185,7 +185,7 @@ export const setWikiFrontmatterFields = function setWikiFrontmatterFields(
   let raw: Record<string, unknown> = {}
   if (match) {
     const parsedRaw = parseYaml(match[1])
-    if (parsedRaw && typeof parsedRaw === 'object' && !globalThis.Array.isArray(parsedRaw)) {
+    if (Predicate.isObject(parsedRaw)) {
       raw = { ...(parsedRaw as Record<string, unknown>) }
     }
   }
@@ -217,7 +217,7 @@ export const stampWikiFrontmatterVerification = function stampWikiFrontmatterVer
   let raw: Record<string, unknown> = {}
   if (match) {
     const parsedRaw = parseYaml(match[1])
-    if (parsedRaw && typeof parsedRaw === 'object' && !globalThis.Array.isArray(parsedRaw)) {
+    if (Predicate.isObject(parsedRaw)) {
       raw = { ...(parsedRaw as Record<string, unknown>) }
     }
   }
