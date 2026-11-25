@@ -29,7 +29,7 @@ export const IdSchema = z.string().nonempty('id is required')
  * plain z.string() since they're split and passed straight to inArray() /
  * notInArray(), not validated as a single id shape.
  */
-export const TaxonomyIdSchema = z.union([z.uuid(), z.string().regex(/^[0-9a-f]{32}$/i, 'Invalid id')])
+export const TaxonomyIdSchema = z.union([z.uuid(), z.string().regex(/^[0-9a-f]{32}$/iu, 'Invalid id')])
 
 /*
  * Query-string booleans arrive as strings; MCP sends real JSON booleans. z.coerce.boolean()

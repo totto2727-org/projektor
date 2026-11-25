@@ -21,7 +21,8 @@ export const IssuePatchSchema = Schema.Struct({
 export const CreateIssueSchema = Schema.Struct({
   ...SelectorFields,
   projectId: NonEmpty,
-  title: Schema.String.check(Schema.isPattern(/\S/), Schema.isMaxLength(500)),
+  // Preserve the existing schema output while checking the title at runtime.
+  title: Schema.String.check(Schema.isPattern(/\S/u, { toJsonSchema: () => [{}, true] }), Schema.isMaxLength(500)),
   body: Schema.optional(Schema.String.check(Schema.isMaxLength(50_000))),
   priority: Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])),
   statusId: Schema.optional(NonEmpty),

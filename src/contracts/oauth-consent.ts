@@ -17,6 +17,14 @@ export class OAuthRequestError extends Error {
   }
 }
 
+const parseResourceUrl = function parseResourceUrl(resource: string): URL {
+  try {
+    return new URL(resource)
+  } catch {
+    throw new OAuthRequestError('invalid_target', '`resource` is not a valid URL')
+  }
+}
+
 export const workspaceIdFromResource = function workspaceIdFromResource(
   resource: string | string[] | undefined,
 ): string {
@@ -29,13 +37,8 @@ export const workspaceIdFromResource = function workspaceIdFromResource(
     }
     return workspaceIdFromResource(resource[0])
   }
-  let url: URL
-  try {
-    url = new URL(resource)
-  } catch {
-    throw new OAuthRequestError('invalid_target', '`resource` is not a valid URL')
-  }
-  const workspaceId = /^\/mcp\/([^/]+)$/.exec(url.pathname)?.[1]
+  const { pathname } = parseResourceUrl(resource)
+  const workspaceId = /^\/mcp\/(?<workspaceId>[^/]+)$/u.exec(pathname)?.groups?.workspaceId
   if (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId)) {
     throw new OAuthRequestError('invalid_target', '`resource` must name an MCP endpoint, e.g. https://host/mcp/<id>')
   }

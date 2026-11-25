@@ -1,7 +1,8 @@
 import { Schema } from 'effect'
 
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1))
-const ProjectKey = Schema.String.check(Schema.isPattern(/^[A-Z][A-Z0-9]{0,9}$/))
+// Keep the project-key check at runtime and preserve the existing schema output.
+const ProjectKey = Schema.String.check(Schema.isPattern(/^[A-Z][A-Z0-9]{0,9}$/u, { toJsonSchema: () => [{}, true] }))
 const ProjectName = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100))
 const ProjectDescription = Schema.String.check(Schema.isMaxLength(500))
 

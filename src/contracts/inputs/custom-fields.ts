@@ -14,7 +14,7 @@ export const CreateCustomFieldDefSchema = z.object({
     .nonempty()
     .max(MAX_KEY_LENGTH)
     .regex(
-      /^[a-z][a-z0-9_]*$/,
+      /^[a-z][a-z0-9_]*$/u,
       'Key must start with a letter and contain only lowercase letters, digits, or underscores',
     ),
   label: z.string().nonempty().max(MAX_LABEL_LENGTH),
