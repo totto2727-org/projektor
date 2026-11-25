@@ -1,4 +1,4 @@
-import { String, Array, Iterable, Predicate, Number } from 'effect'
+import { String, Array, Iterable, Predicate, Number, Option } from 'effect'
 import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
@@ -19,6 +19,7 @@ export const OMISSION_NOTE =
 
 /** Per-result size ceiling (characters of serialized JSON). */
 export const MAX_RESULT_CHARS = 20_000
+const MIN_CAPPED_ITEMS = 1
 
 /*
  * Every key any issue-returning tool can emit (get_issue's full shape ∪ list items ∪ the
@@ -316,6 +317,31 @@ export const toPage = function toPage<T>(
   return { items, ...(Predicate.isNotNullish(next) ? { next: globalThis.String(next) } : {}), ...extra }
 }
 
+const largestFittingCount = function largestFittingCount(
+  lower: number,
+  upper: number,
+  fits: (count: number) => boolean,
+): number {
+  if (lower >= upper) {
+    return lower
+  }
+  const middle = Math.ceil((lower + upper) / 2)
+  return fits(middle)
+    ? largestFittingCount(middle, upper, fits)
+    : largestFittingCount(lower, Number.decrement(middle), fits)
+}
+
+const largestResumableCount = function largestResumableCount(
+  upper: number,
+  canCutAt: (count: number) => boolean,
+): number {
+  if (upper <= MIN_CAPPED_ITEMS) {
+    return upper
+  }
+  const counts = Iterable.makeBy((offset) => upper - offset, { length: upper - MIN_CAPPED_ITEMS })
+  return Option.getOrElse(Iterable.findFirst(counts, canCutAt), () => MIN_CAPPED_ITEMS)
+}
+
 /**
  * Keeps a `{items, ...}` result under `max` serialized chars by dropping trailing items,
  * so the JSON is never cut mid-document. `truncated:true` marks that it happened.
@@ -355,25 +381,17 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
     } as P & { truncated: true; hint?: string }
   }
 
-  let lo = 1
-  let hi = page.items.length
   // Largest k (≥1) whose serialized form fits; one oversized item is still returned whole.
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2)
-    if (JSON.stringify(build(mid)).length <= max) {
-      lo = mid
-    } else {
-      hi = Number.decrement(mid)
-    }
-  }
+  const fittingCount = largestFittingCount(
+    MIN_CAPPED_ITEMS,
+    page.items.length,
+    (count) => JSON.stringify(build(count)).length <= max,
+  )
   /*
    * Back off to a cut the tool says is resumable. If none exists (e.g. every event shares
    * one second), an over-cap page is better than a cursor that silently skips items.
    */
-  let keptCount = lo
-  while (keptCount > 1 && opts.canCutAt && !opts.canCutAt(keptCount)) {
-    keptCount = Number.decrement(keptCount)
-  }
+  const keptCount = largestResumableCount(fittingCount, (count) => !opts.canCutAt || opts.canCutAt(count))
   if (opts.canCutAt && !opts.canCutAt(keptCount)) {
     return page
   }
