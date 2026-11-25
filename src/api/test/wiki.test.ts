@@ -1,5 +1,5 @@
 import { Schema, String, Iterable, Predicate } from 'effect'
-import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
@@ -161,21 +161,41 @@ const seedWorkspaceFixture = async function seedWorkspaceFixture(): Promise<{
   return { token: fixture.token, slug: fixture.workspace.slug, workspaceId: fixture.workspace.id }
 }
 
+type WikiPageRowFixtureInput = Readonly<{
+  pageSlug: string
+  pageWorkspaceId: string
+  projectId: string | null
+  title: string
+}>
+
+const seedWikiApiFixture = async function seedWikiApiFixture(): Promise<
+  Awaited<ReturnType<typeof seedWorkspaceFixture>> & {
+    seedWikiPageRow: (row: WikiPageRowFixtureInput) => Promise<void>
+    userId: string
+  }
+> {
+  const { token, workspace, user } = await seedFixture()
+  const userId = user.id
+
+  const seedWikiPageRow = async function seedWikiPageRow({
+    pageWorkspaceId,
+    projectId,
+    pageSlug,
+    title,
+  }: WikiPageRowFixtureInput): Promise<void> {
+    await env.DB.prepare(
+      "INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id, created_at, updated_at, tags, owners, is_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', 0)",
+    )
+      .bind(pageSlug, pageWorkspaceId, projectId, pageSlug, title, 'body', userId, userId, 1000, 1000)
+      .run()
+  }
+
+  return { seedWikiPageRow, slug: workspace.slug, token, userId, workspaceId: workspace.id }
+}
+
 describe('wiki API', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userId: string
-
-  beforeEach(async () => {
-    const fixture = await seedFixture()
-    ;({ token } = fixture)
-    ;({ slug } = fixture.workspace)
-    workspaceId = fixture.workspace.id
-    userId = fixture.user.id
-  })
-
   test('handles GET /api/wiki returns empty list initially', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
@@ -184,6 +204,7 @@ describe('wiki API', () => {
   })
 
   test('handles POST /api/wiki creates a page', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '# Welcome', title: 'Getting Started' }),
       headers: authHeaders(token, slug),
@@ -196,6 +217,7 @@ describe('wiki API', () => {
 
   describe('canonical page url (PROJ-307)', () => {
     test('create/get/update/list/tree all expose a resolvable url', async () => {
+      const { slug, token } = await seedWikiApiFixture()
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({ content: 'index', title: 'Weekly Updates' }),
         headers: authHeaders(token, slug),
@@ -238,6 +260,7 @@ describe('wiki API', () => {
     })
 
     test('omits projectId from the url for a project-scoped page (slugs are workspace-unique, PROJ-483)', async () => {
+      const { slug, token, userId, workspaceId } = await seedWikiApiFixture()
       const project = await seedProject(workspaceId)
       await seedGroupGrant(workspaceId, userId, project.id)
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
@@ -251,6 +274,7 @@ describe('wiki API', () => {
   })
 
   test("covers PROJ-389: another workspace's owner cannot create a wiki page in this project", async () => {
+    const { workspaceId } = await seedWikiApiFixture()
     const project = await seedProject(workspaceId)
     const otherOwner = await seedFixture({ role: 'owner' })
     const res = await fetchNativeApi(
@@ -265,6 +289,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/:slug retrieves a page by slug', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '## System design', title: 'Architecture' }),
       headers: authHeaders(token, slug),
@@ -281,6 +306,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/:slug returns 404 for unknown slug', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki/does-not-exist', {
       headers: authHeaders(token, slug),
     })
@@ -288,6 +314,7 @@ describe('wiki API', () => {
   })
 
   test('handles PUT /api/wiki/:slug updates content and saves a revision', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'v1 content', title: 'Versioned' }),
       headers: authHeaders(token, slug),
@@ -315,6 +342,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/search finds pages by keyword', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'Use wrangler to deploy', title: 'Deployment Guide' }),
       headers: authHeaders(token, slug),
@@ -341,6 +369,7 @@ describe('wiki API', () => {
    */
   test('handles GET /api/wiki/search returns freshness: null for a page with no verification signal', async () => {
     expect.hasAssertions()
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'wrangler', title: 'Freshness Placeholder Page' }),
       headers: authHeaders(token, slug),
@@ -365,6 +394,7 @@ describe('wiki API', () => {
    * closed enum, so an unrecognized value there is still rejected.
    */
   test('handles GET /api/wiki/search accepts an arbitrary type filter but rejects an unknown status (PROJ-513)', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'wrangler', title: 'Noop Filter Page' }),
       headers: authHeaders(token, slug),
@@ -381,6 +411,7 @@ describe('wiki API', () => {
   })
 
   test('accepts a custom slug', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'Root page', slug: 'home', title: 'Home' }),
       headers: authHeaders(token, slug),
@@ -393,6 +424,7 @@ describe('wiki API', () => {
   // --- canonical behavior parity tests ---
 
   test('handles GET /api/wiki?parentId= filters to children of that page (PROJ-244)', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'root', title: 'Parent Page' }),
       headers: authHeaders(token, slug),
@@ -421,6 +453,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki returns ALL pages regardless of parent hierarchy', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'root', title: 'Parent Page' }),
       headers: authHeaders(token, slug),
@@ -442,6 +475,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/search with no query returns empty array', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'content', title: 'Some Page' }),
       headers: authHeaders(token, slug),
@@ -459,6 +493,7 @@ describe('wiki API', () => {
    * that is anchored to the actual match and highlighted with ** markers.
    */
   test('handles GET /api/wiki/search snippet is match-anchored and highlighted', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
@@ -490,6 +525,7 @@ describe('wiki API', () => {
    * in a long body.
    */
   test('handles GET /api/wiki/search ranks a title match above a buried body match', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({
@@ -514,6 +550,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/search supports limit/offset pagination', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await runIndexedInOrder(3, async (index): Promise<void> => {
       await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({ content: 'shared-search-term', title: `Paginated Page ${index}` }),
@@ -545,6 +582,7 @@ describe('wiki API', () => {
      * (RATE_LIMIT_API_MAX) across the create + fetch calls below.
      */
     expect.hasAssertions()
+    const { slug, token } = await seedWikiApiFixture()
     await runIndexedInOrder(3, async (index): Promise<void> => {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
@@ -581,6 +619,7 @@ describe('wiki API', () => {
   })
 
   test('handles GET /api/wiki/search updatedSince filters out pages updated before the cutoff', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'freshness-cutoff-term', title: 'Stale Match Page' }),
       headers: authHeaders(token, slug),
@@ -608,6 +647,7 @@ describe('wiki API', () => {
   })
 
   test("handles GET /api/wiki/search never returns another workspace's pages", async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const other = await seedFixture()
     await fetchNativeApi(
       'http://localhost/api/wiki',
@@ -634,6 +674,7 @@ describe('wiki API', () => {
   // PROJ-486: the wiki_fts mirror table must track create/update/delete of wiki_pages.
   describe('wiki_fts index stays in sync', () => {
     test('a newly created page is searchable immediately', async () => {
+      const { slug, token } = await seedWikiApiFixture()
       await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({ content: 'sync-create-term', title: 'Sync Create Page' }),
         headers: authHeaders(token, slug),
@@ -646,6 +687,7 @@ describe('wiki API', () => {
     })
 
     test("an updated page's new content becomes searchable and old content stops matching", async () => {
+      const { slug, token } = await seedWikiApiFixture()
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({ content: 'before-update-term', title: 'Sync Update Page' }),
         headers: authHeaders(token, slug),
@@ -671,6 +713,7 @@ describe('wiki API', () => {
     })
 
     test('a deleted page is no longer searchable', async () => {
+      await seedWikiApiFixture()
       // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
       const owner = await seedFixture({ role: 'owner' })
       const createRes = await fetchNativeApi(
@@ -695,6 +738,7 @@ describe('wiki API', () => {
     })
 
     test("a cascade-deleted subtree's pages are no longer searchable", async () => {
+      await seedWikiApiFixture()
       const owner = await seedFixture({ role: 'owner' })
       const parentRes = await fetchNativeApi(
         'http://localhost/api/wiki',
@@ -731,6 +775,7 @@ describe('wiki API', () => {
   })
 
   test('handles PUT /api/wiki/:slug title-only update does not create a revision', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'body text', title: 'Original Title' }),
       headers: authHeaders(token, slug),
@@ -751,6 +796,7 @@ describe('wiki API', () => {
   })
 
   test('handles POST /api/wiki returns 400 for invalid input', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ title: '' }),
       headers: authHeaders(token, slug),
@@ -760,6 +806,7 @@ describe('wiki API', () => {
   })
 
   test('project-scoped pages are isolated from workspace-level list', async () => {
+    const { slug, token, userId } = await seedWikiApiFixture()
     const { env: fixtureEnv } = await import('./fixture-api.ts')
     const ws = await fixtureEnv.DB.prepare('SELECT id FROM workspaces WHERE slug = ?')
       .bind(slug)
@@ -793,29 +840,32 @@ describe('wiki API', () => {
     expect(allPages).toHaveLength(2)
   })
 
-  const seedWikiPageRow = async function seedWikiPageRow(
-    pageWorkspaceId: string,
-    projectId: string | null,
-    pageSlug: string,
-    title: string,
-  ): Promise<void> {
-    await env.DB.prepare(
-      "INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id, created_at, updated_at, tags, owners, is_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', 0)",
-    )
-      .bind(pageSlug, pageWorkspaceId, projectId, pageSlug, title, 'body', userId, userId, 1000, 1000)
-      .run()
-  }
-
   test('includeWorkspacePages widens a project scope to workspace-level pages (PROJ-742)', async () => {
+    const { seedWikiPageRow, slug, token, userId } = await seedWikiApiFixture()
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     assert.exists(ws)
     const project = await seedProject(ws.id, 'WIDEN')
     const other = await seedProject(ws.id, 'OTHER')
     await seedGroupGrant(ws.id, userId, project.id)
     await seedGroupGrant(ws.id, userId, other.id)
-    await seedWikiPageRow(ws.id, project.id, 'scoped-page', 'Scoped Page')
-    await seedWikiPageRow(ws.id, SQL_NULL, 'shared-page', 'Shared Page')
-    await seedWikiPageRow(ws.id, other.id, 'other-page', 'Other Project Page')
+    await seedWikiPageRow({
+      pageSlug: 'scoped-page',
+      pageWorkspaceId: ws.id,
+      projectId: project.id,
+      title: 'Scoped Page',
+    })
+    await seedWikiPageRow({
+      pageSlug: 'shared-page',
+      pageWorkspaceId: ws.id,
+      projectId: SQL_NULL,
+      title: 'Shared Page',
+    })
+    await seedWikiPageRow({
+      pageSlug: 'other-page',
+      pageWorkspaceId: ws.id,
+      projectId: other.id,
+      title: 'Other Project Page',
+    })
 
     const strictRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
@@ -843,11 +893,22 @@ describe('wiki API', () => {
   })
 
   test("includeWorkspacePages still hides a project the caller isn't granted (PROJ-742)", async () => {
+    const { seedWikiPageRow, slug, token } = await seedWikiApiFixture()
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     assert.exists(ws)
     const ungranted = await seedProject(ws.id, 'UNGRANTED')
-    await seedWikiPageRow(ws.id, SQL_NULL, 'ungranted-shared-page', 'Shared Page')
-    await seedWikiPageRow(ws.id, ungranted.id, 'secret-page', 'Secret Page')
+    await seedWikiPageRow({
+      pageSlug: 'ungranted-shared-page',
+      pageWorkspaceId: ws.id,
+      projectId: SQL_NULL,
+      title: 'Shared Page',
+    })
+    await seedWikiPageRow({
+      pageSlug: 'secret-page',
+      pageWorkspaceId: ws.id,
+      projectId: ungranted.id,
+      title: 'Secret Page',
+    })
 
     const res = await fetchNativeApi(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
@@ -857,6 +918,7 @@ describe('wiki API', () => {
   })
 
   test('handles POST /api/wiki stores projectId and GET returns it', async () => {
+    const { slug, token, userId } = await seedWikiApiFixture()
     const { env: fixtureEnv } = await import('./fixture-api.ts')
     const ws = await fixtureEnv.DB.prepare('SELECT id FROM workspaces WHERE slug = ?')
       .bind(slug)
@@ -885,6 +947,7 @@ describe('wiki API', () => {
   })
 
   test('handles POST /api/wiki creates a nested page with parentId', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'parent content', title: 'Parent' }),
       headers: authHeaders(token, slug),
@@ -910,6 +973,7 @@ describe('wiki API', () => {
 
   test('handles POST /api/wiki rejects when max nesting depth (5) is exceeded', async () => {
     expect.hasAssertions()
+    const { slug, token } = await seedWikiApiFixture()
     let parentId: string | null = null
     // Create 5 levels deep (root → L1 → L2 → L3 → L4 → L5)
     await runIndexedInOrder(5, async (index): Promise<void> => {
@@ -947,6 +1011,7 @@ describe('wiki API', () => {
   test('handles PUT /api/wiki/:slug rejects a reparent whose moved SUBTREE would exceed max depth (PROJ-820)', async () => {
     // Build a 4-level chain: L0 -> L1 -> L2 -> L3 (L3 sits at depth 3).
     expect.hasAssertions()
+    const { slug, token } = await seedWikiApiFixture()
     let chainParentId: string | null = null
     let l3Id = ''
     await runIndexedInOrder(4, async (index): Promise<void> => {
@@ -1014,6 +1079,7 @@ describe('wiki API', () => {
   })
 
   test("handles PUT /api/wiki/:slug doesn't hang when a legacy parent_id cycle exists in the subtree being moved (PROJ-820)", async () => {
+    const { slug, token } = await seedWikiApiFixture()
     /*
      * A cycle can't be created through the API (validateParentDepth's ancestor walk has
      * its own `seen`-set cycle guard), but a legacy row or a direct DB write could leave
@@ -1066,6 +1132,7 @@ describe('wiki API', () => {
   }, 10_000)
 
   test('handles GET /api/wiki/tree returns nested structure', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const rootRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '', title: 'Root' }),
       headers: authHeaders(token, slug),
@@ -1101,6 +1168,7 @@ describe('wiki API', () => {
   })
 
   test('handles PUT /api/wiki/:slug reparents a page via parentId', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     const aRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'a', title: 'Page A' }),
       headers: authHeaders(token, slug),
@@ -1131,6 +1199,7 @@ describe('wiki API', () => {
   })
 
   test("handles DELETE /api/wiki/:slug (default) promotes children to the deleted page's parent (PROJ-238)", async () => {
+    await seedWikiApiFixture()
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1171,6 +1240,7 @@ describe('wiki API', () => {
 
   test('handles DELETE /api/wiki/:slug?cascade=true removes the page and its whole subtree', async () => {
     expect.hasAssertions()
+    await seedWikiApiFixture()
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1232,6 +1302,7 @@ describe('wiki API', () => {
   }
 
   test('handles DELETE :slug trashes the page, leaving its R2 attachment until purge (PROJ-426/496)', async () => {
+    await seedWikiApiFixture()
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1261,6 +1332,7 @@ describe('wiki API', () => {
   })
 
   test('handles DELETE ?cascade=true trashes the subtree, leaving R2 attachments until purge (PROJ-426/496)', async () => {
+    await seedWikiApiFixture()
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1294,6 +1366,7 @@ describe('wiki API', () => {
   })
 
   test('handles DELETE /api/wiki/:slug returns 403 for viewer role', async () => {
+    const { slug, token } = await seedWikiApiFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'secret', title: 'Protected Page' }),
       headers: authHeaders(token, slug),
