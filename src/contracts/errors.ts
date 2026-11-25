@@ -75,13 +75,15 @@ export class UnsupportedMediaTypeError extends ServiceError {
 export type ApiFailureKind = 'configuration' | 'request' | 'network' | 'http' | 'redirect' | 'json' | 'schema'
 
 /** Display only message/status. Diagnostic causes stay structured and redacted. */
-export class ApiError extends Data.TaggedError('ApiError')<{
-  readonly kind: ApiFailureKind
-  readonly status: number
-  readonly message: string
-  readonly cause?: Redacted.Redacted<unknown>
-  readonly details?: Readonly<Record<string, unknown>>
-}> {
+export class ApiError extends Data.TaggedError('ApiError')<
+  Readonly<{
+    kind: ApiFailureKind
+    status: number
+    message: string
+    cause?: Redacted.Redacted<unknown>
+    details?: Readonly<Record<string, unknown>>
+  }>
+> {
   public constructor(
     kind: ApiFailureKind,
     status: number,

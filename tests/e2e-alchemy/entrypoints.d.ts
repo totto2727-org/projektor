@@ -1,8 +1,11 @@
 declare module 'virtual:production-api-entrypoint' {
-  const entrypoint: typeof import('../../src/api/worker.ts').default
+  import type ApiWorker from '#api/worker.ts'
+  import type { RateLimiter as ApiRateLimiter, WorkspaceHub as ApiWorkspaceHub } from '#api/worker.ts'
+
+  const entrypoint: typeof ApiWorker
   export default entrypoint
-  export const RateLimiter: typeof import('../../src/api/worker.ts').RateLimiter
-  export const WorkspaceHub: typeof import('../../src/api/worker.ts').WorkspaceHub
+  export const RateLimiter: typeof ApiRateLimiter
+  export const WorkspaceHub: typeof ApiWorkspaceHub
 }
 
 declare module 'virtual:production-core-entrypoint' {
