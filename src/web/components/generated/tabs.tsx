@@ -18,6 +18,7 @@ export const Tabs = function Tabs({
     <TabsPrimitive.Root
       data-slot='tabs'
       data-orientation={orientation}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Tabs Root applies these classes to its own rendered element.
       className={cn('group/tabs flex gap-2 data-horizontal:flex-col', className)}
       // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve controlled state, lifecycle callbacks and children on the Base UI Root.
       {...props}
@@ -50,6 +51,7 @@ export const TabsList = function TabsList({
     <TabsPrimitive.List
       data-slot='tabs-list'
       data-variant={variant}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Tabs List applies these classes to its own rendered element.
       className={cn(tabsListVariants({ variant }), className)}
       // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI List.
       {...props}
@@ -62,6 +64,7 @@ export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPri
   return (
     <TabsPrimitive.Tab
       data-slot='tabs-trigger'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Tabs Tab applies these classes to its own rendered element.
       className={cn(
         "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-sm group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         'group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent',
@@ -78,7 +81,7 @@ export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPri
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TabsContent = function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props): React.JSX.Element {
   return (
-    // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Panel.
+    // oxlint-disable-next-line react/jsx-props-no-spreading, react/forbid-component-props -- Preserve caller attributes and event handlers on the Base UI Panel. Base UI Tabs Panel applies these classes to its own rendered element.
     <TabsPrimitive.Panel data-slot='tabs-content' className={cn('flex-1 text-sm outline-none', className)} {...props} />
   )
 }

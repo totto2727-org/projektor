@@ -19,6 +19,7 @@ export const Avatar = function Avatar({
     <AvatarPrimitive.Root
       data-slot='avatar'
       data-size={size}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Avatar Root applies these classes to its own rendered element.
       className={cn(
         'group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten',
         className,
@@ -37,6 +38,7 @@ export const AvatarImage = function AvatarImage({
   return (
     <AvatarPrimitive.Image
       data-slot='avatar-image'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Avatar Image applies these classes to its own rendered element.
       className={cn('aspect-square size-full rounded-full object-cover', className)}
       // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Image.
       {...props}
@@ -52,6 +54,7 @@ export const AvatarFallback = function AvatarFallback({
   return (
     <AvatarPrimitive.Fallback
       data-slot='avatar-fallback'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Avatar Fallback applies these classes to its own rendered element.
       className={cn(
         'flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs',
         className,

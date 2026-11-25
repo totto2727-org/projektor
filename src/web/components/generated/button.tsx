@@ -49,6 +49,6 @@ export const Button = function Button({
   size = 'default',
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>): React.JSX.Element {
-  // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through ButtonPrimitive.
+  // oxlint-disable-next-line react/jsx-props-no-spreading, react/forbid-component-props -- Forward the caller's element attributes, accessibility props and handlers through ButtonPrimitive. Base UI Button applies these classes to its own rendered element.
   return <ButtonPrimitive data-slot='button' className={cn(buttonVariants({ variant, size, className }))} {...props} />
 }
