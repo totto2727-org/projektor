@@ -11,8 +11,10 @@
 
 import { Predicate } from 'effect'
 
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
+
 export type WikiFreshnessState = 'fresh' | 'stale' | 'unverified'
 
 export interface WikiFreshness {
@@ -33,17 +35,12 @@ export interface ComputeFreshnessInput {
   now?: number
 }
 
-/*
- * PROJ-489: null means the page carries neither frontmatter signal (no verify_interval,
- * no status) at all — never fabricate a freshness state for a page that never opted
- * into verification tracking. This mirrors the "field present but null, never
- * fabricated" convention the pre-R7 placeholder in wiki.test.ts established for the
- * `freshness` response field, which this function's return value now serializes into
- * directly (`freshness: computeFreshness(...)`).
- */
-const computeDueAt = function computeDueAt(verifiedAt: number | null, verifyInterval: number | null): number | null {
+const computeDueAt = function computeDueAt(
+  verifiedAt: number | null,
+  verifyInterval: number | null,
+): number | undefined {
   if (Predicate.isNullish(verifyInterval) || Predicate.isNullish(verifiedAt)) {
-    return null
+    return undefined
   }
   return verifiedAt + verifyInterval * SECONDS_PER_DAY
 }
@@ -52,7 +49,10 @@ const computeDueAt = function computeDueAt(verifiedAt: number | null, verifyInte
  * A verify_interval/verifiedAt due date reached-or-passed, once there's no explicit
  * status override (see computeFreshness) and the page has been verified at least once.
  */
-const computeTimeBasedFreshness = function computeTimeBasedFreshness(dueAt: number | null, now: number): WikiFreshness {
+const computeTimeBasedFreshness = function computeTimeBasedFreshness(
+  dueAt: number | undefined,
+  now: number,
+): WikiFreshness {
   if (Predicate.isNotNullish(dueAt) && dueAt <= now) {
     return fieldsInOrder([
       ['state', 'stale'],
@@ -61,15 +61,22 @@ const computeTimeBasedFreshness = function computeTimeBasedFreshness(dueAt: numb
   }
   return fieldsInOrder([
     ['state', 'fresh'],
-    ['staleSince', null],
+    ['staleSince', JSON_NULL],
   ])
 }
 
+/*
+ * PROJ-489: null means the page carries neither frontmatter signal (no verify_interval,
+ * no status) at all — never fabricate a freshness state for a page that never opted
+ * into verification tracking. This mirrors the "field present but null, never
+ * fabricated" convention the pre-R7 placeholder in wiki.test.ts established for the
+ * `freshness` response field, which this function's return value now serializes into
+ * directly (`freshness: computeFreshness(...)`).
+ */
 export const computeFreshness = function computeFreshness(input: ComputeFreshnessInput): WikiFreshness | null {
   const { verifiedAt, verifyInterval, status } = input
-  const hasSignal = Predicate.isNotNullish(status) || Predicate.isNotNullish(verifyInterval)
-  if (!hasSignal) {
-    return null
+  if (Predicate.isNullish(status) && Predicate.isNullish(verifyInterval)) {
+    return JSON_NULL
   }
 
   const now = input.now ?? currentEpochSeconds()
@@ -84,7 +91,7 @@ export const computeFreshness = function computeFreshness(input: ComputeFreshnes
   if (status === 'stale' || status === 'deprecated') {
     return fieldsInOrder([
       ['state', 'stale'],
-      ['staleSince', Predicate.isNotNullish(dueAt) && dueAt <= now ? dueAt : null],
+      ['staleSince', Predicate.isNotNullish(dueAt) && dueAt <= now ? dueAt : JSON_NULL],
     ])
   }
 
@@ -95,7 +102,7 @@ export const computeFreshness = function computeFreshness(input: ComputeFreshnes
   if (Predicate.isNotNullish(verifyInterval) && Predicate.isNullish(verifiedAt)) {
     return fieldsInOrder([
       ['state', 'unverified'],
-      ['staleSince', null],
+      ['staleSince', JSON_NULL],
     ])
   }
 
