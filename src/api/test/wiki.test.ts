@@ -24,7 +24,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 import {
   TitleItemsResponse,
@@ -1610,7 +1610,10 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
   test("handles POST /api/wiki uses an opaque slug when derived slug exceeds SlugSchema's 200-char max (PROJ-517)", async () => {
     const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'a'.repeat(300), content: 'v1' }),
+      body: stringifyOrderedFields([
+        ['title', 'a'.repeat(300)],
+        ['content', 'v1'],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -2713,7 +2716,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ content: 'v3', baseRevisionId: latest.id }),
+        stringifyOrderedFields([
+          ['content', 'v3'],
+          ['baseRevisionId', latest.id],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -2756,7 +2762,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ content: 'v4 (stale attempt)', baseRevisionId: staleRevision.id }),
+        stringifyOrderedFields([
+          ['content', 'v4 (stale attempt)'],
+          ['baseRevisionId', staleRevision.id],
+        ]),
       ),
     )
     expect(res.status).toBe(409)
@@ -2839,7 +2848,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ content: 'v2', baseRevisionId: crypto.randomUUID() }),
+        stringifyOrderedFields([
+          ['content', 'v2'],
+          ['baseRevisionId', crypto.randomUUID()],
+        ]),
       ),
     )
     expect(res.status).toBe(400)
@@ -3095,11 +3107,11 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({
-          content: oldRevision.content,
-          baseRevisionId: latest.id,
-          summary: `Restored from revision ${latest.id}`,
-        }),
+        stringifyOrderedFields([
+          ['content', oldRevision.content],
+          ['baseRevisionId', latest.id],
+          ['summary', `Restored from revision ${latest.id}`],
+        ]),
       ),
     )
     expect(restoreRes.status).toBe(200)
@@ -3151,11 +3163,11 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({
-          content: 'original content',
-          baseRevisionId: staleLatest.id,
-          summary: 'Restored from an old revision',
-        }),
+        stringifyOrderedFields([
+          ['content', 'original content'],
+          ['baseRevisionId', staleLatest.id],
+          ['summary', 'Restored from an old revision'],
+        ]),
       ),
     )
     expect(restoreRes.status).toBe(409)
@@ -3211,11 +3223,11 @@ describe('wiki revision diff (PROJ-492)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({
-          content: oldRevision.content,
-          baseRevisionId: latest.id,
-          summary: 'Restored from a legacy revision',
-        }),
+        stringifyOrderedFields([
+          ['content', oldRevision.content],
+          ['baseRevisionId', latest.id],
+          ['summary', 'Restored from a legacy revision'],
+        ]),
       ),
     )
     expect(restoreRes.status).toBe(400)
@@ -3290,12 +3302,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'Extra alpha line.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'Extra alpha line.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3312,12 +3324,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'replace_section',
-          heading: 'Alpha',
-          text: 'Replaced alpha body.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'replace_section'],
+          ['heading', 'Alpha'],
+          ['text', 'Replaced alpha body.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3335,12 +3347,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'insert_after_heading',
-          heading: 'Alpha',
-          text: 'Inserted line.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'insert_after_heading'],
+          ['heading', 'Alpha'],
+          ['text', 'Inserted line.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3359,11 +3371,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_page',
-          text: '## Gamma\nGamma body.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_page'],
+          ['text', '## Gamma\nGamma body.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3379,13 +3391,13 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'More alpha.',
-          baseRevisionId: JSON_NULL,
-          summary: 'added alpha detail',
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'More alpha.'],
+          ['baseRevisionId', JSON_NULL],
+          ['summary', 'added alpha detail'],
+        ]),
       ),
     )
     const revRes = await req('http://localhost/api/wiki/patch-revision/revisions', {
@@ -3413,12 +3425,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Gamma',
-          text: 'x',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Gamma'],
+          ['text', 'x'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(404)
@@ -3444,12 +3456,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'From agent A.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'From agent A.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(resA.status).toBe(200)
@@ -3464,12 +3476,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Beta',
-          text: 'From agent B.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Beta'],
+          ['text', 'From agent B.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(resB.status).toBe(200)
@@ -3489,12 +3501,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'From agent A.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'From agent A.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
 
@@ -3507,12 +3519,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'From agent B.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'From agent B.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(409)
@@ -3543,12 +3555,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Beta',
-          text: 'x',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Beta'],
+          ['text', 'x'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(404)
@@ -3568,12 +3580,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'More.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'More.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3628,12 +3640,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'x',
-          baseRevisionId: crypto.randomUUID(),
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'x'],
+          ['baseRevisionId', crypto.randomUUID()],
+        ]),
       ),
     )
     expect(res.status).toBe(400)
@@ -3653,11 +3665,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_page',
-          text: 'Gamma body.',
-          baseRevisionId: crypto.randomUUID(),
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_page'],
+          ['text', 'Gamma body.'],
+          ['baseRevisionId', crypto.randomUUID()],
+        ]),
       ),
     )
     expect(res.status).toBe(400)
@@ -3671,12 +3683,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'First edit.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'First edit.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(firstRes.status).toBe(200)
@@ -3690,11 +3702,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_page',
-          text: 'Appended after stale base.',
-          baseRevisionId: revisions[0].id,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_page'],
+          ['text', 'Appended after stale base.'],
+          ['baseRevisionId', revisions[0].id],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3710,11 +3722,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'set_frontmatter',
-          values: { status: 'current' },
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', { status: 'current' }],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3739,11 +3751,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'set_frontmatter',
-          values: { status: 'deprecated' },
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', { status: 'deprecated' }],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3775,11 +3787,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'set_frontmatter',
-          values: { type: JSON_NULL },
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', { type: JSON_NULL }],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3799,11 +3811,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'set_frontmatter',
-          values: { status: 'not-a-real-status' },
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', { status: 'not-a-real-status' }],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(400)
@@ -3824,7 +3836,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({ op: 'set_frontmatter', values: {}, baseRevisionId: JSON_NULL }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', {}],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(400)
@@ -3838,11 +3854,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'set_frontmatter',
-          values: { status: 'deprecated' },
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', { status: 'deprecated' }],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     await createPage('patch-frontmatter-current', 'Patch Frontmatter Current', 'uniquedemotekeyword')
@@ -3865,12 +3881,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'First edit.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'First edit.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     const revisionsResponse = await req('http://localhost/api/wiki/patch-frontmatter-stale-base/revisions', {
@@ -3883,11 +3899,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'set_frontmatter',
-          values: { status: 'current' },
-          baseRevisionId: revisions[0].id,
-        }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', { status: 'current' }],
+          ['baseRevisionId', revisions[0].id],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -3901,11 +3917,11 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'set_frontmatter',
-          values: { status: 'current' },
-          baseRevisionId: crypto.randomUUID(),
-        }),
+        stringifyOrderedFields([
+          ['op', 'set_frontmatter'],
+          ['values', { status: 'current' }],
+          ['baseRevisionId', crypto.randomUUID()],
+        ]),
       ),
     )
     expect(res.status).toBe(400)
@@ -4042,12 +4058,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'install deps',
-          text: 'x',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'install deps'],
+          ['text', 'x'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(missing.status).toBe(404)
@@ -4062,12 +4078,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'replace_section',
-          heading: 'Setup',
-          text: 'Replaced.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'replace_section'],
+          ['heading', 'Setup'],
+          ['text', 'Replaced.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -4091,12 +4107,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'a yaml comment',
-          text: 'x',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'a yaml comment'],
+          ['text', 'x'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(404)
@@ -4116,12 +4132,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'replace_section',
-          heading: 'Notes',
-          text: 'Replaced.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'replace_section'],
+          ['heading', 'Notes'],
+          ['text', 'Replaced.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(400)
@@ -4153,12 +4169,12 @@ describe('wiki patch operations (PROJ-490)', () => {
         requestOptionsWithBody(
           'PATCH',
           authHeaders(token, slug),
-          JSON.stringify({
-            op: 'insert_after_heading',
-            heading: 'Alpha',
-            text,
-            baseRevisionId: revisions[0]?.id ?? JSON_NULL,
-          }),
+          stringifyOrderedFields([
+            ['op', 'insert_after_heading'],
+            ['heading', 'Alpha'],
+            ['text', text],
+            ['baseRevisionId', revisions[0]?.id ?? JSON_NULL],
+          ]),
         ),
       )
       expect(res.status).toBe(200)
@@ -4177,12 +4193,12 @@ describe('wiki patch operations (PROJ-490)', () => {
       requestOptionsWithBody(
         'PATCH',
         authHeaders(token, slug),
-        JSON.stringify({
-          op: 'append_to_section',
-          heading: 'Alpha',
-          text: 'More.',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['op', 'append_to_section'],
+          ['heading', 'Alpha'],
+          ['text', 'More.'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     expect(res.status).toBe(200)
@@ -4899,7 +4915,10 @@ describe('wiki freshness model (PROJ-489)', () => {
   test('covers REST GET /api/wiki/:slug returns computed freshness in the page header', async () => {
     const { slug, token } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Overdue Runbook', content: overdueContent() }),
+      body: stringifyOrderedFields([
+        ['title', 'Overdue Runbook'],
+        ['content', overdueContent()],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -4919,7 +4938,10 @@ describe('wiki freshness model (PROJ-489)', () => {
   test("covers REST POST /api/wiki/:slug/verify stamps verified_at/verified_by using the CALLING user's identity", async () => {
     const { slug, token, userEmail } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Needs Verification', content: overdueContent() }),
+      body: stringifyOrderedFields([
+        ['title', 'Needs Verification'],
+        ['content', overdueContent()],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -4957,7 +4979,10 @@ describe('wiki freshness model (PROJ-489)', () => {
   test('verify_wiki_page records a revision, same as any other content edit', async () => {
     const { slug, token } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Revision Check', content: overdueContent() }),
+      body: stringifyOrderedFields([
+        ['title', 'Revision Check'],
+        ['content', overdueContent()],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -4987,7 +5012,10 @@ describe('wiki freshness model (PROJ-489)', () => {
   test('handles POST /api/wiki/:slug/verify stamps on top of the latest content, never a stale snapshot', async () => {
     const { slug, token, userEmail } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ title: 'Edited Then Verified', content: overdueContent() }),
+      body: stringifyOrderedFields([
+        ['title', 'Edited Then Verified'],
+        ['content', overdueContent()],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -5018,7 +5046,10 @@ describe('wiki freshness model (PROJ-489)', () => {
     const requestOptions = requestOptionsWithBody(
       'POST',
       authHeaders(roles.owner.token, roles.workspace.slug),
-      JSON.stringify({ title: 'Viewer Guard', content: overdueContent() }),
+      stringifyOrderedFields([
+        ['title', 'Viewer Guard'],
+        ['content', overdueContent()],
+      ]),
     )
     const createRes = await fetchNativeApi('http://localhost/api/wiki', requestOptions)
     const created = await readNativeJson(createRes, SlugResponse)
@@ -5053,18 +5084,18 @@ describe('wiki freshness model (PROJ-489)', () => {
   test('handles GET /api/wiki/search demotes a computed-stale page below a fresh page matching the same query', async () => {
     const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({
-        title: 'Stale Deploy Guide',
-        content: `${overdueContent()}\ndeploy keyword`,
-      }),
+      body: stringifyOrderedFields([
+        ['title', 'Stale Deploy Guide'],
+        ['content', `${overdueContent()}\ndeploy keyword`],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({
-        title: 'Fresh Deploy Guide',
-        content: `${freshContent()}\ndeploy keyword`,
-      }),
+      body: stringifyOrderedFields([
+        ['title', 'Fresh Deploy Guide'],
+        ['content', `${freshContent()}\ndeploy keyword`],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -5087,10 +5118,10 @@ describe('wiki freshness model (PROJ-489)', () => {
   test('handles GET /api/wiki/search demotes an explicitly status: deprecated page too', async () => {
     const { slug, token } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({
-        title: 'Deprecated Onboarding',
-        content: `${explicitStatusContent('deprecated')}\nonboardingkeyword`,
-      }),
+      body: stringifyOrderedFields([
+        ['title', 'Deprecated Onboarding'],
+        ['content', `${explicitStatusContent('deprecated')}\nonboardingkeyword`],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -5122,10 +5153,10 @@ describe('wiki freshness model (PROJ-489)', () => {
      * match proves the opposite: bm25 alone decides the order now.
      */
     await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({
-        title: 'Securitypolicykeyword Runbook',
-        content: unverifiedContent(),
-      }),
+      body: stringifyOrderedFields([
+        ['title', 'Securitypolicykeyword Runbook'],
+        ['content', unverifiedContent()],
+      ]),
       headers: authHeaders(token, slug),
       method: 'POST',
     })
@@ -6050,12 +6081,12 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({
-          title: 'Restricted',
-          content: 'secret',
-          projectId: project.id,
-          slug: 'restricted-delta',
-        }),
+        stringifyOrderedFields([
+          ['title', 'Restricted'],
+          ['content', 'secret'],
+          ['projectId', project.id],
+          ['slug', 'restricted-delta'],
+        ]),
       ),
     )
     expect(created.status).toBe(201)
@@ -6249,7 +6280,11 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Draft Per User', content: 'mine', baseRevisionId: JSON_NULL }),
+        stringifyOrderedFields([
+          ['title', 'Draft Per User'],
+          ['content', 'mine'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
 
@@ -6369,30 +6404,31 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   test('trashing a page (cascade or not) leaves its draft rows in place until purge (PROJ-496)', async () => {
     const { createPage, req, slug, token, workspaceId } = await seedAdminWikiDraftFixture()
     const parent = await createPage('draft-delete-parent', 'Draft Delete Parent', 'content')
-    const child = (await req(
+    const childResponse = await req(
       'http://localhost/api/wiki',
       requestOptionsWithBody(
         'POST',
         authHeaders(token, slug),
-        JSON.stringify({
-          title: 'Draft Delete Child',
-          content: 'content',
-          slug: 'draft-delete-child',
-          parentId: parent.id,
-        }),
+        stringifyOrderedFields([
+          ['title', 'Draft Delete Child'],
+          ['content', 'content'],
+          ['slug', 'draft-delete-child'],
+          ['parentId', parent.id],
+        ]),
       ),
-    ).then((response) => response.json())) as { id: string; slug: string }
+    )
+    const child = await readNativeJson(childResponse, IdAndSlugResponse)
 
     await req(
       `http://localhost/api/wiki/${parent.slug}/draft`,
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({
-          title: 'Draft Delete Parent',
-          content: 'draft',
-          baseRevisionId: JSON_NULL,
-        }),
+        stringifyOrderedFields([
+          ['title', 'Draft Delete Parent'],
+          ['content', 'draft'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     await req(
@@ -6400,7 +6436,11 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ title: 'Draft Delete Child', content: 'draft', baseRevisionId: JSON_NULL }),
+        stringifyOrderedFields([
+          ['title', 'Draft Delete Child'],
+          ['content', 'draft'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
 
@@ -6769,7 +6809,11 @@ describe('wiki trash (PROJ-496)', () => {
       requestOptionsWithBody(
         'PUT',
         authHeaders(token, slug),
-        JSON.stringify({ title: oldPage.slug, content: 'draft', baseRevisionId: JSON_NULL }),
+        stringifyOrderedFields([
+          ['title', oldPage.slug],
+          ['content', 'draft'],
+          ['baseRevisionId', JSON_NULL],
+        ]),
       ),
     )
     await req(
