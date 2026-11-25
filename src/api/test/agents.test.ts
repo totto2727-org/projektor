@@ -19,30 +19,35 @@ import {
   readNativeJson,
 } from './response-json.ts'
 
-describe('agents API', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
+interface AgentApiTestContext {
+  projectFixture: Awaited<ReturnType<typeof seedProjectFixture>>
+}
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
+type AgentRequestAuth = Pick<AgentApiTestContext['projectFixture'], 'slug' | 'token'>
+
+const registerAgent = async function registerAgent(
+  { slug, token }: AgentRequestAuth,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  return fetchNativeApi('http://localhost/api/agents', {
+    body: JSON.stringify(body),
+    headers: authHeaders(token, slug),
+    method: 'POST',
+  })
+}
+
+describe('agents API', () => {
+  beforeEach<AgentApiTestContext>(async (context) => {
+    context.projectFixture = await seedProjectFixture()
   })
 
-  const registerAgent = async function registerAgent(body: Record<string, unknown>): Promise<Response> {
-    return fetchNativeApi('http://localhost/api/agents', {
-      body: JSON.stringify(body),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-  }
-
   // A1: register -> active, appears in list_active_agents by issueId
-  test('a1: POST /api/agents registers a session and it appears in GET list filtered by issueId', async () => {
+  test<AgentApiTestContext>('a1: POST /api/agents registers a session and it appears in GET list filtered by issueId', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Test Issue' })
 
-    const res = await registerAgent({ name: 'test-agent', issueId: issue.id })
+    const res = await registerAgent({ slug, token }, { name: 'test-agent', issueId: issue.id })
     expect(res.status).toBe(201)
     const session = await readNativeJson(res, Schema.Struct({ id: Schema.String, status: Schema.String }))
     expect(isNonEmptyText(session.id)).toBe(true)
@@ -58,8 +63,10 @@ describe('agents API', () => {
   })
 
   // A2: heartbeat bumps last_heartbeat_at; stale session excluded from list
-  test('a2: heartbeat updates last_heartbeat_at; stale session is excluded from list', async () => {
-    const res = await registerAgent({ name: 'heartbeat-agent' })
+  test<AgentApiTestContext>('a2: heartbeat updates last_heartbeat_at; stale session is excluded from list', async ({
+    projectFixture: { slug, token },
+  }) => {
+    const res = await registerAgent({ slug, token }, { name: 'heartbeat-agent' })
     expect(res.status).toBe(201)
     const session = await readNativeJson(res, IdResponse)
 
@@ -89,8 +96,10 @@ describe('agents API', () => {
   })
 
   // A3: end -> status='ended', excluded from active list
-  test('a3: POST /:id/end sets status=ended and excludes session from active list', async () => {
-    const res = await registerAgent({ name: 'end-agent' })
+  test<AgentApiTestContext>('a3: POST /:id/end sets status=ended and excludes session from active list', async ({
+    projectFixture: { slug, token },
+  }) => {
+    const res = await registerAgent({ slug, token }, { name: 'end-agent' })
     expect(res.status).toBe(201)
     const session = await readNativeJson(res, IdResponse)
 
@@ -121,12 +130,14 @@ describe('agents API', () => {
    * A4 (PROJ-336): kind is deprecated — still accepted for MCP compatibility but
    * ignored, and no longer present in register/list responses as a trust signal.
    */
-  test('a4: caller-supplied kind is accepted but ignored, and absent from responses', async () => {
-    const agentRes = await registerAgent({ name: 'bot' })
+  test<AgentApiTestContext>('a4: caller-supplied kind is accepted but ignored, and absent from responses', async ({
+    projectFixture: { slug, token },
+  }) => {
+    const agentRes = await registerAgent({ slug, token }, { name: 'bot' })
     const agentSession = await readNativeJson(agentRes, Schema.Record(Schema.String, Schema.Unknown))
     expect(agentSession.kind).toBeUndefined()
 
-    const humanRes = await registerAgent({ name: 'human-user', kind: 'human' })
+    const humanRes = await registerAgent({ slug, token }, { name: 'human-user', kind: 'human' })
     expect(humanRes.status).toBe(201)
     const humanSession = await readNativeJson(humanRes, JsonRecordResponse)
     expect(humanSession.kind).toBeUndefined()
@@ -144,11 +155,13 @@ describe('agents API', () => {
   })
 
   // A5: tenant isolation
-  test('a5: session in workspace X is not visible from workspace Y; heartbeat/end from Y -> 404', async () => {
+  test<AgentApiTestContext>('a5: session in workspace X is not visible from workspace Y; heartbeat/end from Y -> 404', async ({
+    projectFixture: { slug, token },
+  }) => {
     const other = await seedFixture()
 
     // Register session in our workspace (X)
-    const res = await registerAgent({ name: 'isolated-agent' })
+    const res = await registerAgent({ slug, token }, { name: 'isolated-agent' })
     const session = await readNativeJson(res, IdResponse)
 
     // Workspace Y should not see it
@@ -176,17 +189,23 @@ describe('agents API', () => {
     expect(endRes.status).toBe(404)
   })
 
-  test('handles POST /api/agents returns 400 for missing name', async () => {
-    const res = await registerAgent({})
+  test<AgentApiTestContext>('handles POST /api/agents returns 400 for missing name', async ({
+    projectFixture: { slug, token },
+  }) => {
+    const res = await registerAgent({ slug, token }, {})
     expect(res.status).toBe(400)
   })
 
-  test('handles POST /api/agents returns 404 for unknown issueId', async () => {
-    const res = await registerAgent({ name: 'orphan', issueId: crypto.randomUUID() })
+  test<AgentApiTestContext>('handles POST /api/agents returns 404 for unknown issueId', async ({
+    projectFixture: { slug, token },
+  }) => {
+    const res = await registerAgent({ slug, token }, { name: 'orphan', issueId: crypto.randomUUID() })
     expect(res.status).toBe(404)
   })
 
-  test('handles POST /:id/heartbeat returns 404 for unknown id', async () => {
+  test<AgentApiTestContext>('handles POST /:id/heartbeat returns 404 for unknown id', async ({
+    projectFixture: { slug, token },
+  }) => {
     const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/heartbeat`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -194,7 +213,9 @@ describe('agents API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('handles POST /:id/end returns 404 for unknown id', async () => {
+  test<AgentApiTestContext>('handles POST /:id/end returns 404 for unknown id', async ({
+    projectFixture: { slug, token },
+  }) => {
     const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/end`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -202,9 +223,11 @@ describe('agents API', () => {
     expect(res.status).toBe(404)
   })
 
-  test('handles GET /api/agents returns all active sessions in workspace', async () => {
-    await registerAgent({ name: 'agent-1' })
-    await registerAgent({ name: 'agent-2' })
+  test<AgentApiTestContext>('handles GET /api/agents returns all active sessions in workspace', async ({
+    projectFixture: { slug, token },
+  }) => {
+    await registerAgent({ slug, token }, { name: 'agent-1' })
+    await registerAgent({ slug, token }, { name: 'agent-2' })
 
     const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
@@ -220,7 +243,10 @@ describe('agents API', () => {
 
   // PROJ-929: start_work / finish_work replace the 5-call fleet routine.
   describe('covers PROJ-929: start_work / finish_work', () => {
-    const startWork = function startWork(body: Record<string, unknown>): Promise<Response> {
+    const startWork = function startWork(
+      { slug, token }: AgentRequestAuth,
+      body: Record<string, unknown>,
+    ): Promise<Response> {
       return fetchNativeApi('http://localhost/api/agents/start-work', {
         body: JSON.stringify(body),
         headers: authHeaders(token, slug),
@@ -228,7 +254,10 @@ describe('agents API', () => {
       })
     }
 
-    const finishWork = function finishWork(body: Record<string, unknown>): Promise<Response> {
+    const finishWork = function finishWork(
+      { slug, token }: AgentRequestAuth,
+      body: Record<string, unknown>,
+    ): Promise<Response> {
       return fetchNativeApi('http://localhost/api/agents/finish-work', {
         body: JSON.stringify(body),
         headers: authHeaders(token, slug),
@@ -236,7 +265,11 @@ describe('agents API', () => {
       })
     }
 
-    const mcpCall = async function mcpCall(name: string, args: Record<string, unknown>) {
+    const mcpCall = async function mcpCall(
+      { slug, token, workspaceId }: Pick<AgentApiTestContext['projectFixture'], 'slug' | 'token' | 'workspaceId'>,
+      name: string,
+      args: Record<string, unknown>,
+    ) {
       const res = await fetchNativeApi(
         `http://localhost/mcp/${workspaceId}`,
         requestOptionsWithBody(
@@ -258,14 +291,19 @@ describe('agents API', () => {
       return { status: res.status, body }
     }
 
-    test('registers, claims the issue and files, and posts a start message in one call', async () => {
+    test<AgentApiTestContext>('registers, claims the issue and files, and posts a start message in one call', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Start work' })
 
-      const res = await startWork({
-        issue: issue.id,
-        paths: ['src/a.ts', 'src/b.ts'],
-        name: 'worker-1',
-      })
+      const res = await startWork(
+        { slug, token },
+        {
+          issue: issue.id,
+          paths: ['src/a.ts', 'src/b.ts'],
+          name: 'worker-1',
+        },
+      )
       expect(res.status).toBe(201)
       const bodyShape = Schema.Struct({
         claimedFiles: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
@@ -290,9 +328,11 @@ describe('agents API', () => {
       expect(messages.results.some((result) => result.body.includes('started work'))).toBe(true)
     })
 
-    test('works with no paths given', async () => {
+    test<AgentApiTestContext>('works with no paths given', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No paths' })
-      const res = await startWork({ issue: issue.id, name: 'worker-1' })
+      const res = await startWork({ slug, token }, { issue: issue.id, name: 'worker-1' })
       expect(res.status).toBe(201)
       const body = await readNativeJson(
         res,
@@ -301,17 +341,22 @@ describe('agents API', () => {
       expect(body.claimedFiles).toStrictEqual([])
     })
 
-    test('is all-or-nothing: a lease conflict leaves no session, lease, or claim behind', async () => {
+    test<AgentApiTestContext>('is all-or-nothing: a lease conflict leaves no session, lease, or claim behind', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       expect.hasAssertions()
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contended' })
-      const first = await startWork({ issue: issue.id, name: 'worker-1' })
+      const first = await startWork({ slug, token }, { issue: issue.id, name: 'worker-1' })
       expect(first.status).toBe(201)
 
-      const second = await startWork({
-        issue: issue.id,
-        paths: ['src/never-claimed.ts'],
-        name: 'worker-2',
-      })
+      const second = await startWork(
+        { slug, token },
+        {
+          issue: issue.id,
+          paths: ['src/never-claimed.ts'],
+          name: 'worker-2',
+        },
+      )
       // Same ConflictError as claim_issue today
       expect(second.status).toBe(409)
 
@@ -342,7 +387,9 @@ describe('agents API', () => {
         vi.restoreAllMocks()
       })
 
-      test('rethrows the original conflict error even when the compensating endAgent call itself fails', async () => {
+      test<AgentApiTestContext>('rethrows the original conflict error even when the compensating endAgent call itself fails', async ({
+        projectFixture: { projectId, userId, workspaceId },
+      }) => {
         const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Holds file' })
         const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Wants file' })
         await startWorkDirect(
@@ -405,21 +452,29 @@ describe('agents API', () => {
       })
     })
 
-    test('is all-or-nothing: a file-claim conflict releases the lease it just took', async () => {
+    test<AgentApiTestContext>('is all-or-nothing: a file-claim conflict releases the lease it just took', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Holds file' })
-      const heldRes = await startWork({
-        issue: issue1.id,
-        paths: ['src/contended.ts'],
-        name: 'holder',
-      })
+      const heldRes = await startWork(
+        { slug, token },
+        {
+          issue: issue1.id,
+          paths: ['src/contended.ts'],
+          name: 'holder',
+        },
+      )
       expect(heldRes.status).toBe(201)
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Wants file' })
-      const res = await startWork({
-        issue: issue2.id,
-        paths: ['src/contended.ts'],
-        name: 'wants-it',
-      })
+      const res = await startWork(
+        { slug, token },
+        {
+          issue: issue2.id,
+          paths: ['src/contended.ts'],
+          name: 'wants-it',
+        },
+      )
       // Same ConflictError as claim_files today
       expect(res.status).toBe(409)
 
@@ -430,17 +485,22 @@ describe('agents API', () => {
       expect(lease).toBeNull()
     })
 
-    test('finish_work transitions the issue, releases everything, and ends the session', async () => {
+    test<AgentApiTestContext>('finish_work transitions the issue, releases everything, and ends the session', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Finish' })
-      const started = await startWork({ issue: issue.id, paths: ['src/finish.ts'], name: 'w' })
+      const started = await startWork({ slug, token }, { issue: issue.id, paths: ['src/finish.ts'], name: 'w' })
       const { sessionId } = await readNativeJson(started, Schema.Struct({ sessionId: Schema.String }))
 
-      const res = await finishWork({
-        sessionId,
-        issue: issue.id,
-        status: 'done',
-        completionReport: { summary: 'Done', verification: 'pnpm test' },
-      })
+      const res = await finishWork(
+        { slug, token },
+        {
+          sessionId,
+          issue: issue.id,
+          status: 'done',
+          completionReport: { summary: 'Done', verification: 'pnpm test' },
+        },
+      )
       expect(res.status).toBe(200)
 
       const issueRow = await env.DB.prepare('SELECT status FROM issues WHERE id = ?')
@@ -464,12 +524,14 @@ describe('agents API', () => {
       expect(session?.status).toBe('ended')
     })
 
-    test('finish_work with no status/completionReport just releases and ends the session', async () => {
+    test<AgentApiTestContext>('finish_work with no status/completionReport just releases and ends the session', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No transition' })
-      const started = await startWork({ issue: issue.id, name: 'w' })
+      const started = await startWork({ slug, token }, { issue: issue.id, name: 'w' })
       const { sessionId } = await readNativeJson(started, Schema.Struct({ sessionId: Schema.String }))
 
-      const res = await finishWork({ sessionId, issue: issue.id })
+      const res = await finishWork({ slug, token }, { sessionId, issue: issue.id })
       expect(res.status).toBe(200)
 
       const issueRow = await env.DB.prepare('SELECT status FROM issues WHERE id = ?')
@@ -484,11 +546,13 @@ describe('agents API', () => {
       expect(session?.status).toBe('ended')
     })
 
-    test("claim_issue (via start_work) refreshes the session's heartbeat", async () => {
+    test<AgentApiTestContext>("claim_issue (via start_work) refreshes the session's heartbeat", async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Heartbeat' })
       const before = currentEpochSeconds() - 100
 
-      const res = await startWork({ issue: issue.id, name: 'w' })
+      const res = await startWork({ slug, token }, { issue: issue.id, name: 'w' })
       const { sessionId } = await readNativeJson(res, Schema.Struct({ sessionId: Schema.String }))
 
       const session = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
@@ -497,10 +561,12 @@ describe('agents API', () => {
       expect(session?.last_heartbeat_at).toBeGreaterThanOrEqual(before)
     })
 
-    test('covers MCP parity: start_work and finish_work work the same over MCP', async () => {
+    test<AgentApiTestContext>('covers MCP parity: start_work and finish_work work the same over MCP', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'MCP path' })
 
-      const started = await mcpCall('start_work', { issue: issue.id, name: 'mcp-worker' })
+      const started = await mcpCall({ slug, token, workspaceId }, 'start_work', { issue: issue.id, name: 'mcp-worker' })
       expect(started.status).toBe(200)
       const startedResult = parseNativeMcpText(
         started.body.result?.content?.[0].text ?? '{}',
@@ -508,7 +574,7 @@ describe('agents API', () => {
       )
       expect(isNonEmptyText(startedResult.sessionId)).toBe(true)
 
-      const finished = await mcpCall('finish_work', {
+      const finished = await mcpCall({ slug, token, workspaceId }, 'finish_work', {
         sessionId: startedResult.sessionId,
         issue: issue.id,
         status: 'cancelled',
@@ -522,9 +588,11 @@ describe('agents API', () => {
       expect(issueRow?.status).toBe('cancelled')
     })
 
-    test('the old tools still work standalone (register_agent/claim_issue/release_issue/end_agent)', async () => {
+    test<AgentApiTestContext>('the old tools still work standalone (register_agent/claim_issue/release_issue/end_agent)', async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Old path' })
-      const reg = await registerAgent({ name: 'old-style' })
+      const reg = await registerAgent({ slug, token }, { name: 'old-style' })
       const { id: agentId } = await readNativeJson(reg, IdResponse)
 
       const claim = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
@@ -560,26 +628,31 @@ describe('agents API', () => {
       return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
     }
 
-    const listAgents = async function listAgents(params: Record<string, string> = {}): Promise<Response> {
+    const listAgents = async function listAgents(
+      { slug, token }: AgentRequestAuth,
+      params: Record<string, string> = {},
+    ): Promise<Response> {
       const qs = new URLSearchParams(params).toString()
       return fetchNativeApi(`http://localhost/api/agents${qs ? `?${qs}` : ''}`, {
         headers: authHeaders(token, slug),
       })
     }
 
-    test('excludes a session with a stale heartbeat by default; includeStale:true includes it, flagged live:false', async () => {
-      const res = await registerAgent({ name: 'stale-agent-932' })
+    test<AgentApiTestContext>('excludes a session with a stale heartbeat by default; includeStale:true includes it, flagged live:false', async ({
+      projectFixture: { slug, token },
+    }) => {
+      const res = await registerAgent({ slug, token }, { name: 'stale-agent-932' })
       const session = await readNativeJson(res, IdResponse)
       await backdateHeartbeat(session.id)
 
-      const withoutFlag = await listAgents()
+      const withoutFlag = await listAgents({ slug, token })
       const withoutBodyShape = Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
       })
       const withoutBody = await readNativeJson(withoutFlag, withoutBodyShape)
       expect(withoutBody.items.some((selectedItem) => selectedItem.id === session.id)).toBe(false)
 
-      const withFlag = await listAgents({ includeStale: 'true' })
+      const withFlag = await listAgents({ slug, token }, { includeStale: 'true' })
       const withBodyShape = Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String, live: Schema.Boolean })).pipe(Schema.mutable),
       })
@@ -591,22 +664,24 @@ describe('agents API', () => {
 
     /* The includeStale option widens the heartbeat check on an *active* session; it must never reach
      * into ended sessions, which end_agent explicitly moves out of the pool for good. */
-    test('never returns an ended session, with or without includeStale', async () => {
-      const res = await registerAgent({ name: 'ended-agent-932' })
+    test<AgentApiTestContext>('never returns an ended session, with or without includeStale', async ({
+      projectFixture: { slug, token },
+    }) => {
+      const res = await registerAgent({ slug, token }, { name: 'ended-agent-932' })
       const session = await readNativeJson(res, IdResponse)
       await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
         headers: authHeaders(token, slug),
         method: 'POST',
       })
 
-      const withoutFlag = await listAgents()
+      const withoutFlag = await listAgents({ slug, token })
       const withoutBodyShape = Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
       })
       const withoutBody = await readNativeJson(withoutFlag, withoutBodyShape)
       expect(withoutBody.items.some((item) => item.id === session.id)).toBe(false)
 
-      const withFlag = await listAgents({ includeStale: 'true' })
+      const withFlag = await listAgents({ slug, token }, { includeStale: 'true' })
       const withBodyShape = Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
       })
@@ -614,11 +689,11 @@ describe('agents API', () => {
       expect(withBody.items.some((item) => item.id === session.id)).toBe(false)
     })
 
-    test('a fresh session is flagged live:true', async () => {
-      const res = await registerAgent({ name: 'fresh-agent-932' })
+    test<AgentApiTestContext>('a fresh session is flagged live:true', async ({ projectFixture: { slug, token } }) => {
+      const res = await registerAgent({ slug, token }, { name: 'fresh-agent-932' })
       const session = await readNativeJson(res, IdResponse)
 
-      const listRes = await listAgents()
+      const listRes = await listAgents({ slug, token })
       const bodyShape = Schema.Struct({
         items: Schema.Array(Schema.Struct({ id: Schema.String, live: Schema.Boolean })).pipe(Schema.mutable),
       })
@@ -626,14 +701,16 @@ describe('agents API', () => {
       expect(body.items.find((item) => item.id === session.id)?.live).toBe(true)
     })
 
-    test("carries the linked issue's issueRef; null when unlinked", async () => {
+    test<AgentApiTestContext>("carries the linked issue's issueRef; null when unlinked", async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Linked' })
-      const linked = await registerAgent({ name: 'linked-932', issueId: issue.id })
+      const linked = await registerAgent({ slug, token }, { name: 'linked-932', issueId: issue.id })
       const linkedSession = await readNativeJson(linked, IdResponse)
-      const unlinked = await registerAgent({ name: 'unlinked-932' })
+      const unlinked = await registerAgent({ slug, token }, { name: 'unlinked-932' })
       const unlinkedSession = await readNativeJson(unlinked, IdResponse)
 
-      const res = await listAgents()
+      const res = await listAgents({ slug, token })
       const bodyShape = Schema.Struct({
         items: Schema.Array(
           Schema.Struct({ id: Schema.String, issueRef: Schema.Union([Schema.String, Schema.Null]) }),
@@ -650,43 +727,47 @@ describe('agents API', () => {
      * on; a second project in the SAME workspace, also granted, proves the projectId
      * filter itself excludes the other project's sessions — not merely visibility.
      */
-    test("projectId filters to the granted project's sessions, excluding a second same-workspace project's (by key and uuid)", async () => {
+    test<AgentApiTestContext>("projectId filters to the granted project's sessions, excluding a second same-workspace project's (by key and uuid)", async ({
+      projectFixture: { projectId, slug, token, userId, workspaceId },
+    }) => {
       const otherProject = await seedProject(workspaceId, 'OTHR')
       await seedGroupGrant(workspaceId, userId, otherProject.id, 'member')
 
       const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'In A' })
-      const linkedA = await registerAgent({ name: 'linked-a-932', issueId: issueA.id })
+      const linkedA = await registerAgent({ slug, token }, { name: 'linked-a-932', issueId: issueA.id })
       const linkedASession = await readNativeJson(linkedA, IdResponse)
 
       const issueB = await seedIssue(workspaceId, otherProject.id, userId, { title: 'In B' })
-      const linkedB = await registerAgent({ name: 'linked-b-932', issueId: issueB.id })
+      const linkedB = await registerAgent({ slug, token }, { name: 'linked-b-932', issueId: issueB.id })
       const linkedBSession = await readNativeJson(linkedB, IdResponse)
 
       const sessionListShape = Schema.Struct({ items: IdListResponse })
-      const byKey = await listAgents({ projectId: projectKey })
+      const byKey = await listAgents({ slug, token }, { projectId: projectKey })
       const byKeyBody = await readNativeJson(byKey, sessionListShape)
       const byKeyIds = byKeyBody.items.map((item) => item.id)
       expect(byKeyIds).toContain(linkedASession.id)
       expect(byKeyIds).not.toContain(linkedBSession.id)
 
-      const byUuid = await listAgents({ projectId })
+      const byUuid = await listAgents({ slug, token }, { projectId })
       const byUuidBody = await readNativeJson(byUuid, sessionListShape)
       const byUuidIds = byUuidBody.items.map((item) => item.id)
       expect(byUuidIds).toContain(linkedASession.id)
       expect(byUuidIds).not.toContain(linkedBSession.id)
     })
 
-    test("a member with no grant on a project gets an empty result for that project's key or uuid", async () => {
+    test<AgentApiTestContext>("a member with no grant on a project gets an empty result for that project's key or uuid", async ({
+      projectFixture: { slug, token, userId, workspaceId },
+    }) => {
       const hidden = await seedProject(workspaceId, 'HIDN')
       // No seedGroupGrant for `userId` on `hidden` — it stays invisible to them.
       const issue = await seedIssue(workspaceId, hidden.id, userId, { title: 'Hidden' })
-      await registerAgent({ name: 'hidden-agent-932', issueId: issue.id })
+      await registerAgent({ slug, token }, { name: 'hidden-agent-932', issueId: issue.id })
 
-      const byKey = await listAgents({ projectId: 'HIDN' })
+      const byKey = await listAgents({ slug, token }, { projectId: 'HIDN' })
       const byKeyBody = await readNativeJson(byKey, ItemsResponse)
       expect(byKeyBody.items).toHaveLength(0)
 
-      const byUuid = await listAgents({ projectId: hidden.id })
+      const byUuid = await listAgents({ slug, token }, { projectId: hidden.id })
       const byUuidBody = await readNativeJson(byUuid, ItemsResponse)
       expect(byUuidBody.items).toHaveLength(0)
     })

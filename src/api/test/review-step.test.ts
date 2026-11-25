@@ -8,26 +8,30 @@ import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskSta
 import { stringifyOrderedFields, fetchNativeApi } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
+interface ReviewStepTestContext {
+  projectFixture: Awaited<ReturnType<typeof seedProjectFixture>>
+}
+
+type ReviewRequestAuth = Pick<ReviewStepTestContext['projectFixture'], 'slug' | 'token'>
+
+const patch = function patch(
+  { slug, token }: ReviewRequestAuth,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  return fetchNativeApi(`http://localhost/api/issues/${id}`, {
+    body: JSON.stringify(body),
+    headers: authHeaders(token, slug),
+    method: 'PATCH',
+  })
+}
+
 // PROJ-749: a status is a review step because the workspace flagged it
 // (task_statuses.is_review_step), not because its key contains "review".
 describe('covers PROJ-749: review steps are explicit, not inferred from the status key', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
+  beforeEach<ReviewStepTestContext>(async (context) => {
+    context.projectFixture = await seedProjectFixture({ role: 'owner' })
   })
-
-  const patch = function patch(id: string, body: Record<string, unknown>): Promise<Response> {
-    return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      body: JSON.stringify(body),
-      headers: authHeaders(token, slug),
-      method: 'PATCH',
-    })
-  }
 
   const reviewState = async function reviewState(id: string) {
     const row = await env.DB.prepare('SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?')
@@ -39,7 +43,9 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     return { ...row, gateRejections: rejections?.n ?? 0 }
   }
 
-  test('a "Contract Review" status that is not a review step is not gated and not counted', async () => {
+  test<ReviewStepTestContext>('a "Contract Review" status that is not a review step is not gated and not counted', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contract' })
     await seedAgentLease(workspaceId, issue.id)
     const contract = await seedTaskStatus(workspaceId, {
@@ -49,10 +55,10 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     })
 
     // No completion report needed: it isn't a review step.
-    const result = await patch(issue.id, { statusId: contract.id })
+    const result = await patch({ slug, token }, issue.id, { statusId: contract.id })
     expect(result.status).toBe(200)
     // Leaving it for in_progress is not a review bounce / gate rejection.
-    const resolvedValue = await patch(issue.id, { status: 'in_progress' })
+    const resolvedValue = await patch({ slug, token }, issue.id, { status: 'in_progress' })
     expect(resolvedValue.status).toBe(200)
 
     await expect(reviewState(issue.id)).resolves.toStrictEqual({
@@ -62,7 +68,9 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     })
   })
 
-  test('a custom status flagged as a review step is gated, stamped and counted', async () => {
+  test<ReviewStepTestContext>('a custom status flagged as a review step is gated, stamped and counted', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Peer' })
     await seedAgentLease(workspaceId, issue.id)
     const peer = await seedTaskStatus(workspaceId, {
@@ -72,14 +80,14 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
       name: 'Peer Review',
     })
 
-    await expect(patch(issue.id, { statusId: peer.id })).resolves.toHaveProperty('status', 400)
+    await expect(patch({ slug, token }, issue.id, { statusId: peer.id })).resolves.toHaveProperty('status', 400)
     await expect(
-      patch(issue.id, {
+      patch({ slug, token }, issue.id, {
         statusId: peer.id,
         completionReport: { summary: 's', verification: 'v' },
       }),
     ).resolves.toHaveProperty('status', 200)
-    await expect(patch(issue.id, { status: 'in_progress' })).resolves.toHaveProperty('status', 200)
+    await expect(patch({ slug, token }, issue.id, { status: 'in_progress' })).resolves.toHaveProperty('status', 200)
 
     const state = await reviewState(issue.id)
     expect(state.in_review_at).not.toBeNull()
@@ -87,7 +95,9 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     expect(state.gateRejections).toBe(1)
   })
 
-  test('create/update_task_status set and clear the flag (REST)', async () => {
+  test<ReviewStepTestContext>('create/update_task_status set and clear the flag (REST)', async ({
+    projectFixture: { slug, token },
+  }) => {
     const created = await fetchNativeApi('http://localhost/api/task-statuses', {
       body: stringifyOrderedFields([
         ['key', 'design_review'],
