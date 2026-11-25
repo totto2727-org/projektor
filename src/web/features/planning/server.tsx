@@ -54,7 +54,7 @@ export const loadSprintIssues = function loadSprintIssues(
       if (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
         query.set('cursor', cursor)
       }
-      const page = yield* readDataIssuePage(scope, workspace.id, query).pipe(
+      const page = yield* readDataIssuePage(workspace.id, query).pipe(
         Effect.flatMap(decodeIssuePage),
         Effect.mapError(dataError),
       )

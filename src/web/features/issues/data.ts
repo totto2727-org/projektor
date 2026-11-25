@@ -8,7 +8,6 @@ import { RequestServices } from '@/request.ts'
 import type { PageFailure } from '@/request.ts'
 import { dataError } from '@/server/data-context.ts'
 import { ScopeError } from '@/server/errors.ts'
-import type { RequestScope } from '@/server/request-context.ts'
 
 import { SearchResultsSchema, WikiSearchResultsSchema } from './action-schemas.ts'
 import {
@@ -39,7 +38,6 @@ export const checked = function checked<A>(read: () => A): Effect.Effect<A, Page
 }
 
 export const readDataIssue = function readDataIssue(
-  _scope: RequestScope,
   workspaceId: string,
   identifier: string,
   projectId?: string,
@@ -53,7 +51,6 @@ export const readDataIssue = function readDataIssue(
   })
 }
 export const readDataIssuePage = function readDataIssuePage(
-  _scope: RequestScope,
   workspaceId: string,
   params: URLSearchParams,
 ): IssueRead<IssuePage> {
@@ -65,12 +62,15 @@ export const readDataIssuePage = function readDataIssuePage(
     ).pipe(Effect.map(normalizeIssuePage))
   })
 }
+interface IssueSearchFilters {
+  projectId?: string
+  review?: ReviewFilter
+}
+
 export const searchDataIssues = function searchDataIssues(
-  _scope: RequestScope,
   workspaceId: string,
   query: string,
-  projectId?: string,
-  review?: ReviewFilter,
+  { projectId, review }: IssueSearchFilters = {},
 ): IssueRead<IssueSearchResult[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
@@ -81,7 +81,6 @@ export const searchDataIssues = function searchDataIssues(
   })
 }
 export const readDataComments = function readDataComments(
-  _scope: RequestScope,
   workspaceId: string,
   identifier: string,
   projectId?: string,
@@ -95,7 +94,6 @@ export const readDataComments = function readDataComments(
   })
 }
 export const readDataLinks = function readDataLinks(
-  _scope: RequestScope,
   workspaceId: string,
   identifier: string,
   projectId?: string,
@@ -109,7 +107,6 @@ export const readDataLinks = function readDataLinks(
   })
 }
 export const readDataAttachments = function readDataAttachments(
-  _scope: RequestScope,
   workspaceId: string,
   identifier: string,
   projectId?: string,
@@ -123,7 +120,6 @@ export const readDataAttachments = function readDataAttachments(
   })
 }
 export const searchDataWikiAttachments = function searchDataWikiAttachments(
-  _scope: RequestScope,
   workspaceId: string,
   query: string,
 ): IssueRead<WikiAttachmentSearchResult[]> {

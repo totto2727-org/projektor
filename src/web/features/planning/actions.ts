@@ -183,7 +183,7 @@ export const moveSprintIssues = EFFRONT.ServerFn.make({
           return yield* new ScopeError(HTTP_NOT_FOUND, 'Choose an available sprint in the selected project.')
         }
         const issues = yield* Effect.all(
-          input.issueIds.map((id) => readDataIssue(context.scope, workspace.id, id, project.id)),
+          input.issueIds.map((id) => readDataIssue(workspace.id, id, project.id)),
           { concurrency: 4 },
         )
         if (issues.some((issue) => !issue || issue.project_id !== project.id || issue.sprint_id !== source.id)) {

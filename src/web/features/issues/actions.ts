@@ -51,7 +51,7 @@ const dataWorkspaceId = function dataWorkspaceId(context: FunctionContext): Effe
 /** Entity references are resolved under the authorized membership, then checked against the authorized catalog. */
 const authorizedIssue = function authorizedIssue(context: FunctionContext, issueId: string) {
   return Effect.gen(function* () {
-    return yield* readDataIssue(context.scope, yield* dataWorkspaceId(context), issueId, context.projectId)
+    return yield* readDataIssue(yield* dataWorkspaceId(context), issueId, context.projectId)
   })
 }
 
@@ -159,7 +159,7 @@ export const readIssue = EFFRONT.ServerFn.make({
       return {
         ok: true as const,
         value: {
-          ...(yield* readDataIssue(ctx.scope, yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)),
+          ...(yield* readDataIssue(yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)),
           workspaceSlug: ctx.workspaceSlug,
         },
       }
@@ -204,7 +204,7 @@ export const readIssuePage = EFFRONT.ServerFn.make({
       if (input.includeRollups === true) {
         params.set('includeRollups', '1')
       }
-      const value = yield* readDataIssuePage(ctx.scope, yield* dataWorkspaceId(ctx), params)
+      const value = yield* readDataIssuePage(yield* dataWorkspaceId(ctx), params)
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
@@ -218,12 +218,9 @@ export const searchIssues = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const value = yield* searchDataIssues(
-        ctx.scope,
-        yield* dataWorkspaceId(ctx),
-        input.query,
-        ctx.projectId ?? undefined,
-      )
+      const value = yield* searchDataIssues(yield* dataWorkspaceId(ctx), input.query, {
+        projectId: ctx.projectId ?? undefined,
+      })
       return { ok: true as const, value: [...value] }
     }).pipe(
       Effect.catchTags({
@@ -237,7 +234,7 @@ export const readComments = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const value = yield* readDataComments(ctx.scope, yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
+      const value = yield* readDataComments(yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
@@ -328,7 +325,7 @@ export const readLinks = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const value = yield* readDataLinks(ctx.scope, yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
+      const value = yield* readDataLinks(yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
@@ -377,7 +374,7 @@ export const deleteIssueLink = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         yield* authorizedIssue(ctx, input.issueId)
-        const issueLinks = yield* readDataLinks(ctx.scope, yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
+        const issueLinks = yield* readDataLinks(yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
         if (!issueLinks.some((entry) => entry.id === input.linkId)) {
           return yield* new ScopeError(HTTP_NOT_FOUND, 'Link not found on this issue.')
         }
@@ -422,7 +419,7 @@ export const readAttachments = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const value = yield* readDataAttachments(ctx.scope, yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
+      const value = yield* readDataAttachments(yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
       return { ok: true as const, value }
     }).pipe(
       Effect.catchTags({
@@ -485,12 +482,7 @@ export const deleteAttachment = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        const attachments = yield* readDataAttachments(
-          ctx.scope,
-          yield* dataWorkspaceId(ctx),
-          input.issueId,
-          ctx.projectId,
-        )
+        const attachments = yield* readDataAttachments(yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
         if (!attachments.some((entry) => entry.id === input.attachmentId)) {
           return yield* new ScopeError(HTTP_NOT_FOUND, 'Attachment not found on this issue.')
         }
@@ -511,7 +503,7 @@ export const searchWikiAttachments = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const value = yield* searchDataWikiAttachments(ctx.scope, yield* dataWorkspaceId(ctx), input.query)
+      const value = yield* searchDataWikiAttachments(yield* dataWorkspaceId(ctx), input.query)
       return { ok: true as const, value: [...value] }
     }).pipe(
       Effect.catchTags({

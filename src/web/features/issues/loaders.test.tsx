@@ -112,10 +112,10 @@ describe('complete direct D1 issues SSR loaders', () => {
     const data = fixture()
     const detail = await data.run(loadIssue(scope, detailUrl))
     expect(detail?.initialData.issue.reviewTargets).toStrictEqual([])
-    const page = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams()))
+    const page = await data.run(readDataIssuePage(workspace.id, new URLSearchParams()))
     expect(page.items.length).toBeGreaterThan(0)
     expect(page.items.map((entry) => entry.reviewTargets)).toStrictEqual(page.items.map(() => []))
-    const results = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
+    const results = await data.run(searchDataIssues(workspace.id, 'Original'))
     expect(results.length).toBeGreaterThan(0)
     expect(results.map((entry) => entry.reviewTargets)).toStrictEqual(results.map(() => []))
   })
@@ -140,7 +140,7 @@ describe('complete direct D1 issues SSR loaders', () => {
         .flatMap((entry) => entry.reviewTargets)
         .some((entry) => entry.id === 'hidden-target'),
     ).toBe(false)
-    const search = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
+    const search = await data.run(searchDataIssues(workspace.id, 'Original'))
     expect(search.find((entry) => entry.id === 'issue-a')?.reviewTargets).toStrictEqual(targets)
     const mine = await data.run(loadMyIssues(scope, new URL('https://front.test/my-issues')))
     expect(mine.issues.find((entry) => entry.id === 'issue-a')?.reviewTargets).toStrictEqual(targets)
@@ -261,7 +261,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     const detail = await data.run(loadIssue(selected, url, params))
     expect(detail?.initialData.issue.assignee_name).toBeNull()
     expect(detail?.initialData.issue.body).toBe('**Original description**')
-    const list = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: project.id })))
+    const list = await data.run(readDataIssuePage(workspace.id, new URLSearchParams({ project: project.id })))
     expect(list.items[0].assignee_name).toBe('user')
     expect(list.items[0].body).toBeNull()
     const html = renderToString(await data.run(renderIssue(selected, url, params)))
@@ -272,10 +272,10 @@ describe('complete direct D1 issues SSR loaders', () => {
   test('preserves an explicit archived project filter without granting hidden archived projects', async () => {
     const data = fixture()
     data.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id IN ('project-a', 'hidden-project')")
-    const page = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: project.id })))
+    const page = await data.run(readDataIssuePage(workspace.id, new URLSearchParams({ project: project.id })))
     expect(page.items.map((item) => item.id)).toContain('issue-a')
     await expect(
-      data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: 'hidden-project' }))),
+      data.run(readDataIssuePage(workspace.id, new URLSearchParams({ project: 'hidden-project' }))),
     ).rejects.toMatchObject({ status: 404 })
   })
 
@@ -435,7 +435,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(result?.initialData.page.nextCursor).toBeNull()
     expect(result?.initialData.search.results).toHaveLength(20)
     expect(result?.initialData.search.results?.every((entry) => entry.project_id === project.id)).toBe(true)
-    await expect(data.run(searchDataIssues(scope, workspace.id, 'secret'))).resolves.toStrictEqual([])
+    await expect(data.run(searchDataIssues(workspace.id, 'secret'))).resolves.toStrictEqual([])
   })
 
   test('keeps query schema and driver failures in the typed Effect error channel', async () => {

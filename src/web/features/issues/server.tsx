@@ -104,7 +104,7 @@ const allPages = function allPages(
   return Effect.gen(function* () {
     query = new URLSearchParams(query)
     query.set('limit', globalThis.String(AGGREGATE_PAGE_SIZE))
-    const page = yield* readDataIssuePage(scope, workspaceId, query)
+    const page = yield* readDataIssuePage(workspaceId, query)
     const items = [...page.items]
     let cursor = page.nextCursor
     const seen = new Set<string>()
@@ -122,7 +122,7 @@ const allPages = function allPages(
       seen.add(globalThis.String(cursor))
       const qs = new URLSearchParams(query)
       qs.set('cursor', globalThis.String(cursor))
-      const next = yield* readDataIssuePage(scope, workspaceId, qs)
+      const next = yield* readDataIssuePage(workspaceId, qs)
       items.push(...next.items)
       cursor = next.nextCursor
     }
@@ -183,14 +183,14 @@ export const loadIssues = function loadIssues(
       q = url.searchParams.get('q') ?? ''
     const { page, epics, sprints, sprintDetail, search } = yield* Effect.all(
       {
-        page: view === 'list' ? readDataIssuePage(scope, workspace.id, query) : allPages(scope, workspace.id, query),
+        page: view === 'list' ? readDataIssuePage(workspace.id, query) : allPages(scope, workspace.id, query),
         epics: epicType ? allPages(scope, workspace.id, epicQuery) : Effect.succeed({ items: [] }),
         sprints: project ? readSprints(workspace.id, project.id) : Effect.succeed([]),
         sprintDetail:
           Predicate.isNotNullish(sprintId) && String.isNonEmpty(sprintId)
             ? readSprint(workspace.id, sprintId)
             : Effect.succeed(null),
-        search: q ? searchDataIssues(scope, workspace.id, q, project?.id, review) : Effect.succeed(null),
+        search: q ? searchDataIssues(workspace.id, q, { projectId: project?.id, review }) : Effect.succeed(null),
       },
       { concurrency: CONCURRENCY },
     )
@@ -275,7 +275,7 @@ export const loadIssue = function loadIssue(
       return null
     }
     const workspaceSlug = workspace.slug
-    const issue = yield* readDataIssue(scope, workspace.id, identifier)
+    const issue = yield* readDataIssue(workspace.id, identifier)
     const project = yield* checked(() => requireDataProject(scope, issue.project_id ?? '', workspace.id))
     const detailScope: RequestScope = {
       ...scope,
@@ -283,12 +283,12 @@ export const loadIssue = function loadIssue(
     }
     const { comments, links, attachments, metadata, members, parent, children } = yield* Effect.all(
       {
-        comments: readDataComments(scope, workspace.id, issue.id),
-        links: readDataLinks(scope, workspace.id, issue.id),
-        attachments: readDataAttachments(scope, workspace.id, issue.id),
+        comments: readDataComments(workspace.id, issue.id),
+        links: readDataLinks(workspace.id, issue.id),
+        attachments: readDataAttachments(workspace.id, issue.id),
         metadata: lookups(scope, workspace.id),
         members: readIssueMembers(workspace.id),
-        parent: issue.parent_id ? readDataIssue(scope, workspace.id, issue.parent_id) : Effect.succeed(null),
+        parent: issue.parent_id ? readDataIssue(workspace.id, issue.parent_id) : Effect.succeed(null),
         children:
           issue.type_key === 'epic'
             ? allPages(scope, workspace.id, new URLSearchParams({ parentId: issue.id, limit: '100' }))
