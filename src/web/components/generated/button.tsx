@@ -1,6 +1,7 @@
 import { Button as ButtonPrimitive } from '@base-ui/react/button'
 import { cva } from 'class-variance-authority'
 import type { VariantProps } from 'class-variance-authority'
+import type * as React from 'react'
 
 // Projektor customization: route class merging through the configured app utility alias.
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
@@ -47,6 +48,6 @@ export const Button = function Button({
   variant = 'default',
   size = 'default',
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>): React.JSX.Element {
   return <ButtonPrimitive data-slot='button' className={cn(buttonVariants({ variant, size, className }))} {...props} />
 }

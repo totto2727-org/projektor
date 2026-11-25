@@ -11,7 +11,10 @@ import { Separator } from '@/components/generated/separator'
 import { cn } from '@/lib/utils'
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const FieldSet = function FieldSet({ className, ...props }: React.ComponentProps<'fieldset'>) {
+export const FieldSet = function FieldSet({
+  className,
+  ...props
+}: React.ComponentProps<'fieldset'>): React.JSX.Element {
   return (
     <fieldset
       data-slot='field-set'
@@ -29,7 +32,7 @@ export const FieldLegend = function FieldLegend({
   className,
   variant = 'legend',
   ...props
-}: React.ComponentProps<'legend'> & { variant?: 'legend' | 'label' }) {
+}: React.ComponentProps<'legend'> & { variant?: 'legend' | 'label' }): React.JSX.Element {
   return (
     <legend
       data-slot='field-legend'
@@ -41,7 +44,7 @@ export const FieldLegend = function FieldLegend({
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const FieldGroup = function FieldGroup({ className, ...props }: React.ComponentProps<'div'>) {
+export const FieldGroup = function FieldGroup({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='field-group'
@@ -74,7 +77,7 @@ export const Field = function Field({
   className,
   orientation = 'vertical',
   ...props
-}: React.ComponentProps<'div'> & VariantProps<typeof fieldVariants>) {
+}: React.ComponentProps<'div'> & VariantProps<typeof fieldVariants>): React.JSX.Element {
   return (
     <div
       role='group'
@@ -87,7 +90,10 @@ export const Field = function Field({
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const FieldContent = function FieldContent({ className, ...props }: React.ComponentProps<'div'>) {
+export const FieldContent = function FieldContent({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='field-content'
@@ -98,7 +104,10 @@ export const FieldContent = function FieldContent({ className, ...props }: React
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const FieldLabel = function FieldLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
+export const FieldLabel = function FieldLabel({
+  className,
+  ...props
+}: React.ComponentProps<typeof Label>): React.JSX.Element {
   return (
     <Label
       data-slot='field-label'
@@ -113,7 +122,7 @@ export const FieldLabel = function FieldLabel({ className, ...props }: React.Com
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const FieldTitle = function FieldTitle({ className, ...props }: React.ComponentProps<'div'>) {
+export const FieldTitle = function FieldTitle({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='field-label'
@@ -127,7 +136,10 @@ export const FieldTitle = function FieldTitle({ className, ...props }: React.Com
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const FieldDescription = function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
+export const FieldDescription = function FieldDescription({
+  className,
+  ...props
+}: React.ComponentProps<'p'>): React.JSX.Element {
   return (
     <p
       data-slot='field-description'
@@ -149,7 +161,7 @@ export const FieldSeparator = function FieldSeparator({
   ...props
 }: React.ComponentProps<'div'> & {
   children?: React.ReactNode
-}) {
+}): React.JSX.Element {
   return (
     <div
       data-slot='field-separator'
@@ -178,7 +190,7 @@ export const FieldError = function FieldError({
   ...props
 }: React.ComponentProps<'div'> & {
   errors?: ({ message?: string } | undefined)[]
-}) {
+}): React.JSX.Element | null {
   const content = useMemo(() => {
     if (children) {
       return children

@@ -9,7 +9,11 @@ import type { VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const Tabs = function Tabs({ className, orientation = 'horizontal', ...props }: TabsPrimitive.Root.Props) {
+export const Tabs = function Tabs({
+  className,
+  orientation = 'horizontal',
+  ...props
+}: TabsPrimitive.Root.Props): React.JSX.Element {
   return (
     <TabsPrimitive.Root
       data-slot='tabs'
@@ -40,7 +44,7 @@ export const TabsList = function TabsList({
   className,
   variant = 'default',
   ...props
-}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
+}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>): React.JSX.Element {
   return (
     <TabsPrimitive.List
       data-slot='tabs-list'
@@ -52,7 +56,7 @@ export const TabsList = function TabsList({
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props): React.JSX.Element {
   return (
     <TabsPrimitive.Tab
       data-slot='tabs-trigger'
@@ -69,7 +73,7 @@ export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPri
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const TabsContent = function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+export const TabsContent = function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props): React.JSX.Element {
   return (
     <TabsPrimitive.Panel data-slot='tabs-content' className={cn('flex-1 text-sm outline-none', className)} {...props} />
   )

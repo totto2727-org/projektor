@@ -1,23 +1,27 @@
 'use client'
 
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
+import type * as React from 'react'
 
 // Projektor customization: route class merging through the configured app utility alias.
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const TooltipProvider = function TooltipProvider({ delay = 0, ...props }: TooltipPrimitive.Provider.Props) {
+export const TooltipProvider = function TooltipProvider({
+  delay = 0,
+  ...props
+}: TooltipPrimitive.Provider.Props): React.JSX.Element {
   return <TooltipPrimitive.Provider data-slot='tooltip-provider' delay={delay} {...props} />
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const Tooltip = function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
+export const Tooltip = function Tooltip({ ...props }: TooltipPrimitive.Root.Props): React.JSX.Element {
   return <TooltipPrimitive.Root data-slot='tooltip' {...props} />
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const TooltipTrigger = function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
+export const TooltipTrigger = function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props): React.JSX.Element {
   return <TooltipPrimitive.Trigger data-slot='tooltip-trigger' {...props} />
 }
 
@@ -31,7 +35,7 @@ export const TooltipContent = function TooltipContent({
   children,
   ...props
 }: TooltipPrimitive.Popup.Props &
-  Pick<TooltipPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>) {
+  Pick<TooltipPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>): React.JSX.Element {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner
