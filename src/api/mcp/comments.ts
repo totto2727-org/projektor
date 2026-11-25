@@ -1,10 +1,13 @@
 import { addComment, deleteComment, listComments, updateComment } from '#api/services/comments.ts'
 import { MAX_ISSUE_COMMENT_LENGTH } from '#contracts/issue-limits.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import { requiredObjectInputSchema } from './input-schema.ts'
 import { toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
+
+const MIN_COMMENT_BODY_LENGTH = 1
 
 export const commentsTools: MCPTool[] = [
   {
@@ -22,10 +25,20 @@ export const commentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return addComment(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issueId', 'body'], {
-      issueId: { type: 'string' },
-      body: { type: 'string', minLength: 1, maxLength: MAX_ISSUE_COMMENT_LENGTH },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issueId', 'body'],
+      fieldsInOrder([
+        ['issueId', { type: 'string' }],
+        [
+          'body',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['minLength', MIN_COMMENT_BODY_LENGTH],
+            ['maxLength', MAX_ISSUE_COMMENT_LENGTH],
+          ]),
+        ],
+      ]),
+    ),
     name: 'add_comment',
   },
   {
@@ -34,11 +47,21 @@ export const commentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return updateComment(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issueId', 'commentId', 'body'], {
-      issueId: { type: 'string' },
-      commentId: { type: 'string' },
-      body: { type: 'string', minLength: 1, maxLength: MAX_ISSUE_COMMENT_LENGTH },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issueId', 'commentId', 'body'],
+      fieldsInOrder([
+        ['issueId', { type: 'string' }],
+        ['commentId', { type: 'string' }],
+        [
+          'body',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['minLength', MIN_COMMENT_BODY_LENGTH],
+            ['maxLength', MAX_ISSUE_COMMENT_LENGTH],
+          ]),
+        ],
+      ]),
+    ),
     name: 'update_comment',
   },
   {
@@ -47,10 +70,13 @@ export const commentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return deleteComment(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issueId', 'commentId'], {
-      issueId: { type: 'string' },
-      commentId: { type: 'string' },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issueId', 'commentId'],
+      fieldsInOrder([
+        ['issueId', { type: 'string' }],
+        ['commentId', { type: 'string' }],
+      ]),
+    ),
     name: 'delete_comment',
   },
 ]

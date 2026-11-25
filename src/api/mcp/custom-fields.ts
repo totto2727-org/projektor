@@ -7,6 +7,7 @@ import {
   updateCustomFieldDef,
 } from '#api/services/custom-fields.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -34,25 +35,37 @@ export const customFieldsTools: MCPTool[] = [
     async handler(input, ctx) {
       return createCustomFieldDef(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['key', 'label', 'type'], {
-      key: describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)'),
-      label: describedInputProperty('string', 'Human-readable label'),
-      type: {
-        type: 'string',
-        enum: ['text', 'number', 'select', 'date', 'user'],
-        description: 'Field type',
-      },
-      options: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Allowed options (required for select type)',
-      },
-      projectId: {
-        type: 'string',
-        nullable: true,
-        description: 'Scope to a specific project (null = workspace-wide)',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['key', 'label', 'type'],
+      fieldsInOrder([
+        ['key', describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)')],
+        ['label', describedInputProperty('string', 'Human-readable label')],
+        [
+          'type',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['text', 'number', 'select', 'date', 'user']],
+            ['description', 'Field type'],
+          ]),
+        ],
+        [
+          'options',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', { type: 'string' }],
+            ['description', 'Allowed options (required for select type)'],
+          ]),
+        ],
+        [
+          'projectId',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+            ['description', 'Scope to a specific project (null = workspace-wide)'],
+          ]),
+        ],
+      ]),
+    ),
     name: 'create_custom_field_def',
   },
   {
@@ -68,7 +81,11 @@ export const customFieldsTools: MCPTool[] = [
     inputSchema: requiredObjectInputSchema(['id'], {
       id: { type: 'string' },
       label: { type: 'string' },
-      options: { type: 'array', items: { type: 'string' }, nullable: true },
+      options: fieldsInOrder([
+        ['type', 'array'],
+        ['items', { type: 'string' }],
+        ['nullable', true],
+      ]),
     }),
     name: 'update_custom_field_def',
   },

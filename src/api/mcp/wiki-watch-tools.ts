@@ -2,11 +2,16 @@ import { Predicate } from 'effect'
 
 import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
+
+const DEFAULT_WIKI_NOTIFICATIONS_LIMIT = 50
+const DEFAULT_WIKI_NOTIFICATIONS_OFFSET = 0
+const DEFAULT_WIKI_CHANGES_LIMIT = 100
 
 export const wikiWatchTools: MCPTool[] = [
   {
@@ -26,11 +31,11 @@ export const wikiWatchTools: MCPTool[] = [
     },
     inputSchema: requiredObjectInputSchema(['slug'], {
       slug: describedInputProperty('string', 'Page ID or slug'),
-      subtree: {
-        type: 'boolean',
-        default: false,
-        description: "Also watch this page's current and future descendant pages",
-      },
+      subtree: fieldsInOrder([
+        ['type', 'boolean'],
+        ['default', false],
+        ['description', "Also watch this page's current and future descendant pages"],
+      ]),
     }),
     name: 'watch_wiki_page',
   },
@@ -63,11 +68,31 @@ export const wikiWatchTools: MCPTool[] = [
     async handler(input, ctx) {
       return wikiWatchersService.listWikiNotifications(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      unreadOnly: { type: 'boolean', default: false },
-      limit: { type: 'number', default: 50 },
-      offset: { type: 'number', default: 0 },
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        [
+          'unreadOnly',
+          fieldsInOrder([
+            ['type', 'boolean'],
+            ['default', false],
+          ]),
+        ],
+        [
+          'limit',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_NOTIFICATIONS_LIMIT],
+          ]),
+        ],
+        [
+          'offset',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_NOTIFICATIONS_OFFSET],
+          ]),
+        ],
+      ]),
+    ),
     name: 'list_wiki_notifications',
   },
   {
@@ -76,18 +101,26 @@ export const wikiWatchTools: MCPTool[] = [
     async handler(input, ctx) {
       return wikiWatchersService.markWikiNotificationsRead(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      ids: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Notification IDs to mark read',
-      },
-      all: {
-        type: 'boolean',
-        default: false,
-        description: "Mark all of the caller's notifications read",
-      },
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        [
+          'ids',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', { type: 'string' }],
+            ['description', 'Notification IDs to mark read'],
+          ]),
+        ],
+        [
+          'all',
+          fieldsInOrder([
+            ['type', 'boolean'],
+            ['default', false],
+            ['description', "Mark all of the caller's notifications read"],
+          ]),
+        ],
+      ]),
+    ),
     name: 'mark_wiki_notifications_read',
   },
   {
@@ -126,17 +159,28 @@ export const wikiWatchTools: MCPTool[] = [
         canCutAt: (kept) => events[kept - 1].createdAt !== events[kept]?.createdAt,
       })
     },
-    inputSchema: objectInputSchema({
-      since: describedInputProperty('number', 'Unix seconds; only changes strictly after this are returned'),
-      cursor: describedInputProperty('string', "Pass the previous page's `next` unchanged (replaces `since`)"),
-      limit: { type: 'number', default: 100 },
-      projectId: describedInputProperty('string', 'Restrict to changes on pages in this project'),
-      watchedOnly: {
-        type: 'boolean',
-        default: false,
-        description: 'Restrict to pages the caller is watching (directly or via subtree)',
-      },
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['since', describedInputProperty('number', 'Unix seconds; only changes strictly after this are returned')],
+        ['cursor', describedInputProperty('string', "Pass the previous page's `next` unchanged (replaces `since`)")],
+        [
+          'limit',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_CHANGES_LIMIT],
+          ]),
+        ],
+        ['projectId', describedInputProperty('string', 'Restrict to changes on pages in this project')],
+        [
+          'watchedOnly',
+          fieldsInOrder([
+            ['type', 'boolean'],
+            ['default', false],
+            ['description', 'Restrict to pages the caller is watching (directly or via subtree)'],
+          ]),
+        ],
+      ]),
+    ),
     name: 'list_wiki_changes',
   },
 ]

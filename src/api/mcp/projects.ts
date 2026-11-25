@@ -1,4 +1,5 @@
 import { createProject, deleteProject, getProject, listProjects, updateProject } from '#api/services/projects.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -23,11 +24,14 @@ export const projectsTools: MCPTool[] = [
     async handler(input, ctx) {
       return await createProject(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['name', 'key'], {
-      name: describedInputProperty('string', 'Project name, max 100 characters'),
-      key: describedInputProperty('string', 'Short uppercase identifier, e.g. PROJ (max 10 chars, A-Z0-9)'),
-      description: describedInputProperty('string', 'Optional description, max 500 characters'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['name', 'key'],
+      fieldsInOrder([
+        ['name', describedInputProperty('string', 'Project name, max 100 characters')],
+        ['key', describedInputProperty('string', 'Short uppercase identifier, e.g. PROJ (max 10 chars, A-Z0-9)')],
+        ['description', describedInputProperty('string', 'Optional description, max 500 characters')],
+      ]),
+    ),
     name: 'create_project',
   },
   {
@@ -48,12 +52,15 @@ export const projectsTools: MCPTool[] = [
       const { id, ...fields } = input as { id: string; [k: string]: unknown }
       return updateProject(ctx, id, fields)
     },
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: describedInputProperty('string', 'Project ID'),
-      name: describedInputProperty('string', 'New project name'),
-      description: describedInputProperty('string', 'New description'),
-      archived: describedInputProperty('boolean', 'Archive (true) or unarchive (false)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['id'],
+      fieldsInOrder([
+        ['id', describedInputProperty('string', 'Project ID')],
+        ['name', describedInputProperty('string', 'New project name')],
+        ['description', describedInputProperty('string', 'New description')],
+        ['archived', describedInputProperty('boolean', 'Archive (true) or unarchive (false)')],
+      ]),
+    ),
     name: 'update_project',
   },
   {

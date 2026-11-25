@@ -1,4 +1,5 @@
 import { getCodeHeatmap } from '#api/services/code-heatmap.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { READ } from './annotations.ts'
 import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -20,20 +21,28 @@ export const codeHeatmapTools: MCPTool[] = [
     async handler(input, ctx) {
       return getCodeHeatmap(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: describedInputProperty('string', 'Project UUID'),
-      since: describedInputProperty('number', 'Only claims claimed at/after this epoch-seconds time'),
-      until: describedInputProperty('number', 'Only claims claimed at/before this epoch-seconds time'),
-      prefix: describedInputProperty('string', 'Directory path to drill into; omit for the top-level segments'),
-      mode: {
-        type: 'string',
-        enum: ['claims', 'contention'],
-        description:
-          '"claims" (default) sizes by file-claim volume; "contention" sizes by ' +
-          'claim_conflicts — rejected/overridden claimFiles attempts, i.e. where the fleet ' +
-          'queued up.',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['projectId'],
+      fieldsInOrder([
+        ['projectId', describedInputProperty('string', 'Project UUID')],
+        ['since', describedInputProperty('number', 'Only claims claimed at/after this epoch-seconds time')],
+        ['until', describedInputProperty('number', 'Only claims claimed at/before this epoch-seconds time')],
+        ['prefix', describedInputProperty('string', 'Directory path to drill into; omit for the top-level segments')],
+        [
+          'mode',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['claims', 'contention']],
+            [
+              'description',
+              '"claims" (default) sizes by file-claim volume; "contention" sizes by ' +
+                'claim_conflicts — rejected/overridden claimFiles attempts, i.e. where the fleet ' +
+                'queued up.',
+            ],
+          ]),
+        ],
+      ]),
+    ),
     name: 'get_code_heatmap',
   },
 ]

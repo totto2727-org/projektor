@@ -1,9 +1,13 @@
 import * as wikiDraftsService from '#api/services/wiki-drafts.ts'
 import * as wikiService from '#api/services/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { DESTRUCTIVE, PLAIN_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
+
+const DEFAULT_WIKI_TRASH_LIMIT = 50
+const DEFAULT_WIKI_TRASH_OFFSET = 0
 
 export const wikiLifecycleTools: MCPTool[] = [
   {
@@ -35,17 +39,25 @@ export const wikiLifecycleTools: MCPTool[] = [
       const { slug, ...rest } = input as { slug: string; title: string; content: string }
       return wikiDraftsService.saveWikiDraft(ctx, slug, rest)
     },
-    inputSchema: requiredObjectInputSchema(['slug', 'title', 'content'], {
-      slug: describedInputProperty('string', 'Page ID or slug'),
-      title: { type: 'string' },
-      content: { type: 'string' },
-      baseRevisionId: {
-        type: 'string',
-        nullable: true,
-        description:
-          "The page's latest revision id when this draft was started; null if the " + 'page had no revisions yet',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['slug', 'title', 'content'],
+      fieldsInOrder([
+        ['slug', describedInputProperty('string', 'Page ID or slug')],
+        ['title', { type: 'string' }],
+        ['content', { type: 'string' }],
+        [
+          'baseRevisionId',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+            [
+              'description',
+              "The page's latest revision id when this draft was started; null if the " + 'page had no revisions yet',
+            ],
+          ]),
+        ],
+      ]),
+    ),
     name: 'save_wiki_draft',
   },
   {
@@ -72,11 +84,25 @@ export const wikiLifecycleTools: MCPTool[] = [
     async handler(input, ctx) {
       return wikiService.listWikiTrash(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      projectId: describedInputProperty('string', 'Restrict to trashed pages belonging to this project ID'),
-      limit: { type: 'number', default: 50 },
-      offset: { type: 'number', default: 0 },
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['projectId', describedInputProperty('string', 'Restrict to trashed pages belonging to this project ID')],
+        [
+          'limit',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_TRASH_LIMIT],
+          ]),
+        ],
+        [
+          'offset',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_TRASH_OFFSET],
+          ]),
+        ],
+      ]),
+    ),
     name: 'list_wiki_trash',
   },
   {

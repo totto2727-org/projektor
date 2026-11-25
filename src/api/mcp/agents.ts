@@ -9,6 +9,7 @@ import {
   startWork,
 } from '#api/services/agents.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -29,6 +30,12 @@ const withIdAlias = function withIdAlias(input: unknown): unknown {
   return rest
 }
 
+const COMPLETION_REPORT_PROPERTIES = fieldsInOrder([
+  ['summary', { type: 'string' }],
+  ['verification', { type: 'string' }],
+  ['prLink', { type: 'string' }],
+])
+
 export const agentsTools: MCPTool[] = [
   {
     annotations: PLAIN_WRITE,
@@ -41,15 +48,21 @@ export const agentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return startWork(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issue', 'name'], {
-      issue: describedInputProperty('string', 'Issue UUID to claim'),
-      paths: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'File paths to claim alongside the issue (optional)',
-      },
-      name: describedInputProperty('string', 'Display name for the agent session (max 200)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issue', 'name'],
+      fieldsInOrder([
+        ['issue', describedInputProperty('string', 'Issue UUID to claim')],
+        [
+          'paths',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', { type: 'string' }],
+            ['description', 'File paths to claim alongside the issue (optional)'],
+          ]),
+        ],
+        ['name', describedInputProperty('string', 'Display name for the agent session (max 200)')],
+      ]),
+    ),
     name: 'start_work',
   },
   {
@@ -61,21 +74,25 @@ export const agentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return finishWork(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['sessionId', 'issue'], {
-      sessionId: describedInputProperty('string', 'Agent session UUID to end'),
-      issue: describedInputProperty('string', 'Issue UUID to optionally transition'),
-      status: describedInputProperty('string', 'New status for the issue (optional)'),
-      completionReport: {
-        type: 'object',
-        description:
-          'Completion report, required by the review gate in the same cases update_issue requires it (optional)',
-        properties: {
-          summary: { type: 'string' },
-          verification: { type: 'string' },
-          prLink: { type: 'string' },
-        },
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['sessionId', 'issue'],
+      fieldsInOrder([
+        ['sessionId', describedInputProperty('string', 'Agent session UUID to end')],
+        ['issue', describedInputProperty('string', 'Issue UUID to optionally transition')],
+        ['status', describedInputProperty('string', 'New status for the issue (optional)')],
+        [
+          'completionReport',
+          fieldsInOrder([
+            ['type', 'object'],
+            [
+              'description',
+              'Completion report, required by the review gate in the same cases update_issue requires it (optional)',
+            ],
+            ['properties', COMPLETION_REPORT_PROPERTIES],
+          ]),
+        ],
+      ]),
+    ),
     name: 'finish_work',
   },
   {
@@ -84,16 +101,24 @@ export const agentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return registerAgent(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['name'], {
-      name: describedInputProperty('string', 'Display name for the agent session (max 200)'),
-      issueId: describedInputProperty('string', 'Issue UUID to link this session to (optional)'),
-      kind: {
-        type: 'string',
-        enum: ['agent', 'human'],
-        description:
-          'Deprecated, ignored (PROJ-336): self-declared session kind drives no behavior and is not returned.',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['name'],
+      fieldsInOrder([
+        ['name', describedInputProperty('string', 'Display name for the agent session (max 200)')],
+        ['issueId', describedInputProperty('string', 'Issue UUID to link this session to (optional)')],
+        [
+          'kind',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['agent', 'human']],
+            [
+              'description',
+              'Deprecated, ignored (PROJ-336): self-declared session kind drives no behavior and is not returned.',
+            ],
+          ]),
+        ],
+      ]),
+    ),
     name: 'register_agent',
   },
   {
@@ -102,13 +127,18 @@ export const agentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return heartbeatAgent(ctx, withIdAlias(input))
     },
-    inputSchema: objectInputSchema({
-      id: describedInputProperty(
-        'string',
-        'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
-      ),
-      agentId: describedInputProperty('string', 'Alias for `id` (the name claim_issue uses)'),
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        [
+          'id',
+          describedInputProperty(
+            'string',
+            'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
+          ),
+        ],
+        ['agentId', describedInputProperty('string', 'Alias for `id` (the name claim_issue uses)')],
+      ]),
+    ),
     name: 'heartbeat_agent',
   },
   {
@@ -117,13 +147,18 @@ export const agentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return endAgent(ctx, withIdAlias(input))
     },
-    inputSchema: objectInputSchema({
-      id: describedInputProperty(
-        'string',
-        'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
-      ),
-      agentId: describedInputProperty('string', 'Alias for `id` (the name claim_issue uses)'),
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        [
+          'id',
+          describedInputProperty(
+            'string',
+            'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
+          ),
+        ],
+        ['agentId', describedInputProperty('string', 'Alias for `id` (the name claim_issue uses)')],
+      ]),
+    ),
     name: 'end_agent',
   },
   {
@@ -137,18 +172,26 @@ export const agentsTools: MCPTool[] = [
     async handler(input, ctx) {
       return listActiveAgents(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      issueId: describedInputProperty('string', 'Filter by issue UUID (optional)'),
-      projectId: describedInputProperty(
-        'string',
-        'Filter to sessions linked to an issue in this project — UUID or project key. ' +
-          'A session with no issue link is excluded when this is given (optional)',
-      ),
-      includeStale: describedInputProperty(
-        'boolean',
-        'Include active sessions that have stopped heartbeating (default: false — live entries only). Never includes ended sessions.',
-      ),
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['issueId', describedInputProperty('string', 'Filter by issue UUID (optional)')],
+        [
+          'projectId',
+          describedInputProperty(
+            'string',
+            'Filter to sessions linked to an issue in this project — UUID or project key. ' +
+              'A session with no issue link is excluded when this is given (optional)',
+          ),
+        ],
+        [
+          'includeStale',
+          describedInputProperty(
+            'boolean',
+            'Include active sessions that have stopped heartbeating (default: false — live entries only). Never includes ended sessions.',
+          ),
+        ],
+      ]),
+    ),
     name: 'list_active_agents',
   },
 ]

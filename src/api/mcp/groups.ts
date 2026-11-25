@@ -10,6 +10,7 @@ import {
   setGroupGrant,
   updateGroup,
 } from '#api/services/groups.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -53,10 +54,13 @@ export const groupsTools: MCPTool[] = [
     async handler(input, ctx) {
       return await createGroup(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['name'], {
-      name: describedInputProperty('string', 'Group name, unique per workspace (max 100)'),
-      description: describedInputProperty('string', 'Optional description (max 500)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['name'],
+      fieldsInOrder([
+        ['name', describedInputProperty('string', 'Group name, unique per workspace (max 100)')],
+        ['description', describedInputProperty('string', 'Optional description (max 500)')],
+      ]),
+    ),
     name: 'create_group',
   },
   {
@@ -66,11 +70,14 @@ export const groupsTools: MCPTool[] = [
       const { id, ...fields } = input as { id: string; [k: string]: unknown }
       return updateGroup(ctx, id, fields)
     },
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: describedInputProperty('string', 'Group ID'),
-      name: describedInputProperty('string', 'New group name'),
-      description: describedInputProperty('string', 'New description'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['id'],
+      fieldsInOrder([
+        ['id', describedInputProperty('string', 'Group ID')],
+        ['name', describedInputProperty('string', 'New group name')],
+        ['description', describedInputProperty('string', 'New description')],
+      ]),
+    ),
     name: 'update_group',
   },
   {
@@ -120,11 +127,11 @@ export const groupsTools: MCPTool[] = [
     inputSchema: requiredObjectInputSchema(['groupId', 'projectId', 'role'], {
       groupId: describedInputProperty('string', 'Group ID'),
       projectId: describedInputProperty('string', 'Project ID'),
-      role: {
-        type: 'string',
-        enum: ['viewer', 'member', 'admin'],
-        description: 'Role members of this group get inside the project',
-      },
+      role: fieldsInOrder([
+        ['type', 'string'],
+        ['enum', ['viewer', 'member', 'admin']],
+        ['description', 'Role members of this group get inside the project'],
+      ]),
     }),
     name: 'set_group_grant',
   },

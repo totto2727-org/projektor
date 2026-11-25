@@ -17,7 +17,7 @@ import { ValidationError } from '#contracts/errors.ts'
 import { DeleteWorkspaceInput } from '#contracts/inputs/workspaces.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import { fieldsInOrder, objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool, PluginContext } from './types.ts'
 
 const currentWorkspace = async function currentWorkspace(ctx: PluginContext) {
@@ -46,10 +46,13 @@ export const workspacesTools: MCPTool[] = [
     async handler(input, ctx) {
       return apiReply(ApiResults.apiCreateWorkspace, ctx.core.apiCreateWorkspace(ctx.actor, input))
     },
-    inputSchema: requiredObjectInputSchema(['slug', 'name'], {
-      slug: describedInputProperty('string', 'URL-safe identifier for the workspace (e.g. "my-team")'),
-      name: describedInputProperty('string', 'Human-readable display name for the workspace'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['slug', 'name'],
+      fieldsInOrder([
+        ['slug', describedInputProperty('string', 'URL-safe identifier for the workspace (e.g. "my-team")')],
+        ['name', describedInputProperty('string', 'Human-readable display name for the workspace')],
+      ]),
+    ),
     name: 'create_workspace',
   },
   {
@@ -108,11 +111,11 @@ export const workspacesTools: MCPTool[] = [
     },
     inputSchema: requiredObjectInputSchema(['email', 'role'], {
       email: describedInputProperty('string', 'Email address of the user to invite'),
-      role: {
-        type: 'string',
-        enum: ['owner', 'admin', 'member', 'viewer'],
-        description: 'Role to assign to the invited user',
-      },
+      role: fieldsInOrder([
+        ['type', 'string'],
+        ['enum', ['owner', 'admin', 'member', 'viewer']],
+        ['description', 'Role to assign to the invited user'],
+      ]),
     }),
     name: 'invite_member',
   },
@@ -135,14 +138,20 @@ export const workspacesTools: MCPTool[] = [
       const { userId, role } = input as { userId: string; role: string }
       return updateMemberRole(ctx, userId, { role })
     },
-    inputSchema: requiredObjectInputSchema(['userId', 'role'], {
-      userId: describedInputProperty('string', 'ID of the user whose role to change'),
-      role: {
-        type: 'string',
-        enum: ['owner', 'admin', 'member', 'viewer'],
-        description: 'New role to assign',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['userId', 'role'],
+      fieldsInOrder([
+        ['userId', describedInputProperty('string', 'ID of the user whose role to change')],
+        [
+          'role',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['owner', 'admin', 'member', 'viewer']],
+            ['description', 'New role to assign'],
+          ]),
+        ],
+      ]),
+    ),
     name: 'update_member_role',
   },
   {
@@ -162,22 +171,45 @@ export const workspacesTools: MCPTool[] = [
     async handler(input, ctx) {
       return updateWorkspaceBrand(ctx, await currentWorkspaceSlug(ctx), input)
     },
-    inputSchema: objectInputSchema({
-      displayName: { type: ['string', 'null'], description: 'Workspace display name override' },
-      accent: {
-        type: ['string', 'null'],
-        description: 'Accent color as a hex string, e.g. #ff8800',
-      },
-      onAccent: {
-        type: ['string', 'null'],
-        description: 'Text/icon color to use on top of the accent color, as a hex string',
-      },
-      fontFamily: { type: ['string', 'null'], description: 'CSS font-family override' },
-      fontUrl: {
-        type: ['string', 'null'],
-        description: 'URL of a stylesheet defining fontFamily',
-      },
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        [
+          'displayName',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            ['description', 'Workspace display name override'],
+          ]),
+        ],
+        [
+          'accent',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            ['description', 'Accent color as a hex string, e.g. #ff8800'],
+          ]),
+        ],
+        [
+          'onAccent',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            ['description', 'Text/icon color to use on top of the accent color, as a hex string'],
+          ]),
+        ],
+        [
+          'fontFamily',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            ['description', 'CSS font-family override'],
+          ]),
+        ],
+        [
+          'fontUrl',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            ['description', 'URL of a stylesheet defining fontFamily'],
+          ]),
+        ],
+      ]),
+    ),
     name: 'update_workspace_brand',
   },
 ]

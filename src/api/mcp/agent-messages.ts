@@ -1,4 +1,5 @@
 import { listMessages, postMessage } from '#api/services/agent-messages.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -11,14 +12,20 @@ export const agentMessagesTools: MCPTool[] = [
     async handler(input, ctx) {
       return postMessage(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['scope', 'body'], {
-      scope: describedInputProperty(
-        'string',
-        'Channel scope: "workspace" for the workspace-wide channel, or "issue:<uuid>" for an issue channel',
-      ),
-      agentId: describedInputProperty('string', 'Agent session UUID posting the message (optional)'),
-      body: describedInputProperty('string', 'Message body (1–5000 characters)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['scope', 'body'],
+      fieldsInOrder([
+        [
+          'scope',
+          describedInputProperty(
+            'string',
+            'Channel scope: "workspace" for the workspace-wide channel, or "issue:<uuid>" for an issue channel',
+          ),
+        ],
+        ['agentId', describedInputProperty('string', 'Agent session UUID posting the message (optional)')],
+        ['body', describedInputProperty('string', 'Message body (1–5000 characters)')],
+      ]),
+    ),
     name: 'post_message',
   },
   {
@@ -27,11 +34,17 @@ export const agentMessagesTools: MCPTool[] = [
     async handler(input, ctx) {
       return listMessages(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['scope'], {
-      scope: describedInputProperty('string', 'Channel scope: "workspace" or "issue:<uuid>"'),
-      cursor: describedInputProperty('string', "Pagination cursor: pass the previous page's `nextCursor` unchanged"),
-      limit: describedInputProperty('number', 'Max messages to return (1–100, default 50)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['scope'],
+      fieldsInOrder([
+        ['scope', describedInputProperty('string', 'Channel scope: "workspace" or "issue:<uuid>"')],
+        [
+          'cursor',
+          describedInputProperty('string', "Pagination cursor: pass the previous page's `nextCursor` unchanged"),
+        ],
+        ['limit', describedInputProperty('number', 'Max messages to return (1–100, default 50)')],
+      ]),
+    ),
     name: 'list_messages',
   },
 ]

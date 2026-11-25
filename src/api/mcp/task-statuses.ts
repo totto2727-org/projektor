@@ -2,6 +2,7 @@ import { String, Predicate } from 'effect'
 
 import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '#api/services/task-statuses.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -23,22 +24,31 @@ export const taskStatusesTools: MCPTool[] = [
     async handler(input, ctx) {
       return createTaskStatus(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['key', 'name', 'category'], {
-      key: describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)'),
-      name: describedInputProperty('string', 'Display name'),
-      category: {
-        type: 'string',
-        enum: ['todo', 'in_progress', 'done', 'cancelled'],
-        description: 'Workflow bucket',
-      },
-      color: describedInputProperty('string', 'Optional color (hex or named)'),
-      position: describedInputProperty('number', 'Sort order position'),
-      isDefault: describedInputProperty('boolean', 'Set as the default status for new issues'),
-      isReviewStep: describedInputProperty(
-        'boolean',
-        'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
-      ),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['key', 'name', 'category'],
+      fieldsInOrder([
+        ['key', describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)')],
+        ['name', describedInputProperty('string', 'Display name')],
+        [
+          'category',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['todo', 'in_progress', 'done', 'cancelled']],
+            ['description', 'Workflow bucket'],
+          ]),
+        ],
+        ['color', describedInputProperty('string', 'Optional color (hex or named)')],
+        ['position', describedInputProperty('number', 'Sort order position')],
+        ['isDefault', describedInputProperty('boolean', 'Set as the default status for new issues')],
+        [
+          'isReviewStep',
+          describedInputProperty(
+            'boolean',
+            'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
+          ),
+        ],
+      ]),
+    ),
     name: 'create_task_status',
   },
   {
@@ -51,18 +61,36 @@ export const taskStatusesTools: MCPTool[] = [
       }
       return updateTaskStatus(ctx, id, fields)
     },
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string' },
-      name: { type: 'string' },
-      category: { type: 'string', enum: ['todo', 'in_progress', 'done', 'cancelled'] },
-      color: { type: 'string', nullable: true },
-      position: { type: 'number' },
-      isDefault: describedInputProperty('boolean', 'Set as the default status for new issues'),
-      isReviewStep: describedInputProperty(
-        'boolean',
-        'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
-      ),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['id'],
+      fieldsInOrder([
+        ['id', { type: 'string' }],
+        ['name', { type: 'string' }],
+        [
+          'category',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['todo', 'in_progress', 'done', 'cancelled']],
+          ]),
+        ],
+        [
+          'color',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+          ]),
+        ],
+        ['position', { type: 'number' }],
+        ['isDefault', describedInputProperty('boolean', 'Set as the default status for new issues')],
+        [
+          'isReviewStep',
+          describedInputProperty(
+            'boolean',
+            'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
+          ),
+        ],
+      ]),
+    ),
     name: 'update_task_status',
   },
   {

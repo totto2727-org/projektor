@@ -2,6 +2,7 @@ import { String, Predicate } from 'effect'
 
 import { createLink, deleteLink, listLinksForIssue } from '#api/services/issue-links.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, READ } from './annotations.ts'
 import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -17,11 +18,11 @@ export const issueLinksTools: MCPTool[] = [
     inputSchema: requiredObjectInputSchema(['sourceIssueId', 'targetIssueId', 'type'], {
       sourceIssueId: describedInputProperty('string', 'UUID of the source issue, or a ref like PROJ-42'),
       targetIssueId: describedInputProperty('string', 'UUID of the target issue, or a ref like PROJ-42'),
-      type: {
-        type: 'string',
-        enum: ['blocks', 'blocked_by', 'relates_to', 'duplicates'],
-        description: "Relationship type from the source issue's perspective",
-      },
+      type: fieldsInOrder([
+        ['type', 'string'],
+        ['enum', ['blocks', 'blocked_by', 'relates_to', 'duplicates']],
+        ['description', "Relationship type from the source issue's perspective"],
+      ]),
     }),
     name: 'create_issue_link',
   },

@@ -1,4 +1,5 @@
 import { getFlowMetrics } from '#api/services/flow-metrics.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { READ } from './annotations.ts'
 import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -22,16 +23,22 @@ export const flowMetricsTools: MCPTool[] = [
     async handler(input, ctx) {
       return getFlowMetrics(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: describedInputProperty('string', 'Project UUID'),
-      since: describedInputProperty('number', 'Only issues completed/active at/after this epoch-seconds time'),
-      until: describedInputProperty('number', 'Only issues completed/active at/before this epoch-seconds time'),
-      granularity: {
-        type: 'string',
-        enum: ['day', 'week'],
-        description: "Throughput bucket granularity, 'day' or 'week' (default 'week')",
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['projectId'],
+      fieldsInOrder([
+        ['projectId', describedInputProperty('string', 'Project UUID')],
+        ['since', describedInputProperty('number', 'Only issues completed/active at/after this epoch-seconds time')],
+        ['until', describedInputProperty('number', 'Only issues completed/active at/before this epoch-seconds time')],
+        [
+          'granularity',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['day', 'week']],
+            ['description', "Throughput bucket granularity, 'day' or 'week' (default 'week')"],
+          ]),
+        ],
+      ]),
+    ),
     name: 'get_flow_metrics',
   },
 ]

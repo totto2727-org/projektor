@@ -1,4 +1,5 @@
 import { claimIssue, listIssueLeases, releaseIssue } from '#api/services/issue-leases.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -13,13 +14,19 @@ export const issueLeasesTools: MCPTool[] = [
     async handler(input, ctx) {
       return claimIssue(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issueId'], {
-      issueId: describedInputProperty('string', 'Issue UUID to lease'),
-      agentId: describedInputProperty(
-        'string',
-        'Agent session UUID acquiring the lease (must be live). Optional when this credential has exactly one live session; fleets sharing a credential must pass it',
-      ),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issueId'],
+      fieldsInOrder([
+        ['issueId', describedInputProperty('string', 'Issue UUID to lease')],
+        [
+          'agentId',
+          describedInputProperty(
+            'string',
+            'Agent session UUID acquiring the lease (must be live). Optional when this credential has exactly one live session; fleets sharing a credential must pass it',
+          ),
+        ],
+      ]),
+    ),
     name: 'claim_issue',
   },
   {
@@ -28,10 +35,16 @@ export const issueLeasesTools: MCPTool[] = [
     async handler(input, ctx) {
       return releaseIssue(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issueId'], {
-      issueId: describedInputProperty('string', 'Issue UUID to release'),
-      agentId: describedInputProperty('string', 'Only release if the lease is held by this agent session (optional)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issueId'],
+      fieldsInOrder([
+        ['issueId', describedInputProperty('string', 'Issue UUID to release')],
+        [
+          'agentId',
+          describedInputProperty('string', 'Only release if the lease is held by this agent session (optional)'),
+        ],
+      ]),
+    ),
     name: 'release_issue',
   },
   {
@@ -45,18 +58,26 @@ export const issueLeasesTools: MCPTool[] = [
     async handler(input, ctx) {
       return listIssueLeases(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      issueId: describedInputProperty('string', 'Filter to leases on this issue (optional)'),
-      agentId: describedInputProperty('string', 'Filter to leases held by this agent (optional)'),
-      projectId: describedInputProperty(
-        'string',
-        'Filter to leases on issues in this project — UUID or project key (optional)',
-      ),
-      includeStale: describedInputProperty(
-        'boolean',
-        'Include leases whose agent session has ended or gone stale (default: false — live entries only)',
-      ),
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['issueId', describedInputProperty('string', 'Filter to leases on this issue (optional)')],
+        ['agentId', describedInputProperty('string', 'Filter to leases held by this agent (optional)')],
+        [
+          'projectId',
+          describedInputProperty(
+            'string',
+            'Filter to leases on issues in this project — UUID or project key (optional)',
+          ),
+        ],
+        [
+          'includeStale',
+          describedInputProperty(
+            'boolean',
+            'Include leases whose agent session has ended or gone stale (default: false — live entries only)',
+          ),
+        ],
+      ]),
+    ),
     name: 'list_issue_leases',
   },
 ]

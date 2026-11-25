@@ -5,6 +5,7 @@ import {
   listAttachments,
   setAttachmentReviewStatus,
 } from '#api/services/files.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { REVIEW_STATUSES } from '#contracts/review-targets.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
@@ -25,11 +26,20 @@ export const filesTools: MCPTool[] = [
     async handler(input, ctx) {
       return await setAttachmentReviewStatus(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issueId', 'attachmentId', 'status'], {
-      issueId: { type: 'string' },
-      attachmentId: { type: 'string' },
-      status: { type: ['string', 'null'], enum: [...REVIEW_STATUSES, null] },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issueId', 'attachmentId', 'status'],
+      fieldsInOrder([
+        ['issueId', { type: 'string' }],
+        ['attachmentId', { type: 'string' }],
+        [
+          'status',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            ['enum', [...REVIEW_STATUSES, null]],
+          ]),
+        ],
+      ]),
+    ),
     name: 'set_attachment_review_status',
   },
   {
@@ -38,10 +48,19 @@ export const filesTools: MCPTool[] = [
     async handler(input, ctx) {
       return listAttachments(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['entityType', 'entityId'], {
-      entityType: { type: 'string', enum: ['issue', 'wiki_page'] },
-      entityId: { type: 'string' },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['entityType', 'entityId'],
+      fieldsInOrder([
+        [
+          'entityType',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['issue', 'wiki_page']],
+          ]),
+        ],
+        ['entityId', { type: 'string' }],
+      ]),
+    ),
     name: 'list_attachments',
   },
   {
@@ -61,14 +80,29 @@ export const filesTools: MCPTool[] = [
     async handler(input, ctx) {
       return await createLinkAttachment(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['kind', 'entityType', 'entityId'], {
-      kind: { type: 'string', enum: ['wiki_ref', 'url'] },
-      entityType: { type: 'string', enum: ['issue', 'wiki_page'] },
-      entityId: { type: 'string' },
-      wikiPageId: describedInputProperty('string', "Required when kind is 'wiki_ref'"),
-      url: describedInputProperty('string', "Required when kind is 'url'"),
-      label: describedInputProperty('string', "Optional display label when kind is 'url'"),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['kind', 'entityType', 'entityId'],
+      fieldsInOrder([
+        [
+          'kind',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['wiki_ref', 'url']],
+          ]),
+        ],
+        [
+          'entityType',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['issue', 'wiki_page']],
+          ]),
+        ],
+        ['entityId', { type: 'string' }],
+        ['wikiPageId', describedInputProperty('string', "Required when kind is 'wiki_ref'")],
+        ['url', describedInputProperty('string', "Required when kind is 'url'")],
+        ['label', describedInputProperty('string', "Optional display label when kind is 'url'")],
+      ]),
+    ),
     name: 'create_link_attachment',
   },
   {

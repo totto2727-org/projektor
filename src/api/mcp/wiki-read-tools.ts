@@ -5,11 +5,14 @@ import { ValidationError, validationIssues } from '#contracts/errors.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import { fieldsInOrder, objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { TYPE_FILTER_DESCRIPTION, INCLUDE_WORKSPACE_PAGES_PROPERTY } from './wiki-tool-fields.ts'
 import { outlineOf, sectionOf, WIKI_DEFAULT_MAX_CHARS, WIKI_MAX_CHARS, windowText } from './windowing.ts'
+
+const DEFAULT_WIKI_SEARCH_LIMIT = 10
+const DEFAULT_WIKI_SEARCH_OFFSET = 0
 
 export const wikiReadTools: MCPTool[] = [
   {
@@ -20,30 +23,45 @@ export const wikiReadTools: MCPTool[] = [
     async handler(input, ctx) {
       return wikiService.listWikiPages(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      parentId: describedInputProperty('string', 'Filter to children of this page ID'),
-      projectId: describedInputProperty('string', 'Filter to pages belonging to this project ID'),
-      type: describedInputProperty('string', TYPE_FILTER_DESCRIPTION),
-      status: {
-        type: 'string',
-        enum: ['draft', 'current', 'stale', 'deprecated'],
-        description: 'Filter to pages whose frontmatter `status` matches',
-      },
-      tags: {
-        type: ['array', 'string'],
-        items: { type: 'string' },
-        description:
-          'Filter to pages carrying at least one of these frontmatter tags (array, or a comma-separated string)',
-      },
-      includeTemplates: {
-        type: 'boolean',
-        default: false,
-        description:
-          'Include template pages in the results (default false, matching search_wiki/' +
-          'list_stale_pages). Use list_wiki_templates for the template-picker use case instead.',
-      },
-      includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['parentId', describedInputProperty('string', 'Filter to children of this page ID')],
+        ['projectId', describedInputProperty('string', 'Filter to pages belonging to this project ID')],
+        ['type', describedInputProperty('string', TYPE_FILTER_DESCRIPTION)],
+        [
+          'status',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['draft', 'current', 'stale', 'deprecated']],
+            ['description', 'Filter to pages whose frontmatter `status` matches'],
+          ]),
+        ],
+        [
+          'tags',
+          fieldsInOrder([
+            ['type', ['array', 'string']],
+            ['items', { type: 'string' }],
+            [
+              'description',
+              'Filter to pages carrying at least one of these frontmatter tags (array, or a comma-separated string)',
+            ],
+          ]),
+        ],
+        [
+          'includeTemplates',
+          fieldsInOrder([
+            ['type', 'boolean'],
+            ['default', false],
+            [
+              'description',
+              'Include template pages in the results (default false, matching search_wiki/' +
+                'list_stale_pages). Use list_wiki_templates for the template-picker use case instead.',
+            ],
+          ]),
+        ],
+        ['includeWorkspacePages', INCLUDE_WORKSPACE_PAGES_PROPERTY],
+      ]),
+    ),
     name: 'list_wiki_pages',
   },
   {
@@ -74,27 +92,53 @@ export const wikiReadTools: MCPTool[] = [
       // A cut page resumes at the first dropped result.
       return capPage(page, { cursorOf: (index) => globalThis.String(offset + index + 1) })
     },
-    inputSchema: requiredObjectInputSchema(['query'], {
-      query: { type: 'string' },
-      limit: { type: 'number', default: 10 },
-      offset: { type: 'number', default: 0 },
-      cursor: describedInputProperty('string', "Pass the previous page's `next` unchanged (replaces offset)"),
-      projectId: describedInputProperty('string', 'Restrict search to this project ID'),
-      updatedSince: describedInputProperty('number', 'Unix seconds — only return pages updated at or after this time'),
-      type: describedInputProperty('string', TYPE_FILTER_DESCRIPTION),
-      tags: {
-        type: ['array', 'string'],
-        items: { type: 'string' },
-        description:
-          'Filter to pages carrying at least one of these frontmatter tags (array, or a comma-separated string)',
-      },
-      status: {
-        type: 'string',
-        enum: ['draft', 'current', 'stale', 'deprecated'],
-        description: 'Filter to pages whose frontmatter `status` matches',
-      },
-      includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['query'],
+      fieldsInOrder([
+        ['query', { type: 'string' }],
+        [
+          'limit',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_SEARCH_LIMIT],
+          ]),
+        ],
+        [
+          'offset',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_SEARCH_OFFSET],
+          ]),
+        ],
+        ['cursor', describedInputProperty('string', "Pass the previous page's `next` unchanged (replaces offset)")],
+        ['projectId', describedInputProperty('string', 'Restrict search to this project ID')],
+        [
+          'updatedSince',
+          describedInputProperty('number', 'Unix seconds — only return pages updated at or after this time'),
+        ],
+        ['type', describedInputProperty('string', TYPE_FILTER_DESCRIPTION)],
+        [
+          'tags',
+          fieldsInOrder([
+            ['type', ['array', 'string']],
+            ['items', { type: 'string' }],
+            [
+              'description',
+              'Filter to pages carrying at least one of these frontmatter tags (array, or a comma-separated string)',
+            ],
+          ]),
+        ],
+        [
+          'status',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['draft', 'current', 'stale', 'deprecated']],
+            ['description', 'Filter to pages whose frontmatter `status` matches'],
+          ]),
+        ],
+        ['includeWorkspacePages', INCLUDE_WORKSPACE_PAGES_PROPERTY],
+      ]),
+    ),
     name: 'search_wiki',
   },
   {
@@ -152,16 +196,25 @@ export const wikiReadTools: MCPTool[] = [
         ...(isNonEmptyText(contentWindow.next) ? { next: contentWindow.next } : {}),
       }
     },
-    inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string' },
-      maxChars: {
-        type: 'number',
-        default: WIKI_DEFAULT_MAX_CHARS,
-        description: `Max characters of content per call (1-${WIKI_MAX_CHARS})`,
-      },
-      cursor: describedInputProperty('string', "Pass the previous window's `next` unchanged"),
-      section: describedInputProperty('string', "Return only this section (a heading's text or slug, from `outline`)"),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['slug'],
+      fieldsInOrder([
+        ['slug', { type: 'string' }],
+        [
+          'maxChars',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', WIKI_DEFAULT_MAX_CHARS],
+            ['description', `Max characters of content per call (1-${WIKI_MAX_CHARS})`],
+          ]),
+        ],
+        ['cursor', describedInputProperty('string', "Pass the previous window's `next` unchanged")],
+        [
+          'section',
+          describedInputProperty('string', "Return only this section (a heading's text or slug, from `outline`)"),
+        ],
+      ]),
+    ),
     name: 'get_wiki_page',
   },
 ]

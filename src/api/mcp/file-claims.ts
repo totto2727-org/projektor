@@ -1,4 +1,5 @@
 import { claimFiles, listFileClaims, releaseFiles } from '#api/services/file-claims.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -11,16 +12,25 @@ export const fileClaimsTools: MCPTool[] = [
     async handler(input, ctx) {
       return claimFiles(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['issueId', 'paths'], {
-      issueId: describedInputProperty('string', 'Issue UUID to associate the claims with'),
-      agentId: describedInputProperty('string', 'Agent session UUID claiming the files (optional)'),
-      paths: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'File paths to claim (1–100 paths, each max 400 chars)',
-      },
-      force: describedInputProperty('boolean', 'When true, steal claims held by other issues/agents (default: false)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['issueId', 'paths'],
+      fieldsInOrder([
+        ['issueId', describedInputProperty('string', 'Issue UUID to associate the claims with')],
+        ['agentId', describedInputProperty('string', 'Agent session UUID claiming the files (optional)')],
+        [
+          'paths',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', { type: 'string' }],
+            ['description', 'File paths to claim (1–100 paths, each max 400 chars)'],
+          ]),
+        ],
+        [
+          'force',
+          describedInputProperty('boolean', 'When true, steal claims held by other issues/agents (default: false)'),
+        ],
+      ]),
+    ),
     name: 'claim_files',
   },
   {
@@ -29,14 +39,20 @@ export const fileClaimsTools: MCPTool[] = [
     async handler(input, ctx) {
       return releaseFiles(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['paths'], {
-      paths: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'File paths to release',
-      },
-      issueId: describedInputProperty('string', 'Restrict release to claims held by this issue (optional)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['paths'],
+      fieldsInOrder([
+        [
+          'paths',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', { type: 'string' }],
+            ['description', 'File paths to release'],
+          ]),
+        ],
+        ['issueId', describedInputProperty('string', 'Restrict release to claims held by this issue (optional)')],
+      ]),
+    ),
     name: 'release_files',
   },
   {
@@ -50,21 +66,32 @@ export const fileClaimsTools: MCPTool[] = [
     async handler(input, ctx) {
       return listFileClaims(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      issueId: describedInputProperty('string', 'Filter by issue UUID (optional)'),
-      path: describedInputProperty(
-        'string',
-        'Filter by exact file path — shows who holds this file across issues (optional)',
-      ),
-      projectId: describedInputProperty(
-        'string',
-        'Filter to claims on issues in this project — UUID or project key (optional)',
-      ),
-      includeStale: describedInputProperty(
-        'boolean',
-        'Include claims whose holder has ended, gone stale, or (agentless) passed its TTL (default: false — live entries only)',
-      ),
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['issueId', describedInputProperty('string', 'Filter by issue UUID (optional)')],
+        [
+          'path',
+          describedInputProperty(
+            'string',
+            'Filter by exact file path — shows who holds this file across issues (optional)',
+          ),
+        ],
+        [
+          'projectId',
+          describedInputProperty(
+            'string',
+            'Filter to claims on issues in this project — UUID or project key (optional)',
+          ),
+        ],
+        [
+          'includeStale',
+          describedInputProperty(
+            'boolean',
+            'Include claims whose holder has ended, gone stale, or (agentless) passed its TTL (default: false — live entries only)',
+          ),
+        ],
+      ]),
+    ),
     name: 'list_file_claims',
   },
 ]

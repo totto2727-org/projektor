@@ -2,6 +2,8 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import type { MCPTool } from './types.ts'
 
+export { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 type InputSchema = MCPTool['inputSchema']
 
 export const objectInputSchema = function objectInputSchema(

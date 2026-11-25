@@ -7,10 +7,22 @@ import {
   updateFeedbackSource,
 } from '#api/services/feedback-sources.ts'
 import { convertFeedbackToIssue, listFeedback, updateFeedbackStatus } from '#api/services/feedback.ts'
+import {
+  MAX_SOURCE_NAME_LENGTH,
+  MAX_SOURCE_DESCRIPTION_LENGTH,
+  MAX_ALLOWED_ORIGIN_LENGTH,
+} from '#contracts/feedback-limits.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
+
+const MIN_SOURCE_NAME_LENGTH = 1
+const ALLOWED_ORIGIN_ITEM_SCHEMA = fieldsInOrder([
+  ['type', 'string'],
+  ['maxLength', MAX_ALLOWED_ORIGIN_LENGTH],
+])
 
 export const feedbackTools: MCPTool[] = [
   {
@@ -27,16 +39,35 @@ export const feedbackTools: MCPTool[] = [
     async handler(input, ctx) {
       return createFeedbackSource(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['projectId', 'name'], {
-      projectId: describedInputProperty('string', 'UUID of the project this source belongs to'),
-      name: { type: 'string', minLength: 1, maxLength: 100 },
-      description: { type: 'string', maxLength: 500 },
-      allowedOrigins: {
-        type: 'array',
-        items: { type: 'string', maxLength: 2000 },
-        description: 'Allowed CORS origins for browser submission; omit for no restriction',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['projectId', 'name'],
+      fieldsInOrder([
+        ['projectId', describedInputProperty('string', 'UUID of the project this source belongs to')],
+        [
+          'name',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['minLength', MIN_SOURCE_NAME_LENGTH],
+            ['maxLength', MAX_SOURCE_NAME_LENGTH],
+          ]),
+        ],
+        [
+          'description',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['maxLength', MAX_SOURCE_DESCRIPTION_LENGTH],
+          ]),
+        ],
+        [
+          'allowedOrigins',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', ALLOWED_ORIGIN_ITEM_SCHEMA],
+            ['description', 'Allowed CORS origins for browser submission; omit for no restriction'],
+          ]),
+        ],
+      ]),
+    ),
     name: 'create_feedback_source',
   },
   {
@@ -72,12 +103,28 @@ export const feedbackTools: MCPTool[] = [
     async handler(input, ctx) {
       return updateFeedbackSource(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['sourceId'], {
-      sourceId: { type: 'string' },
-      name: { type: 'string', minLength: 1, maxLength: 100 },
-      description: { type: 'string', maxLength: 500 },
-      isActive: { type: 'boolean' },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['sourceId'],
+      fieldsInOrder([
+        ['sourceId', { type: 'string' }],
+        [
+          'name',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['minLength', MIN_SOURCE_NAME_LENGTH],
+            ['maxLength', MAX_SOURCE_NAME_LENGTH],
+          ]),
+        ],
+        [
+          'description',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['maxLength', MAX_SOURCE_DESCRIPTION_LENGTH],
+          ]),
+        ],
+        ['isActive', { type: 'boolean' }],
+      ]),
+    ),
     name: 'update_feedback_source',
   },
   {
@@ -116,11 +163,20 @@ export const feedbackTools: MCPTool[] = [
     async handler(input, ctx) {
       return listFeedback(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: { type: 'string' },
-      status: { type: 'string', enum: ['new', 'reviewed', 'actioned'] },
-      sourceId: { type: 'string' },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['projectId'],
+      fieldsInOrder([
+        ['projectId', { type: 'string' }],
+        [
+          'status',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['new', 'reviewed', 'actioned']],
+          ]),
+        ],
+        ['sourceId', { type: 'string' }],
+      ]),
+    ),
     name: 'list_feedback',
   },
   {
@@ -131,7 +187,10 @@ export const feedbackTools: MCPTool[] = [
     },
     inputSchema: requiredObjectInputSchema(['feedbackId', 'status'], {
       feedbackId: { type: 'string' },
-      status: { type: 'string', enum: ['new', 'reviewed', 'actioned'] },
+      status: fieldsInOrder([
+        ['type', 'string'],
+        ['enum', ['new', 'reviewed', 'actioned']],
+      ]),
     }),
     name: 'update_feedback_status',
   },

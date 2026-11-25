@@ -2,6 +2,7 @@ import { String, Predicate } from 'effect'
 
 import * as wikiService from '#api/services/wiki.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, PLAIN_WRITE } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -23,22 +24,31 @@ export const wikiEditTools: MCPTool[] = [
       'its `template: true` flag is stripped from the seeded content (the new page is not ' +
       'itself a template). `templateSlug` and `content` are mutually exclusive; a ' +
       "`templateSlug` that doesn't resolve to a page flagged template:true is rejected.",
-    inputSchema: requiredObjectInputSchema(['title'], {
-      title: { type: 'string' },
-      slug: describedInputProperty('string', 'URL-safe identifier; auto-generated from title if omitted'),
-      content: describedInputProperty(
-        'string',
-        'Markdown content, optionally starting with a YAML frontmatter block. ' +
-          'Mutually exclusive with templateSlug.',
-      ),
-      templateSlug: describedInputProperty(
-        'string',
-        "Seed this page's content from the template page at this slug/id (see " +
-          'list_wiki_templates). Mutually exclusive with content.',
-      ),
-      parentId: describedInputProperty('string', 'Parent page ID for nested pages'),
-      projectId: describedInputProperty('string', 'Project ID to scope this page to'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['title'],
+      fieldsInOrder([
+        ['title', { type: 'string' }],
+        ['slug', describedInputProperty('string', 'URL-safe identifier; auto-generated from title if omitted')],
+        [
+          'content',
+          describedInputProperty(
+            'string',
+            'Markdown content, optionally starting with a YAML frontmatter block. ' +
+              'Mutually exclusive with templateSlug.',
+          ),
+        ],
+        [
+          'templateSlug',
+          describedInputProperty(
+            'string',
+            "Seed this page's content from the template page at this slug/id (see " +
+              'list_wiki_templates). Mutually exclusive with content.',
+          ),
+        ],
+        ['parentId', describedInputProperty('string', 'Parent page ID for nested pages')],
+        ['projectId', describedInputProperty('string', 'Project ID to scope this page to')],
+      ]),
+    ),
     annotations: CREATE,
     async handler(input, ctx) {
       return await wikiService.createWikiPage(ctx, input)
@@ -78,31 +88,47 @@ export const wikiEditTools: MCPTool[] = [
       const payload = Predicate.isNotNullish(newSlug) ? { ...rest, slug: newSlug } : rest
       return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
     },
-    inputSchema: objectInputSchema({
-      id: describedInputProperty('string', 'Page ID'),
-      slug: describedInputProperty('string', 'Page slug (alternative to id)'),
-      title: { type: 'string' },
-      content: describedInputProperty('string', 'Markdown content, optionally starting with a YAML frontmatter block'),
-      parentId: {
-        type: 'string',
-        nullable: true,
-        description: 'Parent page ID (null to unset parent, omit to leave unchanged)',
-      },
-      newSlug: describedInputProperty(
-        'string',
-        "Rename the page's slug; the old slug becomes a redirect so existing links keep resolving",
-      ),
-      baseRevisionId: {
-        type: ['string', 'null'],
-        description:
-          'Deprecated if omitted (see tool description). The revision id this edit is ' +
-          'based on — null if the page has never been revised.',
-      },
-      summary: describedInputProperty(
-        'string',
-        'Optional edit message/changelog note, recorded on the created revision',
-      ),
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['id', describedInputProperty('string', 'Page ID')],
+        ['slug', describedInputProperty('string', 'Page slug (alternative to id)')],
+        ['title', { type: 'string' }],
+        [
+          'content',
+          describedInputProperty('string', 'Markdown content, optionally starting with a YAML frontmatter block'),
+        ],
+        [
+          'parentId',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+            ['description', 'Parent page ID (null to unset parent, omit to leave unchanged)'],
+          ]),
+        ],
+        [
+          'newSlug',
+          describedInputProperty(
+            'string',
+            "Rename the page's slug; the old slug becomes a redirect so existing links keep resolving",
+          ),
+        ],
+        [
+          'baseRevisionId',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            [
+              'description',
+              'Deprecated if omitted (see tool description). The revision id this edit is ' +
+                'based on — null if the page has never been revised.',
+            ],
+          ]),
+        ],
+        [
+          'summary',
+          describedInputProperty('string', 'Optional edit message/changelog note, recorded on the created revision'),
+        ],
+      ]),
+    ),
     name: 'update_wiki_page',
   },
   {
@@ -139,33 +165,55 @@ export const wikiEditTools: MCPTool[] = [
       }
       return await wikiService.patchWikiPage(ctx, idOrSlug, rest)
     },
-    inputSchema: requiredObjectInputSchema(['op', 'baseRevisionId'], {
-      id: describedInputProperty('string', 'Page ID'),
-      slug: describedInputProperty('string', 'Page slug (alternative to id)'),
-      op: {
-        type: 'string',
-        enum: ['append_to_section', 'replace_section', 'insert_after_heading', 'append_to_page', 'set_frontmatter'],
-      },
-      heading: describedInputProperty(
-        'string',
-        "Target section's heading text (required for append_to_section, " + 'replace_section, insert_after_heading)',
-      ),
-      text: describedInputProperty('string', 'Text to add/replace (required for every op except set_frontmatter)'),
-      values: describedInputProperty(
-        'object',
-        'set_frontmatter only: frontmatter keys to set (type, tags, status, ' +
-          'verified_at, verified_by, owners, verify_interval, template). A key set ' +
-          "to null is removed from the page's frontmatter.",
-      ),
-      baseRevisionId: {
-        type: ['string', 'null'],
-        description: 'The revision id this patch is based on — null if the page has never been revised.',
-      },
-      summary: describedInputProperty(
-        'string',
-        'Optional edit message/changelog note, recorded on the created revision',
-      ),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['op', 'baseRevisionId'],
+      fieldsInOrder([
+        ['id', describedInputProperty('string', 'Page ID')],
+        ['slug', describedInputProperty('string', 'Page slug (alternative to id)')],
+        [
+          'op',
+          fieldsInOrder([
+            ['type', 'string'],
+            [
+              'enum',
+              ['append_to_section', 'replace_section', 'insert_after_heading', 'append_to_page', 'set_frontmatter'],
+            ],
+          ]),
+        ],
+        [
+          'heading',
+          describedInputProperty(
+            'string',
+            "Target section's heading text (required for append_to_section, " +
+              'replace_section, insert_after_heading)',
+          ),
+        ],
+        [
+          'text',
+          describedInputProperty('string', 'Text to add/replace (required for every op except set_frontmatter)'),
+        ],
+        [
+          'values',
+          describedInputProperty(
+            'object',
+            'set_frontmatter only: frontmatter keys to set (type, tags, status, ' +
+              'verified_at, verified_by, owners, verify_interval, template). A key set ' +
+              "to null is removed from the page's frontmatter.",
+          ),
+        ],
+        [
+          'baseRevisionId',
+          fieldsInOrder([
+            ['type', ['string', 'null']],
+            ['description', 'The revision id this patch is based on — null if the page has never been revised.'],
+          ]),
+        ],
+        [
+          'summary',
+          describedInputProperty('string', 'Optional edit message/changelog note, recorded on the created revision'),
+        ],
+      ]),
+    ),
     name: 'patch_wiki_page',
   },
   {
@@ -177,14 +225,20 @@ export const wikiEditTools: MCPTool[] = [
       const { slug, cascade } = input as { slug: string; cascade?: boolean }
       return wikiService.deleteWikiPage(ctx, slug, { cascade })
     },
-    inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string' },
-      cascade: {
-        type: 'boolean',
-        default: false,
-        description: 'Delete all descendant pages too, instead of promoting them',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['slug'],
+      fieldsInOrder([
+        ['slug', { type: 'string' }],
+        [
+          'cascade',
+          fieldsInOrder([
+            ['type', 'boolean'],
+            ['default', false],
+            ['description', 'Delete all descendant pages too, instead of promoting them'],
+          ]),
+        ],
+      ]),
+    ),
     name: 'delete_wiki_page',
   },
 ]

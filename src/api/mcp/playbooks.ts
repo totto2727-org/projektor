@@ -3,10 +3,31 @@ import { Predicate } from 'effect'
 import { composePlaybook } from '#api/services/playbook-compose.ts'
 import { getPlaybook, listPlaybooks } from '#api/services/playbooks.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
+
+const MIN_REVIEW_CADENCE = 1
+const COMPOSE_PLAYBOOK_PARAMETER_PROPERTIES = fieldsInOrder([
+  ['epicRef', describedInputProperty('string', 'Epic ref, e.g. "PROJ-596"')],
+  [
+    'variant',
+    fieldsInOrder([
+      ['type', 'string'],
+      ['enum', ['bounded', 'full']],
+    ]),
+  ],
+  ['reviewModel', { type: 'string' }],
+  [
+    'cadence',
+    fieldsInOrder([
+      ['type', 'integer'],
+      ['minimum', MIN_REVIEW_CADENCE],
+    ]),
+  ],
+])
 
 export const playbooksTools: MCPTool[] = [
   {
@@ -30,13 +51,16 @@ export const playbooksTools: MCPTool[] = [
       }
       return getPlaybook(ctx, name)
     },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: describedInputProperty('string', 'Playbook name, e.g. "epic-goal"'),
-      },
-      required: ['name'],
-    },
+    inputSchema: fieldsInOrder([
+      ['type', 'object'],
+      [
+        'properties',
+        {
+          name: describedInputProperty('string', 'Playbook name, e.g. "epic-goal"'),
+        },
+      ],
+      ['required', ['name']],
+    ]),
     name: 'get_playbook',
   },
   {
@@ -49,23 +73,21 @@ export const playbooksTools: MCPTool[] = [
     async handler(input, ctx) {
       return await composePlaybook(ctx, input)
     },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: describedInputProperty('string', 'Playbook name, e.g. "epic-goal"'),
-        params: {
-          type: 'object',
-          properties: {
-            epicRef: describedInputProperty('string', 'Epic ref, e.g. "PROJ-596"'),
-            variant: { type: 'string', enum: ['bounded', 'full'] },
-            reviewModel: { type: 'string' },
-            cadence: { type: 'integer', minimum: 1 },
-          },
-          required: ['epicRef'],
+    inputSchema: fieldsInOrder([
+      ['type', 'object'],
+      [
+        'properties',
+        {
+          name: describedInputProperty('string', 'Playbook name, e.g. "epic-goal"'),
+          params: fieldsInOrder([
+            ['type', 'object'],
+            ['properties', COMPOSE_PLAYBOOK_PARAMETER_PROPERTIES],
+            ['required', ['epicRef']],
+          ]),
         },
-      },
-      required: ['name', 'params'],
-    },
+      ],
+      ['required', ['name', 'params']],
+    ]),
     name: 'compose_playbook',
   },
 ]

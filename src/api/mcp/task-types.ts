@@ -2,6 +2,7 @@ import { String, Predicate } from 'effect'
 
 import { createTaskType, deleteTaskType, listTaskTypes, updateTaskType } from '#api/services/task-types.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -23,14 +24,17 @@ export const taskTypesTools: MCPTool[] = [
     async handler(input, ctx) {
       return createTaskType(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['key', 'name'], {
-      key: describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)'),
-      name: describedInputProperty('string', 'Display name'),
-      color: describedInputProperty('string', 'Optional color (hex or named)'),
-      icon: describedInputProperty('string', 'Optional icon identifier'),
-      position: describedInputProperty('number', 'Sort order position'),
-      isDefault: describedInputProperty('boolean', 'Set as the default type for new issues'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['key', 'name'],
+      fieldsInOrder([
+        ['key', describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)')],
+        ['name', describedInputProperty('string', 'Display name')],
+        ['color', describedInputProperty('string', 'Optional color (hex or named)')],
+        ['icon', describedInputProperty('string', 'Optional icon identifier')],
+        ['position', describedInputProperty('number', 'Sort order position')],
+        ['isDefault', describedInputProperty('boolean', 'Set as the default type for new issues')],
+      ]),
+    ),
     name: 'create_task_type',
   },
   {
@@ -43,14 +47,29 @@ export const taskTypesTools: MCPTool[] = [
       }
       return updateTaskType(ctx, id, fields)
     },
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string' },
-      name: { type: 'string' },
-      color: { type: 'string', nullable: true },
-      icon: { type: 'string', nullable: true },
-      position: { type: 'number' },
-      isDefault: describedInputProperty('boolean', 'Set as the default type for new issues'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['id'],
+      fieldsInOrder([
+        ['id', { type: 'string' }],
+        ['name', { type: 'string' }],
+        [
+          'color',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+          ]),
+        ],
+        [
+          'icon',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+          ]),
+        ],
+        ['position', { type: 'number' }],
+        ['isDefault', describedInputProperty('boolean', 'Set as the default type for new issues')],
+      ]),
+    ),
     name: 'update_task_type',
   },
   {

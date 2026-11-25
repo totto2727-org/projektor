@@ -1,8 +1,11 @@
 import { getWorkflow } from '#api/services/workflow.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { READ } from './annotations.ts'
 import { objectInputSchema } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
+
+const WORKFLOW_VERSION_MAX_LENGTH = 64
 
 export const workflowTools: MCPTool[] = [
   {
@@ -17,13 +20,15 @@ export const workflowTools: MCPTool[] = [
       return getWorkflow(ctx, input)
     },
     inputSchema: objectInputSchema({
-      ifVersion: {
-        type: 'string',
-        maxLength: 64,
-        description:
+      ifVersion: fieldsInOrder([
+        ['type', 'string'],
+        ['maxLength', WORKFLOW_VERSION_MAX_LENGTH],
+        [
+          'description',
           'A version previously returned by get_workflow. If it matches the current version, ' +
-          'the response is `{ unchanged: true, version }` instead of the full spec.',
-      },
+            'the response is `{ unchanged: true, version }` instead of the full spec.',
+        ],
+      ]),
     }),
     name: 'get_workflow',
   },

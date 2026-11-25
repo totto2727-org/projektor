@@ -1,10 +1,14 @@
 import * as wikiService from '#api/services/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { INCLUDE_WORKSPACE_PAGES_PROPERTY } from './wiki-tool-fields.ts'
+
+const DEFAULT_WIKI_MAINTENANCE_LIMIT = 50
+const DEFAULT_WIKI_MAINTENANCE_OFFSET = 0
 
 export const wikiMaintenanceTools: MCPTool[] = [
   {
@@ -15,10 +19,12 @@ export const wikiMaintenanceTools: MCPTool[] = [
     async handler(input, ctx) {
       return toPage(await wikiService.getWikiTree(ctx, input))
     },
-    inputSchema: objectInputSchema({
-      projectId: describedInputProperty('string', 'Filter to pages belonging to this project ID'),
-      includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['projectId', describedInputProperty('string', 'Filter to pages belonging to this project ID')],
+        ['includeWorkspacePages', INCLUDE_WORKSPACE_PAGES_PROPERTY],
+      ]),
+    ),
     name: 'wiki_tree',
   },
   {
@@ -64,15 +70,18 @@ export const wikiMaintenanceTools: MCPTool[] = [
       return await wikiService.backfillWikiLinks(ctx, input)
     },
     inputSchema: objectInputSchema({
-      cursor: {
-        type: 'object',
-        description: "Resume point from a previous call's nextCursor",
-        required: ['updatedAt', 'id'],
-        properties: {
-          updatedAt: { type: 'number' },
-          id: { type: 'string' },
-        },
-      },
+      cursor: fieldsInOrder([
+        ['type', 'object'],
+        ['description', "Resume point from a previous call's nextCursor"],
+        ['required', ['updatedAt', 'id']],
+        [
+          'properties',
+          fieldsInOrder([
+            ['updatedAt', { type: 'number' }],
+            ['id', { type: 'string' }],
+          ]),
+        ],
+      ]),
       pageBudget: describedInputProperty('number', 'Max pages to process in this call (1-500, default 200)'),
       updatedSince: describedInputProperty('number', 'Only process pages updated at/after this unix-seconds timestamp'),
     }),
@@ -95,10 +104,13 @@ export const wikiMaintenanceTools: MCPTool[] = [
       const { slug, revisionId } = input as { slug: string; revisionId: string }
       return wikiService.getWikiRevision(ctx, slug, revisionId)
     },
-    inputSchema: requiredObjectInputSchema(['slug', 'revisionId'], {
-      slug: { type: 'string' },
-      revisionId: { type: 'string' },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['slug', 'revisionId'],
+      fieldsInOrder([
+        ['slug', { type: 'string' }],
+        ['revisionId', { type: 'string' }],
+      ]),
+    ),
     name: 'get_wiki_revision',
   },
   {
@@ -117,11 +129,14 @@ export const wikiMaintenanceTools: MCPTool[] = [
       }
       return wikiService.getWikiRevisionDiff(ctx, slug, revisionId, { against })
     },
-    inputSchema: requiredObjectInputSchema(['slug', 'revisionId'], {
-      slug: { type: 'string' },
-      revisionId: { type: 'string' },
-      against: describedInputProperty('string', 'Another revision id, or "current" (default)'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['slug', 'revisionId'],
+      fieldsInOrder([
+        ['slug', { type: 'string' }],
+        ['revisionId', { type: 'string' }],
+        ['against', describedInputProperty('string', 'Another revision id, or "current" (default)')],
+      ]),
+    ),
     name: 'get_wiki_revision_diff',
   },
   {
@@ -151,12 +166,26 @@ export const wikiMaintenanceTools: MCPTool[] = [
     async handler(input, ctx) {
       return wikiService.listStaleWikiPages(ctx, input)
     },
-    inputSchema: objectInputSchema({
-      projectId: describedInputProperty('string', 'Restrict to pages belonging to this project ID'),
-      limit: { type: 'number', default: 50 },
-      offset: { type: 'number', default: 0 },
-      includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
-    }),
+    inputSchema: objectInputSchema(
+      fieldsInOrder([
+        ['projectId', describedInputProperty('string', 'Restrict to pages belonging to this project ID')],
+        [
+          'limit',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_MAINTENANCE_LIMIT],
+          ]),
+        ],
+        [
+          'offset',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['default', DEFAULT_WIKI_MAINTENANCE_OFFSET],
+          ]),
+        ],
+        ['includeWorkspacePages', INCLUDE_WORKSPACE_PAGES_PROPERTY],
+      ]),
+    ),
     name: 'list_stale_pages',
   },
   {

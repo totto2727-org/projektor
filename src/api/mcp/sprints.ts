@@ -10,6 +10,7 @@ import {
   updateSprint,
 } from '#api/services/sprints.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
@@ -48,13 +49,16 @@ export const sprintsTools: MCPTool[] = [
     async handler(input, ctx) {
       return createSprint(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['projectId', 'name'], {
-      projectId: { type: 'string' },
-      name: { type: 'string' },
-      goal: describedInputProperty('string', 'Sprint goal description'),
-      startDate: describedInputProperty('number', 'Unix timestamp for sprint start'),
-      endDate: describedInputProperty('number', 'Unix timestamp for sprint end'),
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['projectId', 'name'],
+      fieldsInOrder([
+        ['projectId', { type: 'string' }],
+        ['name', { type: 'string' }],
+        ['goal', describedInputProperty('string', 'Sprint goal description')],
+        ['startDate', describedInputProperty('number', 'Unix timestamp for sprint start')],
+        ['endDate', describedInputProperty('number', 'Unix timestamp for sprint end')],
+      ]),
+    ),
     name: 'create_sprint',
   },
   {
@@ -67,14 +71,41 @@ export const sprintsTools: MCPTool[] = [
       }
       return updateSprint(ctx, id, fields)
     },
-    inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string' },
-      name: { type: 'string' },
-      goal: { type: 'string', nullable: true },
-      status: { type: 'string', enum: ['planned', 'active', 'completed'] },
-      startDate: { type: 'number', nullable: true },
-      endDate: { type: 'number', nullable: true },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['id'],
+      fieldsInOrder([
+        ['id', { type: 'string' }],
+        ['name', { type: 'string' }],
+        [
+          'goal',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+          ]),
+        ],
+        [
+          'status',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['planned', 'active', 'completed']],
+          ]),
+        ],
+        [
+          'startDate',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['nullable', true],
+          ]),
+        ],
+        [
+          'endDate',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['nullable', true],
+          ]),
+        ],
+      ]),
+    ),
     name: 'update_sprint',
   },
   {
@@ -113,14 +144,20 @@ export const sprintsTools: MCPTool[] = [
     async handler(input, ctx) {
       return moveIssuesToSprint(ctx, input)
     },
-    inputSchema: requiredObjectInputSchema(['sprintId', 'issueIds'], {
-      sprintId: describedInputProperty('string', 'Target sprint UUID'),
-      issueIds: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Issue UUIDs to move (max 500)',
-      },
-    }),
+    inputSchema: requiredObjectInputSchema(
+      ['sprintId', 'issueIds'],
+      fieldsInOrder([
+        ['sprintId', describedInputProperty('string', 'Target sprint UUID')],
+        [
+          'issueIds',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', { type: 'string' }],
+            ['description', 'Issue UUIDs to move (max 500)'],
+          ]),
+        ],
+      ]),
+    ),
     name: 'move_issues_to_sprint',
   },
 ]
