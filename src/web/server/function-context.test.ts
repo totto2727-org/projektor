@@ -84,7 +84,7 @@ const fixture = function fixture(
       .prepare("INSERT INTO group_project_grants(group_id,project_id,role) VALUES(?,?, 'viewer')")
       .run(`group-${item.id}`, item.id)
   })
-  const invalidated = vi.fn()
+  const invalidated = vi.fn<() => void>()
   const env = testEnvironment(database.db, auth.user.email)
   const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>): Promise<A> {
     return runTestEffect(

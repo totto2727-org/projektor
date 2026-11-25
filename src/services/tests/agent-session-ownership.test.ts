@@ -34,7 +34,11 @@ const fixture = function fixture() {
     .run(issueId)
   const ctx: ServiceCtx = {
     db: database.db,
-    kv: { get: vi.fn<() => Promise<null>>(async () => null), put: vi.fn(), delete: vi.fn() } as unknown as KVNamespace,
+    kv: {
+      get: vi.fn<() => Promise<null>>(async () => null),
+      put: vi.fn<KVNamespace['put']>(),
+      delete: vi.fn<KVNamespace['delete']>(),
+    } as unknown as KVNamespace,
     r2: {} as R2Bucket,
     workspaceId: 'w',
     userId: 'u',

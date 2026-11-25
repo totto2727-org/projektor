@@ -14,7 +14,7 @@ describe('covers Lazy Markdown editor', () => {
   afterEach(cleanup)
 
   test('commits fallback input before blur and preserves it when the editor chunk resolves', async () => {
-    const changed = vi.fn()
+    const changed = vi.fn<(value: string) => void>()
     // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
     function Editor(): JSX.Element {
       const [value, setValue] = useState('')

@@ -28,7 +28,7 @@ const fixture = function fixture() {
       VALUES ('a','w','file','w/object','image.png','image/png',4,'issue','i','u',1),
       ('secret','w','file','w/secret','secret.png','image/png',4,'issue','hidden','u',1);
   `)
-  const cancel = vi.fn()
+  const cancel = vi.fn<(reason?: unknown) => void>()
   const bytes = new Uint8Array([0, 255, 128, 7])
   const get = vi.fn<() => Promise<{ body: ReadableStream<Uint8Array> }>>(async () => ({
     body: new ReadableStream<Uint8Array>({

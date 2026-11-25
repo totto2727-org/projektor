@@ -51,7 +51,7 @@ type Definition = Readonly<{
 const fixture = function fixture(options: { origin?: string } = {}) {
   const database = issueDataFixture()
   databases.push(database)
-  const invalidated = vi.fn()
+  const invalidated = vi.fn<() => void>()
   const kv = inMemoryKV()
   const r2 = inMemoryR2()
   const invoke = async function invoke(action: unknown, input: unknown): Promise<unknown> {

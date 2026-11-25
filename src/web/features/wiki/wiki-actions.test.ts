@@ -110,7 +110,7 @@ const fixture = async function fixture(
     `)
   }
   const resources = createTestResources()
-  const invalidate = vi.fn()
+  const invalidate = vi.fn<() => void>()
   const request = new Request('https://app.test/_effront/function', {
     method: 'POST',
     headers: { Origin: options.origin ?? 'https://app.test' },

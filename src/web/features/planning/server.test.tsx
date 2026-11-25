@@ -27,7 +27,11 @@ vi.mock('./actions', () => ({
 vi.hoisted(() =>
   vi.stubGlobal(
     'matchMedia',
-    vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn<MediaQueryList['addEventListener']>(),
+      removeEventListener: vi.fn<MediaQueryList['removeEventListener']>(),
+    })),
   ),
 )
 

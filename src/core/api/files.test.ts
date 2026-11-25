@@ -17,7 +17,7 @@ const fixture = function fixture() {
     INSERT INTO workspaces(id,name,slug,brand,created_at) VALUES('w','Workspace','workspace','{"logoR2Key":"w/brand-logo/logo"}',1);
     INSERT INTO workspace_members(workspace_id,user_id,role,joined_at) VALUES('w','u','owner',1);
   `)
-  const cancel = vi.fn()
+  const cancel = vi.fn<(reason?: unknown) => void>()
   const bytes = new Uint8Array([0, 255, 128, 7])
   const get = vi.fn<() => Promise<{ body: ReadableStream<Uint8Array>; httpMetadata: { contentType: string } }>>(
     async () => ({

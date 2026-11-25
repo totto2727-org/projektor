@@ -21,7 +21,7 @@ const fixture = async function fixture() {
       VALUES ('i','w','p',1,'Issue','backlog','medium','u',1,1);
   `)
   const bytes = new Uint8Array([0, 255, 7, 128])
-  const cancel = vi.fn()
+  const cancel = vi.fn<(reason?: unknown) => void>()
   const buffer = vi.fn<() => never>(() => {
     throw new Error('Logo transfer must not buffer bytes')
   })

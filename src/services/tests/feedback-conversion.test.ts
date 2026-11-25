@@ -78,12 +78,19 @@ const fixture = function fixture(concurrentBatches = 1) {
   const fetch = vi.fn<() => Promise<Response>>(async () => new Response())
   const ctx: ServiceCtx = {
     db,
-    kv: { get: vi.fn<() => Promise<null>>(async () => null), put: vi.fn(), delete: vi.fn() } as unknown as KVNamespace,
+    kv: {
+      get: vi.fn<() => Promise<null>>(async () => null),
+      put: vi.fn<KVNamespace['put']>(),
+      delete: vi.fn<KVNamespace['delete']>(),
+    } as unknown as KVNamespace,
     r2: {} as R2Bucket,
     workspaceId: 'w',
     userId: 'u',
     role: 'owner',
-    workspaceHub: { idFromName: vi.fn(), get: () => ({ fetch }) } as unknown as DurableObjectNamespace,
+    workspaceHub: {
+      idFromName: vi.fn<DurableObjectNamespace['idFromName']>(),
+      get: () => ({ fetch }),
+    } as unknown as DurableObjectNamespace,
   }
   const seed = (id: string) =>
     database.sqlite

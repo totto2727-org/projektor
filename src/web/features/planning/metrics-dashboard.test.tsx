@@ -21,7 +21,11 @@ vi.hoisted(() => {
   )
   vi.stubGlobal(
     'matchMedia',
-    vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn<MediaQueryList['addEventListener']>(),
+      removeEventListener: vi.fn<MediaQueryList['removeEventListener']>(),
+    })),
   )
 })
 const distribution = { count: 2, avg: 3600, p50: 1800, p90: 7200 }

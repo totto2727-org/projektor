@@ -61,7 +61,7 @@ function detailData(): IssueDetailInitialData {
 describe('canonical issues SSR refresh', () => {
   test('updates loaded rows and lookups without mount fetching or losing an unsaved create form', async () => {
     expect.hasAssertions()
-    const fetch = vi.fn()
+    const fetch = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetch)
     const route = { pathname: '/issues', search: '?workspace=workspace' }
     const data = listData()
@@ -108,7 +108,7 @@ describe('canonical issues SSR refresh', () => {
 
   test('updates authoritative description and comments while preserving unsaved title editing', async () => {
     expect.hasAssertions()
-    const fetch = vi.fn()
+    const fetch = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetch)
     sessionStorage.clear()
     const data = detailData()
@@ -166,7 +166,7 @@ describe('canonical issues SSR refresh', () => {
       projects: [project],
       search: '?workspace=workspace&projectId=project-a',
     }
-    const fetch = vi.fn()
+    const fetch = vi.fn<typeof globalThis.fetch>()
     vi.stubGlobal('fetch', fetch)
     vi.mocked(createIssue).mockResolvedValue({ ok: true, value: { id: 'created', number: 2 } })
     const view = render(
