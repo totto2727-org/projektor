@@ -688,8 +688,8 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(200)
 
     const write = await mcpCall(workspaceId, tokens.access_token, 'create_project', {
-      name: 'nope',
       key: 'NOPE',
+      name: 'nope',
     })
     expect(write.status).toBe(403)
     expect(write.headers.get('WWW-Authenticate')).toContain('insufficient_scope')

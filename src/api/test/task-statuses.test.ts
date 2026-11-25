@@ -571,7 +571,7 @@ describe('task Statuses — MCP parity', () => {
   }
 
   test('list_task_statuses returns empty list', async () => {
-    const resp = await mcpCall('tools/call', { name: 'list_task_statuses', arguments: {} })
+    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_statuses' })
     expect(resp.error).toBeUndefined()
     const data = parseNativeMcpText(resp.result!.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
@@ -580,10 +580,10 @@ describe('task Statuses — MCP parity', () => {
 
   test('create_task_status then list returns the status', async () => {
     await mcpCall('tools/call', {
-      name: 'create_task_status',
       arguments: { key: 'done', name: 'Done', category: 'done', position: 1 },
+      name: 'create_task_status',
     })
-    const resp = await mcpCall('tools/call', { name: 'list_task_statuses', arguments: {} })
+    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_statuses' })
     const data = parseNativeMcpText(resp.result!.content[0].text, KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('done')
@@ -591,8 +591,8 @@ describe('task Statuses — MCP parity', () => {
 
   test('delete_task_status via MCP returns ok', async () => {
     const createResp = await mcpCall('tools/call', {
-      name: 'create_task_status',
       arguments: { key: 'tmp', name: 'Tmp', category: 'cancelled' },
+      name: 'create_task_status',
     })
     const created = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
 

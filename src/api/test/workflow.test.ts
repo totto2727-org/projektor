@@ -110,7 +110,7 @@ describe('workflow spec', () => {
     const mcpJson = (await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_workflow', arguments: {} },
+      { arguments: {}, name: 'get_workflow' },
       authHeaders(token, slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = parseNativeMcpText(mcpJson.result.content[0].text, Schema.Struct({ version: Schema.String }))
@@ -122,7 +122,7 @@ describe('workflow spec', () => {
     const first = (await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_workflow', arguments: {} },
+      { arguments: {}, name: 'get_workflow' },
       authHeaders(token, slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const { version } = parseNativeMcpText(first.result.content[0].text, Schema.Struct({ version: Schema.String }))
@@ -130,7 +130,7 @@ describe('workflow spec', () => {
     const second = (await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_workflow', arguments: { ifVersion: version } },
+      { arguments: { ifVersion: version }, name: 'get_workflow' },
       authHeaders(token, slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const body = JSON.parse(second.result.content[0].text)
@@ -159,7 +159,7 @@ describe('workflow spec', () => {
     const mcpJson = (await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_workflow', arguments: { ifVersion: 'not-the-real-version' } },
+      { arguments: { ifVersion: 'not-the-real-version' }, name: 'get_workflow' },
       authHeaders(token, slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
@@ -250,7 +250,7 @@ describe('workflow spec', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_workflow', arguments: { ifVersion: 42 } },
+      { arguments: { ifVersion: 42 }, name: 'get_workflow' },
       authHeaders(token, slug),
     )
 

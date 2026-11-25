@@ -146,7 +146,7 @@ describe('workspaces MCP', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'create_workspace',
-      { slug: 'new-ws', name: 'New Workspace' },
+      { name: 'New Workspace', slug: 'new-ws' },
       userHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
@@ -164,7 +164,7 @@ describe('workspaces MCP', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'create_workspace',
-      { slug: 'seeded-ws', name: 'Seeded' },
+      { name: 'Seeded', slug: 'seeded-ws' },
       userHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
@@ -188,8 +188,8 @@ describe('workspaces MCP', () => {
   })
 
   test('create_workspace returns conflict error when slug already taken', async () => {
-    await mcpCall(workspaceId, 'create_workspace', { slug: 'dup-slug', name: 'First' }, userHeaders)
-    const res = await mcpCall(workspaceId, 'create_workspace', { slug: 'dup-slug', name: 'Second' }, userHeaders)
+    await mcpCall(workspaceId, 'create_workspace', { name: 'First', slug: 'dup-slug' }, userHeaders)
+    const res = await mcpCall(workspaceId, 'create_workspace', { name: 'Second', slug: 'dup-slug' }, userHeaders)
     expect(toolError(res)?.code).toBe('conflict')
     expect(toolError(res)?.message).toMatch(/slug already taken/i)
   })

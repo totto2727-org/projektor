@@ -248,7 +248,7 @@ describe('comments MCP cross-workspace security', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       wsA.workspace.id,
       'tools/call',
-      { name: 'add_comment', arguments: { issueId: victimIssueId, body: 'Injected comment' } },
+      { arguments: { issueId: victimIssueId, body: 'Injected comment' }, name: 'add_comment' },
       authHeaders(wsA.token, wsA.workspace.slug),
     )) as JsonRpcError
 
@@ -285,7 +285,7 @@ describe('comments MCP cross-workspace security', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       wsA.workspace.id,
       'tools/call',
-      { name: 'list_comments', arguments: { issueId: victimIssueId } },
+      { arguments: { issueId: victimIssueId }, name: 'list_comments' },
       authHeaders(wsA.token, wsA.workspace.slug),
     )) as JsonRpcError
 

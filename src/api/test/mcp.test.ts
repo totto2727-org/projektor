@@ -185,7 +185,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'list_issues', arguments: {} },
+      { arguments: {}, name: 'list_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(res.result.content[0].text, IssuePageResponse)
@@ -209,7 +209,7 @@ describe('covers MCP endpoint', () => {
     const listRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'list_issues', arguments: {} },
+      { arguments: {}, name: 'list_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(listRes.result.content[0].text, IssuePageResponse)
@@ -232,7 +232,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'search_wiki', arguments: { query: 'MCP endpoint' } },
+      { arguments: { query: 'MCP endpoint' }, name: 'search_wiki' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const results = parseNativeMcpText(res.result.content[0].text, TitleItemsResponse).items
@@ -250,7 +250,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_wiki_page', arguments: { slug: 'runbook' } },
+      { arguments: { slug: 'runbook' }, name: 'get_wiki_page' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const page = parseNativeMcpText(
@@ -272,7 +272,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'does_not_exist', arguments: {} },
+      { arguments: {}, name: 'does_not_exist' },
       headers,
     )) as JsonRpcError
     expect(res.error.code).toBe(-32_601)
@@ -422,7 +422,7 @@ describe('covers MCP endpoint', () => {
     const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'list_issues', arguments: {} },
+      { arguments: {}, name: 'list_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpData = parseNativeMcpText(mcpRes.result.content[0].text, IssuePageResponse)
@@ -452,7 +452,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_issue', arguments: { ref: 'PROJ-1' } },
+      { arguments: { ref: 'PROJ-1' }, name: 'get_issue' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const issue = parseNativeMcpText(res.result.content[0].text, Schema.Struct({ title: Schema.String }))
@@ -494,7 +494,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'list_wiki_pages', arguments: {} },
+      { arguments: {}, name: 'list_wiki_pages' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const pages = parseNativeMcpText(res.result.content[0].text, JsonListResponse)
@@ -511,7 +511,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'search_wiki', arguments: { query: '' } },
+      { arguments: { query: '' }, name: 'search_wiki' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const results = parseNativeMcpText(res.result.content[0].text, ItemsResponse)
@@ -529,7 +529,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'search_wiki', arguments: { query: 'Verbose' } },
+      { arguments: { query: 'Verbose' }, name: 'search_wiki' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const results = parseNativeMcpText(
@@ -545,7 +545,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'create_wiki_page', arguments: { title: 'Auto Slug Page', content: 'hi' } },
+      { arguments: { title: 'Auto Slug Page', content: 'hi' }, name: 'create_wiki_page' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const created = parseNativeMcpText(res.result.content[0].text, SlugResponse)
@@ -557,7 +557,7 @@ describe('covers MCP endpoint', () => {
     const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'create_wiki_page', arguments: { title: 'Rev Test', content: 'v1' } },
+      { arguments: { title: 'Rev Test', content: 'v1' }, name: 'create_wiki_page' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
@@ -584,7 +584,7 @@ describe('covers MCP endpoint', () => {
     const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'create_wiki_page', arguments: { title: 'Title Only', content: 'body' } },
+      { arguments: { title: 'Title Only', content: 'body' }, name: 'create_wiki_page' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
@@ -617,8 +617,8 @@ describe('covers MCP endpoint', () => {
       workspaceId,
       'tools/call',
       {
-        name: 'update_wiki_page',
         arguments: { slug: 'slug-update', content: 'updated' },
+        name: 'update_wiki_page',
       },
       headers,
     )
@@ -633,7 +633,7 @@ describe('covers MCP endpoint', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'create_wiki_page', arguments: { title: '' } },
+      { arguments: { title: '' }, name: 'create_wiki_page' },
       headers,
     )
     expect('error' in (res as object)).toBe(false)
@@ -721,7 +721,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
+      { arguments: { includeNotReady: true }, name: 'get_prioritized_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(
@@ -742,7 +742,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
+      { arguments: { includeNotReady: true }, name: 'get_prioritized_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as {
@@ -770,7 +770,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
+      { arguments: { includeNotReady: true }, name: 'get_prioritized_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(
@@ -801,7 +801,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
+      { arguments: { includeNotReady: true }, name: 'get_prioritized_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(res.result.content[0].text, IssueTitlesResponse)
@@ -821,7 +821,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_prioritized_issues', arguments: { limit: 2, includeNotReady: true } },
+      { arguments: { limit: 2, includeNotReady: true }, name: 'get_prioritized_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(
@@ -852,7 +852,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
+      { arguments: { includeNotReady: true }, name: 'get_prioritized_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(
@@ -891,7 +891,7 @@ describe('covers MCP endpoint', () => {
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
+      { arguments: { includeNotReady: true }, name: 'get_prioritized_issues' },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(

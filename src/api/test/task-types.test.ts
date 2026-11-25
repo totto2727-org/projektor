@@ -436,7 +436,7 @@ describe('task Types — MCP parity', () => {
   }
 
   test('list_task_types returns empty list', async () => {
-    const resp = await mcpCall('tools/call', { name: 'list_task_types', arguments: {} })
+    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_types' })
     expect(resp.error).toBeUndefined()
     const data = parseNativeMcpText(resp.result!.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
@@ -445,10 +445,10 @@ describe('task Types — MCP parity', () => {
 
   test('create_task_type then list_task_types returns the type', async () => {
     await mcpCall('tools/call', {
-      name: 'create_task_type',
       arguments: { key: 'epic', name: 'Epic', position: 1 },
+      name: 'create_task_type',
     })
-    const resp = await mcpCall('tools/call', { name: 'list_task_types', arguments: {} })
+    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_types' })
     const data = parseNativeMcpText(resp.result!.content[0].text, KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('epic')
@@ -456,8 +456,8 @@ describe('task Types — MCP parity', () => {
 
   test('delete_task_type via MCP returns ok', async () => {
     const createResp = await mcpCall('tools/call', {
-      name: 'create_task_type',
       arguments: { key: 'tmp', name: 'Tmp' },
+      name: 'create_task_type',
     })
     const created = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
 

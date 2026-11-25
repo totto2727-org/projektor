@@ -345,7 +345,7 @@ describe('projects MCP', () => {
 
   test('create_project succeeds for owner', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'MCP Project', key: 'MCP' }, ownerHeaders)
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'MCP', name: 'MCP Project' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
     expect(toolError(res)).toBeUndefined()
     const result = res as JsonRpcResult<{ content: { text: string }[] }>
@@ -362,7 +362,7 @@ describe('projects MCP', () => {
     const res = (await mcpCall(
       workspaceId,
       'create_project',
-      { name: 'Lower', key: 'lower' },
+      { key: 'lower', name: 'Lower' },
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(res.result.content[0].text, Schema.Struct({ key: Schema.String }))
@@ -371,26 +371,26 @@ describe('projects MCP', () => {
 
   test('create_project rejects member role', async () => {
     const { memberHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, memberHeaders)
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'BLKD', name: 'Blocked' }, memberHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('create_project rejects viewer role', async () => {
     const { viewerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, viewerHeaders)
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'BLKD', name: 'Blocked' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('create_project rejects duplicate key', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    await mcpCall(workspaceId, 'create_project', { name: 'First', key: 'DUPL' }, ownerHeaders)
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Second', key: 'DUPL' }, ownerHeaders)
+    await mcpCall(workspaceId, 'create_project', { key: 'DUPL', name: 'First' }, ownerHeaders)
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'DUPL', name: 'Second' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('conflict')
   })
 
   test('create_project rejects invalid key format', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Bad', key: 'BAD KEY!' }, ownerHeaders)
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'BAD KEY!', name: 'Bad' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 
@@ -402,7 +402,7 @@ describe('projects MCP', () => {
 
   test('create_project stores NULL description by default', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    await mcpCall(workspaceId, 'create_project', { name: 'NullDesc', key: 'MCPND' }, ownerHeaders)
+    await mcpCall(workspaceId, 'create_project', { key: 'MCPND', name: 'NullDesc' }, ownerHeaders)
 
     const listRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -480,7 +480,7 @@ describe('projects MCP', () => {
     const createRes = await mcpCall(
       workspaceId,
       'create_project',
-      { name: 'MCP Archivable', key: 'MARCH' },
+      { key: 'MARCH', name: 'MCP Archivable' },
       ownerHeaders,
     )
     const { id } = parseNativeMcpText(
@@ -519,7 +519,7 @@ describe('projects MCP', () => {
       'http://localhost/api/projects',
       requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ key: 'MEMBR', name: 'ByMember' })),
     )
-    const mcpRes = await mcpCall(workspaceId, 'create_project', { name: 'ByMember', key: 'MEMBR' }, memberHeaders)
+    const mcpRes = await mcpCall(workspaceId, 'create_project', { key: 'MEMBR', name: 'ByMember' }, memberHeaders)
 
     // Both must reject member
     expect(restRes.status).toBe(403)

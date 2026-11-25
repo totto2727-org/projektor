@@ -561,7 +561,7 @@ describe('custom Fields — MCP parity', () => {
   }
 
   test('list_custom_field_defs returns empty list', async () => {
-    const resp = await mcpCall('tools/call', { name: 'list_custom_field_defs', arguments: {} })
+    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_custom_field_defs' })
     expect(resp.error).toBeUndefined()
     const data = parseNativeMcpText(resp.result!.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
@@ -570,10 +570,10 @@ describe('custom Fields — MCP parity', () => {
 
   test('create_custom_field_def then list returns it', async () => {
     await mcpCall('tools/call', {
-      name: 'create_custom_field_def',
       arguments: { key: 'effort', label: 'Effort', type: 'number' },
+      name: 'create_custom_field_def',
     })
-    const resp = await mcpCall('tools/call', { name: 'list_custom_field_defs', arguments: {} })
+    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_custom_field_defs' })
     const data = parseNativeMcpText(resp.result!.content[0].text, KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('effort')
@@ -581,8 +581,8 @@ describe('custom Fields — MCP parity', () => {
 
   test('delete_custom_field_def via MCP returns ok', async () => {
     const createResp = await mcpCall('tools/call', {
-      name: 'create_custom_field_def',
       arguments: { key: 'tmp', label: 'Tmp', type: 'text' },
+      name: 'create_custom_field_def',
     })
     const created = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
 

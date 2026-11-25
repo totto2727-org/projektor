@@ -168,7 +168,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
     const callRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'search_wiki', arguments: { query: '' } },
+      { arguments: { query: '' }, name: 'search_wiki' },
       headers,
       '?domains=issues',
     )) as JsonRpcResult<{ content: { text: string }[] }>

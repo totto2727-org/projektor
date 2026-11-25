@@ -369,13 +369,13 @@ describe('covers PROJ-78: MCP tools – viewer role → error', () => {
 
   test('viewer cannot call create_project via MCP (gets a forbidden tool error)', async () => {
     const { viewerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLK' }, viewerHeaders)
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'BLK', name: 'Blocked' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('owner CAN call create_project via MCP', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Owner Made', key: 'OWN' }, ownerHeaders)
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'OWN', name: 'Owner Made' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
   })
 
@@ -396,7 +396,7 @@ describe('covers PROJ-78: MCP tools – viewer role → error', () => {
     const res = await mcpCall(
       workspaceId,
       'create_task_status',
-      { key: 'triage', name: 'Triage', category: 'todo' },
+      { category: 'todo', key: 'triage', name: 'Triage' },
       viewerHeaders,
     )
     expect(toolError(res)?.code).toBe('forbidden')

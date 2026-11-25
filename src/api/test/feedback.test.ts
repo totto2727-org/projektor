@@ -622,7 +622,7 @@ describe('feedback source MCP tools', () => {
     const res = (await mcpCall(
       testFixture.workspaceId,
       'update_feedback_source',
-      { sourceId: id, name: 'New', isActive: false },
+      { isActive: false, name: 'New', sourceId: id },
       authHeaders(testFixture.token, testFixture.slug),
     )) as JsonRpcResult
     expect(res.result).toBeDefined()

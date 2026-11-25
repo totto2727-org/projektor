@@ -2478,8 +2478,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     const ref = `${projectKey}-${number}`
 
     const res = await mcpCall({
-      name: 'update_issue',
       arguments: { id: ref, title: 'Renamed via ref' },
+      name: 'update_issue',
     })
     expect(res.error).toBeUndefined()
 
@@ -2492,7 +2492,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     const { number } = await seedIssue(workspaceId, projectId, userId, { title: 'Ref delete' })
     const ref = `${projectKey}-${number}`
 
-    const res = await mcpCall({ name: 'delete_issue', arguments: { id: ref } })
+    const res = await mcpCall({ arguments: { id: ref }, name: 'delete_issue' })
     expect(res.error).toBeUndefined()
 
     const getRes = await mcpCall({ name: 'get_issue', arguments: { ref } })
@@ -2545,15 +2545,15 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
   })
 
   test('an unresolvable ref returns NotFoundError, not a silent empty result', async () => {
-    const res = await mcpCall({ name: 'update_issue', arguments: { id: 'NOPE-1', title: 'x' } })
+    const res = await mcpCall({ arguments: { id: 'NOPE-1', title: 'x' }, name: 'update_issue' })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('not_found')
   })
 
   test('an unresolvable project key returns NotFoundError, not a silent empty result', async () => {
     const res = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId: 'NOPE', title: 'x' },
+      name: 'create_issue',
     })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('not_found')
@@ -2648,8 +2648,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
   test('list_issues rejects an unrecognized param with the field name in the error', async () => {
     const res = await mcpCall({
-      name: 'list_issues',
       arguments: { parentRef: 'PROJ-1' },
+      name: 'list_issues',
     })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('validation')
@@ -2819,7 +2819,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('covers MCP tool result text is minified (no pretty-printing whitespace)', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Minified check' })
-    const res = await mcpCall({ name: 'list_issues', arguments: {} })
+    const res = await mcpCall({ arguments: {}, name: 'list_issues' })
     expect(res.error).toBeUndefined()
     const text = res.result!.content[0].text
     expect(text).not.toContain('\n')
@@ -2882,8 +2882,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
     await seedCustomFieldValue(childId, field.id, 'hello')
     await mcpCall({
-      name: 'update_issue',
       arguments: { id: childId, labels: ['bug'] },
+      name: 'update_issue',
     })
     await seedIssue(workspaceId, projectId, userId, { title: 'Grandchild', parentId: parent.id })
 
@@ -2896,7 +2896,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       total: 2,
     })
 
-    const childRes = await mcpCall({ name: 'get_issue', arguments: { id: childId } })
+    const childRes = await mcpCall({ arguments: { id: childId }, name: 'get_issue' })
     const child = parseNativeMcpText(childRes.result!.content[0].text, JsonRecordResponse)
     expect(child.assignee_id).toBe(assignee.id)
     expect(child.parent_id).toBe(parent.id)
@@ -2906,7 +2906,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('list_issues items are compacted the same way as get_issue', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Compact list item' })
-    const res = await mcpCall({ name: 'list_issues', arguments: { includeRollups: true } })
+    const res = await mcpCall({ arguments: { includeRollups: true }, name: 'list_issues' })
     expect(res.error).toBeUndefined()
     const page = parseNativeMcpText(res.result!.content[0].text, RecordItemsResponse)
     expect(page.items[0]).not.toHaveProperty('rollup')
@@ -3011,8 +3011,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(errorCode(badFields)).toBe('validation')
 
     const badFieldsList = await mcpCall({
-      name: 'list_issues',
       arguments: { fields: [1, 2] },
+      name: 'list_issues',
     })
     expect(errorCode(badFieldsList)).toBe('validation')
   })
@@ -3070,7 +3070,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   test('get_issues resolves zero-padded refs like get_issue does', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Padded' })
     const padded = `${await projectKey()}-00${issue.number}`
-    const res = await mcpCall({ name: 'get_issues', arguments: { refs: [padded] } })
+    const res = await mcpCall({ arguments: { refs: [padded] }, name: 'get_issues' })
     const data = parseNativeMcpText(
       res.result!.content[0].text,
       Schema.Struct({
@@ -3084,7 +3084,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('get_issues lists a repeated missing ref once', async () => {
     const ref = `${await projectKey()}-999999`
-    const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref, ref] } })
+    const res = await mcpCall({ arguments: { refs: [ref, ref] }, name: 'get_issues' })
     const data = parseNativeMcpText(
       res.result!.content[0].text,
       Schema.Struct({ missing: Schema.Array(Schema.String).pipe(Schema.mutable) }),

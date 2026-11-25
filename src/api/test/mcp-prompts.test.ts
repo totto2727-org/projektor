@@ -88,8 +88,8 @@ describe('covers MCP prompts', () => {
 
   test('prompts/get on an unresolvable epicRef surfaces the compose error', async () => {
     const json = (await mcpCall('prompts/get', {
-      name: 'epic-goal',
       arguments: { epicRef: 'PROJ-999999' },
+      name: 'epic-goal',
     })) as JsonRpcError
     expect(json.error.code).toBe(-32_000)
     expect(json.error.message).toContain('not found')
@@ -97,8 +97,8 @@ describe('covers MCP prompts', () => {
 
   test('prompts/get on an unknown prompt name errors, naming valid options', async () => {
     const json = (await mcpCall('prompts/get', {
-      name: 'does-not-exist',
       arguments: {},
+      name: 'does-not-exist',
     })) as JsonRpcError
     expect(json.error.message).toContain('does-not-exist')
     expect((json.error.data as { validNames: string[] })?.validNames).toContain('epic-goal')
