@@ -1,7 +1,9 @@
 import { Effect, Schema } from 'effect'
 import type { CSSProperties } from 'react'
 
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { firstCodePoint, isNonEmptyText, trimNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { WorkspaceBrand } from '#contracts/web-brand.ts'
 import { makeCoreClient } from '#core/client.ts'
 
@@ -9,28 +11,39 @@ import { browserRequest, coreResult } from './core.ts'
 import type { Env } from './request.ts'
 import type { RequestScope } from './server/server-context.ts'
 
-const DeploymentBrand = Schema.Struct({
-  name: Schema.String,
-  mark: Schema.String,
-  accent: Schema.NullOr(Schema.String),
-  onAccent: Schema.NullOr(Schema.String),
-  logoUrl: Schema.NullOr(Schema.String),
-})
+const DeploymentBrand = Schema.Struct(
+  fieldsInOrder([
+    ['name', Schema.String],
+    ['mark', Schema.String],
+    ['accent', Schema.NullOr(Schema.String)],
+    ['onAccent', Schema.NullOr(Schema.String)],
+    ['logoUrl', Schema.NullOr(Schema.String)],
+  ]),
+)
 export type BrandConfig = Schema.Schema.Type<typeof DeploymentBrand>
-export const defaultBrand: BrandConfig = { name: 'Projektor', mark: 'P', accent: null, onAccent: null, logoUrl: null }
+export const defaultBrand: BrandConfig = fieldsInOrder([
+  ['name', 'Projektor'],
+  ['mark', 'P'],
+  ['accent', JSON_NULL],
+  ['onAccent', JSON_NULL],
+  ['logoUrl', JSON_NULL],
+])
 type BrandEnvironment = Pick<Env, 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>
 
 export const deploymentBrand = function deploymentBrand(env: BrandEnvironment): BrandConfig {
   const name = trimNonEmptyText(env.BRAND_NAME) ?? defaultBrand.name
-  return {
-    name,
-    mark: env.BRAND_MARK?.trim()
-      ? (firstCodePoint(env.BRAND_MARK.trim()) ?? 'P')
-      : (firstCodePoint(name.trim())?.toUpperCase() ?? 'P'),
-    accent: trimNonEmptyText(env.BRAND_ACCENT) ?? null,
-    onAccent: trimNonEmptyText(env.BRAND_ON_ACCENT) ?? null,
-    logoUrl: trimNonEmptyText(env.BRAND_LOGO_URL) ?? null,
-  }
+  return fieldsInOrder([
+    ['name', name],
+    [
+      'mark',
+      env.BRAND_MARK?.trim()
+        ? (firstCodePoint(env.BRAND_MARK.trim()) ?? 'P')
+        : (firstCodePoint(name.trim())?.toUpperCase() ?? 'P'),
+    ],
+    ['accent', trimNonEmptyText(env.BRAND_ACCENT) ?? JSON_NULL],
+    ['onAccent', trimNonEmptyText(env.BRAND_ON_ACCENT) ?? JSON_NULL],
+    ['logoUrl', trimNonEmptyText(env.BRAND_LOGO_URL) ?? JSON_NULL],
+  ])
 }
 
 /**
@@ -63,15 +76,18 @@ export const loadBrand = function loadBrand(
   ).pipe(
     Effect.map((override) => {
       const name = override.displayName ?? brand.name
-      return {
-        name,
-        mark: isNonEmptyText(override.displayName)
-          ? (firstCodePoint(name.trim())?.toUpperCase() ?? brand.mark)
-          : brand.mark,
-        accent: override.accent ?? brand.accent,
-        onAccent: override.onAccent ?? brand.onAccent,
-        logoUrl: override.logoUrl ?? brand.logoUrl,
-      }
+      return fieldsInOrder([
+        ['name', name],
+        [
+          'mark',
+          isNonEmptyText(override.displayName)
+            ? (firstCodePoint(name.trim())?.toUpperCase() ?? brand.mark)
+            : brand.mark,
+        ],
+        ['accent', override.accent ?? brand.accent],
+        ['onAccent', override.onAccent ?? brand.onAccent],
+        ['logoUrl', override.logoUrl ?? brand.logoUrl],
+      ])
     }),
     Effect.catch(() => Effect.succeed(brand)),
   )
