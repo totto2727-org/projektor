@@ -17,7 +17,7 @@ import {
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { seedRateLimitCounter } from './rate-limit-reset.ts'
-import { IdListResponse, IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
+import { ErrorMessageResponse, IdListResponse, IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 describe('feedback migration', () => {
   test('creates feedback_sources and feedback tables', async () => {
@@ -139,15 +139,25 @@ describe('feedback sources REST', () => {
   })
 })
 
-const mintSource = async function mintSource(
-  f: Readonly<{ projectId: string; token: string; slug: string }>,
+type FeedbackSourceFixture = Readonly<{ projectId: string; token: string; slug: string }>
+
+const postSource = async function postSource(
+  fixture: FeedbackSourceFixture,
   body: Record<string, unknown> = { name: 'Widget' },
-): Promise<string> {
-  const res = await fetchNativeApi(
-    `http://localhost/api/projects/${f.projectId}/feedback-sources`,
-    requestOptionsWithBody('POST', authHeaders(f.token, f.slug), JSON.stringify(body)),
+): Promise<Response> {
+  return fetchNativeApi(
+    `http://localhost/api/projects/${fixture.projectId}/feedback-sources`,
+    requestOptionsWithBody('POST', authHeaders(fixture.token, fixture.slug), JSON.stringify(body)),
   )
-  return ((await res.json()) as { token: string }).token
+}
+
+const mintSource = async function mintSource(
+  fixture: FeedbackSourceFixture,
+  body?: Record<string, unknown>,
+): Promise<string> {
+  const res = await postSource(fixture, body)
+  const source = await readNativeJson(res, TokenResponse)
+  return source.token
 }
 
 describe('feedback submit (public)', () => {
@@ -475,7 +485,9 @@ describe('feedback triage read/patch', () => {
 
   test('handles GET is readable by a viewer (read visibility, not a write action)', async () => {
     const testFixture = await seedProjectFixture({ role: 'viewer' })
-    await mintSource(testFixture)
+    const rejected = await postSource(testFixture)
+    expect(rejected.status).toBe(403)
+    await readNativeJson(rejected, ErrorMessageResponse)
     const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })

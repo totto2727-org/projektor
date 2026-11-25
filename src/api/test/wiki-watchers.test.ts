@@ -4,6 +4,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seedToken, seedUser } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-821: a watcher who loses access to a page (grant revoked, or removed from the
@@ -34,7 +35,8 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
       method: 'POST',
     })
     expect(res.status).toBe(201)
-    return ((await res.json()) as { id: string }).id
+    const page = await readNativeJson(res, IdResponse)
+    return page.id
   }
 
   const watch = async function watch(pageId: string): Promise<void> {

@@ -1,6 +1,7 @@
 import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 
@@ -744,7 +745,10 @@ describe('workspace brand (PROJ-761)', () => {
     const brandRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
-    expect(((await brandRes.json()) as { logoUrl: string | null }).logoUrl).toBeNull()
+    await expect(readNativeJson(brandRes, ApiResults.apiGetWorkspaceBrand)).resolves.toHaveProperty(
+      'logoUrl',
+      JSON_NULL,
+    )
   })
 
   test('a member (non admin/owner) gets 403 on logo delete', async () => {
@@ -822,13 +826,19 @@ describe('workspace brand (PROJ-761)', () => {
     const headerWsBrand = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
-    expect(((await headerWsBrand.json()) as { displayName: string | null }).displayName).toBe('Header Workspace')
+    await expect(readNativeJson(headerWsBrand, ApiResults.apiGetWorkspaceBrand)).resolves.toHaveProperty(
+      'displayName',
+      'Header Workspace',
+    )
 
     const otherOwnerHeaders = authHeaders(other.token, other.workspace.slug)
     const otherWsBrand = await fetchNativeApi(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {
       headers: otherOwnerHeaders,
     })
-    expect(((await otherWsBrand.json()) as { displayName: string | null }).displayName).toBeNull()
+    await expect(readNativeJson(otherWsBrand, ApiResults.apiGetWorkspaceBrand)).resolves.toHaveProperty(
+      'displayName',
+      JSON_NULL,
+    )
   })
 })
 

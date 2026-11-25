@@ -14,7 +14,7 @@ import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
  * In tests the human session is the dev bypass: ENVIRONMENT=development +
  * DEV_USER_EMAIL, no Authorization header.
  */
-import { readNativeJson } from './response-json.ts'
+import { ErrorMessageResponse, readNativeJson } from './response-json.ts'
 
 const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   const prev = env.DEV_USER_EMAIL
@@ -58,7 +58,8 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
       ),
     )
     expect(res.status).toBe(403)
-    expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/u)
+    const problem = await readNativeJson(res, ErrorMessageResponse)
+    expect(problem.error).toMatch(/signed-in browser session/u)
     await expect(tokenRow('sibling')).resolves.toBeNull()
   })
 

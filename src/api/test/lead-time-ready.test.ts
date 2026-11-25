@@ -6,7 +6,7 @@ import m0062 from '#migrations/0062_repair_zero_lead_time.sql?raw'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-921: lead time (ready -> done) came out as a 0s median because an issue moved
@@ -30,7 +30,8 @@ describe('covers PROJ-921: ready_at and lead time', () => {
       method: 'POST',
     })
     expect(res.status).toBe(201)
-    return ((await res.json()) as { id: string }).id
+    const issue = await readNativeJson(res, IdResponse)
+    return issue.id
   }
 
   const patch = async function patch(id: string, status: string): Promise<void> {

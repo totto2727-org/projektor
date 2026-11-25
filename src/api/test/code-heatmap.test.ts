@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#commands/code-heatmap.ts'
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
@@ -9,30 +9,20 @@ import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { RpcTextResponse, readNativeJson } from './response-json.ts'
 
-interface CodeHeatmapResponse {
-  prefix: string
-  totalDistinctIssues: number
-  entries: CodeHeatmapEntry[]
-}
+const [ClaimsHeatmapResponse, ContentionHeatmapResponse] = ApiResults.apiGetCodeHeatmap.members
 
-interface ContentionHeatmapResponse {
-  prefix: string
-  totalDistinctIssues: number
-  entries: ContentionHeatmapEntry[]
-}
-
-const expectHeatmapOk = async function expectHeatmapOk(res: Response): Promise<CodeHeatmapResponse> {
+const expectHeatmapOk = async function expectHeatmapOk(res: Response): Promise<typeof ClaimsHeatmapResponse.Type> {
   expect(res.status).toBe(200)
-  return (await res.json()) as CodeHeatmapResponse
+  return readNativeJson(res, ClaimsHeatmapResponse)
 }
 
 const expectAppsGroup = function expectAppsGroup<E extends { path: string; isLeaf: boolean }>(
   entries: Readonly<E[]>,
 ): E {
   const apps = entries.find((entry) => entry.path === 'apps')
-  expect(apps).toBeDefined()
-  expect(apps?.isLeaf).toBe(false)
-  return apps as E
+  assert.isDefined(apps)
+  expect(apps.isLeaf).toBe(false)
+  return apps
 }
 
 describe('code heatmap (PROJ-332)', () => {
@@ -141,7 +131,7 @@ describe('code heatmap (PROJ-332)', () => {
     await seedClaim(issue.id, 'apps/api/src/routes/code-heatmap.ts', now - 500, now - 100)
 
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
-    const body = (await res.json()) as CodeHeatmapResponse
+    const body = await readNativeJson(res, ClaimsHeatmapResponse)
     expect(body.totalDistinctIssues).toBe(1)
   })
 
@@ -154,7 +144,7 @@ describe('code heatmap (PROJ-332)', () => {
     await seedClaim(dirIssue.id, 'docs/guide.md', now - 100)
 
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
-    const body = (await res.json()) as CodeHeatmapResponse
+    const body = await readNativeJson(res, ClaimsHeatmapResponse)
     const docs = body.entries.find((entry) => entry.path === 'docs')
     expect(docs).toBeDefined()
     expect(docs?.isLeaf).toBe(false)
@@ -165,7 +155,7 @@ describe('code heatmap (PROJ-332)', () => {
     const now = currentEpochSeconds()
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as CodeHeatmapResponse
+    const body = await readNativeJson(res, ClaimsHeatmapResponse)
     expect(body.entries).toStrictEqual([])
     expect(body.totalDistinctIssues).toBe(0)
   })
@@ -224,7 +214,7 @@ describe('code heatmap (PROJ-332)', () => {
         mode: 'contention',
       })
       expect(res.status).toBe(200)
-      const body = (await res.json()) as ContentionHeatmapResponse
+      const body = await readNativeJson(res, ContentionHeatmapResponse)
 
       expect(body.prefix).toBe('')
       expect(body.totalDistinctIssues).toBe(3)
@@ -251,7 +241,7 @@ describe('code heatmap (PROJ-332)', () => {
         mode: 'contention',
       })
       expect(apiRes.status).toBe(200)
-      const apiBody = (await apiRes.json()) as ContentionHeatmapResponse
+      const apiBody = await readNativeJson(apiRes, ContentionHeatmapResponse)
       expect(apiBody.prefix).toBe('apps/api/src/services')
       const paths = apiBody.entries.map((entry) => entry.path).sort()
       expect(paths).toStrictEqual(['apps/api/src/services/code-heatmap.ts', 'apps/api/src/services/flow-metrics.ts'])
@@ -267,7 +257,7 @@ describe('code heatmap (PROJ-332)', () => {
         mode: 'contention',
       })
       expect(res.status).toBe(200)
-      const body = (await res.json()) as ContentionHeatmapResponse
+      const body = await readNativeJson(res, ContentionHeatmapResponse)
       expect(body.entries).toStrictEqual([])
       expect(body.totalDistinctIssues).toBe(0)
     })

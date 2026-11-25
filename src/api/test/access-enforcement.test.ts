@@ -6,7 +6,7 @@ import { visibleProjectIds } from '#commands/access.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { IdResponse, readNativeJson } from './response-json.ts'
+import { IdResponse, KeyListResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-311: group-based project access. Authorization lives entirely in projektor:
@@ -21,7 +21,9 @@ const listProjects = async function listProjects(
   const res = await fetchNativeApi('http://localhost/api/projects', {
     headers: authHeaders(token, slug),
   })
-  return { status: res.status, body: (await res.json()) as { key: string }[] }
+  const { status } = res
+  const body = await readNativeJson(res, KeyListResponse)
+  return { body, status }
 }
 
 const listIssues = async function listIssues(token: string, slug: string): Promise<{ items: { id: string }[] }> {

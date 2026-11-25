@@ -7,7 +7,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
+import { ItemsResponse, readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-857: issue list cursor', () => {
   test('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
@@ -78,7 +78,8 @@ describe('covers PROJ-857: issue list cursor', () => {
       { headers: authHeaders(testFixture.token, testFixture.slug) },
     )
     expect(res.status).toBe(200)
-    expect(((await res.json()) as { items: unknown[] }).items).toHaveLength(1)
+    const body = await readNativeJson(res, ItemsResponse)
+    expect(body.items).toHaveLength(1)
   })
 })
 
