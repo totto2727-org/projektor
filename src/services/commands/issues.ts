@@ -231,6 +231,11 @@ export const { ISSUE_REF_PATTERN } = issueQueries
  * straight to a service that does (PROJ-311), and duplicating the check here would be a
  * second place to get it wrong. If you add a caller, confirm that holds for yours too —
  * an id from this function is workspace-scoped and nothing more.
+ *
+ * @param {ServiceCtx} ctx Current workspace and caller credentials.
+ * @param {string} param Issue ID or project reference.
+ * @param {string} [notFoundMessage] Message for a reference with no issue in the workspace.
+ * @returns {Promise<string>} The original ID or the resolved reference ID.
  */
 export async function resolveIssueIdParam(
   ctx: ServiceCtx,
@@ -582,7 +587,14 @@ export async function createIssue(ctx: ServiceCtx, raw: unknown): ReturnType<typ
   return createIssueInternal(ctx, raw)
 }
 
-/** Internal workflow entry point. Its narrow input excludes parent/custom-field writes that would need their own guard. */
+/**
+ * Internal workflow entry point. Its narrow input excludes parent/custom-field writes that would need their own guard.
+ *
+ * @param {ServiceCtx} ctx Current workspace and caller credentials.
+ * @param {object} input Project, title, body and fixed priority for the issue.
+ * @param {Readonly<string[]>} feedbackIds Distinct feedback records to associate with the issue.
+ * @returns {ReturnType<typeof createIssueInternal>} The issue created for the selected feedback.
+ */
 export async function createIssueFromFeedback(
   ctx: ServiceCtx,
   input: Readonly<{ projectId: string; title: string; body: string; priority: 'medium' }>,
@@ -1723,6 +1735,10 @@ interface PrioritizedRow {
  * The window aggregates (max in-degree, not-ready count) run over the full open set
  * BEFORE the ready filter, exactly as the old in-memory version scored everything and
  * filtered afterwards. Ties break on insertion order (rowid).
+ *
+ * @param {ServiceCtx} ctx Current workspace and project visibility.
+ * @param {object} opts Result limit and candidate filters.
+ * @returns {Promise<PrioritizedRow[]>} Ranked candidates up to the requested limit.
  */
 const queryPrioritized = async function queryPrioritized(
   ctx: ServiceCtx,

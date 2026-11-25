@@ -16,7 +16,14 @@ export interface CommentRow {
   author_email: string
 }
 
-/** Caller authorizes the issue, while this query independently enforces tenant scope. */
+/**
+ * Caller authorizes the issue, while this query independently enforces tenant scope.
+ *
+ * @param {D1Database} db Database that stores issues and comments.
+ * @param {string} workspaceId Workspace that owns the issue.
+ * @param {string} issueId Issue whose comments to read.
+ * @returns {Effect.Effect<CommentRow[], DataQueryError>} The issue comments in creation order.
+ */
 export const listComments = function listComments(
   db: D1Database,
   workspaceId: string,

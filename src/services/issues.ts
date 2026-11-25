@@ -107,7 +107,14 @@ export interface IssuePage {
   total: number | null
 }
 
-/** Reference syntax is validated by the application before calling. No authorization occurs here. */
+/**
+ * Reference syntax is validated by the application before calling. No authorization occurs here.
+ *
+ * @param {D1Database} db Database that stores issues and projects.
+ * @param {string} workspaceId Workspace that owns the issue.
+ * @param {object} options Issue ID or validated project reference.
+ * @returns {Effect.Effect<IssueRow | null, DataQueryError>} The matching issue or null.
+ */
 export const getIssue = function getIssue(
   db: D1Database,
   workspaceId: string,

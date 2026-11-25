@@ -20,7 +20,15 @@ export interface IssueLinkRow {
   createdAt: number
 }
 
-/** The application supplies current linked-project visibility alongside parent authorization. */
+/**
+ * The application supplies current linked-project visibility alongside parent authorization.
+ *
+ * @param {D1Database} db Database that stores issues and links.
+ * @param {string} workspaceId Workspace that owns the issue.
+ * @param {string} issueId Issue whose incoming and outgoing links to read.
+ * @param {SQL} [visibility] Current visibility predicate for linked projects.
+ * @returns {Effect.Effect<IssueLinkRow[], DataQueryError>} Links visible to the caller in creation order.
+ */
 export const listLinksForIssue = function listLinksForIssue(
   db: D1Database,
   workspaceId: string,

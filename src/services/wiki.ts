@@ -163,7 +163,14 @@ export const listWikiTreeRows = function listWikiTreeRows(
   )
 }
 
-/** Live id wins over a colliding slug, then single-hop historical-slug fallback. */
+/**
+ * Live id wins over a colliding slug, then single-hop historical-slug fallback.
+ *
+ * @param {D1Database} db Database that stores pages and slug redirects.
+ * @param {string} workspaceId Workspace that owns the page.
+ * @param {string} idOrSlug Page identifier or slug.
+ * @returns {Effect.Effect<WikiPageDetail | RedirectedWikiPage | undefined, DataQueryError>} The matching live page, if one exists.
+ */
 export const findWikiPage = function findWikiPage(
   db: D1Database,
   workspaceId: string,
@@ -359,7 +366,15 @@ const decodeJsonArrayColumn = function decodeJsonArrayColumn(value: unknown): st
     return []
   }
 }
-/** FTS sanitization and permission decisions belong to the app. */
+/**
+ * FTS sanitization and permission decisions belong to the app.
+ *
+ * @param {D1Database} db Database that stores pages and the search index.
+ * @param {string} workspaceId Workspace whose pages to search.
+ * @param {string} ftsQuery Search expression after the application validates the syntax.
+ * @param {WikiSearchOptions} opts Filters, paging, visibility and the current time.
+ * @returns {Effect.Effect<WikiSearchResult[], DataQueryError>} The requested page of search results.
+ */
 export const searchWiki = function searchWiki(
   db: D1Database,
   workspaceId: string,
