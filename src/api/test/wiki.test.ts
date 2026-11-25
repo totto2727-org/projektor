@@ -6015,17 +6015,29 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 })
 
-describe('wiki server-side drafts (PROJ-495)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+const seedWikiAdminWorkspaceFixture = async function seedWikiAdminWorkspaceFixture(): Promise<
+  WikiWorkspaceFixture & { userId: string }
+> {
+  /*
+   * Admin: deleteWikiPage/undeleteWikiPage/purgeExpiredWikiPages on a workspace-level
+   * page all require admin/owner (requireWikiDelete / isWorkspaceAdmin).
+   */
+  const fixture = await seedFixture({ role: 'admin' })
+  return {
+    slug: fixture.workspace.slug,
+    token: fixture.token,
+    userId: fixture.user.id,
+    workspaceId: fixture.workspace.id,
+  }
+}
 
-  beforeEach(async () => {
-    const fixture = await seedFixture({ role: 'admin' })
-    ;({ token } = fixture)
-    ;({ slug } = fixture.workspace)
-    workspaceId = fixture.workspace.id
-  })
+const seedAdminWikiDraftFixture = async function seedAdminWikiDraftFixture(): Promise<
+  WikiWorkspaceFixture & {
+    createPage: (pageSlug: string, title: string, content?: string) => Promise<{ id: string; slug: string }>
+    req: (url: string, opts?: RequestInit) => Promise<Response>
+  }
+> {
+  const { token, slug, workspaceId } = await seedWikiAdminWorkspaceFixture()
 
   const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
     return resetRateLimitAndFetch(url, opts)
@@ -6044,7 +6056,12 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     return readNativeJson(res, IdAndSlugResponse)
   }
 
+  return { createPage, req, slug, token, workspaceId }
+}
+
+describe('wiki server-side drafts (PROJ-495)', () => {
   test('covers REST: no draft returns null, saving upserts, discarding clears it', async () => {
+    const { createPage, req, slug, token } = await seedAdminWikiDraftFixture()
     const page = await createPage('draft-page', 'Draft Page', 'original content')
 
     const empty = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -6094,6 +6111,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 
   test("drafts are per-user — one user's draft is invisible to another", async () => {
+    const { createPage, req, slug, token, workspaceId } = await seedAdminWikiDraftFixture()
     const page = await createPage('draft-per-user', 'Draft Per User', 'content')
     const other = await seedUser(`other-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, other.id, 'admin')
@@ -6115,6 +6133,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 
   test("publishing the draft's content via the normal update path works; discarding after publish clears it", async () => {
+    const { createPage, req, slug, token } = await seedAdminWikiDraftFixture()
     const page = await createPage('draft-publish', 'Draft Publish', 'v0')
     const pageRes = await req(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
@@ -6163,6 +6182,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 
   test('a stale baseRevisionId on publish still hits the normal 409 — no separate draft conflict mechanism', async () => {
+    const { createPage, req, slug, token } = await seedAdminWikiDraftFixture()
     const page = await createPage('draft-conflict', 'Draft Conflict', 'v0')
 
     /*
@@ -6220,6 +6240,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 
   test('trashing a page (cascade or not) leaves its draft rows in place until purge (PROJ-496)', async () => {
+    const { createPage, req, slug, token, workspaceId } = await seedAdminWikiDraftFixture()
     const parent = await createPage('draft-delete-parent', 'Draft Delete Parent', 'content')
     const child = (await req(
       'http://localhost/api/wiki',
@@ -6291,6 +6312,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 
   test('validation: title and content are required on save', async () => {
+    const { createPage, req, slug, token } = await seedAdminWikiDraftFixture()
     const page = await createPage('draft-validation', 'Draft Validation', 'content')
     const res = await req(
       `http://localhost/api/wiki/${page.slug}/draft`,
@@ -6300,6 +6322,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 
   test('covers MCP: save_wiki_draft / get_wiki_draft / discard_wiki_draft mirror the REST behavior', async () => {
+    const { createPage, slug, token, workspaceId } = await seedAdminWikiDraftFixture()
     const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
@@ -6325,21 +6348,19 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 })
 
-describe('wiki trash (PROJ-496)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-
-  beforeEach(async () => {
-    /*
-     * Admin: deleteWikiPage/undeleteWikiPage/purgeExpiredWikiPages on a workspace-level
-     * page all require admin/owner (requireWikiDelete / isWorkspaceAdmin).
-     */
-    const fixture = await seedFixture({ role: 'admin' })
-    ;({ token } = fixture)
-    ;({ slug } = fixture.workspace)
-    workspaceId = fixture.workspace.id
-  })
+const seedAdminWikiTrashFixture = async function seedAdminWikiTrashFixture(): Promise<
+  WikiWorkspaceFixture & {
+    backdateTrash: (seconds?: number) => Promise<D1Result<Record<string, unknown>>>
+    createPage: (
+      title: string,
+      content: string,
+      opts?: Record<string, unknown>,
+    ) => Promise<{ id: string; slug: string }>
+    req: (url: string, opts?: RequestInit) => Promise<Response>
+    trashPage: (pageSlug: string, cascade?: boolean) => Promise<void>
+  }
+> {
+  const { token, slug, workspaceId } = await seedWikiAdminWorkspaceFixture()
 
   const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
     return resetRateLimitAndFetch(url, opts)
@@ -6374,7 +6395,12 @@ describe('wiki trash (PROJ-496)', () => {
       .run()
   }
 
+  return { backdateTrash, createPage, req, slug, token, trashPage, workspaceId }
+}
+
+describe('wiki trash (PROJ-496)', () => {
   test('a trashed page disappears from the list, tree, search, stale-pages, and templates endpoints', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const page = await createPage('Trash List Page', 'trash-list-searchterm')
     await trashPage(page.slug)
 
@@ -6406,6 +6432,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('handles GET /api/wiki/:slug and GET /api/wiki/:id both 404 for a trashed page', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const page = await createPage('Trash Get Page', 'content')
     await trashPage(page.slug)
 
@@ -6421,6 +6448,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('a trashed source page no longer counts as a backlink', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const target = await createPage('Trash Backlink Target', 'target content')
     const source = await createPage('Trash Backlink Source', 'see [[Trash Backlink Target]]')
 
@@ -6439,6 +6467,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('a redirect pointing at a trashed page 404s instead of resolving', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const page = await createPage('Trash Redirect Target', 'content')
     const renameRes = await req(
       `http://localhost/api/wiki/${page.slug}`,
@@ -6469,6 +6498,7 @@ describe('wiki trash (PROJ-496)', () => {
 
   test('cascade trash moves the whole subtree as one unit: same deleted_at, all 404 via the API', async () => {
     expect.hasAssertions()
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const parent = await createPage('Trash Cascade Parent', 'content')
     const child = await createPage('Trash Cascade Child', 'content', { parentId: parent.id })
     const grandchild = await createPage('Trash Cascade Grandchild', 'content', {
@@ -6494,6 +6524,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('handles GET /api/wiki/trash lists trashed pages with a purgeAfter timestamp, and excludes live pages', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const live = await createPage('Trash List Live', 'content')
     const trashed = await createPage('Trash List Trashed', 'content')
     await trashPage(trashed.slug)
@@ -6513,6 +6544,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('handles POST /api/wiki/trash/:id/undelete restores a trashed page: it becomes visible again', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const page = await createPage('Trash Undelete Page', 'content')
     await trashPage(page.slug)
 
@@ -6530,6 +6562,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test("undelete rejects a slug that's since been taken by a new live page (409 conflict)", async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const page = await createPage('Trash Conflict Page', 'content')
     await trashPage(page.slug)
 
@@ -6547,6 +6580,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test("undelete 404s for an unknown id and 400s for a page that isn't actually trashed", async () => {
+    const { createPage, req, slug, token } = await seedAdminWikiTrashFixture()
     const unknownRes = await req(`http://localhost/api/wiki/trash/${crypto.randomUUID()}/undelete`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -6562,6 +6596,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('handles POST /api/wiki/purge-trash requires an admin/owner', async () => {
+    const { req, slug, workspaceId } = await seedAdminWikiTrashFixture()
     const memberUser = await seedUser(`trash-member-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
@@ -6574,6 +6609,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('purge removes only pages trashed >30 days ago, cleaning up every dependent table + R2', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const oldPage = await createPage('Trash Purge Old', 'purge-old-searchterm')
     await createPage('Trash Purge Old Target', 'content')
     await req(
@@ -6666,6 +6702,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('covers MCP list_wiki_trash / undelete_wiki_page / purge_wiki_trash mirror the REST behavior', async () => {
+    const { backdateTrash, createPage, slug, token, trashPage, workspaceId } = await seedAdminWikiTrashFixture()
     const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
@@ -6695,6 +6732,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('a link to a trashed-but-not-purged page is reported as broken (listBrokenWikiLinks)', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const target = await createPage('Trash Broken Link Target', 'target content')
     const source = await createPage('Trash Broken Link Source', 'see [[Trash Broken Link Target]]')
 
@@ -6723,6 +6761,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test("purge only removes trash in the caller's own workspace", async () => {
+    const { req, slug, token } = await seedAdminWikiTrashFixture()
     const other = await seedFixture({ role: 'admin' })
     const createOtherRes = await req(
       'http://localhost/api/wiki',
@@ -6757,6 +6796,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('trash list/undelete/purge never reach across workspaces', async () => {
+    const { req, slug, token } = await seedAdminWikiTrashFixture()
     const other = await seedFixture({ role: 'admin' })
     const createOtherRes = await req(
       'http://localhost/api/wiki',
@@ -6787,6 +6827,7 @@ describe('wiki trash (PROJ-496)', () => {
 
   test('undeleting a cascade-trashed root also restores descendants sharing the same batch', async () => {
     expect.hasAssertions()
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const parent = await createPage('Cascade Undelete Parent', 'content')
     const child = await createPage('Cascade Undelete Child', 'content', { parentId: parent.id })
     const grandchild = await createPage('Cascade Undelete Grandchild', 'content', {
@@ -6816,6 +6857,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test("undeleting a cascade-trashed root 409s (not a raw 500) when a descendant's slug was reclaimed", async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const parent = await createPage('Cascade Undelete Conflict Parent', 'content')
     const child = await createPage('Cascade Undelete Conflict Child', 'content', {
       parentId: parent.id,
@@ -6852,6 +6894,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('undeleting a cascade-trashed root does NOT restore a descendant trashed separately, same window', async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     /*
      * Regression test for the trash_batch_id disambiguation (PROJ-496 follow-up):
      * trashing the child alone and then cascade-trashing the parent right after, with
@@ -6881,6 +6924,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test("non-cascade trash leaves a trashed child's parent_id untouched; undelete restores original parent", async () => {
+    const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const parent = await createPage('Noncascade Reparent Parent', 'content')
     const child = await createPage('Noncascade Reparent Child', 'content', {
       parentId: parent.id,
@@ -6907,6 +6951,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('purge re-parents a live child left pointing at a page that gets purged', async () => {
+    const { backdateTrash, createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const grandparent = await createPage('Purge Reparent Grandparent', 'content')
     const parent = await createPage('Purge Reparent Parent', 'content', {
       parentId: grandparent.id,
@@ -6947,6 +6992,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('purge deletes wiki_revisions rows for purged pages', async () => {
+    const { backdateTrash, createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
     const page = await createPage('Purge Revisions Page', 'v1')
     await req(
       `http://localhost/api/wiki/${page.slug}`,
@@ -6973,23 +7019,13 @@ describe('wiki trash (PROJ-496)', () => {
   })
 })
 
-/*
- * PROJ-812: a slug equal to another page's id must never make an id-or-slug lookup
- * hit the wrong page, and new id-shaped slugs are rejected outright.
- */
-describe('wiki slug/id collisions (PROJ-812)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userId: string
-
-  beforeEach(async () => {
-    const fixture = await seedFixture({ role: 'admin' })
-    ;({ token } = fixture)
-    ;({ slug } = fixture.workspace)
-    workspaceId = fixture.workspace.id
-    userId = fixture.user.id
-  })
+const seedAdminWikiSlugFixture = async function seedAdminWikiSlugFixture(): Promise<
+  WikiWorkspaceFixture & {
+    create: (body: Record<string, unknown>) => Promise<Response>
+    userId: string
+  }
+> {
+  const { token, slug, workspaceId, userId } = await seedWikiAdminWorkspaceFixture()
 
   const create = async function create(body: Record<string, unknown>): Promise<Response> {
     return resetRateLimitAndFetch(
@@ -6998,7 +7034,16 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     )
   }
 
+  return { create, slug, token, userId, workspaceId }
+}
+
+/*
+ * PROJ-812: a slug equal to another page's id must never make an id-or-slug lookup
+ * hit the wrong page, and new id-shaped slugs are rejected outright.
+ */
+describe('wiki slug/id collisions (PROJ-812)', () => {
   test('rejects an explicit slug shaped like a dashed or undashed page id', async () => {
+    const { create } = await seedAdminWikiSlugFixture()
     const dashed = await create({ title: 'A', slug: crypto.randomUUID() })
     expect(dashed.status).toBe(400)
     const hex = await create({ title: 'B', slug: crypto.randomUUID().replaceAll('-', '') })
@@ -7006,6 +7051,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
   })
 
   test('rejects renaming a page to an id-shaped slug', async () => {
+    const { create, slug, token } = await seedAdminWikiSlugFixture()
     const res = await create({ title: 'Rename Me' })
     const page = await readNativeJson(res, IdResponse)
     const put = await resetRateLimitAndFetch(
@@ -7016,6 +7062,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
   })
 
   test('suffixes an auto-derived slug when the title is itself an id', async () => {
+    const { create } = await seedAdminWikiSlugFixture()
     const id = crypto.randomUUID()
     const res = await create({ title: id })
     expect(res.status).toBe(201)
@@ -7023,6 +7070,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
   })
 
   test("resolves GET, PUT and DELETE by id to the id's page when a legacy slug equals that id", async () => {
+    const { slug, token, userId, workspaceId } = await seedAdminWikiSlugFixture()
     /*
      * Legacy (pre-PROJ-812) data, inserted directly since the API now refuses it: the
      * impostor row is written FIRST, so a lookup without an id preference returns it.
