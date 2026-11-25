@@ -9,6 +9,7 @@ import {
 } from '#contracts/inputs/wiki.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
 /*
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
  * autosave so an in-progress edit survives a device switch.
@@ -179,7 +180,7 @@ const advanceHead = function advanceHead(
   revision: string,
 ): D1PreparedStatement {
   const key = [ctx.workspaceId, ctx.userId, pageId]
-  if (expected === undefined) {
+  if (!isWikiRevisionSpecified(expected)) {
     /*
      * Existing REST/MCP callers remain last-write-wins, but invalidate any older
      * versioned browser request rather than bypassing the head.

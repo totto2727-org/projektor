@@ -2,6 +2,7 @@
 
 import { Predicate, Effect, Schema } from 'effect'
 
+import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
 import { EFFRONT } from '@/effront.ts'
 import { actionFailure } from '@/function-result.ts'
 import { RequestServices } from '@/request.ts'
@@ -218,7 +219,7 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
             title: input.title,
             content: input.content,
             expectedDraftRevision: input.expectedDraftRevision,
-            ...(input.baseRevisionId !== undefined ? { baseRevisionId: input.baseRevisionId } : {}),
+            ...(isWikiRevisionSpecified(input.baseRevisionId) ? { baseRevisionId: input.baseRevisionId } : {}),
           }),
         ).pipe(
           Effect.flatMap((commandResult) => decodePublishedWikiPage(commandResult).pipe(Effect.mapError(dataError))),

@@ -8,6 +8,7 @@ import type { JSX, RefObject } from 'react'
 
 import { hasMultipleItems } from '#contracts/item-count.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
 import { uploadInlineImage as uploadEditorImage } from '@/attachment-actions.ts'
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
 import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
@@ -2695,7 +2696,7 @@ function useWikiEditing(
      * PROJ-809: prefer the revision read together with this content; the separately
      * fetched revisions list can already include a save that the content predates.
      */
-    setBaseRevisionId(page.revisionId !== undefined ? page.revisionId : latestRevisionId)
+    setBaseRevisionId(isWikiRevisionSpecified(page.revisionId) ? page.revisionId : latestRevisionId)
     setEditTitle(page.title)
     setEditContent(page.content)
     setEditing(true)
@@ -2713,8 +2714,9 @@ function useWikiEditing(
        * has changed since the draft was started.
        */
       if (draft && (draft.content !== page.content || draft.title !== page.title)) {
-        const pageChangedSince =
-          page.revisionId !== undefined ? draft.baseRevisionId !== page.revisionId : draft.updatedAt <= page.updated_at
+        const pageChangedSince = isWikiRevisionSpecified(page.revisionId)
+          ? draft.baseRevisionId !== page.revisionId
+          : draft.updatedAt <= page.updated_at
         setDraftBanner({ ...draft, pageChangedSince })
       }
       /*
@@ -2806,7 +2808,7 @@ function useWikiEditing(
       page,
       title: editTitle,
       content: editContent,
-      base: baseOverride !== undefined ? baseOverride : baseRevisionId,
+      base: isWikiRevisionSpecified(baseOverride) ? baseOverride : baseRevisionId,
     }
     setSaving(true)
     setSaveError(undefined)
@@ -2895,13 +2897,13 @@ function useWikiEditing(
       adoptDraftState(state)
       setDraftStatus('ready')
       const current = unwrapResult(await Effect.runPromise(query(getWikiPage)({ workspaceSlug, slug: page.slug })))
-      const base = current.revisionId !== undefined ? current.revisionId : undefined
+      const base = current.revisionId
       setBaseRevisionId(base)
       /*
        * Null is a real base ("page has no revisions"); undefined means "server
        * predates revisionId", which falls back to last-write-wins.
        */
-      await saveWithBase(base === undefined ? null : base)
+      await saveWithBase(base ?? null)
     } catch (caughtError) {
       setSaveError(wikiSaveErrorMessage(caughtError))
     }

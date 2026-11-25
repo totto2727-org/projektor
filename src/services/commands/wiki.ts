@@ -22,6 +22,7 @@ import { hasMultipleItems, hasSingleItem } from '#contracts/item-count.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
+import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
 import { drizzle, schema } from '#db'
 import { isUniqueConstraintError } from '#services/errors.ts'
 import * as wikiData from '#services/wiki.ts'
@@ -1277,7 +1278,7 @@ const assertNoUpdateConflict = async function assertNoUpdateConflict(
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
   baseRevisionId: string | null | undefined,
 ): Promise<void> {
-  if (baseRevisionId === undefined) {
+  if (!isWikiRevisionSpecified(baseRevisionId)) {
     return
   }
   const currentRevisionId = await getLatestRevisionId(db, page.id)
