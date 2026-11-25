@@ -5415,74 +5415,88 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
  * list_wiki_changes delta feed.
  */
 describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
-  let token: string
-  let userId: string
-  let slug: string
-  let workspaceId: string
+  const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
+    return resetRateLimitAndFetch(url, opts)
+  }
 
-  beforeEach(async () => {
+  type WikiWatcherScenario = Readonly<{
+    createChildPage: (
+      pageSlug: string,
+      title: string,
+      content: string,
+      parentId: string,
+    ) => Promise<{ id: string; slug: string }>
+    createPage: (pageSlug: string, title: string, content?: string) => Promise<{ id: string; slug: string }>
+    notifications: (watcherToken: string, query?: string) => Promise<typeof ApiResults.apiListWikiNotifications.Type>
+    seedWatcher: (role?: string) => Promise<Readonly<{ token: string; user: Awaited<ReturnType<typeof seedUser>> }>>
+    slug: string
+    token: string
+    userId: string
+    workspaceId: string
+  }>
+
+  const seedWikiWatcherScenario = async function seedWikiWatcherScenario(): Promise<WikiWatcherScenario> {
     /*
      * Admin: several tests (cascade delete, delta-delete) delete workspace-level
      * pages, which requireWikiDelete restricts to admin/owner.
      */
     const fixture = await seedFixture({ role: 'admin' })
-    ;({ token } = fixture)
-    userId = fixture.user.id
-    ;({ slug } = fixture.workspace)
-    workspaceId = fixture.workspace.id
-  })
+    const { token } = fixture
+    const userId = fixture.user.id
+    const { slug } = fixture.workspace
+    const workspaceId = fixture.workspace.id
 
-  const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
-    return resetRateLimitAndFetch(url, opts)
-  }
+    const createPage = async function createPage(
+      pageSlug: string,
+      title: string,
+      content = '',
+    ): Promise<{ id: string; slug: string }> {
+      const res = await req(
+        'http://localhost/api/wiki',
+        requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ content, slug: pageSlug, title })),
+      )
+      expect(res.status).toBe(201)
+      return readNativeJson(res, IdAndSlugResponse)
+    }
 
-  const createPage = async function createPage(
-    pageSlug: string,
-    title: string,
-    content = '',
-  ): Promise<{ id: string; slug: string }> {
-    const res = await req(
-      'http://localhost/api/wiki',
-      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ content, slug: pageSlug, title })),
-    )
-    expect(res.status).toBe(201)
-    return readNativeJson(res, IdAndSlugResponse)
-  }
+    const createChildPage = async function createChildPage(
+      pageSlug: string,
+      title: string,
+      content: string,
+      parentId: string,
+    ): Promise<{ id: string; slug: string }> {
+      const res = await req(
+        'http://localhost/api/wiki',
+        requestOptionsWithBody(
+          'POST',
+          authHeaders(token, slug),
+          JSON.stringify({ content, parentId, slug: pageSlug, title }),
+        ),
+      )
+      expect(res.status).toBe(201)
+      return readNativeJson(res, IdAndSlugResponse)
+    }
 
-  const createChildPage = async function createChildPage(
-    pageSlug: string,
-    title: string,
-    content: string,
-    parentId: string,
-  ): Promise<{ id: string; slug: string }> {
-    const res = await req(
-      'http://localhost/api/wiki',
-      requestOptionsWithBody(
-        'POST',
-        authHeaders(token, slug),
-        JSON.stringify({ content, parentId, slug: pageSlug, title }),
-      ),
-    )
-    expect(res.status).toBe(201)
-    return readNativeJson(res, IdAndSlugResponse)
-  }
+    const seedWatcher = async function seedWatcher(role = 'member') {
+      const user = await seedUser(`watcher-${crypto.randomUUID().slice(0, 8)}@example.com`)
+      await seedMember(workspaceId, user.id, role)
+      const watcherToken = await seedToken(workspaceId, user.id)
+      return { user, token: watcherToken }
+    }
 
-  const seedWatcher = async function seedWatcher(role = 'member') {
-    const user = await seedUser(`watcher-${crypto.randomUUID().slice(0, 8)}@example.com`)
-    await seedMember(workspaceId, user.id, role)
-    const watcherToken = await seedToken(workspaceId, user.id)
-    return { user, token: watcherToken }
-  }
+    const notifications = async function notifications(watcherToken: string, query = '') {
+      const res = await req(`http://localhost/api/wiki/notifications${query}`, {
+        headers: authHeaders(watcherToken, slug),
+      })
+      expect(res.status).toBe(200)
+      return readNativeJson(res, ApiResults.apiListWikiNotifications)
+    }
 
-  const notifications = async function notifications(watcherToken: string, query = '') {
-    const res = await req(`http://localhost/api/wiki/notifications${query}`, {
-      headers: authHeaders(watcherToken, slug),
-    })
-    expect(res.status).toBe(200)
-    return readNativeJson(res, ApiResults.apiListWikiNotifications)
+    return { createChildPage, createPage, notifications, seedWatcher, slug, token, userId, workspaceId }
   }
 
   test('covers REST: watch/unwatch a page, watching again upserts the subtree flag instead of duplicating', async () => {
+    const { createPage, slug, token } = await seedWikiWatcherScenario()
     const page = await createPage('watch-me', 'Watch Me', 'content')
 
     const watchRes = await req(
@@ -5518,6 +5532,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('a direct watcher is notified when someone else edits the page, never for their own edit', async () => {
+    const { createPage, notifications, seedWatcher, slug, token, userId } = await seedWikiWatcherScenario()
     const page = await createPage('direct-watch', 'Direct Watch', 'content')
     const watcher = await seedWatcher()
     await req(
@@ -5541,6 +5556,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('unwatching stops further notifications', async () => {
+    const { createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const page = await createPage('unwatch-stop', 'Unwatch Stop', 'content')
     const watcher = await seedWatcher()
     await req(
@@ -5559,6 +5575,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('subtree watch covers a page created now under it AND a later edit to that descendant', async () => {
+    const { createChildPage, createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const parent = await createPage('parent-page', 'Parent Page', 'content')
     const watcher = await seedWatcher()
     await req(
@@ -5581,6 +5598,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test("a direct-only (non-subtree) watch on the parent does NOT notify for a descendant's changes", async () => {
+    const { createChildPage, createPage, notifications, seedWatcher, slug } = await seedWikiWatcherScenario()
     const parent = await createPage('parent-narrow', 'Parent Narrow', 'content')
     const watcher = await seedWatcher()
     await req(
@@ -5592,6 +5610,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('template pages never generate watcher notifications', async () => {
+    const { createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const page = await createPage('watch-template', 'Watch Template', '---\ntemplate: true\n---\nbody')
     const watcher = await seedWatcher()
     await req(
@@ -5610,6 +5629,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test("a cascade delete generates a single 'deleted' notification for the root, not one per descendant", async () => {
+    const { createChildPage, createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const parent = await createPage('cascade-parent', 'Cascade Parent', 'content')
     await createChildPage('cascade-child', 'Cascade Child', 'child', parent.id)
     const watcher = await seedWatcher()
@@ -5631,6 +5651,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('a cascade delete notifies someone watching a DESCENDANT directly, and clears their watch row', async () => {
+    const { createChildPage, createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const parent = await createPage('cascade-root', 'Cascade Root', 'content')
     const child = await createChildPage('cascade-kid', 'Cascade Kid', 'child', parent.id)
     const watcher = await seedWatcher()
@@ -5666,6 +5687,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('a cascade undelete notifies someone watching a DESCENDANT (PROJ-496: symmetric with cascade delete)', async () => {
+    const { createChildPage, createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const parent = await createPage('cascade-restore-root', 'Cascade Restore Root', 'content')
     const child = await createChildPage('cascade-restore-kid', 'Cascade Restore Kid', 'child', parent.id)
     const watcher = await seedWatcher()
@@ -5693,6 +5715,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('unreadOnly=false / watchedOnly=false are honored as false, not coerced true', async () => {
+    const { createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const page = await createPage('bool-param', 'Bool Param', 'content')
     const watcher = await seedWatcher()
     await req(
@@ -5725,6 +5748,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('mark_wiki_notifications_read: by explicit ids, then all:true', async () => {
+    const { createPage, notifications, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const page = await createPage('read-flag', 'Read Flag', 'content')
     const watcher = await seedWatcher()
     await req(
@@ -5757,6 +5781,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test("list_wiki_changes: since is exclusive, nextSince advances, default scope isn't watched-only", async () => {
+    const { createPage, slug, token } = await seedWikiWatcherScenario()
     const t0 = currentEpochSeconds() - 1
     const page = await createPage('delta-doc', 'Delta Doc', 'content')
 
@@ -5793,6 +5818,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
    * deliberately huge 'updated'-row diff never appears in any of them.
    */
   test("list_wiki_changes never pulls a non-deleted row's full diff out of D1 (PROJ-869)", async () => {
+    const { createPage, userId, workspaceId } = await seedWikiWatcherScenario()
     const page = await createPage('delta-size', 'Delta Size', 'seed')
     const bigContent = 'x'.repeat(50_000)
     const t0 = currentEpochSeconds() - 1
@@ -5831,6 +5857,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test("list_wiki_changes reports a deleted page's slug/title even though the row is gone", async () => {
+    const { createPage, slug, token } = await seedWikiWatcherScenario()
     const t0 = currentEpochSeconds() - 1
     const page = await createPage('delta-delete', 'Delta Delete', 'content')
     await req(`http://localhost/api/wiki/${page.slug}`, {
@@ -5852,6 +5879,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
    * to evict them too — otherwise they never get told the descendants also vanished.
    */
   test("list_wiki_changes surfaces deletedPageIds on a cascade delete's root event", async () => {
+    const { createChildPage, createPage, slug, token } = await seedWikiWatcherScenario()
     const t0 = currentEpochSeconds() - 1
     const parent = await createPage('delta-cascade-parent', 'Delta Cascade Parent', 'content')
     const child = await createChildPage('delta-cascade-child', 'Delta Cascade Child', 'child', parent.id)
@@ -5875,6 +5903,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test("list_wiki_changes hides changes to a project-scoped page the caller can't see", async () => {
+    const { seedWatcher, slug, token, userId, workspaceId } = await seedWikiWatcherScenario()
     const project = await seedProject(workspaceId, `PRJ${crypto.randomUUID().slice(0, 4)}`)
     await seedGroupGrant(workspaceId, userId, project.id)
     const t0 = currentEpochSeconds() - 1
@@ -5911,6 +5940,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('list_wiki_changes watchedOnly=true narrows to watched pages, including via a subtree watch', async () => {
+    const { createChildPage, createPage, seedWatcher, slug, token } = await seedWikiWatcherScenario()
     const parent = await createPage('watched-scope-parent', 'Watched Scope Parent', 'content')
     const other = await createPage('unwatched-scope', 'Unwatched Scope', 'content')
     const watcher = await seedWatcher()
@@ -5935,6 +5965,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('covers MCP: watch_wiki_page / list_wiki_watches / list_wiki_changes mirror the REST behavior', async () => {
+    const { createPage, slug, token, workspaceId } = await seedWikiWatcherScenario()
     /*
      * Several MCP calls back-to-back would otherwise trip the same per-token rate
      * limit that req() clears for REST calls above.
