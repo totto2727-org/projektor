@@ -641,9 +641,7 @@ describe('workspace brand (PROJ-761)', () => {
 
   test("owner can upload a logo, it's servable, and a re-upload replaces (not duplicates) the R2 object", async () => {
     const { memberHeaders, ownerHeaders, slug } = await seedTestData()
-    const pngBytes = new Uint8Array([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-    ])
+    const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82])
     const form = new FormData()
     form.append('file', new File([pngBytes], 'logo.png', { type: 'image/png' }))
     const uploadRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {

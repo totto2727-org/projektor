@@ -89,7 +89,8 @@ describe('covers PROJ-892: MCP tools', () => {
         }),
       ),
     )
-    return await res.json()
+    const result: Rpc = await res.json()
+    return result
   }
   const tool = async function tool<T = Record<string, unknown>>(name: string, args = {}): Promise<T> {
     const body = await call(name, args)

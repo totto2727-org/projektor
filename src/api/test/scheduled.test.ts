@@ -61,7 +61,8 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
         if (dbProp === 'batch') {
           return async (statements: D1PreparedStatement[]) => {
             bump()
-            return await Reflect.get(dbTarget, 'batch', dbReceiver).call(dbTarget, statements)
+            const result = await Reflect.get(dbTarget, 'batch', dbReceiver).call(dbTarget, statements)
+            return result
           }
         }
         const orig = Reflect.get(dbTarget, dbProp, dbReceiver)

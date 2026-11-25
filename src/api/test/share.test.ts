@@ -278,7 +278,7 @@ describe('share tokens', () => {
 
   test('review finding 1: GET /api/share/:token/logo serves the workspace logo with no auth', async () => {
     const owner = await seedIssueFixture({ role: 'owner' })
-    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
     const form = new FormData()
     form.append('file', new File([pngBytes], 'logo.png', { type: 'image/png' }))
     const ownerAuth = authHeaders(owner.token, owner.slug)

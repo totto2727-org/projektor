@@ -22,7 +22,8 @@ export const projectsTools: MCPTool[] = [
     annotations: CREATE,
     description: 'Create a new project in the workspace',
     async handler(input, ctx) {
-      return await createProject(ctx, input)
+      const result = await createProject(ctx, input)
+      return result
     },
     inputSchema: requiredObjectInputSchema(
       ['name', 'key'],

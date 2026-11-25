@@ -1059,7 +1059,7 @@ export const { buildUnifiedDiff } = wikiData
 export function newSearchRowid(): number {
   const [hi, lo] = crypto.getRandomValues(new Uint32Array(2))
   // 20 + 32 = 52 random bits; + 2^40 stays below Number.MAX_SAFE_INTEGER (2^53).
-  return 2 ** 40 + ((hi & 0xf_ff_ff) * 2 ** 32 + lo)
+  return 2 ** 40 + ((hi & 0b1111_1111_1111_1111_1111) * 2 ** 32 + lo)
 }
 
 /*

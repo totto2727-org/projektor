@@ -60,7 +60,8 @@ const seedFlowMetricsFixture = async function seedFlowMetricsFixture() {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    return await readNativeJson(res, ApiResults.apiGetFlowMetrics)
+    const result = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
+    return result
   }
 
   const stampLease = async function stampLease(

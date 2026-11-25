@@ -87,6 +87,7 @@ export const workspaceMiddleware = async function workspaceMiddleware(
     )
     httpContext.set('workspace', { id: workspace.id, name: workspace.name, slug: workspace.slug })
     httpContext.set('role', workspace.role)
+    // oxlint-disable-next-line typescript/return-await -- This catch handles synchronous continuation failures. Downstream rejections still reach Hono.
     return next()
   } catch (error) {
     if (!(error instanceof CorePublicError)) {

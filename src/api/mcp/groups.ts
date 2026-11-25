@@ -52,7 +52,8 @@ export const groupsTools: MCPTool[] = [
     annotations: CREATE,
     description: 'Create an access group (owner/admin only)',
     async handler(input, ctx) {
-      return await createGroup(ctx, input)
+      const result = await createGroup(ctx, input)
+      return result
     },
     inputSchema: requiredObjectInputSchema(
       ['name'],

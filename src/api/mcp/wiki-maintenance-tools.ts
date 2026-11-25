@@ -67,7 +67,8 @@ export const wikiMaintenanceTools: MCPTool[] = [
       'as `cursor` to continue; call repeatedly until `nextCursor` is null. `updatedSince` ' +
       '(unix seconds) limits the scope to pages touched at/after that time. Owner/admin only.',
     async handler(input, ctx) {
-      return await wikiService.backfillWikiLinks(ctx, input)
+      const result = await wikiService.backfillWikiLinks(ctx, input)
+      return result
     },
     inputSchema: objectInputSchema({
       cursor: fieldsInOrder([

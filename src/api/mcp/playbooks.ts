@@ -71,7 +71,8 @@ export const playbooksTools: MCPTool[] = [
       'params.variant (bounded|full, default bounded), params.reviewModel (default "opus"), ' +
       'params.cadence (default 2) are optional.',
     async handler(input, ctx) {
-      return await composePlaybook(ctx, input)
+      const result = await composePlaybook(ctx, input)
+      return result
     },
     inputSchema: fieldsInOrder([
       ['type', 'object'],

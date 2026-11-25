@@ -94,6 +94,7 @@ export const authMiddleware = async function authMiddleware(
       ...principal.auth,
       scopes: Predicate.isNullish(principal.auth.scopes) ? undefined : [...principal.auth.scopes],
     })
+    // oxlint-disable-next-line typescript/return-await -- This catch handles synchronous continuation failures. Downstream rejections still reach Hono.
     return next()
   } catch (error) {
     if (!(error instanceof CorePublicError)) {

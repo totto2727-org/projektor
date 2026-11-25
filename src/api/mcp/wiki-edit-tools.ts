@@ -55,7 +55,8 @@ export const wikiEditTools: MCPTool[] = [
     ),
     ...fieldsInOrder([['annotations', CREATE]]),
     async handler(input, ctx) {
-      return await wikiService.createWikiPage(ctx, input)
+      const result = await wikiService.createWikiPage(ctx, input)
+      return result
     },
   },
   {
@@ -90,7 +91,8 @@ export const wikiEditTools: MCPTool[] = [
         throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
       }
       const payload = Predicate.isNotNullish(newSlug) ? { ...rest, slug: newSlug } : rest
-      return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
+      const result = await wikiService.updateWikiPage(ctx, idOrSlug, payload)
+      return result
     },
     inputSchema: objectInputSchema(
       fieldsInOrder([
@@ -167,7 +169,8 @@ export const wikiEditTools: MCPTool[] = [
       if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
         throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
       }
-      return await wikiService.patchWikiPage(ctx, idOrSlug, rest)
+      const result = await wikiService.patchWikiPage(ctx, idOrSlug, rest)
+      return result
     },
     inputSchema: requiredObjectInputSchema(
       ['op', 'baseRevisionId'],

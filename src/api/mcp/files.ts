@@ -24,7 +24,8 @@ export const filesTools: MCPTool[] = [
     description:
       'Select or update an issue-owned file or URL review target. Set status to null to remove it from review targets. Wiki references are not eligible.',
     async handler(input, ctx) {
-      return await setAttachmentReviewStatus(ctx, input)
+      const result = await setAttachmentReviewStatus(ctx, input)
+      return result
     },
     inputSchema: requiredObjectInputSchema(
       ['issueId', 'attachmentId', 'status'],
@@ -79,7 +80,8 @@ export const filesTools: MCPTool[] = [
     annotations: CREATE,
     description: 'Attach a wiki-page reference or an external URL to an issue or wiki page',
     async handler(input, ctx) {
-      return await createLinkAttachment(ctx, input)
+      const result = await createLinkAttachment(ctx, input)
+      return result
     },
     inputSchema: requiredObjectInputSchema(
       ['kind', 'entityType', 'entityId'],

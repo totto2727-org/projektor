@@ -73,7 +73,8 @@ export const workspacesTools: MCPTool[] = [
        * ctx.role and token confinement belong to the URL's workspace, not the target.
        * deleteWorkspace 404s when workspaceSlug isn't ctx's workspace.
        */
-      return await deleteWorkspace(ctx, workspaceSlug, 'projektor')
+      const result = await deleteWorkspace(ctx, workspaceSlug, 'projektor')
+      return result
     },
     inputSchema: requiredObjectInputSchema(['workspaceSlug'], {
       workspaceSlug: describedInputProperty('string', 'Slug of the workspace to delete'),
@@ -84,7 +85,8 @@ export const workspacesTools: MCPTool[] = [
     annotations: IDEMPOTENT_WRITE,
     description: 'Rename the current workspace. Admin+ only.',
     async handler(input, ctx) {
-      return await updateWorkspace(ctx, input)
+      const result = await updateWorkspace(ctx, input)
+      return result
     },
     inputSchema: requiredObjectInputSchema(['name'], {
       name: describedInputProperty('string', 'New display name for the workspace'),
