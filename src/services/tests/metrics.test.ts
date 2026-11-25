@@ -8,6 +8,7 @@ import { migratedDb } from '#db/test/helpers.ts'
 import { getCodeHeatmap } from '#services/code-heatmap.ts'
 import { DataQueryError } from '#services/errors.ts'
 import { getFlowMetrics } from '#services/flow-metrics.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
 const DAY = 86_400
@@ -130,13 +131,13 @@ describe('shared metrics migrated SQLite reads', () => {
       ],
       bugShareOverTime: [
         { bucketStart: '1970-01-02', total: 1, bugCount: 1, bugSharePercent: 1 },
-        { bucketStart: '1970-01-03', total: 0, bugCount: 0, bugSharePercent: null },
+        { bucketStart: '1970-01-03', total: 0, bugCount: 0, bugSharePercent: JSON_NULL },
       ],
       bugTypeTracked: true,
       reviewLatency: distribution(20),
       reviewLatencyOverTime: [
         { bucketStart: '1970-01-02', p50: 20 },
-        { bucketStart: '1970-01-03', p50: null },
+        { bucketStart: '1970-01-03', p50: JSON_NULL },
       ],
       humanInterventions: distribution(3),
       autonomyRatio: distribution(0.5),
@@ -178,7 +179,7 @@ describe('shared metrics migrated SQLite reads', () => {
     const foreign = await runTestEffect(
       getFlowMetrics(db, 'wa', { projectId: 'pb', since: DAY, until: now, granularity: 'day' }, now),
     )
-    expect(foreign.leadTime).toStrictEqual({ avg: null, count: 0, p50: null, p90: null })
+    expect(foreign.leadTime).toStrictEqual({ avg: JSON_NULL, count: 0, p50: JSON_NULL, p90: JSON_NULL })
     expect(foreign.agingWip).toStrictEqual([])
     expect(foreign.factoryHealth).toStrictEqual({
       abandonedClaims: 0,

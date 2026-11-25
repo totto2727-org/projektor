@@ -975,7 +975,7 @@ describe('wiki API', () => {
   test('handles POST /api/wiki rejects when max nesting depth (5) is exceeded', async () => {
     expect.hasAssertions()
     const { slug, token } = await seedWikiApiFixture()
-    let parentId: string | null = null
+    let parentId: string | null = SQL_NULL
     // Create 5 levels deep (root → L1 → L2 → L3 → L4 → L5)
     await runIndexedInOrder(5, async (index): Promise<void> => {
       const body: Record<string, unknown> = { title: `Level ${index}`, content: '' }
@@ -1013,7 +1013,7 @@ describe('wiki API', () => {
     // Build a 4-level chain: L0 -> L1 -> L2 -> L3 (L3 sits at depth 3).
     expect.hasAssertions()
     const { slug, token } = await seedWikiApiFixture()
-    let chainParentId: string | null = null
+    let chainParentId: string | null = SQL_NULL
     let l3Id = ''
     await runIndexedInOrder(4, async (index): Promise<void> => {
       const body: Record<string, unknown> = { title: `Chain ${index}`, content: '' }
@@ -4875,12 +4875,14 @@ describe('wiki write atomicity (PROJ-511)', () => {
 // PROJ-489 (R7): verification stamps + computed staleness surfacing.
 describe('computeFreshness (PROJ-489)', () => {
   test('returns null when the page has neither verify_interval nor status', () => {
-    expect(computeFreshness({ verifiedAt: null, verifyInterval: null, status: null })).toBeNull()
+    expect(computeFreshness({ verifiedAt: SQL_NULL, verifyInterval: SQL_NULL, status: SQL_NULL })).toBeNull()
   })
 
   test("returns 'unverified' when verify_interval is set but verified_at is null", () => {
-    expect(computeFreshness({ verifiedAt: null, verifyInterval: 30, status: null, now: 1_000_000 })).toStrictEqual({
-      staleSince: null,
+    expect(
+      computeFreshness({ verifiedAt: SQL_NULL, verifyInterval: 30, status: SQL_NULL, now: 1_000_000 }),
+    ).toStrictEqual({
+      staleSince: JSON_NULL,
       state: 'unverified',
     })
   })
@@ -4889,8 +4891,8 @@ describe('computeFreshness (PROJ-489)', () => {
     const now = 1_000_000
     // 10 days ago
     const verifiedAt = now - 10 * 86_400
-    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toStrictEqual({
-      staleSince: null,
+    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: SQL_NULL, now })).toStrictEqual({
+      staleSince: JSON_NULL,
       state: 'fresh',
     })
   })
@@ -4900,19 +4902,19 @@ describe('computeFreshness (PROJ-489)', () => {
     // 40 days ago
     const verifiedAt = now - 40 * 86_400
     const dueAt = verifiedAt + 30 * 86_400
-    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toStrictEqual({
+    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: SQL_NULL, now })).toStrictEqual({
       staleSince: dueAt,
       state: 'stale',
     })
   })
 
   test('treats an explicit status: stale as stale regardless of verify_interval', () => {
-    expect(computeFreshness({ verifiedAt: null, verifyInterval: null, status: 'stale', now: 1_000_000 })).toStrictEqual(
-      {
-        staleSince: null,
-        state: 'stale',
-      },
-    )
+    expect(
+      computeFreshness({ verifiedAt: SQL_NULL, verifyInterval: SQL_NULL, status: 'stale', now: 1_000_000 }),
+    ).toStrictEqual({
+      staleSince: JSON_NULL,
+      state: 'stale',
+    })
   })
 
   test("treats an explicit status: deprecated as stale even when verify_interval hasn't elapsed yet", () => {
@@ -4920,7 +4922,7 @@ describe('computeFreshness (PROJ-489)', () => {
     // Verified yesterday
     const verifiedAt = now - 1 * 86_400
     expect(computeFreshness({ verifiedAt, verifyInterval: 365, status: 'deprecated', now })).toStrictEqual({
-      staleSince: null,
+      staleSince: JSON_NULL,
       state: 'stale',
     })
   })
@@ -4928,12 +4930,12 @@ describe('computeFreshness (PROJ-489)', () => {
   test('treats status: current with no verify_interval as fresh', () => {
     expect(
       computeFreshness({
-        verifiedAt: null,
-        verifyInterval: null,
+        verifiedAt: SQL_NULL,
+        verifyInterval: SQL_NULL,
         status: 'current',
         now: 1_000_000,
       }),
-    ).toStrictEqual({ staleSince: null, state: 'fresh' })
+    ).toStrictEqual({ staleSince: JSON_NULL, state: 'fresh' })
   })
 })
 
@@ -6130,7 +6132,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
 
     // Non-cascade events (e.g. the earlier "created" events) carry no deletedPageIds.
     const createdEvent = body.changes.find((change) => change.action === 'created' && change.pageId === parent.id)
-    expect(createdEvent?.deletedPageIds ?? null).toBeNull()
+    expect(createdEvent?.deletedPageIds ?? JSON_NULL).toBeNull()
   })
 
   test("list_wiki_changes hides changes to a project-scoped page the caller can't see", async () => {
