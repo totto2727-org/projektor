@@ -32,6 +32,8 @@ import {
   searchDataWikiAttachments,
 } from './data.ts'
 
+const MIN_REQUIRED_INPUT_LENGTH = 1
+
 const decodeCreatedIssue = Schema.decodeUnknownEffect(Schema.Struct({ id: Schema.String, number: Schema.Number }))
 const decodeIssueCommandOk = Schema.decodeUnknownEffect(OkSchema)
 
@@ -52,6 +54,13 @@ const authorizedIssue = function authorizedIssue(context: FunctionContext, issue
     return yield* readDataIssue(context.scope, yield* dataWorkspaceId(context), issueId, context.projectId)
   })
 }
+
+const AttachmentReviewStatusInput = Schema.Struct({
+  ...SelectorFields,
+  issueId: Schema.String.check(Schema.isMinLength(MIN_REQUIRED_INPUT_LENGTH)),
+  attachmentId: Schema.String.check(Schema.isMinLength(MIN_REQUIRED_INPUT_LENGTH)),
+  status: Schema.NullOr(ReviewStatusSchema),
+})
 
 export const setAttachmentReviewStatus = EFFRONT.ServerFn.make({
   handler: (input) =>
@@ -77,12 +86,7 @@ export const setAttachmentReviewStatus = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
-  input: Schema.Struct({
-    ...SelectorFields,
-    issueId: Schema.String.check(Schema.isMinLength(1)),
-    attachmentId: Schema.String.check(Schema.isMinLength(1)),
-    status: Schema.NullOr(ReviewStatusSchema),
-  }),
+  input: AttachmentReviewStatusInput,
 })
 
 export const createIssue = EFFRONT.ServerFn.make({
@@ -243,6 +247,11 @@ export const readComments = EFFRONT.ServerFn.make({
     ),
   input: IssueIdentitySchema,
 })
+const AddCommentInput = Schema.Struct({
+  ...IssueIdentitySchema.fields,
+  body: Schema.String.check(Schema.isMinLength(MIN_REQUIRED_INPUT_LENGTH)),
+})
+
 export const addComment = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
@@ -263,11 +272,14 @@ export const addComment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
-  input: Schema.Struct({
-    ...IssueIdentitySchema.fields,
-    body: Schema.String.check(Schema.isMinLength(1)),
-  }),
+  input: AddCommentInput,
 })
+const EditCommentInput = Schema.Struct({
+  ...IssueIdentitySchema.fields,
+  commentId: Schema.String,
+  body: Schema.String.check(Schema.isMinLength(MIN_REQUIRED_INPUT_LENGTH)),
+})
+
 export const editComment = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
@@ -288,11 +300,7 @@ export const editComment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
-  input: Schema.Struct({
-    ...IssueIdentitySchema.fields,
-    commentId: Schema.String,
-    body: Schema.String.check(Schema.isMinLength(1)),
-  }),
+  input: EditCommentInput,
 })
 export const deleteComment = EFFRONT.ServerFn.make({
   handler: (input) =>
@@ -424,6 +432,25 @@ export const readAttachments = EFFRONT.ServerFn.make({
     ),
   input: IssueIdentitySchema,
 })
+const MAX_ATTACHMENT_LINK_LABEL_LENGTH = 200
+
+const WikiAttachmentLink = Schema.Struct({ kind: Schema.Literal('wiki_ref'), wikiPageId: Schema.String })
+
+const UrlAttachmentKind = Schema.Literal('url')
+
+const AttachmentLinkLabel = Schema.optional(Schema.String.check(Schema.isMaxLength(MAX_ATTACHMENT_LINK_LABEL_LENGTH)))
+
+const UrlAttachmentLink = Schema.Struct({
+  kind: UrlAttachmentKind,
+  url: Schema.URLFromString,
+  label: AttachmentLinkLabel,
+})
+
+const AttachmentLinkInput = Schema.Struct({
+  ...IssueIdentitySchema.fields,
+  link: Schema.Union([WikiAttachmentLink, UrlAttachmentLink]),
+})
+
 export const addAttachmentLink = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
@@ -449,17 +476,7 @@ export const addAttachmentLink = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
-  input: Schema.Struct({
-    ...IssueIdentitySchema.fields,
-    link: Schema.Union([
-      Schema.Struct({ kind: Schema.Literal('wiki_ref'), wikiPageId: Schema.String }),
-      Schema.Struct({
-        kind: Schema.Literal('url'),
-        url: Schema.URLFromString,
-        label: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
-      }),
-    ]),
-  }),
+  input: AttachmentLinkInput,
 })
 export const deleteAttachment = EFFRONT.ServerFn.make({
   handler: (input) =>
@@ -504,6 +521,20 @@ export const searchWikiAttachments = EFFRONT.ServerFn.make({
     ),
   input: Schema.Struct({ ...SelectorFields, query: Schema.String }),
 })
+const SprintUpdatePatch = Schema.Struct({
+  name: Schema.String.check(Schema.isMinLength(MIN_REQUIRED_INPUT_LENGTH)),
+  goal: Schema.NullOr(Schema.String),
+  status: Schema.Literals(['planned', 'active', 'completed']),
+  startDate: Schema.NullOr(Schema.Number),
+  endDate: Schema.NullOr(Schema.Number),
+})
+
+const UpdateSprintInput = Schema.Struct({
+  ...SelectorFields,
+  sprintId: Schema.String,
+  patch: SprintUpdatePatch,
+})
+
 export const updateSprint = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
@@ -526,15 +557,5 @@ export const updateSprint = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
-  input: Schema.Struct({
-    ...SelectorFields,
-    sprintId: Schema.String,
-    patch: Schema.Struct({
-      name: Schema.String.check(Schema.isMinLength(1)),
-      goal: Schema.NullOr(Schema.String),
-      status: Schema.Literals(['planned', 'active', 'completed']),
-      startDate: Schema.NullOr(Schema.Number),
-      endDate: Schema.NullOr(Schema.Number),
-    }),
-  }),
+  input: UpdateSprintInput,
 })
