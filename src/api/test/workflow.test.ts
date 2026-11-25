@@ -2,11 +2,12 @@ import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { hashWorkflowContent } from '#commands/workflow.ts'
+import { ApiResults } from '#contracts/api-results.ts'
 
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { parseNativeMcpText, readNativeJson } from './response-json.ts'
+import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -71,7 +72,7 @@ describe('workflow spec', () => {
     const restRes = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
-    const restBody = await restRes.json()
+    const restBody = await readNativeJson(restRes, ApiResults.apiGetWorkflow)
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
@@ -83,8 +84,9 @@ describe('workflow spec', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text)
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
+    const text = readNativeMcpResultText(mcpJson.result)
+    const mcpBody = parseNativeMcpText(text, ApiResults.apiGetWorkflow)
 
     expect(mcpBody).toStrictEqual(restBody)
   })

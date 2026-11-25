@@ -1,4 +1,4 @@
-import { Iterable } from 'effect'
+import { Iterable, Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '#api/mcp/catalog.ts'
@@ -6,6 +6,7 @@ import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '#api/mcp/catalog.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 const mcpFetch = async function mcpFetch(
   workspaceId: string,
@@ -129,7 +130,8 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
     const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'tools/list', {}, headers, '?domains=not-a-domain')
     expect(res.status).toBe(400)
-    const body = (await res.json()) as JsonRpcError
+    const errorBody = Schema.Struct({ error: Schema.Struct({ message: Schema.String }) })
+    const body = await readNativeJson(res, errorBody)
     expect(body.error.message).toContain('not-a-domain')
     Iterable.forEach(TOOL_DOMAIN_SLUGS, (slug) => {
       expect(body.error.message).toContain(slug)

@@ -27,6 +27,7 @@ import {
   IdAndSlugResponse,
   IdResponse,
   JsonListResponse,
+  JsonRecordResponse,
   SlugResponse,
   readNativeJson,
 } from './response-json.ts'
@@ -115,7 +116,7 @@ describe('covers MCP endpoint', () => {
     const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'initialize', {}, headers)
     expect(res.headers.get('Mcp-Session-Id')).toBeNull()
-    const body = (await res.json()) as JsonRpcResult<Record<string, unknown>>
+    const body = await readNativeJson(res, Schema.Struct({ result: JsonRecordResponse }))
     expect(body.result).not.toHaveProperty('sessionId')
   })
 

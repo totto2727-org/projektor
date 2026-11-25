@@ -13,11 +13,7 @@ import { runIndexedInOrder, runInOrder } from '#tests/run-effect.ts'
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
-
-interface Rpc {
-  result?: { content?: { text: string }[]; isError?: boolean }
-}
+import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
 
 describe('covers PROJ-891: serializer (unit)', () => {
   const raw = {
@@ -280,6 +276,11 @@ describe('covers PROJ-891: MCP tools', () => {
     const seen = new Set<string>()
     let cursor: string | undefined
     let truncatedPages = 0
+    const issuePage = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ ref: Schema.String })),
+      next: Schema.optional(Schema.String),
+      truncated: Schema.optional(Schema.Boolean),
+    })
     for (let guard = 0; guard < 10; guard += 1) {
       const requestUrl = `http://localhost/mcp/${f.workspaceId}`
       const requestOptions = requestOptionsWithBody(
@@ -299,13 +300,10 @@ describe('covers PROJ-891: MCP tools', () => {
         }),
       )
       const res = await fetchNativeApi(requestUrl, requestOptions)
-      const text = ((await res.json()) as Rpc).result?.content?.[0].text ?? ''
+      const reply = await readNativeJson(res, RpcTextResponse)
+      const text = readNativeMcpResultText(reply.result)
       expect(text.length).toBeLessThanOrEqual(20_000)
-      const page = JSON.parse(text) as {
-        items: { ref: string }[]
-        next?: string
-        truncated?: boolean
-      }
+      const page = parseNativeMcpText(text, issuePage)
       if (page.truncated === true) {
         truncatedPages += 1
       }

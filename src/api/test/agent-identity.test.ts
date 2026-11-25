@@ -10,11 +10,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-
-interface RpcBody {
-  result?: { content?: { text: string }[]; isError?: boolean }
-  error?: { code: number; message: string; data?: unknown }
-}
+import { JsonRecordResponse, McpRpcResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-894: stateless agent identity', () => {
   let token: string
@@ -53,7 +49,7 @@ describe('covers PROJ-894: stateless agent identity', () => {
         }),
       ),
     )
-    const body = (await res.json()) as RpcBody
+    const body = await readNativeJson(res, McpRpcResponse)
     /*
      * A failure is either a JSON-RPC error or (PROJ-893) an isError tool result;
      * this suite is about identity resolution, not the error envelope.
@@ -65,7 +61,7 @@ describe('covers PROJ-894: stateless agent identity', () => {
     if (body.result?.isError === true) {
       return { ok: false, value: {}, message: text }
     }
-    return { ok: true, value: JSON.parse(text) as Record<string, unknown>, message: '' }
+    return { ok: true, value: parseNativeMcpText(text, JsonRecordResponse), message: '' }
   }
 
   const credentialIdOf = async function credentialIdOf(bearer: string): Promise<string> {
