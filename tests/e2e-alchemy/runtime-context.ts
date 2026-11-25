@@ -7,11 +7,7 @@ import type { Plugin } from 'vite-plus'
 
 import { makeInlineApiLayer } from './inline-api.ts'
 
-/** Only preview allocates runtime services. A build must remain offline and exit. */
-export const makePreviewContext = async function makePreviewContext(isPreview: boolean | undefined) {
-  if (isPreview !== true) {
-    return
-  }
+const openPreviewRuntime = async function openPreviewRuntime() {
   const directory = process.env.PROJEKTOR_E2E_STORAGE_DIRECTORY
   if (Predicate.isNullish(directory) || String.isEmpty(directory)) {
     throw new Error(
@@ -61,4 +57,11 @@ export const makePreviewContext = async function makePreviewContext(isPreview: b
     },
   }
   return { context, lifecycle }
+}
+
+/** Only preview allocates runtime services. A build must remain offline and exit. */
+export const makePreviewContext = async function makePreviewContext(
+  isPreview: boolean | undefined,
+): Promise<Awaited<ReturnType<typeof openPreviewRuntime>> | undefined> {
+  return isPreview === true ? openPreviewRuntime() : undefined
 }

@@ -165,21 +165,20 @@ export const findWikiPage = function findWikiPage(db: D1Database, workspaceId: s
       .from(schema.wikiRedirects)
       .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), eq(schema.wikiRedirects.oldSlug, idOrSlug)))
       .get()
-    if (!redirect) {
-      return
-    }
     // Existing detail contracts include version only on historical-slug fallback.
-    return orm
-      .select({ ...detailColumns, version: schema.wikiPages.version })
-      .from(schema.wikiPages)
-      .where(
-        and(
-          eq(schema.wikiPages.id, redirect.pageId),
-          eq(schema.wikiPages.workspaceId, workspaceId),
-          isNull(schema.wikiPages.deletedAt),
-        ),
-      )
-      .get()
+    return redirect
+      ? orm
+          .select({ ...detailColumns, version: schema.wikiPages.version })
+          .from(schema.wikiPages)
+          .where(
+            and(
+              eq(schema.wikiPages.id, redirect.pageId),
+              eq(schema.wikiPages.workspaceId, workspaceId),
+              isNull(schema.wikiPages.deletedAt),
+            ),
+          )
+          .get()
+      : undefined
   })
 }
 

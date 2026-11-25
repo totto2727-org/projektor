@@ -587,25 +587,24 @@ async function resolveWikiPageByRedirect(
     .from(schema.wikiRedirects)
     .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), eq(schema.wikiRedirects.oldSlug, oldSlug)))
     .get()
-  if (!redirect) {
-    return
-  }
-  return orm
-    .select({ ...wikiPageDetailColumns, version: schema.wikiPages.version })
-    .from(schema.wikiPages)
-    .where(
-      and(
-        eq(schema.wikiPages.id, redirect.pageId),
-        eq(schema.wikiPages.workspaceId, workspaceId),
-        /*
-         * PROJ-496: a redirect to a page that's since been trashed does not resolve —
-         * a trashed page is treated as gone, same as a hard-deleted one, until it's
-         * undeleted (see the PR description for this call).
-         */
-        isNull(schema.wikiPages.deletedAt),
-      ),
-    )
-    .get()
+  return redirect
+    ? orm
+        .select({ ...wikiPageDetailColumns, version: schema.wikiPages.version })
+        .from(schema.wikiPages)
+        .where(
+          and(
+            eq(schema.wikiPages.id, redirect.pageId),
+            eq(schema.wikiPages.workspaceId, workspaceId),
+            /*
+             * PROJ-496: a redirect to a page that's since been trashed does not resolve —
+             * a trashed page is treated as gone, same as a hard-deleted one, until it's
+             * undeleted (see the PR description for this call).
+             */
+            isNull(schema.wikiPages.deletedAt),
+          ),
+        )
+        .get()
+    : undefined
 }
 
 export const getWikiPage = async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
