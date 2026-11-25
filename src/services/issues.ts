@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { String, Iterable, Predicate, Effect } from 'effect'
 
+import { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { drizzle, schema } from '#db'
@@ -10,7 +11,7 @@ import { batchLoadCustomFields, inChunks } from './custom-fields.ts'
 import type { CustomFieldValue } from './custom-fields.ts'
 import { queryEffect } from './errors.ts'
 
-export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/u
+export { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
 export interface IssueListOptions {
   review?: ReviewFilter
   status?: typeof schema.issues.$inferSelect.status
@@ -108,7 +109,8 @@ export interface IssuePage {
 /** Reference syntax is validated by the application before calling. No authorization occurs here. */
 export const getIssue = function getIssue(db: D1Database, workspaceId: string, options: { id?: string; ref?: string }) {
   return queryEffect('getIssue', async () => {
-    const match = options.ref?.match(ISSUE_REF_PATTERN)
+    const { ref } = options
+    const match = Predicate.isNullish(ref) ? undefined : ISSUE_REF_PATTERN.exec(ref)
     if (!isNonEmptyText(options.id) && !match) {
       return null
     }
@@ -124,7 +126,7 @@ export const getIssue = function getIssue(db: D1Database, workspaceId: string, o
 }
 export const findIssueIdByRef = function findIssueIdByRef(db: D1Database, workspaceId: string, ref: string) {
   return queryEffect('findIssueIdByRef', async () => {
-    const match = ref.match(ISSUE_REF_PATTERN)
+    const match = ISSUE_REF_PATTERN.exec(ref)
     if (!match) {
       return null
     }
@@ -363,7 +365,7 @@ export const getIssuesBatch = function getIssuesBatch(
       const orm = drizzle(db, { schema })
       const numbersByKey = new Map<string, number[]>()
       Iterable.forEach(refs, (ref) => {
-        const match = ref.match(ISSUE_REF_PATTERN)!
+        const match = ISSUE_REF_PATTERN.exec(ref)!
         const numbers = numbersByKey.get(match[1]) ?? []
         numbers.push(Number(match[2]))
         numbersByKey.set(match[1], numbers)
@@ -388,7 +390,7 @@ export const getIssuesBatch = function getIssuesBatch(
         })
       }
       const order = refs.map((ref) => {
-        const match = ref.match(ISSUE_REF_PATTERN)!
+        const match = ISSUE_REF_PATTERN.exec(ref)!
         return { requested: ref, id: refToId.get(`${match[1]}-${Number(match[2])}`) }
       })
       Iterable.forEach(options.ids ?? [], (id) => {
