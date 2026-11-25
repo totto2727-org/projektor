@@ -39,9 +39,9 @@ vi.mock('../../effront', () => ({
   EFFRONT: { ServerFn: { make: (definition: unknown) => ({ definition }) } },
 }))
 vi.mock(import('@effront/core/workers'), async () => {
-  const { Effect } = await import('effect')
+  const { Effect: fixtureEffect } = await import('effect')
   return {
-    getWorkersRequestContext: () => Effect.die('Worker context is supplied by this operation test.'),
+    getWorkersRequestContext: () => fixtureEffect.die('Worker context is supplied by this operation test.'),
   }
 })
 type Definition = Readonly<{

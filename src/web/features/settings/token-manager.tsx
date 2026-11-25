@@ -332,10 +332,10 @@ export const TokenManager = function TokenManager({
             <form action={createAction}>
               <input type='hidden' name='workspaceSlug' value={workspaceSlug} />
               <form.Subscribe
-                selector={(state) => ({
-                  canSubmit: state.canSubmit,
-                  errors: state.errors,
-                  dirty: state.isDirty,
+                selector={(formState) => ({
+                  canSubmit: formState.canSubmit,
+                  errors: formState.errors,
+                  dirty: formState.isDirty,
                 })}
               >
                 {({ canSubmit, errors, dirty }) => (

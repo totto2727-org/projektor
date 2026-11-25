@@ -271,19 +271,24 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
  */
 describe("covers PROJ-922: deleteIssue refuses another workspace's issue", () => {
   test("404s and leaves the other workspace's rows intact", async () => {
-    const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers.ts')
+    const {
+      seedComment: seedForeignComment,
+      seedIssue: seedForeignIssue,
+      seedProjectFixture,
+      authHeaders: buildRequesterHeaders,
+    } = await import('./helpers.ts')
     const testFixture = await seedProjectFixture({ role: 'owner' })
     const currentTestFixture = await seedProjectFixture({ role: 'owner' })
-    const bIssue = await seedIssue(
+    const bIssue = await seedForeignIssue(
       currentTestFixture.workspaceId,
       currentTestFixture.projectId,
       currentTestFixture.userId,
       { title: "B's" },
     )
-    await seedComment(bIssue.id, currentTestFixture.userId, 'keep me')
+    await seedForeignComment(bIssue.id, currentTestFixture.userId, 'keep me')
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${bIssue.id}`, {
-      headers: authHeaders(testFixture.token, testFixture.slug),
+      headers: buildRequesterHeaders(testFixture.token, testFixture.slug),
       method: 'DELETE',
     })
     expect(res.status).toBe(404)

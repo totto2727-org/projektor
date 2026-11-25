@@ -35,8 +35,8 @@ interface Definition {
 }
 const definitions = vi.hoisted(() => new Map<unknown, Definition>())
 vi.mock(import('@effront/core/workers'), async () => {
-  const { Effect } = await import('effect')
-  return { getWorkersRequestContext: () => Effect.die('No Workers runtime in handler unit tests') }
+  const { Effect: fixtureEffect } = await import('effect')
+  return { getWorkersRequestContext: () => fixtureEffect.die('No Workers runtime in handler unit tests') }
 })
 vi.mock('../../effront', () => ({
   EFFRONT: {

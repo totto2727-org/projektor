@@ -11,9 +11,9 @@ export const listTaskTypes = function listTaskTypes(db: D1Database, workspaceId:
       .from(schema.taskTypes)
       .where(eq(schema.taskTypes.workspaceId, workspaceId))
       .orderBy(asc(schema.taskTypes.position), asc(schema.taskTypes.name))
-    return rows.map(({ isDefault, workspaceId, ...rest }) => ({
+    return rows.map(({ isDefault, workspaceId: rowWorkspaceId, ...rest }) => ({
       ...rest,
-      workspace_id: workspaceId,
+      workspace_id: rowWorkspaceId,
       is_default: isDefault,
     }))
   })

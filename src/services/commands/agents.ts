@@ -156,8 +156,8 @@ export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown)
   } catch (error) {
     try {
       await endAgent(ctx, { id: session.id })
-    } catch (error) {
-      console.error('startWork: compensating endAgent failed', error)
+    } catch (compensationError) {
+      console.error('startWork: compensating endAgent failed', compensationError)
     }
     throw error
   }

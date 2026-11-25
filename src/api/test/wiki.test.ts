@@ -760,8 +760,10 @@ describe('wiki API', () => {
   })
 
   test('project-scoped pages are isolated from workspace-level list', async () => {
-    const { env } = await import('./fixture-api.ts')
-    const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
+    const ws = await fixtureEnv.DB.prepare('SELECT id FROM workspaces WHERE slug = ?')
+      .bind(slug)
+      .first<{ id: string }>()
     assert.exists(ws)
     const project = await seedProject(ws.id, 'WIKI')
     await seedGroupGrant(ws.id, userId, project.id)
@@ -792,7 +794,7 @@ describe('wiki API', () => {
   })
 
   const seedWikiPageRow = async function seedWikiPageRow(
-    workspaceId: string,
+    pageWorkspaceId: string,
     projectId: string | null,
     pageSlug: string,
     title: string,
@@ -800,7 +802,7 @@ describe('wiki API', () => {
     await env.DB.prepare(
       "INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id, created_at, updated_at, tags, owners, is_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', 0)",
     )
-      .bind(pageSlug, workspaceId, projectId, pageSlug, title, 'body', userId, userId, 1000, 1000)
+      .bind(pageSlug, pageWorkspaceId, projectId, pageSlug, title, 'body', userId, userId, 1000, 1000)
       .run()
   }
 
@@ -855,8 +857,10 @@ describe('wiki API', () => {
   })
 
   test('handles POST /api/wiki stores projectId and GET returns it', async () => {
-    const { env } = await import('./fixture-api.ts')
-    const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
+    const ws = await fixtureEnv.DB.prepare('SELECT id FROM workspaces WHERE slug = ?')
+      .bind(slug)
+      .first<{ id: string }>()
     assert.exists(ws)
     const project = await seedProject(ws.id, 'P2')
     await seedGroupGrant(ws.id, userId, project.id)
@@ -1208,8 +1212,8 @@ describe('wiki API', () => {
   })
 
   const uploadFileToPage = async function uploadFileToPage(
-    token: string,
-    slug: string,
+    uploadToken: string,
+    uploadWorkspaceSlug: string,
     pageId: string,
   ): Promise<{ attachmentId: string; r2Key: string }> {
     const form = new FormData()
@@ -1218,7 +1222,7 @@ describe('wiki API', () => {
     form.append('entityId', pageId)
     const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      headers: { Authorization: `Bearer ${uploadToken}`, 'X-Workspace-Slug': uploadWorkspaceSlug },
       method: 'POST',
     })
     const { id } = await readNativeJson(res, IdResponse)
@@ -1296,13 +1300,19 @@ describe('wiki API', () => {
       method: 'POST',
     })
 
-    const { env } = await import('./fixture-api.ts')
-    const { seedUser, seedMember, seedToken } = await import('./helpers.ts')
-    const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
-    const viewerUser = await seedUser(`viewer-wiki-${crypto.randomUUID().slice(0, 8)}@example.com`)
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
+    const {
+      seedUser: seedWikiUser,
+      seedMember: seedWikiMember,
+      seedToken: seedWikiToken,
+    } = await import('./helpers.ts')
+    const ws = await fixtureEnv.DB.prepare('SELECT id FROM workspaces WHERE slug = ?')
+      .bind(slug)
+      .first<{ id: string }>()
+    const viewerUser = await seedWikiUser(`viewer-wiki-${crypto.randomUUID().slice(0, 8)}@example.com`)
     assert.exists(ws)
-    await seedMember(ws.id, viewerUser.id, 'viewer')
-    const viewerToken = await seedToken(ws.id, viewerUser.id)
+    await seedWikiMember(ws.id, viewerUser.id, 'viewer')
+    const viewerToken = await seedWikiToken(ws.id, viewerUser.id)
 
     const delRes = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
       headers: authHeaders(viewerToken, slug),

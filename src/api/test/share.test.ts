@@ -68,8 +68,8 @@ describe('share tokens', () => {
   test('handles GET /api/share/<expired-token> returns 404', async () => {
     const now = currentEpochSeconds()
     const expiredToken = '00000000000000000000000000000001'
-    const { env } = await import('./fixture-api.ts')
-    await env.DB.prepare(
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
+    await fixtureEnv.DB.prepare(
       'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     )
       .bind(await hashToken(expiredToken), issueId, workspaceId, userId, now - 1, now - 86_400)
@@ -86,8 +86,8 @@ describe('share tokens', () => {
     })
     const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
-    const { env } = await import('./fixture-api.ts')
-    const row = await env.DB.prepare('SELECT id FROM share_tokens WHERE issue_id = ?')
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
+    const row = await fixtureEnv.DB.prepare('SELECT id FROM share_tokens WHERE issue_id = ?')
       .bind(issueId)
       .first<{ id: string }>()
 
@@ -165,28 +165,28 @@ describe('share tokens', () => {
   })
 
   test('covers PROJ-241: public share payload excludes internal custom fields, includes non-internal ones', async () => {
-    const { env } = await import('./fixture-api.ts')
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
     const now = currentEpochSeconds()
 
     const internalFieldId = crypto.randomUUID()
-    await env.DB.prepare(
+    await fixtureEnv.DB.prepare(
       'INSERT INTO custom_field_definitions (id, workspace_id, project_id, key, label, type, ' +
         "options, created_at, is_internal) VALUES (?, ?, NULL, ?, ?, 'text', NULL, ?, 1)",
     )
       .bind(internalFieldId, workspaceId, 'secret_notes', 'Secret Notes', now)
       .run()
-    await env.DB.prepare('INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)')
+    await fixtureEnv.DB.prepare('INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)')
       .bind(issueId, internalFieldId, 'confidential')
       .run()
 
     const publicFieldId = crypto.randomUUID()
-    await env.DB.prepare(
+    await fixtureEnv.DB.prepare(
       'INSERT INTO custom_field_definitions (id, workspace_id, project_id, key, label, type, ' +
         "options, created_at, is_internal) VALUES (?, ?, NULL, ?, ?, 'text', NULL, ?, 0)",
     )
       .bind(publicFieldId, workspaceId, 'public_note', 'Public Note', now)
       .run()
-    await env.DB.prepare('INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)')
+    await fixtureEnv.DB.prepare('INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)')
       .bind(issueId, publicFieldId, 'hello world')
       .run()
 
@@ -326,9 +326,9 @@ describe('share tokens', () => {
 
   test('covers PROJ-242: viewer role cannot revoke a share link', async () => {
     const viewerFixture = await seedIssueFixture({ role: 'viewer' })
-    const { env } = await import('./fixture-api.ts')
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
     const now = currentEpochSeconds()
-    await env.DB.prepare(
+    await fixtureEnv.DB.prepare(
       'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     )
       .bind(
@@ -353,14 +353,14 @@ describe('share tokens', () => {
       grant: 'none' | 'viewer' | 'member',
       workspaceRole = 'member',
     ) {
-      const { workspace, user, token } = await seedFixture({ role: workspaceRole })
+      const { workspace, user, token: fixtureToken } = await seedFixture({ role: workspaceRole })
       const project = await seedProject(workspace.id)
       if (grant !== 'none') {
         await seedGroupGrant(workspace.id, user.id, project.id, grant)
       }
       const issue = await seedIssue(workspace.id, project.id, user.id, { title: 'Restricted' })
       return {
-        token,
+        token: fixtureToken,
         slug: workspace.slug,
         workspaceId: workspace.id,
         userId: user.id,
@@ -375,8 +375,8 @@ describe('share tokens', () => {
         method: 'POST',
       })
       expect(res.status).toBe(404)
-      const { env } = await import('./fixture-api.ts')
-      const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
+      const { env: fixtureEnv } = await import('./fixture-api.ts')
+      const row = await fixtureEnv.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
         .bind(restrictedFixture.issueId)
         .first<{ n: number }>()
       expect(row?.n).toBe(0)
@@ -384,9 +384,9 @@ describe('share tokens', () => {
 
     test("member without a grant cannot revoke someone else's share link", async () => {
       const restrictedFixture = await restrictedIssue('none')
-      const { env } = await import('./fixture-api.ts')
+      const { env: fixtureEnv } = await import('./fixture-api.ts')
       const now = currentEpochSeconds()
-      await env.DB.prepare(
+      await fixtureEnv.DB.prepare(
         'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       )
         .bind(
@@ -403,7 +403,7 @@ describe('share tokens', () => {
         method: 'DELETE',
       })
       expect(res.status).toBe(404)
-      const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
+      const row = await fixtureEnv.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
         .bind(restrictedFixture.issueId)
         .first<{ n: number }>()
       expect(row?.n).toBe(1)
@@ -434,12 +434,12 @@ describe('share tokens', () => {
    */
   describe("covers PROJ-794: share links stop resolving when the issue or the creator's access goes", () => {
     const sharedIssue = async function sharedIssue(workspaceRole: string, grant: 'none' | 'member') {
-      const { workspace, user, token } = await seedFixture({ role: workspaceRole })
+      const { workspace, user, token: fixtureToken } = await seedFixture({ role: workspaceRole })
       const project = await seedProject(workspace.id)
       const g = grant === 'member' ? await seedGroupGrant(workspace.id, user.id, project.id, 'member') : null
       const issue = await seedIssue(workspace.id, project.id, user.id, { title: 'Shared' })
       const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/share`, {
-        headers: authHeaders(token, workspace.slug),
+        headers: authHeaders(fixtureToken, workspace.slug),
         method: 'POST',
       })
       expect(res.status).toBe(201)

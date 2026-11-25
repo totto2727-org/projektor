@@ -1383,7 +1383,7 @@ export const updateWikiPage = async function updateWikiPage(
 
   await assertNoUpdateConflict(ctx.db, page, baseRevisionId)
 
-  if (parentId !== undefined && Predicate.isNotNullish(parentId)) {
+  if (Predicate.isNotNullish(parentId)) {
     await validateUpdatedPageParent(ctx.db, parentId, ctx.workspaceId, page)
   }
 

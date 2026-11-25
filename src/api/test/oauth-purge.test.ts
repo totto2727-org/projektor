@@ -69,13 +69,22 @@ const fixture = function fixture() {
   const provider = new OAuthProvider(
     providerOptions<{ OAUTH_KV: KVNamespace }>({ fetch: () => new Response('Not found', { status: 404 }) }),
   )
-  const env = { OAUTH_KV: storage.namespace, KV: checkpoints.namespace }
+  const purgeEnv = { OAUTH_KV: storage.namespace, KV: checkpoints.namespace }
   const put = (key: string, value: unknown): Map<string, string> => storage.values.set(key, JSON.stringify(value))
   put('client:client', { clientId: 'client' })
   const grant = (id: string, userId = 'u', extra: Record<string, unknown> = {}): Map<string, string> =>
     put(`grant:${userId}:${id}`, { id, userId, clientId: 'client', ...extra })
   const state = () => JSON.parse(checkpoints.values.get(OAUTH_PURGE_STATE_KEY) ?? 'null')
-  return { storage, checkpoints, env, provider, put, grant, state, run: () => purgeOAuthPage(env, provider) }
+  return {
+    storage,
+    checkpoints,
+    env: purgeEnv,
+    provider,
+    put,
+    grant,
+    state,
+    run: () => purgeOAuthPage(purgeEnv, provider),
+  }
 }
 
 describe('official OAuth cleanup durable pagination', () => {

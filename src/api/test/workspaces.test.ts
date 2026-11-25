@@ -795,10 +795,10 @@ describe('workspace brand (PROJ-761)', () => {
 
   test('review finding 3: GET logo 404s when the stored R2 key belongs to another workspace', async () => {
     const { memberHeaders, slug } = await seedTestData()
-    const { env } = await import('./fixture-api.ts')
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
     const foreignKey = `${crypto.randomUUID()}/brand-logo/${crypto.randomUUID()}`
-    await env.R2.put(foreignKey, new Uint8Array([1, 2, 3]))
-    await env.DB.prepare('UPDATE workspaces SET brand = ? WHERE slug = ?')
+    await fixtureEnv.R2.put(foreignKey, new Uint8Array([1, 2, 3]))
+    await fixtureEnv.DB.prepare('UPDATE workspaces SET brand = ? WHERE slug = ?')
       .bind(JSON.stringify({ logoR2Key: foreignKey }), slug)
       .run()
 
@@ -858,13 +858,13 @@ describe('workspace brand R2 cleanup (review finding 5)', () => {
       method: 'POST',
     })
 
-    const { env } = await import('./fixture-api.ts')
-    const row = await env.DB.prepare('SELECT brand FROM workspaces WHERE id = ?')
+    const { env: fixtureEnv } = await import('./fixture-api.ts')
+    const row = await fixtureEnv.DB.prepare('SELECT brand FROM workspaces WHERE id = ?')
       .bind(owner.workspace.id)
       .first<{ brand: string }>()
     const r2Key = (JSON.parse(row?.brand ?? '{}') as { logoR2Key?: string }).logoR2Key
     expect(r2Key).toBeDefined()
-    await expect(env.R2.get(r2Key as string)).resolves.not.toBeNull()
+    await expect(fixtureEnv.R2.get(r2Key as string)).resolves.not.toBeNull()
 
     const delRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.workspace.slug}`, {
       headers: ownerHeaders,
@@ -872,6 +872,6 @@ describe('workspace brand R2 cleanup (review finding 5)', () => {
     })
     expect(delRes.status).toBe(200)
 
-    await expect(env.R2.get(r2Key as string)).resolves.toBeNull()
+    await expect(fixtureEnv.R2.get(r2Key as string)).resolves.toBeNull()
   })
 })

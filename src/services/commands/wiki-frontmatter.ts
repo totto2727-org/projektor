@@ -102,7 +102,7 @@ const normalizeFrontmatterRecord = function normalizeFrontmatterRecord(raw: obje
  * Anything else that isn't a plain mapping (a list, a scalar) is a genuine error.
  */
 const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null {
-  if (raw === null || Predicate.isNullish(raw)) {
+  if (Predicate.isNullish(raw)) {
     return null
   }
   if (typeof raw !== 'object' || globalThis.Array.isArray(raw)) {

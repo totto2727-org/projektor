@@ -304,26 +304,32 @@ describe('covers KV caching', () => {
     })
 
     test("update_issue's D1 write still lands and is reported as success when the cache invalidate fails", async () => {
-      const { token, slug, workspaceId, projectId, userId } = await seedProjectFixture({
+      const {
+        token: seededToken,
+        slug: seededSlug,
+        workspaceId: seededWorkspaceId,
+        projectId: seededProjectId,
+        userId: seededUserId,
+      } = await seedProjectFixture({
         role: 'owner',
       })
-      const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Before' })
+      const issue = await seedIssue(seededWorkspaceId, seededProjectId, seededUserId, { title: 'Before' })
 
       await configureCore({ FIXTURE_CACHE_DELETE_MODE: 'reject' })
       await resetCoreObservations()
 
-      const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
+      const res = await fetchNativeApi(`http://localhost/mcp/${seededWorkspaceId}`, {
         body: JSON.stringify({
           id: 1,
           jsonrpc: '2.0',
           method: 'tools/call',
           params: { arguments: { id: issue.id, title: 'After' }, name: 'update_issue' },
         }),
-        headers: authHeaders(token, slug),
+        headers: authHeaders(seededToken, seededSlug),
         method: 'POST',
       })
       const result = await getCoreObservations()
-      expect(result.cacheDeletes).toContain(`issue:${workspaceId}:${issue.id}`)
+      expect(result.cacheDeletes).toContain(`issue:${seededWorkspaceId}:${issue.id}`)
       expect(res.status).toBe(200)
       const rpcShape = Schema.Struct({
         error: Schema.optional(Schema.Unknown),

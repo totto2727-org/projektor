@@ -27,9 +27,9 @@ vi.mock('../../effront', () => ({
   },
 }))
 vi.mock('@effront/core/workers', async () => {
-  const { Effect } = await import('effect')
+  const { Effect: fixtureEffect } = await import('effect')
   return {
-    getWorkersRequestContext: () => Effect.die('Host context is not used by feature action tests.'),
+    getWorkersRequestContext: () => fixtureEffect.die('Host context is not used by feature action tests.'),
   }
 })
 const databases: ReturnType<typeof createTestDatabase>[] = []

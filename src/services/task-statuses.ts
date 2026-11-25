@@ -11,9 +11,9 @@ export const listTaskStatuses = function listTaskStatuses(db: D1Database, worksp
       .from(schema.taskStatuses)
       .where(eq(schema.taskStatuses.workspaceId, workspaceId))
       .orderBy(asc(schema.taskStatuses.position), asc(schema.taskStatuses.name))
-    return rows.map(({ isDefault, isReviewStep, workspaceId, ...rest }) => ({
+    return rows.map(({ isDefault, isReviewStep, workspaceId: rowWorkspaceId, ...rest }) => ({
       ...rest,
-      workspace_id: workspaceId,
+      workspace_id: rowWorkspaceId,
       is_default: isDefault,
       is_review_step: isReviewStep,
     }))

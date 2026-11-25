@@ -142,14 +142,14 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                       Effect.all(
                         rows.map((group) =>
                           Effect.gen(function* () {
-                            const [members, grants] = yield* Effect.all(
+                            const [groupMembers, grants] = yield* Effect.all(
                               [
                                 groupQueries.listGroupMembers(env.DB, workspaceId, group.id),
                                 groupQueries.listGroupGrants(env.DB, workspaceId, group.id),
                               ],
                               { concurrency: 2 },
                             )
-                            return { ...group, members, grants }
+                            return { ...group, members: groupMembers, grants }
                           }),
                         ),
                         { concurrency: 4 },

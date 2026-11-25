@@ -153,7 +153,9 @@ describe('settings authorized direct D1 SSR', () => {
       memberCount: 1,
       members: [{ email: 'owner@example.test', name: 'owner', userId: 'u1' }],
     })
-    expect(node.props.initialData.projects.map((project: { id: string }) => project.id)).toStrictEqual(['p1'])
+    expect(node.props.initialData.projects.map((listedProject: { id: string }) => listedProject.id)).toStrictEqual([
+      'p1',
+    ])
     expect(node.props.initialData.memberGroups).toStrictEqual([{ groups: [{ id: 'g1', name: 'Team' }], userId: 'u1' }])
     expect(testFixture.calls).not.toHaveBeenCalled()
     expect(renderToStaticMarkup(node)).toContain(`id="group-tabpanel-${view}"`)
@@ -256,7 +258,7 @@ describe('settings authorized direct D1 SSR', () => {
     const testFixture = await fixture()
     testFixture.sqlite.exec('DROP TABLE user_groups')
     const error = await testFixture.run(
-      renderGroups(testFixture.scope, url).pipe(Effect.catch((error) => Effect.succeed(error))),
+      renderGroups(testFixture.scope, url).pipe(Effect.catch((caughtError) => Effect.succeed(caughtError))),
     )
     expect(error).toMatchObject({
       _tag: 'ApiError',
