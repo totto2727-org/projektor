@@ -69,7 +69,11 @@ export const UpdateIssueSchema = objectInOrder([
   .refine((obj) => Array.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
 
 export const IssueListCursorSchema = z
-  .union([z.number().int().nonnegative(), z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/)])
+  .union([
+    z.number().int().nonnegative(),
+    // oxlint-disable-next-line eslint/require-unicode-regexp -- Zod includes the existing regex in public cursor validation errors.
+    z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/),
+  ])
   .transform((cursor) => {
     if (Predicate.isNumber(cursor)) {
       return { createdAt: cursor }

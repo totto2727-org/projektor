@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
-import { objectInOrder, BooleanQueryParam } from './common.ts'
+import { objectInOrder, BooleanQueryParam, PathSlugPattern } from './common.ts'
 
 const MAX_SLUG_LENGTH = 200
 const MAX_PAGE_TITLE_LENGTH = 300
@@ -38,11 +38,7 @@ const MAX_CHANGES_PAGE_SIZE = 500
  * slugs everywhere except this schema; forbidding "/" here keeps it that way rather
  * than making every matcher (worker.ts, WikiPage.tsx, wiki-links.ts) multi-segment.
  */
-export const SlugSchema = z
-  .string()
-  .nonempty()
-  .max(MAX_SLUG_LENGTH)
-  .regex(/^[a-z0-9-]+$/)
+export const SlugSchema = z.string().nonempty().max(MAX_SLUG_LENGTH).regex(PathSlugPattern)
 
 export const CreatePageSchema = objectInOrder([
   ['title', z.string().nonempty().max(MAX_PAGE_TITLE_LENGTH)],

@@ -9,6 +9,9 @@ export const objectInOrder = function objectInOrder<const Entries extends FieldE
   return z.object(fieldsInOrder(entries))
 }
 
+// oxlint-disable-next-line eslint/require-unicode-regexp -- Zod includes the exact pattern flags in public slug validation errors.
+export const PathSlugPattern = /^[a-z0-9-]+$/
+
 export const RoleEnum = z.enum(['owner', 'admin', 'member', 'viewer'])
 
 export const StatusEnum = z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled'])

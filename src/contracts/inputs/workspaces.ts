@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { ScopeSchema } from '#contracts/auth-scopes.ts'
 
-import { objectInOrder, RoleEnum } from './common.ts'
+import { objectInOrder, PathSlugPattern, RoleEnum } from './common.ts'
 
 const MAX_WORKSPACE_NAME_LENGTH = 100
 const MIN_SLUG_LENGTH = 2
@@ -15,11 +15,7 @@ const MAX_FONT_FAMILY_LENGTH = 100
 
 export const CreateWorkspaceSchema = z.object({
   name: z.string().nonempty().max(MAX_WORKSPACE_NAME_LENGTH),
-  slug: z
-    .string()
-    .min(MIN_SLUG_LENGTH)
-    .max(MAX_SLUG_LENGTH)
-    .regex(/^[a-z0-9-]+$/),
+  slug: z.string().min(MIN_SLUG_LENGTH).max(MAX_SLUG_LENGTH).regex(PathSlugPattern),
 })
 
 export const UpdateWorkspaceSchema = z.object({
@@ -45,6 +41,7 @@ export const DeleteWorkspaceInput = z.object({
   workspaceSlug: z.string(),
 })
 
+// oxlint-disable-next-line eslint/require-unicode-regexp -- Zod echoes the existing regex flags in public brand validation errors.
 const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
 export const UpdateWorkspaceBrandSchema = objectInOrder([
