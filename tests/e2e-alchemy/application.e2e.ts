@@ -199,8 +199,8 @@ test('API and Web share private Core persistence without adapter DB bindings', a
   const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const name = `Shared D1 ${suffix}`
   const write = await request.post('http://127.0.0.1:4392/api/projects', {
-    headers: { 'X-Workspace-Slug': 'projektor' },
     data: { name, key: `D${suffix}` },
+    headers: { 'X-Workspace-Slug': 'projektor' },
   })
   expect(write.status(), await write.text()).toBe(HTTP_CREATED)
   const project = await readAcceptanceJson(write, 'project')
@@ -237,8 +237,8 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   const projects: { id: string; key: string; name: string }[] = []
   await runInOrder(['A', 'B'], async (prefix): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
-      headers,
       data: { name: `Focus ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
+      headers,
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await readAcceptanceJson(created, 'project'))
@@ -255,7 +255,6 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   ]
   const create = async (fixture: (typeof fixtures)[number], assigned = true): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/issues', {
-      headers,
       data: {
         projectId: projects[fixture.project].id,
         title: `${fixture.title} ${suffix}`,
@@ -263,6 +262,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
         priority: fixture.priority,
         ...(assigned ? { assigneeId: user.id } : {}),
       },
+      headers,
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
   }
@@ -341,15 +341,15 @@ test('issue review targets persist optional selection and four statuses across f
   expect(session.status()).toBe(HTTP_OK)
   const { user } = await readAcceptanceJson(session, 'session')
   const createdProject = await request.post('http://127.0.0.1:4392/api/projects', {
-    headers,
     data: { name: `Review acceptance ${suffix}`, key: `V${suffix}` },
+    headers,
   })
   expect(createdProject.status(), await createdProject.text()).toBe(HTTP_CREATED)
   const project = await readAcceptanceJson(createdProject, 'project')
   const createIssue = async (title: string) => {
     const response = await request.post('http://127.0.0.1:4392/api/issues', {
-      headers,
       data: { projectId: project.id, title, status: 'backlog', assigneeId: user.id },
+      headers,
     })
     expect(response.status(), await response.text()).toBe(HTTP_CREATED)
     return readAcceptanceJson(response, 'issue')
@@ -373,7 +373,6 @@ test('issue review targets persist optional selection and four statuses across f
   const attachmentFixtures: { id: string; filename: string }[] = [{ id: uploadedAttachment.id, filename }]
   await runInOrder([urlLabel, ordinaryLabel], async (label): Promise<void> => {
     const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
-      headers,
       data: {
         entityType: 'issue',
         entityId: issue.id,
@@ -381,6 +380,7 @@ test('issue review targets persist optional selection and four statuses across f
         url: `https://example.com/${suffix}/${encodeURIComponent(label)}`,
         label,
       },
+      headers,
     })
     expect(linked.status(), await linked.text()).toBe(HTTP_CREATED)
     const linkedAttachment = await readAcceptanceJson(linked, 'linkedAttachment')
@@ -492,8 +492,8 @@ test('issue review targets persist optional selection and four statuses across f
     if (route.name === 'board' || route.name === 'my-issues') {
       await runInOrder([issue, emptyIssue], async (fixture): Promise<void> => {
         const moved = await request.patch(`http://127.0.0.1:4392/api/issues/${fixture.id}`, {
-          headers,
           data: { status: route.name === 'board' ? 'todo' : 'backlog' },
+          headers,
         })
         expect(moved.status(), await moved.text()).toBe(HTTP_OK)
       })
@@ -572,16 +572,16 @@ test('issue review targets persist optional selection and four statuses across f
    */
   await runInOrder(['done', 'cancelled'], async (terminal): Promise<void> => {
     const reopened = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
-      headers,
       data: { status: 'backlog' },
+      headers,
     })
     expect(reopened.status(), await reopened.text()).toBe(HTTP_OK)
     await runInOrder(
       attachmentFixtures.filter((entry) => entry.filename !== ordinaryLabel),
       async (attachment): Promise<void> => {
         const review = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
-          headers,
           data: { issueId: issue.id, status: 'in_review' },
+          headers,
         })
         expect(review.status(), await review.text()).toBe(HTTP_OK)
       },
@@ -590,8 +590,8 @@ test('issue review targets persist optional selection and four statuses across f
     await expect(status(filename)).toHaveValue('in_review')
     await expect(status(urlLabel)).toHaveValue('in_review')
     const closed = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
-      headers,
       data: { status: terminal },
+      headers,
     })
     expect(closed.status(), await closed.text()).toBe(HTTP_OK)
     await page.reload()
@@ -636,8 +636,8 @@ test('workspace review spans projects and unassigned issues with native filtered
   const projects: { id: string; key: string; name: string }[] = []
   await runInOrder(['A', 'B'], async (prefix): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
-      headers,
       data: { name: `Cross project ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
+      headers,
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await readAcceptanceJson(created, 'project'))
@@ -662,15 +662,14 @@ test('workspace review spans projects and unassigned issues with native filtered
     const project = projects[fixture.project]
     const title = `Cross review ${suffix} ${fixture.tag}`
     const created = await request.post('http://127.0.0.1:4392/api/issues', {
-      headers,
       data: { projectId: project.id, title, status: 'backlog', ...(fixture.assigned ? { assigneeId: user.id } : {}) },
+      headers,
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     const issue = await readAcceptanceJson(created, 'issue')
     const targetLabel = `${fixture.tag} target ${suffix}`
     if (Predicate.isNotNullish(fixture.review)) {
       const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
-        headers,
         data: {
           kind: 'url',
           entityType: 'issue',
@@ -678,12 +677,13 @@ test('workspace review spans projects and unassigned issues with native filtered
           url: `https://example.com/cross-review/${issue.id}`,
           label: targetLabel,
         },
+        headers,
       })
       expect(linked.status(), await linked.text()).toBe(HTTP_CREATED)
       const attachment = await readAcceptanceJson(linked, 'linkedAttachment')
       const selected = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
-        headers,
         data: { issueId: issue.id, status: fixture.review },
+        headers,
       })
       expect(selected.status(), await selected.text()).toBe(HTTP_OK)
     }
@@ -829,8 +829,8 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   const suffix = randomUUID().replaceAll('-', '').slice(FIXTURE_SUFFIX_START, FIXTURE_SUFFIX_LENGTH).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const created = await request.post('http://127.0.0.1:4392/api/projects', {
-    headers,
     data: { name: `Chart acceptance ${suffix}`, key: `C${suffix}` },
+    headers,
   })
   expect(created.status(), await created.text()).toBe(HTTP_CREATED)
   const project = await readAcceptanceJson(created, 'project')
@@ -847,15 +847,15 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     ['backlog', 'in_progress', 'in_progress', 'in_review', 'done'].entries(),
     async ([index, status]): Promise<void> => {
       const issueResponse = await request.post('http://127.0.0.1:4392/api/issues', {
-        headers,
         data: { projectId: project.id, title: `Chart issue ${index} ${suffix}` },
+        headers,
       })
       expect(issueResponse.status(), await issueResponse.text()).toBe(HTTP_CREATED)
       const issue = await readAcceptanceJson(issueResponse, 'issue')
       if (status !== 'backlog') {
         const updated = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
-          headers,
           data: { status },
+          headers,
         })
         expect(updated.status(), await updated.text()).toBe(HTTP_OK)
       }
@@ -912,7 +912,6 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   await checkpoint(page, testInfo, 'charts-metrics-shared-cfd')
 
   const wikiResponse = await request.post('http://127.0.0.1:4392/api/wiki', {
-    headers,
     data: {
       projectId: project.id,
       title: `Drawer acceptance ${suffix}`,
@@ -922,6 +921,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
         (_value, index) => `## Section ${index}\n\nScrollable persisted page content.`,
       ).join('\n\n'),
     },
+    headers,
   })
   expect(wikiResponse.status(), await wikiResponse.text()).toBe(HTTP_CREATED)
   const wikiPageResponse = await page.goto(`/wiki/view?${query}&slug=drawer-${suffix.toLowerCase()}`)
@@ -1424,8 +1424,8 @@ test('two real memberships require native selection and preserve workspace acros
   const projects: { id: string; name: string }[] = []
   await runInOrder(['projektor', slug], async (workspace): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
-      headers: { 'X-Workspace-Slug': workspace },
       data: { name: `Collision ${workspace}`, key },
+      headers: { 'X-Workspace-Slug': workspace },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await readAcceptanceJson(created, 'project'))

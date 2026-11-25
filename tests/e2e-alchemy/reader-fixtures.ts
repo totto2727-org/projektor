@@ -47,19 +47,19 @@ export const createReaderFixtures = async function createReaderFixtures(
   expect(sessionResponse.status()).toBe(HTTP_OK)
   const { user } = await readAcceptanceJson(sessionResponse, 'session')
   const createdProject = await request.post('http://127.0.0.1:4392/api/projects', {
-    headers,
     data: { name: `Reader project ${suffix}`, key: `R${suffix.toUpperCase()}` },
+    headers,
   })
   expect(createdProject.status(), await createdProject.text()).toBe(HTTP_CREATED)
   const project = await readAcceptanceJson(createdProject, 'project')
   const createdIssue = await request.post('http://127.0.0.1:4392/api/issues', {
-    headers,
     data: {
       projectId: project.id,
       title: `Reader issue ${suffix}`,
       body: 'Persisted reader body.',
       assigneeId: user.id,
     },
+    headers,
   })
   expect(createdIssue.status(), await createdIssue.text()).toBe(HTTP_CREATED)
   const issue = { ...(await readAcceptanceJson(createdIssue, 'issue')), title: `Reader issue ${suffix}` }
@@ -92,28 +92,28 @@ export const createReaderFixtures = async function createReaderFixtures(
   const fileResponse = await request.get(nativeFileUrl)
   expect(fileResponse.status()).toBe(HTTP_NOT_FOUND)
   const createdWiki = await request.post('http://127.0.0.1:4392/api/wiki', {
-    headers,
     data: {
       projectId: project.id,
       title: `Reader wiki ${suffix}`,
       slug: `reader-${suffix}`,
       content: 'Persisted Wiki reader body.',
     },
+    headers,
   })
   expect(createdWiki.status(), await createdWiki.text()).toBe(HTTP_CREATED)
   const wiki = await readAcceptanceJson(createdWiki, 'wiki')
   const sourceName = `Reader source ${suffix}`
   const createdSource = await request.post(`http://127.0.0.1:4392/api/projects/${project.id}/feedback-sources`, {
-    headers,
     data: { name: sourceName },
+    headers,
   })
   expect(createdSource.status()).toBe(HTTP_CREATED)
   const { id: sourceId, token: sourceToken } = await readAcceptanceJson(createdSource, 'feedbackSource')
   const feedbackBody = `Persisted feedback ${suffix}`
   // This API is the real external-submission interface, not a browser mutation substitute.
   const submittedFeedback = await request.post('http://127.0.0.1:4392/api/feedback/submit', {
-    headers: { Authorization: `Bearer ${sourceToken}` },
     data: { body: feedbackBody, rating: 5, ratingScale: 'five_star', appVersion: 'acceptance-v1' },
+    headers: { Authorization: `Bearer ${sourceToken}` },
   })
   expect(submittedFeedback.status()).toBe(HTTP_CREATED)
   // The new local-only feedback credential is never returned, logged or stored.
@@ -123,14 +123,14 @@ export const createReaderFixtures = async function createReaderFixtures(
   const epicType = types.find((type) => type.name === 'Epic')
   expect(epicType).toBeDefined()
   const createdEpic = await request.post('http://127.0.0.1:4392/api/issues', {
-    headers,
     data: { projectId: project.id, title: `Reader epic ${suffix}`, typeId: epicType?.id },
+    headers,
   })
   expect(createdEpic.status()).toBe(HTTP_CREATED)
   const epic = { ...(await readAcceptanceJson(createdEpic, 'issue')), title: `Reader epic ${suffix}` }
   const createdGroup = await request.post('http://127.0.0.1:4392/api/workspaces/projektor/groups', {
-    headers,
     data: { name: `Reader group ${suffix}` },
+    headers,
   })
   expect(createdGroup.status(), await createdGroup.text()).toBe(HTTP_CREATED)
   const group = await readAcceptanceJson(createdGroup, 'group')
@@ -139,30 +139,30 @@ export const createReaderFixtures = async function createReaderFixtures(
   await runInOrder(['planned', 'completed', 'active'], async (status): Promise<void> => {
     const name = `Reader ${status} sprint ${suffix}`
     const created = await request.post('http://127.0.0.1:4392/api/sprints', {
-      headers,
       data: { projectId: project.id, name, startDate: now, endDate: now + SECONDS_PER_WEEK },
+      headers,
     })
     expect(created.status()).toBe(HTTP_CREATED)
     const sprint = await readAcceptanceJson(created, 'sprint')
     if (status !== 'planned') {
       const started = await request.patch(`http://127.0.0.1:4392/api/sprints/${sprint.id}`, {
-        headers,
         data: { status: 'active' },
+        headers,
       })
       expect(started.status()).toBe(HTTP_OK)
     }
     if (status === 'completed') {
       const completed = await request.post(`http://127.0.0.1:4392/api/sprints/${sprint.id}/complete`, {
-        headers,
         data: {},
+        headers,
       })
       expect(completed.status()).toBe(HTTP_OK)
     }
     sprints.push({ status, name })
   })
   const createdShare = await request.post(`http://127.0.0.1:4392/api/issues/${issue.id}/share`, {
-    headers,
     data: {},
+    headers,
   })
   expect(createdShare.status()).toBe(HTTP_CREATED)
   const { token: shareToken } = await readAcceptanceJson(createdShare, 'share')
