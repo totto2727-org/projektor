@@ -214,14 +214,14 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
     projects.push(await created.json())
   })
   const fixtures = [
-    { title: 'Review first', status: 'in_review', priority: 'low', project: 1 },
-    { title: 'Progress high old', status: 'in_progress', priority: 'high', project: 1 },
-    { title: 'Progress low', status: 'in_progress', priority: 'low', project: 0 },
-    { title: 'Todo urgent', status: 'todo', priority: 'urgent', project: 1 },
-    { title: 'Todo high', status: 'todo', priority: 'high', project: 0 },
-    { title: 'Backlog last', status: 'backlog', priority: 'urgent', project: 1 },
-    { title: 'Completed hidden', status: 'done', priority: 'urgent', project: 0 },
-    { title: 'Cancelled hidden', status: 'cancelled', priority: 'urgent', project: 1 },
+    { priority: 'low', project: 1, status: 'in_review', title: 'Review first' },
+    { priority: 'high', project: 1, status: 'in_progress', title: 'Progress high old' },
+    { priority: 'low', project: 0, status: 'in_progress', title: 'Progress low' },
+    { priority: 'urgent', project: 1, status: 'todo', title: 'Todo urgent' },
+    { priority: 'high', project: 0, status: 'todo', title: 'Todo high' },
+    { priority: 'urgent', project: 1, status: 'backlog', title: 'Backlog last' },
+    { priority: 'urgent', project: 0, status: 'done', title: 'Completed hidden' },
+    { priority: 'urgent', project: 1, status: 'cancelled', title: 'Cancelled hidden' },
   ]
   const create = async (fixture: (typeof fixtures)[number], assigned = true): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/issues', {
@@ -239,12 +239,12 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   await runInOrder(fixtures, async (fixture): Promise<void> => {
     await create(fixture)
   })
-  await create({ title: 'Unassigned hidden', status: 'todo', priority: 'urgent', project: 0 }, false)
+  await create({ priority: 'urgent', project: 0, status: 'todo', title: 'Unassigned hidden' }, false)
   // API timestamps have second precision. Ensure the new equal-priority work has a later persisted update.
   await new Promise((resolve) => {
     setTimeout(resolve, 1100)
   })
-  await create({ title: 'Progress high new', status: 'in_progress', priority: 'high', project: 0 })
+  await create({ priority: 'high', project: 0, status: 'in_progress', title: 'Progress high new' })
   await page.goto('/my-issues?workspace=projektor')
   await expect(page.getByRole('heading', { exact: true, name: 'My Issues' })).toBeVisible()
   await expect(page.locator('table')).toHaveCount(1)
@@ -611,12 +611,12 @@ test('workspace review spans projects and unassigned issues with native filtered
     projects.push(await created.json())
   })
   const cases = [
-    { tag: 'Review assigned', project: 0, review: 'in_review', assigned: true },
-    { tag: 'Review unassigned', project: 1, review: 'in_review', assigned: false },
-    { tag: 'Fixing', project: 0, review: 'fixing', assigned: false },
-    { tag: 'Changes requested', project: 1, review: 'changes_requested', assigned: true },
-    { tag: 'Completed target', project: 0, review: 'done', assigned: false },
-    { tag: 'Ordinary newest', project: 1, review: null, assigned: false },
+    { assigned: true, project: 0, review: 'in_review', tag: 'Review assigned' },
+    { assigned: false, project: 1, review: 'in_review', tag: 'Review unassigned' },
+    { assigned: false, project: 0, review: 'fixing', tag: 'Fixing' },
+    { assigned: true, project: 1, review: 'changes_requested', tag: 'Changes requested' },
+    { assigned: false, project: 0, review: 'done', tag: 'Completed target' },
+    { assigned: false, project: 1, review: null, tag: 'Ordinary newest' },
   ]
   const issues: {
     id: string
@@ -832,7 +832,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   })
   expect(metricsResponse.status(), await metricsResponse.text()).toBe(HTTP_OK)
   const metrics = await metricsResponse.json()
-  expect(metrics.cfdOverTime.at(-1)).toMatchObject({ backlogTodo: 1, inProgress: 2, inReview: 1, done: 1 })
+  expect(metrics.cfdOverTime.at(-1)).toMatchObject({ backlogTodo: 1, done: 1, inProgress: 2, inReview: 1 })
   await testInfo.attach('chart-api-data', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' })
   await page.reload()
   const chart = page.getByTestId('flow-chart-cfd')
@@ -935,7 +935,7 @@ test('cold protected initial HTML is usable without JavaScript', async ({ browse
   const context = await browser.newContext({
     baseURL,
     javaScriptEnabled: false,
-    viewport: testInfo.project.name === 'mobile' ? { width: 393, height: 851 } : { width: 1440, height: 1000 },
+    viewport: testInfo.project.name === 'mobile' ? { height: 851, width: 393 } : { height: 1000, width: 1440 },
   })
   try {
     const page = await context.newPage()
@@ -1193,7 +1193,7 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
   })
   expect(uploadedFile.status(), await uploadedFile.text()).toBe(HTTP_CREATED)
   const uploaded = await uploadedFile.json()
-  expect(uploaded).toMatchObject({ filename: `api-file-${suffix}.txt`, contentType: 'text/plain', size: 65_536 })
+  expect(uploaded).toMatchObject({ contentType: 'text/plain', filename: `api-file-${suffix}.txt`, size: 65_536 })
   const nativeFileUrl = `http://127.0.0.1:4393/api/files/${uploaded.id}?workspace=projektor`
   const nativeFile = await request.get(nativeFileUrl)
   expect(nativeFile.status()).toBe(HTTP_OK)
@@ -1304,95 +1304,95 @@ test('all final page routes and aliases render real populated HTML with and with
     await createReaderFixtures(request)
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
   const cases: { id: string; path: string; heading?: string; text?: string; body?: string }[] = [
-    { id: 'projects', path: '/?workspace=projektor', heading: 'Projects', body: project.name },
+    { body: project.name, heading: 'Projects', id: 'projects', path: '/?workspace=projektor' },
     {
+      body: issue.title,
+      heading: project.name,
       id: 'overview-query',
       path: `/projects/view?${scope}`,
-      heading: project.name,
-      body: issue.title,
     },
     {
+      body: issue.title,
+      heading: project.name,
       id: 'overview-path',
       path: `/projects/view/${project.slug}?workspace=projektor`,
-      heading: project.name,
-      body: issue.title,
     },
-    { id: 'help', path: '/help', heading: 'Getting started' },
-    { id: 'issues', path: `/issues?${scope}`, heading: 'Issues', body: issue.title },
+    { heading: 'Getting started', id: 'help', path: '/help' },
+    { body: issue.title, heading: 'Issues', id: 'issues', path: `/issues?${scope}` },
     {
+      body: 'Persisted reader body.',
+      heading: issue.title,
       id: 'issue-query',
       path: `/issues/view?id=${issue.id}&${scope}`,
-      heading: issue.title,
-      body: 'Persisted reader body.',
     },
     {
+      body: 'Persisted reader body.',
+      heading: issue.title,
       id: 'issue-path',
       path: `/projects/${project.key}/issues/${issue.number}/reader-issue?workspace=projektor`,
-      heading: issue.title,
-      body: 'Persisted reader body.',
     },
     {
+      body: issue.title,
+      heading: 'My Issues',
       id: 'my-issues',
       path: '/my-issues?workspace=projektor',
-      heading: 'My Issues',
-      body: issue.title,
     },
-    { id: 'epics', path: `/epics?${scope}`, heading: 'Epics', body: epic.title },
-    { id: 'sprints', path: `/sprints?${scope}`, heading: 'Sprints', body: sprints[0].name },
-    { id: 'metrics', path: `/metrics?${scope}`, heading: 'Metrics' },
+    { body: epic.title, heading: 'Epics', id: 'epics', path: `/epics?${scope}` },
+    { body: sprints[0].name, heading: 'Sprints', id: 'sprints', path: `/sprints?${scope}` },
+    { heading: 'Metrics', id: 'metrics', path: `/metrics?${scope}` },
     {
       id: 'wiki-index',
       path: `/wiki?${scope}`,
       text: 'Select a page from the sidebar or create a new one.',
     },
     {
+      body: 'Persisted Wiki reader body.',
+      heading: wiki.title,
       id: 'wiki-query',
       path: `/wiki/view?slug=${wiki.slug}&${scope}`,
-      heading: wiki.title,
-      body: 'Persisted Wiki reader body.',
     },
     {
+      body: 'Persisted Wiki reader body.',
+      heading: wiki.title,
       id: 'wiki-path',
       path: `/wiki/${wiki.slug}?${scope}`,
-      heading: wiki.title,
-      body: 'Persisted Wiki reader body.',
     },
     {
+      body: sourceName,
+      heading: 'Feedback sources',
       id: 'feedback-grid',
       path: `/feedback?${scope}`,
-      heading: 'Feedback sources',
-      body: sourceName,
     },
     {
+      body: feedbackBody,
+      heading: sourceName,
       id: 'feedback-query',
       path: `/feedback/view?sourceId=${sourceId}&${scope}`,
-      heading: sourceName,
-      body: feedbackBody,
     },
     {
+      body: feedbackBody,
+      heading: sourceName,
       id: 'feedback-path',
       path: `/feedback/${sourceId}?${scope}`,
-      heading: sourceName,
-      body: feedbackBody,
     },
     {
+      body: group.name,
       id: 'groups',
       path: '/settings/groups?workspace=projektor',
       text: 'You manage which groups can access which projects.',
-      body: group.name,
     },
-    { id: 'tokens', path: '/settings/tokens?workspace=projektor', heading: 'Connect Claude Code' },
+    { heading: 'Connect Claude Code', id: 'tokens', path: '/settings/tokens?workspace=projektor' },
     {
+      body: 'Persisted reader body.',
+      heading: issue.title,
       id: 'share-query',
       path: `/share/view?token=${shareToken}`,
-      heading: issue.title,
-      body: 'Persisted reader body.',
     },
     {
+      body: 'Persisted reader body.',
+      heading: issue.title,
       id: 'share-path',
       path: `/share/${shareToken}`,
-      heading: issue.title,
-      body: 'Persisted reader body.',
     },
   ]
   expect(cases).toHaveLength(21)
