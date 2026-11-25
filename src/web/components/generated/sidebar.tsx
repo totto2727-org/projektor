@@ -19,33 +19,15 @@ import { useIsMobile } from '@/hooks/use-mobile'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+import { SidebarContext, useSidebar } from './sidebar-context.ts'
+import type { SidebarContextProps } from './sidebar-context.ts'
+
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
-
-interface SidebarContextProps {
-  state: 'expanded' | 'collapsed'
-  open: boolean
-  setOpen: (open: boolean) => void
-  openMobile: boolean
-  setOpenMobile: (open: boolean) => void
-  isMobile: boolean
-  toggleSidebar: () => void
-}
-
-const SidebarContext = React.createContext<SidebarContextProps | null>(null)
-
-export function useSidebar(): SidebarContextProps {
-  const context = React.useContext(SidebarContext)
-  if (!context) {
-    throw new Error('useSidebar must be used within a SidebarProvider.')
-  }
-
-  return context
-}
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarProvider({
