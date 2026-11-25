@@ -30,6 +30,12 @@ import type { RequestScope } from './scope.ts'
 import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
 export const WikiDiffSchema = Schema.Struct({ diff: Schema.String })
+
+import { requireDataWorkspace } from '#contracts/web-data.ts'
+
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import { checked } from './issue-data.ts'
+
 const importScope = function importScope(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
     const scope = yield* loadBrowserScope(env, proof.request, {
@@ -160,8 +166,3 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
       }),
   }
 }
-
-import { requireDataWorkspace } from '#contracts/web-data.ts'
-
-import { loadBrowserScope, publicWebFailure } from './authentication.ts'
-import { checked } from './issue-data.ts'
