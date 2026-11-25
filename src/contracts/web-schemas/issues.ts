@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 
 import { JSON_NULL } from '#contracts/json-null.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { structInOrder } from '#contracts/ordered-schema.ts'
 import { ReviewStatusSchema, ReviewTargetSchema } from '#contracts/review-targets.ts'
 import type { Issue as ListIssue, TaskStatus } from '@/features/issues/components/board-utils.ts'
@@ -77,13 +78,15 @@ export const IssueSchema = structInOrder([
 export const normalizeIssue = function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
   return {
     ...dto,
-    body: dto.body ?? JSON_NULL,
-    assignee_name: dto.assignee_name ?? JSON_NULL,
-    type_id: dto.type_id ?? JSON_NULL,
-    sprint_id: dto.sprint_id ?? JSON_NULL,
-    customFields: dto.customFields?.map((entry) => ({ ...entry })) ?? [],
-    reviewTargets: dto.reviewTargets.map((entry) => ({ ...entry })),
-    rollup: dto.rollup ? { ...dto.rollup, byStatus: { ...dto.rollup.byStatus } } : undefined,
+    ...fieldsInOrder([
+      ['body', dto.body ?? JSON_NULL],
+      ['assignee_name', dto.assignee_name ?? JSON_NULL],
+      ['type_id', dto.type_id ?? JSON_NULL],
+      ['sprint_id', dto.sprint_id ?? JSON_NULL],
+      ['customFields', dto.customFields?.map((entry) => ({ ...entry })) ?? []],
+      ['reviewTargets', dto.reviewTargets.map((entry) => ({ ...entry }))],
+      ['rollup', dto.rollup ? { ...dto.rollup, byStatus: { ...dto.rollup.byStatus } } : undefined],
+    ]),
   }
 }
 
@@ -128,9 +131,11 @@ export const CommentsSchema = Schema.Array(CommentSchema)
 export const normalizeComments = function normalizeComments(dto: typeof CommentsSchema.Type): Comment[] {
   return dto.map((entry) => ({
     ...entry,
-    author_id: entry.author_id ?? '',
-    author_name: entry.author_name ?? 'Unknown user',
-    author_email: entry.author_email ?? '',
+    ...fieldsInOrder([
+      ['author_id', entry.author_id ?? ''],
+      ['author_name', entry.author_name ?? 'Unknown user'],
+      ['author_email', entry.author_email ?? ''],
+    ]),
   }))
 }
 export const IssueLinkSchema = structInOrder([
@@ -150,8 +155,10 @@ const UNKNOWN_LINK_CREATION_TIME = 0
 export const normalizeLinks = function normalizeLinks(dto: typeof LinksSchema.Type): IssueLink[] {
   return dto.map((entry) => ({
     ...entry,
-    createdById: entry.createdById ?? '',
-    createdAt: entry.createdAt ?? UNKNOWN_LINK_CREATION_TIME,
+    ...fieldsInOrder([
+      ['createdById', entry.createdById ?? ''],
+      ['createdAt', entry.createdAt ?? UNKNOWN_LINK_CREATION_TIME],
+    ]),
   }))
 }
 
