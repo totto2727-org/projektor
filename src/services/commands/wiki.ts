@@ -1635,7 +1635,7 @@ const extractSectionText = function extractSectionText(content: string, section:
 
 const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (Array.isArrayNonEmpty(out) && String.isEmpty(out[Number.decrement(out.length)].trim())) {
+  while (Array.isArrayNonEmpty(out) && String.isEmpty(Array.lastNonEmpty(out).trim())) {
     out.pop()
   }
   return out

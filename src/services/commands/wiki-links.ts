@@ -588,7 +588,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
     .orderBy(asc(schema.wikiPages.updatedAt), asc(schema.wikiPages.id))
     .limit(pageBudget)
 
-  if (Array.isArrayEmpty(pages)) {
+  if (!Array.isArrayNonEmpty(pages)) {
     return { processed: 0, nextCursor: null, pagesProcessed: 0 }
   }
 
@@ -608,7 +608,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
     await ctx.db.batch(statements)
   }
 
-  const last = pages[Number.decrement(pages.length)]
+  const last = Array.lastNonEmpty(pages)
   // A short page (fewer rows than requested) means we've reached the end of the scope.
   const nextCursor = pages.length < pageBudget ? null : { updatedAt: last.updatedAt, id: last.id }
   return { processed: pages.length, nextCursor, pagesProcessed: pages.length }

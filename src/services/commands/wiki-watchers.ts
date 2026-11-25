@@ -779,10 +779,10 @@ const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends {
   rows: Readonly<T[]>,
   limit: number,
 ): Readonly<T[]> {
-  if (rows.length !== limit || Array.isReadonlyArrayEmpty(rows)) {
+  if (rows.length !== limit || !Array.isReadonlyArrayNonEmpty(rows)) {
     return rows
   }
-  const maxTs = rows[Number.decrement(rows.length)].createdAt
+  const maxTs = Array.lastNonEmpty(rows).createdAt
   if (rows[0].createdAt === maxTs) {
     return rows
   }
