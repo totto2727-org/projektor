@@ -17,6 +17,13 @@ import { recordActivity } from './activity.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
+type GroupOrm = ReturnType<typeof drizzle<typeof schema>>
+type GroupDetails = groupData.GroupRow & {
+  grants: Effect.Success<ReturnType<typeof groupData.listGroupGrants>>
+  members: Effect.Success<ReturnType<typeof groupData.listGroupMembers>>
+}
+type CreatedGroup = Pick<groupData.GroupRow, 'name' | 'description'> & { id: ReturnType<typeof crypto.randomUUID> }
+
 const requireAdmin = function requireAdmin(ctx: ServiceCtx): void {
   if (!isWorkspaceAdmin(ctx.role)) {
     throw new ForbiddenError()
@@ -29,9 +36,13 @@ const requireAdmin = function requireAdmin(ctx: ServiceCtx): void {
  * @param {ReturnType<typeof drizzle>} orm The Drizzle connection.
  * @param {ServiceCtx} ctx The caller and workspace database.
  * @param {string} groupId The group ID in the caller's workspace.
- * @returns {Promise<typeof schema.userGroups.$inferSelect>} The group row in the workspace.
+ * @returns {Promise<groupData.GroupRow>} The group row in the workspace.
  */
-const loadGroup = async function loadGroup(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, groupId: string) {
+const loadGroup = async function loadGroup(
+  orm: ReturnType<typeof drizzle>,
+  ctx: ServiceCtx,
+  groupId: string,
+): Promise<groupData.GroupRow> {
   const group = await orm
     .select()
     .from(schema.userGroups)
@@ -48,9 +59,12 @@ const loadGroup = async function loadGroup(orm: ReturnType<typeof drizzle>, ctx:
  *
  * @param {ServiceCtx} ctx The caller and workspace database.
  * @param {string} groupId The group ID in the caller's workspace.
- * @returns {Promise<{orm: ReturnType<typeof drizzle>, group: typeof schema.userGroups.$inferSelect}>} The database connection and group after the admin check.
+ * @returns {Promise<{ orm: GroupOrm; group: groupData.GroupRow }>} The database connection and group after the admin check.
  */
-const requireAdminGroup = async function requireAdminGroup(ctx: ServiceCtx, groupId: string) {
+const requireAdminGroup = async function requireAdminGroup(
+  ctx: ServiceCtx,
+  groupId: string,
+): Promise<{ orm: GroupOrm; group: groupData.GroupRow }> {
   requireAdmin(ctx)
   const orm = drizzle(ctx.db, { schema })
   const group = await loadGroup(orm, ctx, groupId)
@@ -64,7 +78,9 @@ const requireAdminGroup = async function requireAdminGroup(ctx: ServiceCtx, grou
  * @param {ServiceCtx} ctx The caller and workspace database.
  * @returns {Promise<Effect.Success<ReturnType<typeof groupData.listGroups>>>} The groups visible to the caller and their membership and grant counts.
  */
-export const listGroups = async function listGroups(ctx: ServiceCtx) {
+export const listGroups = async function listGroups(
+  ctx: ServiceCtx,
+): Promise<Effect.Success<ReturnType<typeof groupData.listGroups>>> {
   return Effect.runPromise(
     groupData.listGroups(ctx.db, ctx.workspaceId, isWorkspaceAdmin(ctx.role) ? {} : { memberUserId: ctx.userId }),
   )
@@ -76,10 +92,9 @@ export const listGroups = async function listGroups(ctx: ServiceCtx) {
  *
  * @param {ServiceCtx} ctx The caller and workspace database.
  * @param {string} groupId The group ID in the caller's workspace.
- * @returns {Promise<typeof schema.userGroups.$inferSelect & {members: Effect.Success<ReturnType<typeof groupData.listGroupMembers>>, grants: Effect.Success<ReturnType<typeof groupData.listGroupGrants>>}>}
- * The group row with member and project-grant details.
+ * @returns {Promise<GroupDetails>} The group row with member and project-grant details.
  */
-export const getGroup = async function getGroup(ctx: ServiceCtx, groupId: string) {
+export const getGroup = async function getGroup(ctx: ServiceCtx, groupId: string): Promise<GroupDetails> {
   const orm = drizzle(ctx.db, { schema })
   await loadGroup(orm, ctx, groupId)
 
@@ -119,7 +134,7 @@ export const listMemberGroups = async function listMemberGroups(
   return Effect.runPromise(groupData.listMemberGroups(ctx.db, ctx.workspaceId))
 }
 
-export const createGroup = async function createGroup(ctx: ServiceCtx, input: unknown) {
+export const createGroup = async function createGroup(ctx: ServiceCtx, input: unknown): Promise<CreatedGroup> {
   requireAdmin(ctx)
   const parsed = CreateGroupSchema.safeParse(input)
   if (!parsed.success) {

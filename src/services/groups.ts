@@ -1,17 +1,42 @@
 import { and, asc, eq } from 'drizzle-orm'
 import { Iterable, Predicate } from 'effect'
+import type { Effect } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
-/** The app decides whether to pass a membership filter or request all workspace groups. */
+export type GroupRow = typeof schema.userGroups.$inferSelect
+type GroupListRow = Pick<GroupRow, 'id' | 'name' | 'description' | 'createdAt'> & {
+  grantCount: number
+  memberCount: number
+}
+type GroupMember = Pick<typeof schema.userGroupMembers.$inferSelect, 'addedAt' | 'addedBy' | 'userId'> &
+  Pick<typeof schema.users.$inferSelect, 'email' | 'name'>
+type GroupGrant = Pick<typeof schema.groupProjectGrants.$inferSelect, 'projectId' | 'role'> & {
+  projectKey: string
+  projectName: string
+}
+interface MemberGroups {
+  groups: Pick<GroupRow, 'id' | 'name'>[]
+  userId: string
+}
+
+/**
+ * The app decides whether to pass a membership filter or request all workspace groups.
+ *
+ * @param {D1Database} db Database that stores groups and memberships.
+ * @param {string} workspaceId Workspace that owns the groups.
+ * @param {{ memberUserId?: string }} [options] Restrict the result to groups that include this user.
+ * @returns {Effect.Effect<GroupListRow[], DataQueryError>} Matching groups with membership and grant counts.
+ */
 export const listGroups = function listGroups(
   db: D1Database,
   workspaceId: string,
   options: { memberUserId?: string } = {},
-) {
+): Effect.Effect<GroupListRow[], DataQueryError> {
   return queryEffect('listGroups', async () => {
     const orm = drizzle(db, { schema })
     const columns = {
@@ -39,7 +64,11 @@ export const listGroups = function listGroups(
       .orderBy(asc(schema.userGroups.name))
   })
 }
-export const findGroup = function findGroup(db: D1Database, workspaceId: string, groupId: string) {
+export const findGroup = function findGroup(
+  db: D1Database,
+  workspaceId: string,
+  groupId: string,
+): Effect.Effect<GroupRow | undefined, DataQueryError> {
   return queryEffect('findGroup', async () =>
     drizzle(db, { schema })
       .select()
@@ -48,7 +77,11 @@ export const findGroup = function findGroup(db: D1Database, workspaceId: string,
       .get(),
   )
 }
-export const listGroupMembers = function listGroupMembers(db: D1Database, workspaceId: string, groupId: string) {
+export const listGroupMembers = function listGroupMembers(
+  db: D1Database,
+  workspaceId: string,
+  groupId: string,
+): Effect.Effect<GroupMember[], DataQueryError> {
   return queryEffect('listGroupMembers', async () =>
     drizzle(db, { schema })
       .select({
@@ -65,7 +98,11 @@ export const listGroupMembers = function listGroupMembers(db: D1Database, worksp
       .orderBy(asc(schema.userGroupMembers.addedAt)),
   )
 }
-export const listGroupGrants = function listGroupGrants(db: D1Database, workspaceId: string, groupId: string) {
+export const listGroupGrants = function listGroupGrants(
+  db: D1Database,
+  workspaceId: string,
+  groupId: string,
+): Effect.Effect<GroupGrant[], DataQueryError> {
   return queryEffect('listGroupGrants', async () =>
     drizzle(db, { schema })
       .select({
@@ -87,7 +124,10 @@ export const listGroupGrants = function listGroupGrants(db: D1Database, workspac
       .orderBy(asc(schema.projects.name)),
   )
 }
-export const listMemberGroups = function listMemberGroups(db: D1Database, workspaceId: string) {
+export const listMemberGroups = function listMemberGroups(
+  db: D1Database,
+  workspaceId: string,
+): Effect.Effect<MemberGroups[], DataQueryError> {
   return queryEffect('listMemberGroups', async () => {
     const rows = await drizzle(db, { schema })
       .select({

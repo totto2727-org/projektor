@@ -4,6 +4,7 @@ import type { JSX } from 'react'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { browserRequest, coreResult } from '@/core.ts'
 import { RequestServices } from '@/request.ts'
+import type { PageFailure } from '@/request.ts'
 import { runBrowserCommand } from '@/server/browser-command.ts'
 import { requireDataWorkspace } from '@/server/data-context.ts'
 import { ScopeError } from '@/server/errors.ts'
@@ -14,10 +15,12 @@ import { ConnectorsSchema, McpInfoSchema, SettingsGroupsSchema, SettingsTokensSc
 import type { ConnectorGrant, Token } from './types.ts'
 import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from './widgets.tsx'
 
+type SettingsView = Effect.Effect<JSX.Element, PageFailure, RequestServices>
+
 const choose = (scope: RequestScope): WorkspaceMembership | null =>
   scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
 const forbidden = (error: { status: number }): boolean => error.status === HTTP_FORBIDDEN
-const selected = function selected(scope: RequestScope) {
+const selected = function selected(scope: RequestScope): Effect.Effect<WorkspaceMembership, ScopeError> {
   return Effect.try({
     catch: (cause) =>
       cause instanceof ScopeError ? cause : new ScopeError(HTTP_FORBIDDEN, 'Select an accessible workspace.'),
@@ -88,7 +91,7 @@ const TokenSettings = function TokenSettings({
     </div>
   )
 }
-export const renderGroups = function renderGroups(scope: RequestScope, url: URL) {
+export const renderGroups = function renderGroups(scope: RequestScope, url: URL): SettingsView {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {
@@ -128,7 +131,7 @@ export const renderGroups = function renderGroups(scope: RequestScope, url: URL)
     ),
   )
 }
-export const renderTokens = function renderTokens(scope: RequestScope, _url: URL) {
+export const renderTokens = function renderTokens(scope: RequestScope, _url: URL): SettingsView {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {
@@ -171,7 +174,10 @@ export const renderTokens = function renderTokens(scope: RequestScope, _url: URL
     ),
   )
 }
-export const renderConnectAgent = function renderConnectAgent(scope: RequestScope, _url: URL) {
+export const renderConnectAgent = function renderConnectAgent(
+  scope: RequestScope,
+  _url: URL,
+): Effect.Effect<JSX.Element, never, RequestServices> {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {
@@ -183,7 +189,7 @@ export const renderConnectAgent = function renderConnectAgent(scope: RequestScop
     return <ConnectAgentGuide key={workspace.slug} workspaceSlug={workspace.slug} mcpUrl={info?.mcpUrl ?? null} />
   })
 }
-export const renderConnectors = function renderConnectors(scope: RequestScope, _url: URL) {
+export const renderConnectors = function renderConnectors(scope: RequestScope, _url: URL): SettingsView {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {
