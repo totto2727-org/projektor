@@ -44,7 +44,11 @@ const STATUS_OPTIONS = [
   { value: 'actioned', label: 'Actioned' },
 ]
 
-const useToggleSet = function useToggleSet() {
+type FeedbackSelection = Readonly<
+  [selected: Set<string>, toggle: (id: string) => void, setSelected: Dispatch<SetStateAction<Set<string>>>]
+>
+
+const useToggleSet = function useToggleSet(): FeedbackSelection {
   const [set, setSet] = useState<Set<string>>(new Set())
   const toggle = function toggle(id: string): void {
     setSet((prev) => {
@@ -60,19 +64,19 @@ const useToggleSet = function useToggleSet() {
   return [set, toggle, setSet] as const
 }
 
-const useSelectedFeedback = function useSelectedFeedback() {
+const MAX_SELECTED_FEEDBACK = 500
+const EMPTY_FEEDBACK_SELECTION = 0
+
+const useSelectedFeedback = function useSelectedFeedback(): FeedbackSelection {
+  const ids = Schema.mutable(Schema.Array(Schema.String)).check(Schema.isMaxLength(MAX_SELECTED_FEEDBACK))
+  const selectionSchema = Schema.Struct({ ids })
+  const validator = Schema.toStandardSchemaV1(selectionSchema)
   const form = useForm({
     defaultValues: { ids: [] as string[] },
-    validators: {
-      onChange: Schema.toStandardSchemaV1(
-        Schema.Struct({
-          ids: Schema.mutable(Schema.Array(Schema.String)).check(Schema.isMaxLength(500)),
-        }),
-      ),
-    },
+    validators: { onChange: validator },
   })
-  const ids = useStore(form.store, (state) => state.values.ids)
-  const selected = new Set(ids)
+  const selectedIds = useStore(form.store, (state) => state.values.ids)
+  const selected = new Set(selectedIds)
   const setSelected: Dispatch<SetStateAction<Set<string>>> = (value) => {
     const current = new Set(form.getFieldValue('ids'))
     form.setFieldValue('ids', [...(Predicate.isFunction(value) ? value(current) : value)])
@@ -151,7 +155,7 @@ export function FeedbackList({
           {error}
         </p>
       )}
-      {selected.size > 0 && (
+      {selected.size > EMPTY_FEEDBACK_SELECTION && (
         <div className='flex gap-2 items-center mb-3 p-2 bg-surface border border-border rounded'>
           <span className='text-[0.85rem] text-text-muted'>{selected.size} selected</span>
           <Button

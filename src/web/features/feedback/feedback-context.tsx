@@ -5,18 +5,18 @@ import type { Feedback } from './feedback-list.tsx'
 
 const parseContext = function parseContext(
   sourceUrl: string | null,
-): { url: string; params: [string, string][] } | null {
+): { params: [string, string][]; url: string } | undefined {
   if (Predicate.isNullish(sourceUrl) || String.isEmpty(sourceUrl)) {
-    return null
+    return undefined
   }
   try {
     const parsed = new URL(sourceUrl)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return null
+      return undefined
     }
-    return { url: sourceUrl, params: globalThis.Array.from(parsed.searchParams.entries()) }
+    return { params: globalThis.Array.from(parsed.searchParams.entries()), url: sourceUrl }
   } catch {
-    return null
+    return undefined
   }
 }
 
