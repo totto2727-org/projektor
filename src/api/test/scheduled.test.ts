@@ -280,7 +280,8 @@ describe('scheduled retention purge (PROJ-869)', () => {
  * size — bounding the work per invocation via a budget + KV cursor instead.
  */
 describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
-  const EXPIRED_AT = currentEpochSeconds() - 40 * 24 * 60 * 60 // Well past the 30-day retention
+  // Well past the 30-day retention
+  const EXPIRED_AT = currentEpochSeconds() - 40 * 24 * 60 * 60
 
   test('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
     const creator = await seedUser(`cron-purge-${crypto.randomUUID().slice(0, 8)}@example.com`)
@@ -320,7 +321,8 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     }
 
     for (let index = 0; index < 100; index += 1) {
-      const pageId = pageIds[index * 3] // Spread across ~1/3 of the pages
+      // Spread across ~1/3 of the pages
+      const pageId = pageIds[index * 3]
       const workspaceId = workspaceIdByPageId.get(pageId)
       if (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId)) {
         throw new Error(`no workspace recorded for page ${pageId}`)
@@ -411,7 +413,8 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
           creator.id,
           EXPIRED_AT,
           EXPIRED_AT,
-          EXPIRED_AT - index, // Stagger deleted_at so ORDER BY is deterministic
+          // Stagger deleted_at so ORDER BY is deterministic
+          EXPIRED_AT - index,
           crypto.randomUUID(),
         )
         .run()
@@ -435,7 +438,8 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     }
 
     expect(remainingPages).toBe(0)
-    expect(iterations).toBeGreaterThan(1) // 500 pages couldn't have drained in a single call
+    // 500 pages couldn't have drained in a single call
+    expect(iterations).toBeGreaterThan(1)
     const leftover = await env.DB.prepare(
       'SELECT COUNT(*) AS n FROM wiki_pages WHERE id IN (SELECT value FROM json_each(?))',
     )
@@ -477,7 +481,8 @@ describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
     }
 
     await runFtsDedupeOnce(spyEnv)
-    await runFtsDedupeOnce(spyEnv) // Second cron fire: must be a no-op, guarded by the KV flag
+    // Second cron fire: must be a no-op, guarded by the KV flag
+    await runFtsDedupeOnce(spyEnv)
 
     expect(ran).toBe(1)
     await expect(env.DB.prepare('SELECT rowid FROM wiki_fts WHERE rowid = 999999999').first()).resolves.toBeNull()

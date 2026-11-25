@@ -73,7 +73,8 @@ describe('covers PROJ-79: token expiry', () => {
     const fixture = await seedFixture()
     // Seed a second token for the same user/workspace that is already expired
     const expiredToken = await seedToken(fixture.workspace.id, fixture.user.id, {
-      expiresAt: currentEpochSeconds() - 60, // 1 minute ago
+      // 1 minute ago
+      expiresAt: currentEpochSeconds() - 60,
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -98,7 +99,8 @@ describe('covers PROJ-79: token expiry', () => {
   })
 
   test('api_token with no expires_at never expires', async () => {
-    const fixture = await seedFixture() // seedFixture uses seedToken without expiresAt
+    // The seedFixture helper uses seedToken without expiresAt
+    const fixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
@@ -150,7 +152,8 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   test('expired JWT (exp < now) is rejected', async () => {
     const now = currentEpochSeconds()
     const jwt = await signTestJwt(privateKey, {
-      exp: now - 10, // Already expired
+      // Already expired
+      exp: now - 10,
       aud: TEST_AUDIENCE,
       iss: TEST_ISSUER,
       email: TEST_EMAIL,
@@ -348,7 +351,8 @@ describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
   test('expired CF Access JWT (exp < now) returns 401 before any key fetch', async () => {
     const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
     const payload = encodeJwtPart({
-      exp: currentEpochSeconds() - 60, // Already expired
+      // Already expired
+      exp: currentEpochSeconds() - 60,
       email: 'old@example.com',
     })
     const jwt = `${header}.${payload}.fakesig`
@@ -770,7 +774,8 @@ describe('covers PROJ-360: api_tokens.last_used_at write throttling', () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
     const now = currentEpochSeconds()
-    const recentTimestamp = now - 30 // Inside the 60s throttle window
+    // Inside the 60s throttle window
+    const recentTimestamp = now - 30
 
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?')
       .bind(recentTimestamp, hash)
@@ -791,7 +796,8 @@ describe('covers PROJ-360: api_tokens.last_used_at write throttling', () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
     const now = currentEpochSeconds()
-    const staleTimestamp = now - 120 // Outside the 60s throttle window
+    // Outside the 60s throttle window
+    const staleTimestamp = now - 120
 
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?').bind(staleTimestamp, hash).run()
 
@@ -1312,7 +1318,8 @@ describe('covers PROJ-79: MCP protocol validation', () => {
         'POST',
         ownerHeaders,
         JSON.stringify({
-          jsonrpc: '1.0', // Wrong version
+          // Wrong version
+          jsonrpc: '1.0',
           id: 1,
           method: 'tools/list',
           params: {},

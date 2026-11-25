@@ -306,7 +306,8 @@ describe('agents API', () => {
         paths: ['src/never-claimed.ts'],
         name: 'worker-2',
       })
-      expect(second.status).toBe(409) // Same ConflictError as claim_issue today
+      // Same ConflictError as claim_issue today
+      expect(second.status).toBe(409)
 
       const sessions = await env.DB.prepare("SELECT id, status FROM agent_sessions WHERE name = 'worker-2'").all<{
         id: string
@@ -413,7 +414,8 @@ describe('agents API', () => {
         paths: ['src/contended.ts'],
         name: 'wants-it',
       })
-      expect(res.status).toBe(409) // Same ConflictError as claim_files today
+      // Same ConflictError as claim_files today
+      expect(res.status).toBe(409)
 
       // issue2 never ended up with a live lease — the failed file claim rolled it back.
       const lease = await env.DB.prepare('SELECT id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL')
@@ -467,7 +469,8 @@ describe('agents API', () => {
       const issueRow = await env.DB.prepare('SELECT status FROM issues WHERE id = ?')
         .bind(issue.id)
         .first<{ status: string }>()
-      expect(issueRow?.status).toBe('backlog') // Unchanged
+      // Unchanged
+      expect(issueRow?.status).toBe('backlog')
 
       const session = await env.DB.prepare('SELECT status FROM agent_sessions WHERE id = ?')
         .bind(sessionId)
@@ -540,7 +543,8 @@ describe('agents API', () => {
    * carries issueRef.
    */
   describe('covers PROJ-932: live-only default, includeStale, projectId, issueRef, live flag', () => {
-    const projectKey = 'PROJ' // SeedProject's default key
+    // SeedProject's default key
+    const projectKey = 'PROJ'
 
     const backdateHeartbeat = function backdateHeartbeat(
       agentId: string,

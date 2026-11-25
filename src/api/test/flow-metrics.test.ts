@@ -300,7 +300,8 @@ describe('flow metrics (PROJ-252)', () => {
 
     Iterable.forEach(metrics.throughputOverTime, (bucket) => {
       const weekday = new Date(`${bucket.bucketStart}T00:00:00Z`).getUTCDay()
-      expect(weekday).toBe(1) // 1 === Monday
+      // 1 === Monday
+      expect(weekday).toBe(1)
     })
   })
 
@@ -616,7 +617,8 @@ describe('flow metrics (PROJ-252)', () => {
     const metrics = await getFlowMetrics()
 
     expect(metrics.timeInProgress.count).toBe(1)
-    expect(metrics.timeInProgress.avg).toBeCloseTo(300, 0) // Claimed -400 -> in_review -100
+    // Claimed -400 -> in_review -100
+    expect(metrics.timeInProgress.avg).toBeCloseTo(300, 0)
   })
 
   // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
@@ -662,13 +664,16 @@ describe('flow metrics (PROJ-252)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Queued then leased' })
     // Ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 300, doneAt: now })
-    await stampLease(crypto.randomUUID(), issue.id, now - 300, now - 150) // 150s held
+    // 150s held
+    await stampLease(crypto.randomUUID(), issue.id, now - 300, now - 150)
 
     const metrics = await getFlowMetrics()
 
     expect(metrics.flowEfficiency.count).toBe(1)
-    expect(metrics.flowEfficiency.avg).toBeCloseTo(150 / 500, 1) // Held / lead time
-    expect(metrics.autonomyRatio.avg).toBeCloseTo(150 / 300, 1) // Held / cycle time
+    // Held / lead time
+    expect(metrics.flowEfficiency.avg).toBeCloseTo(150 / 500, 1)
+    // Held / cycle time
+    expect(metrics.autonomyRatio.avg).toBeCloseTo(150 / 300, 1)
     expect(metrics.flowEfficiency.avg).toBeLessThan(metrics.autonomyRatio.avg ?? 0)
   })
 

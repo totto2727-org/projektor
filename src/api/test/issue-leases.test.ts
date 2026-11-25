@@ -75,7 +75,8 @@ describe('issue leases API (PROJ-184)', () => {
     const result = await claim(issue.id, a1)
     expect(result.status).toBe(201)
     const res = await claim(issue.id, a2)
-    expect(res.status).toBe(409) // ConflictError
+    // ConflictError
+    expect(res.status).toBe(409)
   })
 
   test('reclaims a lease whose holder stopped heartbeating', async () => {
@@ -100,7 +101,8 @@ describe('issue leases API (PROJ-184)', () => {
     await backdateHeartbeat(a1)
 
     const res = await claim(issue.id, a1)
-    expect(res.status).toBe(400) // ValidationError — heartbeat first
+    // ValidationError — heartbeat first
+    expect(res.status).toBe(400)
   })
 
   test('release frees the issue for another agent', async () => {
@@ -169,7 +171,8 @@ describe('issue leases API (PROJ-184)', () => {
         JSON.stringify({ agentId: otherAgent.id }),
       ),
     )
-    expect(res.status).toBe(404) // Issue not found in the intruder's workspace
+    // Issue not found in the intruder's workspace
+    expect(res.status).toBe(404)
   })
 })
 
@@ -527,7 +530,8 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
   let slug: string
   let workspaceId: string
   let projectId: string
-  const projectKey = 'PROJ' // SeedProject's default key
+  // SeedProject's default key
+  const projectKey = 'PROJ'
   let userId: string
 
   beforeEach(async () => {

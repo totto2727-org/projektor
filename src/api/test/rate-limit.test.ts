@@ -14,7 +14,8 @@ import { seedRateLimitCounter } from './rate-limit-reset.ts'
 // Must match vite.config.ts values.
 const AUTH_LIMIT = 3
 const API_LIMIT = 5
-const WINDOW_SECS = 60 // RATE_LIMIT_WINDOW_SECS in vite.config.ts
+// RATE_LIMIT_WINDOW_SECS in vite.config.ts
+const WINDOW_SECS = 60
 
 // SHA-256 prefix — mirrors the middleware so we can pre-seed the correct key.
 const sha256Prefix = async function sha256Prefix(input: string): Promise<string> {
@@ -69,7 +70,8 @@ describe('covers PROJ-19: rate limiting', () => {
       // Seed against the fallback IP used when CF-Connecting-IP is absent in tests
       await seedCounter('ip:127.0.0.1', AUTH_LIMIT)
 
-      const res = await fetchNativeApi(ENDPOINT) // No CF-Connecting-IP → key = ip:127.0.0.1
+      // No CF-Connecting-IP → key = ip:127.0.0.1
+      const res = await fetchNativeApi(ENDPOINT)
       expect(res.status).toBe(429)
       const retryAfter = parseInt(res.headers.get('Retry-After') ?? '0', 10)
       expect(retryAfter).toBeGreaterThan(0)
@@ -130,7 +132,8 @@ describe('covers PROJ-19: rate limiting', () => {
 
 describe('covers PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
   const ENDPOINT = 'http://localhost/api/workspaces'
-  const AUTH_FAIL_LIMIT = 3 // RATE_LIMIT_AUTH_FAIL_MAX in vite.config.ts
+  // RATE_LIMIT_AUTH_FAIL_MAX in vite.config.ts
+  const AUTH_FAIL_LIMIT = 3
 
   test('returns 401 for an invalid bearer token while under the failure limit', async () => {
     const res = await fetchNativeApi(ENDPOINT, {
@@ -194,7 +197,8 @@ describe('covers PROJ-432: the D1 fallback counter costs one round trip', () => 
 
   test('issues a single batch rather than sequential statements', async () => {
     const { counts, proxy } = countingDb(env.DB)
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5) // No prune
+    // No prune
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
       await bumpRateCounter(d1Only(proxy), `ip:batch-${crypto.randomUUID().slice(0, 8)}`, WINDOW_SECS)
     } finally {
@@ -228,7 +232,8 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
       })
       expect(res.status).toBe(200)
     }
-    await fetchNativeApi(ENDPOINT) // IP-keyed, unauthenticated
+    // IP-keyed, unauthenticated
+    await fetchNativeApi(ENDPOINT)
     await expect(rateLimitRows()).resolves.toBe(0)
   })
 
@@ -248,7 +253,8 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
 
   test('covers Retry-After is the seconds left in the fixed window, as before', async () => {
     const slotStartMs = currentSlot() * 1000
-    env.RATE_LIMIT_TEST_NOW_MS = String(slotStartMs + 20_000) // 20s into the window
+    // 20s into the window
+    env.RATE_LIMIT_TEST_NOW_MS = String(slotStartMs + 20_000)
     await configureCore()
     try {
       const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`

@@ -4502,7 +4502,8 @@ describe('computeFreshness (PROJ-489)', () => {
 
   test("returns 'fresh' when verify_interval hasn't elapsed since verified_at", () => {
     const now = 1_000_000
-    const verifiedAt = now - 10 * 86_400 // 10 days ago
+    // 10 days ago
+    const verifiedAt = now - 10 * 86_400
     expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toStrictEqual({
       staleSince: null,
       state: 'fresh',
@@ -4511,7 +4512,8 @@ describe('computeFreshness (PROJ-489)', () => {
 
   test("returns 'stale' with staleSince once verify_interval has elapsed since verified_at", () => {
     const now = 1_000_000
-    const verifiedAt = now - 40 * 86_400 // 40 days ago
+    // 40 days ago
+    const verifiedAt = now - 40 * 86_400
     const dueAt = verifiedAt + 30 * 86_400
     expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toStrictEqual({
       staleSince: dueAt,
@@ -4530,7 +4532,8 @@ describe('computeFreshness (PROJ-489)', () => {
 
   test("treats an explicit status: deprecated as stale even when verify_interval hasn't elapsed yet", () => {
     const now = 1_000_000
-    const verifiedAt = now - 1 * 86_400 // Verified yesterday
+    // Verified yesterday
+    const verifiedAt = now - 1 * 86_400
     expect(computeFreshness({ verifiedAt, verifyInterval: 365, status: 'deprecated', now })).toStrictEqual({
       staleSince: null,
       state: 'stale',

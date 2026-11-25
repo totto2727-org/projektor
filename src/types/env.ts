@@ -20,27 +20,37 @@ export interface CoreEnv {
   BOOTSTRAP_SECRET?: string
   // Login provisioning (see services/provisioning.ts). Runs on every Cloudflare Access
   // (browser) login. Cloudflare Access is the gate; these decide what a user gets inside.
-  ADMIN_EMAILS?: string // Comma-separated; these emails become workspace owners
-  DEFAULT_WORKSPACE_SLUG?: string // Default 'projektor' (matches the workers.dev subdomain)
-  DEFAULT_WORKSPACE_NAME?: string // Default 'Projektor'
-  AUTO_JOIN_ROLE?: string // Role for non-admins CF admits: viewer|member|admin|owner|none (default none = invite-only)
+  // Comma-separated; these emails become workspace owners
+  ADMIN_EMAILS?: string
+  // Default 'projektor' (matches the workers.dev subdomain)
+  DEFAULT_WORKSPACE_SLUG?: string
+  // Default 'Projektor'
+  DEFAULT_WORKSPACE_NAME?: string
+  // Role for non-admins CF admits: viewer|member|admin|owner|none (default none = invite-only)
+  AUTO_JOIN_ROLE?: string
   // Confine non-admin logins by email domain to a single workspace. JSON object:
   // {"example.com":{"slug":"example-team","role":"member"}}. Admins (ADMIN_EMAILS) bypass this.
   WORKSPACE_DOMAIN_MAP?: string
   // Rate-limit tunables — override in wrangler.toml [vars] or as secrets.
   // Defaults: 10 req/window for IP-keyed (no bearer token), 120 for token-keyed.
-  RATE_LIMIT_AUTH_MAX?: string // Max requests per IP per window when no bearer token is present
-  RATE_LIMIT_API_MAX?: string // Max requests per token per window when a bearer token is present
-  RATE_LIMIT_WINDOW_SECS?: string // Window size in seconds (default 60)
-  RATE_LIMIT_AUTH_FAIL_MAX?: string // Max failed bearer-token auths per IP per window before 429 (default 50)
+  // Max requests per IP per window when no bearer token is present
+  RATE_LIMIT_AUTH_MAX?: string
+  // Max requests per token per window when a bearer token is present
+  RATE_LIMIT_API_MAX?: string
+  // Window size in seconds (default 60)
+  RATE_LIMIT_WINDOW_SECS?: string
+  // Max failed bearer-token auths per IP per window before 429 (default 50)
+  RATE_LIMIT_AUTH_FAIL_MAX?: string
   /*
    * PROJ-378: public feedback-submit rate limiting. Dedicated from RATE_LIMIT_API_MAX/
    * RATE_LIMIT_AUTH_MAX (which govern authenticated API/auth traffic) because the
    * submit route runs outside the global rateLimitMiddleware chain entirely and
    * anonymous feedback-spam must not share a budget with authenticated callers.
    */
-  RATE_LIMIT_FEEDBACK_MAX?: string // Max submissions per source token per window (default 30)
-  RATE_LIMIT_FEEDBACK_IP_MAX?: string // Max submissions per IP per window (default 100)
+  // Max submissions per source token per window (default 30)
+  RATE_LIMIT_FEEDBACK_MAX?: string
+  // Max submissions per IP per window (default 100)
+  RATE_LIMIT_FEEDBACK_IP_MAX?: string
   /*
    * Per-workspace attachment storage quota in bytes (default 1 GiB). Override in
    * wrangler.toml [vars]; invalid or non-positive values fall back to the default.
@@ -96,9 +106,12 @@ export interface CoreEnv {
    * (src/api/worker.ts's scheduled -> purgeExpiredRetentionData). All optional;
    * unset falls back to the documented default in that function.
    */
-  WIKI_NOTIFICATION_RETENTION_DAYS?: string // Default 90
-  AGENT_SESSION_RETENTION_DAYS?: string // Ended agent_sessions with no referencing lease, default 90
-  ACTIVITY_RETENTION_DAYS?: string // Default 365
+  // Default 90
+  WIKI_NOTIFICATION_RETENTION_DAYS?: string
+  // Ended agent_sessions with no referencing lease, default 90
+  AGENT_SESSION_RETENTION_DAYS?: string
+  // Default 365
+  ACTIVITY_RETENTION_DAYS?: string
   /*
    * PROJ-928: TTL in seconds before a file claim with no agentId (agentId is nullable —
    * see services/file-claims.ts) becomes reclaimable by the next claimant, same as a
