@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act } from '@testing-library/react'
+import { Fragment, createElement } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
@@ -15,7 +16,7 @@ vi.mock('../attachment-actions', () => ({
   uploadInlineImage: vi.fn(),
 }))
 vi.mock(import('@effront/core/query'), () => ({ query: vi.fn() }))
-vi.mock('./wiki/lazy-markdown-editor.tsx', () => ({ LazyMarkdownEditor: () => null }))
+vi.mock(import('./wiki/lazy-markdown-editor.tsx'), () => ({ LazyMarkdownEditor: () => createElement(Fragment) }))
 
 const timestamp = Date.parse('2026-10-04T08:48:46Z') / 1000
 function seed(): WikiSeed {

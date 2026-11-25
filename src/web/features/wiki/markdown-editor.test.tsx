@@ -5,8 +5,8 @@ import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { MarkdownEditor } from './markdown-editor.tsx'
 
-vi.mock('../../components/markdown/markdown-preview.tsx', () => ({
-  useMarkdownPreview: () => ({ html: '' }),
+vi.mock(import('@/components/markdown/markdown-preview.tsx'), () => ({
+  useMarkdownPreview: () => ({ html: '', toc: [] }),
 }))
 
 describe('covers Wiki Markdown editor', () => {

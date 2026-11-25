@@ -7,8 +7,8 @@ import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 import { LazyMarkdownEditor } from './lazy-markdown-editor.tsx'
 import type { Props } from './markdown-editor.tsx'
 
-const chunk = vi.hoisted(() => Promise.withResolvers<{ MarkdownEditor: (props: Props) => React.ReactNode }>())
-vi.mock('./markdown-editor.tsx', () => chunk.promise)
+const chunk = vi.hoisted(() => Promise.withResolvers<{ MarkdownEditor: (props: Props) => JSX.Element }>())
+vi.mock(import('./markdown-editor.tsx'), () => chunk.promise)
 
 describe('covers Lazy Markdown editor', () => {
   afterEach(cleanup)

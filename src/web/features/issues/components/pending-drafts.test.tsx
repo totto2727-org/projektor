@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { Fragment, createElement } from 'react'
 import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
@@ -9,7 +10,7 @@ import { draftKey, loadDraft } from '@/features/issues/utils/drafts.ts'
 import type { IssueData } from './issue-detail-helpers.ts'
 import { BodySection, CommentsSection } from './issue-detail-parts.tsx'
 
-vi.mock('../../../components/attachment-upload.tsx', () => ({ AttachmentUpload: () => null }))
+vi.mock(import('@/components/attachment-upload.tsx'), () => ({ AttachmentUpload: () => createElement(Fragment) }))
 vi.mock('../../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
 vi.mock('../actions', () => ({
   updateIssue: vi.fn(),
