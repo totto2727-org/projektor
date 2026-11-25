@@ -4543,10 +4543,10 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const target = await createPage('Stable Target', 'x')
     const linker = await createPage('Changing Source', 'see [[Stable Target]]')
 
-    let res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const linkedResponse = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    await expect(readNativeJson(res, JsonListResponse)).resolves.toHaveLength(1)
+    await expect(readNativeJson(linkedResponse, JsonListResponse)).resolves.toHaveLength(1)
 
     await fetchNativeApi(`http://localhost/api/wiki/${linker.slug}`, {
       body: JSON.stringify({ content: 'no more links here' }),
@@ -4554,10 +4554,10 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       method: 'PUT',
     })
 
-    res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const unlinkedResponse = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    await expect(res.json()).resolves.toStrictEqual([])
+    await expect(unlinkedResponse.json()).resolves.toStrictEqual([])
   })
 
   test('a title-only update (no content change) leaves the link graph untouched', async () => {
@@ -5824,17 +5824,17 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     )
 
     const child = await createChildPage('child-page', 'Child Page', 'child', parent.id)
-    let notifs = await notifications(watcher.token)
-    expect(notifs.some((notification) => notification.action === 'created' && notification.pageId === child.id)).toBe(
-      true,
-    )
+    const creationNotices = await notifications(watcher.token)
+    expect(
+      creationNotices.some((notification) => notification.action === 'created' && notification.pageId === child.id),
+    ).toBe(true)
 
     await req(
       `http://localhost/api/wiki/${child.slug}`,
       requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'child v2' })),
     )
-    notifs = await notifications(watcher.token)
-    expect(notifs.filter((notification) => notification.pageId === child.id)).toHaveLength(2)
+    const updateNotices = await notifications(watcher.token)
+    expect(updateNotices.filter((notification) => notification.pageId === child.id)).toHaveLength(2)
   })
 
   test("a direct-only (non-subtree) watch on the parent does NOT notify for a descendant's changes", async () => {
@@ -6318,10 +6318,10 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     )
     expect(saveRes.status).toBe(200)
 
-    let getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
+    const initialDraft = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       headers: authHeaders(token, slug),
     })
-    await expect(getRes.json()).resolves.toMatchObject({ content: 'draft v1', title: 'Draft Page' })
+    await expect(initialDraft.json()).resolves.toMatchObject({ content: 'draft v1', title: 'Draft Page' })
 
     // Saving again upserts in place — no accumulation of draft rows.
     await req(
@@ -6332,20 +6332,20 @@ describe('wiki server-side drafts (PROJ-495)', () => {
         stringifyDraftWithoutBaseRevision('Draft Page', 'draft v2'),
       ),
     )
-    getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
+    const updatedDraft = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       headers: authHeaders(token, slug),
     })
-    await expect(getRes.json()).resolves.toMatchObject({ content: 'draft v2' })
+    await expect(updatedDraft.json()).resolves.toMatchObject({ content: 'draft v2' })
 
     const discardRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       headers: authHeaders(token, slug),
       method: 'DELETE',
     })
     expect(discardRes.status).toBe(200)
-    getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
+    const afterDiscard = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       headers: authHeaders(token, slug),
     })
-    await expect(getRes.json()).resolves.toBeNull()
+    await expect(afterDiscard.json()).resolves.toBeNull()
   })
 
   test("drafts are per-user — one user's draft is invisible to another", async () => {
@@ -6702,18 +6702,18 @@ describe('wiki trash (PROJ-496)', () => {
     const target = await createPage('Trash Backlink Target', 'target content')
     const source = await createPage('Trash Backlink Source', 'see [[Trash Backlink Target]]')
 
-    let backlinksRes = await req(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const liveSourceBacklinks = await req(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    await expect(readNativeJson(backlinksRes, SlugListResponse)).resolves.toStrictEqual([
+    await expect(readNativeJson(liveSourceBacklinks, SlugListResponse)).resolves.toStrictEqual([
       expect.objectContaining({ slug: source.slug, title: 'Trash Backlink Source' }),
     ])
 
     await trashPage(source.slug)
-    backlinksRes = await req(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const trashedSourceBacklinks = await req(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    await expect(backlinksRes.json()).resolves.toStrictEqual([])
+    await expect(trashedSourceBacklinks.json()).resolves.toStrictEqual([])
   })
 
   test('a redirect pointing at a trashed page 404s instead of resolving', async () => {
