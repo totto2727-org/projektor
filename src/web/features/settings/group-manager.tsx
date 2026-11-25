@@ -728,7 +728,7 @@ export const GroupManager = function GroupManager({
       form.reset()
     }
   }, [createResult, form])
-  async function remove(id: string): Promise<void> {
+  const remove = async function remove(id: string): Promise<void> {
     if (busy) {
       return
     }

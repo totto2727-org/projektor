@@ -66,7 +66,7 @@ const issue: IssueData = {
   customFields: [],
 }
 
-function deferred<T>() {
+const deferred = function deferred<T>() {
   const { promise, resolve } = Promise.withResolvers<T>()
   return { promise, resolve }
 }
@@ -331,7 +331,7 @@ describe('covers pending issue drafts', () => {
         currentUserId='user'
       />,
     )
-    function unloadPrevented(): boolean {
+    const unloadPrevented = function unloadPrevented(): boolean {
       const event = new Event('beforeunload', { cancelable: true })
       window.dispatchEvent(event)
       return event.defaultPrevented

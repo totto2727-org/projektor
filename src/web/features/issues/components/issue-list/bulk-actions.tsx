@@ -50,7 +50,7 @@ export function IssueBulkProvider({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  function toggle(id: string, checked: boolean): void {
+  const toggle = function toggle(id: string, checked: boolean): void {
     setSelected((current) => {
       const next = new Set(current)
       if (checked) {

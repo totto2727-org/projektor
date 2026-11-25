@@ -32,7 +32,7 @@ vi.mock('./issue-detail-parts.tsx', () => ({
   TitleSection: ({ issue }: { issue: { title: string } }) => <h1>{issue.title}</h1>,
 }))
 
-function attachment(
+const attachment = function attachment(
   id: string,
   status: ReviewStatus | null = JSON_NULL,
   kind: Attachment['kind'] = 'file',

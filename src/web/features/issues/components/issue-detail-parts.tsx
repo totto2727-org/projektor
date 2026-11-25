@@ -1374,7 +1374,7 @@ const useAttachmentForms = function useAttachmentForms(issueId: string, workspac
 
   // PROJ-876: a failed delete is shown, not swallowed.
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  async function deleteAttachment(attachmentId: string): Promise<void> {
+  const deleteAttachment = async function deleteAttachment(attachmentId: string): Promise<void> {
     setDeleteError(null)
     try {
       unwrapResult(await deleteIssueAttachment({ workspaceSlug, issueId, attachmentId }))

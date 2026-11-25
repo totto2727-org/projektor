@@ -484,7 +484,7 @@ export function Shell(props: ShellProps): JSX.Element {
     setPrefs(next)
     applyPrefs(next)
   }, [])
-  function update(patch: Partial<Prefs>): void {
+  const update = function update(patch: Partial<Prefs>): void {
     const next = { ...readPrefs(), ...patch }
     savePrefs(next)
     applyPrefs(next)

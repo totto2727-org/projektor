@@ -353,7 +353,7 @@ export function SprintBannerSection({
   const [sprintEditSaving, setSprintEditSaving] = useState(false)
   const [sprintEditError, setSprintEditError] = useState<string | null>(null)
 
-  function openSprintEdit(): void {
+  const openSprintEdit = function openSprintEdit(): void {
     if (!sprintDetail) {
       return
     }
@@ -366,7 +366,7 @@ export function SprintBannerSection({
     setSprintEditing(true)
   }
 
-  async function saveSprintEdit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  const saveSprintEdit = async function saveSprintEdit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     if (!sprintDetail) {
       return

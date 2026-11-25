@@ -29,7 +29,7 @@ vi.mock(import('./components/lazy-markdown-editor.tsx'), () => ({
     />
   ),
 }))
-function listData(): IssuesInitialData {
+const listData = function listData(): IssuesInitialData {
   return {
     currentUserId: scope.user.id,
     view: 'list',
@@ -44,7 +44,7 @@ function listData(): IssuesInitialData {
     search: { query: '', results: null },
   }
 }
-function detailData(): IssueDetailInitialData {
+const detailData = function detailData(): IssueDetailInitialData {
   return {
     issue: issue(),
     comments: [comment],
