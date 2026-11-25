@@ -2574,17 +2574,19 @@ describe('wiki optimistic locking (PROJ-484)', () => {
 
   test('covers REST: update with no baseRevisionId still succeeds (transitional last-write-wins)', async () => {
     const { slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Transitional', content: 'v1' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Transitional', content: 'v1' }),
+      ),
+    )
 
-    const res = await req('http://localhost/api/wiki/transitional', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/transitional',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
     expect(res.status).toBe(200)
 
     const pageRes = await req('http://localhost/api/wiki/transitional', {
@@ -2595,24 +2597,25 @@ describe('wiki optimistic locking (PROJ-484)', () => {
 
   test('covers REST: update succeeds when baseRevisionId matches the current latest revision', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Locked Doc', content: 'v1' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title: 'Locked Doc', content: 'v1' })),
+    )
     // First edit (no base yet) creates the first revision, capturing "v1".
-    await req('http://localhost/api/wiki/locked-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
+    await req(
+      'http://localhost/api/wiki/locked-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
     const [latest] = await getRevisions('locked-doc')
 
-    const res = await req('http://localhost/api/wiki/locked-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v3', baseRevisionId: latest.id }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/locked-doc',
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ content: 'v3', baseRevisionId: latest.id }),
+      ),
+    )
     expect(res.status).toBe(200)
 
     const pageRes = await req('http://localhost/api/wiki/locked-doc', {
@@ -2671,16 +2674,18 @@ describe('wiki optimistic locking (PROJ-484)', () => {
 
   test('covers REST: revision rows get a title snapshot', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Snapshot Title', content: 'v1' }),
-    })
-    await req('http://localhost/api/wiki/snapshot-title', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Snapshot Title', content: 'v1' }),
+      ),
+    )
+    await req(
+      'http://localhost/api/wiki/snapshot-title',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
 
     const [revision] = await getRevisions('snapshot-title')
     expect(revision.title).toBe('Snapshot Title')
@@ -2688,16 +2693,22 @@ describe('wiki optimistic locking (PROJ-484)', () => {
 
   test('covers REST: summary is stored and returned when provided', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Summarized Doc', content: 'v1' }),
-    })
-    await req('http://localhost/api/wiki/summarized-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2', summary: 'Fixed a typo' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Summarized Doc', content: 'v1' }),
+      ),
+    )
+    await req(
+      'http://localhost/api/wiki/summarized-doc',
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ content: 'v2', summary: 'Fixed a typo' }),
+      ),
+    )
 
     const [revision] = await getRevisions('summarized-doc')
     expect(revision.summary).toBe('Fixed a typo')
@@ -2705,11 +2716,14 @@ describe('wiki optimistic locking (PROJ-484)', () => {
 
   test("covers REST: update is rejected with a validation error when baseRevisionId doesn't belong to the page", async () => {
     const { slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Garbage Base Doc', content: 'v1' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Garbage Base Doc', content: 'v1' }),
+      ),
+    )
     const res = await req('http://localhost/api/wiki/garbage-base-doc', {
       method: 'PUT',
       headers: authHeaders(token, slug),
@@ -2804,16 +2818,18 @@ describe('wiki revision diff (PROJ-492)', () => {
 
   test('covers REST: diff against current defaults when `against` is omitted', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Diffable Doc', content: 'line one\nline two' }),
-    })
-    await req('http://localhost/api/wiki/diffable-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'line one\nline THREE' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Diffable Doc', content: 'line one\nline two' }),
+      ),
+    )
+    await req(
+      'http://localhost/api/wiki/diffable-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'line one\nline THREE' })),
+    )
     const [latest] = await getRevisions('diffable-doc')
 
     const res = await req(`http://localhost/api/wiki/diffable-doc/revisions/${latest.id}/diff`, {
@@ -2832,21 +2848,22 @@ describe('wiki revision diff (PROJ-492)', () => {
 
   test('covers REST: diff between two explicit revisions', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Multi Rev Doc', content: 'v1' }),
-    })
-    await req('http://localhost/api/wiki/multi-rev-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
-    await req('http://localhost/api/wiki/multi-rev-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v3' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Multi Rev Doc', content: 'v1' }),
+      ),
+    )
+    await req(
+      'http://localhost/api/wiki/multi-rev-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
+    await req(
+      'http://localhost/api/wiki/multi-rev-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v3' })),
+    )
     const [v2Revision, v1Revision] = await getRevisions('multi-rev-doc')
 
     const res = await req(
@@ -2861,16 +2878,18 @@ describe('wiki revision diff (PROJ-492)', () => {
 
   test('covers REST: identical revisions diff to an empty string', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Unchanged Doc', content: 'same' }),
-    })
-    await req('http://localhost/api/wiki/unchanged-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'same' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Unchanged Doc', content: 'same' }),
+      ),
+    )
+    await req(
+      'http://localhost/api/wiki/unchanged-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'same' })),
+    )
     const [latest] = await getRevisions('unchanged-doc')
 
     const res = await req(`http://localhost/api/wiki/unchanged-doc/revisions/${latest.id}/diff?against=current`, {
@@ -2882,16 +2901,18 @@ describe('wiki revision diff (PROJ-492)', () => {
 
   test('covers REST: an unknown `against` revision id 404s', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Unknown Against Doc', content: 'v1' }),
-    })
-    await req('http://localhost/api/wiki/unknown-against-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Unknown Against Doc', content: 'v1' }),
+      ),
+    )
+    await req(
+      'http://localhost/api/wiki/unknown-against-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
     const [latest] = await getRevisions('unknown-against-doc')
 
     const res = await req(
@@ -2903,11 +2924,14 @@ describe('wiki revision diff (PROJ-492)', () => {
 
   test('covers REST: an unknown revisionId 404s', async () => {
     const { slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'No Such Revision Doc', content: 'v1' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'No Such Revision Doc', content: 'v1' }),
+      ),
+    )
 
     const res = await req(`http://localhost/api/wiki/no-such-revision-doc/revisions/${crypto.randomUUID()}/diff`, {
       headers: authHeaders(token, slug),
@@ -2980,35 +3004,39 @@ describe('wiki revision diff (PROJ-492)', () => {
 
   test('restore with a baseRevisionId stale from open history is a 409, not a silent overwrite', async () => {
     const { getRevisions, slug, token } = await seedScenarioFixture()
-    await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Raced Restore Doc', content: 'original content' }),
-    })
-    await req('http://localhost/api/wiki/raced-restore-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'mistaken edit' }),
-    })
+    await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Raced Restore Doc', content: 'original content' }),
+      ),
+    )
+    await req(
+      'http://localhost/api/wiki/raced-restore-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'mistaken edit' })),
+    )
     // What the restore UI froze when the history panel loaded.
     const [staleLatest] = await getRevisions('raced-restore-doc')
 
     // Someone else saves before the user clicks Restore.
-    await req('http://localhost/api/wiki/raced-restore-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: "a colleague's edit" }),
-    })
+    await req(
+      'http://localhost/api/wiki/raced-restore-doc',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: "a colleague's edit" })),
+    )
 
-    const restoreRes = await req('http://localhost/api/wiki/raced-restore-doc', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        content: 'original content',
-        baseRevisionId: staleLatest.id,
-        summary: 'Restored from an old revision',
-      }),
-    })
+    const restoreRes = await req(
+      'http://localhost/api/wiki/raced-restore-doc',
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({
+          content: 'original content',
+          baseRevisionId: staleLatest.id,
+          summary: 'Restored from an old revision',
+        }),
+      ),
+    )
     expect(restoreRes.status).toBe(409)
     const conflict = await readNativeJson(
       restoreRes,
@@ -3098,11 +3126,10 @@ describe('wiki patch operations (PROJ-490)', () => {
     title: string,
     content: string,
   ): Promise<{ id: string; slug: string }> {
-    const res = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title, content, slug: pageSlug }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title, content, slug: pageSlug })),
+    )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
   }
@@ -3118,16 +3145,19 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: append_to_section adds text at the end of the target section only', async () => {
     await createPage('patch-append', 'Patch Append', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-append', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'Extra alpha line.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-append',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'Extra alpha line.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = await getPage('patch-append')
     expect(page.content).toContain('Alpha body.\n\nExtra alpha line.')
@@ -3136,16 +3166,19 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: replace_section replaces the section body, keeping the heading', async () => {
     await createPage('patch-replace', 'Patch Replace', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-replace', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'replace_section',
-        heading: 'Alpha',
-        text: 'Replaced alpha body.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-replace',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'replace_section',
+          heading: 'Alpha',
+          text: 'Replaced alpha body.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = await getPage('patch-replace')
     expect(page.content).toContain('## Alpha\nReplaced alpha body.')
@@ -3155,16 +3188,19 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: insert_after_heading inserts content directly under the heading, before the existing body', async () => {
     await createPage('patch-insert', 'Patch Insert', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-insert', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'insert_after_heading',
-        heading: 'Alpha',
-        text: 'Inserted line.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-insert',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'insert_after_heading',
+          heading: 'Alpha',
+          text: 'Inserted line.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = await getPage('patch-insert')
     const inserted = page.content.indexOf('Inserted line.')
@@ -3175,15 +3211,18 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: append_to_page appends at the very end regardless of section structure', async () => {
     await createPage('patch-append-page', 'Patch Append Page', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-append-page', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_page',
-        text: '## Gamma\nGamma body.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-append-page',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_page',
+          text: '## Gamma\nGamma body.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = await getPage('patch-append-page')
     expect(page.content.trim().endsWith('## Gamma\nGamma body.')).toBe(true)
@@ -3191,17 +3230,20 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: patch creates a revision, restorable via list_wiki_revisions', async () => {
     await createPage('patch-revision', 'Patch Revision', TWO_SECTIONS)
-    await req('http://localhost/api/wiki/patch-revision', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'More alpha.',
-        baseRevisionId: JSON_NULL,
-        summary: 'added alpha detail',
-      }),
-    })
+    await req(
+      'http://localhost/api/wiki/patch-revision',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'More alpha.',
+          baseRevisionId: JSON_NULL,
+          summary: 'added alpha detail',
+        }),
+      ),
+    )
     const revRes = await req('http://localhost/api/wiki/patch-revision/revisions', {
       headers: authHeaders(token, slug),
     })
@@ -3221,16 +3263,19 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: unknown heading is rejected with a structured error listing current headings', async () => {
     await createPage('patch-missing-heading', 'Patch Missing Heading', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-missing-heading', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Gamma',
-        text: 'x',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-missing-heading',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Gamma',
+          text: 'x',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(404)
     const body = await readNativeJson(
       res,
@@ -3248,16 +3293,19 @@ describe('wiki patch operations (PROJ-490)', () => {
     expect((await revRes.json()) as unknown[]).toHaveLength(0)
 
     // Agent A patches Alpha.
-    const resA = await req('http://localhost/api/wiki/patch-disjoint', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'From agent A.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const resA = await req(
+      'http://localhost/api/wiki/patch-disjoint',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'From agent A.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(resA.status).toBe(200)
 
     /*
@@ -3265,16 +3313,19 @@ describe('wiki patch operations (PROJ-490)', () => {
      * targets the disjoint Beta section. This must succeed, not conflict, even
      * though the page's overall revision has advanced since A's write.
      */
-    const resB = await req('http://localhost/api/wiki/patch-disjoint', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Beta',
-        text: 'From agent B.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const resB = await req(
+      'http://localhost/api/wiki/patch-disjoint',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Beta',
+          text: 'From agent B.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(resB.status).toBe(200)
 
     const page = await getPage('patch-disjoint')
@@ -3286,31 +3337,37 @@ describe('wiki patch operations (PROJ-490)', () => {
     await createPage('patch-conflict', 'Patch Conflict', TWO_SECTIONS)
 
     // Agent A patches Alpha from the null base.
-    await req('http://localhost/api/wiki/patch-conflict', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'From agent A.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    await req(
+      'http://localhost/api/wiki/patch-conflict',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'From agent A.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
 
     /*
      * Agent B still holds the stale null base but targets the SAME Alpha section —
      * this must conflict.
      */
-    const res = await req('http://localhost/api/wiki/patch-conflict', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'From agent B.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-conflict',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'From agent B.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(409)
     const body = await readNativeJson(
       res,
@@ -3328,22 +3385,24 @@ describe('wiki patch operations (PROJ-490)', () => {
     expect((await revRes.json()) as unknown[]).toHaveLength(0)
 
     // Someone replaces the whole page, removing the Beta heading entirely.
-    await req('http://localhost/api/wiki/patch-deleted-section', {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: '## Alpha\nAlpha body.\n' }),
-    })
+    await req(
+      'http://localhost/api/wiki/patch-deleted-section',
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: '## Alpha\nAlpha body.\n' })),
+    )
 
-    const res = await req('http://localhost/api/wiki/patch-deleted-section', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Beta',
-        text: 'x',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-deleted-section',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Beta',
+          text: 'x',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(404)
     const body = await readNativeJson(
       res,
@@ -3355,16 +3414,19 @@ describe('wiki patch operations (PROJ-490)', () => {
   test('covers REST: patch preserves existing YAML frontmatter untouched', async () => {
     const content = '---\ntype: runbook\nstatus: current\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-frontmatter', 'Patch Frontmatter', content)
-    const res = await req('http://localhost/api/wiki/patch-frontmatter', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'More.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-frontmatter',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'More.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const getRes = await req('http://localhost/api/wiki/patch-frontmatter', {
       headers: authHeaders(token, slug),
@@ -3445,16 +3507,19 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: append_to_page accepts a stale baseRevisionId belonging to the page (staleness ignored here)', async () => {
     await createPage('patch-append-stale-base', 'Patch Append Stale Base', TWO_SECTIONS)
-    const firstRes = await req('http://localhost/api/wiki/patch-append-stale-base', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'First edit.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const firstRes = await req(
+      'http://localhost/api/wiki/patch-append-stale-base',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'First edit.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(firstRes.status).toBe(200)
     const revisions = (await (
       await req('http://localhost/api/wiki/patch-append-stale-base/revisions', {
@@ -3462,15 +3527,18 @@ describe('wiki patch operations (PROJ-490)', () => {
       })
     ).json()) as { id: string }[]
 
-    const res = await req('http://localhost/api/wiki/patch-append-stale-base', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_page',
-        text: 'Appended after stale base.',
-        baseRevisionId: revisions[0].id,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-append-stale-base',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_page',
+          text: 'Appended after stale base.',
+          baseRevisionId: revisions[0].id,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = await getPage('patch-append-stale-base')
     expect(page.content.trim().endsWith('Appended after stale base.')).toBe(true)
@@ -3478,15 +3546,18 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: set_frontmatter adds a frontmatter block to a page that had none', async () => {
     await createPage('patch-frontmatter-new', 'Patch Frontmatter New', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-frontmatter-new', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'set_frontmatter',
-        values: { status: 'current' },
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-frontmatter-new',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'set_frontmatter',
+          values: { status: 'current' },
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = (await (
       await req('http://localhost/api/wiki/patch-frontmatter-new', {
@@ -3504,15 +3575,18 @@ describe('wiki patch operations (PROJ-490)', () => {
       'Patch Frontmatter Preserve',
       `---\ntype: runbook\ntags:\n  - ops\nstatus: draft\n---\n${TWO_SECTIONS}`,
     )
-    const res = await req('http://localhost/api/wiki/patch-frontmatter-preserve', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'set_frontmatter',
-        values: { status: 'deprecated' },
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-frontmatter-preserve',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'set_frontmatter',
+          values: { status: 'deprecated' },
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = (await (
       await req('http://localhost/api/wiki/patch-frontmatter-preserve', {
@@ -3530,15 +3604,18 @@ describe('wiki patch operations (PROJ-490)', () => {
       'Patch Frontmatter Remove',
       `---\ntype: runbook\nstatus: draft\n---\n${TWO_SECTIONS}`,
     )
-    const res = await req('http://localhost/api/wiki/patch-frontmatter-remove', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'set_frontmatter',
-        values: { type: JSON_NULL },
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-frontmatter-remove',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'set_frontmatter',
+          values: { type: JSON_NULL },
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = (await (
       await req('http://localhost/api/wiki/patch-frontmatter-remove', {
@@ -3551,15 +3628,18 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: set_frontmatter rejects an invalid value with a structured validation error', async () => {
     await createPage('patch-frontmatter-invalid', 'Patch Frontmatter Invalid', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-frontmatter-invalid', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'set_frontmatter',
-        values: { status: 'not-a-real-status' },
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-frontmatter-invalid',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'set_frontmatter',
+          values: { status: 'not-a-real-status' },
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(400)
     const bodyShape = Schema.Struct({
       error: Schema.Struct({
@@ -3572,25 +3652,31 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: set_frontmatter rejects an empty values map', async () => {
     await createPage('patch-frontmatter-empty', 'Patch Frontmatter Empty', TWO_SECTIONS)
-    const res = await req('http://localhost/api/wiki/patch-frontmatter-empty', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ op: 'set_frontmatter', values: {}, baseRevisionId: JSON_NULL }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-frontmatter-empty',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({ op: 'set_frontmatter', values: {}, baseRevisionId: JSON_NULL }),
+      ),
+    )
     expect(res.status).toBe(400)
   })
 
   test('covers REST: set_frontmatter flips status to deprecated in one call and search demotes it', async () => {
     await createPage('patch-frontmatter-demote', 'Patch Frontmatter Demote', `${TWO_SECTIONS}\nuniquedemotekeyword`)
-    await req('http://localhost/api/wiki/patch-frontmatter-demote', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'set_frontmatter',
-        values: { status: 'deprecated' },
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    await req(
+      'http://localhost/api/wiki/patch-frontmatter-demote',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'set_frontmatter',
+          values: { status: 'deprecated' },
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     await createPage('patch-frontmatter-current', 'Patch Frontmatter Current', 'uniquedemotekeyword')
 
     const searchRes = await req('http://localhost/api/wiki/search?q=uniquedemotekeyword', {
@@ -3605,31 +3691,37 @@ describe('wiki patch operations (PROJ-490)', () => {
 
   test('covers REST: set_frontmatter accepts a stale baseRevisionId belonging to the page', async () => {
     await createPage('patch-frontmatter-stale-base', 'Patch Frontmatter Stale Base', TWO_SECTIONS)
-    await req('http://localhost/api/wiki/patch-frontmatter-stale-base', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'First edit.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    await req(
+      'http://localhost/api/wiki/patch-frontmatter-stale-base',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'First edit.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     const revisions = (await (
       await req('http://localhost/api/wiki/patch-frontmatter-stale-base/revisions', {
         headers: authHeaders(token, slug),
       })
     ).json()) as { id: string }[]
 
-    const res = await req('http://localhost/api/wiki/patch-frontmatter-stale-base', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'set_frontmatter',
-        values: { status: 'current' },
-        baseRevisionId: revisions[0].id,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-frontmatter-stale-base',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'set_frontmatter',
+          values: { status: 'current' },
+          baseRevisionId: revisions[0].id,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
   })
 
@@ -3769,16 +3861,19 @@ describe('wiki patch operations (PROJ-490)', () => {
     const content = '## Setup\n\n```bash\n# install deps\npnpm i\n```\n\n## Usage\nUse it.\n'
     await createPage('patch-fenced', 'Patch Fenced', content)
 
-    const missing = await req('http://localhost/api/wiki/patch-fenced', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'install deps',
-        text: 'x',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const missing = await req(
+      'http://localhost/api/wiki/patch-fenced',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'install deps',
+          text: 'x',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(missing.status).toBe(404)
     const body = await readNativeJson(
       missing,
@@ -3786,16 +3881,19 @@ describe('wiki patch operations (PROJ-490)', () => {
     )
     expect(body.currentHeadings).toStrictEqual(['Setup', 'Usage'])
 
-    const res = await req('http://localhost/api/wiki/patch-fenced', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'replace_section',
-        heading: 'Setup',
-        text: 'Replaced.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-fenced',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'replace_section',
+          heading: 'Setup',
+          text: 'Replaced.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const page = await getPage('patch-fenced')
     /*
@@ -3811,16 +3909,19 @@ describe('wiki patch operations (PROJ-490)', () => {
   test('covers REST: a `#` line inside the YAML frontmatter block is not a heading', async () => {
     const content = '---\ntype: runbook\n# a yaml comment\nstatus: current\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-fm-comment', 'Patch FM Comment', content)
-    const res = await req('http://localhost/api/wiki/patch-fm-comment', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'a yaml comment',
-        text: 'x',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-fm-comment',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'a yaml comment',
+          text: 'x',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(404)
     const body = await readNativeJson(
       res,
@@ -3832,16 +3933,19 @@ describe('wiki patch operations (PROJ-490)', () => {
   test('covers REST: a heading appearing twice is rejected as ambiguous rather than silently patching the first', async () => {
     const content = '# Notes\nOne.\n\n## Other\nx\n\n## Notes\nTwo.\n'
     await createPage('patch-ambiguous', 'Patch Ambiguous', content)
-    const res = await req('http://localhost/api/wiki/patch-ambiguous', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'replace_section',
-        heading: 'Notes',
-        text: 'Replaced.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-ambiguous',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'replace_section',
+          heading: 'Notes',
+          text: 'Replaced.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(400)
     const bodyShape = Schema.Struct({
       error: Schema.Struct({
@@ -3864,16 +3968,19 @@ describe('wiki patch operations (PROJ-490)', () => {
         headers: authHeaders(token, slug),
       })
       const revisions = await readNativeJson(revRes, IdListResponse)
-      const res = await req('http://localhost/api/wiki/patch-blanklines', {
-        method: 'PATCH',
-        headers: authHeaders(token, slug),
-        body: JSON.stringify({
-          op: 'insert_after_heading',
-          heading: 'Alpha',
-          text,
-          baseRevisionId: revisions[0]?.id ?? null,
-        }),
-      })
+      const res = await req(
+        'http://localhost/api/wiki/patch-blanklines',
+        requestOptionsWithBody(
+          'PATCH',
+          authHeaders(token, slug),
+          JSON.stringify({
+            op: 'insert_after_heading',
+            heading: 'Alpha',
+            text,
+            baseRevisionId: revisions[0]?.id ?? null,
+          }),
+        ),
+      )
       expect(res.status).toBe(200)
     }
     const page = await getPage('patch-blanklines')
@@ -3884,16 +3991,19 @@ describe('wiki patch operations (PROJ-490)', () => {
   test('covers REST: patch does not stamp verified_at as a side effect', async () => {
     const content = '---\ntype: runbook\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-no-verify', 'Patch No Verify', content)
-    const res = await req('http://localhost/api/wiki/patch-no-verify', {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        op: 'append_to_section',
-        heading: 'Alpha',
-        text: 'More.',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki/patch-no-verify',
+      requestOptionsWithBody(
+        'PATCH',
+        authHeaders(token, slug),
+        JSON.stringify({
+          op: 'append_to_section',
+          heading: 'Alpha',
+          text: 'More.',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
     const row = await env.DB.prepare('SELECT verified_at, verified_by FROM wiki_pages WHERE slug = ?')
       .bind('patch-no-verify')
@@ -5268,11 +5378,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     title: string,
     content = '',
   ): Promise<{ id: string; slug: string }> {
-    const res = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title, content, slug: pageSlug }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title, content, slug: pageSlug })),
+    )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
   }
@@ -5283,11 +5392,14 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     content: string,
     parentId: string,
   ): Promise<{ id: string; slug: string }> {
-    const res = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title, content, slug: pageSlug, parentId }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({ title, content, slug: pageSlug, parentId }),
+      ),
+    )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
   }
@@ -5317,11 +5429,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test('covers REST: watch/unwatch a page, watching again upserts the subtree flag instead of duplicating', async () => {
     const page = await createPage('watch-me', 'Watch Me', 'content')
 
-    const watchRes = await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ subtree: false }),
-    })
+    const watchRes = await req(
+      `http://localhost/api/wiki/${page.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ subtree: false })),
+    )
     expect(watchRes.status).toBe(200)
 
     let watches = (await (
@@ -5332,11 +5443,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(initial[0]).toMatchObject({ pageId: page.id, subtree: false })
 
     // Watching the same page again with a different subtree flag upserts, not duplicates.
-    await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ subtree: true }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ subtree: true })),
+    )
     watches = (await (
       await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
     ).json()) as { pageId: string; subtree: boolean }[]
@@ -5357,24 +5467,21 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test('a direct watcher is notified when someone else edits the page, never for their own edit', async () => {
     const page = await createPage('direct-watch', 'Direct Watch', 'content')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({}),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
+    )
 
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ content: 'self edit' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(watcher.token, slug), JSON.stringify({ content: 'self edit' })),
+    )
     await expect(notifications(watcher.token)).resolves.toStrictEqual([])
 
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'other edit' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'other edit' })),
+    )
     const notifs = await notifications(watcher.token)
     expect(notifs).toHaveLength(1)
     expect(notifs[0]).toMatchObject({ action: 'updated', pageId: page.id, actorId: userId })
@@ -5383,31 +5490,28 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test('unwatching stops further notifications', async () => {
     const page = await createPage('unwatch-stop', 'Unwatch Stop', 'content')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({}),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
+    )
     await req(`http://localhost/api/wiki/${page.slug}/watch`, {
       method: 'DELETE',
       headers: authHeaders(watcher.token, slug),
     })
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'after unwatch' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'after unwatch' })),
+    )
     await expect(notifications(watcher.token)).resolves.toStrictEqual([])
   })
 
   test('subtree watch covers a page created now under it AND a later edit to that descendant', async () => {
     const parent = await createPage('parent-page', 'Parent Page', 'content')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${parent.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ subtree: true }),
-    })
+    await req(
+      `http://localhost/api/wiki/${parent.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({ subtree: true })),
+    )
 
     const child = await createChildPage('child-page', 'Child Page', 'child', parent.id)
     let notifs = await notifications(watcher.token)
@@ -5415,11 +5519,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       true,
     )
 
-    await req(`http://localhost/api/wiki/${child.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'child v2' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${child.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'child v2' })),
+    )
     notifs = await notifications(watcher.token)
     expect(notifs.filter((notification) => notification.pageId === child.id)).toHaveLength(2)
   })
@@ -5427,11 +5530,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test("a direct-only (non-subtree) watch on the parent does NOT notify for a descendant's changes", async () => {
     const parent = await createPage('parent-narrow', 'Parent Narrow', 'content')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${parent.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ subtree: false }),
-    })
+    await req(
+      `http://localhost/api/wiki/${parent.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({ subtree: false })),
+    )
     await createChildPage('child-narrow', 'Child Narrow', 'child', parent.id)
     await expect(notifications(watcher.token)).resolves.toStrictEqual([])
   })
@@ -5439,16 +5541,18 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test('template pages never generate watcher notifications', async () => {
     const page = await createPage('watch-template', 'Watch Template', '---\ntemplate: true\n---\nbody')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({}),
-    })
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: '---\ntemplate: true\n---\nedited' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
+    )
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ content: '---\ntemplate: true\n---\nedited' }),
+      ),
+    )
     await expect(notifications(watcher.token)).resolves.toStrictEqual([])
   })
 
@@ -5456,11 +5560,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const parent = await createPage('cascade-parent', 'Cascade Parent', 'content')
     await createChildPage('cascade-child', 'Cascade Child', 'child', parent.id)
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${parent.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ subtree: true }),
-    })
+    await req(
+      `http://localhost/api/wiki/${parent.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({ subtree: true })),
+    )
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       method: 'DELETE',
@@ -5478,11 +5581,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const parent = await createPage('cascade-root', 'Cascade Root', 'content')
     const child = await createChildPage('cascade-kid', 'Cascade Kid', 'child', parent.id)
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${child.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({}),
-    })
+    await req(
+      `http://localhost/api/wiki/${child.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
+    )
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       method: 'DELETE',
@@ -5515,11 +5617,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const parent = await createPage('cascade-restore-root', 'Cascade Restore Root', 'content')
     const child = await createChildPage('cascade-restore-kid', 'Cascade Restore Kid', 'child', parent.id)
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${child.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({}),
-    })
+    await req(
+      `http://localhost/api/wiki/${child.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
+    )
 
     const delRes = await req(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       method: 'DELETE',
@@ -5543,22 +5644,19 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test('unreadOnly=false / watchedOnly=false are honored as false, not coerced true', async () => {
     const page = await createPage('bool-param', 'Bool Param', 'content')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({}),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
+    )
     const t0 = currentEpochSeconds() - 1
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
-    await req('http://localhost/api/wiki/notifications/read', {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ all: true }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
+    await req(
+      'http://localhost/api/wiki/notifications/read',
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({ all: true })),
+    )
 
     expect(await notifications(watcher.token, '?unreadOnly=true')).toHaveLength(0)
     expect(await notifications(watcher.token, '?unreadOnly=false')).toHaveLength(1)
@@ -5578,37 +5676,32 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test('mark_wiki_notifications_read: by explicit ids, then all:true', async () => {
     const page = await createPage('read-flag', 'Read Flag', 'content')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${page.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({}),
-    })
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v3' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({})),
+    )
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v3' })),
+    )
 
     const unread = await notifications(watcher.token, '?unreadOnly=true')
     expect(unread).toHaveLength(2)
 
-    await req('http://localhost/api/wiki/notifications/read', {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ ids: [unread[0].id] }),
-    })
+    await req(
+      'http://localhost/api/wiki/notifications/read',
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({ ids: [unread[0].id] })),
+    )
     expect(await notifications(watcher.token, '?unreadOnly=true')).toHaveLength(1)
 
-    await req('http://localhost/api/wiki/notifications/read', {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ all: true }),
-    })
+    await req(
+      'http://localhost/api/wiki/notifications/read',
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({ all: true })),
+    )
     expect(await notifications(watcher.token, '?unreadOnly=true')).toHaveLength(0)
   })
 
@@ -5737,16 +5830,19 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     await seedGroupGrant(workspaceId, userId, project.id)
     const t0 = currentEpochSeconds() - 1
 
-    const created = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        title: 'Restricted',
-        content: 'secret',
-        projectId: project.id,
-        slug: 'restricted-delta',
-      }),
-    })
+    const created = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({
+          title: 'Restricted',
+          content: 'secret',
+          projectId: project.id,
+          slug: 'restricted-delta',
+        }),
+      ),
+    )
     expect(created.status).toBe(201)
 
     // A workspace viewer with no grant on `project` shouldn't see this change.
@@ -5771,18 +5867,16 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const parent = await createPage('watched-scope-parent', 'Watched Scope Parent', 'content')
     const other = await createPage('unwatched-scope', 'Unwatched Scope', 'content')
     const watcher = await seedWatcher()
-    await req(`http://localhost/api/wiki/${parent.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(watcher.token, slug),
-      body: JSON.stringify({ subtree: true }),
-    })
+    await req(
+      `http://localhost/api/wiki/${parent.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(watcher.token, slug), JSON.stringify({ subtree: true })),
+    )
 
     const child = await createChildPage('watched-scope-child', 'Watched Scope Child', 'child', parent.id)
-    await req(`http://localhost/api/wiki/${other.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${other.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
 
     const body = (await (
       await req('http://localhost/api/wiki/changes?since=0&watchedOnly=true', {
@@ -5855,11 +5949,10 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     title: string,
     content = '',
   ): Promise<{ id: string; slug: string }> {
-    const res = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title, content, slug: pageSlug }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title, content, slug: pageSlug })),
+    )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
   }
@@ -5873,11 +5966,14 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     expect(empty.status).toBe(200)
     await expect(empty.json()).resolves.toBeNull()
 
-    const saveRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Page', content: 'draft v1', baseRevisionId: JSON_NULL }),
-    })
+    const saveRes = await req(
+      `http://localhost/api/wiki/${page.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Draft Page', content: 'draft v1', baseRevisionId: JSON_NULL }),
+      ),
+    )
     expect(saveRes.status).toBe(200)
 
     let getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -5886,11 +5982,14 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     await expect(getRes.json()).resolves.toMatchObject({ content: 'draft v1', title: 'Draft Page' })
 
     // Saving again upserts in place — no accumulation of draft rows.
-    await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Page', content: 'draft v2', baseRevisionId: JSON_NULL }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Draft Page', content: 'draft v2', baseRevisionId: JSON_NULL }),
+      ),
+    )
     getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       headers: authHeaders(token, slug),
     })
@@ -5913,11 +6012,14 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     await seedMember(workspaceId, other.id, 'admin')
     const otherToken = await seedToken(workspaceId, other.id)
 
-    await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Per User', content: 'mine', baseRevisionId: JSON_NULL }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Draft Per User', content: 'mine', baseRevisionId: JSON_NULL }),
+      ),
+    )
 
     const otherGet = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       headers: authHeaders(otherToken, slug),
@@ -5938,21 +6040,27 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     const revisions = await readNativeJson(revRes, IdListResponse)
     const baseRevisionId = revisions[0]?.id ?? null
 
-    await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Publish', content: 'draft content', baseRevisionId }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Draft Publish', content: 'draft content', baseRevisionId }),
+      ),
+    )
 
     /*
      * Publish reuses the EXISTING conflict-checked update path — not a separate
      * draft-publish endpoint — with the draft's own baseRevisionId.
      */
-    const publishRes = await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'draft content', baseRevisionId }),
-    })
+    const publishRes = await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ content: 'draft content', baseRevisionId }),
+      ),
+    )
     expect(publishRes.status).toBe(200)
     expect(pageBody.updated_at).toBeDefined()
 
@@ -5974,11 +6082,10 @@ describe('wiki server-side drafts (PROJ-495)', () => {
      * Establish a first revision, and capture its id the way startEdit() would —
      * this is the baseRevisionId the draft freezes and later resubmits on publish.
      */
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v1' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v1' })),
+    )
     const revRes = await req(`http://localhost/api/wiki/${page.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
@@ -5987,66 +6094,80 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     expect(draftBaseRevisionId).toBeTruthy()
 
     // Save a draft frozen at that revision, exactly as the client's autosave would.
-    await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        title: 'Draft Conflict',
-        content: 'in-progress draft edit',
-        baseRevisionId: draftBaseRevisionId,
-      }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({
+          title: 'Draft Conflict',
+          content: 'in-progress draft edit',
+          baseRevisionId: draftBaseRevisionId,
+        }),
+      ),
+    )
 
     /*
      * Someone else's edit advances the page's latest revision past what the draft
      * was based on.
      */
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: "someone else's edit" }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: "someone else's edit" })),
+    )
 
     /*
      * Publish resubmits the DRAFT's own (now-stale) baseRevisionId — exactly what
      * useWikiEditing's save() sends after a restoreDraft() — and must hit the same
      * 409 conflict path as any other stale edit.
      */
-    const publishRes = await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'stale draft content', baseRevisionId: draftBaseRevisionId }),
-    })
+    const publishRes = await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ content: 'stale draft content', baseRevisionId: draftBaseRevisionId }),
+      ),
+    )
     expect(publishRes.status).toBe(409)
   })
 
   test('trashing a page (cascade or not) leaves its draft rows in place until purge (PROJ-496)', async () => {
     const parent = await createPage('draft-delete-parent', 'Draft Delete Parent', 'content')
-    const child = (await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        title: 'Draft Delete Child',
-        content: 'content',
-        slug: 'draft-delete-child',
-        parentId: parent.id,
-      }),
-    }).then((response) => response.json())) as { id: string; slug: string }
+    const child = (await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(token, slug),
+        JSON.stringify({
+          title: 'Draft Delete Child',
+          content: 'content',
+          slug: 'draft-delete-child',
+          parentId: parent.id,
+        }),
+      ),
+    ).then((response) => response.json())) as { id: string; slug: string }
 
-    await req(`http://localhost/api/wiki/${parent.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        title: 'Draft Delete Parent',
-        content: 'draft',
-        baseRevisionId: JSON_NULL,
-      }),
-    })
-    await req(`http://localhost/api/wiki/${child.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Delete Child', content: 'draft', baseRevisionId: JSON_NULL }),
-    })
+    await req(
+      `http://localhost/api/wiki/${parent.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({
+          title: 'Draft Delete Parent',
+          content: 'draft',
+          baseRevisionId: JSON_NULL,
+        }),
+      ),
+    )
+    await req(
+      `http://localhost/api/wiki/${child.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ title: 'Draft Delete Child', content: 'draft', baseRevisionId: JSON_NULL }),
+      ),
+    )
 
     const rows = await env.DB.prepare('SELECT page_id FROM wiki_drafts WHERE workspace_id = ?').bind(workspaceId).all()
     expect(rows.results).toHaveLength(2)
@@ -6084,11 +6205,10 @@ describe('wiki server-side drafts (PROJ-495)', () => {
 
   test('validation: title and content are required on save', async () => {
     const page = await createPage('draft-validation', 'Draft Validation', 'content')
-    const res = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: '' }),
-    })
+    const res = await req(
+      `http://localhost/api/wiki/${page.slug}/draft`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ title: '' })),
+    )
     expect(res.status).toBe(400)
   })
 
@@ -6143,11 +6263,10 @@ describe('wiki trash (PROJ-496)', () => {
     content: string,
     opts?: Record<string, unknown>,
   ): Promise<{ id: string; slug: string }> {
-    const res = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title, content, ...opts }),
-    })
+    const res = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({ title, content, ...opts })),
+    )
     expect(res.status).toBe(201)
     return readNativeJson(res, IdAndSlugResponse)
   }
@@ -6233,11 +6352,14 @@ describe('wiki trash (PROJ-496)', () => {
 
   test('a redirect pointing at a trashed page 404s instead of resolving', async () => {
     const page = await createPage('Trash Redirect Target', 'content')
-    const renameRes = await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ slug: 'trash-redirect-target-renamed' }),
-    })
+    const renameRes = await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ slug: 'trash-redirect-target-renamed' }),
+      ),
+    )
     expect(renameRes.status).toBe(200)
 
     // The OLD slug is now just a redirect; it must still resolve to the live page...
@@ -6365,40 +6487,43 @@ describe('wiki trash (PROJ-496)', () => {
   test('purge removes only pages trashed >30 days ago, cleaning up every dependent table + R2', async () => {
     const oldPage = await createPage('Trash Purge Old', 'purge-old-searchterm')
     await createPage('Trash Purge Old Target', 'content')
-    await req(`http://localhost/api/wiki/${oldPage.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'see [[Trash Purge Old Target]]' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${oldPage.slug}`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ content: 'see [[Trash Purge Old Target]]' }),
+      ),
+    )
     const oldForm = new FormData()
     oldForm.append('file', new File(['old'], 'old.txt', { type: 'text/plain' }))
     oldForm.append('entityType', 'wiki_page')
     oldForm.append('entityId', oldPage.id)
-    const oldUploadRes = await req('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
-      body: oldForm,
-    })
+    const oldUploadRes = await req(
+      'http://localhost/api/files',
+      requestOptionsWithBody('POST', { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug }, oldForm),
+    )
     const { id: oldAttachmentId } = await readNativeJson(oldUploadRes, IdResponse)
     const resolvedValue = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?')
       .bind(oldAttachmentId)
       .first<{ r2_key: string }>()
     const oldR2Key = resolvedValue?.r2_key
-    await req(`http://localhost/api/wiki/${oldPage.slug}/watch`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({}),
-    })
-    await req(`http://localhost/api/wiki/${oldPage.slug}/draft`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: oldPage.slug, content: 'draft', baseRevisionId: JSON_NULL }),
-    })
-    await req(`http://localhost/api/wiki/${oldPage.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ slug: 'trash-purge-old-renamed' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${oldPage.slug}/watch`,
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify({})),
+    )
+    await req(
+      `http://localhost/api/wiki/${oldPage.slug}/draft`,
+      requestOptionsWithBody(
+        'PUT',
+        authHeaders(token, slug),
+        JSON.stringify({ title: oldPage.slug, content: 'draft', baseRevisionId: JSON_NULL }),
+      ),
+    )
+    await req(
+      `http://localhost/api/wiki/${oldPage.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ slug: 'trash-purge-old-renamed' })),
+    )
 
     const recentPage = await createPage('Trash Purge Recent', 'content')
 
@@ -6512,11 +6637,14 @@ describe('wiki trash (PROJ-496)', () => {
 
   test("purge only removes trash in the caller's own workspace", async () => {
     const other = await seedFixture({ role: 'admin' })
-    const createOtherRes = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ title: 'Other Workspace Trash Page', content: 'content' }),
-    })
+    const createOtherRes = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ title: 'Other Workspace Trash Page', content: 'content' }),
+      ),
+    )
     const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
       method: 'DELETE',
@@ -6543,11 +6671,14 @@ describe('wiki trash (PROJ-496)', () => {
 
   test('trash list/undelete/purge never reach across workspaces', async () => {
     const other = await seedFixture({ role: 'admin' })
-    const createOtherRes = await req('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ title: 'Cross Workspace Trash Page', content: 'content' }),
-    })
+    const createOtherRes = await req(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(other.token, other.workspace.slug),
+        JSON.stringify({ title: 'Cross Workspace Trash Page', content: 'content' }),
+      ),
+    )
     const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
       method: 'DELETE',
@@ -6729,11 +6860,10 @@ describe('wiki trash (PROJ-496)', () => {
 
   test('purge deletes wiki_revisions rows for purged pages', async () => {
     const page = await createPage('Purge Revisions Page', 'v1')
-    await req(`http://localhost/api/wiki/${page.slug}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ content: 'v2' }),
-    })
+    await req(
+      `http://localhost/api/wiki/${page.slug}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ content: 'v2' })),
+    )
     const revisionsBefore = await env.DB.prepare('SELECT id FROM wiki_revisions WHERE page_id = ?')
       .bind(page.id)
       .all<{ id: string }>()
@@ -6774,11 +6904,10 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
   })
 
   const create = async function create(body: Record<string, unknown>): Promise<Response> {
-    return resetRateLimitAndFetch('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify(body),
-    })
+    return resetRateLimitAndFetch(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', authHeaders(token, slug), JSON.stringify(body)),
+    )
   }
 
   test('rejects an explicit slug shaped like a dashed or undashed page id', async () => {
@@ -6828,11 +6957,10 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     expect(get.status).toBe(200)
     expect(((await get.json()) as { id: string }).id).toBe(target.id)
 
-    const put = await resetRateLimitAndFetch(`http://localhost/api/wiki/${target.id}`, {
-      method: 'PUT',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Target Renamed' }),
-    })
+    const put = await resetRateLimitAndFetch(
+      `http://localhost/api/wiki/${target.id}`,
+      requestOptionsWithBody('PUT', authHeaders(token, slug), JSON.stringify({ title: 'Target Renamed' })),
+    )
     expect(put.status).toBe(200)
 
     const del = await resetRateLimitAndFetch(`http://localhost/api/wiki/${target.id}`, {
