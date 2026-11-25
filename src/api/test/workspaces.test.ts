@@ -49,23 +49,32 @@ const mcpCall = async function mcpCall(
 const StoredBrandLogo = Schema.Struct({ logoR2Key: Schema.String })
 const isStoredBrandLogo = Schema.is(StoredBrandLogo)
 
-describe('workspaces MCP', () => {
-  let workspaceId: string
-  let slug: string
-  let userId: string
-  let userToken: string
-  let userHeaders: Record<string, string>
+interface WorkspaceMcpFixture {
+  slug: string
+  userHeaders: Record<string, string>
+  userId: string
+  userToken: string
+  workspaceId: string
+}
 
-  beforeEach(async () => {
+interface WorkspaceMcpTestContext {
+  workspaceFixture: WorkspaceMcpFixture
+}
+
+describe('workspaces MCP', () => {
+  beforeEach<WorkspaceMcpTestContext>(async (context) => {
     const fixture = await seedFixture({ role: 'owner' })
-    workspaceId = fixture.workspace.id
-    ;({ slug } = fixture.workspace)
-    userId = fixture.user.id
-    userToken = await seedUserToken(fixture.user.id)
-    userHeaders = authHeaders(userToken, slug)
+    const workspaceId = fixture.workspace.id
+    const { slug } = fixture.workspace
+    const userId = fixture.user.id
+    const userToken = await seedUserToken(fixture.user.id)
+    const userHeaders = authHeaders(userToken, slug)
+    context.workspaceFixture = { slug, userHeaders, userId, userToken, workspaceId }
   })
 
-  test('list_workspaces returns the single workspace the user belongs to', async () => {
+  test<WorkspaceMcpTestContext>('list_workspaces returns the single workspace the user belongs to', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_workspaces' }, userHeaders)
 
     expect('error' in res).toBe(false)
@@ -79,7 +88,9 @@ describe('workspaces MCP', () => {
     expect(data[0].role).toBe('owner')
   })
 
-  test('list_workspaces returns both workspaces when user is a member of two', async () => {
+  test<WorkspaceMcpTestContext>('list_workspaces returns both workspaces when user is a member of two', async ({
+    workspaceFixture: { userHeaders, userId, workspaceId },
+  }) => {
     // Add user to a second workspace
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(ws2.id, userId, 'member')
@@ -98,7 +109,9 @@ describe('workspaces MCP', () => {
     void token2
   })
 
-  test('list_workspaces does not expose workspaces of other users', async () => {
+  test<WorkspaceMcpTestContext>('list_workspaces does not expose workspaces of other users', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     // Create a second user with their own workspace
     const other = await seedFixture({ role: 'owner' })
 
@@ -110,7 +123,9 @@ describe('workspaces MCP', () => {
     expect(ids).not.toContain(other.workspace.id)
   })
 
-  test('list_workspaces returns workspace id, name, slug, role fields', async () => {
+  test<WorkspaceMcpTestContext>('list_workspaces returns workspace id, name, slug, role fields', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_workspaces' }, userHeaders)
 
     expect('error' in res).toBe(false)
@@ -124,7 +139,9 @@ describe('workspaces MCP', () => {
     expect(data[0]).toHaveProperty('role')
   })
 
-  test('create_workspace creates a workspace and returns id, name, slug', async () => {
+  test<WorkspaceMcpTestContext>('create_workspace creates a workspace and returns id, name, slug', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     const res = await callMcpTool(
       workspaceId,
       { arguments: { name: 'New Workspace', slug: 'new-ws' }, name: 'create_workspace' },
@@ -141,7 +158,9 @@ describe('workspaces MCP', () => {
     expect(created.slug).toBe('new-ws')
   })
 
-  test('create_workspace adds caller as owner and seeds defaults', async () => {
+  test<WorkspaceMcpTestContext>('create_workspace adds caller as owner and seeds defaults', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     const res = await callMcpTool(
       workspaceId,
       { arguments: { name: 'Seeded', slug: 'seeded-ws' }, name: 'create_workspace' },
@@ -162,7 +181,9 @@ describe('workspaces MCP', () => {
     expect(newWs?.role).toBe('owner')
   })
 
-  test('create_workspace returns conflict error when slug already taken', async () => {
+  test<WorkspaceMcpTestContext>('create_workspace returns conflict error when slug already taken', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     await mcpCall(
       workspaceId,
       { arguments: { name: 'First', slug: 'dup-slug' }, name: 'create_workspace' },
@@ -177,7 +198,9 @@ describe('workspaces MCP', () => {
     expect(toolError(res)?.message).toMatch(/slug already taken/i)
   })
 
-  test('create_workspace returns error when required fields missing', async () => {
+  test<WorkspaceMcpTestContext>('create_workspace returns error when required fields missing', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     const res = await mcpCall(workspaceId, { arguments: { name: 'No Slug' }, name: 'create_workspace' }, userHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
@@ -280,7 +303,9 @@ describe('workspaces MCP', () => {
     expect(toolError(res)?.message).toMatch(/delete all projects/i)
   })
 
-  test('update_workspace renames the workspace (PROJ-246)', async () => {
+  test<WorkspaceMcpTestContext>('update_workspace renames the workspace (PROJ-246)', async ({
+    workspaceFixture: { slug, userHeaders, workspaceId },
+  }) => {
     const res = await callMcpTool(
       workspaceId,
       { arguments: { name: 'Renamed via MCP' }, name: 'update_workspace' },
@@ -311,7 +336,9 @@ describe('workspaces MCP', () => {
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  test('update_workspace returns error when name missing (PROJ-246)', async () => {
+  test<WorkspaceMcpTestContext>('update_workspace returns error when name missing (PROJ-246)', async ({
+    workspaceFixture: { userHeaders, workspaceId },
+  }) => {
     const res = await mcpCall(workspaceId, { arguments: {}, name: 'update_workspace' }, userHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })

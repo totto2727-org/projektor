@@ -1218,33 +1218,42 @@ describe('the scheduled purge', () => {
   })
 })
 
-describe('hardening the consent screen itself', () => {
-  let workspaceId: string
-  let email: string
+interface ConsentFixture {
+  email: string
+  workspaceId: string
+}
 
-  beforeEach(async () => {
+interface ConsentTestContext {
+  consentFixture: ConsentFixture
+}
+
+const consentPage = async function consentPage({ email, workspaceId }: ConsentFixture): Promise<Response> {
+  const { clientId } = await seedOAuthClient()
+  const { challenge } = await pkce()
+  return fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
+    headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
+  })
+}
+
+describe('hardening the consent screen itself', () => {
+  beforeEach<ConsentTestContext>(async (context) => {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `hardening-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `hardening-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
+    context.consentFixture = { email, workspaceId }
   })
 
-  const consentPage = async function consentPage(): Promise<Response> {
-    const { clientId } = await seedOAuthClient()
-    const { challenge } = await pkce()
-    return fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
-    })
-  }
-
-  test('cannot be framed, and its form cannot be retargeted', async () => {
+  test<ConsentTestContext>('cannot be framed, and its form cannot be retargeted', async ({
+    consentFixture: { email, workspaceId },
+  }) => {
     /*
      * Clickjacking is the attack a consent screen exists to be protected from:
      * frame it invisibly under something the user wants to click and "Allow access"
      * gets pressed on their behalf.
      */
-    const res = await consentPage()
+    const res = await consentPage({ email, workspaceId })
     const csp = res.headers.get('Content-Security-Policy') ?? ''
 
     expect(csp).toContain("frame-ancestors 'none'")
@@ -1253,12 +1262,14 @@ describe('hardening the consent screen itself', () => {
     expect(res.headers.get('Cache-Control')).toBe('no-store')
   })
 
-  test("lets the approval reach the client's redirect origin, and nowhere else", async () => {
+  test<ConsentTestContext>("lets the approval reach the client's redirect origin, and nowhere else", async ({
+    consentFixture: { email, workspaceId },
+  }) => {
     /* The form-action directive is enforced on the redirect the POST lands on, not just the URL
      * the form names. With 'self' alone the browser blocks the submission and
      * reports it against /oauth/authorize — which is same-origin, so the report
      * reads as a false positive while the connector flow is dead in every browser. */
-    const consentResponse = await consentPage()
+    const consentResponse = await consentPage({ email, workspaceId })
     const csp = consentResponse.headers.get('Content-Security-Policy') ?? ''
 
     expect(csp).toContain(`form-action 'self' ${new URL(CLIENT_REDIRECT).origin}`)
@@ -1267,7 +1278,9 @@ describe('hardening the consent screen itself', () => {
     expect(csp).not.toContain('*')
   })
 
-  test('does not name a redirect origin on a page with no form to submit', async () => {
+  test<ConsentTestContext>('does not name a redirect origin on a page with no form to submit', async ({
+    consentFixture: { email },
+  }) => {
     /*
      * An error page carries no consent form, so widening its policy would grant
      * reach that nothing on the page needs.
@@ -1281,7 +1294,9 @@ describe('hardening the consent screen itself', () => {
     expect(csp).toContain("form-action 'self';")
   })
 
-  test('refuses to process consent at all when JWT_SECRET is unset', async () => {
+  test<ConsentTestContext>('refuses to process consent at all when JWT_SECRET is unset', async ({
+    consentFixture: { email, workspaceId },
+  }) => {
     /*
      * Without this the secret stringifies into the HMAC key as "undefined", which
      * is the same key on every deployment that skipped `wrangler secret put` — and
@@ -1291,7 +1306,7 @@ describe('hardening the consent screen itself', () => {
     const saved = env.JWT_SECRET
     env.JWT_SECRET = '' as unknown as string
     try {
-      const res = await consentPage()
+      const res = await consentPage({ email, workspaceId })
       expect(res.status).toBe(500)
       await expect(res.text()).resolves.toContain('JWT_SECRET')
     } finally {
