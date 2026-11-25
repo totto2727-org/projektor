@@ -4,12 +4,14 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
  * PROJ-815: backfillWikiLinks batches reads/writes, skips trashed pages, and is
  * incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
  */
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 const insertPage = async function insertPage(
   workspaceId: string,
@@ -57,10 +59,7 @@ const backfill = async function backfill(
     method: 'POST',
   })
   expect(res.status).toBe(200)
-  return res.json() as Promise<{
-    processed: number
-    nextCursor: { updatedAt: number; id: string } | null
-  }>
+  return readNativeJson(res, ApiResults.apiBackfillWikiLinks)
 }
 
 describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', () => {
