@@ -3,9 +3,11 @@ import { String, Predicate, Effect, Schema } from 'effect'
 import { getUserWorkspaces } from '#commands/user-tokens.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { coreFailure } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { authenticateBrowser, BrowserAuthenticationError } from '#services/authentication.ts'
+import type { BrowserPrincipal } from '#services/authentication.ts'
 import { listProjectSummaries } from '#services/projects.ts'
 
 import {
@@ -19,13 +21,18 @@ import {
   ScopeOptionsSchema,
   WebRequestSchema,
 } from './scope.ts'
-import type { WebRequest, ScopeOptions } from './scope.ts'
+import type { WebRequest, ScopeOptions, ProjectSummary, RequestScope } from './scope.ts'
 
-const decodeWebRequest = Schema.decodeUnknownEffect(WebRequestSchema)
-const decodeScopeOptions = Schema.decodeUnknownEffect(ScopeOptionsSchema)
+const decodeWebRequest = Schema.decodeEffect(WebRequestSchema)
+const decodeScopeOptions = Schema.decodeEffect(ScopeOptionsSchema)
 
-export const nativeRequest = function nativeRequest(input: WebRequest): Request<unknown, CfProperties<unknown>> {
-  return new Request(input.url, { method: input.method, headers: input.headers.map(([name, value]) => [name, value]) })
+export const nativeRequest = function nativeRequest(input: WebRequest): Request<unknown, CfProperties> {
+  const { url } = input
+  const init = fieldsInOrder([
+    ['method', input.method],
+    ['headers', input.headers.map(([name, value]): [string, string] => [name, value])],
+  ])
+  return new Request(url, init)
 }
 
 export const publicWebFailure = function publicWebFailure(error: unknown): unknown {
@@ -38,11 +45,14 @@ export const publicWebFailure = function publicWebFailure(error: unknown): unkno
   return error
 }
 
+type AuthenticatedRequestScope = Omit<RequestScope, 'auth'> & { auth: BrowserPrincipal['auth'] }
+type CatalogError = Effect.Error<ReturnType<typeof listProjectSummaries>>
+
 export const loadBrowserScope = function loadBrowserScope(
   env: CoreEnvironment,
   input: WebRequest,
   options: ScopeOptions = {},
-) {
+): Effect.Effect<AuthenticatedRequestScope, unknown> {
   return Effect.gen(function* () {
     const decoded = yield* decodeWebRequest(input).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
@@ -72,11 +82,14 @@ export const loadBrowserScope = function loadBrowserScope(
           workspaces: await getUserWorkspaces({ db: env.DB, userId: principal.user.id }),
         }),
     })
-    const visibility = {
-      sql: `wm.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM user_group_members ugm JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id WHERE ugm.user_id = ? AND gpg.project_id = p.id)`,
-      bindings: [session.user.id],
-    }
-    const catalog = (archived = false) =>
+    const visibility = fieldsInOrder([
+      [
+        'sql',
+        `wm.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM user_group_members ugm JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id WHERE ugm.user_id = ? AND gpg.project_id = p.id)`,
+      ],
+      ['bindings', [session.user.id]],
+    ])
+    const catalog = (archived = false): Effect.Effect<ProjectSummary[], CatalogError> =>
       listProjectSummaries(env.DB, session.user.id, visibility, archived).pipe(
         Effect.map((rows) =>
           decodeProjectCatalog(rows).filter((project) =>
