@@ -105,12 +105,12 @@ describe('wiki direct request-owned queries', () => {
   })
 
   test('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
-    const test = await fixture()
-    const reopen = async () => initialData(await runTestEffect(test.effect('https://app.test/wiki/guide/edit')))
+    const testFixture = await fixture()
+    const reopen = async () => initialData(await runTestEffect(testFixture.effect('https://app.test/wiki/guide/edit')))
     const initial = await reopen()
     expect(initial.draftRevision).toBeNull()
     expect(initial.draft).toMatchObject({ content: 'Personal body' })
-    const ctx = { db: test.db, workspaceId: 'workspace', userId: 'user', role: 'member' } as ServiceCtx
+    const ctx = { db: testFixture.db, workspaceId: 'workspace', userId: 'user', role: 'member' } as ServiceCtx
     const first = await saveWikiDraft(ctx, 'guide', {
       title: 'Draft A',
       content: 'A',
@@ -134,9 +134,9 @@ describe('wiki direct request-owned queries', () => {
   })
 
   test('is lazy, preserves real SSR HTML and ToC, tree shaping, revision pointer and user-only draft without wiki HTTP', async () => {
-    const test = await fixture()
-    const effect = test.effect('https://app.test/wiki/guide?workspace=team&slug=untrusted-hint')
-    expect(test.calls).not.toHaveBeenCalled()
+    const testFixture = await fixture()
+    const effect = testFixture.effect('https://app.test/wiki/guide?workspace=team&slug=untrusted-hint')
+    expect(testFixture.calls).not.toHaveBeenCalled()
     const rendered = await runTestEffect(effect)
     const initial = initialData(rendered)
     expect(initial.page).toMatchObject({
@@ -155,52 +155,52 @@ describe('wiki direct request-owned queries', () => {
     expect(html).toContain('Loaded on the <strong>server</strong>.')
     expect(html).toContain('Guide - Acme Wiki')
     expect(html).toContain('initial-body')
-    expect(test.calls).not.toHaveBeenCalled()
+    expect(testFixture.calls).not.toHaveBeenCalled()
   })
 
   test.each(['owner', 'admin', 'member'])(
     'reads an existing archived page with the same grant policy as ServerFns for %s',
     async (role) => {
-      const test = await fixture()
-      test.sqlite
+      const testFixture = await fixture()
+      testFixture.sqlite
         .prepare('UPDATE workspace_members SET role=? WHERE workspace_id=? AND user_id=?')
         .run(role, 'workspace', 'user')
-      test.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'")
+      testFixture.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'")
       const initial = initialData(
-        await runTestEffect(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
+        await runTestEffect(testFixture.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
       )
       expect(initial.page).toMatchObject({ id: 'visible-page', project_id: 'allowed' })
     },
   )
 
   test('does not widen archived page visibility to an ungranted member', async () => {
-    const test = await fixture()
-    test.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'; DELETE FROM group_project_grants")
+    const testFixture = await fixture()
+    testFixture.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'; DELETE FROM group_project_grants")
     await expect(
-      runTestEffect(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
+      runTestEffect(testFixture.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
     ).rejects.toMatchObject({ status: 404 })
   })
 
   test('disables autosave after an actual optional draft query failure', async () => {
-    const test = await fixture()
-    test.sqlite.exec('DROP TABLE wiki_drafts')
-    const rendered = await runTestEffect(test.effect('https://app.test/wiki/guide/edit'))
+    const testFixture = await fixture()
+    testFixture.sqlite.exec('DROP TABLE wiki_drafts')
+    const rendered = await runTestEffect(testFixture.effect('https://app.test/wiki/guide/edit'))
     const initial = initialData(rendered)
     expect(initial.draftStatus).toBe('failed')
     expect(initial.page?.content).toContain('server')
   })
 
   test('rejects a fetched project page outside the authorized catalog before loading lookup data', async () => {
-    const test = await fixture()
+    const testFixture = await fixture()
     await expect(
-      runTestEffect(test.effect('https://app.test/wiki/hidden-guide', { slug: 'hidden-guide' })),
+      runTestEffect(testFixture.effect('https://app.test/wiki/hidden-guide', { slug: 'hidden-guide' })),
     ).rejects.toMatchObject({ status: 404 })
-    expect(test.calls).not.toHaveBeenCalled()
+    expect(testFixture.calls).not.toHaveBeenCalled()
   })
 
   test('applies the existing FTS and browse visibility policy with workspace pages and computed freshness', async () => {
-    const test = await fixture()
-    const rendered = await runTestEffect(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
+    const testFixture = await fixture()
+    const rendered = await runTestEffect(testFixture.effect('https://app.test/wiki?q=Guide', { slug: '' }))
     const initial = initialData(rendered)
     expect(initial.searchResults.map((page) => page.id).toSorted()).toStrictEqual(['child', 'page', 'visible-page'])
     expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toStrictEqual({
@@ -211,20 +211,20 @@ describe('wiki direct request-owned queries', () => {
   })
 
   test('retains explicit project scope plus workspace pages and validates bounded filters', async () => {
-    const test = await fixture({ ...scope, selection: { kind: 'project', workspace, project } })
+    const testFixture = await fixture({ ...scope, selection: { kind: 'project', workspace, project } })
     const rendered = await runTestEffect(
-      test.effect('https://app.test/wiki?type=guide&tags=docs&q=Guide', { slug: '' }),
+      testFixture.effect('https://app.test/wiki?type=guide&tags=docs&q=Guide', { slug: '' }),
     )
     const initial = initialData(rendered)
     expect(initial.projectId).toBe('allowed')
     expect(initial.filteredPages.map((page) => page.id)).toStrictEqual(['page'])
     expect(initial.searchResults.map((page) => page.id)).toStrictEqual(['page'])
     await expect(
-      runTestEffect(test.effect('https://app.test/wiki?status=invalid', { slug: '' })),
+      runTestEffect(testFixture.effect('https://app.test/wiki?status=invalid', { slug: '' })),
     ).rejects.toMatchObject({ status: 400 })
     await expect(
       runTestEffect(
-        test.effect(
+        testFixture.effect(
           `https://app.test/wiki?tags=${Array.from({ length: 51 }, (_value, index) => `tag${index}`).join(',')}`,
           {
             slug: '',
@@ -235,12 +235,12 @@ describe('wiki direct request-owned queries', () => {
   })
 
   test('does not infer an unselected workspace from a lone membership', async () => {
-    const test = await fixture({
+    const testFixture = await fixture({
       ...scope,
       selection: { kind: 'selection-required', target: 'workspace', reason: 'ambiguous' },
     })
-    const html = renderToStaticMarkup(await runTestEffect(test.effect()))
+    const html = renderToStaticMarkup(await runTestEffect(testFixture.effect()))
     expect(html).toContain('Choose a workspace')
-    expect(test.calls).not.toHaveBeenCalled()
+    expect(testFixture.calls).not.toHaveBeenCalled()
   })
 })

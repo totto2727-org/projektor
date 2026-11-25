@@ -143,7 +143,11 @@ export const createWikiPage = EFFRONT.ServerFn.make({
             ...(input.parentId ? { parentId: input.parentId } : {}),
             ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
           }),
-        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Created)(value).pipe(Effect.mapError(dataError))))
+        ).pipe(
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Created)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -178,7 +182,11 @@ export const duplicateWikiPage = EFFRONT.ServerFn.make({
             ...(page.parent_id ? { parentId: page.parent_id } : {}),
             ...(page.project_id ? { projectId: page.project_id } : {}),
           }),
-        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Created)(value).pipe(Effect.mapError(dataError))))
+        ).pipe(
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Created)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -211,7 +219,11 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
             expectedDraftRevision: input.expectedDraftRevision,
             ...(input.baseRevisionId !== undefined ? { baseRevisionId: input.baseRevisionId } : {}),
           }),
-        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Published)(value).pipe(Effect.mapError(dataError))))
+        ).pipe(
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Published)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -245,7 +257,9 @@ export const saveWikiDraft = EFFRONT.ServerFn.make({
             expectedDraftRevision: input.expectedDraftRevision,
           }),
         ).pipe(
-          Effect.flatMap((value) => Schema.decodeUnknownEffect(SavedDraft)(value).pipe(Effect.mapError(dataError))),
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(SavedDraft)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -277,7 +291,9 @@ export const discardWikiDraft = EFFRONT.ServerFn.make({
             expectedDraftRevision: input.expectedDraftRevision,
           }),
         ).pipe(
-          Effect.flatMap((value) => Schema.decodeUnknownEffect(DraftRevision)(value).pipe(Effect.mapError(dataError))),
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(DraftRevision)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -306,7 +322,11 @@ export const moveWikiPage = EFFRONT.ServerFn.make({
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const value = yield* runCommand(ctx, (command) =>
           wikiCommands.updateWikiPage(command, input.slug, { parentId: input.parentId }),
-        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))))
+        ).pipe(
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Ok)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -333,7 +353,9 @@ export const verifyWikiPage = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const value = yield* runCommand(ctx, (command) => wikiCommands.verifyWikiPage(command, input.slug)).pipe(
-          Effect.flatMap((value) => Schema.decodeUnknownEffect(Verified)(value).pipe(Effect.mapError(dataError))),
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Verified)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -362,7 +384,11 @@ export const trashWikiPage = EFFRONT.ServerFn.make({
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const value = yield* runCommand(ctx, (command) =>
           wikiCommands.deleteWikiPage(command, input.slug, { cascade: true }),
-        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Deleted)(value).pipe(Effect.mapError(dataError))))
+        ).pipe(
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Deleted)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -389,7 +415,9 @@ export const restoreTrashedWikiPage = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const value = yield* runCommand(ctx, (command) => wikiCommands.undeleteWikiPage(command, input.pageId)).pipe(
-          Effect.flatMap((value) => Schema.decodeUnknownEffect(Restored)(value).pipe(Effect.mapError(dataError))),
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Restored)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -418,7 +446,11 @@ export const restoreWikiRevision = EFFRONT.ServerFn.make({
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const value = yield* runCommand(ctx, (command) =>
           wikiCommands.restoreWikiRevision(command, input.slug, input.revisionId, input.baseRevisionId),
-        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))))
+        ).pipe(
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Ok)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -448,7 +480,9 @@ export const deleteWikiAttachment = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const value = yield* runCommand(ctx, (command) => deleteStoredAttachment(command, input.attachmentId)).pipe(
-          Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))),
+          Effect.flatMap((commandResult) =>
+            Schema.decodeUnknownEffect(Ok)(commandResult).pipe(Effect.mapError(dataError)),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
