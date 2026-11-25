@@ -4,11 +4,23 @@ import { readdir, writeFile } from 'node:fs/promises'
 
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test'
-import { Iterable, Predicate } from 'effect'
+import { Effect, Iterable, Predicate } from 'effect'
 
 import { HTTP_FORBIDDEN, HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
+
+const runInOrder = async function runInOrder<Item>(
+  items: globalThis.Iterable<Item>,
+  step: (item: Item) => Promise<void>,
+): Promise<void> {
+  const sequence = Effect.forEach(items, (item) => Effect.promise(async () => step(item)), {
+    concurrency: 1,
+    discard: true,
+  })
+  await runTestEffect(sequence)
+}
 
 interface BrowserAudit {
   pageErrors: string[]
@@ -195,14 +207,14 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   expect(session.status()).toBe(HTTP_OK)
   const { user } = await session.json()
   const projects: { id: string; key: string; name: string }[] = []
-  for (const prefix of ['A', 'B']) {
+  await runInOrder(['A', 'B'], async (prefix): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
       headers,
       data: { name: `Focus ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await created.json())
-  }
+  })
   const fixtures = [
     { title: 'Review first', status: 'in_review', priority: 'low', project: 1 },
     { title: 'Progress high old', status: 'in_progress', priority: 'high', project: 1 },
@@ -226,9 +238,9 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
   }
-  for (const fixture of fixtures) {
+  await runInOrder(fixtures, async (fixture): Promise<void> => {
     await create(fixture)
-  }
+  })
   await create({ title: 'Unassigned hidden', status: 'todo', priority: 'urgent', project: 0 }, false)
   // API timestamps have second precision. Ensure the new equal-priority work has a later persisted update.
   await new Promise((resolve) => setTimeout(resolve, 1100))
@@ -237,13 +249,13 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   await expect(page.getByRole('heading', { exact: true, name: 'My Issues' })).toBeVisible()
   await expect(page.locator('table')).toHaveCount(1)
   await expect(page.locator('table th')).toHaveText(['#', 'Title', 'Priority', 'Status'])
-  for (const project of projects) {
+  await runInOrder(projects, async (project): Promise<void> => {
     await expect(page.getByRole('heading', { name: project.name })).toHaveCount(0)
-  }
+  })
   await expect(page.getByText('Include done', { exact: true })).toHaveCount(0)
-  for (const title of ['Completed hidden', 'Cancelled hidden', 'Unassigned hidden']) {
+  await runInOrder(['Completed hidden', 'Cancelled hidden', 'Unassigned hidden'], async (title): Promise<void> => {
     await expect(page.getByRole('link', { exact: true, name: `${title} ${suffix}` })).toHaveCount(0)
-  }
+  })
   const expected = [
     'Review first',
     'Progress high new',
@@ -255,9 +267,9 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   ].map((title) => `${title} ${suffix}`)
   const titles = page.getByRole('link', { name: new RegExp(` ${suffix}$`) })
   await expect(titles).toHaveText(expected)
-  for (const link of await titles.all()) {
+  await runInOrder(await titles.all(), async (link): Promise<void> => {
     expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('workspace')).toBe('projektor')
-  }
+  })
   await checkpoint(page, testInfo, 'my-issues-open-focus-order')
   await page.reload()
   await expect(titles).toHaveText(expected)
@@ -329,7 +341,7 @@ test('issue review targets persist optional selection and four statuses across f
   expect(uploaded.status(), await uploaded.text()).toBe(HTTP_CREATED)
   const uploadedAttachment = await uploaded.json()
   const attachmentFixtures: { id: string; filename: string }[] = [{ id: uploadedAttachment.id, filename }]
-  for (const label of [urlLabel, ordinaryLabel]) {
+  await runInOrder([urlLabel, ordinaryLabel], async (label): Promise<void> => {
     const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
       headers,
       data: {
@@ -343,7 +355,7 @@ test('issue review targets persist optional selection and four statuses across f
     expect(linked.status(), await linked.text()).toBe(HTTP_CREATED)
     const linkedAttachment = await linked.json()
     attachmentFixtures.push({ id: linkedAttachment.id, filename: label })
-  }
+  })
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
   const emptyIssueUrl = `/issues/view?id=${emptyIssue.id}&${scope}`
   await page.goto(emptyIssueUrl)
@@ -375,10 +387,10 @@ test('issue review targets persist optional selection and four statuses across f
     targets.getByRole('checkbox', { exact: true, name: `${name}をレビュー対象にする` })
   const status = (name: string): Locator =>
     targets.getByRole('combobox', { exact: true, name: `${name}のレビューステータス` })
-  for (const name of [filename, urlLabel, ordinaryLabel]) {
+  await runInOrder([filename, urlLabel, ordinaryLabel], async (name): Promise<void> => {
     await expect(selected(name)).not.toBeChecked()
     await expect(status(name)).toHaveCount(0)
-  }
+  })
   await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'review-targets-default-optional')
 
@@ -395,24 +407,27 @@ test('issue review targets persist optional selection and four statuses across f
     page.getByRole('link', { exact: true, name: `Review targets: ${filename} (修正中)` }).filter({ visible: true }),
   ).toContainText('レビュー不要')
   await page.goto(issueUrl)
-  for (const [value, label] of [
-    ['in_review', 'レビュー中'],
-    ['changes_requested', '要修正'],
-  ]) {
-    await status(filename).selectOption(value)
-    await expect(status(filename)).toHaveValue(value)
-    await expect(status(filename)).toBeEnabled()
-    await expect(
-      targets
-        .getByRole('listitem')
-        .filter({ has: page.getByRole('checkbox', { exact: true, name: `${filename}をレビュー対象にする` }) })
-        .locator('span')
-        .filter({ hasText: new RegExp(`^${label}$`) }),
-    ).toBeVisible()
-    await page.reload()
-    await expect(status(filename)).toHaveValue(value)
-    await checkpoint(page, testInfo, `review-targets-persisted-${value}`)
-  }
+  await runInOrder(
+    [
+      ['in_review', 'レビュー中'],
+      ['changes_requested', '要修正'],
+    ],
+    async ([value, label]): Promise<void> => {
+      await status(filename).selectOption(value)
+      await expect(status(filename)).toHaveValue(value)
+      await expect(status(filename)).toBeEnabled()
+      await expect(
+        targets
+          .getByRole('listitem')
+          .filter({ has: page.getByRole('checkbox', { exact: true, name: `${filename}をレビュー対象にする` }) })
+          .locator('span')
+          .filter({ hasText: new RegExp(`^${label}$`) }),
+      ).toBeVisible()
+      await page.reload()
+      await expect(status(filename)).toHaveValue(value)
+      await checkpoint(page, testInfo, `review-targets-persisted-${value}`)
+    },
+  )
   await selected(filename).click()
   await expect(status(filename)).toHaveCount(0)
   await page.reload()
@@ -439,19 +454,19 @@ test('issue review targets persist optional selection and four statuses across f
     { name: 'my-issues', path: '/my-issues?workspace=projektor' },
     { name: 'search', path: `/issues?${scope}&q=${suffix}` },
   ]
-  for (const route of routes) {
+  await runInOrder(routes, async (route): Promise<void> => {
     /*
      * Board intentionally excludes backlog. Move only the fixture's issue workflow,
      * leaving review selection and review statuses exclusively browser-mutated.
      */
     if (route.name === 'board' || route.name === 'my-issues') {
-      for (const fixture of [issue, emptyIssue]) {
+      await runInOrder([issue, emptyIssue], async (fixture): Promise<void> => {
         const moved = await request.patch(`http://127.0.0.1:4392/api/issues/${fixture.id}`, {
           headers,
           data: { status: route.name === 'board' ? 'todo' : 'backlog' },
         })
         expect(moved.status(), await moved.text()).toBe(HTTP_OK)
-      }
+      })
     }
     await page.goto(route.path)
     const summary = page.getByRole('link', { exact: true, name: prioritySummary }).filter({ visible: true })
@@ -469,7 +484,7 @@ test('issue review targets persist optional selection and four statuses across f
     )
     await expect(targets.getByRole('heading', { exact: true, name: 'レビュー対象 (2)' })).toBeVisible()
     await expect(status(urlLabel)).toHaveValue('in_review')
-  }
+  })
   await status(filename).selectOption('in_review')
   await expect(status(filename)).toBeEnabled()
   await page.reload()
@@ -497,10 +512,10 @@ test('issue review targets persist optional selection and four statuses across f
   } finally {
     await coldContext.close()
   }
-  for (const name of [filename, urlLabel]) {
+  await runInOrder([filename, urlLabel], async (name): Promise<void> => {
     await status(name).selectOption('done')
     await expect(status(name)).toHaveCount(0)
-  }
+  })
   await page.goto(`/issues?${scope}&view=list`)
   const completedSummary = page
     .getByRole('link', { exact: true, name: title })
@@ -523,19 +538,22 @@ test('issue review targets persist optional selection and four statuses across f
    * Completed targets are intentionally hidden in Web. The supported external
    * review API reopens them before each owning-issue terminal transition.
    */
-  for (const terminal of ['done', 'cancelled']) {
+  await runInOrder(['done', 'cancelled'], async (terminal): Promise<void> => {
     const reopened = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
       headers,
       data: { status: 'backlog' },
     })
     expect(reopened.status(), await reopened.text()).toBe(HTTP_OK)
-    for (const attachment of attachmentFixtures.filter((entry) => entry.filename !== ordinaryLabel)) {
-      const review = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
-        headers,
-        data: { issueId: issue.id, status: 'in_review' },
-      })
-      expect(review.status(), await review.text()).toBe(HTTP_OK)
-    }
+    await runInOrder(
+      attachmentFixtures.filter((entry) => entry.filename !== ordinaryLabel),
+      async (attachment): Promise<void> => {
+        const review = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
+          headers,
+          data: { issueId: issue.id, status: 'in_review' },
+        })
+        expect(review.status(), await review.text()).toBe(HTTP_OK)
+      },
+    )
     await page.reload()
     await expect(status(filename)).toHaveValue('in_review')
     await expect(status(urlLabel)).toHaveValue('in_review')
@@ -546,7 +564,7 @@ test('issue review targets persist optional selection and four statuses across f
     expect(closed.status(), await closed.text()).toBe(HTTP_OK)
     await page.reload()
     await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
-    for (const attachment of attachmentFixtures) {
+    await runInOrder(attachmentFixtures, async (attachment): Promise<void> => {
       const metadata = await request.get(`http://127.0.0.1:4392/api/files/${attachment.id}/metadata`, { headers })
       expect(metadata.status(), await metadata.text()).toBe(HTTP_OK)
       expect(await metadata.json()).toMatchObject({
@@ -561,9 +579,9 @@ test('issue review targets persist optional selection and four statuses across f
       } else {
         await expect(selected(attachment.filename)).toHaveCount(0)
       }
-    }
+    })
     await checkpoint(page, testInfo, `review-targets-owner-${terminal}-attachments-preserved`)
-  }
+  })
 })
 
 test('workspace review spans projects and unassigned issues with native filtered pagination and search', async ({
@@ -584,14 +602,14 @@ test('workspace review spans projects and unassigned issues with native filtered
   expect(session.status()).toBe(HTTP_OK)
   const { user } = await session.json()
   const projects: { id: string; key: string; name: string }[] = []
-  for (const prefix of ['A', 'B']) {
+  await runInOrder(['A', 'B'], async (prefix): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
       headers,
       data: { name: `Cross project ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await created.json())
-  }
+  })
   const cases = [
     { tag: 'Review assigned', project: 0, review: 'in_review', assigned: true },
     { tag: 'Review unassigned', project: 1, review: 'in_review', assigned: false },
@@ -608,7 +626,7 @@ test('workspace review spans projects and unassigned issues with native filtered
     review: string | null
     project: (typeof projects)[number]
   }[] = []
-  for (const fixture of cases) {
+  await runInOrder(cases, async (fixture): Promise<void> => {
     const project = projects[fixture.project]
     const title = `Cross review ${suffix} ${fixture.tag}`
     const created = await request.post('http://127.0.0.1:4392/api/issues', {
@@ -638,7 +656,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       expect(selected.status(), await selected.text()).toBe(HTTP_OK)
     }
     issues.push({ id: issue.id, number: issue.number, title, targetLabel, review: fixture.review, project })
-  }
+  })
   const visibleTitles = (): Locator =>
     page.getByRole('link', { name: new RegExp(`^Cross review ${suffix} `) }).filter({ visible: true })
   const assertReviewResults = async (review: string): Promise<void> => {
@@ -646,14 +664,14 @@ test('workspace review spans projects and unassigned issues with native filtered
       review === 'active' ? Predicate.isNotNullish(issue.review) && issue.review !== 'done' : issue.review === review,
     )
     await expect(visibleTitles()).toHaveCount(expected.length)
-    for (const issue of issues) {
+    await runInOrder(issues, async (issue): Promise<void> => {
       const link = page.getByRole('link', { exact: true, name: issue.title }).filter({ visible: true })
       if (expected.includes(issue)) {
         await expect(link).toBeVisible()
       } else {
         await expect(link).toHaveCount(0)
       }
-    }
+    })
   }
   await page.goto(`/issues?workspace=${workspaceSlug}&projectId=${projects[0].id}`)
   await expect(page.getByText(`表示範囲: ${projects[0].key} · ${projects[0].name}`, { exact: true })).toBeVisible()
@@ -668,24 +686,27 @@ test('workspace review spans projects and unassigned issues with native filtered
   await expect(page.getByText('表示範囲: アクセスできる全プロジェクト', { exact: true })).toBeVisible()
   await assertReviewResults('in_review')
   const reviewUrl = page.url()
-  for (const issue of issues.filter((entry) => entry.review === 'in_review')) {
-    await expect(
-      page.getByText(`${issue.project.key}-${issue.number}`, { exact: true }).filter({ visible: true }),
-    ).toBeVisible()
-    const summary = page
-      .getByRole('link', { exact: true, name: `Review targets: ${issue.targetLabel} (レビュー中)` })
-      .filter({ visible: true })
-    await summary.click()
-    await expect(page).toHaveURL(
-      (url) =>
-        url.searchParams.get('workspace') === workspaceSlug &&
-        url.searchParams.get('tab') === 'review-targets' &&
-        url.pathname.startsWith(`/projects/${issue.project.key}/issues/${issue.number}/`),
-    )
-    await expect(page.getByRole('heading', { exact: true, name: issue.title })).toBeVisible()
-    await expect(page.getByText(issue.project.name, { exact: true }).filter({ visible: true })).toBeVisible()
-    await page.goto(reviewUrl)
-  }
+  await runInOrder(
+    issues.filter((entry) => entry.review === 'in_review'),
+    async (issue): Promise<void> => {
+      await expect(
+        page.getByText(`${issue.project.key}-${issue.number}`, { exact: true }).filter({ visible: true }),
+      ).toBeVisible()
+      const summary = page
+        .getByRole('link', { exact: true, name: `Review targets: ${issue.targetLabel} (レビュー中)` })
+        .filter({ visible: true })
+      await summary.click()
+      await expect(page).toHaveURL(
+        (url) =>
+          url.searchParams.get('workspace') === workspaceSlug &&
+          url.searchParams.get('tab') === 'review-targets' &&
+          url.pathname.startsWith(`/projects/${issue.project.key}/issues/${issue.number}/`),
+      )
+      await expect(page.getByRole('heading', { exact: true, name: issue.title })).toBeVisible()
+      await expect(page.getByText(issue.project.name, { exact: true }).filter({ visible: true })).toBeVisible()
+      await page.goto(reviewUrl)
+    },
+  )
   await checkpoint(page, testInfo, 'cross-project-review-assigned-and-unassigned')
 
   const paged = new URL(reviewUrl)
@@ -713,38 +734,43 @@ test('workspace review spans projects and unassigned issues with native filtered
   const fullPage = new URL(page.url())
   fullPage.searchParams.set('limit', '30')
   await page.goto(fullPage.href)
-  for (const [review, label] of [
-    ['in_review', 'レビュー中'],
-    ['fixing', '修正中'],
-    ['changes_requested', '要修正'],
-    ['active', '未完了の対象'],
-  ]) {
-    await tabs.getByRole('link', { exact: true, name: label }).click()
-    await expect(page).toHaveURL((url) => url.searchParams.get('review') === review && !url.searchParams.has('cursor'))
-    await expect(tabs.getByRole('link', { exact: true, name: label })).toHaveAttribute('aria-current', 'page')
-    await assertReviewResults(review)
-    await page.getByRole('searchbox', { exact: true, name: 'Search issues' }).fill(suffix)
-    await expect(page).toHaveURL(
-      (url) => url.searchParams.get('q') === suffix && url.searchParams.get('review') === review,
-    )
-    await assertReviewResults(review)
-    await page.reload()
-    await assertReviewResults(review)
-    await checkpoint(page, testInfo, `cross-project-review-search-${review}`)
-  }
+  await runInOrder(
+    [
+      ['in_review', 'レビュー中'],
+      ['fixing', '修正中'],
+      ['changes_requested', '要修正'],
+      ['active', '未完了の対象'],
+    ],
+    async ([review, label]): Promise<void> => {
+      await tabs.getByRole('link', { exact: true, name: label }).click()
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get('review') === review && !url.searchParams.has('cursor'),
+      )
+      await expect(tabs.getByRole('link', { exact: true, name: label })).toHaveAttribute('aria-current', 'page')
+      await assertReviewResults(review)
+      await page.getByRole('searchbox', { exact: true, name: 'Search issues' }).fill(suffix)
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get('q') === suffix && url.searchParams.get('review') === review,
+      )
+      await assertReviewResults(review)
+      await page.reload()
+      await assertReviewResults(review)
+      await checkpoint(page, testInfo, `cross-project-review-search-${review}`)
+    },
+  )
   const coldContext = await browser.newContext({ baseURL, javaScriptEnabled: false, viewport: page.viewportSize() })
   try {
     const cold = await coldContext.newPage()
     observeBrowser(cold, testInfo)
     expect((await cold.goto(page.url()))?.status()).toBe(HTTP_OK)
-    for (const issue of issues) {
+    await runInOrder(issues, async (issue): Promise<void> => {
       const link = cold.getByRole('link', { exact: true, name: issue.title }).filter({ visible: true })
       if (Predicate.isNotNullish(issue.review) && issue.review !== 'done') {
         await expect(link).toBeVisible()
       } else {
         await expect(link).toHaveCount(0)
       }
-    }
+    })
     await cold
       .getByRole('navigation', { exact: true, name: 'レビューステータスで課題を絞り込む' })
       .getByRole('link', { exact: true, name: '要修正' })
@@ -783,21 +809,24 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
 
   // Public API transitions stamp the persisted timestamps read through Core by Web.
   // No DB edits, client props injection or chart implementation mocks.
-  for (const [index, status] of ['backlog', 'in_progress', 'in_progress', 'in_review', 'done'].entries()) {
-    const issueResponse = await request.post('http://127.0.0.1:4392/api/issues', {
-      headers,
-      data: { projectId: project.id, title: `Chart issue ${index} ${suffix}` },
-    })
-    expect(issueResponse.status(), await issueResponse.text()).toBe(HTTP_CREATED)
-    const issue = await issueResponse.json()
-    if (status !== 'backlog') {
-      const updated = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
+  await runInOrder(
+    ['backlog', 'in_progress', 'in_progress', 'in_review', 'done'].entries(),
+    async ([index, status]): Promise<void> => {
+      const issueResponse = await request.post('http://127.0.0.1:4392/api/issues', {
         headers,
-        data: { status },
+        data: { projectId: project.id, title: `Chart issue ${index} ${suffix}` },
       })
-      expect(updated.status(), await updated.text()).toBe(HTTP_OK)
-    }
-  }
+      expect(issueResponse.status(), await issueResponse.text()).toBe(HTTP_CREATED)
+      const issue = await issueResponse.json()
+      if (status !== 'backlog') {
+        const updated = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
+          headers,
+          data: { status },
+        })
+        expect(updated.status(), await updated.text()).toBe(HTTP_OK)
+      }
+    },
+  )
   const metricsResponse = await request.get(`http://127.0.0.1:4392/api/projects/${project.id}/flow-metrics`, {
     headers,
   })
@@ -809,13 +838,13 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   const chart = page.getByTestId('flow-chart-cfd')
   const areas = chart.locator('.recharts-area-area')
   await expect(areas).toHaveCount(4)
-  for (const area of await areas.all()) {
+  await runInOrder(await areas.all(), async (area): Promise<void> => {
     await expect(area).toHaveAttribute('d', /[zZ]$/u)
     expect(await area.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0)
-  }
-  for (const label of ['Backlog/todo', 'In progress', 'In review', 'Done']) {
+  })
+  await runInOrder(['Backlog/todo', 'In progress', 'In review', 'Done'], async (label): Promise<void> => {
     await expect(chart.getByText(label, { exact: true })).toBeVisible()
-  }
+  })
   await expect(page.getByTestId('flow-chart-throughput').locator('.recharts-bar-rectangle')).not.toHaveCount(0)
   await checkpoint(page, testInfo, 'charts-overview-filled-bands')
   const surface = chart.locator('svg.recharts-surface')
@@ -1219,7 +1248,7 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
   const group = await createdGroup.json()
   const now = currentEpochSeconds()
   const sprints: { status: string; name: string }[] = []
-  for (const status of ['planned', 'completed', 'active']) {
+  await runInOrder(['planned', 'completed', 'active'], async (status): Promise<void> => {
     const name = `Reader ${status} sprint ${suffix}`
     const created = await request.post('http://127.0.0.1:4392/api/sprints', {
       headers,
@@ -1242,7 +1271,7 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
       expect(completed.status()).toBe(HTTP_OK)
     }
     sprints.push({ status, name })
-  }
+  })
   const createdShare = await request.post(`http://127.0.0.1:4392/api/issues/${issue.id}/share`, {
     headers,
     data: {},
@@ -1367,7 +1396,7 @@ test('all final page routes and aliases render real populated HTML with and with
     },
   ]
   expect(cases).toHaveLength(21)
-  for (const javaScriptEnabled of [false, true]) {
+  await runInOrder([false, true], async (javaScriptEnabled): Promise<void> => {
     const context = await browser.newContext({
       baseURL,
       javaScriptEnabled,
@@ -1376,7 +1405,7 @@ test('all final page routes and aliases render real populated HTML with and with
     try {
       const reader = await context.newPage()
       observeBrowser(reader, testInfo)
-      for (const route of cases) {
+      await runInOrder(cases, async (route): Promise<void> => {
         const response = await reader.goto(route.path)
         expect(response?.status(), route.id).toBe(HTTP_OK)
         if (isNonEmptyText(route.heading)) {
@@ -1389,11 +1418,11 @@ test('all final page routes and aliases render real populated HTML with and with
           await expect(reader.locator('body')).toContainText(route.body)
         }
         await checkpoint(reader, testInfo, `${javaScriptEnabled ? 'js-on' : 'js-off'}-${route.id}`)
-      }
+      })
     } finally {
       await context.close()
     }
-  }
+  })
 })
 
 test('large dataset tabs use scoped native URLs and survive reload and history', async ({
@@ -1403,25 +1432,31 @@ test('large dataset tabs use scoped native URLs and survive reload and history',
   const { project, sourceId, sprints, group, user, feedbackBody } = await createReaderFixtures(request)
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
   await page.goto(`/sprints?${scope}`)
-  for (const [name, value] of [
-    ['Planned', 'planned'],
-    ['Active', 'active'],
-    ['History', 'completed'],
-    ['All', 'all'],
-  ]) {
-    await page.getByRole('link', { exact: true, name }).click()
-    await expect(page).toHaveURL(
-      (url) =>
-        url.searchParams.get('status') === value &&
-        url.searchParams.get('projectId') === project.id &&
-        url.searchParams.get('workspace') === 'projektor',
-    )
-    await expect(page.getByRole('link', { exact: true, name })).toHaveAttribute('aria-current', 'page')
-    for (const sprint of sprints.filter((sprint) => value === 'all' || sprint.status === value)) {
-      await expect(page.locator('body')).toContainText(sprint.name)
-    }
-    await checkpoint(page, testInfo, `sprint-tab-${value}`)
-  }
+  await runInOrder(
+    [
+      ['Planned', 'planned'],
+      ['Active', 'active'],
+      ['History', 'completed'],
+      ['All', 'all'],
+    ],
+    async ([name, value]): Promise<void> => {
+      await page.getByRole('link', { exact: true, name }).click()
+      await expect(page).toHaveURL(
+        (url) =>
+          url.searchParams.get('status') === value &&
+          url.searchParams.get('projectId') === project.id &&
+          url.searchParams.get('workspace') === 'projektor',
+      )
+      await expect(page.getByRole('link', { exact: true, name })).toHaveAttribute('aria-current', 'page')
+      await runInOrder(
+        sprints.filter((sprint) => value === 'all' || sprint.status === value),
+        async (sprint): Promise<void> => {
+          await expect(page.locator('body')).toContainText(sprint.name)
+        },
+      )
+      await checkpoint(page, testInfo, `sprint-tab-${value}`)
+    },
+  )
   await page.goto('/settings/groups?workspace=projektor')
   await page.getByRole('tab', { exact: true, name: 'Members' }).click()
   await expect(page).toHaveURL(
@@ -1437,21 +1472,24 @@ test('large dataset tabs use scoped native URLs and survive reload and history',
   await expect(page.getByRole('tabpanel')).toContainText(group.name)
   await checkpoint(page, testInfo, 'groups-groups-tab')
   await page.goto(`/feedback/${sourceId}?${scope}`)
-  for (const [name, value] of [
-    ['Summary', 'summary'],
-    ['Settings', 'settings'],
-    ['Items', 'items'],
-  ]) {
-    await page.getByRole('tab', { exact: true, name }).click()
-    await expect(page).toHaveURL(
-      (url) => url.searchParams.get('tab') === value && url.searchParams.get('workspace') === 'projektor',
-    )
-    await expect(page.getByRole('tab', { exact: true, name })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByRole('tabpanel')).toContainText(
-      value === 'items' ? feedbackBody : value === 'summary' ? 'acceptance-v1' : 'Created',
-    )
-    await checkpoint(page, testInfo, `feedback-tab-${value}`)
-  }
+  await runInOrder(
+    [
+      ['Summary', 'summary'],
+      ['Settings', 'settings'],
+      ['Items', 'items'],
+    ],
+    async ([name, value]): Promise<void> => {
+      await page.getByRole('tab', { exact: true, name }).click()
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get('tab') === value && url.searchParams.get('workspace') === 'projektor',
+      )
+      await expect(page.getByRole('tab', { exact: true, name })).toHaveAttribute('aria-selected', 'true')
+      await expect(page.getByRole('tabpanel')).toContainText(
+        value === 'items' ? feedbackBody : value === 'summary' ? 'acceptance-v1' : 'Created',
+      )
+      await checkpoint(page, testInfo, `feedback-tab-${value}`)
+    },
+  )
   await page.goBack()
   await expect(page.getByRole('tab', { exact: true, name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
   await checkpoint(page, testInfo, 'feedback-history-settings')
@@ -1474,14 +1512,14 @@ test('two real memberships require native selection and preserve workspace acros
   expect(createdWorkspace.status(), await createdWorkspace.text()).toBe(HTTP_CREATED)
   const key = `C${suffix.toUpperCase()}`
   const projects: { id: string; name: string }[] = []
-  for (const workspace of ['projektor', slug]) {
+  await runInOrder(['projektor', slug], async (workspace): Promise<void> => {
     const created = await request.post('http://127.0.0.1:4392/api/projects', {
       headers: { 'X-Workspace-Slug': workspace },
       data: { name: `Collision ${workspace}`, key },
     })
     expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await created.json())
-  }
+  })
   await page.goto(`/issues?project=${key}`)
   await expect(page.getByRole('heading', { exact: true, name: 'Select a project' })).toBeVisible()
   await checkpoint(page, testInfo, 'ambiguous-project-key-no-default-tenant')
