@@ -306,22 +306,26 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): unknown
     const left = valueOf(node.left, context),
       right = valueOf(node.right, context)
     switch (node.operatorToken.kind) {
-      case ts.SyntaxKind.AmpersandAmpersandToken:
+      case ts.SyntaxKind.AmpersandAmpersandToken: {
         return left === false || right === false
           ? false
           : left === undefined || right === undefined
             ? undefined
             : Boolean(left && right)
-      case ts.SyntaxKind.BarBarToken:
+      }
+      case ts.SyntaxKind.BarBarToken: {
         return left === true || right === true
           ? true
           : left === undefined || right === undefined
             ? undefined
             : Boolean(left || right)
-      case ts.SyntaxKind.EqualsEqualsEqualsToken:
+      }
+      case ts.SyntaxKind.EqualsEqualsEqualsToken: {
         return left === undefined || right === undefined ? undefined : left === right
-      case ts.SyntaxKind.ExclamationEqualsEqualsToken:
+      }
+      case ts.SyntaxKind.ExclamationEqualsEqualsToken: {
         return left === undefined || right === undefined ? undefined : left !== right
+      }
     }
   }
   if (

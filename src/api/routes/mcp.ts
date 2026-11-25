@@ -160,7 +160,7 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
 
   switch (body.method) {
-    case 'initialize':
+    case 'initialize': {
       /*
        * "2025-11-25" is the latest *legacy* (initialize-handshake) protocol
        * version, not "2026-07-28" — that string denotes the modern per-request
@@ -180,6 +180,7 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
           ),
         }),
       )
+    }
 
     case 'tools/list': {
       const domainsParam = httpContext.req.query('domains')
@@ -311,8 +312,9 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
       }
     }
 
-    case 'prompts/list':
+    case 'prompts/list': {
       return httpContext.json(jsonRpcResult(body.id, { prompts: listPrompts() }))
+    }
 
     case 'prompts/get': {
       const { name, arguments: promptArgs } = (body.params ?? {}) as {
@@ -341,8 +343,9 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
       }
     }
 
-    default:
+    default: {
       return httpContext.json(jsonRpcError(body.id, { code: JSON_RPC_METHOD_NOT_FOUND, message: 'Method not found' }))
+    }
   }
 })
 

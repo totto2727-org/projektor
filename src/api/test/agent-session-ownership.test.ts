@@ -33,22 +33,28 @@ type ActAs = 'heartbeat' | 'message' | 'issue claim' | 'file claim' | 'issue att
 const actAs = function actAs(f: OwnershipFixture, action: ActAs): Promise<Response> {
   const token = f.foreignToken
   switch (action) {
-    case 'heartbeat':
+    case 'heartbeat': {
       return f.send(`/api/agents/${f.sessionId}/heartbeat`, { allowAdministrativeOverride: true }, token)
-    case 'message':
+    }
+    case 'message': {
       return f.send('/api/agent-messages', { scope: 'workspace', agentId: f.sessionId, body: 'Spoofed' }, token)
-    case 'issue claim':
+    }
+    case 'issue claim': {
       return f.send(`/api/issues/${f.issueId}/claim`, { agentId: f.sessionId }, token)
-    case 'file claim':
+    }
+    case 'file claim': {
       return f.send(
         '/api/file-claims',
         { issueId: f.issueId, agentId: f.sessionId, paths: ['src/foreign.ts'], force: true },
         token,
       )
-    case 'issue attribution':
+    }
+    case 'issue attribution': {
       return f.send(`/api/issues/${f.issueId}`, { title: 'Spoofed', agentSessionId: f.sessionId }, token, 'PATCH')
-    case 'finish work':
+    }
+    case 'finish work': {
       return f.send('/api/agents/finish-work', { sessionId: f.sessionId, issue: f.issueId }, token)
+    }
   }
 }
 

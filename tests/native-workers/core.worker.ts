@@ -305,14 +305,18 @@ export default class NativeFixtureCore extends FixtureCore {
   public async fixtureD1(query: FixtureQuery): Promise<unknown> {
     const statement = this.env.DB.prepare(query.sql).bind(...query.params)
     switch (query.method) {
-      case 'all':
+      case 'all': {
         return statement.all()
-      case 'run':
+      }
+      case 'run': {
         return statement.run()
-      case 'first':
+      }
+      case 'first': {
         return Predicate.isNullish(query.column) ? statement.first() : statement.first(query.column)
-      case 'raw':
+      }
+      case 'raw': {
         return query.options?.columnNames === true ? statement.raw({ columnNames: true }) : statement.raw()
+      }
     }
   }
 

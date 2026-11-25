@@ -136,19 +136,23 @@ export const toMcpError = function toMcpError(
      * leak its message to clients by default. (PROJ-204)
      */
     switch (err.kind) {
-      case 'not_found':
+      case 'not_found': {
         return toMcpServiceErrorWithDetails(err.message, err instanceof NotFoundError ? err.details : undefined)
-      case 'forbidden':
+      }
+      case 'forbidden': {
         return { code: -32_000, message: err.message }
-      case 'conflict':
+      }
+      case 'conflict': {
         return toMcpServiceErrorWithDetails(err.message, err instanceof ConflictError ? err.details : undefined)
-      default:
+      }
+      default: {
         console.error(`[mcp] unhandled ServiceError kind (request ${requestId}):`, err.kind, err)
         return {
           code: -32_000,
           message: `Internal error (request: ${requestId})`,
           data: { requestId },
         }
+      }
     }
   }
   console.error(`[mcp] unhandled error in tools/call (request ${requestId}):`, err)
@@ -333,7 +337,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
         ...(hasDetails(details) ? { details } : {}),
       })
     }
-    case 'forbidden':
+    case 'forbidden': {
       return toolErrorResult({
         code: 'forbidden',
         message: err.message,
@@ -341,6 +345,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
           ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
           : 'Your role does not allow this; members write, admins and owners manage.',
       })
+    }
     case 'conflict': {
       const details = err instanceof ConflictError ? err.details : undefined
       return toolErrorResult({
@@ -350,13 +355,15 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
         ...(hasDetails(details) ? { details } : {}),
       })
     }
-    case 'payload_too_large':
+    case 'payload_too_large': {
       return toolErrorResult({
         code: 'payload_too_large',
         message: err.message,
         hint: 'Send less data, or split it across several calls.',
       })
-    default:
+    }
+    default: {
       return null
+    }
   }
 }

@@ -45,21 +45,27 @@ const isNumericString = function isNumericString(v: unknown): boolean {
 
 const matchesType = function matchesType(v: unknown, t: string): boolean {
   switch (t) {
-    case 'boolean':
+    case 'boolean': {
       return Predicate.isBoolean(v) || BOOLEAN_STRINGS.has(v as string)
+    }
     case 'string':
     case 'object':
-    case 'array':
+    case 'array': {
       return typeOf(v) === t
-    case 'number':
+    }
+    case 'number': {
       return (Predicate.isNumber(v) && Number.isFinite(v)) || isNumericString(v)
-    case 'integer':
+    }
+    case 'integer': {
       return (Predicate.isNumber(v) && Number.isInteger(v)) || (isNumericString(v) && Number.isInteger(Number(v)))
-    case 'null':
+    }
+    case 'null': {
       return v === null
-    default:
+    }
+    default: {
       // Unknown type keyword: don't reject on a guess
       return true
+    }
   }
 }
 

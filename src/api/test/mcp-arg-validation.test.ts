@@ -24,36 +24,47 @@ const validValue = function validValue(s: Schema): unknown {
     return s.enum[0]
   }
   switch (schemaType(s)) {
-    case 'string':
+    case 'string': {
       return 'x'.repeat(Math.max(1, Predicate.isNumber(s.minLength) ? s.minLength : 1))
+    }
     case 'number':
-    case 'integer':
+    case 'integer': {
       return Predicate.isNumber(s.minimum) ? s.minimum : 1
-    case 'boolean':
+    }
+    case 'boolean': {
       return true
-    case 'array':
+    }
+    case 'array': {
       return []
-    case 'object':
+    }
+    case 'object': {
       return {}
-    default:
+    }
+    default: {
       return 'x'
+    }
   }
 }
 
 const wrongValue = function wrongValue(s: Schema): unknown {
   switch (schemaType(s)) {
-    case 'string':
+    case 'string': {
       return 42
+    }
     case 'number':
-    case 'integer':
+    case 'integer': {
       return 'ten'
-    case 'boolean':
+    }
+    case 'boolean': {
       return 'yes'
+    }
     case 'array':
-    case 'object':
+    case 'object': {
       return 'not-a-container'
-    default:
+    }
+    default: {
       return undefined
+    }
   }
 }
 
