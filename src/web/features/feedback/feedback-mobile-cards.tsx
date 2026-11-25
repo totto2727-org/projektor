@@ -25,34 +25,39 @@ export const FeedbackMobileCards = function FeedbackMobileCards({
   onMarkReviewed,
   onConvert,
 }: FeedbackMobileCardsProps): JSX.Element {
-  return (
-    <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-      {rows.map((row) => (
-        <div key={row.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-          <div className='flex items-start gap-2 mb-2'>
-            <input
-              type='checkbox'
-              aria-label={`select row ${row.id}`}
-              checked={selected.has(row.id)}
-              onChange={() => {
-                onToggleRow(row.id)
-              }}
-              className='mt-1'
-            />
-            <div className='flex-1'>
-              <div className='flex justify-between items-center gap-2 mb-1'>
-                <span className='text-[0.9rem]'>{ratingDisplay(row.rating, row.ratingScale)}</span>
-                <span className='text-[0.75rem] text-text-muted'>{formatDate(row.createdAt)}</span>
-              </div>
-              <div className='text-[0.875rem] text-text-base'>{row.body ?? '—'}</div>
-              {row.submitterLabel && <div className='text-[0.75rem] text-text-muted mt-1'>{row.submitterLabel}</div>}
-              <FeedbackContext row={row} expanded={expanded.has(row.id)} onToggle={() => onToggleExpanded(row.id)} />
-              <div className='text-[0.75rem] text-text-muted mt-1'>{row.status}</div>
-            </div>
-          </div>
-          <FeedbackRowActions row={row} onMarkReviewed={onMarkReviewed} onConvert={onConvert} />
+  const cards = rows.map((row) => {
+    const selector = (
+      <input
+        type='checkbox'
+        aria-label={`select row ${row.id}`}
+        checked={selected.has(row.id)}
+        onChange={() => {
+          onToggleRow(row.id)
+        }}
+        className='mt-1'
+      />
+    )
+    const details = (
+      <div className='flex-1'>
+        <div className='flex justify-between items-center gap-2 mb-1'>
+          <span className='text-[0.9rem]'>{ratingDisplay(row.rating, row.ratingScale)}</span>
+          <span className='text-[0.75rem] text-text-muted'>{formatDate(row.createdAt)}</span>
         </div>
-      ))}
-    </div>
-  )
+        <div className='text-[0.875rem] text-text-base'>{row.body ?? '—'}</div>
+        {row.submitterLabel && <div className='text-[0.75rem] text-text-muted mt-1'>{row.submitterLabel}</div>}
+        <FeedbackContext row={row} expanded={expanded.has(row.id)} onToggle={() => onToggleExpanded(row.id)} />
+        <div className='text-[0.75rem] text-text-muted mt-1'>{row.status}</div>
+      </div>
+    )
+    return (
+      <div key={row.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+        <div className='flex items-start gap-2 mb-2'>
+          {selector}
+          {details}
+        </div>
+        <FeedbackRowActions row={row} onMarkReviewed={onMarkReviewed} onConvert={onConvert} />
+      </div>
+    )
+  })
+  return <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>{cards}</div>
 }
