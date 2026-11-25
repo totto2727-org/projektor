@@ -5,12 +5,17 @@ import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { WorkspaceBrand } from '#contracts/web-brand.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 import { loadBrowserScope } from './authentication.ts'
 import type { WebRequest } from './scope.ts'
 
-export const makeBrandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => ({
+interface BrandHandlers<R> {
+  browserWorkspaceBrand: (request: WebRequest, workspaceSlug: string) => CoreReply<R, typeof WorkspaceBrand>
+}
+
+export const makeBrandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>): BrandHandlers<R> => ({
   browserWorkspaceBrand: (request: WebRequest, workspaceSlug: string) =>
     coreReply(
       'browserWorkspaceBrand',
