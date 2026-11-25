@@ -10,16 +10,19 @@ import { cn } from '@/lib/utils'
 
 export const Select = SelectPrimitive.Root
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props): React.JSX.Element {
   return <SelectPrimitive.Group data-slot='select-group' className={cn('scroll-my-1 p-1', className)} {...props} />
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectValue({ className, ...props }: SelectPrimitive.Value.Props): React.JSX.Element {
   return (
     <SelectPrimitive.Value data-slot='select-value' className={cn('flex flex-1 text-left', className)} {...props} />
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectTrigger({
   className,
   size = 'default',
@@ -44,6 +47,7 @@ export function SelectTrigger({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectContent({
   className,
   children,
@@ -86,6 +90,7 @@ export function SelectContent({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectLabel({ className, ...props }: SelectPrimitive.GroupLabel.Props): React.JSX.Element {
   return (
     <SelectPrimitive.GroupLabel
@@ -96,6 +101,7 @@ export function SelectLabel({ className, ...props }: SelectPrimitive.GroupLabel.
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Props): React.JSX.Element {
   return (
     <SelectPrimitive.Item
@@ -118,6 +124,7 @@ export function SelectItem({ className, children, ...props }: SelectPrimitive.It
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectSeparator({ className, ...props }: SelectPrimitive.Separator.Props): React.JSX.Element {
   return (
     <SelectPrimitive.Separator
@@ -128,6 +135,7 @@ export function SelectSeparator({ className, ...props }: SelectPrimitive.Separat
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectScrollUpButton({
   className,
   ...props
@@ -146,6 +154,7 @@ export function SelectScrollUpButton({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SelectScrollDownButton({
   className,
   ...props

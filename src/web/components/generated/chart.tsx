@@ -106,6 +106,7 @@ ${colorConfig
 
 export const ChartTooltip = RechartsPrimitive.Tooltip
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ChartTooltipContent({
   active,
   payload,
@@ -236,6 +237,7 @@ export function ChartTooltipContent({
 
 export const ChartLegend = RechartsPrimitive.Legend
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ChartLegendContent({
   className,
   hideIcon = false,

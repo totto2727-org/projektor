@@ -46,6 +46,7 @@ export function useSidebar(): SidebarContextProps {
   return context
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarProvider({
   defaultOpen = true,
   open: openProp,
@@ -136,6 +137,7 @@ export function SidebarProvider({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function Sidebar({
   side = 'left',
   variant = 'sidebar',
@@ -235,6 +237,7 @@ export function Sidebar({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarTrigger({
   className,
   onClick,
@@ -261,6 +264,7 @@ export function SidebarTrigger({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarRail({ className, ...props }: React.ComponentProps<'button'>): React.JSX.Element {
   const { toggleSidebar } = useSidebar()
 
@@ -286,6 +290,7 @@ export function SidebarRail({ className, ...props }: React.ComponentProps<'butto
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarInset({ className, ...props }: React.ComponentProps<'main'>): React.JSX.Element {
   return (
     <main
@@ -299,6 +304,7 @@ export function SidebarInset({ className, ...props }: React.ComponentProps<'main
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input>): React.JSX.Element {
   return (
     <Input
@@ -310,6 +316,7 @@ export function SidebarInput({ className, ...props }: React.ComponentProps<typeo
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -321,6 +328,7 @@ export function SidebarHeader({ className, ...props }: React.ComponentProps<'div
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -332,6 +340,7 @@ export function SidebarFooter({ className, ...props }: React.ComponentProps<'div
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarSeparator({ className, ...props }: React.ComponentProps<typeof Separator>): React.JSX.Element {
   return (
     <Separator
@@ -343,6 +352,7 @@ export function SidebarSeparator({ className, ...props }: React.ComponentProps<t
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarContent({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -357,6 +367,7 @@ export function SidebarContent({ className, ...props }: React.ComponentProps<'di
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -416,6 +427,7 @@ export function SidebarGroupAction({
   })
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarGroupContent({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -427,6 +439,7 @@ export function SidebarGroupContent({ className, ...props }: React.ComponentProp
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarMenu({ className, ...props }: React.ComponentProps<'ul'>): React.JSX.Element {
   return (
     <ul
@@ -438,6 +451,7 @@ export function SidebarMenu({ className, ...props }: React.ComponentProps<'ul'>)
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>): React.JSX.Element {
   return (
     <li
@@ -471,6 +485,7 @@ const sidebarMenuButtonVariants = cva(
   },
 )
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarMenuButton({
   render,
   isActive = false,
@@ -550,6 +565,7 @@ export function SidebarMenuAction({
   })
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -564,6 +580,7 @@ export function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarMenuSkeleton({
   className,
   showIcon = false,
@@ -597,6 +614,7 @@ export function SidebarMenuSkeleton({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul'>): React.JSX.Element {
   return (
     <ul
@@ -611,6 +629,7 @@ export function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<'li'>): React.JSX.Element {
   return (
     <li
