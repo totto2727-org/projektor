@@ -1587,8 +1587,8 @@ describe('issues MCP — typeId', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Epic issue', typeId },
+      name: 'create_issue',
     })
     expect(createResp.error).toBeUndefined()
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
@@ -1617,8 +1617,8 @@ describe('issues MCP — typeId', () => {
     expect(typeId).toBe(hashId)
 
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Epic via hash id', typeId },
+      name: 'create_issue',
     })
     expect(createResp.error).toBeUndefined()
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
@@ -1635,12 +1635,12 @@ describe('issues MCP — typeId', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'No type yet' },
+      name: 'create_issue',
     })
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
-    const updateResp = await mcpCall({ name: 'update_issue', arguments: { id, typeId } })
+    const updateResp = await mcpCall({ arguments: { id, typeId }, name: 'update_issue' })
     expect(updateResp.error).toBeUndefined()
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -1655,12 +1655,12 @@ describe('issues MCP — typeId', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Typed issue', typeId },
+      name: 'create_issue',
     })
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
-    await mcpCall({ name: 'update_issue', arguments: { id, typeId: null } })
+    await mcpCall({ arguments: { id, typeId: null }, name: 'update_issue' })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -1680,19 +1680,19 @@ describe('issues MCP — typeId', () => {
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Parent epic', typeId: epicTypeId },
+      name: 'create_issue',
     })
     const { id: epicId } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     await mcpCall({
+      arguments: { parentId: epicId, projectId, title: 'Child of epic' },
       name: 'create_issue',
-      arguments: { projectId, title: 'Child of epic', parentId: epicId },
     })
 
     const updateResp = await mcpCall({
-      name: 'update_issue',
       arguments: { id: epicId, typeId: storyTypeId },
+      name: 'update_issue',
     })
     expect(updateResp.error).toBeUndefined()
     expect(toolError(updateResp)?.code).toBe('validation')
@@ -1711,19 +1711,19 @@ describe('issues MCP — typeId', () => {
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Story parent', typeId: storyTypeId },
+      name: 'create_issue',
     })
     const { id: parentId } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     await mcpCall({
+      arguments: { parentId, projectId, title: 'Child of story' },
       name: 'create_issue',
-      arguments: { projectId, title: 'Child of story', parentId },
     })
 
     const updateResp = await mcpCall({
-      name: 'update_issue',
       arguments: { id: parentId, typeId: bugTypeId },
+      name: 'update_issue',
     })
     expect(updateResp.error).toBeUndefined()
 
@@ -1740,14 +1740,14 @@ describe('issues MCP — typeId', () => {
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Childless epic', typeId: epicTypeId },
+      name: 'create_issue',
     })
     const { id: epicId } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const updateResp = await mcpCall({
-      name: 'update_issue',
       arguments: { id: epicId, typeId: storyTypeId },
+      name: 'update_issue',
     })
     expect(updateResp.error).toBeUndefined()
 
@@ -1764,16 +1764,16 @@ describe('issues MCP — typeId', () => {
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
     await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Bug issue', typeId: bugTypeId },
+      name: 'create_issue',
     })
     await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Story issue', typeId: storyTypeId },
+      name: 'create_issue',
     })
-    await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'Untyped issue' } })
+    await mcpCall({ arguments: { projectId, title: 'Untyped issue' }, name: 'create_issue' })
 
-    const listResp = await mcpCall({ name: 'list_issues', arguments: { typeId: bugTypeId } })
+    const listResp = await mcpCall({ arguments: { typeId: bugTypeId }, name: 'list_issues' })
     expect(listResp.error).toBeUndefined()
     const page = parseNativeMcpText(readNativeMcpResultText(listResp.result), TitleItemsResponse)
     expect(page.items).toHaveLength(1)
@@ -1815,16 +1815,16 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
   test('respects the noParent filter', async () => {
     const { mcpCall, projectId } = await seedOwnerMcpFixture()
     const parentResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'Parent issue' },
+      name: 'create_issue',
     })
     const { id: parentId } = parseNativeMcpText(readNativeMcpResultText(parentResp.result), IdResponse)
     await mcpCall({
+      arguments: { parentId, projectId, title: 'Child issue' },
       name: 'create_issue',
-      arguments: { projectId, title: 'Child issue', parentId },
     })
 
-    const listResp = await mcpCall({ name: 'list_issues', arguments: { noParent: true } })
+    const listResp = await mcpCall({ arguments: { noParent: true }, name: 'list_issues' })
     expect(listResp.error).toBeUndefined()
     const page = parseNativeMcpText(readNativeMcpResultText(listResp.result), TitleItemsResponse)
     expect(page.items).toHaveLength(1)
@@ -2167,7 +2167,7 @@ describe('get_prioritized_issues MCP tool', () => {
       await seedIssue(workspaceId, projectId, userId, { title: `Open ${index}`, priority: 'medium' })
     }
 
-    const body = await callPrioritized({ limit: 100, includeNotReady: true })
+    const body = await callPrioritized({ includeNotReady: true, limit: 100 })
     expect(body.error).toBeUndefined()
     const data = parseNativeMcpText(readNativeMcpResultText(body.result), IssueTitlesResponse)
     expect(data.issues).toHaveLength(100)
@@ -2283,7 +2283,7 @@ describe('get_prioritized_issues MCP tool', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'In target project' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other project' })
 
-    const body = await callPrioritized({ projectId, includeNotReady: true })
+    const body = await callPrioritized({ includeNotReady: true, projectId })
     expect(body.error).toBeUndefined()
     const data = parseNativeMcpText(readNativeMcpResultText(body.result), IssueTitlesResponse)
     const titles = data.issues.map((issue) => issue.title)
@@ -2430,7 +2430,7 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
   test('list_issues rejects an unknown param instead of ignoring it', async () => {
     const { mcpCall, projectId, userId, workspaceId } = await seedIssueInputValidationFixture()
     await seedIssue(workspaceId, projectId, userId, { title: 'Some issue' })
-    const res = await mcpCall({ name: 'list_issues', arguments: { projectKey: projectId } })
+    const res = await mcpCall({ arguments: { projectKey: projectId }, name: 'list_issues' })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('validation')
   })
@@ -2438,26 +2438,26 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
   test('get_issue rejects an unknown param instead of ignoring it', async () => {
     const { mcpCall, projectId } = await seedIssueInputValidationFixture()
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'For get_issue' },
+      name: 'create_issue',
     })
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
-    const res = await mcpCall({ name: 'get_issue', arguments: { id, bogus: 'x' } })
+    const res = await mcpCall({ arguments: { bogus: 'x', id }, name: 'get_issue' })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('validation')
   })
 
   test('create_issue_link rejects an unknown param instead of ignoring it', async () => {
     const { mcpCall, projectId } = await seedIssueInputValidationFixture()
-    const rpcResponse = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'A' } })
-    const b = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'B' } })
+    const rpcResponse = await mcpCall({ arguments: { projectId, title: 'A' }, name: 'create_issue' })
+    const b = await mcpCall({ arguments: { projectId, title: 'B' }, name: 'create_issue' })
     const { id: aId } = parseNativeMcpText(readNativeMcpResultText(rpcResponse.result), IdResponse)
     const { id: bId } = parseNativeMcpText(readNativeMcpResultText(b.result), IdResponse)
 
     const res = await mcpCall({
+      arguments: { extra: 'x', sourceIssueId: aId, targetIssueId: bId, type: 'blocks' },
       name: 'create_issue_link',
-      arguments: { sourceIssueId: aId, targetIssueId: bId, type: 'blocks', extra: 'x' },
     })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('validation')
@@ -2490,7 +2490,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     })
     expect(res.error).toBeUndefined()
 
-    const getRes = await mcpCall({ name: 'get_issue', arguments: { ref } })
+    const getRes = await mcpCall({ arguments: { ref }, name: 'get_issue' })
     const issue = parseNativeMcpText(readNativeMcpResultText(getRes.result), Schema.Struct({ title: Schema.String }))
     expect(issue.title).toBe('Renamed via ref')
   })
@@ -2502,7 +2502,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     const res = await mcpCall({ arguments: { id: ref }, name: 'delete_issue' })
     expect(res.error).toBeUndefined()
 
-    const getRes = await mcpCall({ name: 'get_issue', arguments: { ref } })
+    const getRes = await mcpCall({ arguments: { ref }, name: 'get_issue' })
     expect(getRes.error).toBeUndefined()
     expect(toolError(getRes)?.code).toBe('not_found')
   })
@@ -2537,7 +2537,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     expect(res.error).toBeUndefined()
     const { id } = parseNativeMcpText(readNativeMcpResultText(res.result), IdResponse)
 
-    const getRes = await mcpCall({ name: 'get_issue', arguments: { id, verbose: true } })
+    const getRes = await mcpCall({ arguments: { id, verbose: true }, name: 'get_issue' })
     const issue = parseNativeMcpText(
       readNativeMcpResultText(getRes.result),
       Schema.Struct({ project_id: Schema.String }),
@@ -2609,12 +2609,12 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
     })
 
     const nonexistentRes = await callMcpTool(roles.workspace.id, roles.member.token, roles.workspace.slug, {
-      name: 'list_issues',
       arguments: { projectId: 'NOPE' },
+      name: 'list_issues',
     })
     const invisibleRes = await callMcpTool(roles.workspace.id, roles.member.token, roles.workspace.slug, {
-      name: 'list_issues',
       arguments: { projectId: 'HIDE' },
+      name: 'list_issues',
     })
 
     expect(nonexistentRes.error).toBeUndefined()
@@ -2773,8 +2773,8 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const { mcpCall, projectId } = await seedOwnerMcpFixture()
     const otherFixture = await seedFixture()
     const createResp = await mcpCall({
-      name: 'create_issue',
       arguments: { projectId, title: 'To reassign via MCP' },
+      name: 'create_issue',
     })
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
@@ -2798,8 +2798,8 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const { id } = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
     const res = await mcpCall({
+      arguments: { assigneeId: null, id },
       name: 'update_issue',
-      arguments: { id, assigneeId: null },
     })
     expect(res.error).toBeUndefined()
 
@@ -2853,7 +2853,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('get_issue omits empty links/rollup/customFields and null sprint/assignee/parent/labels by default', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Compact me' })
-    const res = await mcpCall({ name: 'get_issue', arguments: { id } })
+    const res = await mcpCall({ arguments: { id }, name: 'get_issue' })
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(issue).not.toHaveProperty('links')
@@ -2869,7 +2869,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('get_issue with verbose:true restores the full shape', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Verbose me' })
-    const res = await mcpCall({ name: 'get_issue', arguments: { id, verbose: true } })
+    const res = await mcpCall({ arguments: { id, verbose: true }, name: 'get_issue' })
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(issue).toHaveProperty('links', [])
@@ -2930,8 +2930,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       title: 'Fields test',
     })
     const res = await mcpCall({
+      arguments: { fields: ['id', 'title', 'priority'], id },
       name: 'get_issue',
-      arguments: { id, fields: ['id', 'title', 'priority'] },
     })
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
@@ -2956,8 +2956,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   test('fields:[...] always returns every named key: real value, or null when unset', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Null fields test' })
     const res = await mcpCall({
+      arguments: { fields: ['id', 'assignee_id', 'sprint_id', 'links', 'rollup'], id },
       name: 'get_issue',
-      arguments: { id, fields: ['id', 'assignee_id', 'sprint_id', 'links', 'rollup'] },
     })
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
@@ -3016,10 +3016,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     ): undefined | 'validation' | 'not_found' | 'forbidden' | 'conflict' | 'payload_too_large' | 'rate_limited' =>
       toolError(res)?.code
 
-    const badVerbose = await mcpCall({ name: 'get_issue', arguments: { id, verbose: 'yes' } })
+    const badVerbose = await mcpCall({ arguments: { id, verbose: 'yes' }, name: 'get_issue' })
     expect(errorCode(badVerbose)).toBe('validation')
 
-    const badFields = await mcpCall({ name: 'get_issue', arguments: { id, fields: 'nope' } })
+    const badFields = await mcpCall({ arguments: { fields: 'nope', id }, name: 'get_issue' })
     expect(errorCode(badFields)).toBe('validation')
 
     const badFieldsList = await mcpCall({
@@ -3064,7 +3064,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const beforeBytes = JSON.stringify(fullIssue, null, 2).length
 
     // "After": the actual MCP get_issue tool result (minified + compacted).
-    const mcpRes = await mcpCall({ name: 'get_issue', arguments: { id } })
+    const mcpRes = await mcpCall({ arguments: { id }, name: 'get_issue' })
     const afterBytes = readNativeMcpResultText(mcpRes.result).length
 
     const reduction = (beforeBytes - afterBytes) / beforeBytes
@@ -3121,13 +3121,13 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('fields keeps false as false and rejects unknown field names', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Audit flag' })
-    const ok = await mcpCall({ name: 'get_issue', arguments: { id, fields: ['needs_audit'] } })
+    const ok = await mcpCall({ arguments: { fields: ['needs_audit'], id }, name: 'get_issue' })
     const issue = parseNativeMcpText(readNativeMcpResultText(ok.result), JsonRecordResponse)
     expect(issue.needs_audit).toBe(false)
 
-    const typo = await mcpCall({ name: 'get_issue', arguments: { id, fields: ['titel'] } })
+    const typo = await mcpCall({ arguments: { fields: ['titel'], id }, name: 'get_issue' })
     expect(toolError(typo)?.code).toBe('validation')
-    const proto = await mcpCall({ name: 'get_issue', arguments: { id, fields: ['constructor'] } })
+    const proto = await mcpCall({ arguments: { fields: ['constructor'], id }, name: 'get_issue' })
     expect(toolError(proto)?.code).toBe('validation')
   })
 
