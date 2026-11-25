@@ -5,7 +5,8 @@ import { issueResults, sprintResults } from './api-issue-results.ts'
 import { BooleanSchema, NN, NumberSchema, Ok, StringSchema, array } from './api-result-codecs.ts'
 import { wikiResults } from './api-wiki-results.ts'
 import { workspaceResults } from './api-workspace-results.ts'
-import { fieldsInOrder, structInOrder } from './ordered-schema.ts'
+import { fieldsInOrder } from './ordered-fields.ts'
+import { structInOrder } from './ordered-schema.ts'
 
 const additionalResults = [
   ['apiDeleteStoredAttachment', Schema.Void],

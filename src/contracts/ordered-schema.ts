@@ -1,25 +1,9 @@
 import { Schema } from 'effect'
 
-type SchemaField = Readonly<[name: string, codec: Schema.Top]>
+import { fieldsInOrder } from './ordered-fields.ts'
+import type { FieldEntries, FieldsInOrder } from './ordered-fields.ts'
 
-type SchemaFields = Readonly<SchemaField[]>
-
-type FieldName<Field extends SchemaField> =
-  Field extends Readonly<[infer Name extends string, Schema.Top]> ? Name : never
-
-type FieldCodec<Field extends SchemaField> =
-  Field extends Readonly<[string, infer Codec extends Schema.Top]> ? Codec : never
-
-type FieldsInOrder<Entries extends SchemaFields> = {
-  [Entry in Entries[number] as FieldName<Entry>]: FieldCodec<Entry>
-}
-
-export const fieldsInOrder = function fieldsInOrder<const Entries extends SchemaFields>(
-  entries: Entries,
-): FieldsInOrder<Entries> {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The entry tuples preserve each schema type and the order of decoding, encoding, and validation.
-  return Object.fromEntries(entries) as FieldsInOrder<Entries>
-}
+type SchemaFields = FieldEntries<Schema.Top>
 
 export const structInOrder = function structInOrder<const Entries extends SchemaFields>(
   entries: Entries,
@@ -32,7 +16,7 @@ export const extendStructInOrder = function extendStructInOrder<
   const Entries extends SchemaFields,
 >(
   base: Base,
-  entries: Entries & (Extract<keyof Base, FieldName<Entries[number]>> extends never ? unknown : never),
+  entries: Entries & (Extract<keyof Base, keyof FieldsInOrder<Entries>> extends never ? unknown : never),
 ): Schema.Struct<Base & FieldsInOrder<Entries>> {
   return Schema.Struct({ ...base, ...fieldsInOrder<Entries>(entries) })
 }

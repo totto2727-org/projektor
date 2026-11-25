@@ -1,7 +1,8 @@
 import { Schema } from 'effect'
 
 import { BooleanSchema, CreatedIssue, Id, NN, NS, NumberSchema, Ok, StringSchema, array } from './api-result-codecs.ts'
-import { extendStructInOrder, fieldsInOrder, structInOrder } from './ordered-schema.ts'
+import { fieldsInOrder } from './ordered-fields.ts'
+import { extendStructInOrder, structInOrder } from './ordered-schema.ts'
 
 const Feedback = structInOrder([
   ['id', StringSchema],

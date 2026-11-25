@@ -1,5 +1,14 @@
 import { z } from 'zod'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import type { FieldEntries, FieldsInOrder } from '#contracts/ordered-fields.ts'
+
+export const objectInOrder = function objectInOrder<const Entries extends FieldEntries<z.ZodType>>(
+  entries: Entries,
+): ReturnType<typeof z.object<FieldsInOrder<Entries>>> {
+  return z.object(fieldsInOrder(entries))
+}
+
 export const RoleEnum = z.enum(['owner', 'admin', 'member', 'viewer'])
 
 export const StatusEnum = z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled'])

@@ -1,7 +1,8 @@
 import { Schema } from 'effect'
 
 import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '#contracts/issue-limits.ts'
-import { extendStructInOrder, fieldsInOrder, structInOrder } from '#contracts/ordered-schema.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { extendStructInOrder, structInOrder } from '#contracts/ordered-schema.ts'
 import { ReviewTargetSchema } from '#contracts/review-targets.ts'
 
 const NonEmpty = Schema.String.check(Schema.isMinLength(1))

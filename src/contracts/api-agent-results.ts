@@ -2,7 +2,8 @@ import { Schema } from 'effect'
 
 import { ApiPrincipal, ApiUserBootstrap, ApiWorkspace } from './api-auth.ts'
 import { BooleanSchema, Id, NN, NS, Named, NumberSchema, Ok, StringSchema, array } from './api-result-codecs.ts'
-import { extendStructInOrder, fieldsInOrder, structInOrder } from './ordered-schema.ts'
+import { fieldsInOrder } from './ordered-fields.ts'
+import { extendStructInOrder, structInOrder } from './ordered-schema.ts'
 import { ReviewStatusSchema } from './review-targets.ts'
 
 const SessionFields = fieldsInOrder([
