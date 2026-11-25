@@ -1,15 +1,15 @@
 import { z } from 'zod'
 
+import { MAX_PROJECT_DESCRIPTION_LENGTH, MAX_PROJECT_NAME_LENGTH } from '#contracts/project-limits.ts'
+
 import { objectInOrder } from './common.ts'
 
-const MAX_NAME_LENGTH = 100
 const MAX_KEY_LENGTH = 10
-const MAX_DESCRIPTION_LENGTH = 500
 const MIN_AGENT_WIP_LIMIT = 1
 const MAX_AGENT_WIP_LIMIT = 100
 
 export const CreateProjectSchema = objectInOrder([
-  ['name', z.string().nonempty().max(MAX_NAME_LENGTH)],
+  ['name', z.string().nonempty().max(MAX_PROJECT_NAME_LENGTH)],
   [
     'key',
     z
@@ -23,7 +23,7 @@ export const CreateProjectSchema = objectInOrder([
       .regex(/^[A-Z][A-Z0-9]*$/i)
       .transform((key) => key.toUpperCase()),
   ],
-  ['description', z.string().max(MAX_DESCRIPTION_LENGTH).optional()],
+  ['description', z.string().max(MAX_PROJECT_DESCRIPTION_LENGTH).optional()],
   // PROJ-253: per-project agent WIP cap. null/omitted = workspace default.
   ['agentWipLimit', z.number().int().min(MIN_AGENT_WIP_LIMIT).max(MAX_AGENT_WIP_LIMIT).nullable().optional()],
 ])

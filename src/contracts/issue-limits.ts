@@ -1,3 +1,6 @@
 export const MAX_ISSUE_TITLE_LENGTH = 500
 export const MAX_ISSUE_BODY_LENGTH = 50_000
 export const MAX_ISSUE_COMMENT_LENGTH = 10_000
+
+export const MIN_ISSUE_PAGE_SIZE = 1
+export const MAX_ISSUE_LIST_PAGE_SIZE = 100

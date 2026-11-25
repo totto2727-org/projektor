@@ -1,17 +1,20 @@
 import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
+import {
+  MAX_ISSUE_BODY_LENGTH,
+  MAX_ISSUE_TITLE_LENGTH,
+  MIN_ISSUE_PAGE_SIZE,
+  MAX_ISSUE_LIST_PAGE_SIZE,
+} from '#contracts/issue-limits.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
-import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '../issue-limits.ts'
 import { objectInOrder, BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
 import { CustomFieldFilterSchema } from './custom-fields.ts'
 
 const MAX_LABEL_LENGTH = 50
 const MAX_LABEL_COUNT = 20
-const MIN_PAGE_SIZE = 1
 const DEFAULT_LIST_PAGE_SIZE = 30
-const MAX_LIST_PAGE_SIZE = 100
 const DEFAULT_SEARCH_PAGE_SIZE = 20
 const MAX_SEARCH_PAGE_SIZE = 50
 const MAX_BATCH_SIZE = 50
@@ -121,7 +124,7 @@ const IssueResultFields = fieldsInOrder([
    * format) is still accepted from clients holding a pre-upgrade cursor.
    */
   ['cursor', IssueListCursorSchema.optional()],
-  ['limit', z.coerce.number().min(MIN_PAGE_SIZE).max(MAX_LIST_PAGE_SIZE).default(DEFAULT_LIST_PAGE_SIZE)],
+  ['limit', z.coerce.number().min(MIN_ISSUE_PAGE_SIZE).max(MAX_ISSUE_LIST_PAGE_SIZE).default(DEFAULT_LIST_PAGE_SIZE)],
 ])
 
 export const ListIssuesSchema = z
@@ -167,7 +170,10 @@ export const GetIssuesBatchSchema = objectInOrder([
 export const SearchIssuesInputSchema = objectInOrder([
   ['query', z.string().nonempty()],
   ['projectId', z.string().optional()],
-  ['limit', z.number().int().min(MIN_PAGE_SIZE).max(MAX_SEARCH_PAGE_SIZE).optional().default(DEFAULT_SEARCH_PAGE_SIZE)],
+  [
+    'limit',
+    z.number().int().min(MIN_ISSUE_PAGE_SIZE).max(MAX_SEARCH_PAGE_SIZE).optional().default(DEFAULT_SEARCH_PAGE_SIZE),
+  ],
 ]).strict()
 
 export const LinkTypeInputEnum = z.enum(['blocks', 'blocked_by', 'relates_to', 'duplicates'])

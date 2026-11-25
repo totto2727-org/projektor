@@ -1,12 +1,18 @@
 import { Schema } from 'effect'
 
 import { structInOrder } from '#contracts/ordered-schema.ts'
+import { MAX_PROJECT_DESCRIPTION_LENGTH, MAX_PROJECT_NAME_LENGTH } from '#contracts/project-limits.ts'
 
-const NonEmptyString = Schema.String.check(Schema.isMinLength(1))
+const MIN_NON_EMPTY_LENGTH = 1
+
+const NonEmptyString = Schema.String.check(Schema.isMinLength(MIN_NON_EMPTY_LENGTH))
 // Keep the project-key check at runtime and preserve the existing schema output.
 const ProjectKey = Schema.String.check(Schema.isPattern(/^[A-Z][A-Z0-9]{0,9}$/u, { toJsonSchema: () => [{}, true] }))
-const ProjectName = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100))
-const ProjectDescription = Schema.String.check(Schema.isMaxLength(500))
+const ProjectName = Schema.String.check(
+  Schema.isMinLength(MIN_NON_EMPTY_LENGTH),
+  Schema.isMaxLength(MAX_PROJECT_NAME_LENGTH),
+)
+const ProjectDescription = Schema.String.check(Schema.isMaxLength(MAX_PROJECT_DESCRIPTION_LENGTH))
 
 /** Shared by the New project form and its typed ServerFn input. */
 export const CreateProjectInputSchema = structInOrder([

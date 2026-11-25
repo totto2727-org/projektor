@@ -1,16 +1,19 @@
 import { Predicate } from 'effect'
 import { z } from 'zod'
 
+import {
+  MAX_SOURCE_NAME_LENGTH,
+  MAX_SOURCE_DESCRIPTION_LENGTH,
+  MAX_ALLOWED_ORIGIN_LENGTH,
+  MAX_ALLOWED_ORIGIN_COUNT,
+} from '#contracts/feedback-limits.ts'
+
 import { objectInOrder } from './common.ts'
 
 const MAX_BODY_LENGTH = 10_000
 const MAX_SUBMITTER_LABEL_LENGTH = 200
 const MAX_SOURCE_URL_LENGTH = 2000
 const MAX_APP_VERSION_LENGTH = 100
-const MAX_SOURCE_NAME_LENGTH = 100
-const MAX_SOURCE_DESCRIPTION_LENGTH = 500
-const MAX_ALLOWED_ORIGIN_LENGTH = 2000
-const MAX_ALLOWED_ORIGIN_COUNT = 50
 const MAX_BULK_FEEDBACK_COUNT = 500
 
 const THUMBS_DOWN = -1

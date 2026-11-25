@@ -1,15 +1,21 @@
 import { Schema } from 'effect'
 
-import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '#contracts/issue-limits.ts'
+import {
+  MAX_ISSUE_BODY_LENGTH,
+  MAX_ISSUE_TITLE_LENGTH,
+  MIN_ISSUE_PAGE_SIZE,
+  MAX_ISSUE_LIST_PAGE_SIZE,
+} from '#contracts/issue-limits.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { extendStructInOrder, structInOrder } from '#contracts/ordered-schema.ts'
 import { ReviewTargetSchema } from '#contracts/review-targets.ts'
 
-const NonEmpty = Schema.String.check(Schema.isMinLength(1))
-export const SelectorFields = {
-  workspaceSlug: Schema.optional(NonEmpty),
-  projectId: Schema.optional(NonEmpty),
-}
+const MIN_NON_EMPTY_LENGTH = 1
+const NonEmpty = Schema.String.check(Schema.isMinLength(MIN_NON_EMPTY_LENGTH))
+export const SelectorFields = fieldsInOrder([
+  ['workspaceSlug', Schema.optional(NonEmpty)],
+  ['projectId', Schema.optional(NonEmpty)],
+])
 export const IssueIdentitySchema = Schema.Struct({ ...SelectorFields, issueId: NonEmpty })
 
 const StoryPointsPatchSchema = Schema.Struct({ story_points: Schema.NullOr(Schema.String) })
@@ -42,7 +48,14 @@ const CreateIssueFields = fieldsInOrder([
 ])
 export const CreateIssueSchema = Schema.Struct({ ...SelectorFields, ...CreateIssueFields })
 
-const IssuePageLimitSchema = Schema.Number.check(Schema.isBetween({ minimum: 1, maximum: 100 }))
+const IssuePageLimitSchema = Schema.Number.check(
+  Schema.isBetween(
+    fieldsInOrder([
+      ['minimum', MIN_ISSUE_PAGE_SIZE],
+      ['maximum', MAX_ISSUE_LIST_PAGE_SIZE],
+    ]),
+  ),
+)
 export const IssuePageInputSchema = extendStructInOrder(SelectorFields, [
   ['statusIds', Schema.optional(Schema.String)],
   ['priorities', Schema.optional(Schema.String)],

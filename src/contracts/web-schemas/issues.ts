@@ -12,6 +12,7 @@ import type {
   Member,
   TaskType,
 } from '@/features/issues/components/issue-detail-helpers.ts'
+
 export type Issue = IssueData & ListIssue
 export type {
   Attachment,
@@ -144,11 +145,13 @@ export const IssueLinkSchema = structInOrder([
   ['createdAt', Schema.optional(Schema.Number)],
 ])
 export const LinksSchema = Schema.Array(IssueLinkSchema)
+const UNKNOWN_LINK_CREATION_TIME = 0
+
 export const normalizeLinks = function normalizeLinks(dto: typeof LinksSchema.Type): IssueLink[] {
   return dto.map((entry) => ({
     ...entry,
     createdById: entry.createdById ?? '',
-    createdAt: entry.createdAt ?? 0,
+    createdAt: entry.createdAt ?? UNKNOWN_LINK_CREATION_TIME,
   }))
 }
 

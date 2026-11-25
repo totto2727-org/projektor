@@ -1,6 +1,14 @@
 import { Schema } from 'effect'
 
+import {
+  MAX_SOURCE_NAME_LENGTH,
+  MAX_SOURCE_DESCRIPTION_LENGTH,
+  MAX_ALLOWED_ORIGIN_LENGTH,
+  MAX_ALLOWED_ORIGIN_COUNT,
+} from '#contracts/feedback-limits.ts'
 import { structInOrder } from '#contracts/ordered-schema.ts'
+
+const MIN_SOURCE_NAME_LENGTH = 1
 
 const nullable = Schema.NullOr(Schema.String)
 
@@ -49,8 +57,8 @@ export const Sources = Schema.mutable(Schema.Array(Source))
 export const Rows = Schema.mutable(Schema.Array(Feedback))
 export const Summaries = Schema.mutable(Schema.Array(Summary))
 export const SourceFields = structInOrder([
-  ['name', Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100))],
-  ['description', Schema.String.check(Schema.isMaxLength(500))],
+  ['name', Schema.String.check(Schema.isMinLength(MIN_SOURCE_NAME_LENGTH), Schema.isMaxLength(MAX_SOURCE_NAME_LENGTH))],
+  ['description', Schema.String.check(Schema.isMaxLength(MAX_SOURCE_DESCRIPTION_LENGTH))],
   [
     'origins',
     Schema.String.check(
@@ -60,7 +68,8 @@ export const SourceFields = structInOrder([
           .map((value) => value.trim())
           .filter(Boolean)
         return (
-          (origins.length <= 50 && origins.every((origin) => origin.length <= 2000)) ||
+          (origins.length <= MAX_ALLOWED_ORIGIN_COUNT &&
+            origins.every((origin) => origin.length <= MAX_ALLOWED_ORIGIN_LENGTH)) ||
           'Enter at most 50 origins, each at most 2000 characters.'
         )
       }),
