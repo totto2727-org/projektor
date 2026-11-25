@@ -33,8 +33,13 @@ export const projectSummaryVisibility = function projectSummaryVisibility(userId
   ])
 }
 
+const hasPrepareMethod = function hasPrepareMethod(value: unknown): boolean {
+  const present = Boolean(value)
+  return present && Predicate.isFunction(Reflect.get(new Object(value), 'prepare', value))
+}
+
 export const requireDataDatabase = function requireDataDatabase(db: D1Database): D1Database {
-  if (!db || !Predicate.isFunction(db.prepare)) {
+  if (!hasPrepareMethod(db)) {
     throw new ApiError('configuration', HTTP_INTERNAL_SERVER_ERROR, 'The application database is not configured.')
   }
   return db
