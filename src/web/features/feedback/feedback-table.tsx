@@ -10,7 +10,7 @@ const TD = 'px-3 py-2 border-b border-border align-top text-[0.875rem]'
 
 const TH = 'text-left px-3 py-2 border-b-2 border-border font-semibold text-text-base whitespace-nowrap'
 
-interface FeedbackTableProps {
+export interface FeedbackTableProps {
   rows: Feedback[]
   selected: Set<string>
   expanded: Set<string>

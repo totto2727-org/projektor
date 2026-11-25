@@ -13,6 +13,7 @@ import { useFeedbackActions } from './feedback-list-actions.ts'
 import type { FeedbackStatusUpdate } from './feedback-list-actions.ts'
 import { FeedbackMobileCards } from './feedback-mobile-cards.tsx'
 import { FeedbackTable } from './feedback-table.tsx'
+import type { FeedbackTableProps } from './feedback-table.tsx'
 
 export interface Feedback {
   id: string
@@ -95,6 +96,128 @@ const useSelectedFeedback = function useSelectedFeedback(): FeedbackSelection {
   return [selected, toggle, setSelected] as const
 }
 
+interface StatusFilterInputs {
+  projectId: string
+  setSelected: (selected: Set<string>) => void
+  sourceId: string
+  status: string
+  workspaceSlug: string | undefined
+}
+
+const renderStatusFilter = function renderStatusFilter({
+  projectId,
+  setSelected,
+  sourceId,
+  status,
+  workspaceSlug,
+}: StatusFilterInputs): JSX.Element {
+  return (
+    <div className='flex gap-4 items-end mb-4'>
+      <div className='flex flex-col gap-1'>
+        <span className='text-[0.8rem] font-semibold text-text-muted'>Status</span>
+        <Select
+          ariaLabel='Status'
+          value={status}
+          onChange={(value) => {
+            setSelected(new Set())
+            const params = new URLSearchParams({ projectId, tab: 'items' })
+            if (Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug)) {
+              params.set('workspace', workspaceSlug)
+            }
+            if (value) {
+              params.set('status', value)
+            }
+            navigateFeature(`/feedback/${encodeURIComponent(sourceId)}?${params}`)
+          }}
+          options={STATUS_OPTIONS}
+        />
+      </div>
+    </div>
+  )
+}
+
+const renderBulkFeedbackControls = function renderBulkFeedbackControls(
+  selected: Set<string>,
+  bulkMarkReviewed: (selected: Set<string>) => void,
+  bulkConvertToIssue: (selected: Set<string>) => void,
+): false | JSX.Element {
+  return (
+    selected.size > EMPTY_FEEDBACK_SELECTION && (
+      <div className='flex gap-2 items-center mb-3 p-2 bg-surface border border-border rounded'>
+        <span className='text-[0.85rem] text-text-muted'>{selected.size} selected</span>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={() => {
+            bulkMarkReviewed(selected)
+          }}
+        >
+          Mark all reviewed
+        </Button>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={() => {
+            bulkConvertToIssue(selected)
+          }}
+        >
+          Convert all to issue
+        </Button>
+      </div>
+    )
+  )
+}
+
+const renderFeedbackRows = function renderFeedbackRows({
+  expanded,
+  onConvert: convert,
+  onMarkReviewed: markReviewed,
+  onToggleExpanded: toggleExpanded,
+  onToggleRow: toggleRow,
+  onToggleSelectAll: toggleSelectAll,
+  rows,
+  selected,
+}: FeedbackTableProps): JSX.Element {
+  return Array.isArrayEmpty(rows) ? (
+    <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>No feedback yet.</div>
+  ) : (
+    <>
+      <FeedbackTable
+        rows={rows}
+        selected={selected}
+        expanded={expanded}
+        onToggleSelectAll={toggleSelectAll}
+        onToggleRow={toggleRow}
+        onToggleExpanded={toggleExpanded}
+        onMarkReviewed={markReviewed}
+        onConvert={convert}
+      />
+      <FeedbackMobileCards
+        rows={rows}
+        selected={selected}
+        expanded={expanded}
+        onToggleRow={toggleRow}
+        onToggleExpanded={toggleExpanded}
+        onMarkReviewed={markReviewed}
+        onConvert={convert}
+      />
+    </>
+  )
+}
+
+const renderFeedbackError = function renderFeedbackError(error: string | null): string | null | JSX.Element {
+  if (Predicate.isNullish(error) || String.isEmpty(error)) {
+    return error
+  }
+  return (
+    <p role='alert' className='text-danger-text'>
+      {error}
+    </p>
+  )
+}
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function FeedbackList({
   workspaceSlug,
@@ -128,86 +251,20 @@ export function FeedbackList({
 
   return (
     <section>
-      <div className='flex gap-4 items-end mb-4'>
-        <div className='flex flex-col gap-1'>
-          <span className='text-[0.8rem] font-semibold text-text-muted'>Status</span>
-          <Select
-            ariaLabel='Status'
-            value={status}
-            onChange={(value) => {
-              setSelected(new Set())
-              const params = new URLSearchParams({ projectId, tab: 'items' })
-              if (Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug)) {
-                params.set('workspace', workspaceSlug)
-              }
-              if (value) {
-                params.set('status', value)
-              }
-              navigateFeature(`/feedback/${encodeURIComponent(sourceId)}?${params}`)
-            }}
-            options={STATUS_OPTIONS}
-          />
-        </div>
-      </div>
-
-      {error && (
-        <p role='alert' className='text-danger-text'>
-          {error}
-        </p>
-      )}
-      {selected.size > EMPTY_FEEDBACK_SELECTION && (
-        <div className='flex gap-2 items-center mb-3 p-2 bg-surface border border-border rounded'>
-          <span className='text-[0.85rem] text-text-muted'>{selected.size} selected</span>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={() => {
-              bulkMarkReviewed(selected)
-            }}
-          >
-            Mark all reviewed
-          </Button>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={() => {
-              bulkConvertToIssue(selected)
-            }}
-          >
-            Convert all to issue
-          </Button>
-        </div>
-      )}
+      {renderStatusFilter({ projectId, setSelected, sourceId, status, workspaceSlug })}
+      {renderFeedbackError(error)}
+      {renderBulkFeedbackControls(selected, bulkMarkReviewed, bulkConvertToIssue)}
       {pending && <p aria-live='polite'>Updating feedback…</p>}
-      {Array.isArrayEmpty(rows) ? (
-        <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>
-          No feedback yet.
-        </div>
-      ) : (
-        <>
-          <FeedbackTable
-            rows={rows}
-            selected={selected}
-            expanded={expanded}
-            onToggleSelectAll={toggleSelectAll}
-            onToggleRow={toggleRow}
-            onToggleExpanded={toggleExpanded}
-            onMarkReviewed={markReviewed}
-            onConvert={convert}
-          />
-          <FeedbackMobileCards
-            rows={rows}
-            selected={selected}
-            expanded={expanded}
-            onToggleRow={toggleRow}
-            onToggleExpanded={toggleExpanded}
-            onMarkReviewed={markReviewed}
-            onConvert={convert}
-          />
-        </>
-      )}
+      {renderFeedbackRows({
+        expanded,
+        onConvert: convert,
+        onMarkReviewed: markReviewed,
+        onToggleExpanded: toggleExpanded,
+        onToggleRow: toggleRow,
+        onToggleSelectAll: toggleSelectAll,
+        rows,
+        selected,
+      })}
     </section>
   )
 }
