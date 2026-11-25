@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Result, Schema, pipe } from 'effect'
 import type { Context } from 'hono'
 import { makeCoreClient } from 'projektor/core-client'
 
@@ -19,6 +19,7 @@ export type ApiServiceCtx = Readonly<{
 }>
 
 const RoleSchema = Schema.UndefinedOr(Schema.Literals(['owner', 'admin', 'member', 'viewer']))
+const decodeRole = Schema.decodeUnknownResult(RoleSchema)
 
 export const ctxFromHono = function ctxFromHono(httpContext: Context<HonoEnv>): ApiServiceCtx {
   return fieldsInOrder([
@@ -26,7 +27,7 @@ export const ctxFromHono = function ctxFromHono(httpContext: Context<HonoEnv>): 
     ['actor', httpContext.get('coreActor')],
     ['workspaceId', httpContext.get('workspace').id],
     ['userId', httpContext.get('user').id],
-    ['role', Schema.decodeUnknownSync(RoleSchema)(httpContext.get('role'))],
+    ['role', pipe(httpContext.get('role'), decodeRole, Result.getOrThrow)],
     ['authKind', httpContext.get('authKind')],
     ['auth', httpContext.get('auth')],
   ])

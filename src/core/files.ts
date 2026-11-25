@@ -1,10 +1,11 @@
-import { Predicate, Schema } from 'effect'
+import { Predicate, Result } from 'effect'
 
 import { getAttachmentForDownload, storageQuotaBytes, uploadStoredAttachment } from '#commands/files.ts'
 import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { hasSingleItem } from '#contracts/item-count.ts'
 
-import { CoreActor, resolveCoreServiceCtx } from './authorization.ts'
+import { decodeCoreActorHeader, resolveCoreServiceCtx } from './authorization.ts'
+import type { CoreActor } from './authorization.ts'
 import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from './contract.ts'
 import { publicDomainFailure } from './domain-errors.ts'
 import type { CoreEnvironment } from './environment.ts'
@@ -26,7 +27,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
     }
     let actor: CoreActor
     try {
-      actor = Schema.decodeUnknownSync(Schema.fromJsonString(CoreActor))(request.headers.get(CORE_ACTOR_HEADER))
+      actor = Result.getOrThrow(decodeCoreActorHeader(request.headers.get(CORE_ACTOR_HEADER)))
     } catch {
       throw coreFailure(HTTP_BAD_REQUEST, 'Invalid file request')
     }

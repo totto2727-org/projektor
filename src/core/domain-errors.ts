@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Result, Schema } from 'effect'
 
 import {
   ConflictError,
@@ -19,9 +19,11 @@ import {
 
 import { coreFailure } from './contract.ts'
 
+const decodeJsonDetails = Schema.decodeUnknownResult(Schema.JsonObject)
+
 const jsonDetails = function jsonDetails(input: unknown): Schema.JsonObject | undefined {
   try {
-    return Schema.decodeUnknownSync(Schema.JsonObject)(input)
+    return Result.getOrUndefined(decodeJsonDetails(input))
   } catch {
     return undefined
   }

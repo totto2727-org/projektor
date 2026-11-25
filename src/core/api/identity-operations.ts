@@ -1,4 +1,4 @@
-import { Effect, Schema, Predicate } from 'effect'
+import { Effect, Schema, Predicate, Result } from 'effect'
 
 import { listProjectsAcrossWorkspaces } from '#commands/projects.ts'
 import { createUserToken, deleteUserToken, getUserWorkspaces } from '#commands/user-tokens.ts'
@@ -32,6 +32,8 @@ const Workspace = Schema.Struct(
   ]),
 )
 const Workspaces = Schema.Array(Workspace)
+const WorkspaceTarget = Schema.Struct({ kind: Schema.Literals(['slug', 'id']), value: Schema.String })
+const decodeWorkspaceTarget = Schema.decodeUnknownResult(WorkspaceTarget)
 
 const resolveUser = async function resolveUser(
   actor: CoreActor,
@@ -77,9 +79,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
         Workspace,
         attempt(async (env) => {
           await resolveUser(actor, env, 'read')
-          const input = Schema.decodeUnknownSync(
-            Schema.Struct({ kind: Schema.Literals(['slug', 'id']), value: Schema.String }),
-          )(target)
+          const input = Result.getOrThrow(decodeWorkspaceTarget(target))
           const row =
             input.kind === 'id'
               ? await env.DB.prepare('SELECT id, name, slug FROM workspaces WHERE id = ?')

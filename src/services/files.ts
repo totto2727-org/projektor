@@ -1,4 +1,4 @@
-import { Iterable, Schema } from 'effect'
+import { Iterable, Result, Schema } from 'effect'
 import type { Effect } from 'effect'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -51,6 +51,8 @@ interface AttachmentRow {
   wiki_page_title: string | null
   wiki_page_project_id: string | null
 }
+const decodeReviewTarget = Schema.decodeUnknownResult(ReviewTargetSchema)
+
 const toMetadata = function toMetadata(row: AttachmentRow): AttachmentMetadata {
   return {
     id: row.id,
@@ -156,7 +158,7 @@ export const listIssueReviewTargets = function listIssueReviewTargets(
         .bind(workspaceId, ...batch)
         .all<{ entity_id: string } & ReviewTarget>()
       Iterable.forEach(rows.results ?? [], (row) => {
-        const target = Schema.decodeUnknownSync(ReviewTargetSchema)(row)
+        const target = Result.getOrThrow(decodeReviewTarget(row))
         const issueTargets = targets.get(row.entity_id) ?? []
         issueTargets.push(target)
         targets.set(row.entity_id, issueTargets)

@@ -1,4 +1,4 @@
-import { Predicate, Schema } from 'effect'
+import { Predicate, Result, Schema } from 'effect'
 
 import { provisionPublicViewer } from '#commands/provisioning.ts'
 import type { ServiceCtx } from '#commands/types.ts'
@@ -36,6 +36,9 @@ export const CoreActor = Schema.Struct({
 })
 export type CoreActor = typeof CoreActor.Type
 
+const CoreActorHeader = Schema.fromJsonString(CoreActor)
+export const decodeCoreActorHeader = Schema.decodeUnknownResult(CoreActorHeader)
+
 export interface CorePrincipal {
   user: AuthUser
   auth: AuthInfo & Readonly<{ workspaceId?: string | null }>
@@ -58,7 +61,8 @@ export const requireCoreCapability = function requireCoreCapability(
 const TOKEN_USAGE_WRITE_INTERVAL_SECONDS = SECONDS_PER_MINUTE
 const PUBLIC_VIEWER_EMAIL = 'public-viewer@projektor.local'
 const RoleSchema = Schema.Literals(['owner', 'admin', 'member', 'viewer'])
-const decodeActor = Schema.decodeUnknownSync(CoreActor)
+const decodeActor = Schema.decodeUnknownResult(CoreActor)
+const decodeRole = Schema.decodeUnknownResult(RoleSchema)
 
 const authenticateOpaqueToken = async function authenticateOpaqueToken(
   token: string,
@@ -133,7 +137,7 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
   let actor: CoreActor
   let url: URL
   try {
-    actor = decodeActor(input)
+    actor = Result.getOrThrow(decodeActor(input))
     url = new URL(actor.requestUrl)
   } catch {
     throw coreFailure(HTTP_BAD_REQUEST, 'Invalid authentication request')
@@ -248,7 +252,7 @@ export const resolveCoreServiceCtx = async function resolveCoreServiceCtx(
   }
   let role: Role
   try {
-    role = Schema.decodeUnknownSync(RoleSchema)(row.role)
+    role = Result.getOrThrow(decodeRole(row.role))
   } catch {
     throw coreFailure(HTTP_FORBIDDEN, 'Forbidden')
   }
