@@ -627,82 +627,77 @@ const fetchWindowCounts = async function fetchWindowCounts(
   const { since, until } = opts
   const countOf = (query: SQLWrapper): SQL<number> => sql<number>`(${query})`
   const count = sql<number>`count(*)`
+  const leaseExpiriesQuery = orm
+    .select({ n: count })
+    .from(schema.issueLeases)
+    .innerJoin(schema.issues, eq(schema.issueLeases.issueId, schema.issues.id))
+    .where(
+      and(
+        eq(schema.issueLeases.workspaceId, workspaceId),
+        eq(schema.issues.projectId, projectId),
+        eq(schema.issueLeases.releaseReason, 'expired'),
+        gte(schema.issueLeases.releasedAt, since),
+        lte(schema.issueLeases.releasedAt, until),
+      ),
+    )
+  const abandonedClaimsQuery = orm
+    .select({ n: count })
+    .from(schema.issueFileClaims)
+    .innerJoin(schema.issues, eq(schema.issueFileClaims.issueId, schema.issues.id))
+    .where(
+      and(
+        eq(schema.issueFileClaims.workspaceId, workspaceId),
+        eq(schema.issues.projectId, projectId),
+        eq(schema.issueFileClaims.releaseReason, 'agent_ended'),
+        gte(schema.issueFileClaims.releasedAt, since),
+        lte(schema.issueFileClaims.releasedAt, until),
+      ),
+    )
+  const gateRejectionsQuery = orm
+    .select({ n: count })
+    .from(schema.issueGateRejections)
+    .innerJoin(schema.issues, eq(schema.issueGateRejections.issueId, schema.issues.id))
+    .where(
+      and(
+        eq(schema.issueGateRejections.workspaceId, workspaceId),
+        eq(schema.issues.projectId, projectId),
+        gte(schema.issueGateRejections.occurredAt, since),
+        lte(schema.issueGateRejections.occurredAt, until),
+      ),
+    )
+  // PROJ-342: WIP-cap denials — claims rejected for hitting the per-project agent
+  // WIP cap. Recorded at the denial site in claimIssue (services/issue-leases.ts).
+  const wipCapPressureQuery = orm
+    .select({ n: count })
+    .from(schema.wipCapDenials)
+    .where(
+      and(
+        eq(schema.wipCapDenials.workspaceId, workspaceId),
+        eq(schema.wipCapDenials.projectId, projectId),
+        gte(schema.wipCapDenials.occurredAt, since),
+        lte(schema.wipCapDenials.occurredAt, until),
+      ),
+    )
+  const doneBeforeWindowQuery = Predicate.isNullish(opts.doneBefore)
+    ? undefined
+    : orm
+        .select({ n: count })
+        .from(schema.issues)
+        .where(
+          and(
+            eq(schema.issues.workspaceId, workspaceId),
+            eq(schema.issues.projectId, projectId),
+            lte(schema.issues.createdAt, opts.createdUntil),
+            sql`${schema.issues.doneAt} < ${opts.doneBefore}`,
+          ),
+        )
   const row = await orm
     .select({
-      leaseExpiries: countOf(
-        orm
-          .select({ n: count })
-          .from(schema.issueLeases)
-          .innerJoin(schema.issues, eq(schema.issueLeases.issueId, schema.issues.id))
-          .where(
-            and(
-              eq(schema.issueLeases.workspaceId, workspaceId),
-              eq(schema.issues.projectId, projectId),
-              eq(schema.issueLeases.releaseReason, 'expired'),
-              gte(schema.issueLeases.releasedAt, since),
-              lte(schema.issueLeases.releasedAt, until),
-            ),
-          ),
-      ),
-      abandonedClaims: countOf(
-        orm
-          .select({ n: count })
-          .from(schema.issueFileClaims)
-          .innerJoin(schema.issues, eq(schema.issueFileClaims.issueId, schema.issues.id))
-          .where(
-            and(
-              eq(schema.issueFileClaims.workspaceId, workspaceId),
-              eq(schema.issues.projectId, projectId),
-              eq(schema.issueFileClaims.releaseReason, 'agent_ended'),
-              gte(schema.issueFileClaims.releasedAt, since),
-              lte(schema.issueFileClaims.releasedAt, until),
-            ),
-          ),
-      ),
-      gateRejections: countOf(
-        orm
-          .select({ n: count })
-          .from(schema.issueGateRejections)
-          .innerJoin(schema.issues, eq(schema.issueGateRejections.issueId, schema.issues.id))
-          .where(
-            and(
-              eq(schema.issueGateRejections.workspaceId, workspaceId),
-              eq(schema.issues.projectId, projectId),
-              gte(schema.issueGateRejections.occurredAt, since),
-              lte(schema.issueGateRejections.occurredAt, until),
-            ),
-          ),
-      ),
-      // PROJ-342: WIP-cap denials — claims rejected for hitting the per-project agent
-      // WIP cap. Recorded at the denial site in claimIssue (services/issue-leases.ts).
-      wipCapPressure: countOf(
-        orm
-          .select({ n: count })
-          .from(schema.wipCapDenials)
-          .where(
-            and(
-              eq(schema.wipCapDenials.workspaceId, workspaceId),
-              eq(schema.wipCapDenials.projectId, projectId),
-              gte(schema.wipCapDenials.occurredAt, since),
-              lte(schema.wipCapDenials.occurredAt, until),
-            ),
-          ),
-      ),
-      doneBeforeWindow: Predicate.isNullish(opts.doneBefore)
-        ? sql<number>`0`
-        : countOf(
-            orm
-              .select({ n: count })
-              .from(schema.issues)
-              .where(
-                and(
-                  eq(schema.issues.workspaceId, workspaceId),
-                  eq(schema.issues.projectId, projectId),
-                  lte(schema.issues.createdAt, opts.createdUntil),
-                  sql`${schema.issues.doneAt} < ${opts.doneBefore}`,
-                ),
-              ),
-          ),
+      leaseExpiries: countOf(leaseExpiriesQuery),
+      abandonedClaims: countOf(abandonedClaimsQuery),
+      gateRejections: countOf(gateRejectionsQuery),
+      wipCapPressure: countOf(wipCapPressureQuery),
+      doneBeforeWindow: Predicate.isNullish(doneBeforeWindowQuery) ? sql<number>`0` : countOf(doneBeforeWindowQuery),
     })
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, workspaceId)))
@@ -758,6 +753,14 @@ const readFlowMetrics = async function readFlowMetrics(
     (Predicate.isNullish(doneBefore) || Predicate.isNullish(issue.doneAt) || issue.doneAt >= doneBefore)
   const projectScope = and(eq(schema.issues.workspaceId, workspaceId), eq(schema.issues.projectId, projectId))
 
+  /*
+   * Currently open issues are also loaded whatever their dates, for the
+   * present-state agingWip snapshot only (a reopened issue keeps its old
+   * write-once done_at, and one created after a past `until` is still open
+   * now). They're filtered back out below for every windowed series.
+   */
+  const windowOrOpenIssue = or(windowPredicate, inArray(schema.issues.status, ['in_progress', 'in_review']))
+
   const loaded = await orm
     .select({
       id: schema.issues.id,
@@ -772,18 +775,7 @@ const readFlowMetrics = async function readFlowMetrics(
     })
     .from(schema.issues)
     .leftJoin(schema.taskTypes, eq(schema.issues.typeId, schema.taskTypes.id))
-    .where(
-      and(
-        projectScope,
-        /*
-         * Currently open issues are also loaded whatever their dates, for the
-         * present-state agingWip snapshot only (a reopened issue keeps its old
-         * write-once done_at, and one created after a past `until` is still open
-         * now). They're filtered back out below for every windowed series.
-         */
-        or(windowPredicate, inArray(schema.issues.status, ['in_progress', 'in_review'])),
-      ),
-    )
+    .where(and(projectScope, windowOrOpenIssue))
   const issues = loaded.filter((issue) => inSqlWindow(issue))
 
   /*
@@ -809,6 +801,8 @@ const readFlowMetrics = async function readFlowMetrics(
     throw new Error('flow-metrics: missing issue scope')
   }
 
+  const bugTypeFilter = and(eq(schema.taskTypes.workspaceId, workspaceId), eq(schema.taskTypes.key, 'bug'))
+
   /*
    * PROJ-446: everything below depends only on the window bounds plus ctx/projectId —
    * none of these reads depend on each other, so run them concurrently instead of one
@@ -823,11 +817,7 @@ const readFlowMetrics = async function readFlowMetrics(
      * with no indication anything's wrong. Surface whether the type exists at all so the
      * frontend can show a distinguishable "not tracked" state instead of a silent 0%.
      */
-    orm
-      .select({ id: schema.taskTypes.id })
-      .from(schema.taskTypes)
-      .where(and(eq(schema.taskTypes.workspaceId, workspaceId), eq(schema.taskTypes.key, 'bug')))
-      .get(),
+    orm.select({ id: schema.taskTypes.id }).from(schema.taskTypes).where(bugTypeFilter).get(),
     /*
      * PROJ-334: same window as the throughput/CFD/etc. buckets below — the "selected
      * window" the tile row is scoped to.
