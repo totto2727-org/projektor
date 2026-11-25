@@ -109,7 +109,15 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           return yield* Effect.tryPromise({
             catch: (cause) =>
               new ApiError('network', HTTP_INTERNAL_SERVER_ERROR, 'Could not read the saved draft.', cause),
-            try: async () => drafts.readWikiDraftState(env.DB, workspace.id, page.id, scope.user.id),
+            try: async () =>
+              drafts.readWikiDraftState(
+                env.DB,
+                fieldsInOrder([
+                  ['workspaceId', workspace.id],
+                  ['pageId', page.id],
+                  ['userId', scope.user.id],
+                ]),
+              ),
           })
         }),
       ),

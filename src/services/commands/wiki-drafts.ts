@@ -80,15 +80,19 @@ export const getWikiDraft = async function getWikiDraft(ctx: ServiceCtx, idOrSlu
   return row ?? JSON_NULL
 }
 
+interface DraftIdentity {
+  workspaceId: string
+  pageId: string
+  userId: string
+}
+
 /*
  * The head and scratch snapshot are read together, including after a discard removed
  * the scratch row. Only Core calls this after authorizing the page and current user.
  */
 export const readWikiDraftState = async function readWikiDraftState(
   db: D1Database,
-  workspaceId: string,
-  pageId: string,
-  userId: string,
+  { workspaceId, pageId, userId }: DraftIdentity,
 ): Promise<DraftState> {
   const row = await db
     .prepare(`
@@ -125,11 +129,15 @@ export const readWikiDraftState = async function readWikiDraftState(
   ])
 }
 
+interface DraftHeadAdvance {
+  expected: string | null | undefined
+  revision: string
+}
+
 const advanceHead = function advanceHead(
   ctx: ServiceCtx,
   pageId: string,
-  expected: string | null | undefined,
-  revision: string,
+  { expected, revision }: DraftHeadAdvance,
 ): D1PreparedStatement {
   const key = [ctx.workspaceId, ctx.userId, pageId]
   if (!isWikiRevisionSpecified(expected)) {
@@ -173,7 +181,7 @@ export const saveWikiDraft = async function saveWikiDraft(
   const revision = crypto.randomUUID()
   const now = currentEpochSeconds()
   const results = await ctx.db.batch([
-    advanceHead(ctx, page.id, parsed.data.expectedDraftRevision, revision),
+    advanceHead(ctx, page.id, { expected: parsed.data.expectedDraftRevision, revision }),
     ctx.db
       .prepare(`INSERT INTO wiki_drafts(id,workspace_id,user_id,page_id,title,content,base_revision_id,updated_at)
       SELECT ?,?,?,?,?,?,?,? WHERE EXISTS (
@@ -211,7 +219,7 @@ const discardResolvedDraft = async function discardResolvedDraft(
 ): Promise<ChangedDraft> {
   const revision = crypto.randomUUID()
   const results = await ctx.db.batch([
-    advanceHead(ctx, pageId, expected, revision),
+    advanceHead(ctx, pageId, { expected, revision }),
     ctx.db
       .prepare(`DELETE FROM wiki_drafts WHERE workspace_id = ? AND user_id = ? AND page_id = ? AND EXISTS (
       SELECT 1 FROM wiki_draft_heads WHERE workspace_id = ? AND user_id = ? AND page_id = ? AND revision = ?
@@ -258,7 +266,7 @@ export const beginWikiDraftPublish = async function beginWikiDraftPublish(
   }
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const revision = crypto.randomUUID()
-  const result = await advanceHead(ctx, page.id, parsed.data.expectedDraftRevision, revision).all()
+  const result = await advanceHead(ctx, page.id, { expected: parsed.data.expectedDraftRevision, revision }).all()
   requireAdvanced(result, revision)
   return fieldsInOrder([
     ['pageId', page.id],
