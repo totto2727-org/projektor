@@ -3,7 +3,7 @@ import type { Schema } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
 
 /** The only shared adapter machinery is envelope decoding, never operation dispatch. */
-export const apiReply = function apiReply<S extends Schema.Top & { readonly DecodingServices: never }, E>(
+export const apiReply = function apiReply<S extends Schema.Top & Readonly<{ DecodingServices: never }>, E>(
   schema: S,
   invocation: Effect.Effect<string, E>,
 ): Promise<S['Type']> {

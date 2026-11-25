@@ -25,7 +25,7 @@ const messagesFrom = function messagesFrom(error: unknown): string[] {
   if (!error || typeof error !== 'object') {
     return []
   }
-  const issue = error as FormIssue & { readonly errors?: unknown; readonly errorMap?: unknown }
+  const issue = error as FormIssue & Readonly<{ errors?: unknown; errorMap?: unknown }>
   if (Predicate.isString(issue.message) && issue.message.trim()) {
     return [issue.message]
   }

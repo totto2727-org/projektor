@@ -7,9 +7,7 @@ import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
 
 export type Sprint = typeof schema.sprints.$inferSelect
-export interface ListSprintsOptions {
-  readonly projectId: string
-}
+export type ListSprintsOptions = Readonly<{ projectId: string }>
 
 /** Caller validates options and authorizes project access before executing. */
 export const listSprints = function listSprints(

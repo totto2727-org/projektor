@@ -62,7 +62,7 @@ export const requireDataProject = function requireDataProject(
   return project
 }
 
-export const authorizeDataEntity = function authorizeDataEntity<T extends { readonly projectId: string | null }>(
+export const authorizeDataEntity = function authorizeDataEntity<T extends Readonly<{ projectId: string | null }>>(
   scope: RequestScope,
   workspaceId: string,
   entity: T | undefined,

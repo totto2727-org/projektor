@@ -4,7 +4,7 @@ import type { JSX } from 'react'
 import { MyIssues } from '@/features/issues/components/my-issues.tsx'
 import type { Issue } from '@/features/issues/types.ts'
 import type { RequestScope, WorkspaceMembership } from '@/server/request-context.ts'
-export type ScopedIssue = Issue & { readonly workspaceSlug: string }
+export type ScopedIssue = Issue & Readonly<{ workspaceSlug: string }>
 export type MyIssuesInitialData = Readonly<{
   issues: Readonly<ScopedIssue[]>
   memberships: Readonly<WorkspaceMembership[]>

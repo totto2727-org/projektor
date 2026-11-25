@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { TokenResponse, readNativeJson } from './response-json.ts'
 
 const mintSource = async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
@@ -15,7 +17,8 @@ const mintSource = async function mintSource(
     `http://localhost/api/projects/${f.projectId}/feedback-sources`,
     requestOptionsWithBody('POST', authHeaders(f.token, f.slug), JSON.stringify(body)),
   )
-  return ((await res.json()) as { token: string }).token
+  const response = await readNativeJson(res, TokenResponse)
+  return response.token
 }
 
 const seedFeedbackRow = async function seedFeedbackRow(
@@ -98,18 +101,7 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(200)
-    const summary = (await res.json()) as {
-      sourceId: string
-      sourceName: string | null
-      totalCount: number
-      versions: Array<{
-        appVersion: string | null
-        totalCount: number
-        withCommentCount: number
-        thumbsUpPct: number | null
-        avgFiveStar: number | null
-      }>
-    }[]
+    const summary = await readNativeJson(res, ApiResults.apiGetFeedbackSummary)
 
     expect(summary).toHaveLength(1)
     expect(summary[0].sourceName).toBe('Widget A')
@@ -138,7 +130,7 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
     const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback/summary`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })
-    const summary = (await res.json()) as { versions: Array<{ appVersion: string | null }> }[]
+    const summary = await readNativeJson(res, ApiResults.apiGetFeedbackSummary)
     expect(summary[0].versions[0].appVersion).toBeNull()
   })
 

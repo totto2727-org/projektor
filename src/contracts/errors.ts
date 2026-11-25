@@ -21,7 +21,7 @@ export const validationIssues = function validationIssues(
 }
 
 export abstract class ServiceError extends Error {
-  abstract readonly kind: string
+  public abstract get kind(): string
 }
 
 export class ValidationError extends ServiceError {

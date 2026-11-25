@@ -7,12 +7,13 @@ import type { FixtureConfiguration } from './core.worker'
 export { RateLimiter, WorkspaceHub } from '#api/worker.ts'
 
 type ApiEnvironment = Parameters<typeof api.fetch>[1]
-type FixtureEnvironment = ApiEnvironment & {
-  readonly CORE_FIXTURE_CONFIGURATION?: string
-  readonly CORE: ApiEnvironment['CORE'] & {
-    fixtureSession(settings: FixtureConfiguration): Promise<ApiEnvironment['CORE']>
-  }
-}
+type FixtureEnvironment = ApiEnvironment &
+  Readonly<{
+    CORE_FIXTURE_CONFIGURATION?: string
+    CORE: ApiEnvironment['CORE'] & {
+      fixtureSession(settings: FixtureConfiguration): Promise<ApiEnvironment['CORE']>
+    }
+  }>
 
 const configuration = function configuration(value: string | undefined): FixtureConfiguration {
   const parsed: unknown = Predicate.isNullish(value) ? {} : JSON.parse(value)

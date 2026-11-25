@@ -398,14 +398,14 @@ const WikiRevisionFields = {
   author_id: StringSchema,
   created_at: NumberSchema,
 }
-interface WikiTreeNode {
-  readonly id: string
-  readonly slug: string
-  readonly title: string
-  readonly url: string
-  readonly type: string | null
-  readonly children: WikiTreeNode[]
-}
+type WikiTreeNode = Readonly<{
+  id: string
+  slug: string
+  title: string
+  url: string
+  type: string | null
+  children: WikiTreeNode[]
+}>
 const WikiTreeNode: Schema.Codec<WikiTreeNode> = Schema.suspend(() =>
   Schema.Struct({
     id: StringSchema,

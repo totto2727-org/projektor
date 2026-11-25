@@ -37,7 +37,7 @@ export type CoreActor = typeof CoreActor.Type
 
 export interface CorePrincipal {
   user: AuthUser
-  auth: AuthInfo & { readonly workspaceId?: string | null }
+  auth: AuthInfo & Readonly<{ workspaceId?: string | null }>
   tokenWorkspaceId: string | null | undefined
   tokenScopes: string[] | undefined
 }

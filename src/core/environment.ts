@@ -4,10 +4,11 @@ import { Predicate, Effect } from 'effect'
 import type { CoreEnv } from '#types/env.ts'
 
 /** Persistent resources belong to Core. OAuth signing stays in the API adapter. */
-export type CoreEnvironment = Omit<CoreEnv, 'JWT_SECRET' | 'ASSETS'> & {
-  /** Local-only lifecycle capability, created by the Worker and never serialized. */
-  readonly invocation?: { readonly waitUntil: (promise: Promise<unknown>) => void }
-}
+export type CoreEnvironment = Omit<CoreEnv, 'JWT_SECRET' | 'ASSETS'> &
+  Readonly<{
+    /** Local-only lifecycle capability, created by the Worker and never serialized. */
+    invocation?: Readonly<{ waitUntil: (promise: Promise<unknown>) => void }>
+  }>
 
 export type CoreEnvironmentSource = Effect.Effect<CoreEnvironment, never, WorkerEnvironment | WorkerExecutionContext>
 

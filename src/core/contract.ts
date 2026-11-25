@@ -19,7 +19,7 @@ type InvocationShape<T> = {
     ? (...args: Args) => Effect.Effect<A, E, R | WorkerEnvironment | WorkerExecutionContext>
     : never
 }
-export type CoreShape = InvocationShape<CoreRpcShape> & { readonly fetch: HttpEffect }
+export type CoreShape = InvocationShape<CoreRpcShape> & Readonly<{ fetch: HttpEffect }>
 
 export const CoreProblem = Schema.Struct({
   status: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 400, maximum: 599 })),
