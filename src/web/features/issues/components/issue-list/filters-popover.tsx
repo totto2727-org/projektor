@@ -5,6 +5,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { categoryColor } from '@/features/issues/components/board-utils.ts'
 import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
 
+const ACTIVE_PILL_FONT_WEIGHT = 600
+const INACTIVE_PILL_FONT_WEIGHT = 400
+const NO_ACTIVE_FILTERS = 0
+const ACTIVE_DATE_FILTER_COUNT = 1
+
 export type DateField = '' | 'completed' | 'updated'
 
 /*
@@ -73,7 +78,7 @@ const StatusPills = function StatusPills({
               border: active ? 'none' : '1px solid var(--border)',
               background: active ? categoryColor(selectedStatus.category) : 'var(--bg)',
               color: active ? 'var(--on-accent)' : 'var(--text)',
-              fontWeight: active ? 600 : 400,
+              fontWeight: active ? ACTIVE_PILL_FONT_WEIGHT : INACTIVE_PILL_FONT_WEIGHT,
             }}
           >
             {selectedStatus.name}
@@ -112,7 +117,7 @@ const PriorityPills = function PriorityPills({
               border: active ? 'none' : '1px solid var(--border)',
               background: active ? col.bg : 'var(--bg)',
               color: active ? col.text : 'var(--text)',
-              fontWeight: active ? 600 : 400,
+              fontWeight: active ? ACTIVE_PILL_FONT_WEIGHT : INACTIVE_PILL_FONT_WEIGHT,
             }}
           >
             {priority}
@@ -217,7 +222,7 @@ const FiltersToggleButton = function FiltersToggleButton({
   onToggle: () => void
 }): JSX.Element {
   const activeStyle =
-    activeFilterCount > 0
+    activeFilterCount > NO_ACTIVE_FILTERS
       ? { border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600 }
       : {
           border: '1px solid var(--border)',
@@ -239,7 +244,7 @@ const FiltersToggleButton = function FiltersToggleButton({
         ...searchState,
       }}
     >
-      {activeFilterCount > 0 ? `Filters (${activeFilterCount})` : 'Filters'}
+      {activeFilterCount > NO_ACTIVE_FILTERS ? `Filters (${activeFilterCount})` : 'Filters'}
     </button>
   )
 }
@@ -287,7 +292,7 @@ const FiltersPopoverContent = function FiltersPopoverContent(
         filterDateTo={props.filterDateTo}
         setFilterDateTo={props.setFilterDateTo}
       />
-      {activeFilterCount > 0 && (
+      {activeFilterCount > NO_ACTIVE_FILTERS && (
         <div className='border-t border-border pt-2 mt-3'>
           <button
             type='button'
@@ -359,7 +364,8 @@ export function FiltersPopover({
   }, [showFiltersPopover, reposition])
 
   const dateFilterActive = !!(filterDateField && (filterDateFrom || filterDateTo))
-  const activeFilterCount = filterStatuses.length + filterPriorities.length + (dateFilterActive ? 1 : 0)
+  const activeFilterCount =
+    filterStatuses.length + filterPriorities.length + (dateFilterActive ? ACTIVE_DATE_FILTER_COUNT : NO_ACTIVE_FILTERS)
 
   return (
     <div className='relative' ref={containerRef}>

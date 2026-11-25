@@ -51,6 +51,11 @@ import {
 } from './issue-detail-helpers.ts'
 import { IssueMarkdownEditor as MarkdownEditor } from './lazy-markdown-editor.tsx'
 
+const COPY_CONFIRMATION_MS = 2000
+const INITIAL_DRAFT_REVISION = 0
+const EMPTY_ROLLUP_TOTAL = 0
+const WIKI_ATTACHMENT_SEARCH_DELAY_MS = 250
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const PencilIcon = (): JSX.Element => (
   <svg
@@ -102,7 +107,7 @@ export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: strin
     setCopiedRef(true)
     setTimeout(() => {
       setCopiedRef(false)
-    }, 2000)
+    }, COPY_CONFIRMATION_MS)
   }
 
   return (
@@ -184,7 +189,7 @@ export const ShareButton = function ShareButton({
     setCopiedShare(true)
     setTimeout(() => {
       setCopiedShare(false)
-    }, 2000)
+    }, COPY_CONFIRMATION_MS)
   }
 
   return (
@@ -375,7 +380,7 @@ const useBodyEditor = function useBodyEditor(
   useUnsavedUnloadGuard(editingBody && editBody !== (issue.body ?? ''))
   const key = draftKey(workspaceSlug, `${currentUserId ?? '-'}:${issueId}`, 'body')
   const [hasDraft, setHasDraft] = useState(false)
-  const bodyRevision = useRef(0)
+  const bodyRevision = useRef(INITIAL_DRAFT_REVISION)
   const bodyRef = useRef<HTMLDivElement>(null)
 
   /*
@@ -594,7 +599,7 @@ export const ChildIssuesSection = function ChildIssuesSection({
         <span className='text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted whitespace-nowrap'>
           Child issues{Array.isArrayNonEmpty(childIssues) && ` (${childIssues.length})`}
         </span>
-        {issue.rollup && issue.rollup.total > 0 && (
+        {issue.rollup && issue.rollup.total > EMPTY_ROLLUP_TOTAL && (
           <span className='text-xs text-text-muted whitespace-nowrap'>
             {issue.rollup.done} done · {issue.rollup.remaining} remaining
           </span>
@@ -1132,7 +1137,7 @@ const WikiPageLinkForm = function WikiPageLinkForm({
       if (!cancelled) {
         setSearching(false)
       }
-    }, 250)
+    }, WIKI_ATTACHMENT_SEARCH_DELAY_MS)
     return () => {
       cancelled = true
       clearTimeout(timer)
@@ -1575,7 +1580,7 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
   const [editCommentBody, setEditCommentBody] = editForm.field('body')
   const [savingComment, setSavingComment] = useState(false)
   const [editCommentError, setEditCommentError] = useState<string | null>(null)
-  const commentRevision = useRef(0)
+  const commentRevision = useRef(INITIAL_DRAFT_REVISION)
   const [originalCommentBody, setOriginalCommentBody] = useState('')
   useUnsavedUnloadGuard(Predicate.isNotNullish(editingCommentId) && editCommentBody !== originalCommentBody)
 
@@ -1648,7 +1653,7 @@ const useNewCommentForm = function useNewCommentForm(
 ) {
   const commentForm = useIssueForm({ body: '' }, Schema.Struct({ body: CommentText }))
   const [newComment, setNewComment] = commentForm.field('body')
-  const newCommentRevision = useRef(0)
+  const newCommentRevision = useRef(INITIAL_DRAFT_REVISION)
   const [postingComment, setPostingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
   useUnsavedUnloadGuard(String.isNonEmpty(newComment.trim()))

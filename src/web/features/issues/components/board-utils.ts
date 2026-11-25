@@ -2,6 +2,14 @@ import { String, Array, Predicate } from 'effect'
 
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 
+const MIN_MULTIWORD_NAME_PARTS = 2
+const LAST_PART_OFFSET = 1
+const INITIALS_START = 0
+const INITIALS_LENGTH = 2
+const BACKLOG_SORT_ORDER = 4
+const UNKNOWN_SORT_ORDER = 99
+const SORT_EQUAL = 0
+
 export const ISSUE_BOARD_WIDE_MIN_WIDTH = 640
 
 export interface TaskStatus {
@@ -92,10 +100,10 @@ export const categoryColor = function categoryColor(category: string | null): st
 
 export const assigneeInitials = function assigneeInitials(name: string): string {
   const parts = name.trim().split(/\s+/u)
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  if (parts.length >= MIN_MULTIWORD_NAME_PARTS) {
+    return (parts[0][0] + parts[parts.length - LAST_PART_OFFSET][0]).toUpperCase()
   }
-  return name.slice(0, 2).toUpperCase()
+  return name.slice(INITIALS_START, INITIALS_LENGTH).toUpperCase()
 }
 
 /**
@@ -178,9 +186,9 @@ export const filterIssues = function filterIssues(
 const statusSortOrder = function statusSortOrder(issue: Issue): number {
   // Backlog issues: status_category=todo, status_key=backlog → order slot 4
   if (issue.status_key === 'backlog') {
-    return 4
+    return BACKLOG_SORT_ORDER
   }
-  return STATUS_CATEGORY_ORDER[issue.status_category ?? ''] ?? 99
+  return STATUS_CATEGORY_ORDER[issue.status_category ?? ''] ?? UNKNOWN_SORT_ORDER
 }
 
 const SORT_COMPARATORS: Record<SortKey, (issue: Issue, selectedIssue: Issue) => number> = {
@@ -188,7 +196,8 @@ const SORT_COMPARATORS: Record<SortKey, (issue: Issue, selectedIssue: Issue) => 
   created_at: (issue, selectedIssue) => issue.created_at - selectedIssue.created_at,
   number: (issue, selectedIssue) => issue.number - selectedIssue.number,
   priority: (issue, selectedIssue) =>
-    (PRIORITY_ORDER[issue.priority] ?? 99) - (PRIORITY_ORDER[selectedIssue.priority] ?? 99),
+    (PRIORITY_ORDER[issue.priority] ?? UNKNOWN_SORT_ORDER) -
+    (PRIORITY_ORDER[selectedIssue.priority] ?? UNKNOWN_SORT_ORDER),
   status: (issue, selectedIssue) => statusSortOrder(issue) - statusSortOrder(selectedIssue),
   title: (issue, selectedIssue) => issue.title.localeCompare(selectedIssue.title),
   updated: (issue, selectedIssue) => issue.updated_at - selectedIssue.updated_at,
@@ -209,7 +218,7 @@ export const sortIssues = function sortIssues(
 ): Issue[] {
   const compare = SORT_COMPARATORS[sortBy]
   return [...issues].toSorted((left, right) => {
-    const diff = compare ? compare(left, right) : 0
+    const diff = compare ? compare(left, right) : SORT_EQUAL
     return sortDir === 'asc' ? diff : -diff
   })
 }

@@ -13,32 +13,45 @@ import { categoryColor } from './board-utils.ts'
 import type { Issue } from './board-utils.ts'
 import { ReviewTargetsSummary } from './review-targets-summary.tsx'
 
+const IN_REVIEW_ORDER = 0
+const IN_PROGRESS_ORDER = 1
+const TODO_ORDER = 2
+const BACKLOG_ORDER = 3
+const UNKNOWN_STATUS_ORDER = 4
+const URGENT_ORDER = 0
+const HIGH_ORDER = 1
+const MEDIUM_ORDER = 2
+const LOW_ORDER = 3
+const NONE_ORDER = 4
+const UNKNOWN_PRIORITY_ORDER = 5
+
 const OPEN_CATEGORIES = new Set(['todo', 'in_progress', 'in_review'])
 const STATUS_ORDER = new Map([
-  ['in_review', 0],
-  ['in_progress', 1],
-  ['todo', 2],
-  ['backlog', 3],
+  ['in_review', IN_REVIEW_ORDER],
+  ['in_progress', IN_PROGRESS_ORDER],
+  ['todo', TODO_ORDER],
+  ['backlog', BACKLOG_ORDER],
 ])
 const PRIORITY_ORDER = new Map([
-  ['urgent', 0],
-  ['high', 1],
-  ['medium', 2],
-  ['low', 3],
-  ['none', 4],
+  ['urgent', URGENT_ORDER],
+  ['high', HIGH_ORDER],
+  ['medium', MEDIUM_ORDER],
+  ['low', LOW_ORDER],
+  ['none', NONE_ORDER],
 ])
 
 function statusOrder(issue: Issue): number {
   if (issue.status_key === 'backlog' || issue.status_key === 'in_review') {
-    return STATUS_ORDER.get(issue.status_key) ?? 4
+    return STATUS_ORDER.get(issue.status_key) ?? UNKNOWN_STATUS_ORDER
   }
-  return STATUS_ORDER.get(issue.status_category ?? '') ?? 4
+  return STATUS_ORDER.get(issue.status_category ?? '') ?? UNKNOWN_STATUS_ORDER
 }
 
 function compareIssues(issue: Issue, selectedIssue: Issue): number {
   return (
     statusOrder(issue) - statusOrder(selectedIssue) ||
-    (PRIORITY_ORDER.get(issue.priority) ?? 5) - (PRIORITY_ORDER.get(selectedIssue.priority) ?? 5) ||
+    (PRIORITY_ORDER.get(issue.priority) ?? UNKNOWN_PRIORITY_ORDER) -
+      (PRIORITY_ORDER.get(selectedIssue.priority) ?? UNKNOWN_PRIORITY_ORDER) ||
     selectedIssue.updated_at - issue.updated_at
   )
 }
