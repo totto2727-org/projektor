@@ -5,6 +5,15 @@ import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 
+const HEX_RADIX = 16
+const HEX_DIGITS_PER_BYTE = 2
+const UUID_PREFIX_START = 0
+const UUID_PREFIX_LENGTH = 8
+const INITIAL_TASK_POSITION = 0
+const SQLITE_TRUE = 1
+const SQLITE_FALSE = 0
+const ENDED_AGENT_HEARTBEAT_OFFSET_SECONDS = 1000
+
 export interface JsonRpcResult<T = unknown> {
   jsonrpc: '2.0'
   id: unknown
@@ -18,10 +27,12 @@ export interface JsonRpcError {
 
 export const hashToken = async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return [...new Uint8Array(buf)].map((byte) => byte.toString(HEX_RADIX).padStart(HEX_DIGITS_PER_BYTE, '0')).join('')
 }
 
-export const seedWorkspace = async function seedWorkspace(slug = `test-ws-${crypto.randomUUID().slice(0, 8)}`) {
+export const seedWorkspace = async function seedWorkspace(
+  slug = `test-ws-${crypto.randomUUID().slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}`,
+) {
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
   await env.DB.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
@@ -141,7 +152,7 @@ export const seedGroupGrant = async function seedGroupGrant(
   await env.DB.prepare(
     'INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, ?, NULL, ?)',
   )
-    .bind(groupId, workspaceId, `grp-${groupId.slice(0, 8)}`, now)
+    .bind(groupId, workspaceId, `grp-${groupId.slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}`, now)
     .run()
   await env.DB.prepare('INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)')
     .bind(groupId, userId, userId, now)
@@ -198,12 +209,19 @@ export const seedTaskType = async function seedTaskType(
   }>,
 ): Promise<{ id: string; key: string; name: string }> {
   const id = opts?.id ?? crypto.randomUUID()
-  const key = opts?.key ?? `type-${id.slice(0, 8)}`
+  const key = opts?.key ?? `type-${id.slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}`
   await env.DB.prepare(
     `INSERT INTO task_types (id, workspace_id, key, name, color, icon, position, is_default)
      VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)`,
   )
-    .bind(id, workspaceId, key, opts?.name ?? key, opts?.position ?? 0, opts?.isDefault === true ? 1 : 0)
+    .bind(
+      id,
+      workspaceId,
+      key,
+      opts?.name ?? key,
+      opts?.position ?? INITIAL_TASK_POSITION,
+      opts?.isDefault === true ? SQLITE_TRUE : SQLITE_FALSE,
+    )
     .run()
   return { id, key, name: opts?.name ?? key }
 }
@@ -220,7 +238,7 @@ export const seedTaskStatus = async function seedTaskStatus(
   }>,
 ) {
   const id = crypto.randomUUID()
-  const key = opts?.key ?? `status-${id.slice(0, 8)}`
+  const key = opts?.key ?? `status-${id.slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}`
   await env.DB.prepare(
     `INSERT INTO task_statuses (id, workspace_id, key, name, category, color, position, is_default, is_review_step)
      VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
@@ -231,9 +249,9 @@ export const seedTaskStatus = async function seedTaskStatus(
       key,
       opts?.name ?? key,
       opts?.category ?? 'todo',
-      opts?.position ?? 0,
-      opts?.isDefault === true ? 1 : 0,
-      opts?.isReviewStep === true ? 1 : 0,
+      opts?.position ?? INITIAL_TASK_POSITION,
+      opts?.isDefault === true ? SQLITE_TRUE : SQLITE_FALSE,
+      opts?.isReviewStep === true ? SQLITE_TRUE : SQLITE_FALSE,
     )
     .run()
   return { id, key, name: opts?.name ?? key }
@@ -363,7 +381,7 @@ export const seedAgentLease = async function seedAgentLease(
       opts?.kind ?? 'agent',
       live ? 'active' : 'ended',
       now,
-      live ? now : now - 1000,
+      live ? now : now - ENDED_AGENT_HEARTBEAT_OFFSET_SECONDS,
       live ? SQL_NULL : now,
     )
     .run()
@@ -386,8 +404,12 @@ export const seedAgentLease = async function seedAgentLease(
 export const seedFixture = async function seedFixture(
   opts?: Readonly<{ slug?: string; email?: string; role?: string }>,
 ) {
-  const workspace = await seedWorkspace(opts?.slug ?? `ws-${crypto.randomUUID().slice(0, 8)}`)
-  const user = await seedUser(opts?.email ?? `u-${crypto.randomUUID().slice(0, 8)}@example.com`)
+  const workspace = await seedWorkspace(
+    opts?.slug ?? `ws-${crypto.randomUUID().slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}`,
+  )
+  const user = await seedUser(
+    opts?.email ?? `u-${crypto.randomUUID().slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}@example.com`,
+  )
   await seedMember(workspace.id, user.id, opts?.role ?? 'member')
   const token = await seedToken(workspace.id, user.id)
   return { workspace, user, token }
@@ -446,17 +468,23 @@ export const seedIssueFixture = async function seedIssueFixture(
  * @returns {Promise<{ workspace: Awaited<ReturnType<typeof seedWorkspace>> } & Record<'owner' | 'member' | 'viewer', { user: Awaited<ReturnType<typeof seedUser>>; token: string }>>} The workspace and the user and raw token for each role.
  */
 export const seedWorkspaceRoles = async function seedWorkspaceRoles() {
-  const workspace = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
+  const workspace = await seedWorkspace(`ws-${crypto.randomUUID().slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}`)
 
-  const ownerUser = await seedUser(`owner-${crypto.randomUUID().slice(0, 8)}@example.com`)
+  const ownerUser = await seedUser(
+    `owner-${crypto.randomUUID().slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}@example.com`,
+  )
   await seedMember(workspace.id, ownerUser.id, 'owner')
   const ownerToken = await seedToken(workspace.id, ownerUser.id)
 
-  const memberUser = await seedUser(`member-${crypto.randomUUID().slice(0, 8)}@example.com`)
+  const memberUser = await seedUser(
+    `member-${crypto.randomUUID().slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}@example.com`,
+  )
   await seedMember(workspace.id, memberUser.id, 'member')
   const memberToken = await seedToken(workspace.id, memberUser.id)
 
-  const viewerUser = await seedUser(`viewer-${crypto.randomUUID().slice(0, 8)}@example.com`)
+  const viewerUser = await seedUser(
+    `viewer-${crypto.randomUUID().slice(UUID_PREFIX_START, UUID_PREFIX_LENGTH)}@example.com`,
+  )
   await seedMember(workspace.id, viewerUser.id, 'viewer')
   const viewerToken = await seedToken(workspace.id, viewerUser.id)
 
