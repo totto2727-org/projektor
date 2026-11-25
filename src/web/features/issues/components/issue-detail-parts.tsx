@@ -1374,7 +1374,6 @@ const useAttachmentForms = function useAttachmentForms(issueId: string, workspac
       unwrapResult(await deleteIssueAttachment({ workspaceSlug, issueId, attachmentId }))
     } catch (caughtError) {
       setDeleteError(`Couldn't delete attachment: ${globalThis.String(caughtError)}`)
-      return
     }
   }
 

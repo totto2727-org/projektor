@@ -13,7 +13,9 @@ const frontendConfig = fileURLToPath(new URL('./vite.config.ts', import.meta.url
  * Worker processes re-evaluate this config, so inherit the runner's ID rather
  * than splitting their screenshots and audits into independent directories.
  */
-const runId = (process.env.PROJEKTOR_E2E_RUN_ID ??= randomUUID())
+const e2eEnvironment = process.env
+e2eEnvironment.PROJEKTOR_E2E_RUN_ID ??= randomUUID()
+const runId = e2eEnvironment.PROJEKTOR_E2E_RUN_ID
 const runDirectory = new URL(`./.runtime/${runId}/`, import.meta.url)
 const storageDirectory = fileURLToPath(new URL('storage/', runDirectory))
 

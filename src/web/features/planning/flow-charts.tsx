@@ -355,7 +355,7 @@ export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalV
 export function hashJitter(id: string): number {
   let hash = 0
   for (let index = 0; index < id.length; index++) {
-    hash = (hash * 31 + id.charCodeAt(index)) | 0
+    hash = Math.imul(hash, 31) + id.charCodeAt(index)
   }
   return ((hash >>> 0) % 1000) / 1000
 }

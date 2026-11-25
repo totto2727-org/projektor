@@ -380,10 +380,8 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
     )
     await ctx.db.batch(statements)
     const first = contended[0]
-    throw new ConflictError(
-      `Path "${first.path}" is held by issue ${first.existing.issueId}` +
-        `${first.existing.agentId ? ` (agent ${first.existing.agentId})` : ''}`,
-    )
+    const holderMessage = `Path "${first.path}" is held by issue ${first.existing.issueId}`
+    throw new ConflictError(`${holderMessage}${first.existing.agentId ? ` (agent ${first.existing.agentId})` : ''}`)
   }
 
   /*

@@ -1609,7 +1609,7 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
     const fenceMatch = FENCE_RE.exec(line)
     if (Predicate.isNotNullish(fence)) {
       // A closing fence must use the same character and be at least as long.
-      if (fenceMatch && fenceMatch[1][0] === fence[0] && fenceMatch[1].length >= fence.length) {
+      if (fenceMatch && fenceMatch[1].startsWith(fence[0]) && fenceMatch[1].length >= fence.length) {
         fence = null
       }
       return

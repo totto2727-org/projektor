@@ -21,7 +21,8 @@ export class InlineApi extends Plugin.Service<
   Readonly<{ bind: PluginContext.BindingHook<RuntimeServices.BindingServices> }>
 >()('cloudflare-runtime/plugin/ProjektorInlineApi') {}
 
-export const inlineCoreBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
+const { use: bindPlugin } = Plugin
+export const inlineCoreBinding = bindPlugin(InlineApi, (plugin) => plugin.api.bind)
 
 /**
  * Read official build artifacts unchanged. Entry module must be first for workerd.

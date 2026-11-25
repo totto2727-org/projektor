@@ -105,7 +105,7 @@ const toMcpServiceErrorWithDetails = function toMcpServiceErrorWithDetails(
   details: Record<string, unknown> | undefined,
 ): { code: number; message: string; data?: unknown } {
   if (!hasDetails(details)) {
-    return { code: -32000, message }
+    return { code: -32_000, message }
   }
   return { code: -32_000, message: `${message} (${summarizeDetails(details)})`, data: details }
 }
