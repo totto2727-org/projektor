@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button.tsx'
 import { Popover } from '@/components/ui/popover.tsx'
 import { Select } from '@/components/ui/select.tsx'
 import type { SelectOption } from '@/components/ui/select.tsx'
-import { formatTimestamp, formatTimestampDate } from '@/features/timestamp.ts'
+import { formatTimestamp } from '@/features/timestamp.ts'
 
 import {
   createWikiPage,
@@ -41,7 +41,12 @@ import { navigateFeature } from './navigation.ts'
 import { stripFrontmatter } from './render-markdown.ts'
 import { RevisionsHistory } from './revisions-history.tsx'
 import type { WikiRevision } from './revisions-history.tsx'
+import { TagChips } from './tag-chips.tsx'
+import { WikiFreshnessBadge } from './wiki-freshness-badge.tsx'
+import type { WikiFreshness } from './wiki-freshness-badge.tsx'
+import { WikiMetadataCard } from './wiki-metadata-card.tsx'
 import { SeedContext, usePublicViewer, useWikiSeed } from './wiki-seed-context.ts'
+import { WikiStatusPill } from './wiki-status-pill.tsx'
 
 /*
  * PROJ-804: pure and exported so it's unit-testable without mounting WikiPage. Turns
@@ -156,15 +161,6 @@ interface TemplateOption {
   title: string
 }
 
-/*
- * PROJ-489 (R7): computed/derived at read time, never stored — null when the page has
- * no verify_interval/status frontmatter signal at all.
- */
-interface WikiFreshness {
-  state: 'fresh' | 'stale' | 'unverified'
-  staleSince: number | null
-}
-
 interface SearchResult {
   id: string
   slug: string
@@ -269,190 +265,6 @@ const WIKI_STATUS_FILTER_OPTIONS: SelectOption[] = [
   { value: 'stale', label: 'Stale' },
   { value: 'deprecated', label: 'Deprecated' },
 ]
-
-const WIKI_STATUS_PILL_STYLE: Record<string, { bg: string; color: string }> = {
-  draft: { bg: 'var(--priority-low-bg)', color: 'var(--priority-low-text)' },
-  current: { bg: 'var(--status-done-bg)', color: 'var(--status-done)' },
-  stale: { bg: 'var(--priority-high-bg)', color: 'var(--priority-high-text)' },
-  deprecated: { bg: 'var(--danger-bg)', color: 'var(--danger-text)' },
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function WikiStatusPill({ status }: { status: string }): JSX.Element {
-  const style = WIKI_STATUS_PILL_STYLE[status] ?? {
-    bg: 'var(--priority-low-bg)',
-    color: 'var(--priority-low-text)',
-  }
-  return (
-    <span
-      className='inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold uppercase tracking-wide'
-      style={{ background: style.bg, color: style.color }}
-    >
-      {status}
-    </span>
-  )
-}
-
-/*
- * PROJ-489 (R7): "fresh" renders nothing — only stale/unverified pages need a visual
- * nudge; a page with no freshness signal at all (`null`) also renders nothing (handled
- * by the caller, not this component).
- */
-const WIKI_FRESHNESS_BADGE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  stale: { bg: 'var(--priority-high-bg)', color: 'var(--priority-high-text)', label: 'Stale' },
-  unverified: {
-    bg: 'var(--priority-low-bg)',
-    color: 'var(--priority-low-text)',
-    label: 'Unverified',
-  },
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function WikiFreshnessBadge({ state }: { state: WikiFreshness['state'] }): undefined | JSX.Element {
-  const style = WIKI_FRESHNESS_BADGE_STYLE[state]
-  if (!style) {
-    return undefined
-  }
-  return (
-    <span
-      className='inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold uppercase tracking-wide'
-      style={{ background: style.bg, color: style.color }}
-    >
-      {style.label}
-    </span>
-  )
-}
-
-const WIKI_TAG_CHIP_CLASS =
-  'inline-flex items-center px-2 py-[0.1rem] mr-1 mb-1 rounded-full text-[0.72rem] ' +
-  'bg-bg border border-border text-text-base'
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function TagChips({ tags }: { tags: string[] | undefined | null }): undefined | JSX.Element {
-  if (!globalThis.Array.isArray(tags) || Array.isArrayEmpty(tags)) {
-    return undefined
-  }
-  return (
-    <span className='inline-flex flex-wrap align-middle'>
-      {tags.map((tag) => (
-        <span key={tag} className={WIKI_TAG_CHIP_CLASS}>
-          {tag}
-        </span>
-      ))}
-    </span>
-  )
-}
-
-/*
- * PROJ-488: header card summarizing a page's frontmatter metadata (type/status/tags/
- * owners/verification). Omitted entirely for a page with no frontmatter at all, so
- * pages predating this feature (or that simply don't use it) render exactly as before.
- *
- * PROJ-489 (R7): the Verify button/freshness badge only render when the page has opted
- * into verification tracking (a verify_interval or a status set) — a page with neither
- * has freshness: null and nothing meaningful to verify against.
- */
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function WikiMetadataBadges({ page }: { page: WikiPageData }): JSX.Element {
-  return (
-    <>
-      {page.type && (
-        <span
-          className={
-            'inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold ' +
-            'uppercase tracking-wide bg-bg border border-border text-text-muted'
-          }
-        >
-          {page.type}
-        </span>
-      )}
-      {page.status && <WikiStatusPill status={page.status} />}
-      {page.freshness && page.freshness.state !== 'fresh' && <WikiFreshnessBadge state={page.freshness.state} />}
-      <TagChips tags={page.tags} />
-      {Array.isArrayNonEmpty(page.owners) && <span>Owners: {page.owners.join(', ')}</span>}
-      {page.verified_at && (
-        <span>
-          Verified {formatTimestampDate(page.verified_at)}
-          {page.verified_by ? ` by ${page.verified_by}` : ''}
-        </span>
-      )}
-    </>
-  )
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function WikiVerifyControls({
-  hasVerificationSignal,
-  onVerify,
-  verifying,
-  verifyError,
-  isPublicViewer,
-}: {
-  hasVerificationSignal: boolean
-  onVerify: () => void
-  verifying: boolean
-  verifyError: string | undefined
-  isPublicViewer: boolean
-}): JSX.Element {
-  return (
-    <>
-      {hasVerificationSignal && !isPublicViewer && (
-        <Button variant='outline' size='sm' onClick={onVerify} disabled={verifying}>
-          {verifying ? 'Verifying…' : 'Verify'}
-        </Button>
-      )}
-      {verifyError && (
-        <span role='alert' className='text-danger-text'>
-          {verifyError}
-        </span>
-      )}
-    </>
-  )
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function WikiMetadataCard({
-  page,
-  onVerify,
-  verifying,
-  verifyError,
-  isPublicViewer,
-}: {
-  page: WikiPageData
-  onVerify: () => void
-  verifying: boolean
-  verifyError: string | undefined
-  isPublicViewer: boolean
-}): undefined | JSX.Element {
-  const hasMetadata =
-    Boolean(page.type) ||
-    Boolean(page.status) ||
-    Array.isArrayNonEmpty(page.tags) ||
-    Array.isArrayNonEmpty(page.owners) ||
-    Boolean(page.verified_at)
-  const hasVerificationSignal = Boolean(page.verify_interval) || Boolean(page.status)
-  if (!hasMetadata && !hasVerificationSignal) {
-    return undefined
-  }
-
-  return (
-    <div
-      className={
-        'flex flex-wrap items-center gap-2 mb-4 p-3 border border-border rounded-lg ' +
-        'bg-surface text-[0.8rem] text-text-muted'
-      }
-    >
-      <WikiMetadataBadges page={page} />
-      <WikiVerifyControls
-        hasVerificationSignal={hasVerificationSignal}
-        onVerify={onVerify}
-        verifying={verifying}
-        verifyError={verifyError}
-        isPublicViewer={isPublicViewer}
-      />
-    </div>
-  )
-}
 
 interface TreeNode {
   id: string
