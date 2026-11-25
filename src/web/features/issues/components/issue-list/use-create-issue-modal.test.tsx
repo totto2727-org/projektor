@@ -52,7 +52,7 @@ describe('useCreateIssueModal native ActionState failures', () => {
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/API is currently unreachable/i)
-    expect((screen.getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe('Fix the thing')
+    expect(screen.getByPlaceholderText<HTMLInputElement>('Issue title').value).toBe('Fix the thing')
     const formData = vi.mocked(createIssue).mock.calls[0][1]
     expect(formData.get('title')).toBe('Fix the thing')
     expect(formData.get('projectId')).toBe('p1')
@@ -92,11 +92,11 @@ describe('useCreateIssueModal native ActionState failures', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     fireEvent.click(screen.getByRole('button', { name: 'New issue' }))
     expect(screen.queryByRole('alert')).toBeNull()
-    expect((screen.getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe('')
+    expect(screen.getByPlaceholderText<HTMLInputElement>('Issue title').value).toBe('')
     fireEvent.input(screen.getByPlaceholderText('Issue title'), { target: { value: 'Second draft' } })
     await submitCreateForm()
     const targetElement = await screen.findByRole('alert')
     expect(targetElement.textContent).toContain('Second attempt failed')
-    expect((screen.getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe('Second draft')
+    expect(screen.getByPlaceholderText<HTMLInputElement>('Issue title').value).toBe('Second draft')
   })
 })

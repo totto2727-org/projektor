@@ -155,7 +155,7 @@ describe('generated UI compatibility adapters', () => {
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('done'))
     rerender(<Select options={options} value='done' onChange={onChange} ariaLabel='Status' disabled />)
     expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('Done')
-    expect((screen.getByRole('combobox', { name: 'Status' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('combobox', { name: 'Status' }).disabled).toBe(true)
   })
 
   test('supports legacy positioned popovers, refs and named framework Portal', async () => {

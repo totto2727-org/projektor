@@ -90,7 +90,7 @@ describe('canonical issues SSR refresh', () => {
       />,
     )
     await waitFor(() => expect(screen.getAllByText('Canonical replacement').length).toBeGreaterThan(0))
-    expect((within(screen.getByRole('dialog')).getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe(
+    expect(within(screen.getByRole('dialog')).getByPlaceholderText<HTMLInputElement>('Issue title').value).toBe(
       'Unsaved create title',
     )
     expect(screen.queryByText('Original issue')).toBeNull()
@@ -138,7 +138,7 @@ describe('canonical issues SSR refresh', () => {
         initialData={{ ...data, currentUserId: 'user-b' }}
       />,
     )
-    await waitFor(() => expect((screen.getByPlaceholderText('Add a comment…') as HTMLTextAreaElement).value).toBe(''))
+    await waitFor(() => expect(screen.getByPlaceholderText<HTMLTextAreaElement>('Add a comment…').value).toBe(''))
     view.rerender(<IssueDetailPage scope={scope} workspaceSlug={workspace.slug} initialData={data} />)
     await waitFor(() => expect(screen.getByDisplayValue('Private unsent comment')).toBeInstanceOf(Element))
     expect(fetch).not.toHaveBeenCalled()

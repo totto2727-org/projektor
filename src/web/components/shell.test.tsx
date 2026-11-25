@@ -90,7 +90,7 @@ describe('generated Base UI Shell', () => {
         <h1>Help</h1>
       </Shell>,
     )
-    const form = (screen.getByRole('button', { name: 'Log in' }) as HTMLButtonElement).form!
+    const form = screen.getByRole<HTMLButtonElement>('button', { name: 'Log in' }).form!
     expect(form.getAttribute('method')).toBe('post')
     expect(form.getAttribute('action')).toBe('/auth/session')
     expect(new FormData(form).get('action')).toBe('login')

@@ -129,9 +129,9 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'Retry team' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Group conflict'))
-    expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe('Retry team')
+    expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe('Retry team')
     fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
-    await waitFor(() => expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe(''))
+    await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe(''))
   })
 
   test('never fetches primary lists/details and preserves all active group form drafts on canonical refresh', () => {
@@ -152,9 +152,9 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.getAllByRole('button', { name: 'Server Team' })).toHaveLength(2)
     expect(screen.getByLabelText('Remove Bob')).toBeInstanceOf(Element)
     expect(screen.queryByLabelText('Remove Alice')).toBeNull()
-    expect((screen.getByLabelText('Group name') as HTMLInputElement).value).toBe('Unsaved rename')
-    expect((screen.getByLabelText('Description') as HTMLTextAreaElement).value).toBe('Unsaved description')
-    expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe('Unsaved new group')
+    expect(screen.getByLabelText<HTMLInputElement>('Group name').value).toBe('Unsaved rename')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Description').value).toBe('Unsaved description')
+    expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe('Unsaved new group')
     expect(request).not.toHaveBeenCalled()
   })
 
@@ -163,9 +163,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
     const submitted = async (operation: string, fields: object): Promise<void> => {
       await waitFor(() => expect(request).toHaveBeenLastCalledWith(operation, { ...groupScope, ...fields }))
-      await waitFor(() =>
-        expect((screen.getByRole('button', { name: 'Close' }) as HTMLButtonElement).disabled).toBe(false),
-      )
+      await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Close' }).disabled).toBe(false))
     }
     fireEvent.change(screen.getByLabelText('Group name'), { target: { value: ' Renamed ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
@@ -205,7 +203,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
         workspaceSlug: 'alpha',
       }),
     )
-    await waitFor(() => expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe(''))
+    await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe(''))
     const count = request.mock.calls.length
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
     expect(request.mock.calls).toHaveLength(count)
@@ -254,7 +252,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getByRole('radio', { name: 'Read-only' }))
     view.rerender(<TokenManager {...props} initialTokens={[token('Server token')]} />)
     expect(screen.getAllByText('Server token')).toHaveLength(2)
-    expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('Unsaved agent')
+    expect(screen.getByLabelText<HTMLInputElement>('Name *').value).toBe('Unsaved agent')
     expect(request).not.toHaveBeenCalled()
     request.mockResolvedValueOnce({
       ok: true,
@@ -292,7 +290,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.change(screen.getByLabelText('New group name'), { target: { value: '  ' } })
     await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Create group' }) as HTMLButtonElement).disabled).toBe(true),
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create group' }).disabled).toBe(true),
     )
     expect(screen.getByRole('alert').textContent).toContain('Group name is required')
     view.unmount()
@@ -303,7 +301,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
       target: { value: '1.5' },
     })
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('whole number'))
-    expect((screen.getByRole('button', { name: 'Create token' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create token' }).disabled).toBe(true)
     expect(request).not.toHaveBeenCalled()
   })
 

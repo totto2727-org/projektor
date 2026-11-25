@@ -244,7 +244,7 @@ describe('wiki delayed draft lifecycle', () => {
     await act(async () => {
       publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
     })
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Newer B')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Newer B')
     await debounce()
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -292,7 +292,7 @@ describe('wiki delayed draft lifecycle', () => {
     await act(async () => {
       deletion.resolve({ ok: false, status: 503, message: 'Unavailable' })
     })
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Local B')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Local B')
     expect(screen.getByRole('button', { name: 'Restore' })).toBeInstanceOf(Element)
     expect(screen.getByText(/Save failed/u)).toBeInstanceOf(Element)
   })
@@ -314,7 +314,7 @@ describe('wiki delayed draft lifecycle', () => {
     await act(async () => {
       deletion.resolve({ ok: true, value: { ok: true, revision: 'discard-head' } })
     })
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Newer B')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Newer B')
     expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull()
     await debounce()
     expect(saveWikiDraft).toHaveBeenCalledWith(
@@ -473,7 +473,7 @@ describe('wiki server prop adoption', () => {
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Unsaved draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Paste inline image' }))
     await waitFor(() => {
-      expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe(
+      expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe(
         'Unsaved draft\n![inline](/api/files/inline-file?workspace=team)',
       )
     })
@@ -498,7 +498,7 @@ describe('wiki server prop adoption', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Paste inline image' }))
     })
     expect(uploadInlineImage).toHaveBeenCalledOnce()
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Keep my draft')
     expect(saveWikiPage).not.toHaveBeenCalled()
   })
 
@@ -511,7 +511,7 @@ describe('wiki server prop adoption', () => {
       screen.findByText('Use a title between 1 and 300 characters and content at most 500000 characters.'),
     ).resolves.toBeInstanceOf(Element)
     expect(saveWikiPage).not.toHaveBeenCalled()
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Keep my draft')
   })
 
   test('retains editor content and exposes original overwrite controls on a revision conflict', async () => {
@@ -522,7 +522,7 @@ describe('wiki server prop adoption', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await expect(screen.findByRole('button', { name: 'Overwrite with mine' })).resolves.toBeInstanceOf(Element)
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('My conflicted body')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('My conflicted body')
   })
 
   test('protects unsaved native navigation while allowing same-URL framework refresh', () => {
@@ -559,7 +559,7 @@ describe('wiki server prop adoption', () => {
         }}
       />,
     )
-    expect((screen.getByLabelText('Page title') as HTMLInputElement).value).toBe('Unsaved title')
+    expect(screen.getByLabelText<HTMLInputElement>('Page title').value).toBe('Unsaved title')
     view.unmount()
   })
 
@@ -587,6 +587,6 @@ describe('wiki server prop adoption', () => {
       await vi.advanceTimersByTimeAsync(2000)
     })
     expect(saveWikiDraft).toHaveBeenCalledOnce()
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Unsaved body')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Unsaved body')
   })
 })

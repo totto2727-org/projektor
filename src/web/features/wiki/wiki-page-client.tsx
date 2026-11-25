@@ -900,7 +900,7 @@ function WikiFilterBar({
         maxLength={2549}
         value={filterTags}
         onChange={(event) => {
-          onFilterTagsChange((event.target as HTMLInputElement).value)
+          onFilterTagsChange(event.target.value)
         }}
         placeholder='Filter by tags (comma-separated)…'
         className='w-full px-3 py-[0.375rem] border border-border rounded text-sm bg-bg text-text-base box-border'
@@ -1010,7 +1010,7 @@ function WikiSidebar({
           maxLength={2000}
           value={searchQuery}
           onChange={(event) => {
-            onSearchQueryChange((event.target as HTMLInputElement).value)
+            onSearchQueryChange(event.target.value)
           }}
           placeholder='Search pages…'
           className='w-full px-3 py-[0.375rem] mb-3 border border-border rounded text-sm bg-bg text-text-base box-border'
@@ -1117,7 +1117,7 @@ function CreatePageForm({
           type='text'
           value={title}
           onChange={(event) => {
-            onTitleChange((event.target as HTMLInputElement).value)
+            onTitleChange(event.target.value)
           }}
           placeholder='Page title'
           className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border text-base'
@@ -1132,7 +1132,7 @@ function CreatePageForm({
           type='text'
           value={slug}
           onChange={(event) => {
-            onSlugChange((event.target as HTMLInputElement).value)
+            onSlugChange(event.target.value)
           }}
           placeholder='auto-derived-from-title'
           className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border font-mono'
@@ -1538,7 +1538,7 @@ function PageHeader({
           type='text'
           value={editTitle}
           onChange={(event) => {
-            onEditTitleChange((event.target as HTMLInputElement).value)
+            onEditTitleChange(event.target.value)
           }}
           aria-label='Page title'
           className='flex-1 px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border text-2xl font-bold'

@@ -138,7 +138,7 @@ function SprintEditFields({
           <select
             value={sprintEditStatus}
             onChange={(event) => {
-              setSprintEditStatus((event.target as HTMLSelectElement).value as 'planned' | 'active' | 'completed')
+              setSprintEditStatus(event.target.value as 'planned' | 'active' | 'completed')
             }}
             className={`cursor-pointer ${SPRINT_EDIT_INPUT_CLASS}`}
           >

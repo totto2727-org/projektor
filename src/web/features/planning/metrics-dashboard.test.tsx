@@ -153,7 +153,7 @@ describe('full original metrics surfaces', () => {
     const next = metrics()
     next.leadTime = { count: 77, avg: 7200, p50: 7200, p90: 7200 }
     view.rerender(<MetricsDashboard {...props} initialMetrics={next} />)
-    expect((screen.getByLabelText('From date') as HTMLInputElement).value).toBe('2026-08-01')
+    expect(screen.getByLabelText<HTMLInputElement>('From date').value).toBe('2026-08-01')
     expect(screen.getByText('77')).toBeInstanceOf(Element)
     const form = screen.getByRole('button', { name: 'Apply' }).closest('form')
     expect(form?.method).toBe('get')

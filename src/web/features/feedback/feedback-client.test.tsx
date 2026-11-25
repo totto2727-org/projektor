@@ -123,7 +123,7 @@ describe('feedback hydrated original controls', () => {
     )
     expect(screen.getByRole('button', { name: 'Create source' }).hasAttribute('disabled')).toBe(true)
     expect(createFeedbackSource).not.toHaveBeenCalled()
-    expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('New source')
+    expect(screen.getByLabelText<HTMLInputElement>('Name *').value).toBe('New source')
   })
 
   test('preserves original Arrow/Home/End roving tab keyboard behavior', () => {

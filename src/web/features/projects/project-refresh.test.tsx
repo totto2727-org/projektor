@@ -187,7 +187,7 @@ describe('project server-prop refresh', () => {
         />,
       ),
     )
-    expect((screen.getByLabelText('Project description') as HTMLTextAreaElement).value).toBe('Unsaved draft')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Project description').value).toBe('Unsaved draft')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     return waitFor(() => expect(screen.getByText('Canonical server description')).toBeInstanceOf(Element))
