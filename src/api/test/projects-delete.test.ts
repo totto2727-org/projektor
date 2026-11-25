@@ -10,6 +10,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { createWikiPage, updateWikiPage } from '#commands/wiki.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -34,6 +35,7 @@ const count = async function count(sql: string, ...params: unknown[]): Promise<n
 
 describe('covers PROJ-819: deleteProject cleans up explicitly', () => {
   test("removes the project's issues, wiki pages and their dependents; detaches outside references", async () => {
+    expect.hasAssertions()
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const ctx: ServiceCtx = {
       db: env.DB,
@@ -80,20 +82,23 @@ describe('covers PROJ-819: deleteProject cleans up explicitly', () => {
     })
     expect(res.status).toBe(200)
 
-    await expect(count('SELECT COUNT(*) AS n FROM issues WHERE project_id = ?', doomed.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issue.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issue.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issue.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?', field.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM issues_fts WHERE issue_id = ?', issue.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', doomed.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?', doomed.id)).resolves.toBe(
-      0,
-    )
-    await expect(count('SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?', doomed.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM wiki_fts WHERE page_id = ?', page.id)).resolves.toBe(0)
-    await expect(count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', doomed.id)).resolves.toBe(0)
+    const removedRows = [
+      ['SELECT COUNT(*) AS n FROM issues WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?', field.id],
+      ['SELECT COUNT(*) AS n FROM issues_fts WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id],
+      ['SELECT COUNT(*) AS n FROM wiki_fts WHERE page_id = ?', page.id],
+      ['SELECT COUNT(*) AS n FROM projects WHERE id = ?', doomed.id],
+    ] as const
+    await runInOrder(removedRows, async ([query, recordId]) => {
+      await expect(count(query, recordId)).resolves.toBe(0)
+    })
 
     // Outside references are detached, not left dangling.
     const childRow = await env.DB.prepare('SELECT parent_id AS p FROM issues WHERE id = ?')

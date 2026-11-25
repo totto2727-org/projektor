@@ -3,6 +3,7 @@ import { assert, describe, expect, test } from 'vite-plus/test'
 import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
@@ -105,19 +106,22 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
     const summary = await readNativeJson(res, ApiResults.apiGetFeedbackSummary)
 
     expect(summary).toHaveLength(1)
-    expect(summary[0].sourceName).toBe('Widget A')
-    expect(summary[0].totalCount).toBe(5)
+    expect(summary[0]).toMatchObject({ sourceName: 'Widget A', totalCount: 5 })
     expect(summary[0].versions).toHaveLength(2)
 
-    expect(summary[0].versions[0].appVersion).toBe('v1.1.0')
-    expect(summary[0].versions[0].avgFiveStar).toBe(4.5)
-    expect(summary[0].versions[0].thumbsUpPct).toBeNull()
-    expect(summary[0].versions[0].withCommentCount).toBe(0)
+    expect(summary[0].versions[0]).toMatchObject({
+      appVersion: 'v1.1.0',
+      avgFiveStar: 4.5,
+      thumbsUpPct: JSON_NULL,
+      withCommentCount: 0,
+    })
 
-    expect(summary[0].versions[1].appVersion).toBe('v1.0.0')
-    expect(summary[0].versions[1].thumbsUpPct).toBe(67)
-    expect(summary[0].versions[1].avgFiveStar).toBeNull()
-    expect(summary[0].versions[1].withCommentCount).toBe(1)
+    expect(summary[0].versions[1]).toMatchObject({
+      appVersion: 'v1.0.0',
+      avgFiveStar: JSON_NULL,
+      thumbsUpPct: 67,
+      withCommentCount: 1,
+    })
   })
 
   test('groups rows with a null app_version under a null bucket', async () => {

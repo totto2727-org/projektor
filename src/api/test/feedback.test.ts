@@ -81,8 +81,7 @@ describe('feedback sources REST', () => {
       ),
     )
     expect(list).toHaveLength(1)
-    expect(list[0].name).toBe('NPS')
-    expect(list[0].isActive).toBe(true)
+    expect(list[0]).toMatchObject({ isActive: true, name: 'NPS' })
     expect(list[0].tokenPreview.length).toBeLessThan(token.length)
     expect(JSON.stringify(list)).not.toContain(token)
   })
