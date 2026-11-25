@@ -1086,7 +1086,7 @@ const applyStatusFields = async function applyStatusFields(
   ])
 }
 
-function formatCompletionReportComment(report: CompletionReport): string {
+const formatCompletionReportComment = function formatCompletionReportComment(report: CompletionReport): string {
   const lines = [
     '**Completion report**',
     '',

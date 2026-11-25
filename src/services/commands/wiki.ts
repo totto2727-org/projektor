@@ -1865,7 +1865,7 @@ const resolveSectionPatchContent = async function resolveSectionPatchContent(
  */
 const PATCH_RETRIES = 3
 
-async function patchWikiPageOnce(
+const patchWikiPageOnce = async function patchWikiPageOnce(
   ctx: ServiceCtx,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
   data: PatchWikiPageInput,

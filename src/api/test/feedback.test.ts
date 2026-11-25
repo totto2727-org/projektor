@@ -174,7 +174,7 @@ const mintSource = async function mintSource(
 
 // RATE_LIMIT_FEEDBACK_MAX and _IP_MAX are both 5 in vite.config.ts — seed to the cap.
 // (seedRateLimitCounter waits out the tail of a window first — PROJ-637.)
-async function seedRateLimitAtCap(key: string): Promise<void> {
+const seedRateLimitAtCap = async function seedRateLimitAtCap(key: string): Promise<void> {
   await seedRateLimitCounter(key, 5)
 }
 

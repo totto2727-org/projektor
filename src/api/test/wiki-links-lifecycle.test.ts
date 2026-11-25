@@ -89,14 +89,14 @@ const backlinks = async function backlinks(
   return res.json()
 }
 
-async function targetOf(sourceId: string): Promise<string | null> {
+const targetOf = async function targetOf(sourceId: string): Promise<string | null> {
   const row = await env.DB.prepare('SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?')
     .bind(sourceId)
     .first<{ t: string | null }>()
   return row?.t ?? null
 }
 
-async function targetsOf(sourceId: string): Promise<(string | null)[]> {
+const targetsOf = async function targetsOf(sourceId: string): Promise<(string | null)[]> {
   const rows = await env.DB.prepare(
     'SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ? ORDER BY target_page_id',
   )
