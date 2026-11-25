@@ -60,8 +60,8 @@ const wrapD1CapturingReads = function wrapD1CapturingReads(db: D1Database, captu
                     get(boundTarget, boundProp, boundReceiver) {
                       const orig = Reflect.get(boundTarget, boundProp, boundReceiver)
                       if (Predicate.isString(boundProp) && READ_METHODS.has(boundProp)) {
-                        return async (...a: unknown[]) => {
-                          const result = await orig.apply(boundTarget, a)
+                        return async (...queryArgs: unknown[]) => {
+                          const result = await orig.apply(boundTarget, queryArgs)
                           captured.push(boundProp === 'all' ? (result as { results: unknown[] }).results : result)
                           return result
                         }
@@ -105,8 +105,8 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
-  return 'error' in r
+const isMcpError = function isMcpError(rpcResult: JsonRpcResult | JsonRpcError): rpcResult is JsonRpcError {
+  return 'error' in rpcResult
 }
 
 const WikiTags = Schema.Array(Schema.String).pipe(Schema.mutable)
@@ -221,7 +221,7 @@ describe('wiki API', () => {
         listRes,
         Schema.Array(Schema.Struct({ slug: Schema.String, url: Schema.String })).pipe(Schema.mutable),
       )
-      expect(list.find((p) => p.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
+      expect(list.find((page) => page.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
 
       const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', {
         headers: authHeaders(token, slug),
@@ -230,7 +230,7 @@ describe('wiki API', () => {
         treeRes,
         Schema.Array(Schema.Struct({ slug: Schema.String, url: Schema.String })).pipe(Schema.mutable),
       )
-      expect(tree.find((p) => p.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
+      expect(tree.find((page) => page.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
     })
 
     test('omits projectId from the url for a project-scoped page (slugs are workspace-unique, PROJ-483)', async () => {
@@ -528,8 +528,8 @@ describe('wiki API', () => {
     })
     const page2Results = await readNativeJson(page2, IdListResponse)
     expect(page2Results).toHaveLength(1)
-    expect(page2Results.map((r) => r.id)).not.toContain(page1Results[0].id)
-    expect(page2Results.map((r) => r.id)).not.toContain(page1Results[1].id)
+    expect(page2Results.map((resultPage) => resultPage.id)).not.toContain(page1Results[0].id)
+    expect(page2Results.map((resultPage) => resultPage.id)).not.toContain(page1Results[1].id)
   })
 
   test('handles GET /api/wiki/search paginates deterministically when results tie in rank', async () => {
@@ -561,14 +561,14 @@ describe('wiki API', () => {
     const first = await fetchAll()
     await resetRateLimits()
     const second = await fetchAll()
-    expect(first.map((r) => r.id)).toStrictEqual(second.map((r) => r.id))
+    expect(first.map((resultPage) => resultPage.id)).toStrictEqual(second.map((resultPage) => resultPage.id))
 
     await resetRateLimits()
     const page2 = await fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2&offset=2', {
       headers: authHeaders(token, slug),
     })
     const page2Results = await readNativeJson(page2, IdListResponse)
-    const allIds = [...first.map((r) => r.id), ...page2Results.map((r) => r.id)]
+    const allIds = [...first.map((resultPage) => resultPage.id), ...page2Results.map((resultPage) => resultPage.id)]
     expect(new Set(allIds).size).toBe(allIds.length)
     expect(allIds).toHaveLength(3)
   })
@@ -809,7 +809,7 @@ describe('wiki API', () => {
     const strictRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await strictRes.json()) as { title: string }[]).map((p) => p.title)).toStrictEqual(['Scoped Page'])
+    expect(((await strictRes.json()) as { title: string }[]).map((page) => page.title)).toStrictEqual(['Scoped Page'])
 
     const widenedRes = await fetchNativeApi(
       `http://localhost/api/wiki?projectId=${project.id}&includeWorkspacePages=1`,
@@ -817,7 +817,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await widenedRes.json()) as { title: string }[]).map((p) => p.title).sort()).toStrictEqual([
+    expect(((await widenedRes.json()) as { title: string }[]).map((page) => page.title).sort()).toStrictEqual([
       'Scoped Page',
       'Shared Page',
     ])
@@ -828,7 +828,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await treeRes.json()) as { title: string }[]).map((p) => p.title).sort()).toStrictEqual([
+    expect(((await treeRes.json()) as { title: string }[]).map((page) => page.title).sort()).toStrictEqual([
       'Scoped Page',
       'Shared Page',
     ])
@@ -843,7 +843,7 @@ describe('wiki API', () => {
     const res = await fetchNativeApi(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await res.json()) as { title: string }[]).map((p) => p.title)).toStrictEqual(['Shared Page'])
+    expect(((await res.json()) as { title: string }[]).map((page) => page.title)).toStrictEqual(['Shared Page'])
   })
 
   test('handles POST /api/wiki stores projectId and GET returns it', async () => {
@@ -1023,10 +1023,10 @@ describe('wiki API', () => {
       method: 'POST',
     })
     expect(yRes.status).toBe(201)
-    const y = await readNativeJson(yRes, IdResponse)
+    const cycleChild = await readNativeJson(yRes, IdResponse)
 
     // Seed the cycle: X's parent is now Y (Y's parent is already X).
-    await env.DB.prepare('UPDATE wiki_pages SET parent_id = ? WHERE id = ?').bind(y.id, responseBody.id).run()
+    await env.DB.prepare('UPDATE wiki_pages SET parent_id = ? WHERE id = ?').bind(cycleChild.id, responseBody.id).run()
 
     await resetRateLimits()
     const otherRes = await fetchNativeApi('http://localhost/api/wiki', {
@@ -1078,7 +1078,7 @@ describe('wiki API', () => {
       }),
     ).pipe(Schema.mutable)
     const tree = await readNativeJson(treeRes, treeShape)
-    const rootNode = tree.find((n) => n.id === root.id)
+    const rootNode = tree.find((node) => node.id === root.id)
     expect(rootNode).toBeDefined()
     expect(rootNode!.children).toHaveLength(1)
     expect(rootNode!.children[0].id).toBe(child.id)
@@ -1098,17 +1098,17 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const b = await readNativeJson(bRes, SlugResponse)
+    const childPage = await readNativeJson(bRes, SlugResponse)
 
     // Reparent B under A
-    const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
+    const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${childPage.slug}`, {
       body: JSON.stringify({ parentId: responseBody.id }),
       headers: authHeaders(token, slug),
       method: 'PUT',
     })
     expect(updateRes.status).toBe(200)
 
-    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${childPage.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = await readNativeJson(getRes, Schema.Struct({ parent_id: Schema.String }))
@@ -1187,8 +1187,8 @@ describe('wiki API', () => {
     await expect(delRes.json()).resolves.toStrictEqual({ deletedCount: 3, linkedByCount: 0, ok: true })
 
     await resetRateLimits()
-    for (const s of [parent.slug, child.slug, grandchild.slug]) {
-      const res = await fetchNativeApi(`http://localhost/api/wiki/${s}`, {
+    for (const pageSlug of [parent.slug, child.slug, grandchild.slug]) {
+      const res = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
         headers: ownerHeaders,
       })
       expect(res.status).toBe(404)
@@ -1995,19 +1995,19 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     const listed = await readNativeJson(listRes, TitleListResponse)
-    expect(listed.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
+    expect(listed.map((resultPage) => resultPage.title)).toStrictEqual(['Freeform Filter Whitepaper'])
 
     const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=latency&type=whitepaper', {
       headers: authHeaders(token, slug),
     })
     const found = await readNativeJson(searchRes, TitleListResponse)
-    expect(found.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
+    expect(found.map((resultPage) => resultPage.title)).toStrictEqual(['Freeform Filter Whitepaper'])
 
     const mcpListed = mcpData(
       await mcpCall(workspaceId, 'list_wiki_pages', { type: 'whitepaper' }, authHeaders(token, slug)),
       TitleListResponse,
     )
-    expect(mcpListed.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
+    expect(mcpListed.map((resultPage) => resultPage.title)).toStrictEqual(['Freeform Filter Whitepaper'])
   })
 
   test('rejects an invalid `status` enum value with a structured error', async () => {
@@ -2217,13 +2217,13 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     const byTypeResults = await readNativeJson(byType, TitleListResponse)
-    expect(byTypeResults.map((r) => r.title)).toStrictEqual(['Filter Adr'])
+    expect(byTypeResults.map((resultPage) => resultPage.title)).toStrictEqual(['Filter Adr'])
 
     const byStatus = await fetchNativeApi('http://localhost/api/wiki?status=current', {
       headers: authHeaders(token, slug),
     })
     const byStatusResults = await readNativeJson(byStatus, TitleListResponse)
-    expect(byStatusResults.map((r) => r.title)).toStrictEqual(['Filter Runbook'])
+    expect(byStatusResults.map((resultPage) => resultPage.title)).toStrictEqual(['Filter Runbook'])
   })
 
   test('covers REST GET /api/wiki?tags= filters by any-of tag match', async () => {
@@ -2273,7 +2273,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       await mcpCall(workspaceId, 'list_wiki_pages', { tags: ['ops'] }, authHeaders(token, slug)),
       TitleListResponse,
     )
-    expect(result.map((r) => r.title)).toStrictEqual(['Mcp Tagged Ops'])
+    expect(result.map((resultPage) => resultPage.title)).toStrictEqual(['Mcp Tagged Ops'])
   })
 
   test('covers REST GET /api/wiki/search filters by type/status/tags on top of the FTS match', async () => {
@@ -4022,7 +4022,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       res,
       Schema.Array(Schema.Struct({ slug: Schema.String, title: Schema.String })).pipe(Schema.mutable),
     )
-    expect(backlinks.map((b) => b.slug).sort()).toStrictEqual(['alpha', 'beta'])
+    expect(backlinks.map((backlink) => backlink.slug).sort()).toStrictEqual(['alpha', 'beta'])
   })
 
   test('a same-workspace wiki URL link resolves a backlink', async () => {
@@ -4033,7 +4033,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(res, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toStrictEqual(['gamma'])
+    expect(backlinks.map((backlink) => backlink.slug)).toStrictEqual(['gamma'])
   })
 
   test("covers PROJ-517/512: a multi-segment /wiki/ URL is never indexed against the first segment's page", async () => {
@@ -4077,7 +4077,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(backlinksRes, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toStrictEqual(['theta'])
+    expect(backlinks.map((backlink) => backlink.slug)).toStrictEqual(['theta'])
   })
 
   test('an unresolved [[Target]] is stored as a broken link, not a backlink', async () => {
@@ -4157,7 +4157,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(res, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toStrictEqual(['linker'])
+    expect(backlinks.map((backlink) => backlink.slug)).toStrictEqual(['linker'])
   })
 
   test('editing content to remove a link removes the backlink; a new link adds one', async () => {
@@ -4195,7 +4195,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(res, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toStrictEqual(['title-change-source'])
+    expect(backlinks.map((backlink) => backlink.slug)).toStrictEqual(['title-change-source'])
   })
 
   test('handles DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
@@ -4280,8 +4280,8 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       brokenRes,
       Schema.Array(Schema.Struct({ targetTitle: Schema.String })).pipe(Schema.mutable),
     )
-    expect(broken.some((b) => b.targetTitle === 'Nonexistent A')).toBe(false)
-    expect(broken.some((b) => b.targetTitle === 'Nonexistent B')).toBe(false)
+    expect(broken.some((brokenLink) => brokenLink.targetTitle === 'Nonexistent A')).toBe(false)
+    expect(broken.some((brokenLink) => brokenLink.targetTitle === 'Nonexistent B')).toBe(false)
   })
 
   test('backlinks and broken links never cross workspace boundaries', async () => {
@@ -4313,9 +4313,11 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const brokenB = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(workspaceB.token, workspaceB.workspace.slug),
     })
-    expect(((await brokenB.json()) as { targetTitle: string }[]).some((b) => b.targetTitle === 'Shared Title')).toBe(
-      true,
-    )
+    expect(
+      ((await brokenB.json()) as { targetTitle: string }[]).some(
+        (brokenLink) => brokenLink.targetTitle === 'Shared Title',
+      ),
+    ).toBe(true)
 
     const sharedA = await fetchNativeApi('http://localhost/api/wiki/shared-title', {
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
@@ -4367,7 +4369,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     const backlinks = await readNativeJson(postBacklinks, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toStrictEqual(['legacy-source'])
+    expect(backlinks.map((backlink) => backlink.slug)).toStrictEqual(['legacy-source'])
   })
 
   test('backfill_wiki_links is rejected for a non-admin member', async () => {
@@ -4477,7 +4479,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(backlinksRes, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toStrictEqual(['atomic-source'])
+    expect(backlinks.map((backlink) => backlink.slug)).toStrictEqual(['atomic-source'])
 
     await resetRateLimits()
     const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=links+anywhere', {
@@ -4905,8 +4907,8 @@ describe('wiki freshness model (PROJ-489)', () => {
       await mcpCall(workspaceId, 'list_stale_pages', {}, authHeaders(token, slug)),
       TitleListResponse,
     )
-    expect(result.map((r) => r.title)).toContain('MCP Overdue Page')
-    expect(result.map((r) => r.title)).not.toContain('MCP Fresh Page')
+    expect(result.map((resultPage) => resultPage.title)).toContain('MCP Overdue Page')
+    expect(result.map((resultPage) => resultPage.title)).not.toContain('MCP Fresh Page')
   })
 })
 
@@ -5079,14 +5081,14 @@ describe('wiki page templates (PROJ-491)', () => {
       headers: authHeaders(token, slug),
     })
     const defaultResults = await readNativeJson(defaultRes, TitleListResponse)
-    expect(defaultResults.map((r) => r.title)).toContain('Ordinary Runbook')
-    expect(defaultResults.map((r) => r.title)).not.toContain('Runbook Template')
+    expect(defaultResults.map((resultPage) => resultPage.title)).toContain('Ordinary Runbook')
+    expect(defaultResults.map((resultPage) => resultPage.title)).not.toContain('Runbook Template')
 
     const includedRes = await fetchNativeApi('http://localhost/api/wiki?includeTemplates=true', {
       headers: authHeaders(token, slug),
     })
     const includedResults = await readNativeJson(includedRes, TitleListResponse)
-    expect(includedResults.map((r) => r.title)).toContain('Runbook Template')
+    expect(includedResults.map((resultPage) => resultPage.title)).toContain('Runbook Template')
   })
 
   test('list_stale_pages excludes template pages even with an overdue verify_interval', async () => {
@@ -5147,7 +5149,7 @@ describe('wiki page templates (PROJ-491)', () => {
       await mcpCall(workspaceId, 'list_wiki_templates', {}, authHeaders(token, slug)),
       TitleListResponse,
     )
-    expect(result.map((r) => r.title)).toStrictEqual(['Runbook Template'])
+    expect(result.map((resultPage) => resultPage.title)).toStrictEqual(['Runbook Template'])
   })
 })
 
@@ -5193,7 +5195,7 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
       }),
     ).pipe(Schema.mutable)
     const tree = await readNativeJson(treeRes, treeShape)
-    const templatesNode = tree.find((n) => n.title === 'Templates')
+    const templatesNode = tree.find((node) => node.title === 'Templates')
     expect(templatesNode?.children.length).toBe(3)
 
     /*
@@ -5409,7 +5411,9 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
 
     const child = await createChildPage('child-page', 'Child Page', 'child', parent.id)
     let notifs = await notifications(watcher.token)
-    expect(notifs.some((n) => n.action === 'created' && n.pageId === child.id)).toBe(true)
+    expect(notifs.some((notification) => notification.action === 'created' && notification.pageId === child.id)).toBe(
+      true,
+    )
 
     await req(`http://localhost/api/wiki/${child.slug}`, {
       method: 'PUT',
@@ -5417,7 +5421,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       body: JSON.stringify({ content: 'child v2' }),
     })
     notifs = await notifications(watcher.token)
-    expect(notifs.filter((n) => n.pageId === child.id)).toHaveLength(2)
+    expect(notifs.filter((notification) => notification.pageId === child.id)).toHaveLength(2)
   })
 
   test("a direct-only (non-subtree) watch on the parent does NOT notify for a descendant's changes", async () => {
@@ -5465,7 +5469,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(delRes.status).toBe(200)
 
     const notifs = await notifications(watcher.token)
-    const deleteNotifs = notifs.filter((n) => n.action === 'deleted')
+    const deleteNotifs = notifs.filter((notification) => notification.action === 'deleted')
     expect(deleteNotifs).toHaveLength(1)
     expect(deleteNotifs[0]).toMatchObject({ pageId: parent.id, slug: 'cascade-parent' })
   })
@@ -5486,7 +5490,9 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     expect(delRes.status).toBe(200)
 
-    const deleteNotifs = (await notifications(watcher.token)).filter((n) => n.action === 'deleted')
+    const deleteNotifs = (await notifications(watcher.token)).filter(
+      (notification) => notification.action === 'deleted',
+    )
     expect(deleteNotifs).toHaveLength(1)
     expect(deleteNotifs[0]).toMatchObject({ pageId: child.id, slug: 'cascade-kid' })
 
@@ -5527,7 +5533,9 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     expect(undeleteRes.status).toBe(200)
 
-    const restoreNotifs = (await notifications(watcher.token)).filter((n) => n.action === 'updated')
+    const restoreNotifs = (await notifications(watcher.token)).filter(
+      (notification) => notification.action === 'updated',
+    )
     expect(restoreNotifs).toHaveLength(1)
     expect(restoreNotifs[0]).toMatchObject({ pageId: child.id, slug: 'cascade-restore-kid' })
   })
@@ -5813,7 +5821,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const unwatchRes = await mcp('unwatch_wiki_page', { slug: page.slug })
     expect(isMcpError(unwatchRes)).toBe(false)
     const watchesAfter = mcpData(await mcp('list_wiki_watches', {}), WikiPageLinks)
-    expect(watchesAfter.some((w) => w.pageId === page.id)).toBe(false)
+    expect(watchesAfter.some((watch) => watch.pageId === page.id)).toBe(false)
 
     const changes = mcpData(
       await mcp('list_wiki_changes', { since: t0 }),
@@ -6165,7 +6173,7 @@ describe('wiki trash (PROJ-496)', () => {
     await trashPage(page.slug)
 
     const listRes = await req('http://localhost/api/wiki', { headers: authHeaders(token, slug) })
-    expect(((await listRes.json()) as { id: string }[]).some((p) => p.id === page.id)).toBe(false)
+    expect(((await listRes.json()) as { id: string }[]).some((listedPage) => listedPage.id === page.id)).toBe(false)
 
     const treeRes = await req('http://localhost/api/wiki/tree', {
       headers: authHeaders(token, slug),
@@ -6185,7 +6193,9 @@ describe('wiki trash (PROJ-496)', () => {
     const templatesRes = await req('http://localhost/api/wiki/templates', {
       headers: authHeaders(token, slug),
     })
-    expect(((await templatesRes.json()) as { id: string }[]).some((p) => p.id === templatePage.id)).toBe(false)
+    expect(((await templatesRes.json()) as { id: string }[]).some((template) => template.id === templatePage.id)).toBe(
+      false,
+    )
   })
 
   test('handles GET /api/wiki/:slug and GET /api/wiki/:id both 404 for a trashed page', async () => {
@@ -6264,8 +6274,8 @@ describe('wiki trash (PROJ-496)', () => {
     expect(deletedAts.size).toBe(1)
     expect(rows.results.every((result) => Predicate.isNotNullish(result.deleted_at))).toBe(true)
 
-    for (const p of [parent, child, grandchild]) {
-      const res = await req(`http://localhost/api/wiki/${p.slug}`, {
+    for (const page of [parent, child, grandchild]) {
+      const res = await req(`http://localhost/api/wiki/${page.slug}`, {
         headers: authHeaders(token, slug),
       })
       expect(res.status).toBe(404)
@@ -6453,7 +6463,7 @@ describe('wiki trash (PROJ-496)', () => {
       await mcp('list_wiki_trash', {}),
       Schema.Array(Schema.Struct({ id: Schema.String, purgeAfter: Schema.Number })).pipe(Schema.mutable),
     )
-    expect(trashList.some((r) => r.id === page.id)).toBe(true)
+    expect(trashList.some((trashedPage) => trashedPage.id === page.id)).toBe(true)
 
     const restored = mcpData(
       await mcp('undelete_wiki_page', { id: page.id }),
@@ -6478,7 +6488,9 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     expect(
-      ((await brokenRes.json()) as { targetTitle: string }[]).some((b) => b.targetTitle === 'Trash Broken Link Target'),
+      ((await brokenRes.json()) as { targetTitle: string }[]).some(
+        (brokenLink) => brokenLink.targetTitle === 'Trash Broken Link Target',
+      ),
     ).toBe(false)
 
     /*
@@ -6493,7 +6505,7 @@ describe('wiki trash (PROJ-496)', () => {
     })
     expect(
       ((await brokenRes.json()) as { targetTitle: string; sourceSlug: string }[]).some(
-        (b) => b.targetTitle === 'Trash Broken Link Target' && b.sourceSlug === source.slug,
+        (brokenLink) => brokenLink.targetTitle === 'Trash Broken Link Target' && brokenLink.sourceSlug === source.slug,
       ),
     ).toBe(true)
   })
@@ -6546,7 +6558,7 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     const listed = await readNativeJson(listRes, IdListResponse)
-    expect(listed.some((r) => r.id === otherPage.id)).toBe(false)
+    expect(listed.some((resultPage) => resultPage.id === otherPage.id)).toBe(false)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${otherPage.id}/undelete`, {
       method: 'POST',
@@ -6571,13 +6583,13 @@ describe('wiki trash (PROJ-496)', () => {
     expect(undeleteRes.status).toBe(200)
     await expect(undeleteRes.json()).resolves.toMatchObject({ ok: true, restoredCount: 3 })
 
-    for (const p of [parent, child, grandchild]) {
+    for (const page of [parent, child, grandchild]) {
       const row = await env.DB.prepare('SELECT deleted_at FROM wiki_pages WHERE id = ?')
-        .bind(p.id)
+        .bind(page.id)
         .first<{ deleted_at: number | null }>()
       expect(row?.deleted_at).toBeNull()
 
-      const res = await req(`http://localhost/api/wiki/${p.slug}`, {
+      const res = await req(`http://localhost/api/wiki/${page.slug}`, {
         headers: authHeaders(token, slug),
       })
       expect(res.status).toBe(200)
