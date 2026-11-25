@@ -6,6 +6,7 @@ import { String, Array, Iterable, Predicate, Effect, Schema } from 'effect'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX, RefObject } from 'react'
 
+import { HTTP_CONFLICT } from '#contracts/http-status.ts'
 import { hasMultipleItems } from '#contracts/item-count.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
@@ -48,6 +49,32 @@ import type { WikiFreshness } from './wiki-freshness-badge.tsx'
 import { WikiMetadataCard } from './wiki-metadata-card.tsx'
 import { SeedContext, usePublicViewer, useWikiSeed } from './wiki-seed-context.ts'
 import { WikiStatusPill } from './wiki-status-pill.tsx'
+
+const TREE_BASE_PADDING_REM = 0.5
+const TREE_PADDING_PER_LEVEL_REM = 1
+const ROOT_TREE_DEPTH = 0
+const CHILD_DEPTH_STEP = 1
+const EXCERPT_MARKER_LENGTH = 2
+const EXCERPT_MARKER_END = -2
+const EMPTY_TAG_COUNT = 0
+const FIRST_INNER_BREADCRUMB = 1
+const LAST_BREADCRUMB_SLICE_END = -1
+const LAST_INDEX_OFFSET = 1
+const FIRST_HEADING_LEVEL = 1
+const TOC_PADDING_PER_LEVEL_REM = 0.75
+const TOC_BASE_PADDING_REM = 0.5
+const PAGE_MENU_VERTICAL_GAP_PX = 4
+const PAGE_MENU_MIN_RIGHT_PX = 8
+const MENU_NEXT_ITEM_OFFSET = 1
+const MENU_PREVIOUS_ITEM_OFFSET = -1
+const INITIAL_CONTENT_MOUNT_TOKEN = 0
+const CONTENT_MOUNT_TOKEN_STEP = 1
+const EXCERPT_START = 0
+const MIN_TOC_ENTRIES = 3
+const HASH_CONTENT_START = 1
+const DRAFT_AUTOSAVE_DELAY_MS = 1000
+const INITIAL_EDIT_VERSION = 0
+const INITIAL_EDIT_SESSION = 0
 
 /*
  * PROJ-804: pure and exported so it's unit-testable without mounting WikiPage. Turns
@@ -382,13 +409,13 @@ function TreeNodeItem({
       <button
         type='button'
         className={`${TREE_ITEM_BASE_CLASS} ${isActive ? '!bg-accent !text-white font-semibold' : ''}`}
-        style={{ paddingLeft: `${0.5 + depth * 1}rem` }}
+        style={{ paddingLeft: `${TREE_BASE_PADDING_REM + depth * TREE_PADDING_PER_LEVEL_REM}rem` }}
         onClick={() => {
           onNavigate(node.slug)
         }}
         aria-current={isActive ? 'page' : undefined}
       >
-        {depth > 0 && <span className='text-text-muted mr-1'>{'›'}</span>}
+        {depth > ROOT_TREE_DEPTH && <span className='text-text-muted mr-1'>{'›'}</span>}
         {node.title}
       </button>
       {Array.isArrayNonEmpty(node.children) && (
@@ -398,7 +425,7 @@ function TreeNodeItem({
               key={child.id}
               node={child}
               currentSlug={currentSlug}
-              depth={depth + 1}
+              depth={depth + CHILD_DEPTH_STEP}
               onNavigate={onNavigate}
             />
           ))}
@@ -421,7 +448,7 @@ function renderHighlightedExcerpt(excerpt: string) {
     offset += part.length
     return part.startsWith('**') && part.endsWith('**') ? (
       <mark key={key} className='bg-accent-soft text-inherit rounded-xs'>
-        {part.slice(2, -2)}
+        {part.slice(EXCERPT_MARKER_LENGTH, EXCERPT_MARKER_END)}
       </mark>
     ) : (
       <span key={key}>{part}</span>
@@ -441,7 +468,7 @@ function SearchResultMetaLine({ r }: { r: SearchResult }): undefined | JSX.Eleme
   const show =
     String.isNonEmpty(r.type ?? '') ||
     String.isNonEmpty(r.status ?? '') ||
-    (r.tags?.length ?? 0) > 0 ||
+    (r.tags?.length ?? EMPTY_TAG_COUNT) > EMPTY_TAG_COUNT ||
     isStale === true
   if (!show) {
     return undefined
@@ -582,7 +609,7 @@ function FilteredPagesList({
             <span className='font-medium'>{result.title}</span>
             {(String.isNonEmpty(result.type ?? '') ||
               String.isNonEmpty(result.status ?? '') ||
-              (result.tags?.length ?? 0) > 0) && (
+              (result.tags?.length ?? EMPTY_TAG_COUNT) > EMPTY_TAG_COUNT) && (
               <span className='block mt-[0.15rem]'>
                 {result.status && <WikiStatusPill status={result.status} />}
                 <TagChips tags={result.tags} />
@@ -1012,7 +1039,7 @@ function PageBreadcrumbs({
       >
         Home
       </button>
-      {breadcrumbs.slice(1, -1).map((crumb) => (
+      {breadcrumbs.slice(FIRST_INNER_BREADCRUMB, LAST_BREADCRUMB_SLICE_END).map((crumb) => (
         /*
          * PROJ-806: the key belongs on the list item itself (this fragment), not a
          * DOM node nested inside it — Preact reconciles the fragment's children by
@@ -1034,7 +1061,7 @@ function PageBreadcrumbs({
         </Fragment>
       ))}
       <span>›</span>
-      <span className='text-text-base'>{breadcrumbs[breadcrumbs.length - 1].title}</span>
+      <span className='text-text-base'>{breadcrumbs[breadcrumbs.length - LAST_INDEX_OFFSET].title}</span>
     </nav>
   )
 }
@@ -1103,7 +1130,9 @@ function TocList({
             key={item.id}
             href={`#${item.id}`}
             className={`${TOC_LINK_BASE_CLASS} ${isTocActive ? TOC_LINK_ACTIVE_CLASS : TOC_LINK_INACTIVE_CLASS}`}
-            style={{ paddingLeft: `${(item.level - 1) * 0.75 + 0.5}rem` }}
+            style={{
+              paddingLeft: `${(item.level - FIRST_HEADING_LEVEL) * TOC_PADDING_PER_LEVEL_REM + TOC_BASE_PADDING_REM}rem`,
+            }}
             onClick={onClick}
           >
             {item.text}
@@ -1166,7 +1195,10 @@ function PageActionOverflowMenu({
   const openMenu = function openMenu(): void {
     const rect = triggerRef.current?.getBoundingClientRect()
     if (rect) {
-      setPos({ top: rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right) })
+      setPos({
+        top: rect.bottom + PAGE_MENU_VERTICAL_GAP_PX,
+        right: Math.max(PAGE_MENU_MIN_RIGHT_PX, window.innerWidth - rect.right),
+      })
     }
     setOpen(true)
   }
@@ -1215,7 +1247,7 @@ function PageActionOverflowMenu({
       }
       event.preventDefault()
       const currentIndex = items.indexOf(document.activeElement as HTMLElement)
-      const delta = event.key === 'ArrowDown' ? 1 : -1
+      const delta = event.key === 'ArrowDown' ? MENU_NEXT_ITEM_OFFSET : MENU_PREVIOUS_ITEM_OFFSET
       const nextIndex = (currentIndex + delta + items.length) % items.length
       items[nextIndex]?.focus()
     }
@@ -1937,11 +1969,11 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
    * call survives both. The cost is one extra run of these effects on first mount (the
    * bump lands in the commit after the HTML does).
    */
-  const [contentMountToken, setContentMountToken] = useState(0)
+  const [contentMountToken, setContentMountToken] = useState(INITIAL_CONTENT_MOUNT_TOKEN)
   const setContentRef = useCallback((node: HTMLDivElement | null) => {
     contentRef.current = node
     if (node) {
-      setContentMountToken((t) => t + 1)
+      setContentMountToken((t) => t + CONTENT_MOUNT_TOKEN_STEP)
     }
   }, [])
 
@@ -1979,7 +2011,7 @@ function excerptOf(content: string, maxLength = 200): string {
     .replaceAll(/[#*_>`[\]()!-]/gu, ' ')
     .replaceAll(/\s+/gu, ' ')
     .trim()
-  return plain.length > maxLength ? `${plain.slice(0, maxLength).trimEnd()}…` : plain
+  return plain.length > maxLength ? `${plain.slice(EXCERPT_START, maxLength).trimEnd()}…` : plain
 }
 
 /** Persisted content and compiler-owned ToC arrive in canonical server props.
@@ -2016,7 +2048,7 @@ function useTableOfContents(
 
   // PROJ-113: IntersectionObserver for active heading
   useEffect(() => {
-    if (toc.length < 3 || typeof IntersectionObserver === 'undefined') {
+    if (toc.length < MIN_TOC_ENTRIES || typeof IntersectionObserver === 'undefined') {
       return
     }
     const container = contentRef.current
@@ -2084,7 +2116,7 @@ function useHashScroll(
   const scrollToHash = useCallback(() => {
     // PROJ-802: some call sites (and this file's own tests, see PROJ-487) swap
     // `window.location` for a partial stand-in that may not define `hash` at all.
-    const raw = (window.location.hash ?? '').slice(1)
+    const raw = (window.location.hash ?? '').slice(HASH_CONTENT_START)
     if (!raw) {
       return
     }
@@ -2464,7 +2496,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     }
     const timer = setTimeout(() => {
       persistDraft(page, editTitle, editContent, baseRevisionId)
-    }, 1000)
+    }, DRAFT_AUTOSAVE_DELAY_MS)
     return () => {
       clearTimeout(timer)
     }
@@ -2575,7 +2607,7 @@ function useUnsavedChangesGuard(
  * A typed ServerFn conflict is distinct from a protocol/network failure.
  */
 function isWikiSaveConflict(e: unknown): boolean {
-  return e instanceof FunctionError ? e.status === 409 : globalThis.String(e).endsWith('failed: 409')
+  return e instanceof FunctionError ? e.status === HTTP_CONFLICT : globalThis.String(e).endsWith('failed: 409')
 }
 
 function wikiSaveErrorMessage(e: unknown): string {
@@ -2604,9 +2636,9 @@ function useWikiEditing(
     validators: { onChange: Schema.toStandardSchemaV1(EditFields) },
   })
   const { title: editTitle, content: editContent, baseRevisionId } = useStore(editForm.store, (state) => state.values)
-  const editVersionRef = useRef(0)
+  const editVersionRef = useRef(INITIAL_EDIT_VERSION)
   const operationRef = useRef(false)
-  const sessionRef = useRef(0)
+  const sessionRef = useRef(INITIAL_EDIT_SESSION)
   useEffect(
     () => () => {
       sessionRef.current += 1
@@ -3518,7 +3550,7 @@ function useWikiSidebarDrawer() {
         return
       }
       const first = focusables[0]
-      const last = focusables[focusables.length - 1]
+      const last = focusables[focusables.length - LAST_INDEX_OFFSET]
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault()
         last.focus()
@@ -3673,7 +3705,7 @@ function deriveWikiPageState(
   // Breadcrumbs for current page (PROJ-114)
   const breadcrumbs = pageData.page ? getBreadcrumbs(pageData.page.id, pageMap) : []
   // ToC sidebar (PROJ-113) — only when viewing page, ≥3 headings
-  const showToc = !editState.editing && !createForm.creating && toc.length >= 3
+  const showToc = !editState.editing && !createForm.creating && toc.length >= MIN_TOC_ENTRIES
   const createParentTitle = createForm.createParentId ? (pageMap[createForm.createParentId]?.title ?? null) : null
   const moveOptions: SelectOption[] = [
     { value: '', label: 'No parent (root)' },
