@@ -1506,11 +1506,25 @@ export const updateWikiPage = async function updateWikiPage(
     const finalTitle = title ?? page.title
     const finalSlug = slug ?? page.slug
     statements.push(
-      buildResolveIncomingLinksStatement(ctx, { id: page.id, title: finalTitle, slug: finalSlug }),
+      buildResolveIncomingLinksStatement(
+        ctx,
+        fieldsInOrder([
+          ['id', page.id],
+          ['title', finalTitle],
+          ['slug', finalSlug],
+        ]),
+      ),
       buildUnresolveStaleIncomingLinksStatement(
         ctx,
-        { id: page.id, title: finalTitle, slug: finalSlug },
-        { title: page.title, slug: page.slug },
+        fieldsInOrder([
+          ['id', page.id],
+          ['title', finalTitle],
+          ['slug', finalSlug],
+        ]),
+        fieldsInOrder([
+          ['title', page.title],
+          ['slug', page.slug],
+        ]),
       ),
     )
   }
@@ -2646,9 +2660,23 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
   // PROJ-818
   await healTitleFolds(ctx)
   await ctx.db.batch([
-    buildResolveIncomingLinksStatement(ctx, { id: page.id, title: page.title, slug: page.slug }),
+    buildResolveIncomingLinksStatement(
+      ctx,
+      fieldsInOrder([
+        ['id', page.id],
+        ['title', page.title],
+        ['slug', page.slug],
+      ]),
+    ),
     ...descendantRows.map((descendant) =>
-      buildResolveIncomingLinksStatement(ctx, { id: descendant.id, title: descendant.title, slug: descendant.slug }),
+      buildResolveIncomingLinksStatement(
+        ctx,
+        fieldsInOrder([
+          ['id', descendant.id],
+          ['title', descendant.title],
+          ['slug', descendant.slug],
+        ]),
+      ),
     ),
   ])
 
@@ -2667,13 +2695,13 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
       ['action', 'updated'],
       [
         'diff',
-        {
-          restored: true,
-          slug: page.slug,
-          title: page.title,
-          projectId: page.projectId,
-          restoredCount: allIds.length,
-        },
+        fieldsInOrder([
+          ['restored', true],
+          ['slug', page.slug],
+          ['title', page.title],
+          ['projectId', page.projectId],
+          ['restoredCount', allIds.length],
+        ]),
       ],
     ]),
   )
