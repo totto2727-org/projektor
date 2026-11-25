@@ -48,6 +48,7 @@ import { WikiFreshnessBadge } from './wiki-freshness-badge.tsx'
 import type { WikiFreshness } from './wiki-freshness-badge.tsx'
 import { WikiMetadataCard } from './wiki-metadata-card.tsx'
 import { SeedContext, usePublicViewer, useWikiSeed } from './wiki-seed-context.ts'
+import { useIsMobileViewport, useWikiSidebarDrawer } from './wiki-sidebar-drawer.ts'
 import { WikiStatusPill } from './wiki-status-pill.tsx'
 
 const TREE_BASE_PADDING_REM = 0.5
@@ -153,33 +154,6 @@ function wikiHref(seed: Pick<WikiSeed, 'workspaceSlug' | 'projectId'>, path: str
 }
 async function undeleteWikiPage(id: string, workspaceSlug?: string): Promise<{ slug: string }> {
   return unwrapResult(await restoreTrashedWikiPage({ pageId: id, workspaceSlug }))
-}
-
-/** Matches Base.astro's mobile `@media (max-width: 640px)` breakpoint. */
-const WIKI_MOBILE_QUERY = '(max-width: 640px)'
-
-/*
- * PROJ-664: reactive (unlike Select.tsx's imperative isMobileMenu() check) since
- * the wiki reader switches whole sections of the layout on crossing the
- * breakpoint, not just a menu opened on demand.
- */
-function useIsMobileViewport(): boolean {
-  const [isMobile, setIsMobile] = useState(false)
-  useEffect(() => {
-    if (!Predicate.isFunction(window.matchMedia)) {
-      return
-    }
-    const mq = window.matchMedia(WIKI_MOBILE_QUERY)
-    setIsMobile(mq.matches)
-    const onChange = (e: MediaQueryListEvent): void => {
-      setIsMobile(e.matches)
-    }
-    mq.addEventListener('change', onChange)
-    return () => {
-      mq.removeEventListener('change', onChange)
-    }
-  }, [])
-  return isMobile
 }
 
 // PROJ-491 (R9): the create-form's template picker draws from list_wiki_templates.
@@ -3463,110 +3437,6 @@ const WIKI_PAGE_STYLES = `
 	.page-action-menu-item:hover { background: var(--surface); }
 	.page-action-menu-item-danger { color: var(--danger-text); }
 `
-
-/*
- * PROJ-664: owns the off-canvas page-tree drawer's open state, Esc-to-close,
- * reset-on-resize-past-breakpoint, and a focus trap scoped to when the drawer
- * is actually acting as a drawer (mobile) — on desktop the sidebar stays in
- * normal flow, so trapping focus there would break ordinary tabbing.
- */
-function useWikiSidebarDrawer() {
-  const [open, setOpen] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const sidebarRef = useRef<HTMLElement>(null)
-
-  const close = useCallback(() => {
-    setOpen(false)
-  }, [])
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const onKeyDown = function onKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        close()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    const mq = window.matchMedia('(min-width: 641px)')
-    const onGrow = (e: MediaQueryListEvent): void => {
-      if (e.matches) {
-        close()
-      }
-    }
-    mq.addEventListener('change', onGrow)
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      mq.removeEventListener('change', onGrow)
-    }
-  }, [open, close])
-
-  /*
-   * PROJ-806: this effect also fires on mount (effects always run after the first
-   * render, `open` "changing" from nothing to its initial value), which used to move
-   * focus to the "Pages" trigger button on every mobile page load even though the
-   * user never opened or closed anything. Only actual open/close transitions —
-   * something the person did — should move focus.
-   */
-  const isFirstRenderRef = useRef(true)
-  useEffect(() => {
-    const isFirstRender = isFirstRenderRef.current
-    isFirstRenderRef.current = false
-    if (isFirstRender) {
-      return
-    }
-    if (!window.matchMedia(WIKI_MOBILE_QUERY).matches) {
-      return
-    }
-    if (open) {
-      sidebarRef.current
-        ?.querySelector<HTMLElement>('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])')
-        ?.focus()
-    } else {
-      triggerRef.current?.focus()
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const onTrapTab = function onTrapTab(event: KeyboardEvent): void {
-      if (event.key !== 'Tab') {
-        return
-      }
-      if (!window.matchMedia(WIKI_MOBILE_QUERY).matches) {
-        return
-      }
-      const container = sidebarRef.current
-      if (!container) {
-        return
-      }
-      const focusables = globalThis.Array.from(
-        container.querySelectorAll<HTMLElement>('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'),
-      ).filter((el) => !el.hasAttribute('disabled'))
-      if (Array.isArrayEmpty(focusables)) {
-        return
-      }
-      const first = focusables[0]
-      const last = focusables[focusables.length - LAST_INDEX_OFFSET]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onTrapTab)
-    return () => {
-      document.removeEventListener('keydown', onTrapTab)
-    }
-  }, [open])
-
-  return { open, setOpen, close, triggerRef, sidebarRef }
-}
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiPageShell(
