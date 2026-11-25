@@ -2896,13 +2896,11 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const res = await callIssueFixtureMcpTool(issueMcpFixture, { arguments: { id }, name: 'get_issue' })
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
-    expect(issue).not.toHaveProperty('links')
-    expect(issue).not.toHaveProperty('rollup')
-    expect(issue).not.toHaveProperty('customFields')
-    expect(issue).not.toHaveProperty('sprint_id')
-    expect(issue).not.toHaveProperty('assignee_id')
-    expect(issue).not.toHaveProperty('parent_id')
-    expect(issue).not.toHaveProperty('labels')
+    expect(
+      ['links', 'rollup', 'customFields', 'sprint_id', 'assignee_id', 'parent_id', 'labels'].filter(
+        (field) => field in issue,
+      ),
+    ).toStrictEqual([])
     // Non-empty/non-default fields survive untouched.
     expect(issue.title).toBe('Compact me')
   })
