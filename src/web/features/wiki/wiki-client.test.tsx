@@ -335,16 +335,16 @@ describe('wiki server prop adoption', () => {
   test('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
     const { container } = render(<WikiPageClient initial={seed()} />)
     const stylesheet = container.querySelector('style')?.sheet
-    const mobileRules = Array.from(stylesheet?.cssRules ?? []).find(
+    const mobileRules = [...(stylesheet?.cssRules ?? [])].find(
       (rule) =>
         rule instanceof CSSMediaRule &&
         rule.conditionText === '(max-width: 640px)' &&
-        Array.from(rule.cssRules).some((child) => (child as CSSStyleRule).selectorText === '.wiki-sidebar'),
+        [...rule.cssRules].some((child) => (child as CSSStyleRule).selectorText === '.wiki-sidebar'),
     ) as CSSMediaRule | undefined
-    const sidebar = Array.from(mobileRules?.cssRules ?? []).find(
+    const sidebar = [...(mobileRules?.cssRules ?? [])].find(
       (rule) => (rule as CSSStyleRule).selectorText === '.wiki-sidebar',
     ) as CSSStyleRule | undefined
-    const backdrop = Array.from(mobileRules?.cssRules ?? []).find(
+    const backdrop = [...(mobileRules?.cssRules ?? [])].find(
       (rule) => (rule as CSSStyleRule).selectorText === '.wiki-drawer-overlay',
     ) as CSSStyleRule | undefined
     /*

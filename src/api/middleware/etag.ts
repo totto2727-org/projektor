@@ -39,9 +39,7 @@ const ifNoneMatchMatches = function ifNoneMatchMatches(header: string | undefine
 
 const sha256Prefix = async function sha256Prefix(input: ArrayBuffer): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', input)
-  return Array.from(new Uint8Array(buf).slice(0, 16))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(buf).slice(0, 16)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export const etagMiddleware = async function etagMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<void> {

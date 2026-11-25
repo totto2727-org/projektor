@@ -106,7 +106,7 @@ test('offers cross-project review navigation that cannot inherit project, assign
   const link = screen.getByRole('link', { name: '全プロジェクトのレビュー' })
   const url = new URL(link.getAttribute('href') ?? '', 'https://frontend.test')
   expect(url.pathname).toBe('/issues')
-  expect(Array.from(url.searchParams.entries())).toStrictEqual([
+  expect([...url.searchParams.entries()]).toStrictEqual([
     ['workspace', 'team space'],
     ['review', 'in_review'],
     ['view', 'list'],
@@ -162,7 +162,7 @@ test('renders readable scope and complete native review navigation without JavaS
   expect(document.body.textContent).toContain('表示範囲: A · Project A')
   expect(document.querySelectorAll('nav a')).toHaveLength(5)
   expect(document.querySelector('nav a[aria-current="page"]')?.textContent).toBe('未完了の対象')
-  const review = Array.from(document.querySelectorAll('nav a')).find((link) => link.textContent === 'レビュー中')
+  const review = [...document.querySelectorAll('nav a')].find((link) => link.textContent === 'レビュー中')
   expect(new URL(review?.getAttribute('href') ?? '', 'https://frontend.test').searchParams.get('review')).toBe(
     'in_review',
   )

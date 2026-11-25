@@ -21,9 +21,7 @@ const WINDOW_SECS = 60
 // SHA-256 prefix — mirrors the middleware so we can pre-seed the correct key.
 const sha256Prefix = async function sha256Prefix(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return Array.from(new Uint8Array(buf).slice(0, 8))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(buf).slice(0, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 // Put a key at `count` hits in the current window (RateLimiter Durable Object).

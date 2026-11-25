@@ -30,9 +30,7 @@ const requireProjectWriteAccess = async function requireProjectWriteAccess(
 
 export const hashFeedbackToken = async function hashFeedbackToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return Array.from(new Uint8Array(buf))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 interface SubmitSourceRow {
@@ -437,5 +435,5 @@ export const getFeedbackSummary = async function getFeedbackSummary(
       lastSeenAt: result.last_seen_at,
     })
   })
-  return Array.from(bySource.values())
+  return [...bySource.values()]
 }

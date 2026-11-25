@@ -1,7 +1,7 @@
 import { Effect, Schema } from 'effect'
 import type { CSSProperties } from 'react'
 
-import { isNonEmptyText, trimNonEmptyText } from '#contracts/non-empty-text.ts'
+import { firstCodePoint, isNonEmptyText, trimNonEmptyText } from '#contracts/non-empty-text.ts'
 import { WorkspaceBrand } from '#contracts/web-brand.ts'
 import { makeCoreClient } from '#core/client.ts'
 
@@ -25,8 +25,8 @@ export const deploymentBrand = function deploymentBrand(env: BrandEnvironment): 
   return {
     name,
     mark: env.BRAND_MARK?.trim()
-      ? (Array.from(env.BRAND_MARK.trim())[0] ?? 'P')
-      : (Array.from(name.trim())[0]?.toUpperCase() ?? 'P'),
+      ? (firstCodePoint(env.BRAND_MARK.trim()) ?? 'P')
+      : (firstCodePoint(name.trim())?.toUpperCase() ?? 'P'),
     accent: trimNonEmptyText(env.BRAND_ACCENT) ?? null,
     onAccent: trimNonEmptyText(env.BRAND_ON_ACCENT) ?? null,
     logoUrl: trimNonEmptyText(env.BRAND_LOGO_URL) ?? null,
@@ -66,7 +66,7 @@ export const loadBrand = function loadBrand(
       return {
         name,
         mark: isNonEmptyText(override.displayName)
-          ? (Array.from(name.trim())[0]?.toUpperCase() ?? brand.mark)
+          ? (firstCodePoint(name.trim())?.toUpperCase() ?? brand.mark)
           : brand.mark,
         accent: override.accent ?? brand.accent,
         onAccent: override.onAccent ?? brand.onAccent,

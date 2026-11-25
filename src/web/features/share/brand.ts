@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { firstCodePoint, isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 const nullable = Schema.NullOr(Schema.String)
 export const WorkspaceBrand = Schema.Struct({
@@ -32,7 +32,7 @@ export const layerBrand = function layerBrand(base: DeploymentBrandDto, workspac
   return {
     name: workspace.displayName ?? base.name,
     mark: isNonEmptyText(workspace.displayName)
-      ? (Array.from(workspace.displayName.trim())[0]?.toUpperCase() ?? base.mark)
+      ? (firstCodePoint(workspace.displayName.trim())?.toUpperCase() ?? base.mark)
       : base.mark,
     accent: workspace.accent ?? base.accent,
     onAccent: workspace.onAccent ?? base.onAccent,

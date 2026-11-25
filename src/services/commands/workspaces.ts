@@ -38,9 +38,7 @@ import { buildDefaultWikiTemplateStatements } from './wiki.ts'
 
 const sha256hex = async function sha256hex(value: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
-  return Array.from(new Uint8Array(buf))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export const listWorkspaces = async function listWorkspaces(
@@ -234,11 +232,7 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
   const { name, scopes, expiresInDays } = parsed.data
 
   const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
-  const token =
-    'pk_' +
-    Array.from(tokenBytes)
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('')
+  const token = 'pk_' + [...tokenBytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
   const hash = await sha256hex(token)
 
   const id = crypto.randomUUID()

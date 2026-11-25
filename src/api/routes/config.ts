@@ -2,19 +2,15 @@ import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import { HTTP_OK } from '#contracts/http-status.ts'
-import { trimNonEmptyText } from '#contracts/non-empty-text.ts'
+import { firstCodePoint, trimNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { HonoEnv } from '#types'
 
 export const configRouter = new Hono<HonoEnv>()
 
-const firstChar = function firstChar(value: string): string {
-  return Array.from(value)[0] ?? ''
-}
-
 export const deriveBrandMark = function deriveBrandMark(name: string): string {
   const trimmed = name.trim()
-  return trimmed ? firstChar(trimmed).toUpperCase() : 'P'
+  return firstCodePoint(trimmed)?.toUpperCase() ?? 'P'
 }
 
 configRouter.get('/brand', (httpContext) => {
@@ -26,7 +22,7 @@ configRouter.get('/brand', (httpContext) => {
       [
         'mark',
         Predicate.isNotNullish(markOverride) && String.isNonEmpty(markOverride)
-          ? firstChar(markOverride)
+          ? (firstCodePoint(markOverride) ?? '')
           : deriveBrandMark(name),
       ],
       ['accent', trimNonEmptyText(httpContext.env.BRAND_ACCENT) ?? null],

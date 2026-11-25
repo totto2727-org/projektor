@@ -37,7 +37,7 @@ const fixture = async function fixture() {
   database.sqlite.prepare("UPDATE issues SET body = ? WHERE id = 'issue'").run(body)
   database.sqlite.prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'").run(JSON.stringify(workspaceBrand))
   const token = 'public-token'
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   database.sqlite

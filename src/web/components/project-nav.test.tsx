@@ -47,7 +47,7 @@ describe('covers ProjectNav SSR width fallback', () => {
     container.innerHTML = renderToString(<ProjectNav scope={scope} url={url} />)
     const nav = container.querySelector('nav')
     expect(nav?.classList.contains('overflow-x-auto')).toBe(true)
-    const links = Array.from(nav?.querySelectorAll('a') ?? [])
+    const links = [...(nav?.querySelectorAll('a') ?? [])]
     expect(links.map((link) => link.textContent)).toStrictEqual([
       'Overview',
       'Issues',

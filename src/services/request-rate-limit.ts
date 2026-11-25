@@ -34,9 +34,7 @@ const oauthGrantKey = function oauthGrantKey(token: string): string | null {
 
 const sha256Prefix = async function sha256Prefix(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return Array.from(new Uint8Array(buf).slice(0, 8))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(buf).slice(0, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 /*

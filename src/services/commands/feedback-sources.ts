@@ -35,9 +35,7 @@ export interface FeedbackSourceDetailView extends FeedbackSourceView {
 
 const sha256hex = async function sha256hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return Array.from(new Uint8Array(buf))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 const newRawToken = function newRawToken(): string {

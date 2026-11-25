@@ -109,7 +109,7 @@ describe('generated Base UI Shell', () => {
         <h1>Issues</h1>
       </Shell>,
     )
-    const link = Array.from(element.querySelectorAll('a')).find((entry) => entry.textContent === 'Issues')
+    const link = [...element.querySelectorAll('a')].find((entry) => entry.textContent === 'Issues')
     expect(link?.getAttribute('href')).toBe('/issues?workspace=team')
     expect(link?.getAttribute('aria-current')).toBe('page')
   })

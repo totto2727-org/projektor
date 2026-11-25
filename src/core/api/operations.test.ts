@@ -25,7 +25,7 @@ const fixture = async function fixture() {
     INSERT INTO workspace_members(workspace_id,user_id,role,joined_at) VALUES('w','u','owner',1),('other','u','owner',1);
   `)
   const bearer = 'pk_api-boundary-regression'
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer))))
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer)))]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   database.sqlite

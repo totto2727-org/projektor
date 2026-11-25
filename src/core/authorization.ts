@@ -68,7 +68,7 @@ const authenticateOpaqueToken = async function authenticateOpaqueToken(
   token: string,
   env: CoreEnvironment,
 ): Promise<CorePrincipal> {
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   const row = await env.DB.prepare(`SELECT at.id, at.workspace_id, at.expires_at, at.scopes, at.last_used_at,

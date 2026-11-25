@@ -46,7 +46,7 @@ describe('covers API facade reply boundary', () => {
         INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('facade-workspace','facade-user','owner',1);
       `)
       const bearer = 'pk_facade-core'
-      const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer))))
+      const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer)))]
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join('')
       database.sqlite
