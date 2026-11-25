@@ -30,6 +30,17 @@ import type { RequestScope } from './scope.ts'
 import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
 export const WikiDiffSchema = Schema.Struct({ diff: Schema.String })
+const importScope = function importScope(env: CoreEnvironment, proof: BrowserCommand) {
+  return Effect.gen(function* () {
+    const scope = yield* loadBrowserScope(env, proof.request, {
+      workspaceHint: proof.workspaceSlug,
+      projectHint: proof.projectId ?? '',
+      requireWorkspace: true,
+    })
+    yield* checked(() => requireDataWorkspace(scope))
+    return scope
+  })
+}
 
 export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
   const mutation = function mutation<S extends Schema.Top, A>(
@@ -154,14 +165,3 @@ import { requireDataWorkspace } from '#contracts/web-data.ts'
 
 import { loadBrowserScope, publicWebFailure } from './authentication.ts'
 import { checked } from './issue-data.ts'
-function importScope(env: CoreEnvironment, proof: BrowserCommand) {
-  return Effect.gen(function* () {
-    const scope = yield* loadBrowserScope(env, proof.request, {
-      workspaceHint: proof.workspaceSlug,
-      projectHint: proof.projectId ?? '',
-      requireWorkspace: true,
-    })
-    yield* checked(() => requireDataWorkspace(scope))
-    return scope
-  })
-}

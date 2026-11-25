@@ -21,6 +21,25 @@ export type RequestRateLimitEnv = Pick<
 >
 
 /*
+ * PROJ-658: token rotation must not refresh an OAuth grant's budget. The random
+ * grant id, rather than the guessable user id alone, prevents naming another bucket.
+ */
+const oauthGrantKey = function oauthGrantKey(token: string): string | null {
+  const parts = token.split(':')
+  if (parts.length !== 3 || !parts[0] || !parts[1]) {
+    return null
+  }
+  return `grant:${parts[0]}:${parts[1]}`
+}
+
+const sha256Prefix = async function sha256Prefix(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return Array.from(new Uint8Array(buf).slice(0, 8))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/*
  * Fixed-window policy shared by API requests and browser commands. Both adapters must
  * supply the same RATE_LIMITER namespace, not a worker-specific counter namespace.
  * Defaults: 300 IP-keyed requests, 600 bearer-keyed requests, per 60-second window.
@@ -65,18 +84,6 @@ export const checkRateLimit = async function checkRateLimit(
   return undefined
 }
 
-/*
- * PROJ-658: token rotation must not refresh an OAuth grant's budget. The random
- * grant id, rather than the guessable user id alone, prevents naming another bucket.
- */
-function oauthGrantKey(token: string): string | null {
-  const parts = token.split(':')
-  if (parts.length !== 3 || !parts[0] || !parts[1]) {
-    return null
-  }
-  return `grant:${parts[0]}:${parts[1]}`
-}
-
 /** Auth-failure throttling reuses the same counter backend and window math. */
 export const bumpRateCounter = async function bumpRateCounter(
   env: RequestRateLimitEnv,
@@ -85,13 +92,6 @@ export const bumpRateCounter = async function bumpRateCounter(
 ): Promise<number> {
   const { count } = await incrementCounter(env, key, windowSecs, currentEpochSeconds())
   return count
-}
-
-async function sha256Prefix(input: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return Array.from(new Uint8Array(buf).slice(0, 8))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
 }
 
 // PROJ-361: opportunistic pruning of rows several windows older than active ones.
@@ -107,6 +107,37 @@ const pruneStaleRateLimitRows = function pruneStaleRateLimitRows(
 }
 
 let warnedD1Fallback = false
+
+const incrementD1Counter = async function incrementD1Counter(
+  db: D1Database,
+  key: string,
+  slot: number,
+  windowSecs: number,
+): Promise<number> {
+  /*
+   * PROJ-432: one transactional batch, with a SELECT because local D1 may not
+   * reliably return DML RETURNING values. Same slot increments, rollover resets.
+   */
+  const statements = [
+    db
+      .prepare(`
+    INSERT INTO rate_limit (key, count, window_start) VALUES (?, 1, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      count = CASE WHEN rate_limit.window_start = ? THEN rate_limit.count + 1 ELSE 1 END,
+      window_start = ?
+  `)
+      .bind(key, slot, slot, slot),
+    db.prepare('SELECT count FROM rate_limit WHERE key = ?').bind(key),
+  ]
+
+  // Pruning is last and cannot delete the active counter.
+  if (Math.random() < PRUNE_PROBABILITY) {
+    statements.push(pruneStaleRateLimitRows(db, windowSecs))
+  }
+
+  const [, selected] = await db.batch<{ count: number }>(statements)
+  return selected.results[0]?.count ?? 1
+}
 
 async function incrementCounter(
   env: RequestRateLimitEnv,
@@ -138,30 +169,4 @@ async function incrementCounter(
   }
   const slot = Math.floor(nowSecs / windowSecs) * windowSecs
   return { count: await incrementD1Counter(env.DB, key, slot, windowSecs), slot }
-}
-
-async function incrementD1Counter(db: D1Database, key: string, slot: number, windowSecs: number): Promise<number> {
-  /*
-   * PROJ-432: one transactional batch, with a SELECT because local D1 may not
-   * reliably return DML RETURNING values. Same slot increments, rollover resets.
-   */
-  const statements = [
-    db
-      .prepare(`
-    INSERT INTO rate_limit (key, count, window_start) VALUES (?, 1, ?)
-    ON CONFLICT(key) DO UPDATE SET
-      count = CASE WHEN rate_limit.window_start = ? THEN rate_limit.count + 1 ELSE 1 END,
-      window_start = ?
-  `)
-      .bind(key, slot, slot, slot),
-    db.prepare('SELECT count FROM rate_limit WHERE key = ?').bind(key),
-  ]
-
-  // Pruning is last and cannot delete the active counter.
-  if (Math.random() < PRUNE_PROBABILITY) {
-    statements.push(pruneStaleRateLimitRows(db, windowSecs))
-  }
-
-  const [, selected] = await db.batch<{ count: number }>(statements)
-  return selected.results[0]?.count ?? 1
 }

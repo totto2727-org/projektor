@@ -413,40 +413,12 @@ const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
 // 9 columns × 11 = 99 bound params (D1 cap: 100)
 const LINK_INSERT_CHUNK_SIZE = 11
 
-/**
- * Builds (without executing) the DELETE + chunked re-INSERT statements that recompute a
- * page's outgoing wiki_links rows from its current content — the write half of
- * reindexWikiLinks, split out so services/wiki.ts can fold these statements into the same
- * db.batch() as the page's content write, revision insert, and FTS reindex (PROJ-511).
- * All resolution (parsing + the resolveLinkTargets reads) happens BEFORE this returns, so
- * by the time these statements exist there is nothing left to throw between them and the
- * delete — the whole write becomes one atomic D1 batch when passed to ctx.db.batch().
- *
- * @param {ServiceCtx} ctx The caller and workspace database.
- * @param {Orm} orm The Drizzle connection for resolving links.
- * @param {string} sourcePageId The ID of the page whose links are being indexed.
- * @param {string} content The source page's Markdown content.
- * @returns {Promise<D1PreparedStatement[]>} The bound delete and insertion statements in execution order.
- */
-export const buildWikiLinksReindexStatements = async function buildWikiLinksReindexStatements(
-  ctx: ServiceCtx,
-  orm: Orm,
-  sourcePageId: string,
-  content: string,
-): Promise<D1PreparedStatement[]> {
-  const targets = parseWikiLinkTargets(content)
-  // PROJ-818: title matching reads the stored folds — heal any NULLs first.
-  await healTitleFolds(ctx)
-  const resolved = Array.isArrayNonEmpty(targets) ? await resolveLinkTargets(orm, ctx.workspaceId, targets) : []
-  return buildLinkWriteStatements(ctx, sourcePageId, resolved)
-}
-
 /*
  * The write half of buildWikiLinksReindexStatements, split out so PROJ-815's backfill can
  * build every page's statements from a resolution already computed for the whole chunk
  * (resolveLinkTargetsForPages) instead of re-resolving per page.
  */
-function buildLinkWriteStatements(
+const buildLinkWriteStatements = function buildLinkWriteStatements(
   ctx: ServiceCtx,
   sourcePageId: string,
   resolved: Readonly<ResolvedLink[]>,
@@ -493,6 +465,34 @@ function buildLinkWriteStatements(
     )
   }
   return statements
+}
+
+/**
+ * Builds (without executing) the DELETE + chunked re-INSERT statements that recompute a
+ * page's outgoing wiki_links rows from its current content — the write half of
+ * reindexWikiLinks, split out so services/wiki.ts can fold these statements into the same
+ * db.batch() as the page's content write, revision insert, and FTS reindex (PROJ-511).
+ * All resolution (parsing + the resolveLinkTargets reads) happens BEFORE this returns, so
+ * by the time these statements exist there is nothing left to throw between them and the
+ * delete — the whole write becomes one atomic D1 batch when passed to ctx.db.batch().
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Orm} orm The Drizzle connection for resolving links.
+ * @param {string} sourcePageId The ID of the page whose links are being indexed.
+ * @param {string} content The source page's Markdown content.
+ * @returns {Promise<D1PreparedStatement[]>} The bound delete and insertion statements in execution order.
+ */
+export const buildWikiLinksReindexStatements = async function buildWikiLinksReindexStatements(
+  ctx: ServiceCtx,
+  orm: Orm,
+  sourcePageId: string,
+  content: string,
+): Promise<D1PreparedStatement[]> {
+  const targets = parseWikiLinkTargets(content)
+  // PROJ-818: title matching reads the stored folds — heal any NULLs first.
+  await healTitleFolds(ctx)
+  const resolved = Array.isArrayNonEmpty(targets) ? await resolveLinkTargets(orm, ctx.workspaceId, targets) : []
+  return buildLinkWriteStatements(ctx, sourcePageId, resolved)
 }
 
 /**
@@ -714,6 +714,21 @@ export const buildResolveIncomingLinksStatement = function buildResolveIncomingL
 }
 
 /*
+ * The oldest live page in the workspace that a wiki_links row (the UPDATE's own row)
+ * would resolve to — shared by rename and purge re-pointing so duplicates resolve the
+ * same way resolveTitleTargets does (created_at, then id).
+ */
+const repointSubquery = function repointSubquery(workspaceParam: string): string {
+  return `SELECT p.id FROM wiki_pages p
+		WHERE p.workspace_id = ${workspaceParam} AND p.deleted_at IS NULL
+		  AND (
+		    (COALESCE(wiki_links.target_kind, 'title') = 'title' AND p.title_fold = wiki_links.target_fold)
+		    OR (wiki_links.target_kind = 'slug' AND p.slug = wiki_links.target_text)
+		  )
+		ORDER BY p.created_at, p.id LIMIT 1`
+}
+
+/*
  * PROJ-814: on rename (title and/or slug), links that had resolved to this page BY ITS
  * OLD title/slug become unresolved again if their raw target text no longer matches the
  * NEW title/slug — e.g. a link's raw text is still "[[OldName]]"; once this page is no
@@ -741,21 +756,6 @@ export const buildUnresolveStaleIncomingLinksStatement = function buildUnresolve
 			   AND target_kind = 'title' AND target_fold = ?3 AND target_fold <> ?4`,
     )
     .bind(ctx.workspaceId, page.id, foldWikiTitle(old.title), foldWikiTitle(page.title))
-}
-
-/*
- * The oldest live page in the workspace that a wiki_links row (the UPDATE's own row)
- * would resolve to — shared by rename and purge re-pointing so duplicates resolve the
- * same way resolveTitleTargets does (created_at, then id).
- */
-function repointSubquery(workspaceParam: string): string {
-  return `SELECT p.id FROM wiki_pages p
-		WHERE p.workspace_id = ${workspaceParam} AND p.deleted_at IS NULL
-		  AND (
-		    (COALESCE(wiki_links.target_kind, 'title') = 'title' AND p.title_fold = wiki_links.target_fold)
-		    OR (wiki_links.target_kind = 'slug' AND p.slug = wiki_links.target_text)
-		  )
-		ORDER BY p.created_at, p.id LIMIT 1`
 }
 
 /**
@@ -852,6 +852,30 @@ export interface WikiBacklink {
   snippet: string | null
 }
 
+// Resolves which of `rows` (all project-scoped) the caller has an effective grant on.
+const visibleSourcePageIds = async function visibleSourcePageIds(
+  ctx: ServiceCtx,
+  rows: Readonly<{ pageId: string; projectId: string | null }[]>,
+): Promise<string[]> {
+  if (Array.isReadonlyArrayEmpty(rows)) {
+    return []
+  }
+  const uniqueProjectIds = [
+    ...new Set(
+      rows.map((row) => row.projectId).filter((projectId): projectId is string => Predicate.isNotNullish(projectId)),
+    ),
+  ]
+  const grantedProjectIds = new Set<string>()
+  for (const projectId of uniqueProjectIds) {
+    if (await hasProjectAccess(ctx, projectId)) {
+      grantedProjectIds.add(projectId)
+    }
+  }
+  return rows
+    .filter((row) => Predicate.isNotNullish(row.projectId) && grantedProjectIds.has(row.projectId))
+    .map((row) => row.pageId)
+}
+
 /**
  * Pages that link to an already-resolved+visibility-checked page, via target_page_id
  * (id-backed — a rename of the target never breaks this). Called by
@@ -910,30 +934,6 @@ export const backlinksForResolvedPage = async function backlinksForResolvedPage(
     url: wikiPagePath(row.slug),
     snippet: extractSnippet(row.content, row.targetTitle),
   }))
-}
-
-// Resolves which of `rows` (all project-scoped) the caller has an effective grant on.
-async function visibleSourcePageIds(
-  ctx: ServiceCtx,
-  rows: Readonly<{ pageId: string; projectId: string | null }[]>,
-): Promise<string[]> {
-  if (Array.isReadonlyArrayEmpty(rows)) {
-    return []
-  }
-  const uniqueProjectIds = [
-    ...new Set(
-      rows.map((row) => row.projectId).filter((projectId): projectId is string => Predicate.isNotNullish(projectId)),
-    ),
-  ]
-  const grantedProjectIds = new Set<string>()
-  for (const projectId of uniqueProjectIds) {
-    if (await hasProjectAccess(ctx, projectId)) {
-      grantedProjectIds.add(projectId)
-    }
-  }
-  return rows
-    .filter((row) => Predicate.isNotNullish(row.projectId) && grantedProjectIds.has(row.projectId))
-    .map((row) => row.pageId)
 }
 
 export interface BrokenWikiLink {

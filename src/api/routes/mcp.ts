@@ -108,6 +108,32 @@ const buildServerInstructions = function buildServerInstructions(workflowVersion
 export const mcpRouter = new Hono<HonoEnv>()
 
 /*
+ * PROJ-651: insufficient scope is an HTTP 403 with an RFC 9728 challenge, not a
+ * JSON-RPC error inside a 200. A 200 is invisible to a client's step-up flow —
+ * Claude hands the error text to the model as a tool result and moves on, so the
+ * user reads "please sign in" prose in the chat instead of being offered a Connect
+ * button. The JSON-RPC body is kept alongside the status so non-OAuth callers
+ * (the existing `pk_` token fleet) still get the same structured -32003 they did
+ * before; only the transport-level status and the header are new.
+ */
+const insufficientScope = function insufficientScope(
+  httpContext: Context<HonoEnv>,
+  workspaceId: string,
+  id: unknown,
+  required: Capability,
+) {
+  httpContext.header('WWW-Authenticate', insufficientScopeChallenge(httpContext.req.url, workspaceId))
+  return httpContext.json(
+    jsonRpcError(id, { code: JSON_RPC_INSUFFICIENT_SCOPE, message: `Token lacks '${required}' scope` }),
+    HTTP_FORBIDDEN,
+  )
+}
+
+const dedupe = function dedupe(values: string[]): string[] {
+  return [...new Set(values)]
+}
+
+/*
  * MCP endpoint: POST /mcp/{workspaceId}
  * Implements JSON-RPC 2.0 over HTTP (MCP Streamable HTTP transport)
  *
@@ -348,27 +374,6 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
     }
   }
 })
-
-/*
- * PROJ-651: insufficient scope is an HTTP 403 with an RFC 9728 challenge, not a
- * JSON-RPC error inside a 200. A 200 is invisible to a client's step-up flow —
- * Claude hands the error text to the model as a tool result and moves on, so the
- * user reads "please sign in" prose in the chat instead of being offered a Connect
- * button. The JSON-RPC body is kept alongside the status so non-OAuth callers
- * (the existing `pk_` token fleet) still get the same structured -32003 they did
- * before; only the transport-level status and the header are new.
- */
-function insufficientScope(httpContext: Context<HonoEnv>, workspaceId: string, id: unknown, required: Capability) {
-  httpContext.header('WWW-Authenticate', insufficientScopeChallenge(httpContext.req.url, workspaceId))
-  return httpContext.json(
-    jsonRpcError(id, { code: JSON_RPC_INSUFFICIENT_SCOPE, message: `Token lacks '${required}' scope` }),
-    HTTP_FORBIDDEN,
-  )
-}
-
-function dedupe(values: string[]): string[] {
-  return [...new Set(values)]
-}
 
 function getAllTools(workspaceId: string): MCPTool[] {
   return [...coreMCPTools, ...pluginRegistry.getToolsForWorkspace(workspaceId)]

@@ -320,6 +320,10 @@ const WORKSPACE_CLEANUP_SQL: Readonly<string[]> = [
   'DELETE FROM workspaces WHERE id = ?1',
 ]
 
+const readBrand = async function readBrand(ctx: ServiceCtx): Promise<WorkspaceBrand> {
+  return Effect.runPromise(data.readWorkspaceBrand(ctx.db, ctx.workspaceId))
+}
+
 export const deleteWorkspace = async function deleteWorkspace(
   ctx: ServiceCtx,
   pathSlug: string,
@@ -420,10 +424,6 @@ const requireBrandWrite = function requireBrandWrite(ctx: ServiceCtx): void {
   if (ctx.role !== 'owner' && ctx.role !== 'admin') {
     throw new ForbiddenError()
   }
-}
-
-async function readBrand(ctx: ServiceCtx): Promise<WorkspaceBrand> {
-  return Effect.runPromise(data.readWorkspaceBrand(ctx.db, ctx.workspaceId))
 }
 
 const writeBrand = async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBrand): Promise<void> {

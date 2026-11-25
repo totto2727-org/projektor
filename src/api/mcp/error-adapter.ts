@@ -216,20 +216,7 @@ const definedFields = function definedFields(
   return Array.isArrayNonEmpty(Object.keys(out)) ? out : undefined
 }
 
-const notFoundHint = function notFoundHint(message: string, toolName: string | undefined): string {
-  // The message says what was missing; the tool name is only a fallback (claim_issue's
-  // "Agent session not found" must not be read as an issue miss).
-  const fromMessage = pickNotFoundHint(message.toLowerCase())
-  if (Predicate.isNotNullish(fromMessage) && String.isNonEmpty(fromMessage)) {
-    return fromMessage
-  }
-  return (
-    pickNotFoundHint((toolName ?? '').toLowerCase()) ??
-    'Check the id or ref. Use the matching search_ or list_ tool to look it up.'
-  )
-}
-
-function pickNotFoundHint(subject: string): string | undefined {
+const pickNotFoundHint = function pickNotFoundHint(subject: string): string | undefined {
   if (subject.includes('wiki') || subject.includes('page')) {
     return 'Wiki pages are addressed by slug. Use search_wiki or wiki_tree to find one.'
   }
@@ -243,6 +230,19 @@ function pickNotFoundHint(subject: string): string | undefined {
     return 'Projects are addressed by UUID or key (e.g. PROJ). Use list_projects to see them.'
   }
   return undefined
+}
+
+const notFoundHint = function notFoundHint(message: string, toolName: string | undefined): string {
+  // The message says what was missing; the tool name is only a fallback (claim_issue's
+  // "Agent session not found" must not be read as an issue miss).
+  const fromMessage = pickNotFoundHint(message.toLowerCase())
+  if (Predicate.isNotNullish(fromMessage) && String.isNonEmpty(fromMessage)) {
+    return fromMessage
+  }
+  return (
+    pickNotFoundHint((toolName ?? '').toLowerCase()) ??
+    'Check the id or ref. Use the matching search_ or list_ tool to look it up.'
+  )
 }
 
 const conflictHint = function conflictHint(message: string, details: Record<string, unknown> | undefined): string {

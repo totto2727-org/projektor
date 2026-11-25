@@ -59,6 +59,62 @@ const PUBLIC_VIEWER_EMAIL = 'public-viewer@projektor.local'
 const RoleSchema = Schema.Literals(['owner', 'admin', 'member', 'viewer'])
 const decodeActor = Schema.decodeUnknownSync(CoreActor)
 
+const authenticateOpaqueToken = async function authenticateOpaqueToken(
+  token: string,
+  env: CoreEnvironment,
+): Promise<CorePrincipal> {
+  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+  const row = await env.DB.prepare(`SELECT at.id, at.workspace_id, at.expires_at, at.scopes, at.last_used_at,
+    u.id AS user_id, u.email, u.name FROM api_tokens at LEFT JOIN users u ON u.id = at.user_id
+    WHERE at.token_hash = ?`)
+    .bind(hash)
+    .first<{
+      id: string
+      workspace_id: string | null
+      expires_at: number | null
+      scopes: string | null
+      last_used_at: number | null
+      user_id: string | null
+      email: string | null
+      name: string | null
+    }>()
+  if (!row || !row.user_id || !row.email || Predicate.isNullish(row.name)) {
+    throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
+  }
+  if (Predicate.isNotNullish(row.expires_at) && row.expires_at < currentEpochMilliseconds() / MILLISECONDS_PER_SECOND) {
+    throw coreFailure(HTTP_UNAUTHORIZED, 'Token expired')
+  }
+  const scopes = parseScopes(row.scopes)
+  const now = currentEpochSeconds()
+  if (!row.last_used_at || now - row.last_used_at >= TOKEN_USAGE_WRITE_INTERVAL_SECONDS) {
+    const audit = env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?')
+      .bind(now, hash)
+      .run()
+      .catch((cause: unknown) => {
+        console.error('[core]', { operation: 'tokenAudit', occurrenceId: `urn:uuid:${crypto.randomUUID()}`, cause })
+      })
+    if (env.invocation) {
+      env.invocation.waitUntil(audit)
+    } else {
+      await audit
+    }
+  }
+  return {
+    user: { id: row.user_id, email: row.email, name: row.name },
+    auth: {
+      kind: 'agent',
+      method: token.startsWith('pk_') ? 'pk' : 'pat',
+      credentialId: row.id,
+      scopes,
+      workspaceId: row.workspace_id,
+    },
+    tokenWorkspaceId: row.workspace_id,
+    tokenScopes: scopes,
+  }
+}
+
 /**
  * Re-run on every operation. A returned principal is data, not a reusable capability.
  *
@@ -137,59 +193,6 @@ export const resolveCorePrincipal = async function resolveCorePrincipal(
     return { user, auth: { kind: 'human', method: 'public' }, tokenWorkspaceId: undefined, tokenScopes: undefined }
   }
   throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
-}
-
-async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Promise<CorePrincipal> {
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-  const row = await env.DB.prepare(`SELECT at.id, at.workspace_id, at.expires_at, at.scopes, at.last_used_at,
-    u.id AS user_id, u.email, u.name FROM api_tokens at LEFT JOIN users u ON u.id = at.user_id
-    WHERE at.token_hash = ?`)
-    .bind(hash)
-    .first<{
-      id: string
-      workspace_id: string | null
-      expires_at: number | null
-      scopes: string | null
-      last_used_at: number | null
-      user_id: string | null
-      email: string | null
-      name: string | null
-    }>()
-  if (!row || !row.user_id || !row.email || Predicate.isNullish(row.name)) {
-    throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
-  }
-  if (Predicate.isNotNullish(row.expires_at) && row.expires_at < currentEpochMilliseconds() / MILLISECONDS_PER_SECOND) {
-    throw coreFailure(HTTP_UNAUTHORIZED, 'Token expired')
-  }
-  const scopes = parseScopes(row.scopes)
-  const now = currentEpochSeconds()
-  if (!row.last_used_at || now - row.last_used_at >= TOKEN_USAGE_WRITE_INTERVAL_SECONDS) {
-    const audit = env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?')
-      .bind(now, hash)
-      .run()
-      .catch((cause: unknown) => {
-        console.error('[core]', { operation: 'tokenAudit', occurrenceId: `urn:uuid:${crypto.randomUUID()}`, cause })
-      })
-    if (env.invocation) {
-      env.invocation.waitUntil(audit)
-    } else {
-      await audit
-    }
-  }
-  return {
-    user: { id: row.user_id, email: row.email, name: row.name },
-    auth: {
-      kind: 'agent',
-      method: token.startsWith('pk_') ? 'pk' : 'pat',
-      credentialId: row.id,
-      scopes,
-      workspaceId: row.workspace_id,
-    },
-    tokenWorkspaceId: row.workspace_id,
-    tokenScopes: scopes,
-  }
 }
 
 /**

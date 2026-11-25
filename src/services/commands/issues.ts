@@ -125,6 +125,12 @@ const validateParent = async function validateParent(
   })
 }
 
+function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
+  return issueRecord.project_key
+    ? issuePath(issueRecord.project_key as string, issueRecord.number as number, issueRecord.title as string)
+    : null
+}
+
 export async function listIssues(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssuesSchema.safeParse(raw)
   if (!result.success) {
@@ -214,12 +220,6 @@ const assertIssueProjectVisible = async function assertIssueProjectVisible(
   if (Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     throw new NotFoundError('Issue not found')
   }
-}
-
-function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
-  return issueRecord.project_key
-    ? issuePath(issueRecord.project_key as string, issueRecord.number as number, issueRecord.title as string)
-    : null
 }
 
 /*
@@ -449,6 +449,10 @@ const buildFtsInsertStatement = function buildFtsInsertStatement(
       'INSERT INTO issues_fts (issue_id, workspace_id, title, body) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM issues WHERE id = ? AND workspace_id = ?)',
     )
     .bind(id, ctx.workspaceId, title, body, id, ctx.workspaceId)
+}
+
+function now(): number {
+  return currentEpochSeconds()
 }
 
 /*
@@ -1009,8 +1013,24 @@ const applyStatusFields = async function applyStatusFields(
   }
 }
 
-function now(): number {
-  return currentEpochSeconds()
+function formatCompletionReportComment(
+  report: Readonly<{
+    summary: string
+    verification: string
+    prLink?: string
+  }>,
+): string {
+  const lines = [
+    '**Completion report**',
+    '',
+    `**Summary:** ${report.summary}`,
+    '',
+    `**Verification:** ${report.verification}`,
+  ]
+  if (report.prLink) {
+    lines.push('', `**PR:** ${report.prLink}`)
+  }
+  return lines.join('\n')
 }
 
 /*
@@ -1034,26 +1054,6 @@ const completionReportCommentBody = function completionReportCommentBody(
     )
   }
   return body
-}
-
-function formatCompletionReportComment(
-  report: Readonly<{
-    summary: string
-    verification: string
-    prLink?: string
-  }>,
-): string {
-  const lines = [
-    '**Completion report**',
-    '',
-    `**Summary:** ${report.summary}`,
-    '',
-    `**Verification:** ${report.verification}`,
-  ]
-  if (report.prLink) {
-    lines.push('', `**PR:** ${report.prLink}`)
-  }
-  return lines.join('\n')
 }
 
 /*

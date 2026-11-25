@@ -26,6 +26,24 @@ import type { HonoEnv } from '#types'
  */
 const CACHE_CONTROL = 'private, no-cache'
 
+const ifNoneMatchMatches = function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
+  if (Predicate.isNullish(header) || String.isEmpty(header)) {
+    return false
+  }
+  if (header.trim() === '*') {
+    return true
+  }
+  const stripWeak = (tag: string): string => tag.trim().replace(/^W\//u, '')
+  return header.split(',').some((tag) => stripWeak(tag) === stripWeak(etag))
+}
+
+const sha256Prefix = async function sha256Prefix(input: ArrayBuffer): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', input)
+  return Array.from(new Uint8Array(buf).slice(0, 16))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 export const etagMiddleware = async function etagMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<void> {
   await next()
 
@@ -51,22 +69,4 @@ export const etagMiddleware = async function etagMiddleware(httpContext: Context
 
   httpContext.res.headers.set('ETag', etag)
   httpContext.res.headers.set('Cache-Control', CACHE_CONTROL)
-}
-
-function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
-  if (Predicate.isNullish(header) || String.isEmpty(header)) {
-    return false
-  }
-  if (header.trim() === '*') {
-    return true
-  }
-  const stripWeak = (tag: string): string => tag.trim().replace(/^W\//u, '')
-  return header.split(',').some((tag) => stripWeak(tag) === stripWeak(etag))
-}
-
-async function sha256Prefix(input: ArrayBuffer): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', input)
-  return Array.from(new Uint8Array(buf).slice(0, 16))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
 }

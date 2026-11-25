@@ -19,6 +19,22 @@ const User = Schema.Struct({ id: Schema.String, email: Schema.String, name: Sche
 const Workspace = Schema.Struct({ id: Schema.String, name: Schema.String, slug: Schema.String, role: Schema.String })
 const Workspaces = Schema.Array(Workspace)
 
+const resolveUser = async function resolveUser(
+  actor: CoreActor,
+  env: CoreEnvironment,
+  capability: 'read' | 'write',
+): Promise<CorePrincipal> {
+  const principal = await resolveCorePrincipal(actor, env)
+  requireCoreCapability(principal, capability)
+  return principal
+}
+
+const requireInteractive = function requireInteractive(auth: { method: string; kind: string }): void {
+  if (auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
+    throw coreFailure(HTTP_FORBIDDEN, 'Personal credentials require a signed-in browser session')
+  }
+}
+
 /** These named methods never accept caller-supplied user IDs or roles. */
 export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
@@ -134,21 +150,5 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
           return deleteUserToken({ db: env.DB, userId: principal.user.id }, id)
         }),
       ),
-  }
-}
-
-async function resolveUser(
-  actor: CoreActor,
-  env: CoreEnvironment,
-  capability: 'read' | 'write',
-): Promise<CorePrincipal> {
-  const principal = await resolveCorePrincipal(actor, env)
-  requireCoreCapability(principal, capability)
-  return principal
-}
-
-function requireInteractive(auth: { method: string; kind: string }): void {
-  if (auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
-    throw coreFailure(HTTP_FORBIDDEN, 'Personal credentials require a signed-in browser session')
   }
 }

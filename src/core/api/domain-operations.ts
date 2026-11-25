@@ -38,6 +38,12 @@ import { coreFailure, coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
+const requireInteractive = function requireInteractive(ctx: ServiceCtx): void {
+  if (ctx.auth?.kind !== 'human' || (ctx.auth.method !== 'access' && ctx.auth.method !== 'dev')) {
+    throw coreFailure(HTTP_FORBIDDEN, 'Personal credentials require a signed-in browser session')
+  }
+}
+
 /** Closed, named native methods. No caller-supplied operation or capability is accepted. */
 export const makeApiDomainHandlers = function makeApiDomainHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
@@ -262,11 +268,5 @@ export const makeApiDomainHandlers = function makeApiDomainHandlers<R>(
     apiGetWorkspaceBrand: operation('apiGetWorkspaceBrand', 'read', workspaces.getWorkspaceBrand),
     apiUpdateWorkspaceBrand: operation('apiUpdateWorkspaceBrand', 'write', workspaces.updateWorkspaceBrand),
     apiDeleteWorkspaceLogo: operation('apiDeleteWorkspaceLogo', 'write', workspaces.deleteWorkspaceLogo),
-  }
-}
-
-function requireInteractive(ctx: ServiceCtx): void {
-  if (ctx.auth?.kind !== 'human' || (ctx.auth.method !== 'access' && ctx.auth.method !== 'dev')) {
-    throw coreFailure(HTTP_FORBIDDEN, 'Personal credentials require a signed-in browser session')
   }
 }
