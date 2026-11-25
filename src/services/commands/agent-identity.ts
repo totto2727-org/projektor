@@ -2,6 +2,7 @@ import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { String, Predicate, Array } from 'effect'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
@@ -127,7 +128,7 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
     rows = await find([])
   }
 
-  if (rows.length === 1) {
+  if (hasSingleItem(rows)) {
     await assertAgentSessionAccess(ctx, rows[0].id, opts)
     return rows[0].id
   }

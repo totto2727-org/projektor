@@ -2,6 +2,7 @@
 import { Array } from 'effect'
 import type { JSX, Dispatch, SetStateAction } from 'react'
 
+import { hasMultipleItems } from '#contracts/item-count.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Dialog } from '@/components/ui/dialog.tsx'
 import { Select } from '@/components/ui/select.tsx'
@@ -71,7 +72,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
 >): JSX.Element {
   return (
     <div className='flex gap-3 mb-5 flex-wrap items-end'>
-      {projects.length > 1 && (
+      {hasMultipleItems(projects) && (
         <div>
           {/* Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Project</label>

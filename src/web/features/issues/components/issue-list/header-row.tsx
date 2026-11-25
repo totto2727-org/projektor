@@ -2,6 +2,7 @@
 import { Predicate } from 'effect'
 import type { JSX } from 'react'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
 import type { Issue } from '@/features/issues/components/board-utils.ts'
@@ -19,7 +20,7 @@ const countLabel = function countLabel(view: ViewMode, filtered: Issue[], totalI
 }
 
 const searchCountLabel = function searchCountLabel(results: Readonly<SearchResult[]>, query: string): string {
-  return `${results.length} result${results.length !== 1 ? 's' : ''} for «${query.trim()}»`
+  return `${results.length} result${!hasSingleItem(results) ? 's' : ''} for «${query.trim()}»`
 }
 
 interface HeaderRowProps {

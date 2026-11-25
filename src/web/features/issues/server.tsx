@@ -2,6 +2,7 @@ import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
 import { HTTP_BAD_REQUEST, HTTP_BAD_GATEWAY, HTTP_UNPROCESSABLE_CONTENT } from '#contracts/http-status.ts'
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
 import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
 import { renderMarkdownDocument } from '@/components/markdown/render.ts'
@@ -267,7 +268,7 @@ export const loadIssue = function loadIssue(
     const workspace =
       Predicate.isNotNullish(hint) && String.isNonEmpty(hint)
         ? scope.workspaces.find((entry) => entry.slug === hint)
-        : (workspaceSelection(scope) ?? (scope.workspaces.length === 1 ? scope.workspaces[0] : null))
+        : (workspaceSelection(scope) ?? (hasSingleItem(scope.workspaces) ? scope.workspaces[0] : null))
     if (!workspace) {
       return null
     }

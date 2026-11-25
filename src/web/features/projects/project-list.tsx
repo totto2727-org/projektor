@@ -5,6 +5,7 @@ import { Array, Schema, Predicate } from 'effect'
 import { useActionState, useEffect, useRef } from 'react'
 import type { JSX } from 'react'
 
+import { hasMultipleItems, hasSingleItem } from '#contracts/item-count.ts'
 import { useRuntime } from '@/client/runtime.tsx'
 import { FormErrors } from '@/components/form-errors.tsx'
 import { Input } from '@/components/generated/input.tsx'
@@ -86,7 +87,7 @@ export const ProjectList = function ProjectList({
       )
   const form = useForm({
     defaultValues: {
-      workspaceSlug: writable.length === 1 ? writable[0].slug : '',
+      workspaceSlug: hasSingleItem(writable) ? writable[0].slug : '',
       name: '',
       key: '',
       description: '',
@@ -166,7 +167,7 @@ export const ProjectList = function ProjectList({
               <p className='m-0 mb-1 text-xs font-semibold text-text-muted'>Workspace</p>
               <form.Field name='workspaceSlug'>
                 {(field) =>
-                  writable.length > 1 ? (
+                  hasMultipleItems(writable) ? (
                     <select
                       // Native selects otherwise size to their longest option, overflowing narrow forms.
                       className='w-full min-w-0'

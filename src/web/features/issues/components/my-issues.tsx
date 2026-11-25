@@ -3,6 +3,7 @@
 import { Array } from 'effect'
 import type { JSX } from 'react'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
 import { statusDisplayName } from '@/features/issues/lib/status.ts'
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
@@ -176,7 +177,7 @@ export function MyIssues({ initialData }: { initialData: MyIssuesInitialData }):
     <div>
       <div className='flex items-center gap-3 mb-5'>
         <span className='text-sm text-text-muted'>
-          {visible.length} issue{visible.length !== 1 ? 's' : ''}
+          {visible.length} issue{!hasSingleItem(visible) ? 's' : ''}
         </span>
       </div>
 

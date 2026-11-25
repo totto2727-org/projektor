@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { JSX } from 'react'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { formatTimestampDate } from '@/features/timestamp.ts'
@@ -115,7 +116,7 @@ export function ConnectorManager({
   return (
     <div>
       <p className='m-0 mb-5 text-sm text-text-muted'>
-        {grants.length} connected application{grants.length !== 1 ? 's' : ''}
+        {grants.length} connected application{!hasSingleItem(grants) ? 's' : ''}
       </p>
       <div className='overflow-x-auto max-sm:hidden'>
         <table className='w-full border-collapse text-[0.9rem]'>

@@ -1,6 +1,8 @@
 import { Array, Predicate } from 'effect'
 import type { ReactNode } from 'react'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
+
 /** Structural subset shared by Standard Schema issues and TanStack Form error values. */
 export type FormIssue = Readonly<{
   message?: unknown
@@ -50,7 +52,7 @@ export const FormErrors = function FormErrors({
     return null
   }
   const classes = ['mt-1 text-xs text-danger-text', className].filter(Boolean).join(' ')
-  if (messages.length === 1) {
+  if (hasSingleItem(messages)) {
     return (
       <p id={id} role='alert' className={classes}>
         {messages[0]}

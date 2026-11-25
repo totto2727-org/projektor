@@ -2,6 +2,7 @@ import { String, Predicate, Array, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { hasSingleItem } from '#contracts/item-count.ts'
 import type { AuthInfo } from '#types'
 
 export const WebRequestSchema = Schema.Struct({
@@ -153,7 +154,7 @@ export const selectedWorkspace = function selectedWorkspace(
     return undefined
   }
   const matches = workspaces.filter((workspace) => workspace.slug === hint)
-  if (matches.length !== 1) {
+  if (!hasSingleItem(matches)) {
     throw new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
   }
   return matches[0]
@@ -179,7 +180,7 @@ export const resolveScope = function resolveScope(
     if (Predicate.isNotNullish(projectHint) && String.isNonEmpty(projectHint) && Array.isReadonlyArrayEmpty(matches)) {
       throw new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
     }
-    if (matches.length === 1) {
+    if (hasSingleItem(matches)) {
       const project = matches[0]
       const membership = session.workspaces.find(
         (item) => item.id === project.workspace_id && item.slug === project.workspace_slug,
@@ -198,14 +199,13 @@ export const resolveScope = function resolveScope(
   } else if (workspace) {
     selection = { kind: 'workspace', workspace }
   } else if (options.requireWorkspace === true) {
-    selection =
-      session.workspaces.length === 1
-        ? { kind: 'workspace', workspace: session.workspaces[0] }
-        : {
-            kind: 'selection-required',
-            target: 'workspace',
-            reason: Array.isReadonlyArrayEmpty(session.workspaces) ? 'empty' : 'ambiguous',
-          }
+    selection = hasSingleItem(session.workspaces)
+      ? { kind: 'workspace', workspace: session.workspaces[0] }
+      : {
+          kind: 'selection-required',
+          target: 'workspace',
+          reason: Array.isReadonlyArrayEmpty(session.workspaces) ? 'empty' : 'ambiguous',
+        }
   } else {
     selection = { kind: 'global' }
   }

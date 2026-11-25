@@ -5,6 +5,7 @@ import { Array, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent } from 'react'
 
+import { hasMultipleItems } from '#contracts/item-count.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Button } from '@/components/ui/button.tsx'
@@ -830,7 +831,7 @@ export const GroupManager = function GroupManager({
           {error}
         </p>
       )}
-      {tabs.length > 1 && (
+      {hasMultipleItems(tabs) && (
         <div
           role='tablist'
           aria-label='Groups'

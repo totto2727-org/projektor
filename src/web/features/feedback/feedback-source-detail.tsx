@@ -3,6 +3,7 @@ import { String, Predicate } from 'effect'
 import { useRef } from 'react'
 import type { JSX } from 'react'
 
+import { hasMultipleItems } from '#contracts/item-count.ts'
 import { Select } from '@/components/ui/select.tsx'
 import { navigateFeature } from '@/features/wiki/navigation.ts'
 
@@ -64,7 +65,7 @@ const FeedbackSourceHeader = function FeedbackSourceHeader({
           {statusLabel(source)}
         </span>
       </div>
-      {sources.length > 1 && (
+      {hasMultipleItems(sources) && (
         <Select
           ariaLabel='Switch feedback source'
           value={source.id}

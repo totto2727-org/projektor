@@ -18,6 +18,7 @@ const STATUS_LABELS = {
   fixing: '修正中',
   in_review: 'レビュー中',
 }
+const VISIBLE_TARGET_COUNT = 1
 
 /** One native link keeps review context visible in every issue layout, including empty selection. */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
@@ -32,7 +33,7 @@ export const ReviewTargetsSummary = function ReviewTargetsSummary({ issue }: { i
   )
   url.searchParams.set('tab', 'review-targets')
   const href = `${url.pathname}${url.search}${url.hash}`
-  const additional = targets.length > 1 ? ` +${targets.length - 1}` : ''
+  const additional = targets.length > VISIBLE_TARGET_COUNT ? ` +${targets.length - VISIBLE_TARGET_COUNT}` : ''
 
   return (
     <a

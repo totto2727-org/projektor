@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Schema, String } from 'effect'
 
 export const GroupViewSchema = Schema.Literals(['groups', 'members'])
 export type GroupView = typeof GroupViewSchema.Type
@@ -6,7 +6,7 @@ export type GroupView = typeof GroupViewSchema.Type
 const required = (label: string, maximum = 200): Schema.String =>
   Schema.String.check(
     Schema.isMaxLength(maximum),
-    Schema.makeFilter((value) => value.trim().length > 0 || `${label} is required.`),
+    Schema.makeFilter((value) => String.isNonEmpty(value.trim()) || `${label} is required.`),
   )
 export const SettingsScopeFields = { workspaceSlug: required('Workspace') }
 export const GroupNameFields = { name: required('Group name', 100) }

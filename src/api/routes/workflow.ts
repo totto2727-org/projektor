@@ -4,6 +4,7 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { getWorkflow } from '#api/services/workflow.ts'
+import { hasSingleItem } from '#contracts/item-count.ts'
 import type { HonoEnv } from '#types'
 
 export const workflowRouter = new Hono<HonoEnv>()
@@ -18,7 +19,7 @@ workflowRouter.get('/', async (httpContext) => {
     const ifVersionValues = httpContext.req.queries('ifVersion')
     const ifVersion = Predicate.isNullish(ifVersionValues)
       ? undefined
-      : ifVersionValues.length === 1
+      : hasSingleItem(ifVersionValues)
         ? ifVersionValues[0]
         : ifVersionValues
     return httpContext.json(

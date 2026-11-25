@@ -3,6 +3,7 @@ import { Predicate, Schema } from 'effect'
 import { exportWiki } from '#commands/wiki-export.ts'
 import { getWorkspaceLogoObject, uploadWorkspaceLogo } from '#commands/workspaces.ts'
 import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { CoreActor, resolveCoreServiceCtx } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
@@ -26,7 +27,7 @@ export const handleApiBinaryRequest = async function handleApiBinaryRequest(
     }
     const actor = Schema.decodeUnknownSync(Schema.fromJsonString(CoreActor))(request.headers.get(CORE_ACTOR_HEADER))
     const ids = url.searchParams.getAll('workspaceId')
-    if (ids.length !== 1 || !ids[0]) {
+    if (!hasSingleItem(ids) || !ids[0]) {
       throw coreFailure(HTTP_BAD_REQUEST, 'Workspace not specified')
     }
     const ctx = await resolveCoreServiceCtx(actor, ids[0], request.method === 'POST' ? 'write' : 'read', env)

@@ -5,6 +5,7 @@ import { String, Array, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useEffectEvent, useState } from 'react'
 import type { JSX } from 'react'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Button } from '@/components/ui/button.tsx'
@@ -141,7 +142,7 @@ export const SprintManager = function SprintManager({
       )}
       <div className='flex justify-between items-center mb-4'>
         <p className='m-0 text-sm text-text-muted'>
-          {allSprints.length} sprint{allSprints.length !== 1 ? 's' : ''}
+          {allSprints.length} sprint{!hasSingleItem(allSprints) ? 's' : ''}
         </p>
         {!showCreate && (
           <Button

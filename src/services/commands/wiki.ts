@@ -18,6 +18,7 @@ import {
   WikiTreeInputSchema,
 } from '#contracts/inputs/wiki.ts'
 import type { PatchWikiPageInput } from '#contracts/inputs/wiki.ts'
+import { hasMultipleItems, hasSingleItem } from '#contracts/item-count.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 import { drizzle, schema } from '#db'
@@ -1753,7 +1754,7 @@ const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
    * section the caller never looked at — rejected instead, per the PRD's "integrity
    * over convenience" principle.
    */
-  if (currentMatches.length > 1) {
+  if (hasMultipleItems(currentMatches)) {
     throw new ValidationError({
       formErrors: [
         `Heading '${heading}' is ambiguous — it appears ${currentMatches.length} times ` +
@@ -1789,7 +1790,7 @@ const assertNoSectionPatchConflict = async function assertNoSectionPatchConflict
    * below (correctly) trips the conflict check.
    */
   const baseMatches = findSections(parseHeadingSections(baseContent), data.heading)
-  const baseSectionText = baseMatches.length === 1 ? extractSectionText(baseContent, baseMatches[0]) : ''
+  const baseSectionText = hasSingleItem(baseMatches) ? extractSectionText(baseContent, baseMatches[0]) : ''
   const currentSectionText = extractSectionText(currentContent, currentSection)
   if (baseSectionText !== currentSectionText) {
     throw new ConflictError(`Section '${data.heading}' has been modified since baseRevisionId; rebase and retry`, {

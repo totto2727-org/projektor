@@ -5,6 +5,7 @@ import { Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds } from '#contracts/time.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
@@ -306,7 +307,7 @@ export const TokenManager = function TokenManager({
     <div>
       <div className='flex justify-between items-center mb-5'>
         <p className='m-0 text-sm text-text-muted'>
-          {tokens.length} token{tokens.length !== 1 ? 's' : ''}
+          {tokens.length} token{!hasSingleItem(tokens) ? 's' : ''}
         </p>
         {!showCreate && (
           <Button variant='primary' size='sm' onClick={open}>

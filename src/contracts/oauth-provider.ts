@@ -7,6 +7,8 @@ import type {
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 import { Predicate } from 'effect'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
+
 import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
 export const TOKEN_ENDPOINT = '/oauth/token'
@@ -22,7 +24,7 @@ const validateNativeClient = function validateNativeClient({
   clientMetadata,
 }: ClientRegistrationCallbackOptions): { description: string } | undefined {
   const redirects = clientMetadata.redirect_uris
-  const redirect = Array.isArray(redirects) && redirects.length === 1 ? redirects[0] : undefined
+  const redirect = Array.isArray(redirects) && hasSingleItem(redirects) ? redirects[0] : undefined
   if (clientMetadata.token_endpoint_auth_method === 'none' && Predicate.isString(redirect) && URL.canParse(redirect)) {
     const url = new URL(redirect)
     if (

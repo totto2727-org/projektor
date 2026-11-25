@@ -1,6 +1,8 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
 import { String, Array, Predicate } from 'effect'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
+
 import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
 /** Provider mechanics validate clients, redirect URIs and PKCE. This contract binds the workspace audience. */
@@ -22,7 +24,7 @@ export const workspaceIdFromResource = function workspaceIdFromResource(
     throw new OAuthRequestError('invalid_target', 'A `resource` parameter naming the target workspace is required')
   }
   if (globalThis.Array.isArray(resource)) {
-    if (resource.length !== 1) {
+    if (!hasSingleItem(resource)) {
       throw new OAuthRequestError('invalid_target', 'Exactly one `resource` may be requested')
     }
     return workspaceIdFromResource(resource[0])

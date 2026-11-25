@@ -17,6 +17,7 @@ import {
 } from 'react'
 import type { JSX, RefObject } from 'react'
 
+import { hasMultipleItems } from '#contracts/item-count.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { uploadInlineImage as uploadEditorImage } from '@/attachment-actions.ts'
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
@@ -1185,7 +1186,7 @@ function PageBreadcrumbs({
   breadcrumbs: FlatEntry[]
   onNavigate: (slug: string) => void
 }): undefined | JSX.Element {
-  if (breadcrumbs.length <= 1) {
+  if (!hasMultipleItems(breadcrumbs)) {
     return undefined
   }
   return (

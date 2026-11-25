@@ -2,6 +2,7 @@ import { Predicate, Schema } from 'effect'
 
 import { getAttachmentForDownload, storageQuotaBytes, uploadStoredAttachment } from '#commands/files.ts'
 import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { hasSingleItem } from '#contracts/item-count.ts'
 
 import { CoreActor, resolveCoreServiceCtx } from './authorization.ts'
 import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from './contract.ts'
@@ -30,7 +31,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
       throw coreFailure(HTTP_BAD_REQUEST, 'Invalid file request')
     }
     const workspaceIds = url.searchParams.getAll('workspaceId')
-    if (workspaceIds.length !== 1 || !workspaceIds[0]) {
+    if (!hasSingleItem(workspaceIds) || !workspaceIds[0]) {
       throw coreFailure(HTTP_BAD_REQUEST, 'Workspace not specified')
     }
     const ctx = await resolveCoreServiceCtx(actor, workspaceIds[0], upload ? 'write' : 'read', env)

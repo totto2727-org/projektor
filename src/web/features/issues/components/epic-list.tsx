@@ -3,6 +3,7 @@ import { String, Array, Iterable, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 import type { JSX } from 'react'
 
+import { hasMultipleItems } from '#contracts/item-count.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Card } from '@/components/ui/card.tsx'
 import { Dialog } from '@/components/ui/dialog.tsx'
@@ -478,7 +479,7 @@ function CreateEpicModal({
         </div>
 
         <div className='flex gap-3 mb-5 flex-wrap items-end'>
-          {projects.length > 1 && (
+          {hasMultipleItems(projects) && (
             <div>
               {/* Select uses ariaLabel for accessibility */}
               <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
