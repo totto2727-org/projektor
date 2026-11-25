@@ -1,5 +1,5 @@
 import { Schema, String, Predicate } from 'effect'
-import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { fetchAgentWipCap } from '#commands/issue-leases.ts'
 import type { ServiceCtx } from '#commands/types.ts'
@@ -11,56 +11,145 @@ import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedP
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { parseNativeMcpText, IdResponse, ItemsResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
 
-describe('issue leases API (PROJ-184)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
+type LeaseProjectFixture = Awaited<ReturnType<typeof seedProjectFixture>>
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
+const registerAgent = async function registerAgent(
+  { token, slug }: LeaseProjectFixture,
+  name: string,
+): Promise<string> {
+  const res = await fetchNativeApi('http://localhost/api/agents', {
+    body: JSON.stringify({ name }),
+    headers: authHeaders(token, slug),
+    method: 'POST',
   })
+  const session = await readNativeJson(res, IdResponse)
+  return session.id
+}
 
-  const registerAgent = async function registerAgent(name: string): Promise<string> {
-    const res = await fetchNativeApi('http://localhost/api/agents', {
-      body: JSON.stringify({ name }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-    const session = await readNativeJson(res, IdResponse)
-    return session.id
+const claim = function claim(
+  { token, slug }: LeaseProjectFixture,
+  issueId: string,
+  agentId: string,
+): Promise<Response> {
+  return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
+    body: JSON.stringify({ agentId }),
+    headers: authHeaders(token, slug),
+    method: 'POST',
+  })
+}
+
+const release = function release(
+  { token, slug }: LeaseProjectFixture,
+  issueId: string,
+  agentId?: string,
+): Promise<Response> {
+  return fetchNativeApi(`http://localhost/api/issues/${issueId}/release`, {
+    body: JSON.stringify(Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId) ? { agentId } : {}),
+    headers: authHeaders(token, slug),
+    method: 'POST',
+  })
+}
+
+const backdateHeartbeat = function backdateHeartbeat(
+  agentId: string,
+  secondsAgo = 200,
+): Promise<D1Result<Record<string, unknown>>> {
+  const stale = currentEpochSeconds() - secondsAgo
+  return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
+}
+
+const callPrioritized = async function callPrioritized(
+  { token, slug, workspaceId }: LeaseProjectFixture,
+  args: Record<string, unknown>,
+): Promise<{ issues: { id: string }[] }> {
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name: 'get_prioritized_issues' },
+      }),
+    ),
+  )
+  const jsonShape = Schema.Struct({
+    result: Schema.optional(
+      Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
+    ),
+  })
+  const json = await readNativeJson(res, jsonShape)
+  const text = json.result?.content?.[0]?.text ?? '{}'
+  return JSON.parse(text) as { issues: { id: string }[] }
+}
+
+/*
+ * Under a WIP cap of 1: registers an agent, seeds two issues, and asserts the first
+ * claim succeeds while the second is rejected as over-cap.
+ */
+const expectWipCapBlocksSecondClaim = async function expectWipCapBlocksSecondClaim(
+  leaseFixture: LeaseProjectFixture,
+): Promise<void> {
+  const { workspaceId, projectId, userId } = leaseFixture
+  const agent = await registerAgent(leaseFixture, 'worker')
+  const [first, second] = await Promise.all([
+    seedIssue(workspaceId, projectId, userId, { title: 'First' }),
+    seedIssue(workspaceId, projectId, userId, { title: 'Second' }),
+  ])
+
+  await expect(claim(leaseFixture, first.id, agent)).resolves.toHaveProperty('status', 201)
+  const res = await claim(leaseFixture, second.id, agent)
+  expect(res.status).toBe(409)
+}
+
+const patchStatus = function patchStatus(
+  { token, slug }: LeaseProjectFixture,
+  id: string,
+  { status, completionReport }: Readonly<{ status: string; completionReport?: object }>,
+): Promise<Response> {
+  return fetchNativeApi(`http://localhost/api/issues/${id}`, {
+    body: JSON.stringify(completionReport ? { status, completionReport } : { status }),
+    headers: authHeaders(token, slug),
+    method: 'PATCH',
+  })
+}
+
+const readFixtureLeases = async function readFixtureLeases(
+  { token, slug, workspaceId }: LeaseProjectFixture,
+  args: Record<string, unknown>,
+) {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
+    body: JSON.stringify({
+      id: 1,
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { arguments: args, name: 'list_issue_leases' },
+    }),
+    headers: authHeaders(token, slug),
+    method: 'POST',
+  })
+  const jsonShape = Schema.Struct({
+    result: Schema.optional(
+      Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
+    ),
+  })
+  const json = await readNativeJson(res, jsonShape)
+  const text = json.result?.content?.[0]?.text ?? '{}'
+  return JSON.parse(text) as {
+    items: { id: string; issueId: string; issueRef: string; live: boolean }[]
   }
+}
 
-  const claim = function claim(issueId: string, agentId: string): Promise<Response> {
-    return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
-      body: JSON.stringify({ agentId }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-  }
-
-  const release = function release(issueId: string, agentId?: string): Promise<Response> {
-    return fetchNativeApi(`http://localhost/api/issues/${issueId}/release`, {
-      body: JSON.stringify(Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId) ? { agentId } : {}),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-  }
-
-  const backdateHeartbeat = function backdateHeartbeat(
-    agentId: string,
-    secondsAgo = 200,
-  ): Promise<D1Result<Record<string, unknown>>> {
-    const stale = currentEpochSeconds() - secondsAgo
-    return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
-  }
-
+describe('issue leases API (PROJ-184)', () => {
   test('claims an unleased issue', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Claim me' })
-    const agent = await registerAgent('a1')
+    const agent = await registerAgent(leaseFixture, 'a1')
 
-    const res = await claim(issue.id, agent)
+    const res = await claim(leaseFixture, issue.id, agent)
     expect(res.status).toBe(201)
     const lease = await readNativeJson(res, Schema.Struct({ agentSessionId: Schema.String, issueId: Schema.String }))
     expect(lease.issueId).toBe(issue.id)
@@ -68,60 +157,70 @@ describe('issue leases API (PROJ-184)', () => {
   })
 
   test('rejects a second claim while the first holder is live', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contended' })
-    const a1 = await registerAgent('a1')
-    const a2 = await registerAgent('a2')
+    const a1 = await registerAgent(leaseFixture, 'a1')
+    const a2 = await registerAgent(leaseFixture, 'a2')
 
-    const result = await claim(issue.id, a1)
+    const result = await claim(leaseFixture, issue.id, a1)
     expect(result.status).toBe(201)
-    const res = await claim(issue.id, a2)
+    const res = await claim(leaseFixture, issue.id, a2)
     // ConflictError
     expect(res.status).toBe(409)
   })
 
   test('reclaims a lease whose holder stopped heartbeating', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale holder' })
-    const a1 = await registerAgent('a1')
-    const a2 = await registerAgent('a2')
+    const a1 = await registerAgent(leaseFixture, 'a1')
+    const a2 = await registerAgent(leaseFixture, 'a2')
 
-    const resolvedValue = await claim(issue.id, a1)
+    const resolvedValue = await claim(leaseFixture, issue.id, a1)
     expect(resolvedValue.status).toBe(201)
     // Session a1 goes dark — its session is now stale, so its lease is reclaimable.
     await backdateHeartbeat(a1)
 
-    const res = await claim(issue.id, a2)
+    const res = await claim(leaseFixture, issue.id, a2)
     expect(res.status).toBe(201)
     const lease = await readNativeJson(res, Schema.Struct({ agentSessionId: Schema.String }))
     expect(lease.agentSessionId).toBe(a2)
   })
 
   test('refuses a claim from an agent that is not live', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Dead claimer' })
-    const a1 = await registerAgent('a1')
+    const a1 = await registerAgent(leaseFixture, 'a1')
     await backdateHeartbeat(a1)
 
-    const res = await claim(issue.id, a1)
+    const res = await claim(leaseFixture, issue.id, a1)
     // ValidationError — heartbeat first
     expect(res.status).toBe(400)
   })
 
   test('release frees the issue for another agent', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Release me' })
-    const a1 = await registerAgent('a1')
-    const a2 = await registerAgent('a2')
+    const a1 = await registerAgent(leaseFixture, 'a1')
+    const a2 = await registerAgent(leaseFixture, 'a2')
 
-    await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
-    await expect(release(issue.id)).resolves.toHaveProperty('status', 200)
+    await expect(claim(leaseFixture, issue.id, a1)).resolves.toHaveProperty('status', 201)
+    await expect(release(leaseFixture, issue.id)).resolves.toHaveProperty('status', 200)
     // Now claimable again.
-    await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
+    await expect(claim(leaseFixture, issue.id, a2)).resolves.toHaveProperty('status', 201)
   })
 
   test('ending an agent releases its leases', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { token, slug, workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'End releases' })
-    const a1 = await registerAgent('a1')
-    const a2 = await registerAgent('a2')
+    const a1 = await registerAgent(leaseFixture, 'a1')
+    const a2 = await registerAgent(leaseFixture, 'a2')
 
-    await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
+    await expect(claim(leaseFixture, issue.id, a1)).resolves.toHaveProperty('status', 201)
     const endRes = await fetchNativeApi(`http://localhost/api/agents/${a1}/end`, {
       headers: authHeaders(token, slug),
       method: 'POST',
@@ -129,13 +228,15 @@ describe('issue leases API (PROJ-184)', () => {
     expect(endRes.status).toBe(200)
 
     // The lease for a1 was released on end → a2 can claim.
-    await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
+    await expect(claim(leaseFixture, issue.id, a2)).resolves.toHaveProperty('status', 201)
   })
 
   test('handles GET /:id/leases lists the active lease with a live flag', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { token, slug, workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Listed' })
-    const a1 = await registerAgent('a1')
-    await claim(issue.id, a1)
+    const a1 = await registerAgent(leaseFixture, 'a1')
+    await claim(leaseFixture, issue.id, a1)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases`, {
       headers: authHeaders(token, slug),
@@ -151,6 +252,7 @@ describe('issue leases API (PROJ-184)', () => {
   })
 
   test('workspace isolation: cannot claim an issue from another workspace', async () => {
+    const { workspaceId, projectId, userId } = await seedProjectFixture()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Mine' })
     const other = await seedFixture()
     const otherAgentRes = await fetchNativeApi(
@@ -177,43 +279,9 @@ describe('issue leases API (PROJ-184)', () => {
 })
 
 describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
-  })
-
-  const callPrioritized = async function callPrioritized(
-    args: Record<string, unknown>,
-  ): Promise<{ issues: { id: string }[] }> {
-    const res = await fetchNativeApi(
-      `http://localhost/mcp/${workspaceId}`,
-      requestOptionsWithBody(
-        'POST',
-        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        JSON.stringify({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: { arguments: args, name: 'get_prioritized_issues' },
-        }),
-      ),
-    )
-    const jsonShape = Schema.Struct({
-      result: Schema.optional(
-        Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
-      ),
-    })
-    const json = await readNativeJson(res, jsonShape)
-    const text = json.result?.content?.[0]?.text ?? '{}'
-    return JSON.parse(text) as { issues: { id: string }[] }
-  }
-
   test('excludes live-leased issues only when excludeClaimed is true', async () => {
+    const leaseFixture = await seedProjectFixture()
+    const { token, slug, workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'B' })
 
@@ -229,12 +297,12 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
       method: 'POST',
     })
 
-    const withoutFlag = await callPrioritized({ limit: 50, includeNotReady: true })
+    const withoutFlag = await callPrioritized(leaseFixture, { limit: 50, includeNotReady: true })
     expect(withoutFlag.issues.map((selectedIssue) => selectedIssue.id).toSorted()).toStrictEqual(
       [issue.id, currentIssue.id].toSorted(),
     )
 
-    const withFlag = await callPrioritized({
+    const withFlag = await callPrioritized(leaseFixture, {
       limit: 50,
       excludeClaimed: true,
       includeNotReady: true,
@@ -246,52 +314,10 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
 })
 
 describe('claim_issue agent WIP limit (PROJ-253)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
-  })
-
-  const registerAgent = async function registerAgent(name: string): Promise<string> {
-    const res = await fetchNativeApi('http://localhost/api/agents', {
-      body: JSON.stringify({ name }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-    const session = await readNativeJson(res, IdResponse)
-    return session.id
-  }
-
-  const claim = function claim(issueId: string, agentId: string): Promise<Response> {
-    return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
-      body: JSON.stringify({ agentId }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-  }
-
-  /*
-   * Under a WIP cap of 1: registers an agent, seeds two issues, and asserts the first
-   * claim succeeds while the second is rejected as over-cap.
-   */
-  const expectWipCapBlocksSecondClaim = async function expectWipCapBlocksSecondClaim(): Promise<void> {
-    const agent = await registerAgent('worker')
-    const [first, second] = await Promise.all([
-      seedIssue(workspaceId, projectId, userId, { title: 'First' }),
-      seedIssue(workspaceId, projectId, userId, { title: 'Second' }),
-    ])
-
-    await expect(claim(first.id, agent)).resolves.toHaveProperty('status', 201)
-    const res = await claim(second.id, agent)
-    expect(res.status).toBe(409)
-  }
-
   test('blocks the 4th concurrent agent-held lease at the default cap of 3', async () => {
-    const agent = await registerAgent('worker')
+    const leaseFixture = await seedProjectFixture({ role: 'owner' })
+    const { workspaceId, projectId, userId } = leaseFixture
+    const agent = await registerAgent(leaseFixture, 'worker')
     const issues = await Promise.all(
       Array.from({ length: 4 }, (_value, index) =>
         seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` }),
@@ -299,10 +325,10 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     )
 
     for (const issue of issues.slice(0, 3)) {
-      await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
+      await expect(claim(leaseFixture, issue.id, agent)).resolves.toHaveProperty('status', 201)
     }
 
-    const res = await claim(issues[3].id, agent)
+    const res = await claim(leaseFixture, issues[3].id, agent)
     expect(res.status).toBe(409)
     const body = await readNativeJson(res, Schema.Struct({ error: Schema.optional(Schema.String) }))
     expect(JSON.stringify(body)).toMatch(/WIP limit/iu)
@@ -315,10 +341,12 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * stays honest if DEFAULT_AGENT_WIP_LIMIT ever changes.
    */
   test('covers PROJ-624: claim at the cap succeeds; the (cap+1)th is rejected and the error names the cap', async () => {
+    const leaseFixture = await seedProjectFixture({ role: 'owner' })
+    const { workspaceId, projectId, userId } = leaseFixture
     const orm = drizzle(env.DB, { schema })
     const cap = await fetchAgentWipCap(orm, { workspaceId } as ServiceCtx, projectId)
 
-    const agent = await registerAgent('worker')
+    const agent = await registerAgent(leaseFixture, 'worker')
     const issues = await Promise.all(
       Array.from({ length: cap + 1 }, (_value, index) =>
         seedIssue(workspaceId, projectId, userId, { title: `Cap ${index}` }),
@@ -326,10 +354,10 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     )
 
     for (const issue of issues.slice(0, cap)) {
-      await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
+      await expect(claim(leaseFixture, issue.id, agent)).resolves.toHaveProperty('status', 201)
     }
 
-    const res = await claim(issues[cap].id, agent)
+    const res = await claim(leaseFixture, issues[cap].id, agent)
     expect(res.status).toBe(409)
     const body = await readNativeJson(res, Schema.Struct({ error: Schema.optional(Schema.String) }))
     /*
@@ -341,7 +369,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   })
 
   test('records a wip_cap_denials event when a claim is rejected over-cap (PROJ-342)', async () => {
-    const agent = await registerAgent('worker')
+    const leaseFixture = await seedProjectFixture({ role: 'owner' })
+    const { workspaceId, projectId, userId } = leaseFixture
+    const agent = await registerAgent(leaseFixture, 'worker')
     const issues = await Promise.all(
       Array.from({ length: 4 }, (_value, index) =>
         seedIssue(workspaceId, projectId, userId, { title: `Denial ${index}` }),
@@ -349,10 +379,10 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     )
 
     for (const issue of issues.slice(0, 3)) {
-      await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
+      await expect(claim(leaseFixture, issue.id, agent)).resolves.toHaveProperty('status', 201)
     }
 
-    await expect(claim(issues[3].id, agent)).resolves.toHaveProperty('status', 409)
+    await expect(claim(leaseFixture, issues[3].id, agent)).resolves.toHaveProperty('status', 409)
 
     const row = await env.DB.prepare(
       'SELECT project_id, issue_id, agent_session_id FROM wip_cap_denials WHERE workspace_id = ?',
@@ -367,7 +397,9 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   })
 
   test('covers TOCTOU: N concurrent claims never push a project over the cap (PROJ-290)', async () => {
-    const agent = await registerAgent('worker')
+    const leaseFixture = await seedProjectFixture({ role: 'owner' })
+    const { workspaceId, projectId, userId } = leaseFixture
+    const agent = await registerAgent(leaseFixture, 'worker')
     const issues = await Promise.all(
       Array.from({ length: 8 }, (_value, index) => seedIssue(workspaceId, projectId, userId, { title: `C${index}` })),
     )
@@ -376,7 +408,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
      * Fire all claims at once: the read-then-insert bug let several each see cap-1
      * and all proceed. The guarded INSERT must let at most `cap` (default 3) win.
      */
-    const results = await Promise.all(issues.map((iss) => claim(iss.id, agent)))
+    const results = await Promise.all(issues.map((iss) => claim(leaseFixture, iss.id, agent)))
     const granted = results.filter((response) => response.status === 201).length
     expect(granted).toBeLessThanOrEqual(3)
 
@@ -391,6 +423,8 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   })
 
   test("respects a project's own agent_wip_limit override", async () => {
+    const leaseFixture = await seedProjectFixture({ role: 'owner' })
+    const { token, slug, projectId } = leaseFixture
     const patchRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}`, {
       body: JSON.stringify({ agentWipLimit: 1 }),
       headers: authHeaders(token, slug),
@@ -398,12 +432,14 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     })
     expect(patchRes.status).toBe(200)
 
-    await expectWipCapBlocksSecondClaim()
+    await expectWipCapBlocksSecondClaim(leaseFixture)
   })
 
   // --- REST/MCP parity (PROJ-301) ---
 
   test('covers MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
+    const leaseFixture = await seedProjectFixture({ role: 'owner' })
+    const { token, slug, workspaceId, projectId } = leaseFixture
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
         id: 1,
@@ -416,10 +452,12 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     })
     expect(mcpRes.status).toBe(200)
 
-    await expectWipCapBlocksSecondClaim()
+    await expectWipCapBlocksSecondClaim(leaseFixture)
   })
 
   test('covers MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
+    const leaseFixture = await seedProjectFixture({ role: 'owner' })
+    const { token, slug, workspaceId, userId } = leaseFixture
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
         id: 1,
@@ -437,14 +475,14 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     const body = await readNativeJson(mcpRes, RpcTextResponse)
     const created = parseNativeMcpText(body.result.content[0].text, IdResponse)
 
-    const agent = await registerAgent('worker2')
+    const agent = await registerAgent(leaseFixture, 'worker2')
     const [first, second] = await Promise.all([
       seedIssue(workspaceId, created.id, userId, { title: 'First' }),
       seedIssue(workspaceId, created.id, userId, { title: 'Second' }),
     ])
 
-    await expect(claim(first.id, agent)).resolves.toHaveProperty('status', 201)
-    const res = await claim(second.id, agent)
+    await expect(claim(leaseFixture, first.id, agent)).resolves.toHaveProperty('status', 201)
+    const res = await claim(leaseFixture, second.id, agent)
     expect(res.status).toBe(409)
   })
 
@@ -454,22 +492,19 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * lease no one is still working.
    */
   describe('covers PROJ-928: issue close releases its lease', () => {
-    const patchStatus = function patchStatus(id: string, status: string, completionReport?: object): Promise<Response> {
-      return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-        body: JSON.stringify(completionReport ? { status, completionReport } : { status }),
-        headers: authHeaders(token, slug),
-        method: 'PATCH',
-      })
-    }
     // An issue an agent held a lease on requires a completion report to close as done.
     const REPORT = { summary: 'Done', verification: 'pnpm test' }
 
     test('marking a leased issue done releases its lease', async () => {
+      const leaseFixture = await seedProjectFixture({ role: 'owner' })
+      const { workspaceId, projectId, userId } = leaseFixture
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Closes done' })
-      const a1 = await registerAgent('a1')
-      await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
+      const a1 = await registerAgent(leaseFixture, 'a1')
+      await expect(claim(leaseFixture, issue.id, a1)).resolves.toHaveProperty('status', 201)
 
-      await expect(patchStatus(issue.id, 'done', REPORT)).resolves.toHaveProperty('status', 200)
+      await expect(
+        patchStatus(leaseFixture, issue.id, { completionReport: REPORT, status: 'done' }),
+      ).resolves.toHaveProperty('status', 200)
 
       const leases = await env.DB.prepare(
         'SELECT release_reason FROM issue_leases WHERE issue_id = ? AND released_at IS NOT NULL',
@@ -479,28 +514,32 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       expect(leases?.release_reason).toBe('issue_closed')
 
       // Freed for another agent to pick up (e.g. reopened and reworked).
-      const a2 = await registerAgent('a2')
-      await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
+      const a2 = await registerAgent(leaseFixture, 'a2')
+      await expect(claim(leaseFixture, issue.id, a2)).resolves.toHaveProperty('status', 201)
     })
 
     test('marking a leased issue cancelled releases its lease', async () => {
+      const leaseFixture = await seedProjectFixture({ role: 'owner' })
+      const { workspaceId, projectId, userId } = leaseFixture
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Closes cancelled' })
-      const a1 = await registerAgent('a1')
-      await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
+      const a1 = await registerAgent(leaseFixture, 'a1')
+      await expect(claim(leaseFixture, issue.id, a1)).resolves.toHaveProperty('status', 201)
 
-      await expect(patchStatus(issue.id, 'cancelled')).resolves.toHaveProperty('status', 200)
+      await expect(patchStatus(leaseFixture, issue.id, { status: 'cancelled' })).resolves.toHaveProperty('status', 200)
 
-      const a2 = await registerAgent('a2')
-      await expect(claim(issue.id, a2)).resolves.toHaveProperty('status', 201)
+      const a2 = await registerAgent(leaseFixture, 'a2')
+      await expect(claim(leaseFixture, issue.id, a2)).resolves.toHaveProperty('status', 201)
     })
 
     test('a non-status update of a done issue does not disturb a newer lease', async () => {
+      const leaseFixture = await seedProjectFixture({ role: 'owner' })
+      const { token, slug, workspaceId, projectId, userId } = leaseFixture
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Already done' })
-      await expect(patchStatus(issue.id, 'done')).resolves.toHaveProperty('status', 200)
+      await expect(patchStatus(leaseFixture, issue.id, { status: 'done' })).resolves.toHaveProperty('status', 200)
 
       // A fresh lease claimed after the issue was already closed (e.g. reopened work).
-      const a1 = await registerAgent('a1')
-      await expect(claim(issue.id, a1)).resolves.toHaveProperty('status', 201)
+      const a1 = await registerAgent(leaseFixture, 'a1')
+      await expect(claim(leaseFixture, issue.id, a1)).resolves.toHaveProperty('status', 201)
 
       const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
         body: JSON.stringify({ title: 'Renamed' }),
@@ -527,87 +566,35 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
  * exercises this same query.
  */
 describe('covers PROJ-932: list_issue_leases live-only default', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
   // SeedProject's default key
   const projectKey = 'PROJ'
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({
-      role: 'owner',
-    }))
-  })
-
-  const registerAgent = async function registerAgent(name: string): Promise<string> {
-    const res = await fetchNativeApi('http://localhost/api/agents', {
-      body: JSON.stringify({ name }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-    const session = await readNativeJson(res, IdResponse)
-    return session.id
-  }
-
-  const claim = function claim(issueId: string, agentId: string): Promise<Response> {
-    return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
-      body: JSON.stringify({ agentId }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-  }
-
-  const backdateHeartbeat = function backdateHeartbeat(
-    agentId: string,
-    secondsAgo = 200,
-  ): Promise<D1Result<Record<string, unknown>>> {
-    const stale = currentEpochSeconds() - secondsAgo
-    return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
-  }
-
-  const mcpLeases = async function mcpLeases(args: Record<string, unknown>) {
-    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name: 'list_issue_leases' },
-      }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-    const jsonShape = Schema.Struct({
-      result: Schema.optional(
-        Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
-      ),
-    })
-    const json = await readNativeJson(res, jsonShape)
-    const text = json.result?.content?.[0]?.text ?? '{}'
-    return JSON.parse(text) as {
-      items: { id: string; issueId: string; issueRef: string; live: boolean }[]
-    }
-  }
 
   test('excludes a lease whose session has gone stale by default; includeStale:true includes it', async () => {
+    const leaseFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale by default' })
-    const agent = await registerAgent('stale-holder')
-    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
+    const agent = await registerAgent(leaseFixture, 'stale-holder')
+    await expect(claim(leaseFixture, issue.id, agent)).resolves.toHaveProperty('status', 201)
     await backdateHeartbeat(agent)
 
-    const withoutFlag = await mcpLeases({ issueId: issue.id })
+    const withoutFlag = await readFixtureLeases(leaseFixture, { issueId: issue.id })
     expect(withoutFlag.items).toHaveLength(0)
 
-    const withFlag = await mcpLeases({ issueId: issue.id, includeStale: true })
+    const withFlag = await readFixtureLeases(leaseFixture, { issueId: issue.id, includeStale: true })
     expect(withFlag.items).toHaveLength(1)
     expect(withFlag.items[0].live).toBe(false)
   })
 
   test('excludes a released lease regardless of includeStale', async () => {
+    const leaseFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { token, slug, workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Released' })
-    const agent = await registerAgent('releaser')
-    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
+    const agent = await registerAgent(leaseFixture, 'releaser')
+    await expect(claim(leaseFixture, issue.id, agent)).resolves.toHaveProperty('status', 201)
     const response = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
       body: JSON.stringify({}),
       headers: authHeaders(token, slug),
@@ -615,16 +602,20 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     })
     expect(response.status).toBe(200)
 
-    expect((await mcpLeases({ issueId: issue.id })).items).toHaveLength(0)
-    expect((await mcpLeases({ issueId: issue.id, includeStale: true })).items).toHaveLength(0)
+    expect((await readFixtureLeases(leaseFixture, { issueId: issue.id })).items).toHaveLength(0)
+    expect((await readFixtureLeases(leaseFixture, { issueId: issue.id, includeStale: true })).items).toHaveLength(0)
   })
 
   test("every item carries the issue's issueRef", async () => {
+    const leaseFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Ref check' })
-    const agent = await registerAgent('ref-holder')
-    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
+    const agent = await registerAgent(leaseFixture, 'ref-holder')
+    await expect(claim(leaseFixture, issue.id, agent)).resolves.toHaveProperty('status', 201)
 
-    const { items } = await mcpLeases({ issueId: issue.id })
+    const { items } = await readFixtureLeases(leaseFixture, { issueId: issue.id })
     expect(items).toHaveLength(1)
     expect(items[0].issueRef).toBe(`${projectKey}-${issue.number}`)
   })
@@ -635,6 +626,10 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
    * directly (bypassing the register/claim API calls) to stay well under the test
    * environment's per-token rate limit (RATE_LIMIT_API_MAX=5). */
   test("projectId filters to the granted project's lease, excluding a second same-workspace project's (by key and uuid)", async () => {
+    const leaseFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { workspaceId, projectId, userId } = leaseFixture
     const otherProject = await seedProject(workspaceId, 'OTHR')
 
     const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'In project' })
@@ -643,17 +638,21 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     const issueB = await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other' })
     await seedAgentLease(workspaceId, issueB.id, { name: 'b' })
 
-    const byKey = await mcpLeases({ projectId: projectKey })
+    const byKey = await readFixtureLeases(leaseFixture, { projectId: projectKey })
     expect(byKey.items.map((item) => item.issueId)).toStrictEqual([issueA.id])
 
-    const byUuid = await mcpLeases({ projectId })
+    const byUuid = await readFixtureLeases(leaseFixture, { projectId })
     expect(byUuid.items.map((item) => item.issueId)).toStrictEqual([issueA.id])
   })
 
   test('covers REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {
+    const leaseFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+    const { token, slug, workspaceId, projectId, userId } = leaseFixture
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST parity' })
-    const agent = await registerAgent('rest-holder')
-    await expect(claim(issue.id, agent)).resolves.toHaveProperty('status', 201)
+    const agent = await registerAgent(leaseFixture, 'rest-holder')
+    await expect(claim(leaseFixture, issue.id, agent)).resolves.toHaveProperty('status', 201)
     await backdateHeartbeat(agent)
 
     const defaultRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases`, {
@@ -677,6 +676,9 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
    * test environment's per-token rate limit (RATE_LIMIT_API_MAX=5).
    */
   test('covers REST parity: GET /api/issue-leases accepts issueId, agentId, projectId and includeStale', async () => {
+    const { token, slug, workspaceId, projectId, userId } = await seedProjectFixture({
+      role: 'owner',
+    })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Workspace-wide REST' })
     const { agentSessionId: agent } = await seedAgentLease(workspaceId, issue.id, {
       name: 'workspace-rest-holder',
