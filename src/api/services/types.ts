@@ -7,15 +7,15 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import type { AuthInfo, HonoEnv, Role } from '#types'
 
 /** Adapter context contains identity hints for presentation, never storage or domain authority. */
-export interface ApiServiceCtx {
-  readonly core: CoreRpcShape
-  readonly actor: CoreActor
-  readonly workspaceId: string
-  readonly userId: string
-  readonly role?: Role
-  readonly authKind?: 'human' | 'agent'
-  readonly auth?: AuthInfo
-}
+export type ApiServiceCtx = Readonly<{
+  core: CoreRpcShape
+  actor: CoreActor
+  workspaceId: string
+  userId: string
+  role?: Role
+  authKind?: 'human' | 'agent'
+  auth?: AuthInfo
+}>
 
 const RoleSchema = Schema.UndefinedOr(Schema.Literals(['owner', 'admin', 'member', 'viewer']))
 

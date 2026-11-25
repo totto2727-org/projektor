@@ -57,35 +57,35 @@ export const decodeAuthSession = Schema.decodeUnknownSync(AuthSessionSchema)
 export const decodeProjectCatalog = Schema.decodeUnknownSync(ProjectCatalogSchema)
 
 export type ScopeSelection =
-  | { readonly kind: 'global' }
-  | { readonly kind: 'workspace'; readonly workspace: WorkspaceMembership }
-  | {
-      readonly kind: 'project'
-      readonly workspace: WorkspaceMembership
-      readonly project: ProjectSummary
-    }
-  | {
-      readonly kind: 'selection-required'
-      readonly target: 'workspace' | 'project'
-      readonly reason: 'empty' | 'ambiguous'
-    }
+  | Readonly<{ kind: 'global' }>
+  | Readonly<{ kind: 'workspace'; workspace: WorkspaceMembership }>
+  | Readonly<{
+      kind: 'project'
+      workspace: WorkspaceMembership
+      project: ProjectSummary
+    }>
+  | Readonly<{
+      kind: 'selection-required'
+      target: 'workspace' | 'project'
+      reason: 'empty' | 'ambiguous'
+    }>
 
 /** Serializable data only. The transport/Request/credentials never belong here. */
-export interface RequestScope {
-  readonly user: AuthUser
-  readonly auth?: AuthInfo
-  readonly workspaces: Readonly<WorkspaceMembership[]>
-  readonly projects: Readonly<ProjectSummary[]>
-  readonly selection: ScopeSelection
-}
+export type RequestScope = Readonly<{
+  user: AuthUser
+  auth?: AuthInfo
+  workspaces: Readonly<WorkspaceMembership[]>
+  projects: Readonly<ProjectSummary[]>
+  selection: ScopeSelection
+}>
 
-export interface ScopeOptions {
-  readonly requireProject?: boolean
-  readonly requireWorkspace?: boolean
+export type ScopeOptions = Readonly<{
+  requireProject?: boolean
+  requireWorkspace?: boolean
   /** Route parameters may explicitly supply these, without client store fallback. */
-  readonly projectHint?: string
-  readonly workspaceHint?: string
-}
+  projectHint?: string
+  workspaceHint?: string
+}>
 
 export const ScopeOptionsSchema = Schema.Struct({
   requireProject: Schema.optional(Schema.Boolean),

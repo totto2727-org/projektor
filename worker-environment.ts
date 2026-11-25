@@ -34,13 +34,13 @@ export const LocalDatabase = Cloudflare.D1.Database('LocalDatabase', {
 
 export class DeploymentEnvironment extends Context.Service<
   DeploymentEnvironment,
-  {
-    readonly apiEnv: WorkerBindingProps
-    readonly frontendEnv: WorkerBindingProps
-    readonly coreEnv: WorkerBindingProps
-    readonly bindApi: (api: Worker) => Effect.Effect<void>
-    readonly bindCore: (core: Worker) => Effect.Effect<void>
-  }
+  Readonly<{
+    apiEnv: WorkerBindingProps
+    frontendEnv: WorkerBindingProps
+    coreEnv: WorkerBindingProps
+    bindApi: (api: Worker) => Effect.Effect<void>
+    bindCore: (core: Worker) => Effect.Effect<void>
+  }>
 >()('projektor/DeploymentEnvironment') {}
 
 /** Development storage is registered once, with only protocol OAuth KV shared with API. */
