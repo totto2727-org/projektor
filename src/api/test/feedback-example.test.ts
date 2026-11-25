@@ -6,6 +6,7 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { TokenResponse, readNativeJson } from './response-json.ts'
 
 /*
  * Proves the maintained client example works against the real API Worker,
@@ -26,7 +27,7 @@ describe('feedback widget example', () => {
         JSON.stringify({ name: 'Docs example source' }),
       ),
     )
-    const { token } = (await created.json()) as { token: string }
+    const { token } = await readNativeJson(created, TokenResponse)
 
     /*
      * The example calls the ambient global `fetch`, exactly as it would in a

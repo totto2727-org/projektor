@@ -1410,7 +1410,7 @@ const seedIssueRollupFixture = async function seedIssueRollupFixture(): Promise<
     url: string,
   ): Promise<{ res: Response; page: { items: Record<string, unknown>[] } }> {
     const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
-    return { res, page: (await res.json()) as { items: Record<string, unknown>[] } }
+    return { res, page: await readNativeJson(res, RecordItemsResponse) }
   }
   return { listIssues, projectId, slug, token, userId, workspaceId }
 }
@@ -2368,7 +2368,7 @@ const seedPrioritizedApiFixture = async function seedPrioritizedApiFixture(): Pr
     const res = await fetchNativeApi(`http://localhost/api/issues/prioritized${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(token, slug),
     })
-    return { res, body: (await res.json()) as { issues: { title: string }[] } }
+    return { res, body: await readNativeJson(res, IssueTitlesResponse) }
   }
   return { getPrioritized, projectId, slug, token, userId, workspaceId }
 }

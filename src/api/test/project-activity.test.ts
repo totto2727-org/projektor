@@ -9,7 +9,13 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { UnknownItemsResponse, ItemsResponse, parseNativeMcpText } from './response-json.ts'
+import {
+  JsonListResponse,
+  readNativeJson,
+  UnknownItemsResponse,
+  ItemsResponse,
+  parseNativeMcpText,
+} from './response-json.ts'
 
 interface McpContent {
   content: { text: string }[]
@@ -455,7 +461,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
       headers,
     })
     expect(res.status).toBe(200)
-    const events = (await res.json()) as unknown[]
+    const events = await readNativeJson(res, JsonListResponse)
     expect(events).toStrictEqual([])
   })
 
@@ -482,7 +488,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity?limit=2`, {
       headers,
     })
-    const events = (await res.json()) as unknown[]
+    const events = await readNativeJson(res, JsonListResponse)
     expect(events).toHaveLength(2)
   })
 

@@ -3577,7 +3577,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const revisionsResponse = await req('http://localhost/api/wiki/patch-append-stale-base/revisions', {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revisionsResponse.json()) as { id: string }[]
+    const revisions = await readNativeJson(revisionsResponse, IdListResponse)
 
     const res = await req(
       'http://localhost/api/wiki/patch-append-stale-base',
@@ -3614,7 +3614,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const pageResponse = await req('http://localhost/api/wiki/patch-frontmatter-new', {
       headers: authHeaders(token, slug),
     })
-    const page = (await pageResponse.json()) as { content: string; status: string }
+    const page = await readNativeJson(pageResponse, Schema.Struct({ content: Schema.String, status: Schema.String }))
     expect(page.status).toBe('current')
     expect(page.content).toMatch(/^---\nstatus: current\n---\n/u)
     expect(page.content).toContain(TWO_SECTIONS.trim())
@@ -3642,7 +3642,14 @@ describe('wiki patch operations (PROJ-490)', () => {
     const pageResponse = await req('http://localhost/api/wiki/patch-frontmatter-preserve', {
       headers: authHeaders(token, slug),
     })
-    const page = (await pageResponse.json()) as { type: string; tags: string[]; status: string }
+    const page = await readNativeJson(
+      pageResponse,
+      Schema.Struct({
+        status: Schema.String,
+        tags: Schema.Array(Schema.String).pipe(Schema.mutable),
+        type: Schema.String,
+      }),
+    )
     expect(page.status).toBe('deprecated')
     expect(page.type).toBe('runbook')
     expect(page.tags).toStrictEqual(['ops'])
@@ -3756,7 +3763,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const revisionsResponse = await req('http://localhost/api/wiki/patch-frontmatter-stale-base/revisions', {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revisionsResponse.json()) as { id: string }[]
+    const revisions = await readNativeJson(revisionsResponse, IdListResponse)
 
     const res = await req(
       'http://localhost/api/wiki/patch-frontmatter-stale-base',
@@ -5775,7 +5782,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const emptyResponse = await req(`http://localhost/api/wiki/changes?since=${body.nextSince}`, {
       headers: authHeaders(token, slug),
     })
-    const empty = (await emptyResponse.json()) as { changes: unknown[] }
+    const empty = await readNativeJson(
+      emptyResponse,
+      Schema.Struct({ changes: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
+    )
     expect(empty.changes).toStrictEqual([])
   })
 

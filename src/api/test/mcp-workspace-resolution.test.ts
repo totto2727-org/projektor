@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedMember, seedToken } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { ErrorMessageResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-348: the MCP endpoint (POST /mcp/<workspaceId>) must resolve its workspace
@@ -86,7 +87,7 @@ describe('non-MCP routes still require X-Workspace-Slug (PROJ-348 scope guard)',
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toContain('X-Workspace-Slug')
   })
 

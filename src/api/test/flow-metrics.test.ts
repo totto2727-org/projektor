@@ -1,55 +1,20 @@
 import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import type { Distribution } from '#commands/flow-metrics.ts'
+import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers.ts'
-import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { IdResponse, readNativeJson } from './response-json.ts'
-
-interface FlowMetrics {
-  leadTime: Distribution
-  cycleTime: Distribution
-  wipOverTime: { date: string; count: number }[]
-  throughputOverTime: { bucketStart: string; count: number }[]
-  bugShareOverTime: {
-    bucketStart: string
-    total: number
-    bugCount: number
-    bugSharePercent: number | null
-  }[]
-  bugTypeTracked: boolean
-  reviewLatency: Distribution
-  reviewLatencyOverTime: { bucketStart: string; p50: number | null }[]
-  humanInterventions: Distribution
-  autonomyRatio: Distribution
-  cfdOverTime: {
-    bucketStart: string
-    backlogTodo: number
-    inProgress: number
-    inReview: number
-    done: number
-  }[]
-  timeInProgress: Distribution
-  arrivalVsCompletionOverTime: {
-    bucketStart: string
-    created: number
-    completed: number
-    net: number
-  }[]
-  flowEfficiency: Distribution
-  agingWip: { id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }[]
-  factoryHealth: {
-    leaseExpiries: number
-    abandonedClaims: number
-    gateRejections: number
-    wipCapPressure: number
-  }
-}
+import {
+  IdResponse,
+  parseNativeMcpText,
+  readNativeJson,
+  readNativeMcpResultText,
+  RpcTextResponse,
+} from './response-json.ts'
 
 describe('flow metrics (PROJ-252)', () => {
   let token: string
@@ -98,12 +63,12 @@ describe('flow metrics (PROJ-252)', () => {
     })
   }
 
-  const getFlowMetrics = async function getFlowMetrics(): Promise<FlowMetrics> {
+  const getFlowMetrics = async function getFlowMetrics(): Promise<typeof ApiResults.apiGetFlowMetrics.Type> {
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    return (await res.json()) as FlowMetrics
+    return await readNativeJson(res, ApiResults.apiGetFlowMetrics)
   }
 
   test('computes lead/cycle time', async () => {
@@ -139,7 +104,7 @@ describe('flow metrics (PROJ-252)', () => {
     const restRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
-    const restBody = await restRes.json()
+    const restBody = await readNativeJson(restRes, ApiResults.apiGetFlowMetrics)
 
     const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
@@ -151,8 +116,9 @@ describe('flow metrics (PROJ-252)', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text)
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
+    const mcpText = readNativeMcpResultText(mcpJson.result)
+    const mcpBody = parseNativeMcpText(mcpText, ApiResults.apiGetFlowMetrics)
 
     expect(mcpBody).toStrictEqual(restBody)
   })
@@ -185,7 +151,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(metrics.cycleTime.count).toBe(1)
     expect(metrics.cycleTime.avg).toBeCloseTo(DAY, 0)
@@ -244,7 +210,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     const totalCounted = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(totalCounted).toBe(2)
@@ -283,7 +249,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     const totalCounted = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(totalCounted).toBe(1)
@@ -296,7 +262,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     Iterable.forEach(metrics.throughputOverTime, (bucket) => {
       const weekday = new Date(`${bucket.bucketStart}T00:00:00Z`).getUTCDay()
@@ -334,8 +300,8 @@ describe('flow metrics (PROJ-252)', () => {
     )
     expect(weeklyRes.status).toBe(200)
     expect(dailyRes.status).toBe(200)
-    const weekly = (await weeklyRes.json()) as FlowMetrics
-    const daily = (await dailyRes.json()) as FlowMetrics
+    const weekly = await readNativeJson(weeklyRes, ApiResults.apiGetFlowMetrics)
+    const daily = await readNativeJson(dailyRes, ApiResults.apiGetFlowMetrics)
 
     const weeklyTotal = weekly.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     const dailyTotal = daily.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
@@ -546,7 +512,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(metrics.cfdOverTime.length).toBeGreaterThan(0)
 
@@ -602,7 +568,7 @@ describe('flow metrics (PROJ-252)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     const currentBucket = metrics.cfdOverTime[metrics.cfdOverTime.length - 1]
     expect(currentBucket.done).toBe(1)
@@ -648,7 +614,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     const totalCreated = metrics.arrivalVsCompletionOverTime.reduce((sum, bucket) => sum + bucket.created, 0)
     const totalCompleted = metrics.arrivalVsCompletionOverTime.reduce((sum, bucket) => sum + bucket.completed, 0)
@@ -748,7 +714,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(Array.isArray(metrics.bugShareOverTime)).toBe(true)
     const nonEmptyBuckets = metrics.bugShareOverTime.filter((bucket) => bucket.total > 0)
@@ -781,7 +747,7 @@ describe('flow metrics (PROJ-252)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.bugTypeTracked).toBe(false)
   })
 })
@@ -897,7 +863,7 @@ describe('factory health tiles (PROJ-334)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(metrics.factoryHealth).toStrictEqual({
       abandonedClaims: 1,
@@ -931,7 +897,7 @@ describe('factory health tiles (PROJ-334)', () => {
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 100}&until=${now + 100}`,
       { headers: authHeaders(token, slug) },
     )
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.factoryHealth.leaseExpiries).toBe(1)
     expect(metrics.factoryHealth.wipCapPressure).toBe(1)
   })
@@ -944,7 +910,7 @@ describe('factory health tiles (PROJ-334)', () => {
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86_400}&until=${now}`,
       { headers: authHeaders(token, slug) },
     )
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.factoryHealth).toStrictEqual({
       abandonedClaims: 0,
       gateRejections: 0,
