@@ -5,13 +5,12 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
 
-export interface FeedbackProjectOptions {
-  readonly projectId: string
-}
-export interface ListFeedbackOptions extends FeedbackProjectOptions {
-  readonly status?: 'new' | 'reviewed' | 'actioned'
-  readonly sourceId?: string
-}
+export type FeedbackProjectOptions = Readonly<{ projectId: string }>
+export type ListFeedbackOptions = FeedbackProjectOptions &
+  Readonly<{
+    status?: 'new' | 'reviewed' | 'actioned'
+    sourceId?: string
+  }>
 export interface FeedbackJoinRow {
   id: string
   source_id: string

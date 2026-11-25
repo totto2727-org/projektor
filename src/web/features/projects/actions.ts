@@ -14,6 +14,8 @@ import * as projectCommands from './commands.ts'
 import { ArchiveProjectInputSchema, CreateProjectInputSchema, UpdateDescriptionInputSchema } from './schemas.ts'
 import type { ArchiveProjectInput, CreatedProject, CreateProjectInput, UpdateDescriptionInput } from './schemas.ts'
 
+type ProjectUpdateResult = ActionResult<Readonly<{ ok: boolean }>>
+
 /** Creates a project for an explicitly selected, server-authorized workspace. */
 export const createProject = EFFRONT.ServerFn.make({
   handler: (_previous: unknown, input: CreateProjectInput) =>
@@ -59,12 +61,10 @@ export const updateDescription = EFFRONT.ServerFn.make({
           }),
         )
       }).pipe(
-        Effect.map((value): ActionResult<{ readonly ok: boolean }> => ({ ok: true, value })),
+        Effect.map((value): ProjectUpdateResult => ({ ok: true, value })),
         Effect.catchTags({
-          ApiError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
-          ScopeError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
+          ApiError: (error) => Effect.succeed<ProjectUpdateResult>(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed<ProjectUpdateResult>(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -87,12 +87,10 @@ export const archiveProject = EFFRONT.ServerFn.make({
           projectCommands.updateProject(ctx, context.projectId ?? input.projectId, { archived: input.archived }),
         )
       }).pipe(
-        Effect.map((value): ActionResult<{ readonly ok: boolean }> => ({ ok: true, value })),
+        Effect.map((value): ProjectUpdateResult => ({ ok: true, value })),
         Effect.catchTags({
-          ApiError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
-          ScopeError: (error) =>
-            Effect.succeed<ActionResult<{ readonly ok: boolean }>>(actionFailure(error.status, error.message)),
+          ApiError: (error) => Effect.succeed<ProjectUpdateResult>(actionFailure(error.status, error.message)),
+          ScopeError: (error) => Effect.succeed<ProjectUpdateResult>(actionFailure(error.status, error.message)),
         }),
         Effect.ensuring(services.invalidate),
       )

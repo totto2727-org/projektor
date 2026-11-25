@@ -99,10 +99,12 @@ export class ApiError extends Data.TaggedError('ApiError')<{
   }
 }
 
-export class ScopeError extends Data.TaggedError('ScopeError')<{
-  readonly status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_NOT_FOUND
-  readonly message: string
-}> {
+export class ScopeError extends Data.TaggedError('ScopeError')<
+  Readonly<{
+    status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_NOT_FOUND
+    message: string
+  }>
+> {
   constructor(status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_NOT_FOUND, message: string) {
     super({ status, message })
   }

@@ -10,7 +10,7 @@ import type { Env as ApiEnvironment } from '#types'
 import { loadRequestScope } from './server/server-context.ts'
 import type { ApiError, RequestScope, ScopeError, ScopeOptions } from './server/server-context.ts'
 
-export interface Env extends Pick<
+export type Env = Pick<
   ApiEnvironment,
   | 'ENVIRONMENT'
   | 'RATE_LIMITER'
@@ -24,9 +24,8 @@ export interface Env extends Pick<
   | 'BRAND_ACCENT'
   | 'BRAND_ON_ACCENT'
   | 'BRAND_LOGO_URL'
-> {
-  readonly CORE: { readonly fetch: (request: Request) => Promise<Response> }
-}
+> &
+  Readonly<{ CORE: Readonly<{ fetch: (request: Request) => Promise<Response> }> }>
 
 export const isWebEnvironment = function isWebEnvironment(value: unknown): value is Env {
   if (typeof value !== 'object' || Predicate.isNullish(value)) {
@@ -79,15 +78,15 @@ export const getRouteParams: Effect.Effect<RouteParams> = Effect.serviceOption(H
 
 export class RequestServices extends Context.Service<
   RequestServices,
-  {
-    readonly request: Request
-    readonly core: CoreRpcShape
-    readonly env: Env
-    readonly url: URL
-    readonly scope: (options?: ScopeOptions) => Effect.Effect<RequestScope, PageFailure>
-    readonly prepare: (view: PreparedView) => PreparedView
-    readonly invalidate: Effect.Effect<void>
-  }
+  Readonly<{
+    request: Request
+    core: CoreRpcShape
+    env: Env
+    url: URL
+    scope: (options?: ScopeOptions) => Effect.Effect<RequestScope, PageFailure>
+    prepare: (view: PreparedView) => PreparedView
+    invalidate: Effect.Effect<void>
+  }>
 >()('projektor/ssr/RequestServices') {}
 
 /** Construct services without creating a nested runtime or any cross-request cache. */

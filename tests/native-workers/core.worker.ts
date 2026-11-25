@@ -106,16 +106,14 @@ const FixtureCore = makeWorkerBridge(WorkerEntrypoint, {
   stack: { name: 'projektor-native', stage: 'test' },
 })
 
-export interface FixtureStatement {
-  readonly sql: string
-  readonly params: unknown[]
-}
+export type FixtureStatement = Readonly<{ sql: string; params: unknown[] }>
 
-export interface FixtureQuery extends FixtureStatement {
-  readonly method: 'all' | 'run' | 'first' | 'raw'
-  readonly column?: string
-  readonly options?: { readonly columnNames?: boolean }
-}
+export type FixtureQuery = FixtureStatement &
+  Readonly<{
+    method: 'all' | 'run' | 'first' | 'raw'
+    column?: string
+    options?: Readonly<{ columnNames?: boolean }>
+  }>
 
 export type FixtureConfiguration = Readonly<Record<string, string | null>>
 
