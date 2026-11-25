@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { Array, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
@@ -15,24 +15,16 @@ import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
  * autosave so an in-progress edit survives a device switch.
  *
- * No dependency on services/wiki.ts (avoids a circular import — wiki.ts calls into
- * this file's deleteWikiDraftsForPages on delete). Page resolution + visibility checks
- * are duplicated in miniature here rather than imported, mirroring
- * services/wiki-watchers.ts's resolveWatchTarget precedent.
+ * Page resolution lives in wiki-draft-target.ts. Wiki deletion uses the cleanup
+ * command in this module, so the draft lookup stays independent of Wiki commands.
  */
 import { drizzle, schema } from '#db'
 import { SQL_NULL } from '#db/sql-null.ts'
 
-import { assertProjectAccess } from './access.ts'
-import { ConflictError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { ConflictError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
-import { idFirst, idOrSlugMatch } from './wiki-lookup.ts'
-
-interface ResolvedDraftTarget {
-  id: string
-  slug: string
-}
+import { resolveDraftTarget } from './wiki-draft-target.ts'
 
 type WikiDraft = Pick<typeof schema.wikiDrafts.$inferSelect, 'title' | 'content' | 'baseRevisionId' | 'updatedAt'>
 type DraftRevision = ReturnType<typeof crypto.randomUUID>
@@ -59,79 +51,6 @@ interface ReservedDraft {
 }
 
 type PublishedDraft = { ok: true; draftRevision: DraftRevision } | { ok: true; draftRevision: null }
-
-/*
- * PROJ-495: same id-or-slug + redirect-fallback resolution as services/wiki.ts's
- * resolvePageByIdOrSlug, plus the same project-visibility check — duplicated (not
- * imported) to avoid a circular import, see module comment above.
- */
-const resolveDraftTarget = async function resolveDraftTarget(
-  ctx: ServiceCtx,
-  idOrSlug: string,
-): Promise<ResolvedDraftTarget> {
-  const orm = drizzle(ctx.db, { schema })
-  const direct = await orm
-    .select(
-      fieldsInOrder([
-        ['id', schema.wikiPages.id],
-        ['slug', schema.wikiPages.slug],
-        ['projectId', schema.wikiPages.projectId],
-      ]),
-    )
-    .from(schema.wikiPages)
-    .where(
-      and(
-        idOrSlugMatch(idOrSlug),
-        eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-        /*
-         * PROJ-496: no drafts on a trashed page — same "trashed = gone" rule as every
-         * other page reference entry point (services/wiki.ts).
-         */
-        isNull(schema.wikiPages.deletedAt),
-      ),
-    )
-    .orderBy(idFirst(idOrSlug))
-    .get()
-
-  let page = direct
-  if (!page) {
-    const redirect = await orm
-      .select({ pageId: schema.wikiRedirects.pageId })
-      .from(schema.wikiRedirects)
-      .where(and(eq(schema.wikiRedirects.workspaceId, ctx.workspaceId), eq(schema.wikiRedirects.oldSlug, idOrSlug)))
-      .get()
-    if (redirect) {
-      page = await orm
-        .select(
-          fieldsInOrder([
-            ['id', schema.wikiPages.id],
-            ['slug', schema.wikiPages.slug],
-            ['projectId', schema.wikiPages.projectId],
-          ]),
-        )
-        .from(schema.wikiPages)
-        .where(
-          and(
-            eq(schema.wikiPages.id, redirect.pageId),
-            eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-            isNull(schema.wikiPages.deletedAt),
-          ),
-        )
-        .get()
-    }
-  }
-  if (!page) {
-    throw new NotFoundError('Wiki page not found')
-  }
-
-  if (Predicate.isNotNullish(page.projectId)) {
-    await assertProjectAccess(ctx, page.projectId, 'read', {
-      notFoundMessage: 'Wiki page not found',
-      projectLoadedFromWorkspaceRow: true,
-    })
-  }
-  return { id: page.id, slug: page.slug }
-}
 
 /*
  * PROJ-495: returns null (not 404) when the caller has no draft for this page — "no
