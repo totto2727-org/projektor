@@ -5,6 +5,7 @@ import { Effect, Function } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { migratedDb } from '#db/test/helpers.ts'
 import {
   DataQueryError,
@@ -72,10 +73,10 @@ describe('project/workspace pure queries', () => {
     const projects = await runTestEffect(listProjects(db, 'wa'))
     expect(projects.map((project) => project.id)).toStrictEqual(['p3', 'p1'])
     expect(projects[1]).toStrictEqual({
-      agentWipLimit: null,
-      archivedAt: null,
+      agentWipLimit: SQL_NULL,
+      archivedAt: SQL_NULL,
       createdAt: 100,
-      description: null,
+      description: SQL_NULL,
       id: 'p1',
       key: 'SAME',
       name: 'Zeta',
@@ -123,10 +124,10 @@ describe('project/workspace pure queries', () => {
     )
     expect(rows.map((row) => Object.fromEntries(Object.entries(row)))).toStrictEqual([
       {
-        archived_at: null,
+        archived_at: SQL_NULL,
         backlog_issue_count: 1,
         created_at: 100,
-        description: null,
+        description: SQL_NULL,
         id: 'p1',
         key: 'SAME',
         name: 'Zeta',
@@ -186,17 +187,17 @@ describe('project/workspace pure queries', () => {
     await expect(runTestEffect(listWorkspaceTokenMetadata(db, 'wa'))).resolves.toStrictEqual([
       {
         createdAt: 20,
-        expiresAt: null,
+        expiresAt: SQL_NULL,
         id: 't2',
-        lastUsedAt: null,
+        lastUsedAt: SQL_NULL,
         name: 'Second',
         scopes: ['write'],
       },
       {
         createdAt: 10,
-        expiresAt: null,
+        expiresAt: SQL_NULL,
         id: 't1',
-        lastUsedAt: null,
+        lastUsedAt: SQL_NULL,
         name: 'First',
         scopes: ['read'],
       },

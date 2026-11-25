@@ -5,7 +5,9 @@ import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors
 import { setAttachmentReviewStatus } from '#commands/files.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { findAttachment, listIssueReviewTargets } from '#services/files.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { sqliteRowFields } from '#tests/sqlite-records.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -63,8 +65,10 @@ describe('issue attachment review target storage and authorization', () => {
   test('defaults existing metadata to null and persists every review state, then removes selection', async () => {
     expect.hasAssertions()
     const testFixture = fixture()
-    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
-    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
+    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
+      reviewStatus: SQL_NULL,
+    })
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', JSON_NULL], async (status): Promise<void> => {
       await expect(testFixture.set('a', status)).resolves.toStrictEqual({ ok: true })
       await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
         reviewStatus: status,
@@ -85,7 +89,7 @@ describe('issue attachment review target storage and authorization', () => {
           'i',
           [
             { id: 'b', kind: 'url', filename: 'Design', url: 'https://example.test', status: 'in_review' },
-            { id: 'a', kind: 'file', filename: 'a.pdf', url: null, status: 'fixing' },
+            { id: 'a', kind: 'file', filename: 'a.pdf', url: SQL_NULL, status: 'fixing' },
           ],
         ],
       ]),
@@ -119,7 +123,9 @@ describe('issue attachment review target storage and authorization', () => {
     testFixture.ctx.role = 'owner'
     testFixture.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p'")
     await expect(testFixture.set('a', 'fixing')).rejects.toBeInstanceOf(NotFoundError)
-    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
+    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
+      reviewStatus: SQL_NULL,
+    })
   })
 
   test('rechecks current grants and forbids project viewers', async () => {
@@ -158,7 +164,7 @@ describe('issue attachment review target storage and authorization', () => {
     `)
       const attachmentCount = testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()
       await updateIssue(testFixture.ctx, 'i', { status })
-      const expected = status === 'done' ? 'done' : null
+      const expected = status === 'done' ? 'done' : SQL_NULL
       await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
         reviewStatus: expected,
       })
@@ -166,7 +172,7 @@ describe('issue attachment review target storage and authorization', () => {
         reviewStatus: expected,
       })
       await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'wiki'))).resolves.toMatchObject({
-        reviewStatus: null,
+        reviewStatus: SQL_NULL,
       })
       await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'sibling-target'))).resolves.toMatchObject({
         reviewStatus: 'fixing',

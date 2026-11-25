@@ -3,6 +3,7 @@ import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
 import { migratedDb } from '#db/test/helpers.ts'
 import { DataQueryError } from '#services/errors.ts'
 import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '#services/feedback.ts'
@@ -65,12 +66,12 @@ describe('sprint and feedback database read models', () => {
     expect(rows.map((row) => row.id)).toStrictEqual(['s1', 's2'])
     expect(rows[0]).toStrictEqual({
       createdAt: 10,
-      endDate: null,
-      goal: null,
+      endDate: SQL_NULL,
+      goal: SQL_NULL,
       id: 's1',
       name: 'Earlier',
       projectId: 'pa',
-      startDate: null,
+      startDate: SQL_NULL,
       status: 'planned',
       updatedAt: 11,
       workspaceId: 'wa',
@@ -89,14 +90,14 @@ describe('sprint and feedback database read models', () => {
       body: 'Comment',
       created_at: 10,
       id: 'f1',
-      linked_issue_id: null,
+      linked_issue_id: SQL_NULL,
       rating: 1,
       rating_scale: 'thumbs',
       source_id: 'sa',
       source_name: 'A source',
-      source_url: null,
+      source_url: SQL_NULL,
       status: 'new',
-      submitter_label: null,
+      submitter_label: SQL_NULL,
     })
     const result = await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))
     expect(result.map((row) => row.id)).toStrictEqual(['f4', 'f1'])
@@ -120,8 +121,8 @@ describe('sprint and feedback database read models', () => {
         with_comment_count: 1,
       },
       {
-        app_version: null,
-        five_star_avg: null,
+        app_version: SQL_NULL,
+        five_star_avg: SQL_NULL,
         five_star_total: 0,
         last_seen_at: 40,
         source_id: 'sa',
@@ -151,9 +152,9 @@ describe('sprint and feedback database read models', () => {
     const rows = await runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toStrictEqual(['sa2', 'sa'])
     expect({ ...rows[0] }).toStrictEqual({
-      allowed_origins: null,
+      allowed_origins: SQL_NULL,
       created_at: 20,
-      description: null,
+      description: SQL_NULL,
       id: 'sa2',
       is_active: 1,
       name: 'Second source',

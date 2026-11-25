@@ -3,10 +3,12 @@ import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 import { Predicate, Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
 import { migratedDb } from '#db/test/helpers.ts'
 import { DataQueryError } from '#services/errors.ts'
 import { findAttachment, listAttachments } from '#services/files.ts'
 import { findGroup, listGroupGrants, listGroupMembers, listGroups, listMemberGroups } from '#services/groups.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
 /**
@@ -70,7 +72,7 @@ describe('groups and attachment pure retrieval', () => {
         memberCount: 0,
         name: 'Alpha',
       },
-      { createdAt: 3, description: null, grantCount: 1, id: 'g1', memberCount: 2, name: 'Zeta' },
+      { createdAt: 3, description: SQL_NULL, grantCount: 1, id: 'g1', memberCount: 2, name: 'Zeta' },
     ])
     const result = await runTestEffect(listGroups(db, 'wa', { memberUserId: 'u1' }))
     expect(result.map((g) => g.id)).toStrictEqual(['g1'])
@@ -80,7 +82,7 @@ describe('groups and attachment pure retrieval', () => {
   test('retrieves domain group/member/grant rows with explicit tenant boundaries', async () => {
     await expect(runTestEffect(findGroup(db, 'wa', 'g1'))).resolves.toStrictEqual({
       createdAt: 3,
-      description: null,
+      description: SQL_NULL,
       id: 'g1',
       name: 'Zeta',
       workspaceId: 'wa',
@@ -114,9 +116,9 @@ describe('groups and attachment pure retrieval', () => {
       filename: '',
       id: 'a2',
       kind: 'wiki_ref',
-      reviewStatus: null,
+      reviewStatus: SQL_NULL,
       size: 0,
-      url: null,
+      url: SQL_NULL,
       wikiPage: { id: 'w1', projectId: 'p1', slug: 'hello world', title: 'Hello' },
     })
     expect(rows[1].wikiPage).toBeNull()
@@ -127,10 +129,10 @@ describe('groups and attachment pure retrieval', () => {
       filename: 'photo.png',
       id: 'a1',
       kind: 'file',
-      reviewStatus: null,
+      reviewStatus: SQL_NULL,
       size: 123,
-      url: null,
-      wikiPage: null,
+      url: SQL_NULL,
+      wikiPage: JSON_NULL,
     })
     await expect(
       runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'missing' })),

@@ -8,6 +8,8 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
  * one `{items, next}` pagination shape, and a hard per-result size cap.
  */
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runIndexedInOrder, runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
@@ -25,9 +27,9 @@ describe('covers PROJ-891: serializer (unit)', () => {
     status: 'todo',
     priority: 'high',
     labels: '["a","b"]',
-    parent_id: null,
-    assignee_id: null,
-    assignee_name: null,
+    parent_id: SQL_NULL,
+    assignee_id: SQL_NULL,
+    assignee_name: SQL_NULL,
     type_id: 't',
     type_key: 'bug',
     type_name: 'Bug',
@@ -36,10 +38,10 @@ describe('covers PROJ-891: serializer (unit)', () => {
     status_name: 'Todo',
     status_category: 'todo',
     created_by_id: 'u',
-    author_kind: null,
+    author_kind: SQL_NULL,
     needs_audit: false,
-    completed_at: null,
-    sprint_id: null,
+    completed_at: SQL_NULL,
+    sprint_id: SQL_NULL,
     created_at: 1,
     updated_at: 2,
     project_key: 'PROJ',
@@ -101,7 +103,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
   test('verbose returns the raw row; fields picks (incl. derived ref) with null for absent values', () => {
     expect(shapeIssue(raw, { verbose: true })).toBe(raw)
     expect(shapeIssue(raw, { fields: ['ref', 'assignee_id', 'updated'] })).toStrictEqual({
-      assignee_id: null,
+      assignee_id: JSON_NULL,
       ref: 'PROJ-7',
       updated: 2,
     })

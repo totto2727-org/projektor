@@ -6,18 +6,19 @@ import {
   stampWikiFrontmatterVerification,
   stripTemplateFlag,
 } from '#commands/wiki-frontmatter.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 
 describe('parseWikiFrontmatter (PROJ-488)', () => {
   test('returns empty meta for content with no frontmatter block', () => {
     expect(parseWikiFrontmatter('# Just a heading\n\nbody text')).toStrictEqual({
       isTemplate: false,
       owners: [],
-      status: null,
+      status: JSON_NULL,
       tags: [],
-      type: null,
-      verifiedAt: null,
-      verifiedBy: null,
-      verifyInterval: null,
+      type: JSON_NULL,
+      verifiedAt: JSON_NULL,
+      verifiedBy: JSON_NULL,
+      verifyInterval: JSON_NULL,
     })
   })
 
@@ -46,8 +47,8 @@ describe('parseWikiFrontmatter (PROJ-488)', () => {
       status: 'current',
       tags: ['ops', 'oncall'],
       type: 'runbook',
-      verifiedAt: null,
-      verifiedBy: null,
+      verifiedAt: JSON_NULL,
+      verifiedBy: JSON_NULL,
       verifyInterval: 30,
     })
   })

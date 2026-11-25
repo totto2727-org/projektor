@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { configureCore, env } from '#api/test/fixture-api.ts'
 import { CommandOkSchema } from '#core/web/command-contract.ts'
 import type { BrowserCommand } from '#core/web/command-contract.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 
 let proof: BrowserCommand
@@ -89,8 +91,8 @@ describe('native named review target browser command', () => {
 
   test('persists nullable review transitions across the actual Core service binding', async () => {
     expect.hasAssertions()
-    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: null })
-    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
+    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', JSON_NULL], async (status): Promise<void> => {
       await expect(update(status)).resolves.toStrictEqual({ ok: true })
       await expect(persistedStatus()).resolves.toStrictEqual({ review_status: status })
     })
@@ -100,13 +102,13 @@ describe('native named review target browser command', () => {
     await expect(
       update('fixing', { ...proof, request: { ...proof.request, headers: [['origin', 'https://evil.test']] } }),
     ).rejects.toMatchObject({ status: 403 })
-    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: null })
+    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
   test('rejects malformed statuses and issue ownership mismatches safely', async () => {
     await expect(update('invalid')).rejects.toMatchObject({ status: 400 })
     await expect(update('fixing', proof, 'missing-issue')).rejects.toMatchObject({ status: 404 })
-    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: null })
+    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
   test('rechecks viewer and revoked project grants in the native Core invocation', async () => {
@@ -114,7 +116,7 @@ describe('native named review target browser command', () => {
     await expect(update('fixing')).rejects.toMatchObject({ status: 403 })
     await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id = ?').bind(groupId).run()
     await expect(update('fixing')).rejects.toMatchObject({ status: 404 })
-    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: null })
+    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
   test('rejects archived projects while preserving the selected status', async () => {
@@ -127,6 +129,6 @@ describe('native named review target browser command', () => {
   test('requires current workspace membership on every native command', async () => {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ?').bind(workspaceId).run()
     await expect(update('fixing')).rejects.toMatchObject({ status: 403 })
-    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: null })
+    await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 })
