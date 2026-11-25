@@ -10,7 +10,6 @@ import {
 import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
-import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
 /*
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
  * autosave so an in-progress edit survives a device switch.
@@ -24,6 +23,7 @@ import { SQL_NULL } from '#db/sql-null.ts'
 import { ConflictError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
+import { advanceHead, requireAdvanced } from './wiki-draft-head.ts'
 import { resolveDraftTarget } from './wiki-draft-target.ts'
 
 type WikiDraft = Pick<typeof schema.wikiDrafts.$inferSelect, 'title' | 'content' | 'baseRevisionId' | 'updatedAt'>
@@ -127,45 +127,6 @@ export const readWikiDraftState = async function readWikiDraftState(
         : JSON_NULL,
     ],
   ])
-}
-
-interface DraftHeadAdvance {
-  expected: string | null | undefined
-  revision: string
-}
-
-const advanceHead = function advanceHead(
-  ctx: ServiceCtx,
-  pageId: string,
-  { expected, revision }: DraftHeadAdvance,
-): D1PreparedStatement {
-  const key = [ctx.workspaceId, ctx.userId, pageId]
-  if (!isWikiRevisionSpecified(expected)) {
-    /*
-     * Existing REST/MCP callers remain last-write-wins, but invalidate any older
-     * versioned browser request rather than bypassing the head.
-     */
-    return ctx.db
-      .prepare(`INSERT INTO wiki_draft_heads(workspace_id,user_id,page_id,revision) VALUES (?,?,?,?)
-      ON CONFLICT(workspace_id,user_id,page_id) DO UPDATE SET revision = excluded.revision RETURNING revision`)
-      .bind(...key, revision)
-  }
-  if (Predicate.isNullish(expected)) {
-    return ctx.db
-      .prepare(`INSERT INTO wiki_draft_heads(workspace_id,user_id,page_id,revision) VALUES (?,?,?,?)
-      ON CONFLICT(workspace_id,user_id,page_id) DO NOTHING RETURNING revision`)
-      .bind(...key, revision)
-  }
-  return ctx.db
-    .prepare(`UPDATE wiki_draft_heads SET revision = ?
-    WHERE workspace_id = ? AND user_id = ? AND page_id = ? AND revision = ? RETURNING revision`)
-    .bind(revision, ...key, expected)
-}
-
-const requireAdvanced = function requireAdvanced(result: D1Result, revision: string): void {
-  if (!result.results.some((row) => Predicate.isObjectOrArray(row) && 'revision' in row && row.revision === revision)) {
-    throw new ConflictError('The saved draft changed. Reload its current state before saving again.')
-  }
 }
 
 export const saveWikiDraft = async function saveWikiDraft(
