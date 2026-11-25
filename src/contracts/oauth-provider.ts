@@ -40,7 +40,12 @@ const validateNativeClient = function validateNativeClient({
   return { description: 'Dynamic registration requires a public client with one HTTP loopback IP redirect URI.' }
 }
 
-/** Shared provider protocol configuration contains no application storage or authority. */
+/**
+ * Define the routes and protocol options shared by the OAuth provider's entry points.
+ *
+ * @param {ExportedHandler<E>} app The Worker handler for API and fallback requests.
+ * @returns {OAuthProviderOptions<E>} The endpoint, registration and scope settings for that handler.
+ */
 export const providerOptions = function providerOptions<E extends OAuthEnvironment>(
   app: ExportedHandler<E>,
 ): OAuthProviderOptions<E> {
@@ -60,7 +65,12 @@ export const providerOptions = function providerOptions<E extends OAuthEnvironme
 
 const UNUSED_HANDLER: ExportedHandler<OAuthEnvironment> = { fetch: () => new Response('Not found', { status: 404 }) }
 
-/** Credential lifecycle is delegated to the official provider and its dedicated KV. */
+/**
+ * Delegate the credential lifecycle to the OAuth provider and its dedicated KV namespace.
+ *
+ * @param {OAuthEnvironment} env The environment containing the credential namespace binding.
+ * @returns {OAuthHelpers} The provider's operations for managing OAuth clients and grants.
+ */
 export const oauthApi = function oauthApi(env: OAuthEnvironment): OAuthHelpers {
   return getOAuthApi(providerOptions(UNUSED_HANDLER), env)
 }

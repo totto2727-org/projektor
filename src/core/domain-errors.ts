@@ -27,7 +27,12 @@ const jsonDetails = function jsonDetails(input: unknown): Schema.JsonObject | un
   }
 }
 
-/** Explicitly documented domain data, never arbitrary Error properties or diagnostics. */
+/**
+ * Map known domain errors to the public fields documented by the RPC contract.
+ *
+ * @param {unknown} error The failure from the domain operation.
+ * @returns {unknown} A public failure for a known domain error, or the original value for the RPC boundary to handle.
+ */
 export const publicDomainFailure = function publicDomainFailure(error: unknown): unknown {
   if (error instanceof ValidationError) {
     return coreFailure(HTTP_BAD_REQUEST, error.message, { kind: error.kind, details: jsonDetails(error.issues) })

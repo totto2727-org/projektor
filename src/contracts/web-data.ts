@@ -17,7 +17,12 @@ export const requireAuthenticatedDataSession = function requireAuthenticatedData
   }
 }
 
-/** Never expose driver SQL, bindings or authentication diagnostics to page clients. */
+/**
+ * Keep driver SQL, bindings and authentication diagnostics on the server.
+ *
+ * @param {unknown} cause The failure raised while loading page data.
+ * @returns {ApiError} The existing API error or a generic request error with the original cause for server diagnostics.
+ */
 export const dataError = function dataError(cause: unknown): ApiError {
   if (cause instanceof ApiError) {
     return cause
@@ -25,7 +30,14 @@ export const dataError = function dataError(cause: unknown): ApiError {
   return new ApiError('request', HTTP_INTERNAL_SERVER_ERROR, 'Unable to load project data.', cause)
 }
 
-/** Presentation selection is not authority. Core revalidates membership before storage access. */
+/**
+ * Check the selected or explicitly requested workspace against the authenticated scope before storage access.
+ * Core revalidates membership for the operation.
+ *
+ * @param {RequestScope} scope The session, workspace memberships and current presentation selection.
+ * @param {string} [workspaceId] The requested workspace when the caller overrides the current selection.
+ * @returns {WorkspaceMembership} The matching membership from the authenticated scope.
+ */
 export const requireDataWorkspace = function requireDataWorkspace(
   scope: RequestScope,
   workspaceId?: string,

@@ -39,7 +39,13 @@ const decodeFailure = function decodeFailure(
   return Effect.fail(problem)
 }
 
-/** Sanitize the native transport before decoding the application's validated envelope. */
+/**
+ * Sanitize transport failures before decoding the application's validated envelope.
+ *
+ * @param {S} schema The success schema expected by this caller.
+ * @param {Effect.Effect<string, E, R>} invocation The native call that returns the encoded reply.
+ * @returns {Effect.Effect<S['Type'], CorePublicError, R | S['DecodingServices']>} The decoded success or a public failure.
+ */
 export const decodeCoreReply = function decodeCoreReply<S extends Schema.Top, E, R>(
   schema: S,
   invocation: Effect.Effect<string, E, R>,

@@ -42,7 +42,12 @@ export const workspaceIdFromResource = function workspaceIdFromResource(
   return decodeURIComponent(workspaceId)
 }
 
-/** An omitted scope requests all supported scopes. Unsupported extras are discarded. */
+/**
+ * Use all supported scopes when the request omits the scope list. Discard unsupported scopes from an explicit list.
+ *
+ * @param {Readonly<string[]>} requested The scopes supplied by the OAuth client.
+ * @returns {string[]} The granted scopes in provider order.
+ */
 export const grantedScopes = function grantedScopes(requested: Readonly<string[]>): string[] {
   if (Array.isReadonlyArrayEmpty(requested)) {
     return [...OAUTH_SCOPES_SUPPORTED]
@@ -65,7 +70,12 @@ export const describeScope = function describeScope(scope: string): string {
   }
   return scope
 }
-/** The host, not the self-declared application name, is the relying party identity. */
+/**
+ * Derive the relying party identity from the client identifier.
+ *
+ * @param {string} clientId The registered OAuth client identifier.
+ * @returns {string} The host including a port when present, or the raw identifier for clients with opaque IDs.
+ */
 export const relyingPartyHost = function relyingPartyHost(clientId: string): string {
   try {
     return new URL(clientId).host

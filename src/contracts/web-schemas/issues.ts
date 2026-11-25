@@ -66,7 +66,12 @@ export const IssueSchema = Schema.Struct({
     }),
   ),
 })
-/** DTO normalization is pure. Each native loader validates its concrete schema. */
+/**
+ * Normalize a decoded issue after the native loader validates its concrete schema.
+ *
+ * @param {typeof IssueSchema.Type} dto The validated issue response.
+ * @returns {Issue} An issue with explicit nullable fields and copied nested records for page consumers.
+ */
 export const normalizeIssue = function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
   return {
     ...dto,

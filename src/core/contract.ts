@@ -53,7 +53,14 @@ export const coreReplyCodec = <S extends Schema.Top>(
 ): Schema.fromJsonString<Schema.toCodecJson<Schema.Result<S, typeof CoreProblem>>> =>
   Schema.fromJsonString(Schema.toCodecJson(Schema.Result(success, CoreProblem)))
 
-/** Encode at the origin. Neither checked exceptions nor defects leave this Worker. */
+/**
+ * Encode the outcome in the originating Worker so only validated public fields cross the binding.
+ *
+ * @param {string} operation The operation name recorded in the Worker's diagnostic log.
+ * @param {S} success The schema for the successful result.
+ * @param {Effect.Effect<unknown, E, R>} effect The operation whose outcome the Worker sends.
+ * @returns {CoreReply<R, S>} The effect that encodes either the success value or a public problem as JSON.
+ */
 export const coreReply = function coreReply<E, R, S extends Schema.Top>(
   operation: string,
   success: S,

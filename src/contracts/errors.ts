@@ -110,7 +110,12 @@ export class ScopeError extends Data.TaggedError('ScopeError')<
   }
 }
 
-/** Map diagnostics only. Response decoding stays at each operation's concrete schema. */
+/**
+ * Map diagnostics from the operation's own concrete response decoder.
+ *
+ * @param {unknown} cause The error raised while reading or validating the response.
+ * @returns {ApiError} The existing API error or a schema error that presents a generic response message.
+ */
 export const responseError = function responseError(cause: unknown): ApiError {
   if (cause instanceof ApiError) {
     return cause

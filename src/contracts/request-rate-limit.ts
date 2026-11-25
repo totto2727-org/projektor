@@ -21,7 +21,13 @@ export const RateCounterRequest = Schema.Struct({
 
 export const LIMITER_TIMEOUT_MS = 500
 
-/** Test names are shared with the native counter fixture, never enabled in production. */
+/**
+ * Share counter names with the native fixture and use unprefixed keys in production.
+ *
+ * @param {{ENVIRONMENT?: string, RATE_LIMIT_TEST_EPOCH?: string}} env The deployment mode and optional test epoch.
+ * @param {string} key The base counter key for the caller and request category.
+ * @returns {string} The key with a nonempty test epoch prefix when a fixture has one configured.
+ */
 export const rateLimiterObjectName = function rateLimiterObjectName(
   env: { ENVIRONMENT?: string; RATE_LIMIT_TEST_EPOCH?: string },
   key: string,
