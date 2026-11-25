@@ -1197,7 +1197,8 @@ describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
       .first<{ id: string }>()
 
     // Alice tries to delete Bob's token — the WHERE user_id = alice.user.id clause filters it out
-    const res = await humanFetch(alice.user.email, `http://localhost/auth/tokens/${bobTokenRow!.id}`, {
+    assert.exists(bobTokenRow)
+    const res = await humanFetch(alice.user.email, `http://localhost/auth/tokens/${bobTokenRow.id}`, {
       method: 'DELETE',
     })
     // The endpoint returns 200 ok (no error — just no rows deleted)
@@ -1205,7 +1206,7 @@ describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
 
     // Bob's token must still exist in the DB
     const stillThere = await env.DB.prepare('SELECT id FROM api_tokens WHERE id = ?')
-      .bind(bobTokenRow!.id)
+      .bind(bobTokenRow.id)
       .first<{ id: string }>()
     expect(stillThere).not.toBeNull()
   })

@@ -1,5 +1,5 @@
 import { Schema, Iterable } from 'effect'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
@@ -903,6 +903,8 @@ describe('covers MCP endpoint', () => {
     const smallRow = data.issues.find((issue) => issue.title === 'Small (1pt)')
     const largeRow = data.issues.find((issue) => issue.title === 'Large (8pt)')
     // Smaller story points → higher score (1/sp is larger for small sp)
-    expect(smallRow!._score).toBeGreaterThan(largeRow!._score)
+    assert.exists(largeRow)
+    assert.exists(smallRow)
+    expect(smallRow._score).toBeGreaterThan(largeRow._score)
   })
 })

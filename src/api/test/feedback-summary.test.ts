@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -64,33 +64,34 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
       .first<{ id: string }>()
 
     // Version v1.0.0: 2 thumbs up, 1 thumbs down, 1 with a comment
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    assert.exists(src)
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.0.0',
       createdAt: 100,
       rating: 1,
       ratingScale: 'thumbs',
     })
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.0.0',
       body: 'Love it',
       createdAt: 101,
       rating: 1,
       ratingScale: 'thumbs',
     })
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.0.0',
       createdAt: 102,
       rating: -1,
       ratingScale: 'thumbs',
     })
     // Version v1.1.0 (more recent): 5-star avg of 4.5
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.1.0',
       createdAt: 200,
       rating: 4,
       ratingScale: 'five_star',
     })
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.1.0',
       createdAt: 201,
       rating: 5,
@@ -125,7 +126,8 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'no version here' })
+    assert.exists(src)
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, { body: 'no version here' })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback/summary`, {
       headers: authHeaders(testFixture.token, testFixture.slug),

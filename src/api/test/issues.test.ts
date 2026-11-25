@@ -2215,7 +2215,9 @@ describe('get_prioritized_issues MCP tool', () => {
     )
     const smallRow = data.issues.find((issue) => issue.title === 'Small')
     const largeRow = data.issues.find((issue) => issue.title === 'Large')
-    expect(smallRow!._score).toBeGreaterThan(largeRow!._score)
+    assert.exists(largeRow)
+    assert.exists(smallRow)
+    expect(smallRow._score).toBeGreaterThan(largeRow._score)
   })
 
   // ─── PROJ-253: definition-of-ready filtering ──────────────────────────────
@@ -2466,7 +2468,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
       role: 'owner',
     }))
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    projectKey = row!.key
+    assert.exists(row)
+    projectKey = row.key
   })
 
   const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
@@ -2933,7 +2936,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Batch A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Batch B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    const ref = `${row!.key}-${issue.number}`
+    assert.exists(row)
+    const ref = `${row.key}-${issue.number}`
 
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [currentIssue.id] } })
     expect(res.error).toBeUndefined()
@@ -2970,8 +2974,9 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Order A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Order B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    const refA = `${row!.key}-${issue.number}`
-    const missingRef = `${row!.key}-999999`
+    assert.exists(row)
+    const refA = `${row.key}-${issue.number}`
+    const missingRef = `${row.key}-999999`
     const missingId = crypto.randomUUID()
 
     const res = await mcpCall({
@@ -3064,7 +3069,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   const projectKey = async function projectKey(): Promise<string> {
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
-    return row!.key
+    assert.exists(row)
+    return row.key
   }
 
   test('get_issues resolves zero-padded refs like get_issue does', async () => {

@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -424,7 +424,8 @@ describe('agent Messages API', () => {
     const row = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
       .bind(id)
       .first<{ last_heartbeat_at: number }>()
-    return row!.last_heartbeat_at
+    assert.exists(row)
+    return row.last_heartbeat_at
   }
 
   test("post_message refreshes a live agentId's heartbeat, but never revives a stale one", async () => {

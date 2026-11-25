@@ -756,8 +756,9 @@ describe('wiki API', () => {
   test('project-scoped pages are isolated from workspace-level list', async () => {
     const { env } = await import('./fixture-api.ts')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
-    const project = await seedProject(ws!.id, 'WIKI')
-    await seedGroupGrant(ws!.id, userId, project.id)
+    assert.exists(ws)
+    const project = await seedProject(ws.id, 'WIKI')
+    await seedGroupGrant(ws.id, userId, project.id)
 
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'scoped', projectId: project.id, title: 'Project Page' }),
@@ -799,13 +800,14 @@ describe('wiki API', () => {
 
   test('includeWorkspacePages widens a project scope to workspace-level pages (PROJ-742)', async () => {
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
-    const project = await seedProject(ws!.id, 'WIDEN')
-    const other = await seedProject(ws!.id, 'OTHER')
-    await seedGroupGrant(ws!.id, userId, project.id)
-    await seedGroupGrant(ws!.id, userId, other.id)
-    await seedWikiPageRow(ws!.id, project.id, 'scoped-page', 'Scoped Page')
-    await seedWikiPageRow(ws!.id, null, 'shared-page', 'Shared Page')
-    await seedWikiPageRow(ws!.id, other.id, 'other-page', 'Other Project Page')
+    assert.exists(ws)
+    const project = await seedProject(ws.id, 'WIDEN')
+    const other = await seedProject(ws.id, 'OTHER')
+    await seedGroupGrant(ws.id, userId, project.id)
+    await seedGroupGrant(ws.id, userId, other.id)
+    await seedWikiPageRow(ws.id, project.id, 'scoped-page', 'Scoped Page')
+    await seedWikiPageRow(ws.id, null, 'shared-page', 'Shared Page')
+    await seedWikiPageRow(ws.id, other.id, 'other-page', 'Other Project Page')
 
     const strictRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
@@ -837,9 +839,10 @@ describe('wiki API', () => {
 
   test("includeWorkspacePages still hides a project the caller isn't granted (PROJ-742)", async () => {
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
-    const ungranted = await seedProject(ws!.id, 'UNGRANTED')
-    await seedWikiPageRow(ws!.id, null, 'ungranted-shared-page', 'Shared Page')
-    await seedWikiPageRow(ws!.id, ungranted.id, 'secret-page', 'Secret Page')
+    assert.exists(ws)
+    const ungranted = await seedProject(ws.id, 'UNGRANTED')
+    await seedWikiPageRow(ws.id, null, 'ungranted-shared-page', 'Shared Page')
+    await seedWikiPageRow(ws.id, ungranted.id, 'secret-page', 'Secret Page')
 
     const res = await fetchNativeApi(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
@@ -850,8 +853,9 @@ describe('wiki API', () => {
   test('handles POST /api/wiki stores projectId and GET returns it', async () => {
     const { env } = await import('./fixture-api.ts')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
-    const project = await seedProject(ws!.id, 'P2')
-    await seedGroupGrant(ws!.id, userId, project.id)
+    assert.exists(ws)
+    const project = await seedProject(ws.id, 'P2')
+    await seedGroupGrant(ws.id, userId, project.id)
 
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: 'content', projectId: project.id, title: 'Scoped Doc' }),
@@ -1212,7 +1216,8 @@ describe('wiki API', () => {
     })
     const { id } = await readNativeJson(res, IdResponse)
     const row = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(id).first<{ r2_key: string }>()
-    return { attachmentId: id, r2Key: row!.r2_key }
+    assert.exists(row)
+    return { attachmentId: id, r2Key: row.r2_key }
   }
 
   test('handles DELETE :slug trashes the page, leaving its R2 attachment until purge (PROJ-426/496)', async () => {
@@ -1288,8 +1293,9 @@ describe('wiki API', () => {
     const { seedUser, seedMember, seedToken } = await import('./helpers.ts')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const viewerUser = await seedUser(`viewer-wiki-${crypto.randomUUID().slice(0, 8)}@example.com`)
-    await seedMember(ws!.id, viewerUser.id, 'viewer')
-    const viewerToken = await seedToken(ws!.id, viewerUser.id)
+    assert.exists(ws)
+    await seedMember(ws.id, viewerUser.id, 'viewer')
+    const viewerToken = await seedToken(ws.id, viewerUser.id)
 
     const delRes = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
       headers: authHeaders(viewerToken, slug),

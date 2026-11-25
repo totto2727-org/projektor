@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 /**
  * PROJ-78 — Authorization test coverage
@@ -500,7 +500,8 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
       .bind('target@example.com')
       .first<{ id: string }>()
 
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
+    assert.exists(target)
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target.id}`, {
       headers: memberHeaders,
       method: 'DELETE',
     })
@@ -516,7 +517,8 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
       .bind('removal@example.com')
       .first<{ id: string }>()
 
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
+    assert.exists(target)
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target.id}`, {
       headers: ownerHeaders,
       method: 'DELETE',
     })
@@ -533,8 +535,9 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
+    assert.exists(viewerRow)
     const res = await fetchNativeApi(
-      `http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`,
+      `http://localhost/api/workspaces/${slug}/members/${viewerRow.user_id}`,
       requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ role: 'member' })),
     )
     expect(res.status).toBe(403)
@@ -547,8 +550,9 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
+    assert.exists(viewerRow)
     const res = await fetchNativeApi(
-      `http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`,
+      `http://localhost/api/workspaces/${slug}/members/${viewerRow.user_id}`,
       requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ role: 'member' })),
     )
     expect(res.status).toBe(200)
@@ -653,7 +657,8 @@ describe('covers PROJ-78: seedToken scopes parameter', () => {
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(fixture.workspace.id, fixture.user.id)
       .first<{ scopes: string }>()
-    expect(JSON.parse(row!.scopes)).toStrictEqual(['*'])
+    assert.exists(row)
+    expect(JSON.parse(row.scopes)).toStrictEqual(['*'])
   })
 
   test('seedToken persists explicit scopes for future scope-enforcement tests', async () => {
@@ -667,7 +672,8 @@ describe('covers PROJ-78: seedToken scopes parameter', () => {
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(ws.id, user.id)
       .first<{ scopes: string }>()
-    expect(JSON.parse(row!.scopes)).toStrictEqual(['read'])
+    assert.exists(row)
+    expect(JSON.parse(row.scopes)).toStrictEqual(['read'])
   })
 
   test('seedToken persists expiresAt when provided', async () => {
@@ -681,6 +687,7 @@ describe('covers PROJ-78: seedToken scopes parameter', () => {
     const row = await env.DB.prepare('SELECT expires_at FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(ws.id, user.id)
       .first<{ expires_at: number }>()
-    expect(row!.expires_at).toBe(expiresAt)
+    assert.exists(row)
+    expect(row.expires_at).toBe(expiresAt)
   })
 })

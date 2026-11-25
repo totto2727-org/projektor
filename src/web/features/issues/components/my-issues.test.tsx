@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, test } from 'vite-plus/test'
+import { assert, afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { issue, workspace } from '@/features/issues/test/fixtures.ts'
 import type { ScopedIssue } from '@/features/issues/views/my-issues-page.tsx'
@@ -136,8 +136,9 @@ describe('my Issues focus order', () => {
     const { container } = show(issues)
     const mobile = container.querySelector('.max-sm\\:flex')
     expect(mobile).not.toBeNull()
+    assert.exists(mobile)
     expect(
-      [...mobile!.querySelectorAll('a')]
+      [...mobile.querySelectorAll('a')]
         .filter((link) => ['New', 'Old'].includes(link.textContent ?? ''))
         .map((link) => link.textContent),
     ).toStrictEqual(['New', 'Old'])

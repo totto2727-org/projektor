@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { hashFeedbackToken } from '#commands/feedback.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -403,8 +403,9 @@ describe('feedback triage read/patch', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'a', status: 'new' })
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'b', status: 'reviewed' })
+    assert.exists(src)
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, { body: 'a', status: 'new' })
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, { body: 'b', status: 'reviewed' })
 
     const all = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
@@ -458,7 +459,8 @@ describe('feedback triage read/patch', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(proj.id)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id)
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, roles.workspace.id, proj.id)
 
     const viewerRes = await fetchNativeApi(
       `http://localhost/api/projects/${proj.id}/feedback/${fbId}`,
@@ -525,7 +527,8 @@ describe('feedback triage read/patch', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId)
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId)
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/${fbId}`,
@@ -714,7 +717,8 @@ describe('feedback convert-to-issue', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       body: 'The export button is broken',
     })
 
@@ -752,7 +756,8 @@ describe('feedback convert-to-issue', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(proj.id)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id)
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, roles.workspace.id, proj.id)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
@@ -777,7 +782,8 @@ describe('feedback convert-to-issue', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(proj.id)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id, { body: 'Fix this' })
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, roles.workspace.id, proj.id, { body: 'Fix this' })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
@@ -794,11 +800,12 @@ describe('feedback convert-to-issue', () => {
       .first<{ id: string }>()
     const id = crypto.randomUUID()
     const now = currentEpochSeconds()
+    assert.exists(src)
     await env.DB.prepare(
       `INSERT INTO feedback (id, source_id, workspace_id, project_id, rating, rating_scale, body, status, created_at)
 			 VALUES (?, ?, ?, ?, ?, ?, NULL, 'new', ?)`,
     )
-      .bind(id, src!.id, testFixture.workspaceId, testFixture.projectId, 1, 'thumbs', now)
+      .bind(id, src.id, testFixture.workspaceId, testFixture.projectId, 1, 'thumbs', now)
       .run()
 
     const res = await fetchNativeApi(
@@ -822,7 +829,8 @@ describe('feedback convert-to-issue', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'Repeat me' })
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, { body: 'Repeat me' })
 
     const first = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/${fbId}/convert-to-issue`,
@@ -851,7 +859,8 @@ describe('covers PROJ-390: path params win over body-supplied ids', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId)
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId)
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback/${fbId}`,
@@ -894,7 +903,8 @@ describe('covers PROJ-390: path params win over body-supplied ids', () => {
     const source = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const id = source!.id
+    assert.exists(source)
+    const id = source.id
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${testFixture.projectId}/feedback-sources/${id}`,
@@ -1026,8 +1036,9 @@ describe('feedback read/triage MCP tools', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'new one' })
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    assert.exists(src)
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, { body: 'new one' })
+    await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       body: 'reviewed one',
       status: 'reviewed',
     })
@@ -1054,7 +1065,7 @@ describe('feedback read/triage MCP tools', () => {
     const bySource = (await mcpCall<{ content: { text: string }[] }>(
       testFixture.workspaceId,
       'list_feedback',
-      { projectId: testFixture.projectId, sourceId: src!.id },
+      { projectId: testFixture.projectId, sourceId: src.id },
       authHeaders(testFixture.token, testFixture.slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
     expect(mcpText<unknown[]>(bySource)).toHaveLength(2)
@@ -1090,7 +1101,8 @@ describe('feedback read/triage MCP tools', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId)
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId)
 
     const res = (await mcpCall(
       testFixture.workspaceId,
@@ -1134,7 +1146,8 @@ describe('feedback read/triage MCP tools', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, {
       body: 'The export button is broken',
     })
 
@@ -1160,7 +1173,8 @@ describe('feedback read/triage MCP tools', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    const fbId = await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'Repeat me' })
+    assert.exists(src)
+    const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId, { body: 'Repeat me' })
 
     await mcpCall(
       testFixture.workspaceId,

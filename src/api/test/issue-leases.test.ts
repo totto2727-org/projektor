@@ -1,5 +1,5 @@
 import { Schema, String, Predicate } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { fetchAgentWipCap } from '#commands/issue-leases.ts'
 import type { ServiceCtx } from '#commands/types.ts'
@@ -386,7 +386,8 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     )
       .bind(projectId)
       .first<{ n: number }>()
-    expect(row!.n).toBeLessThanOrEqual(3)
+    assert.exists(row)
+    expect(row.n).toBeLessThanOrEqual(3)
   })
 
   test("respects a project's own agent_wip_limit override", async () => {

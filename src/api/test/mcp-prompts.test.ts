@@ -23,7 +23,8 @@ describe('covers MCP prompts', () => {
      * playbook-compose.test.ts: avoid warming getIssue's KV cache via REST.
      */
     const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?').bind(epicId).first<{ number: number }>()
-    epicNumber = row!.number
+    assert.exists(row)
+    epicNumber = row.number
   })
 
   const mcpCall = async function mcpCall(method: string, params: unknown): Promise<unknown> {

@@ -1,5 +1,5 @@
 import { Schema, Iterable } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
@@ -31,7 +31,8 @@ describe('compose_playbook', () => {
      * stale (childless) rollup for the rest of the test.
      */
     const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?').bind(epicId).first<{ number: number }>()
-    epicNumber = row!.number
+    assert.exists(row)
+    epicNumber = row.number
   })
 
   const compose = async function compose(params: Record<string, unknown>): Promise<Response> {
@@ -208,7 +209,8 @@ describe('handles POST /api/playbooks/:name/compose', () => {
     const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?')
       .bind(fixture.issueId)
       .first<{ number: number }>()
-    const epicNumber = row!.number
+    assert.exists(row)
+    const epicNumber = row.number
     return { epicNumber, slug, token }
   }
 

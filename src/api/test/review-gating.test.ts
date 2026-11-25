@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -355,7 +355,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const row = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
       .bind(id)
       .first<{ last_heartbeat_at: number }>()
-    return row!.last_heartbeat_at
+    assert.exists(row)
+    return row.last_heartbeat_at
   }
 
   test("update_issue refreshes a live agentSessionId's heartbeat, but never revives a stale one", async () => {
