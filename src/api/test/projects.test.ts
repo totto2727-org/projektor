@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -446,9 +446,9 @@ describe('projects MCP', () => {
     const proj = projects.find((project) => project.key === 'SHAPE')
     assert.isDefined(proj)
     expect(isNonEmptyText(proj.workspace_id)).toBe(true)
-    expect(typeof proj.workspace_slug).toBe('string')
-    expect(typeof proj.workspace_name).toBe('string')
-    expect(typeof proj.open_issue_count).toBe('number')
+    expect(proj.workspace_slug).toSatisfy(Predicate.isString)
+    expect(proj.workspace_name).toSatisfy(Predicate.isString)
+    expect(proj.open_issue_count).toSatisfy(Predicate.isNumber)
     expect(proj.open_issue_count).toBe(0)
   })
 

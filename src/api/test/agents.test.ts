@@ -1,4 +1,4 @@
-import { Schema, Iterable } from 'effect'
+import { Predicate, Schema, Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { startWork as startWorkDirect } from '#commands/agents.ts'
@@ -70,7 +70,7 @@ describe('agents API', () => {
     })
     expect(hbRes.status).toBe(200)
     const updated = await readNativeJson(hbRes, Schema.Struct({ lastHeartbeatAt: Schema.Number }))
-    expect(typeof updated.lastHeartbeatAt).toBe('number')
+    expect(updated.lastHeartbeatAt).toSatisfy(Predicate.isNumber)
 
     // Backdate the heartbeat to simulate staleness (> 120s ago)
     const stale = currentEpochSeconds() - 200

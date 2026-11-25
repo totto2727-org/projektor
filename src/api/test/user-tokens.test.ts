@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -177,7 +178,7 @@ describe('covers PROJ-91: POST /auth/tokens — user-scoped minting', () => {
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, TokenResponse)
-    expect(typeof body.token).toBe('string')
+    expect(body.token).toSatisfy(Predicate.isString)
 
     const row = await env.DB.prepare('SELECT workspace_id FROM api_tokens WHERE name = ? AND user_id = ?')
       .bind('my-user-token', fixture.user.id)

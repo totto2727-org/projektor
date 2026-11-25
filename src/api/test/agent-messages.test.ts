@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -184,7 +184,7 @@ describe('agent Messages API', () => {
       p1Body.result.content[0].text,
       Schema.Struct({ nextCursor: Schema.Union([Schema.String, Schema.Null]) }),
     )
-    expect(typeof p1.nextCursor).toBe('string')
+    expect(p1.nextCursor).toSatisfy(Predicate.isString)
     const p2Res = await mcpCall('list_messages', { scope, limit: 2, cursor: p1.nextCursor }, token5, slug)
     const p2BodyShape = Schema.Struct({
       error: Schema.optional(Schema.Struct({ message: Schema.String })),

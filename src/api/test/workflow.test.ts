@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { hashWorkflowContent } from '#commands/workflow.ts'
@@ -63,7 +63,7 @@ describe('workflow spec', () => {
     expect(body.content).toContain('`README.md`')
     expect(body.content).toContain('PROJ-914')
     // PROJ-933: a stable content-hash version accompanies the spec.
-    expect(typeof body.version).toBe('string')
+    expect(body.version).toSatisfy(Predicate.isString)
     expect(body.version.length).toBeGreaterThan(0)
   })
 

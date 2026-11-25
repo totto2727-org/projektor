@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -38,7 +38,7 @@ describe('share tokens', () => {
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, TokenLinkResponse)
-    expect(typeof body.token).toBe('string')
+    expect(body.token).toSatisfy(Predicate.isString)
     expect(body.token).toHaveLength(32)
     expect(body.url).toBe(`/share/${body.token}`)
   })
@@ -138,7 +138,7 @@ describe('share tokens', () => {
     expect(data.project_key).toBe('PROJ')
     expect(data.project_name).toBeDefined()
     expect('status_name' in data).toBe(true)
-    expect(typeof data.expires_at).toBe('number')
+    expect(data.expires_at).toSatisfy(Predicate.isNumber)
   })
 
   test('handles GET /api/share/:token is reusable — multiple requests all return 200', async () => {

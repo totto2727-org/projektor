@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
@@ -64,7 +65,7 @@ describe('shared issue queries over the API D1 pool', () => {
     })
     const result = await api(`issues/${issue.id}`)
     const { url, links, ...actual } = result
-    expect(typeof url).toBe('string')
+    expect(url).toSatisfy(Predicate.isString)
     expect(links).toStrictEqual([])
     expect(actual).toStrictEqual({ ...row, ...extras })
   })

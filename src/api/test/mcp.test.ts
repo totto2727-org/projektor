@@ -1,4 +1,4 @@
-import { Schema, Iterable } from 'effect'
+import { Predicate, Schema, Iterable } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -756,7 +756,7 @@ describe('covers MCP endpoint', () => {
     }
     expect(data.issues.length).toBeGreaterThan(0)
     Iterable.forEach(data.issues, (issue) => {
-      expect(typeof issue._score).toBe('number')
+      expect(issue._score).toSatisfy(Predicate.isNumber)
       expect(issue._score_breakdown).toHaveProperty('centrality')
       expect(issue._score_breakdown).toHaveProperty('priority')
       expect(issue._score_breakdown).toHaveProperty('story_points')

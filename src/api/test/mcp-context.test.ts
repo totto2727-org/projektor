@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
@@ -99,7 +99,7 @@ describe('covers PROJ-889: auth middleware records method + credential', () => {
     const auth = await whoami({ Authorization: `Bearer ${pat}` })
     expect(auth.kind).toBe('agent')
     expect(auth.method).toBe('pat')
-    expect(typeof auth.credentialId).toBe('string')
+    expect(auth.credentialId).toSatisfy(Predicate.isString)
   })
 
   test('the dev bypass → method dev', async () => {

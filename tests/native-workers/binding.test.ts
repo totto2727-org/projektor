@@ -44,7 +44,7 @@ describe('actual native API and Core topology', () => {
     const session = await core.fixtureSession({ DEV_USER_EMAIL: '' })
     await runInOrder([core, session], async (binding): Promise<void> => {
       const wire = await runTestEffect(makeCoreClient(binding).apiCheckRateLimit({}))
-      expect(typeof wire).toBe('string')
+      expect(wire).toSatisfy(Predicate.isString)
       expect(JSON.parse(wire)).toHaveProperty('_tag')
       const decoded = await runTestEffect(
         decodeCoreReply(RateLimitResult, makeCoreClient(binding).apiCheckRateLimit({})),

@@ -1,4 +1,4 @@
-import { Schema, Iterable } from 'effect'
+import { Predicate, Schema, Iterable } from 'effect'
 import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { issuesTools } from '#api/mcp/issues.ts'
@@ -1200,7 +1200,7 @@ describe('issues API', () => {
       completionReport: { summary: 'Done', verification: 'pnpm test' },
     })
     const completed = await completedAtOf(id)
-    expect(typeof completed).toBe('number')
+    expect(completed).toSatisfy(Predicate.isNumber)
 
     // Re-saving while still done keeps the original completion time.
     await patch(id, { priority: 'high' })
@@ -1274,14 +1274,14 @@ describe('issues API', () => {
 
     await patch(id, { status: 'todo' })
     const afterReady = await flowTimestampsOf(id)
-    expect(typeof afterReady.ready_at).toBe('number')
+    expect(afterReady.ready_at).toSatisfy(Predicate.isNumber)
     expect(afterReady.claimed_at).toBeNull()
     expect(afterReady.done_at).toBeNull()
 
     await patch(id, { status: 'in_progress' })
     const afterClaimed = await flowTimestampsOf(id)
     expect(afterClaimed.ready_at).toBe(afterReady.ready_at)
-    expect(typeof afterClaimed.claimed_at).toBe('number')
+    expect(afterClaimed.claimed_at).toSatisfy(Predicate.isNumber)
     expect(afterClaimed.done_at).toBeNull()
 
     await patch(id, {
@@ -1289,7 +1289,7 @@ describe('issues API', () => {
       completionReport: { summary: 'Done', verification: 'pnpm test' },
     })
     const afterDone = await flowTimestampsOf(id)
-    expect(typeof afterDone.done_at).toBe('number')
+    expect(afterDone.done_at).toSatisfy(Predicate.isNumber)
 
     // Reopening does not clear done_at (unlike completed_at) — it's write-once history.
     await patch(id, { status: 'in_progress' })
@@ -1304,8 +1304,8 @@ describe('issues API', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Fast-tracked' })
     await patch(issue.id, { status: 'in_progress' })
     const stamps = await flowTimestampsOf(issue.id)
-    expect(typeof stamps.ready_at).toBe('number')
-    expect(typeof stamps.claimed_at).toBe('number')
+    expect(stamps.ready_at).toSatisfy(Predicate.isNumber)
+    expect(stamps.claimed_at).toSatisfy(Predicate.isNumber)
   })
 
   // ─── PROJ-328: in_review_at + review_bounce_count ──────────────
@@ -1330,7 +1330,7 @@ describe('issues API', () => {
 
     await patch(id, { status: 'in_review' })
     const afterReview = await reviewFieldsOf(id)
-    expect(typeof afterReview.in_review_at).toBe('number')
+    expect(afterReview.in_review_at).toSatisfy(Predicate.isNumber)
     expect(afterReview.review_bounce_count).toBe(0)
 
     await patch(id, { status: 'in_progress' })
@@ -2152,7 +2152,7 @@ describe('get_prioritized_issues MCP tool', () => {
     expect(data.issues.length).toBeGreaterThan(0)
     expect(data.issues.some((issue) => issue.title === 'High prio')).toBe(true)
     Iterable.forEach(data.issues, (issue) => {
-      expect(typeof issue._score).toBe('number')
+      expect(issue._score).toSatisfy(Predicate.isNumber)
       expect(issue._score_breakdown).toHaveProperty('centrality')
       expect(issue._score_breakdown).toHaveProperty('priority')
       expect(issue._score_breakdown).toHaveProperty('story_points')

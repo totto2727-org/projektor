@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { assert, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
@@ -1112,7 +1112,7 @@ describe('covers PROJ-79: POST /auth/tokens', () => {
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, TokenResponse)
-    expect(typeof body.token).toBe('string')
+    expect(body.token).toSatisfy(Predicate.isString)
     expect(body.token.length).toBeGreaterThan(0)
   })
 

@@ -156,7 +156,7 @@ describe('list_project_activity MCP tool', () => {
     expect(created[0].summary).toBe('My Issue')
     expect(created[0].entity_type).toBe('issue')
     expect(created[0].entity_ref).toMatch(/^PROJ-\d+$/u)
-    expect(typeof created[0].created_at).toBe('number')
+    expect(created[0].created_at).toSatisfy(Predicate.isNumber)
   })
 
   test('returns issue_commented events', async () => {

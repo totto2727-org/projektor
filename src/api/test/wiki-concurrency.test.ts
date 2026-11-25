@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { ConflictError } from '#commands/errors.ts'
@@ -59,7 +59,7 @@ describe('covers PROJ-809: get_wiki_page returns the revision it read', () => {
   test("a stale reader using the GET's revisionId gets a 409, not a silent overwrite", async () => {
     const { ctx, slug } = await setup()
     const readByA = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
-    expect(typeof readByA.revisionId).toBe('string')
+    expect(readByA.revisionId).toSatisfy(Predicate.isString)
 
     await updateWikiPage(ctx, slug, { content: "B's edit", baseRevisionId: readByA.revisionId })
 

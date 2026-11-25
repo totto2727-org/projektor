@@ -2682,7 +2682,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       Schema.Struct({ currentRevisionId: Schema.String, diff: Schema.String, error: Schema.String }),
     )
     expect(body.currentRevisionId).toBe(currentLatest.id)
-    expect(typeof body.diff).toBe('string')
+    expect(body.diff).toSatisfy(Predicate.isString)
     /* The staleRevision value snapshots the pre-edit content of the FIRST edit ("v1"), i.e. the
      * content the caller actually had once that edit landed is the NEXT revision's
      * snapshot ("v2"). The diff base is therefore "v2", not staleRevision's own "v1". */
@@ -3422,7 +3422,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       res,
       Schema.Struct({ currentRevisionId: Schema.String, diff: Schema.String, error: Schema.String }),
     )
-    expect(typeof body.currentRevisionId).toBe('string')
+    expect(body.currentRevisionId).toSatisfy(Predicate.isString)
     expect(body.diff).toContain('From agent A.')
   })
 
@@ -3867,7 +3867,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     expect(isMcpError(conflict)).toBe(false)
     const conflictErr = toolError(conflict)
     expect(conflictErr?.code).toBe('conflict')
-    expect(typeof conflictErr?.details?.currentRevisionId).toBe('string')
+    expect(conflictErr?.details?.currentRevisionId).toSatisfy(Predicate.isString)
 
     const missingHeading = await mcp('patch_wiki_page', {
       slug: created.slug,
