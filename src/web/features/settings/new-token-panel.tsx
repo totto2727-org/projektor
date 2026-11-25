@@ -23,7 +23,7 @@ export const NewTokenPanel = function NewTokenPanel({
   onDone: () => void
 }): JSX.Element {
   const command = template?.replace('{{TOKEN}}', token.token) ?? ''
-  const [copyMessage, setCopyMessage] = useState<string | null>(null)
+  const [copyMessage, setCopyMessage] = useState<string>()
   const copy = async function copy(value: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(value)

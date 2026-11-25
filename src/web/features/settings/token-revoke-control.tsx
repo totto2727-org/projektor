@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button.tsx'
 import type { Token } from './types.ts'
 
 export interface RevokeState {
-  id: string | null
+  id: string | undefined
   busy: boolean
-  error: string | null
+  error: string | undefined
   select: (id: string) => void
   cancel: () => void
   confirm: (id: string) => void

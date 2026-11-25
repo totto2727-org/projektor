@@ -25,9 +25,9 @@ export function formatConnectorScopes(scopes: string[]): string {
   return scopes.join(', ') || '–'
 }
 interface RevokeState {
-  id: string | null
+  id: string | undefined
   busy: boolean
-  error: string | null
+  error: string | undefined
   select: (id: string) => void
   cancel: () => void
   confirm: (id: string) => void
@@ -81,18 +81,18 @@ export function ConnectorManager({
   workspaceSlug: string
   initialGrants: ConnectorGrant[]
 }): JSX.Element {
-  const [revokeId, setRevokeId] = useState<string | null>(null)
+  const [revokeId, setRevokeId] = useState<string>()
   const [revoking, setRevoking] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const revoke = async function revoke(id: string): Promise<void> {
     if (revoking) {
       return
     }
     setRevoking(true)
-    setError(null)
+    setError(undefined)
     try {
       unwrapResult(await disconnectConnector({ workspaceSlug, connectorId: id }))
-      setRevokeId(null)
+      setRevokeId(undefined)
     } catch (currentError) {
       setRevoking(false)
       setError(String(currentError))
@@ -106,10 +106,10 @@ export function ConnectorManager({
     error,
     select: (id) => {
       setRevokeId(id)
-      setError(null)
+      setError(undefined)
     },
     cancel: () => {
-      setRevokeId(null)
+      setRevokeId(undefined)
     },
     confirm: revoke,
   }

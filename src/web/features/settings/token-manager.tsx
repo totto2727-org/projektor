@@ -34,10 +34,10 @@ export const TokenManager = function TokenManager({
 }): JSX.Element {
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState<string>()
-  const [newToken, setNewToken] = useState<NewTokenResult | null>(null)
-  const [revokeId, setRevokeId] = useState<string | null>(null)
+  const [newToken, setNewToken] = useState<NewTokenResult>()
+  const [revokeId, setRevokeId] = useState<string>()
   const [revoking, setRevoking] = useState(false)
-  const [revokeError, setRevokeError] = useState<string | null>(null)
+  const [revokeError, setRevokeError] = useState<string>()
   const [createResult, createAction, creating] = useActionState(createToken, null)
   useEffect(() => {
     if (!createResult) {
@@ -66,12 +66,12 @@ export const TokenManager = function TokenManager({
     setShowCreate(true)
     form.reset()
     setError(undefined)
-    setNewToken(null)
+    setNewToken(undefined)
     setTimeout(() => inputRef.current?.focus(), 0)
   }
   const close = function close(): void {
     setShowCreate(false)
-    setNewToken(null)
+    setNewToken(undefined)
     setError(undefined)
   }
   const revoke = async function revoke(id: string): Promise<void> {
@@ -79,10 +79,10 @@ export const TokenManager = function TokenManager({
       return
     }
     setRevoking(true)
-    setRevokeError(null)
+    setRevokeError(undefined)
     try {
       unwrapResult(await revokeToken({ workspaceSlug, tokenId: id }))
-      setRevokeId(null)
+      setRevokeId(undefined)
     } catch (currentError) {
       setRevoking(false)
       setRevokeError(String(currentError))
@@ -96,10 +96,10 @@ export const TokenManager = function TokenManager({
     error: revokeError,
     select: (id) => {
       setRevokeId(id)
-      setRevokeError(null)
+      setRevokeError(undefined)
     },
     cancel: () => {
-      setRevokeId(null)
+      setRevokeId(undefined)
     },
     confirm: revoke,
   }
