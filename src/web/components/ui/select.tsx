@@ -2,6 +2,7 @@
 import { Predicate } from 'effect'
 import type { JSX, CSSProperties } from 'react'
 
+import { firstNonEmptyText } from '#contracts/non-empty-text.ts'
 import {
   Select as PrimitiveSelect,
   SelectTrigger,
@@ -44,7 +45,7 @@ export function Select({
   class: legacyClass,
   className,
 }: SelectProps): JSX.Element {
-  const label = options.find((option) => option.value === value)?.label ?? (value || placeholder || '')
+  const label = options.find((option) => option.value === value)?.label ?? firstNonEmptyText(value, placeholder) ?? ''
   return (
     <div className={[legacyClass, className].filter(Boolean).join(' ')}>
       <PrimitiveSelect

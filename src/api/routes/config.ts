@@ -2,6 +2,7 @@ import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import { HTTP_OK } from '#contracts/http-status.ts'
+import { trimNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { HonoEnv } from '#types'
 
@@ -17,7 +18,7 @@ export const deriveBrandMark = function deriveBrandMark(name: string): string {
 }
 
 configRouter.get('/brand', (httpContext) => {
-  const name = httpContext.env.BRAND_NAME?.trim() || 'Projektor'
+  const name = trimNonEmptyText(httpContext.env.BRAND_NAME) ?? 'Projektor'
   const markOverride = httpContext.env.BRAND_MARK?.trim()
   return httpContext.json(
     fieldsInOrder([
@@ -28,9 +29,9 @@ configRouter.get('/brand', (httpContext) => {
           ? firstChar(markOverride)
           : deriveBrandMark(name),
       ],
-      ['accent', httpContext.env.BRAND_ACCENT?.trim() || null],
-      ['onAccent', httpContext.env.BRAND_ON_ACCENT?.trim() || null],
-      ['logoUrl', httpContext.env.BRAND_LOGO_URL?.trim() || null],
+      ['accent', trimNonEmptyText(httpContext.env.BRAND_ACCENT) ?? null],
+      ['onAccent', trimNonEmptyText(httpContext.env.BRAND_ON_ACCENT) ?? null],
+      ['logoUrl', trimNonEmptyText(httpContext.env.BRAND_LOGO_URL) ?? null],
     ]),
     HTTP_OK,
     { 'Cache-Control': 'public, max-age=300' },

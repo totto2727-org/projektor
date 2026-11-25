@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { String, Iterable, Predicate } from 'effect'
 
+import { trimNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
@@ -331,8 +332,8 @@ const runProvisioning = async function runProvisioning(
   env: ProvisioningEnvironment,
   user: { id: string; email: string },
 ): Promise<boolean> {
-  const slug = env.DEFAULT_WORKSPACE_SLUG?.trim() || 'projektor'
-  const name = env.DEFAULT_WORKSPACE_NAME?.trim() || 'Projektor'
+  const slug = trimNonEmptyText(env.DEFAULT_WORKSPACE_SLUG) ?? 'projektor'
+  const name = trimNonEmptyText(env.DEFAULT_WORKSPACE_NAME) ?? 'Projektor'
   const isAdmin = parseEmailSet(env.ADMIN_EMAILS).has(user.email.toLowerCase())
 
   const orm = drizzle(env.DB, { schema })
@@ -490,7 +491,7 @@ export const provisionPublicViewer = async function provisionPublicViewer(
     return
   }
 
-  const slug = env.DEFAULT_WORKSPACE_SLUG?.trim() || 'projektor'
+  const slug = trimNonEmptyText(env.DEFAULT_WORKSPACE_SLUG) ?? 'projektor'
   const orm = drizzle(env.DB, { schema })
 
   const ws = await orm

@@ -3,6 +3,7 @@ import { String, Array, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 
+import { firstNonEmptyText } from '#contracts/non-empty-text.ts'
 import type { ReviewStatus } from '#contracts/review-targets.ts'
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
 import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
@@ -29,7 +30,7 @@ const ReviewTargetRow = function ReviewTargetRow({
   const [pending, setPending] = useState<{ attachment: Attachment; saved: boolean } | null>(null)
   const [error, setError] = useState<string>()
   const busy = useRef(false)
-  const name = attachment.filename || attachment.url || 'Attachment'
+  const name = firstNonEmptyText(attachment.filename, attachment.url) ?? 'Attachment'
   const option = STATUS_OPTIONS.find((entry) => entry.value === status)
   const href =
     attachment.kind === 'file'

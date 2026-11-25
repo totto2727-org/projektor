@@ -1,7 +1,7 @@
 import { Effect, Schema } from 'effect'
 import type { CSSProperties } from 'react'
 
-import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { isNonEmptyText, trimNonEmptyText } from '#contracts/non-empty-text.ts'
 import { WorkspaceBrand } from '#contracts/web-brand.ts'
 import { makeCoreClient } from '#core/client.ts'
 
@@ -21,15 +21,15 @@ export const defaultBrand: BrandConfig = { name: 'Projektor', mark: 'P', accent:
 type BrandEnvironment = Pick<Env, 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>
 
 export const deploymentBrand = function deploymentBrand(env: BrandEnvironment): BrandConfig {
-  const name = env.BRAND_NAME?.trim() || defaultBrand.name
+  const name = trimNonEmptyText(env.BRAND_NAME) ?? defaultBrand.name
   return {
     name,
     mark: env.BRAND_MARK?.trim()
       ? (Array.from(env.BRAND_MARK.trim())[0] ?? 'P')
       : (Array.from(name.trim())[0]?.toUpperCase() ?? 'P'),
-    accent: env.BRAND_ACCENT?.trim() || null,
-    onAccent: env.BRAND_ON_ACCENT?.trim() || null,
-    logoUrl: env.BRAND_LOGO_URL?.trim() || null,
+    accent: trimNonEmptyText(env.BRAND_ACCENT) ?? null,
+    onAccent: trimNonEmptyText(env.BRAND_ON_ACCENT) ?? null,
+    logoUrl: trimNonEmptyText(env.BRAND_LOGO_URL) ?? null,
   }
 }
 

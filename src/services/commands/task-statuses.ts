@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '#contracts/inputs/task-statuses.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
@@ -332,7 +333,7 @@ export const resolveStatus = async function resolveStatus(
   })
 
   if (statusId === null) {
-    return fromKey(legacyStatus || 'backlog')
+    return fromKey(isNonEmptyText(legacyStatus) ? legacyStatus : 'backlog')
   }
   if (Predicate.isNotNullish(statusId) && String.isNonEmpty(statusId)) {
     const found = await orm

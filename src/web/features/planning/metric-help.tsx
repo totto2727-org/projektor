@@ -38,7 +38,8 @@ export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Ele
     if (!open) {
       return
     }
-    const inside = (node: Node): undefined | boolean => root.current?.contains(node) || panel.current?.contains(node)
+    const inside = (node: Node): undefined | boolean =>
+      root.current?.contains(node) === true ? true : panel.current?.contains(node)
     const pointer = (event: MouseEvent): void => {
       if (!(event.target instanceof Node) || !inside(event.target)) {
         setOpen(false)

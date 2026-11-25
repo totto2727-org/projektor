@@ -437,7 +437,11 @@ const SEARCH_RESULT_BUTTON_CLASS = [
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SearchResultMetaLine({ r }: { r: SearchResult }): undefined | JSX.Element {
   const isStale = r.freshness && r.freshness.state !== 'fresh'
-  const show = r.type || r.status || (r.tags?.length ?? 0) > 0 || isStale
+  const show =
+    String.isNonEmpty(r.type ?? '') ||
+    String.isNonEmpty(r.status ?? '') ||
+    (r.tags?.length ?? 0) > 0 ||
+    isStale === true
   if (!show) {
     return undefined
   }
@@ -575,7 +579,9 @@ function FilteredPagesList({
             }}
           >
             <span className='font-medium'>{result.title}</span>
-            {(result.type || result.status || (result.tags?.length ?? 0) > 0) && (
+            {(String.isNonEmpty(result.type ?? '') ||
+              String.isNonEmpty(result.status ?? '') ||
+              (result.tags?.length ?? 0) > 0) && (
               <span className='block mt-[0.15rem]'>
                 {result.status && <WikiStatusPill status={result.status} />}
                 <TagChips tags={result.tags} />
@@ -1153,7 +1159,7 @@ function PageActionOverflowMenu({
   const menuId = useId()
 
   const isInside = useCallback((node: Node) => {
-    return !!(rootRef.current?.contains(node) || popoverRef.current?.contains(node))
+    return rootRef.current?.contains(node) === true || popoverRef.current?.contains(node) === true
   }, [])
 
   const openMenu = function openMenu(): void {

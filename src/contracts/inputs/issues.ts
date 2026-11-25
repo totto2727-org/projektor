@@ -7,6 +7,7 @@ import {
   MIN_ISSUE_PAGE_SIZE,
   MAX_ISSUE_LIST_PAGE_SIZE,
 } from '#contracts/issue-limits.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { objectInOrder, BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
@@ -142,7 +143,7 @@ export const GetIssueSchema = z
     ref: z.string().optional(),
   })
   .strict()
-  .refine((obj) => obj.id || obj.ref, { message: 'Provide either id or ref' })
+  .refine((obj) => isNonEmptyText(obj.id) || isNonEmptyText(obj.ref), { message: 'Provide either id or ref' })
 
 // PROJ-931: accepts either a real array (MCP JSON) or a comma-separated string
 // (REST query param), same convention as the existing statusIds/excludeTypeIds filters.

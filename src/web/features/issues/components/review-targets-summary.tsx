@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 
+import { firstNonEmptyText } from '#contracts/non-empty-text.ts'
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 
@@ -26,7 +27,7 @@ export const ReviewTargetsSummary = function ReviewTargetsSummary({ issue }: { i
   const targets = issue.reviewTargets.filter((entry) => entry.status !== 'done')
   const target = targets.find((entry) => entry.status === 'in_review') ?? targets[0]
   const needsReview = target?.status === 'in_review'
-  const label = target ? target.filename || target.url || 'File' : '対象なし'
+  const label = target ? (firstNonEmptyText(target.filename, target.url) ?? 'File') : '対象なし'
   const url = new URL(
     issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug),
     'https://frontend.invalid',
