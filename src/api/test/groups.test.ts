@@ -1,51 +1,42 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
 
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
-import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
-import { IdResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
+import { fetchNativeApi, fetchNativeMcpTool } from './native-fetch.ts'
+import type { McpToolRequest } from './native-fetch.ts'
+import { IdResponse, parseNativeMcpText, McpRpcResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
 
-const mcpCall = async function mcpCall<T>(
+const callMcpTool = async function callMcpTool(
   workspaceId: string,
-  name: string,
-  args: unknown,
+  params: McpToolRequest,
   headers: Record<string, string>,
-): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(
-    `http://localhost/mcp/${workspaceId}`,
-    requestOptionsWithBody(
-      'POST',
-      headers,
-      JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name },
-      }),
-    ),
-  )
-  return res.json()
+): Promise<typeof RpcTextResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, RpcTextResponse)
 }
 
-const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
-  return 'error' in r
+const mcpCall = async function mcpCall(
+  workspaceId: string,
+  params: McpToolRequest,
+  headers: Record<string, string>,
+): Promise<typeof McpRpcResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, McpRpcResponse)
 }
 
-const mcpData = function mcpData<S extends Schema.Constraint>(
-  rpc: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError,
-  shape: S,
-): S['Type'] {
-  if (isMcpError(rpc)) {
-    throw new Error(`MCP error: ${rpc.error.message}`)
+const mcpData = function mcpData<S extends Schema.Constraint>(rpc: typeof McpRpcResponse.Type, shape: S): S['Type'] {
+  if (rpc.error) {
+    assert.fail(`MCP error: ${rpc.error.message}`)
   }
-  const te = toolError(rpc)
-  if (te) {
-    throw new Error(`MCP tool error (${te.code}): ${te.message}`)
+  const innerError = toolError(rpc)
+  if (innerError) {
+    assert.fail(`MCP tool error (${innerError.code}): ${innerError.message}`)
   }
-  return parseNativeMcpText(rpc.result.content[0].text, shape)
+  const text = rpc.result?.content?.[0]?.text
+  assert(Predicate.isString(text))
+  return parseNativeMcpText(text, shape)
 }
 
 type GroupFixture = Readonly<{
@@ -283,41 +274,37 @@ describe('groups REST', () => {
 describe('groups MCP parity', () => {
   test('create_group + list_groups via MCP', async () => {
     const { ownerHeaders, workspaceId } = await seedGroupFixture()
-    const created = await mcpCall(workspaceId, 'create_group', { name: 'MCPGroup' }, ownerHeaders)
-    expect(isMcpError(created)).toBe(false)
-    const list = (await mcpCall(workspaceId, 'list_groups', {}, ownerHeaders)) as JsonRpcResult<{
-      content: { text: string }[]
-    }>
+    const created = await mcpCall(workspaceId, { arguments: { name: 'MCPGroup' }, name: 'create_group' }, ownerHeaders)
+    expect('error' in created).toBe(false)
+    const list = await callMcpTool(workspaceId, { arguments: {}, name: 'list_groups' }, ownerHeaders)
     const groups = mcpData(list, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
     expect(groups.map((group) => group.name)).toContain('MCPGroup')
   })
 
   test('create_group rejects member (forbidden)', async () => {
     const { memberHeaders, workspaceId } = await seedGroupFixture()
-    const res = await mcpCall(workspaceId, 'create_group', { name: 'Nope' }, memberHeaders)
+    const res = await mcpCall(workspaceId, { arguments: { name: 'Nope' }, name: 'create_group' }, memberHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('list_groups via MCP: member sees only their own groups; owner sees all (PROJ-319)', async () => {
     const { memberHeaders, ownerHeaders, roles, workspaceId } = await seedGroupFixture()
     const g1 = mcpData(
-      (await mcpCall(workspaceId, 'create_group', { name: 'G1' }, ownerHeaders)) as JsonRpcResult<{
-        content: { text: string }[]
-      }>,
+      await callMcpTool(workspaceId, { arguments: { name: 'G1' }, name: 'create_group' }, ownerHeaders),
       IdResponse,
     )
-    await mcpCall(workspaceId, 'create_group', { name: 'G2' }, ownerHeaders)
-    await mcpCall(workspaceId, 'add_group_member', { groupId: g1.id, userId: roles.member.user.id }, ownerHeaders)
+    await mcpCall(workspaceId, { arguments: { name: 'G2' }, name: 'create_group' }, ownerHeaders)
+    await mcpCall(
+      workspaceId,
+      { arguments: { groupId: g1.id, userId: roles.member.user.id }, name: 'add_group_member' },
+      ownerHeaders,
+    )
 
-    const memberList = (await mcpCall(workspaceId, 'list_groups', {}, memberHeaders)) as JsonRpcResult<{
-      content: { text: string }[]
-    }>
+    const memberList = await callMcpTool(workspaceId, { arguments: {}, name: 'list_groups' }, memberHeaders)
     const memberGroups = mcpData(memberList, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
     expect(memberGroups.map((g) => g.name)).toStrictEqual(['G1'])
 
-    const ownerList = (await mcpCall(workspaceId, 'list_groups', {}, ownerHeaders)) as JsonRpcResult<{
-      content: { text: string }[]
-    }>
+    const ownerList = await callMcpTool(workspaceId, { arguments: {}, name: 'list_groups' }, ownerHeaders)
     const ownerGroups = mcpData(ownerList, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
     expect(ownerGroups.map((g) => g.name).toSorted()).toStrictEqual(['G1', 'G2'])
   })
@@ -326,30 +313,24 @@ describe('groups MCP parity', () => {
     const { ownerHeaders, roles, workspaceId } = await seedGroupFixture()
     const project = await seedProject(workspaceId, 'LOOP')
     const created = mcpData(
-      (await mcpCall(workspaceId, 'create_group', { name: 'LoopGroup' }, ownerHeaders)) as JsonRpcResult<{
-        content: { text: string }[]
-      }>,
+      await callMcpTool(workspaceId, { arguments: { name: 'LoopGroup' }, name: 'create_group' }, ownerHeaders),
       IdResponse,
     )
     const grant = await mcpCall(
       workspaceId,
-      'set_group_grant',
-      { groupId: created.id, projectId: project.id, role: 'member' },
+      { arguments: { groupId: created.id, projectId: project.id, role: 'member' }, name: 'set_group_grant' },
       ownerHeaders,
     )
-    expect(isMcpError(grant)).toBe(false)
+    expect('error' in grant).toBe(false)
     const addMember = await mcpCall(
       workspaceId,
-      'add_group_member',
-      { groupId: created.id, userId: roles.member.user.id },
+      { arguments: { groupId: created.id, userId: roles.member.user.id }, name: 'add_group_member' },
       ownerHeaders,
     )
-    expect(isMcpError(addMember)).toBe(false)
+    expect('error' in addMember).toBe(false)
 
     const detail = mcpData(
-      (await mcpCall(workspaceId, 'get_group', { id: created.id }, ownerHeaders)) as JsonRpcResult<{
-        content: { text: string }[]
-      }>,
+      await callMcpTool(workspaceId, { arguments: { id: created.id }, name: 'get_group' }, ownerHeaders),
       Schema.Struct({
         grants: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
         members: Schema.Array(Schema.Unknown).pipe(Schema.mutable),

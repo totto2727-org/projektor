@@ -4,35 +4,35 @@ import { assert, describe, expect, test } from 'vite-plus/test'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
 import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
-import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, fetchNativeMcpTool, requestOptionsWithBody } from './native-fetch.ts'
+import type { McpToolRequest } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
-import { KeyListResponse, parseNativeMcpText, IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
+import {
+  KeyListResponse,
+  parseNativeMcpText,
+  IdResponse,
+  JsonListResponse,
+  McpRpcResponse,
+  RpcTextResponse,
+  readNativeJson,
+} from './response-json.ts'
 
-const mcpCall = async function mcpCall<T>(
+const callMcpTool = async function callMcpTool(
   workspaceId: string,
-  name: string,
-  args: unknown,
+  params: McpToolRequest,
   headers: Record<string, string>,
-): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(
-    `http://localhost/mcp/${workspaceId}`,
-    requestOptionsWithBody(
-      'POST',
-      headers,
-      JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name },
-      }),
-    ),
-  )
-  return res.json()
+): Promise<typeof RpcTextResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, RpcTextResponse)
 }
 
-const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc is JsonRpcError {
-  return 'error' in rpc
+const mcpCall = async function mcpCall(
+  workspaceId: string,
+  params: McpToolRequest,
+  headers: Record<string, string>,
+): Promise<typeof McpRpcResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, McpRpcResponse)
 }
 
 describe('projects REST', () => {
@@ -335,13 +335,8 @@ describe('projects MCP', () => {
 
   test('list_projects returns empty list initially', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    expect(isMcpError(res)).toBe(false)
+    const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
+    expect('error' in res).toBe(false)
     expect(toolError(res)).toBeUndefined()
     const data = parseNativeMcpText(res.result.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
@@ -350,12 +345,15 @@ describe('projects MCP', () => {
 
   test('create_project succeeds for owner', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { key: 'MCP', name: 'MCP Project' }, ownerHeaders)
-    expect(isMcpError(res)).toBe(false)
+    const res = await callMcpTool(
+      workspaceId,
+      { arguments: { key: 'MCP', name: 'MCP Project' }, name: 'create_project' },
+      ownerHeaders,
+    )
+    expect('error' in res).toBe(false)
     expect(toolError(res)).toBeUndefined()
-    const result = res as JsonRpcResult<{ content: { text: string }[] }>
     const data = parseNativeMcpText(
-      result.result.content[0].text,
+      res.result.content[0].text,
       Schema.Struct({ id: Schema.String, key: Schema.String }),
     )
     expect(isNonEmptyText(data.id)).toBe(true)
@@ -364,57 +362,71 @@ describe('projects MCP', () => {
 
   test('create_project uppercases key', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = (await mcpCall(
+    const res = await callMcpTool(
       workspaceId,
-      'create_project',
-      { key: 'lower', name: 'Lower' },
+      { arguments: { key: 'lower', name: 'Lower' }, name: 'create_project' },
       ownerHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    )
     const data = parseNativeMcpText(res.result.content[0].text, Schema.Struct({ key: Schema.String }))
     expect(data.key).toBe('LOWER')
   })
 
   test('create_project rejects member role', async () => {
     const { memberHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { key: 'BLKD', name: 'Blocked' }, memberHeaders)
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'BLKD', name: 'Blocked' }, name: 'create_project' },
+      memberHeaders,
+    )
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('create_project rejects viewer role', async () => {
     const { viewerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { key: 'BLKD', name: 'Blocked' }, viewerHeaders)
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'BLKD', name: 'Blocked' }, name: 'create_project' },
+      viewerHeaders,
+    )
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('create_project rejects duplicate key', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    await mcpCall(workspaceId, 'create_project', { key: 'DUPL', name: 'First' }, ownerHeaders)
-    const res = await mcpCall(workspaceId, 'create_project', { key: 'DUPL', name: 'Second' }, ownerHeaders)
+    await mcpCall(workspaceId, { arguments: { key: 'DUPL', name: 'First' }, name: 'create_project' }, ownerHeaders)
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'DUPL', name: 'Second' }, name: 'create_project' },
+      ownerHeaders,
+    )
     expect(toolError(res)?.code).toBe('conflict')
   })
 
   test('create_project rejects invalid key format', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { key: 'BAD KEY!', name: 'Bad' }, ownerHeaders)
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'BAD KEY!', name: 'Bad' }, name: 'create_project' },
+      ownerHeaders,
+    )
     expect(toolError(res)?.code).toBe('validation')
   })
 
   test('create_project rejects name too long', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'x'.repeat(101), key: 'TOOLNG' }, ownerHeaders)
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { name: 'x'.repeat(101), key: 'TOOLNG' }, name: 'create_project' },
+      ownerHeaders,
+    )
     expect(toolError(res)?.code).toBe('validation')
   })
 
   test('create_project stores NULL description by default', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    await mcpCall(workspaceId, 'create_project', { key: 'MCPND', name: 'NullDesc' }, ownerHeaders)
+    await mcpCall(workspaceId, { arguments: { key: 'MCPND', name: 'NullDesc' }, name: 'create_project' }, ownerHeaders)
 
-    const listRes = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const listRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
     const projects = parseNativeMcpText(
       listRes.result.content[0].text,
       Schema.Array(Schema.Struct({ description: Schema.Union([Schema.String, Schema.Null]), key: Schema.String })).pipe(
@@ -469,12 +481,7 @@ describe('projects MCP', () => {
       Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
     )
 
-    const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const mcpRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
     const mcpProjects = parseNativeMcpText(mcpRes.result.content[0].text, KeyListResponse)
 
     expect(restProjects.map((p) => p.key)).toStrictEqual(mcpProjects.map((p) => p.key))
@@ -482,36 +489,30 @@ describe('projects MCP', () => {
 
   test('update_project archives a project and list_projects excludes it by default', async () => {
     const { ownerHeaders, workspaceId } = await seedTestData()
-    const createRes = await mcpCall(
+    const createRes = await callMcpTool(
       workspaceId,
-      'create_project',
-      { key: 'MARCH', name: 'MCP Archivable' },
+      { arguments: { key: 'MARCH', name: 'MCP Archivable' }, name: 'create_project' },
       ownerHeaders,
     )
-    const { id } = parseNativeMcpText(
-      (createRes as JsonRpcResult<{ content: { text: string }[] }>).result.content[0].text,
-      IdResponse,
-    )
+    const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
 
-    const updateRes = await mcpCall(workspaceId, 'update_project', { id, archived: true }, ownerHeaders)
-    expect(isMcpError(updateRes)).toBe(false)
+    const updateRes = await mcpCall(
+      workspaceId,
+      { arguments: { id, archived: true }, name: 'update_project' },
+      ownerHeaders,
+    )
+    expect('error' in updateRes).toBe(false)
     expect(toolError(updateRes)).toBeUndefined()
 
-    const listRes = (await mcpCall<{ content: { text: string }[] }>(
-      workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const listRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
     const keys = parseNativeMcpText(listRes.result.content[0].text, KeyListResponse).map((p) => p.key)
     expect(keys).not.toContain('MARCH')
 
-    const includeArchivedRes = (await mcpCall<{ content: { text: string }[] }>(
+    const includeArchivedRes = await callMcpTool(
       workspaceId,
-      'list_projects',
-      { includeArchived: true },
+      { arguments: { includeArchived: true }, name: 'list_projects' },
       ownerHeaders,
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    )
     const includeArchivedKeys = parseNativeMcpText(includeArchivedRes.result.content[0].text, KeyListResponse).map(
       (p) => p.key,
     )
@@ -524,7 +525,11 @@ describe('projects MCP', () => {
       'http://localhost/api/projects',
       requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ key: 'MEMBR', name: 'ByMember' })),
     )
-    const mcpRes = await mcpCall(workspaceId, 'create_project', { key: 'MEMBR', name: 'ByMember' }, memberHeaders)
+    const mcpRes = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'MEMBR', name: 'ByMember' }, name: 'create_project' },
+      memberHeaders,
+    )
 
     // Both must reject member
     expect(restRes.status).toBe(403)
