@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
@@ -23,23 +23,16 @@ import {
   JsonListResponse,
   readNativeJson,
   readNativeMcpResultText,
+  RpcTextResponse,
 } from './response-json.ts'
 
 describe('task Types API', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userId: string
-  let projectId: string
-
-  beforeEach(async () => {
-    // The seedFixture helper uses seedWorkspace (raw insert, no seeding of task types)
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
-  })
+  // The seedFixture helper uses seedWorkspace (raw insert, no seeding of task types)
 
   // ---- list ----
 
   test('handles GET /api/task-types returns empty list initially', async () => {
+    const { slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
@@ -50,6 +43,7 @@ describe('task Types API', () => {
   })
 
   test('handles GET /api/task-types returns seeded types ordered by position', async () => {
+    const { slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedTaskType(workspaceId, { key: 'bug', name: 'Bug', position: 2 })
     await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task', position: 1 })
 
@@ -65,6 +59,7 @@ describe('task Types API', () => {
   // ---- create ----
 
   test('handles POST /api/task-types creates a new type (owner)', async () => {
+    const { slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       body: JSON.stringify({ key: 'epic', name: 'Epic', position: 1 }),
       headers: authHeaders(token, slug),
@@ -77,6 +72,7 @@ describe('task Types API', () => {
   })
 
   test('handles POST /api/task-types rejects duplicate key', async () => {
+    const { slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       body: JSON.stringify({ key: 'epic', name: 'Epic 2' }),
@@ -87,6 +83,7 @@ describe('task Types API', () => {
   })
 
   test('handles POST /api/task-types rejects invalid key format', async () => {
+    const { slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       body: JSON.stringify({ key: 'Bad Key!', name: 'Bad' }),
       headers: authHeaders(token, slug),
@@ -96,6 +93,7 @@ describe('task Types API', () => {
   })
 
   test('handles POST /api/task-types clears other defaults when isDefault=true', async () => {
+    const { slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task' })
 
     await fetchNativeApi('http://localhost/api/task-types', {
@@ -117,6 +115,7 @@ describe('task Types API', () => {
   })
 
   test('handles POST /api/task-types returns 403 for member role', async () => {
+    const { slug, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const memberUser = await seedUser('member@example.com')
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
@@ -132,6 +131,7 @@ describe('task Types API', () => {
   // ---- update ----
 
   test('handles PATCH /api/task-types/:id updates name', async () => {
+    const { slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
@@ -152,6 +152,7 @@ describe('task Types API', () => {
   })
 
   test('handles PATCH /api/task-types/:id returns 404 for unknown id', async () => {
+    const { slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       body: JSON.stringify({ name: 'Ghost' }),
       headers: authHeaders(token, slug),
@@ -161,6 +162,7 @@ describe('task Types API', () => {
   })
 
   test('handles PATCH /api/task-types/:id with isDefault=true clears others', async () => {
+    const { slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: taskId } = await seedTaskType(workspaceId, {
       isDefault: true,
       key: 'task',
@@ -190,6 +192,7 @@ describe('task Types API', () => {
   // ---- delete ----
 
   test('handles DELETE /api/task-types/:id removes a type', async () => {
+    const { slug, token, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
@@ -206,6 +209,7 @@ describe('task Types API', () => {
   })
 
   test('handles DELETE /api/task-types/:id returns 404 for unknown id', async () => {
+    const { slug, token } = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
       method: 'DELETE',
@@ -214,6 +218,7 @@ describe('task Types API', () => {
   })
 
   test('handles DELETE /api/task-types/:id returns 409 when type is in use', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -227,6 +232,7 @@ describe('task Types API', () => {
   // ---- workspace scoping ----
 
   test('handles GET /api/task-types is workspace-scoped', async () => {
+    const { workspaceId } = await seedProjectFixture({ role: 'owner' })
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const other = await seedFixture({ role: 'owner' })
 
@@ -406,38 +412,35 @@ describe('task Types — issue integration', () => {
   })
 })
 
+const TaskTypeMcpResponse = Schema.Struct({
+  error: Schema.optional(Schema.Struct({ message: Schema.String })),
+  result: Schema.optional(RpcTextResponse.fields.result),
+})
+
+const callTaskTypeMcp = async function callTaskTypeMcp(
+  fixture: Awaited<ReturnType<typeof seedFixture>>,
+  method: string,
+  params: unknown,
+): Promise<typeof TaskTypeMcpResponse.Type> {
+  const {
+    token,
+    workspace: { id: workspaceNumericId, slug },
+  } = fixture
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceNumericId}`,
+    requestOptionsWithBody(
+      'POST',
+      { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+      JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    ),
+  )
+  return readNativeJson(res, TaskTypeMcpResponse)
+}
+
 describe('task Types — MCP parity', () => {
-  let token: string
-  let slug: string
-  let workspaceNumericId: string
-
-  beforeEach(async () => {
-    const fixture = await seedFixture({ role: 'owner' })
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceNumericId = fixture.workspace.id
-  })
-
-  const mcpCall = async function mcpCall(
-    method: string,
-    params: unknown,
-  ): Promise<{ result?: { content: { text: string }[] }; error?: { message: string } }> {
-    const res = await fetchNativeApi(
-      `http://localhost/mcp/${workspaceNumericId}`,
-      requestOptionsWithBody(
-        'POST',
-        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-      ),
-    )
-    return res.json() as Promise<{
-      result?: { content: { text: string }[] }
-      error?: { message: string }
-    }>
-  }
-
   test('list_task_types returns empty list', async () => {
-    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_types' })
+    const mcpFixture = await seedFixture({ role: 'owner' })
+    const resp = await callTaskTypeMcp(mcpFixture, 'tools/call', { arguments: {}, name: 'list_task_types' })
     expect(resp.error).toBeUndefined()
     const data = parseNativeMcpText(readNativeMcpResultText(resp.result), JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
@@ -445,24 +448,26 @@ describe('task Types — MCP parity', () => {
   })
 
   test('create_task_type then list_task_types returns the type', async () => {
-    await mcpCall('tools/call', {
+    const mcpFixture = await seedFixture({ role: 'owner' })
+    await callTaskTypeMcp(mcpFixture, 'tools/call', {
       arguments: { key: 'epic', name: 'Epic', position: 1 },
       name: 'create_task_type',
     })
-    const resp = await mcpCall('tools/call', { arguments: {}, name: 'list_task_types' })
+    const resp = await callTaskTypeMcp(mcpFixture, 'tools/call', { arguments: {}, name: 'list_task_types' })
     const data = parseNativeMcpText(readNativeMcpResultText(resp.result), KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('epic')
   })
 
   test('delete_task_type via MCP returns ok', async () => {
-    const createResp = await mcpCall('tools/call', {
+    const mcpFixture = await seedFixture({ role: 'owner' })
+    const createResp = await callTaskTypeMcp(mcpFixture, 'tools/call', {
       arguments: { key: 'tmp', name: 'Tmp' },
       name: 'create_task_type',
     })
     const created = parseNativeMcpText(readNativeMcpResultText(createResp.result), IdResponse)
 
-    const deleteResp = await mcpCall('tools/call', {
+    const deleteResp = await callTaskTypeMcp(mcpFixture, 'tools/call', {
       name: 'delete_task_type',
       arguments: { id: created.id },
     })
