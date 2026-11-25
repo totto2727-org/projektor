@@ -150,7 +150,9 @@ export function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
   return (
     <Dialog
       open
-      onClose={() => setShowCreateModal(false)}
+      onClose={() => {
+        setShowCreateModal(false)
+      }}
       ariaLabel='Create new issue'
       className='flex flex-col gap-0 p-0 sm:max-w-[660px] overflow-hidden max-sm:h-[90dvh]'
     >
@@ -216,7 +218,13 @@ export function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
           <Button type='submit' variant='primary' disabled={submittingCreate || !props.createValid}>
             {submittingCreate ? 'Creating…' : 'Create issue'}
           </Button>
-          <Button type='button' variant='outline' onClick={() => setShowCreateModal(false)}>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => {
+              setShowCreateModal(false)
+            }}
+          >
             Cancel
           </Button>
         </div>

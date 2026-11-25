@@ -94,7 +94,9 @@ const BoardCard = function BoardCard({
           issue={issue}
           statuses={statuses}
           busy={false}
-          onChange={(statusId) => changeStatus(issue.id, statusId)}
+          onChange={(statusId) => {
+            changeStatus(issue.id, statusId)
+          }}
         />
       </div>
     </div>

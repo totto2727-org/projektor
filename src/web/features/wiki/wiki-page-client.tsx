@@ -1594,7 +1594,13 @@ function PageHeader({
             </>
           ) : (
             <>
-              <Button variant='outline' size='sm' onClick={() => onStartCreateChild(pageId)}>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => {
+                  onStartCreateChild(pageId)
+                }}
+              >
                 + Child page
               </Button>
               <Button variant='outline' size='sm' onClick={onStartMove}>
@@ -1715,7 +1721,9 @@ function AttachmentEntry({
       {!isPublicViewer && (
         <Button
           size='sm'
-          onClick={() => onDelete(attachment.id)}
+          onClick={() => {
+            onDelete(attachment.id)
+          }}
           aria-label={`Delete ${attachment.filename}`}
           className='bg-transparent border-none text-text-muted px-[0.125rem] leading-none'
         >

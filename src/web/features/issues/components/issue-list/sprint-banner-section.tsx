@@ -236,7 +236,14 @@ function SprintEditForm({
           <Button type='submit' variant='primary' size='sm' disabled={sprintEditSaving || !sprintEditName.trim()}>
             {sprintEditSaving ? 'Saving…' : 'Save'}
           </Button>
-          <Button type='button' variant='outline' size='sm' onClick={() => setSprintEditing(false)}>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={() => {
+              setSprintEditing(false)
+            }}
+          >
             Cancel
           </Button>
         </div>

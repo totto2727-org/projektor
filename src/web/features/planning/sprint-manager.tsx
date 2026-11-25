@@ -295,7 +295,9 @@ function SprintForm({
                     placeholder='e.g. Sprint 1'
                     value={field.state.value}
                     onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.currentTarget.value)}
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value)
+                    }}
                     required
                     maxLength={100}
                     disabled={busy}
@@ -316,7 +318,9 @@ function SprintForm({
                     placeholder='What do you want to achieve this sprint?'
                     value={field.state.value}
                     onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.currentTarget.value)}
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value)
+                    }}
                     maxLength={280}
                     disabled={busy}
                   />
@@ -336,7 +340,9 @@ function SprintForm({
                       type='date'
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.currentTarget.value)}
+                      onChange={(event) => {
+                        field.handleChange(event.currentTarget.value)
+                      }}
                       disabled={busy}
                     />
                   )}
@@ -354,7 +360,9 @@ function SprintForm({
                       type='date'
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.currentTarget.value)}
+                      onChange={(event) => {
+                        field.handleChange(event.currentTarget.value)
+                      }}
                       disabled={busy}
                     />
                   )}

@@ -449,7 +449,14 @@ function CreateEpicModal({
     return undefined
   }
   return (
-    <Dialog open={showCreate} onClose={() => setShowCreate(false)} ariaLabel='Create new epic' className={MODAL_CLASS}>
+    <Dialog
+      open={showCreate}
+      onClose={() => {
+        setShowCreate(false)
+      }}
+      ariaLabel='Create new epic'
+      className={MODAL_CLASS}
+    >
       <h2 className='mb-5 text-lg font-bold text-text-base'>New Epic</h2>
 
       {createError && (
@@ -523,7 +530,12 @@ function CreateEpicModal({
           <Button type='submit' variant='primary' disabled={submitting || !createValid}>
             {submitting ? 'Creating…' : 'Create Epic'}
           </Button>
-          <Button variant='outline' onClick={() => setShowCreate(false)}>
+          <Button
+            variant='outline'
+            onClick={() => {
+              setShowCreate(false)
+            }}
+          >
             Cancel
           </Button>
         </div>

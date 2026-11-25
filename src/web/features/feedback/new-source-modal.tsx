@@ -73,7 +73,9 @@ const NewSourceForm = function NewSourceForm({
           id='fs-name'
           name='name'
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value)
+          }}
           required
           maxLength={100}
         />
@@ -89,7 +91,9 @@ const NewSourceForm = function NewSourceForm({
           id='fs-desc'
           name='description'
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={(event) => {
+            setDescription(event.target.value)
+          }}
           maxLength={500}
         />
       </div>
@@ -105,7 +109,9 @@ const NewSourceForm = function NewSourceForm({
           name='origins'
           rows={2}
           value={origins}
-          onChange={(event) => setOrigins(event.target.value)}
+          onChange={(event) => {
+            setOrigins(event.target.value)
+          }}
         />
       </div>
       <div className='flex gap-2'>

@@ -131,14 +131,28 @@ const FeedbackRowActions = function FeedbackRowActions({
   return (
     <div className='flex gap-2 flex-wrap'>
       {row.status === 'new' && (
-        <Button type='button' variant='outline' size='sm' onClick={() => onMarkReviewed(row.id)}>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={() => {
+            onMarkReviewed(row.id)
+          }}
+        >
           Mark reviewed
         </Button>
       )}
       {isNonEmptyText(row.linkedIssueId) ? (
         <span className='text-[0.8rem] text-text-muted'>Linked</span>
       ) : (
-        <Button type='button' variant='outline' size='sm' onClick={() => onConvert(row.id)}>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={() => {
+            onConvert(row.id)
+          }}
+        >
           Convert to issue
         </Button>
       )}
@@ -440,10 +454,24 @@ export function FeedbackList({
       {selected.size > 0 && (
         <div className='flex gap-2 items-center mb-3 p-2 bg-surface border border-border rounded'>
           <span className='text-[0.85rem] text-text-muted'>{selected.size} selected</span>
-          <Button type='button' variant='outline' size='sm' onClick={() => bulkMarkReviewed(selected)}>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={() => {
+              bulkMarkReviewed(selected)
+            }}
+          >
             Mark all reviewed
           </Button>
-          <Button type='button' variant='outline' size='sm' onClick={() => bulkConvertToIssue(selected)}>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={() => {
+              bulkConvertToIssue(selected)
+            }}
+          >
             Convert all to issue
           </Button>
         </div>

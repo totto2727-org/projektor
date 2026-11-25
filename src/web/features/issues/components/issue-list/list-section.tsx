@@ -101,7 +101,9 @@ const DesktopTable = function DesktopTable({
                     <PrioritySelect
                       issue={issue}
                       busy={updatingPriorityId === issue.id}
-                      onChange={(value) => changePriority(issue.id, value)}
+                      onChange={(value) => {
+                        changePriority(issue.id, value)
+                      }}
                     />
                     {pts && spBadge(pts)}
                   </div>
@@ -114,7 +116,9 @@ const DesktopTable = function DesktopTable({
                     issue={issue}
                     statuses={statuses}
                     busy={updatingId === issue.id}
-                    onChange={(value) => changeStatus(issue.id, value)}
+                    onChange={(value) => {
+                      changeStatus(issue.id, value)
+                    }}
                   />
                 </td>
               </tr>
@@ -150,7 +154,9 @@ const MobileCards = function MobileCards({ issues, updatingPriorityId, changePri
             <PrioritySelect
               issue={issue}
               busy={updatingPriorityId === issue.id}
-              onChange={(value) => changePriority(issue.id, value)}
+              onChange={(value) => {
+                changePriority(issue.id, value)
+              }}
             />
             {statusBadge(issue)}
           </div>

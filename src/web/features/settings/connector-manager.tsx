@@ -38,7 +38,14 @@ function RevokeControl({ id, state }: { id: string; state: RevokeState }): JSX.E
     return (
       <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
         <span className='text-[0.8rem] text-text-muted'>Disconnect?</span>
-        <Button variant='danger' size='sm' disabled={state.busy} onClick={() => state.confirm(id)}>
+        <Button
+          variant='danger'
+          size='sm'
+          disabled={state.busy}
+          onClick={() => {
+            state.confirm(id)
+          }}
+        >
           {state.busy ? '…' : 'Yes'}
         </Button>
         <Button variant='outline' size='sm' disabled={state.busy} onClick={state.cancel}>
@@ -58,7 +65,9 @@ function RevokeControl({ id, state }: { id: string; state: RevokeState }): JSX.E
       size='sm'
       className='text-danger-text border-danger-border'
       disabled={state.busy}
-      onClick={() => state.select(id)}
+      onClick={() => {
+        state.select(id)
+      }}
     >
       Disconnect
     </Button>

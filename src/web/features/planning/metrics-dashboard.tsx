@@ -331,7 +331,9 @@ export const MetricsDashboard = function MetricsDashboard({
                           { label: 'Daily', value: 'day' },
                         ]}
                         ariaLabel='Chart granularity'
-                        onChange={(value) => field.handleChange(value as 'day' | 'week')}
+                        onChange={(value) => {
+                          field.handleChange(value as 'day' | 'week')
+                        }}
                       />
                     )}
                   </form.Field>

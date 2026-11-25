@@ -85,7 +85,9 @@ export function RevisionRow({
         <Button
           variant='outline'
           size='sm'
-          onClick={() => onRestore(revision)}
+          onClick={() => {
+            onRestore(revision)
+          }}
           disabled={restoring || editing}
           title={editing ? RESTORE_DISABLED_WHILE_EDITING_REASON : undefined}
           className='text-text-muted py-0 px-2'

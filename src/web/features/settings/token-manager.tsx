@@ -124,7 +124,14 @@ const TokenRevokeControl = function TokenRevokeControl({
     return (
       <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
         <span className='text-[0.8rem] text-text-muted'>Revoke?</span>
-        <Button variant='danger' size='sm' disabled={state.busy} onClick={() => state.confirm(token.id)}>
+        <Button
+          variant='danger'
+          size='sm'
+          disabled={state.busy}
+          onClick={() => {
+            state.confirm(token.id)
+          }}
+        >
           {state.busy ? '…' : 'Yes'}
         </Button>
         <Button variant='outline' size='sm' disabled={state.busy} onClick={state.cancel}>
@@ -144,7 +151,9 @@ const TokenRevokeControl = function TokenRevokeControl({
       size='sm'
       className='text-danger-text border-danger-border'
       disabled={state.busy}
-      onClick={() => state.select(token.id)}
+      onClick={() => {
+        state.select(token.id)
+      }}
     >
       Revoke
     </Button>
@@ -346,7 +355,9 @@ export const TokenManager = function TokenManager({
                             placeholder='e.g. Claude Code agent'
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.currentTarget.value)}
+                            onChange={(event) => {
+                              field.handleChange(event.currentTarget.value)
+                            }}
                             disabled={creating}
                             required
                             maxLength={100}
@@ -410,7 +421,9 @@ export const TokenManager = function TokenManager({
                             value={field.state.value}
                             disabled={creating}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.currentTarget.value)}
+                            onChange={(event) => {
+                              field.handleChange(event.currentTarget.value)
+                            }}
                           />
                         )}
                       </form.Field>

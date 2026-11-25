@@ -141,7 +141,9 @@ const SortControls = function SortControls({
       <Select
         ariaLabel='Sort by'
         value={sortBy}
-        onChange={(value) => setSortBy(value as SortKey)}
+        onChange={(value) => {
+          setSortBy(value as SortKey)
+        }}
         options={[
           { label: 'Created', value: 'created_at' },
           { label: 'Updated', value: 'updated' },
@@ -157,7 +159,9 @@ const SortControls = function SortControls({
         variant='outline'
         size='sm'
         aria-label={sortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
-        onClick={() => setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))}
+        onClick={() => {
+          setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))
+        }}
       >
         {sortDir === 'asc' ? '↑' : '↓'}
       </Button>

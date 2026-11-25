@@ -1804,7 +1804,9 @@ const StatusField = function StatusField({
         ariaLabel='Change status'
         value={issue.status_id ?? ''}
         disabled={updatingStatus}
-        onChange={(value) => changeStatus(value)}
+        onChange={(value) => {
+          changeStatus(value)
+        }}
         options={statuses.map(({ id, name }) => ({ label: name, value: id }))}
         buttonStyle={{ color: categoryColor(issue.status_category), fontWeight: 500 }}
       />
@@ -1841,7 +1843,9 @@ const TypeField = function TypeField({
           ariaLabel='Change type'
           value={issue.type_id ?? ''}
           disabled={updatingType}
-          onChange={(value) => changeType(value)}
+          onChange={(value) => {
+            changeType(value)
+          }}
           options={[{ label: 'No type', value: '' }, ...taskTypes.map(({ id, name }) => ({ label: name, value: id }))]}
         />
         {/* PROJ-602: without this, a rejected type change (e.g. demoting an epic
@@ -2006,7 +2010,9 @@ export const SidebarPanel = function SidebarPanel({
             value={issue.priority}
             disabled={updatingPriority}
             capitalize
-            onChange={(value) => changePriority(value)}
+            onChange={(value) => {
+              changePriority(value)
+            }}
             options={PRIORITY_OPTIONS}
             buttonStyle={{
               color: priorityStyle.text,

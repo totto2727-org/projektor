@@ -177,7 +177,14 @@ const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete
     deleteId === group.id ? (
       <span className='inline-flex gap-2 items-center'>
         <span className='text-xs text-text-muted'>Delete group?</span>
-        <Button variant='danger' size='sm' disabled={busy} onClick={() => onDelete(group.id)}>
+        <Button
+          variant='danger'
+          size='sm'
+          disabled={busy}
+          onClick={() => {
+            onDelete(group.id)
+          }}
+        >
           Yes
         </Button>
         <Button
@@ -361,7 +368,9 @@ const GroupDetailEditor = function GroupDetailEditor({
               maxLength={100}
               disabled={busy}
               onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.currentTarget.value)}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
             />
           )}
         </nameForm.Field>
@@ -405,7 +414,9 @@ const GroupDetailEditor = function GroupDetailEditor({
               maxLength={500}
               disabled={busy}
               onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.currentTarget.value)}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
             />
           )}
         </descriptionForm.Field>
@@ -759,7 +770,9 @@ export const GroupManager = function GroupManager({
                   maxLength={100}
                   disabled={busy}
                   onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.currentTarget.value)}
+                  onChange={(event) => {
+                    field.handleChange(event.currentTarget.value)
+                  }}
                 />
               )}
             </form.Field>
