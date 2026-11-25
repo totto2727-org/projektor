@@ -50,9 +50,15 @@ describe('covers Epic creation dialog', () => {
     const option = await screen.findByRole('option', { name: 'high' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high'))
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high')
+    })
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    await waitFor(() => expect(document.activeElement).toBe(trigger))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger)
+    })
   })
 })

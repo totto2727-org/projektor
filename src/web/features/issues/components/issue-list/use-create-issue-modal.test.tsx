@@ -34,7 +34,9 @@ const Harness = function Harness(): JSX.Element {
 
 const submitCreateForm = async function submitCreateForm(): Promise<void> {
   const submit = screen.getByRole('button', { name: /create issue/i })
-  await waitFor(() => expect(submit).toHaveProperty('disabled', false))
+  await waitFor(() => {
+    expect(submit).toHaveProperty('disabled', false)
+  })
   fireEvent.click(submit)
 }
 

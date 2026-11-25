@@ -134,7 +134,9 @@ describe('generated UI compatibility adapters', () => {
     expect(onClose).toHaveBeenCalledOnce()
     onClose.mockClear()
     fireEvent.keyDown(dialog, { key: 'Escape' })
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce()
+    })
   })
 
   test('maps old Select options to controlled string callbacks', async () => {
@@ -152,7 +154,9 @@ describe('generated UI compatibility adapters', () => {
     const option = await screen.findByRole('option', { name: 'Done' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith('done'))
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith('done')
+    })
     rerender(<Select options={options} value='done' onChange={onChange} ariaLabel='Status' disabled />)
     expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('Done')
     expect(screen.getByRole<HTMLButtonElement>('combobox', { name: 'Status' }).disabled).toBe(true)

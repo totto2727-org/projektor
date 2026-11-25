@@ -73,14 +73,20 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Submitted draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save sprint' }))
-    await waitFor(() => expect(request).toHaveBeenCalledOnce())
+    await waitFor(() => {
+      expect(request).toHaveBeenCalledOnce()
+    })
     view.rerender(<SprintManager {...props} initialSprints={[sprint('sprint-a', 'active', 'Canonical refresh')]} />)
     const name = screen.getByLabelText<HTMLInputElement>('Name *')
     expect(name.value).toBe('Submitted draft')
     expect(name.disabled).toBe(true)
     expect(screen.getAllByText('Canonical refresh')).toHaveLength(2)
-    await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
-    await waitFor(() => expect(screen.queryByLabelText('Name *')).toBeNull())
+    await act(async () => {
+      pending.resolve({ ok: true, value: { ok: true } })
+    })
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Name *')).toBeNull()
+    })
     expect(screen.getAllByText('Canonical refresh')).toHaveLength(2)
     expect(request).toHaveBeenCalledOnce()
   })
@@ -89,15 +95,21 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     request.mockRejectedValueOnce(new Error('Status transport failure'))
     render(<SprintManager {...props} initialSprints={[sprint('sprint-a', 'planned')]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Start sprint' }))
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Status transport failure'))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Status transport failure')
+    })
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Start sprint' }).disabled).toBe(false)
     request.mockRejectedValueOnce(new Error('Archive transport failure'))
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     fireEvent.click(screen.getByRole('button', { name: 'Yes, archive' }))
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Archive transport failure'))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Archive transport failure')
+    })
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Yes, archive' }).disabled).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: 'Yes, archive' }))
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Yes, archive' })).toBeNull())
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Yes, archive' })).toBeNull()
+    })
   })
 
   test('keeps native create drafts and exposes typed failure until a successful retry', async () => {
@@ -106,10 +118,14 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     fireEvent.click(screen.getByRole('button', { name: '+ New sprint' }))
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Retry iteration' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create sprint' }))
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Sprint conflict'))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Sprint conflict')
+    })
     expect(screen.getByLabelText<HTMLInputElement>('Name *').value).toBe('Retry iteration')
     fireEvent.click(screen.getByRole('button', { name: 'Create sprint' }))
-    await waitFor(() => expect(screen.queryByLabelText('Name *')).toBeNull())
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Name *')).toBeNull()
+    })
     expect(nativeSubmitted.mock.calls[1][0]).toMatchObject({ ok: false, status: 409 })
   })
 
@@ -194,7 +210,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     view.rerender(<SprintManager {...props} initialSprints={[sprint('sprint-a', 'active', 'Canonical title')]} />)
     expect(screen.getByLabelText<HTMLInputElement>('Name *').value).toBe('Local edit')
     fireEvent.click(screen.getByRole('button', { name: 'Save sprint' }))
-    await waitFor(() =>
+    await waitFor(() => {
       expect(request).toHaveBeenCalledWith('edit', {
         ...scope,
         sprintId: 'sprint-a',
@@ -204,8 +220,8 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
         end: '',
         startOffset: calendarOffset('2026-10-01'),
         endOffset: 0,
-      }),
-    )
+      })
+    })
   })
 
   test('creates from original fields and lets canonical props, not a {id} response, own the list', async () => {
@@ -217,7 +233,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
       target: { value: '2026-10-04' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create sprint' }))
-    await waitFor(() =>
+    await waitFor(() => {
       expect(request).toHaveBeenCalledWith('create', {
         ...scope,
         name: '  Sprint 2 ',
@@ -226,9 +242,11 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
         end: '',
         startOffset: calendarOffset('2026-10-04'),
         endOffset: 0,
-      }),
-    )
-    await waitFor(() => expect(screen.queryByLabelText('Name *')).toBeNull())
+      })
+    })
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Name *')).toBeNull()
+    })
     expect(nativeSubmitted).toHaveBeenCalledWith(null, expect.any(FormData))
     expect(screen.queryByText('created-id')).toBeNull()
   })
@@ -237,9 +255,9 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     render(<SprintManager {...props} initialSprints={[]} />)
     fireEvent.click(screen.getByRole('button', { name: '+ New sprint' }))
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: '   ' } })
-    await waitFor(() =>
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create sprint' }).disabled).toBe(true),
-    )
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create sprint' }).disabled).toBe(true)
+    })
     expect(screen.getByRole('alert').textContent).toContain('Name is required')
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Sprint' } })
     fireEvent.change(screen.getByLabelText('Start date (optional)'), {
@@ -248,7 +266,9 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     fireEvent.change(screen.getByLabelText('End date (optional)'), {
       target: { value: '2026-10-01' },
     })
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('End date'))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('End date')
+    })
     expect(request).not.toHaveBeenCalled()
   })
 
@@ -258,10 +278,14 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     expect(request).not.toHaveBeenCalled()
     request.mockResolvedValueOnce({ ok: false, status: 403, message: 'Completion denied' })
     fireEvent.click(screen.getByRole('button', { name: 'Yes, complete' }))
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Completion denied'))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Completion denied')
+    })
     expect(screen.queryByText('Sprint complete: Sprint A')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Yes, complete' }))
-    await waitFor(() => expect(screen.getByText('Sprint complete: Sprint A')).toBeInstanceOf(Element))
+    await waitFor(() => {
+      expect(screen.getByText('Sprint complete: Sprint A')).toBeInstanceOf(Element)
+    })
     expect(screen.getAllByText('5/8')).toHaveLength(2)
     expect(screen.getByRole('link', { name: 'Issue done' }).getAttribute('href')).toContain(
       '/projects/PROJ/issues/1/issue-done?workspace=alpha',
@@ -281,32 +305,34 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
       />,
     )
     fireEvent.click(screen.getAllByRole('button', { name: 'Start sprint' })[0])
-    await waitFor(() =>
+    await waitFor(() => {
       expect(request).toHaveBeenCalledWith('status', {
         ...scope,
         sprintId: 'sprint-a',
         status: 'active',
-      }),
-    )
+      })
+    })
     view.rerender(
       <SprintManager {...props} initialSprints={[sprint(), sprint('sprint-b', 'planned', 'Destination')]} />,
     )
     fireEvent.click(screen.getAllByRole('button', { name: 'Move issues' })[0])
     fireEvent.change(screen.getByLabelText('Destination'), { target: { value: 'sprint-b' } })
     fireEvent.click(screen.getByRole('button', { name: 'Move 1 issues' }))
-    await waitFor(() =>
+    await waitFor(() => {
       expect(request).toHaveBeenCalledWith('move', {
         ...scope,
         sprintId: 'sprint-a',
         targetId: 'sprint-b',
         issueIds: ['open'],
-      }),
-    )
+      })
+    })
     const count = request.mock.calls.length
     fireEvent.click(screen.getAllByRole('button', { name: 'Archive' })[0])
     expect(request.mock.calls).toHaveLength(count)
     fireEvent.click(screen.getByRole('button', { name: 'Yes, archive' }))
-    await waitFor(() => expect(request).toHaveBeenLastCalledWith('archive', { ...scope, sprintId: 'sprint-a' }))
+    await waitFor(() => {
+      expect(request).toHaveBeenLastCalledWith('archive', { ...scope, sprintId: 'sprint-a' })
+    })
   })
 
   test('preserves timezone-safe timestamps and original story-point parsing', () => {

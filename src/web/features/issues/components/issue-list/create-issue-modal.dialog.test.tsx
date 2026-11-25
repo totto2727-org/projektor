@@ -63,17 +63,27 @@ describe('covers create issue dialog', () => {
     trigger.focus()
     fireEvent.click(trigger)
     const dialog = screen.getByRole('dialog', { name: 'Create new issue' })
-    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+    await waitFor(() => {
+      expect(dialog.contains(document.activeElement)).toBe(true)
+    })
     const guards = document.querySelectorAll<HTMLElement>('[data-base-ui-focus-guard][data-type="inside"]')
     guards.item(guards.length - 1).focus()
-    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+    await waitFor(() => {
+      expect(dialog.contains(document.activeElement)).toBe(true)
+    })
     fireEvent.click(screen.getByRole('combobox', { name: 'Select priority' }))
     const option = await screen.findByRole('option', { name: 'high' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high'))
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Select priority' }).textContent).toContain('high')
+    })
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    await waitFor(() => expect(document.activeElement).toBe(trigger))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger)
+    })
   })
 })

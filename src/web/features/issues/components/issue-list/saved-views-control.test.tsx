@@ -51,7 +51,9 @@ describe('covers SavedViewsControl — generated menu', () => {
   test('shows the placeholder label until a view is applied', async () => {
     seedViews(['Sprint board'])
     render(<Harness onApply={() => {}} />)
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Saved views' }).textContent).toContain('Views'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Saved views' }).textContent).toContain('Views')
+    })
   })
 
   test('applies a view on selection and updates the trigger label', async () => {

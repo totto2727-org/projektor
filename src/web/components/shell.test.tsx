@@ -140,7 +140,9 @@ describe('generated Base UI Shell', () => {
       if (width < 768) {
         link.addEventListener('click', (event) => event.preventDefault())
         fireEvent.click(link)
-        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sidebar' })).toBeNull())
+        await waitFor(() => {
+          expect(screen.queryByRole('dialog', { name: 'Sidebar' })).toBeNull()
+        })
       }
     },
   )
@@ -168,7 +170,9 @@ describe('generated Base UI Shell', () => {
     refreshForm.addEventListener('submit', submit)
     fireEvent.click(refresh)
     expect(submit).toHaveBeenCalledOnce()
-    await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Refresh session' })).toBeNull())
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Refresh session' })).toBeNull()
+    })
     expect(document.getElementById(refreshForm.id)).toBe(refreshForm)
   })
 
@@ -206,7 +210,9 @@ describe('generated Base UI Shell', () => {
      */
     link.addEventListener('click', (event) => event.preventDefault())
     fireEvent.click(link)
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sidebar' })).toBeNull())
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Sidebar' })).toBeNull()
+    })
   })
 
   test("leaves Wiki full bleed while other pages use the shell's one content gutter", () => {

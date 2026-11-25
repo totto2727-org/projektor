@@ -68,7 +68,9 @@ describe('covers issue review target controls', () => {
     expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('checkbox', { name: 'second.pdfをレビュー対象にする' })).toHaveProperty('disabled', false)
     expect(screen.queryByRole('checkbox', { name: 'wiki.pdfをレビュー対象にする' })).toBeNull()
-    await act(async () => pending.resolve(success))
+    await act(async () => {
+      pending.resolve(success)
+    })
     expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('disabled', true)
     rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: 'fixing' }, second, wiki]} />)
     expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('checked', true)
@@ -157,7 +159,9 @@ describe('covers issue review target controls', () => {
         fireEvent.change(screen.getByRole('combobox'), { target: { value: 'done' } })
         expect(setAttachmentReviewStatus).toHaveBeenCalledOnce()
       }
-      await act(async () => pending.resolve(success))
+      await act(async () => {
+        pending.resolve(success)
+      })
       if (refreshTiming === 'after') {
         expect(screen.getByRole('combobox')).toHaveProperty('disabled', true)
         refresh()
@@ -191,9 +195,9 @@ describe('covers issue review target controls', () => {
     })
     await act(async () => {})
     rerender(<ReviewTargetsSection {...props} attachments={[first, { ...second, reviewStatus: 'in_review' }]} />)
-    await act(async () =>
-      pending.resolve({ ok: false, status: 409, message: 'Target changed. Refresh and try again.' }),
-    )
+    await act(async () => {
+      pending.resolve({ ok: false, status: 409, message: 'Target changed. Refresh and try again.' })
+    })
     expect(screen.getByRole('alert').textContent).toBe('Target changed. Refresh and try again.')
     expect(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).toHaveProperty('value', 'in_review')
     expect(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).toHaveProperty('disabled', false)

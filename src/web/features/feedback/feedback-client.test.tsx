@@ -95,11 +95,11 @@ describe('feedback hydrated original controls', () => {
     const option = await screen.findByRole('option', { name: 'Reviewed' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() =>
+    await waitFor(() => {
       expect(navigateFeature).toHaveBeenLastCalledWith(
         '/feedback/source?projectId=project&tab=items&workspace=team&status=reviewed',
-      ),
-    )
+      )
+    })
     expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('All')
     view.rerender(
       <FeedbackList

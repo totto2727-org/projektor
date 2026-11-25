@@ -47,7 +47,9 @@ describe('covers feedback source actions in progress', () => {
     expect(rotateFeedbackSourceToken).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Rotating…' }).hasAttribute('disabled')).toBe(true)
     expect(screen.getByRole('button', { name: 'No' }).hasAttribute('disabled')).toBe(true)
-    await act(async () => pending.resolve({ ok: true, value: { token: 'new-token' } }))
+    await act(async () => {
+      pending.resolve({ ok: true, value: { token: 'new-token' } })
+    })
     expect(screen.getByText('new-token')).toBeInstanceOf(Element)
     expect(screen.queryByRole('button', { name: 'Rotating…' })).toBeNull()
   })

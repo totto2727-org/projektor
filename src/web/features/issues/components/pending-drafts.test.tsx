@@ -82,15 +82,17 @@ describe('covers pending issue drafts', () => {
     fireEvent.click(screen.getByTitle('Edit description'))
     fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Submitted body' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() =>
+    await waitFor(() => {
       expect(updateIssue).toHaveBeenCalledWith({
         issueId: 'issue',
         patch: { body: 'Submitted body' },
         workspaceSlug: 'workspace',
-      }),
-    )
+      })
+    })
     fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Newer body' } })
-    await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
+    await act(async () => {
+      pending.resolve({ ok: true, value: { ok: true } })
+    })
     expect(screen.getByDisplayValue('Newer body')).toBeInstanceOf(Element)
     expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Newer body')
   })
@@ -106,8 +108,12 @@ describe('covers pending issue drafts', () => {
     fireEvent.click(screen.getByTitle('Edit description'))
     fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Canonical saved body' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(updateIssue).toHaveBeenCalled())
-    await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
+    await waitFor(() => {
+      expect(updateIssue).toHaveBeenCalled()
+    })
+    await act(async () => {
+      pending.resolve({ ok: true, value: { ok: true } })
+    })
     expect(screen.getByDisplayValue('Canonical saved body')).toBeInstanceOf(Element)
     expect(screen.queryByText('No description.')).toBeNull()
     expect(screen.getByRole('button', { name: 'Saving…' })).toHaveProperty('disabled', true)
@@ -135,8 +141,12 @@ describe('covers pending issue drafts', () => {
     fireEvent.click(screen.getByTitle('Edit description'))
     fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Submitted body' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(updateIssue).toHaveBeenCalled())
-    await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
+    await waitFor(() => {
+      expect(updateIssue).toHaveBeenCalled()
+    })
+    await act(async () => {
+      pending.resolve({ ok: true, value: { ok: true } })
+    })
     fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Newer local body' } })
     rerender(
       <BodySection
@@ -158,15 +168,17 @@ describe('covers pending issue drafts', () => {
     render(<CommentsSection issueId='issue' workspaceSlug='workspace' comments={[]} currentUserId='user' />)
     fireEvent.input(screen.getByPlaceholderText('Add a comment…'), { target: { value: 'Submitted comment' } })
     fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
-    await waitFor(() =>
+    await waitFor(() => {
       expect(addComment).toHaveBeenCalledWith({
         body: 'Submitted comment',
         issueId: 'issue',
         workspaceSlug: 'workspace',
-      }),
-    )
+      })
+    })
     fireEvent.input(screen.getByPlaceholderText('Add a comment…'), { target: { value: 'Next comment' } })
-    await act(async () => pending.resolve({ ok: true, value: { id: 'created-comment' } }))
+    await act(async () => {
+      pending.resolve({ ok: true, value: { id: 'created-comment' } })
+    })
     expect(screen.getByDisplayValue('Next comment')).toBeInstanceOf(Element)
     expect(loadDraft(draftKey('workspace', 'user:issue', 'comment'))).toBe('Next comment')
     expect(screen.getByRole('button', { name: 'Comment' })).toHaveProperty('disabled', false)
@@ -195,16 +207,18 @@ describe('covers pending issue drafts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Submitted edit' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() =>
+    await waitFor(() => {
       expect(editComment).toHaveBeenCalledWith({
         body: 'Submitted edit',
         commentId: 'comment',
         issueId: 'issue',
         workspaceSlug: undefined,
-      }),
-    )
+      })
+    })
     fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Newer edit' } })
-    await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
+    await act(async () => {
+      pending.resolve({ ok: true, value: { ok: true } })
+    })
     expect(screen.getByDisplayValue('Newer edit')).toBeInstanceOf(Element)
     expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
   })
@@ -225,7 +239,9 @@ describe('covers pending issue drafts', () => {
     expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Retry body')
     expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(updateIssue).toHaveBeenCalledTimes(2))
+    await waitFor(() => {
+      expect(updateIssue).toHaveBeenCalledTimes(2)
+    })
     rerender(
       <BodySection
         issue={{ ...issue, body: 'Retry body' }}
@@ -234,7 +250,9 @@ describe('covers pending issue drafts', () => {
         currentUserId='user'
       />,
     )
-    await waitFor(() => expect(screen.queryByLabelText('Markdown draft')).toBeNull())
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Markdown draft')).toBeNull()
+    })
     expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBeNull()
   })
 
@@ -251,7 +269,9 @@ describe('covers pending issue drafts', () => {
     expect(loadDraft(draftKey('workspace', 'user:issue', 'comment'))).toBe('Retry comment')
     expect(screen.getByRole('button', { name: 'Comment' })).toHaveProperty('disabled', false)
     fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
-    await waitFor(() => expect(screen.getByPlaceholderText('Add a comment…')).toHaveProperty('value', ''))
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Add a comment…')).toHaveProperty('value', '')
+    })
     expect(addComment).toHaveBeenCalledTimes(2)
     expect(loadDraft(draftKey('workspace', 'user:issue', 'comment'))).toBeNull()
   })
@@ -284,7 +304,9 @@ describe('covers pending issue drafts', () => {
     expect(screen.getByDisplayValue('Retry edit')).toBeInstanceOf(Element)
     expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(screen.queryByDisplayValue('Retry edit')).toBeNull())
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('Retry edit')).toBeNull()
+    })
     expect(editComment).toHaveBeenCalledTimes(2)
   })
 

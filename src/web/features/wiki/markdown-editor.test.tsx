@@ -43,7 +43,9 @@ describe('covers Wiki Markdown editor', () => {
     expect(currentUpload).toHaveBeenCalledWith(file)
     expect(originalUpload).not.toHaveBeenCalled()
     act(() => view.dispatch({ changes: { from: view.state.doc.length, insert: ' while uploading' } }))
-    await act(async () => upload.resolve('/latest.png'))
+    await act(async () => {
+      upload.resolve('/latest.png')
+    })
     await waitFor(() => {
       expect(view.state.doc.toString()).toContain('![latest.png](/latest.png)')
       expect(view.state.doc.toString()).toContain('while uploading')

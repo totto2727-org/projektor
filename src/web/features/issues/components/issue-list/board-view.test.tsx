@@ -127,7 +127,9 @@ describe('covers BoardView — mobile status menu (PROJ-416)', () => {
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
 
-    await waitFor(() => expect(changeStatus).toHaveBeenCalledWith('i1', 'st-in-progress'))
+    await waitFor(() => {
+      expect(changeStatus).toHaveBeenCalledWith('i1', 'st-in-progress')
+    })
   })
 
   test("renders the status menu outside the card's link, not nested inside it", () => {

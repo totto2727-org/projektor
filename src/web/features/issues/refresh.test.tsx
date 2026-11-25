@@ -98,7 +98,9 @@ describe('canonical issues SSR refresh', () => {
     // A late mutation completion must never replace authoritative SSR rows.
     vi.mocked(createIssue).mockResolvedValueOnce({ ok: true, value: { id: 'issue-b', number: 1 } })
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create issue' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
     expect(screen.getAllByText('Canonical replacement').length).toBeGreaterThan(0)
     expect(screen.queryByText('Unsaved create title')).toBeNull()
     expect(fetch).not.toHaveBeenCalled()
@@ -125,7 +127,9 @@ describe('canonical issues SSR refresh', () => {
         }}
       />,
     )
-    await waitFor(() => expect(screen.getByText('Canonical description')).toBeInstanceOf(Element))
+    await waitFor(() => {
+      expect(screen.getByText('Canonical description')).toBeInstanceOf(Element)
+    })
     expect(screen.getByText('Canonical comment')).toBeInstanceOf(Element)
     expect(screen.getByDisplayValue('Unsaved edited title')).toBeInstanceOf(Element)
     fireEvent.input(screen.getByPlaceholderText('Add a comment…'), {
@@ -138,9 +142,13 @@ describe('canonical issues SSR refresh', () => {
         initialData={{ ...data, currentUserId: 'user-b' }}
       />,
     )
-    await waitFor(() => expect(screen.getByPlaceholderText<HTMLTextAreaElement>('Add a comment…').value).toBe(''))
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText<HTMLTextAreaElement>('Add a comment…').value).toBe('')
+    })
     view.rerender(<IssueDetailPage scope={scope} workspaceSlug={workspace.slug} initialData={data} />)
-    await waitFor(() => expect(screen.getByDisplayValue('Private unsent comment')).toBeInstanceOf(Element))
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Private unsent comment')).toBeInstanceOf(Element)
+    })
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -174,7 +182,9 @@ describe('canonical issues SSR refresh', () => {
       target: { value: 'Created epic' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create Epic' }))
-    await waitFor(() => expect(createIssue).toHaveBeenCalledOnce())
+    await waitFor(() => {
+      expect(createIssue).toHaveBeenCalledOnce()
+    })
     view.rerender(
       <EpicsPage
         scope={{ ...scope, selection: { kind: 'project', workspace, project } }}
@@ -234,7 +244,9 @@ describe('canonical issues SSR refresh', () => {
     fireEvent.input(screen.getByRole('searchbox', { name: 'Search issues' }), {
       target: { value: 'Canonical term' },
     })
-    await waitFor(() => expect(submissions).toHaveLength(2))
+    await waitFor(() => {
+      expect(submissions).toHaveLength(2)
+    })
     expect(submissions[1].values.get('q')).toBe('Canonical term')
     expect(submissions[1].values.has('cursor')).toBe(false)
     expect(submissions[1].values.get('workspace')).toBe(workspace.slug)
@@ -315,7 +327,9 @@ describe('canonical issues SSR refresh', () => {
     const option = await screen.findByRole('option', { name: 'Done' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() => expect(updateIssue).toHaveBeenCalledOnce())
+    await waitFor(() => {
+      expect(updateIssue).toHaveBeenCalledOnce()
+    })
     expect(readIssuePage).not.toHaveBeenCalled()
     expect(updateIssue).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -98,17 +98,23 @@ describe('project server-prop refresh', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create project' }))
 
-    await waitFor(() => expect(createProject).toHaveBeenCalledOnce())
+    await waitFor(() => {
+      expect(createProject).toHaveBeenCalledOnce()
+    })
     const sent = vi.mocked(createProject).mock.calls[0][1]
     expect(sent.get('workspaceSlug')).toBe('workspace')
     expect(sent.get('name')).toBe('Created optimistically')
-    await waitFor(() => expect(screen.getByText('+ New project').closest('details')?.open).toBe(false))
+    await waitFor(() => {
+      expect(screen.getByText('+ New project').closest('details')?.open).toBe(false)
+    })
     expect(screen.queryByText('Created optimistically')).toBeNull()
     expect(screen.getByText('Existing project')).toBeInstanceOf(Element)
     view.rerender(
       withRuntime(<ProjectList initialProjects={[catalogProject('Canonical catalog')]} memberships={memberships} />),
     )
-    await waitFor(() => expect(screen.getByText('Canonical catalog')).toBeInstanceOf(Element))
+    await waitFor(() => {
+      expect(screen.getByText('Canonical catalog')).toBeInstanceOf(Element)
+    })
     expect(screen.queryByText('Created optimistically')).toBeNull()
   })
 
@@ -147,13 +153,13 @@ describe('project server-prop refresh', () => {
     expect(screen.getByRole('option', { name: 'Second workspace abc123 (second-abc123)' })).toBeInstanceOf(Element)
 
     fireEvent.change(screen.getByPlaceholderText('My Project'), { target: { value: 'Second native abc123' } })
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Create project' }).hasAttribute('disabled')).toBe(true),
-    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Create project' }).hasAttribute('disabled')).toBe(true)
+    })
     fireEvent.change(workspace, { target: { value: 'second-abc123' } })
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Create project' }).hasAttribute('disabled')).toBe(false),
-    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Create project' }).hasAttribute('disabled')).toBe(false)
+    })
     expect(workspace.form && new FormData(workspace.form).get('workspaceSlug')).toBe('second-abc123')
   })
 
@@ -213,7 +219,9 @@ describe('project server-prop refresh', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     expect(screen.getByRole('button', { name: 'Archive' }).hasAttribute('disabled')).toBe(true)
     fireEvent.change(screen.getByLabelText('Project description'), { target: { value: 'Draft during archive' } })
-    await act(async () => pending.reject(new Error('Archive unavailable')))
+    await act(async () => {
+      pending.reject(new Error('Archive unavailable'))
+    })
     expect(screen.getByRole('alert').textContent).toContain('Archive unavailable')
     expect(screen.getByRole('button', { name: 'Archive' }).hasAttribute('disabled')).toBe(false)
     expect(screen.getByLabelText('Project description')).toHaveProperty('value', 'Draft during archive')

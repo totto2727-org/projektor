@@ -79,7 +79,9 @@ describe('full original metrics surfaces', () => {
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-10-05' } })
     fireEvent.submit(screen.getByRole('button', { name: 'Apply' }).closest('form') as HTMLFormElement)
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('To date must not precede'))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('To date must not precede')
+    })
     expect(nativeSubmit).not.toHaveBeenCalled()
     nativeSubmit.mockRestore()
   })
@@ -89,7 +91,9 @@ describe('full original metrics surfaces', () => {
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     expect(screen.getAllByTestId(/^flow-chart-/u)).toHaveLength(7)
     expect(document.querySelectorAll('svg.recharts-surface')).toHaveLength(7)
-    await waitFor(() => expect(document.querySelectorAll('.recharts-area')).toHaveLength(4))
+    await waitFor(() => {
+      expect(document.querySelectorAll('.recharts-area')).toHaveLength(4)
+    })
     expect(document.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(2)
     expect(document.querySelectorAll('.recharts-reference-line')).toHaveLength(2)
     expect(screen.getByTestId('flow-chart-cfd').querySelector('.recharts-legend-wrapper')?.textContent).toBe(
