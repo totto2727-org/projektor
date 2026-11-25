@@ -10,7 +10,7 @@ import type { Env } from '#types'
 
 import { env, resetCoreAuthCaches } from './fixture-api.ts'
 import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { fetchNativeApi, requestOptionsWithBody, stringifyOrderedFields } from './native-fetch.ts'
 
 /*
  * PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.
@@ -75,14 +75,18 @@ const installAccessKeys = async function installAccessKeys(): Promise<void> {
 }
 
 const accessJwt = async function accessJwt(email: string): Promise<string> {
-  const part = (obj: unknown): string => b64url(new TextEncoder().encode(JSON.stringify(obj)))
-  const header = part({ alg: 'RS256', typ: 'JWT' })
-  const body = part({
-    exp: currentEpochSeconds() + 3600,
-    aud: CF_AUDIENCE,
-    iss: `https://${CF_DOMAIN}`,
-    email,
-  })
+  const part = (fields: Parameters<typeof stringifyOrderedFields>[0]): string =>
+    b64url(new TextEncoder().encode(stringifyOrderedFields(fields)))
+  const header = part([
+    ['alg', 'RS256'],
+    ['typ', 'JWT'],
+  ])
+  const body = part([
+    ['exp', currentEpochSeconds() + 3600],
+    ['aud', CF_AUDIENCE],
+    ['iss', `https://${CF_DOMAIN}`],
+    ['email', email],
+  ])
   const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', signingKey, new TextEncoder().encode(`${header}.${body}`))
   return `${header}.${body}.${b64url(new Uint8Array(sig))}`
 }
@@ -110,20 +114,20 @@ const seedOAuthClient = async function seedOAuthClient(
   const clientId = `test-client-${crypto.randomUUID().slice(0, 8)}`
   await env.OAUTH_KV.put(
     `client:${clientId}`,
-    JSON.stringify({
-      clientId,
-      redirectUris,
-      clientName: 'Test Connector',
-      grantTypes: ['authorization_code', 'refresh_token'],
-      responseTypes: ['code'],
-      registrationDate: currentEpochSeconds(),
+    stringifyOrderedFields([
+      ['clientId', clientId],
+      ['redirectUris', redirectUris],
+      ['clientName', 'Test Connector'],
+      ['grantTypes', ['authorization_code', 'refresh_token']],
+      ['responseTypes', ['code']],
+      ['registrationDate', currentEpochSeconds()],
       /*
        * Public client: no secret, PKCE is the only proof of possession. This is
        * what Claude is, and what the metadata document advertises via
        * token_endpoint_auth_methods_supported: ["none"].
        */
-      tokenEndpointAuthMethod: 'none',
-    }),
+      ['tokenEndpointAuthMethod', 'none'],
+    ]),
   )
   return { clientId }
 }
@@ -287,12 +291,12 @@ const mcpCall = function mcpCall(
     requestOptionsWithBody(
       'POST',
       { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name, arguments: args },
-      }),
+      stringifyOrderedFields([
+        ['jsonrpc', '2.0'],
+        ['id', 1],
+        ['method', 'tools/call'],
+        ['params', { name, arguments: args }],
+      ]),
     ),
   )
 }
