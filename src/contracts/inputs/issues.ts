@@ -159,16 +159,22 @@ const CommaOrArraySchema = z
       .filter(Boolean),
   )
 
+const EMPTY_BATCH_SIZE = 0
+
+const batchIssueCount = function batchIssueCount(input: Readonly<{ refs?: string[]; ids?: string[] }>): number {
+  return (input.refs?.length ?? EMPTY_BATCH_SIZE) + (input.ids?.length ?? EMPTY_BATCH_SIZE)
+}
+
 export const GetIssuesBatchSchema = objectInOrder([
   ['refs', CommaOrArraySchema.optional()],
   ['ids', CommaOrArraySchema.optional()],
   ['includeBody', BooleanQueryParam.optional()],
 ])
   .strict()
-  .refine((obj) => (obj.refs?.length ?? 0) + (obj.ids?.length ?? 0) > 0, {
+  .refine((obj) => batchIssueCount(obj) > EMPTY_BATCH_SIZE, {
     message: 'Provide refs or ids',
   })
-  .refine((obj) => (obj.refs?.length ?? 0) + (obj.ids?.length ?? 0) <= MAX_BATCH_SIZE, {
+  .refine((obj) => batchIssueCount(obj) <= MAX_BATCH_SIZE, {
     message: 'At most 50 issues per call (refs + ids combined)',
   })
 

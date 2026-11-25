@@ -1,6 +1,7 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQLITE_FALSE } from '#db/sqlite-boolean.ts'
 
 import { agentSessions } from './agents.ts'
 import { workspaces } from './core.ts'
@@ -69,7 +70,7 @@ const claimConflictsColumns = fieldsInOrder([
       onDelete: 'set null',
     }),
   ],
-  ['forced', integer('forced').notNull().default(0)],
+  ['forced', integer('forced').notNull().default(SQLITE_FALSE)],
   ['occurredAt', integer('occurred_at').notNull()],
 ])
 

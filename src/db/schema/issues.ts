@@ -1,11 +1,15 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQLITE_FALSE } from '#db/sqlite-boolean.ts'
 
 import { users, workspaces } from './core.ts'
 import { projects } from './projects.ts'
 
 export { projects } from './projects.ts'
+
+const DEFAULT_TASK_POSITION = 0
+const INITIAL_REVIEW_BOUNCE_COUNT = 0
 
 const taskTypesColumns = fieldsInOrder([
   ['id', text('id').primaryKey()],
@@ -19,8 +23,8 @@ const taskTypesColumns = fieldsInOrder([
   ['name', text('name').notNull()],
   ['color', text('color')],
   ['icon', text('icon')],
-  ['position', integer('position').notNull().default(0)],
-  ['isDefault', integer('is_default').notNull().default(0)],
+  ['position', integer('position').notNull().default(DEFAULT_TASK_POSITION)],
+  ['isDefault', integer('is_default').notNull().default(SQLITE_FALSE)],
 ])
 
 export const taskTypes = sqliteTable('task_types', taskTypesColumns, (table) => [
@@ -40,10 +44,10 @@ const taskStatusesColumns = fieldsInOrder([
   ['name', text('name').notNull()],
   ['category', text('category', { enum: ['todo', 'in_progress', 'done', 'cancelled'] }).notNull()],
   ['color', text('color')],
-  ['position', integer('position').notNull().default(0)],
-  ['isDefault', integer('is_default').notNull().default(0)],
+  ['position', integer('position').notNull().default(DEFAULT_TASK_POSITION)],
+  ['isDefault', integer('is_default').notNull().default(SQLITE_FALSE)],
   // PROJ-749: explicit review-step flag (review gate + review flow metrics).
-  ['isReviewStep', integer('is_review_step').notNull().default(0)],
+  ['isReviewStep', integer('is_review_step').notNull().default(SQLITE_FALSE)],
 ])
 
 export const taskStatuses = sqliteTable('task_statuses', taskStatusesColumns, (table) => [
@@ -130,7 +134,7 @@ const issuesColumns = fieldsInOrder([
    * review back to in-progress (never cleared, never re-derived from history).
    */
   ['inReviewAt', integer('in_review_at')],
-  ['reviewBounceCount', integer('review_bounce_count').notNull().default(0)],
+  ['reviewBounceCount', integer('review_bounce_count').notNull().default(INITIAL_REVIEW_BOUNCE_COUNT)],
   /*
    * PROJ-375: agents can close issues to done directly (no gate blocks it); this
    * flags agent-initiated closures whose completion-report verification wasn't
