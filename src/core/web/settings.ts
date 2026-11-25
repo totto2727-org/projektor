@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { Predicate, Effect, Schema } from 'effect'
+import { Predicate, Effect } from 'effect'
+import type { Schema } from 'effect'
 
 import * as groups from '#commands/groups.ts'
 import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth.ts'
@@ -27,7 +28,7 @@ import { listProjects } from '#services/projects.ts'
 import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces.ts'
 
 import { loadBrowserScope, publicWebFailure } from './authentication.ts'
-import { BrowserCommandSchema } from './command-contract.ts'
+import { decodeBrowserCommand } from './command-contract.ts'
 import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'
 import { requireDataWorkspace, visibleProjectPredicate } from './data-context.ts'
@@ -38,7 +39,7 @@ import type { RequestScope, WebRequest } from './scope.ts'
 const admin = (role: string | undefined): boolean => role === 'owner' || role === 'admin'
 const readContext = function readContext(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
-    const input = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(proof).pipe(
+    const input = yield* decodeBrowserCommand(proof).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
     )
     const scope = yield* loadBrowserScope(

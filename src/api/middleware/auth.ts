@@ -42,13 +42,15 @@ const accessCookie = function accessCookie(cookie: string): string | undefined {
 }
 
 /** Only provider-created execution props, never public request headers, become OAuth proof. */
+const decodeVerifiedOauthGrant = Schema.decodeUnknownOption(VerifiedApiOauthGrant)
+
 const requestActor = function requestActor(httpContext: Context<HonoEnv>): CoreActor {
   const authorization = httpContext.req.header('Authorization')
   const bearer = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
   const accessJwt =
     httpContext.req.header('Cf-Access-Jwt-Assertion') ?? accessCookie(httpContext.req.header('cookie') ?? '')
   const props: unknown = httpContext.executionCtx.props
-  const verified = Schema.decodeUnknownOption(VerifiedApiOauthGrant)(props)
+  const verified = decodeVerifiedOauthGrant(props)
   const actor: CoreActor = { requestUrl: httpContext.req.url, method: httpContext.req.method }
   return {
     ...actor,

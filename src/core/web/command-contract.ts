@@ -12,6 +12,7 @@ export const BrowserCommandSchema = Schema.Struct(
   ]),
 )
 export type BrowserCommand = typeof BrowserCommandSchema.Type
+export const decodeBrowserCommand = Schema.decodeEffect(BrowserCommandSchema)
 export const CommandIdSchema = Schema.Struct({ id: Schema.String })
 export const CreatedLinkAttachmentSchema = Schema.Struct({ id: Schema.String, kind: Schema.Literals(['url', 'wiki']) })
 export const CommandOkSchema = Schema.Struct({ ok: Schema.Boolean })

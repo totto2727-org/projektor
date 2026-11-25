@@ -10,6 +10,9 @@ import { publicDomainFailure } from '#core/domain-errors.ts'
 import { bumpRateCounter, checkRateLimit } from '#services/request-rate-limit.ts'
 import type { RequestRateLimitEnv } from '#services/request-rate-limit.ts'
 
+const decodeRateLimitRequest = Schema.decodeUnknownEffect(RateLimitRequest)
+const decodeRateCounterRequest = Schema.decodeUnknownEffect(RateCounterRequest)
+
 const policyEnvironment = function policyEnvironment(
   env: RequestRateLimitEnv,
   policy: typeof RateLimitTestPolicy.Type | undefined,
@@ -39,7 +42,7 @@ export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
         'apiCheckRateLimit',
         RateLimitResult,
         Effect.gen(function* () {
-          const proof = yield* Schema.decodeUnknownEffect(RateLimitRequest)(input).pipe(
+          const proof = yield* decodeRateLimitRequest(input).pipe(
             Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid rate limit request.')),
           )
           const env = policyEnvironment(yield* envSource, proof.testPolicy)
@@ -63,7 +66,7 @@ export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
         'apiBumpRateCounter',
         Schema.Number,
         Effect.gen(function* () {
-          const proof = yield* Schema.decodeUnknownEffect(RateCounterRequest)(input).pipe(
+          const proof = yield* decodeRateCounterRequest(input).pipe(
             Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid rate counter request.')),
           )
           const env = policyEnvironment(yield* envSource, proof.testPolicy)

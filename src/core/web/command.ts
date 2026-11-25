@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Effect } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS } from '#contracts/http-status.ts'
@@ -10,7 +10,7 @@ import type { CoreEnvironment } from '#core/environment.ts'
 import { checkRateLimit } from '#services/request-rate-limit.ts'
 
 import { loadBrowserScope, nativeRequest, publicWebFailure } from './authentication.ts'
-import { BrowserCommandSchema } from './command-contract.ts'
+import { decodeBrowserCommand } from './command-contract.ts'
 import type { BrowserCommand } from './command-contract.ts'
 
 /** Proof and selectors cross the binding. Storage capabilities are constructed only in Core. */
@@ -20,7 +20,7 @@ export const browserCommand = function browserCommand<A>(
   operation: (ctx: ServiceCtx) => Promise<A>,
 ): Effect.Effect<A, unknown> {
   return Effect.gen(function* () {
-    const proof = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(input).pipe(
+    const proof = yield* decodeBrowserCommand(input).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser command.')),
     )
     const request = nativeRequest(proof.request)

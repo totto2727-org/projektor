@@ -198,6 +198,8 @@ const JwksSchema = Schema.Struct({
     }),
   ),
 })
+const decodeJwksResponse = HttpClientResponse.schemaBodyJson(JwksSchema)
+
 let inMemoryCertsCache: { keys: JsonWebKey[]; expiresAt: number } | null = null
 let lastForcedRefreshAt = 0
 const CERTS_LOCAL_TTL_MS = SECONDS_PER_HOUR * MILLISECONDS_PER_SECOND
@@ -210,7 +212,7 @@ const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
     HttpClient.execute(request).pipe(
       Effect.flatMap((response) =>
         response.status >= HTTP_OK && response.status < HTTP_MULTIPLE_CHOICES
-          ? HttpClientResponse.schemaBodyJson(JwksSchema)(response)
+          ? decodeJwksResponse(response)
           : Effect.fail(new Error('Failed to fetch CF Access certs')),
       ),
       Effect.scoped,

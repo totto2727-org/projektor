@@ -21,6 +21,9 @@ import {
 } from './scope.ts'
 import type { WebRequest, ScopeOptions } from './scope.ts'
 
+const decodeWebRequest = Schema.decodeUnknownEffect(WebRequestSchema)
+const decodeScopeOptions = Schema.decodeUnknownEffect(ScopeOptionsSchema)
+
 export const nativeRequest = function nativeRequest(input: WebRequest): Request<unknown, CfProperties<unknown>> {
   return new Request(input.url, { method: input.method, headers: input.headers.map(([name, value]) => [name, value]) })
 }
@@ -41,10 +44,10 @@ export const loadBrowserScope = function loadBrowserScope(
   options: ScopeOptions = {},
 ) {
   return Effect.gen(function* () {
-    const decoded = yield* Schema.decodeUnknownEffect(WebRequestSchema)(input).pipe(
+    const decoded = yield* decodeWebRequest(input).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
     )
-    const selected = yield* Schema.decodeUnknownEffect(ScopeOptionsSchema)(options).pipe(
+    const selected = yield* decodeScopeOptions(options).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid scope options.')),
     )
     const request = yield* Effect.try({
