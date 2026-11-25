@@ -1,9 +1,10 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Fragment, createElement } from 'react'
 import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
+// @vitest-environment jsdom
+import type * as Actions from '@/features/issues/actions.ts'
 import { addComment, editComment, updateIssue } from '@/features/issues/actions.ts'
 import { draftKey, loadDraft } from '@/features/issues/utils/drafts.ts'
 
@@ -13,17 +14,17 @@ import { BodySection, CommentsSection } from './issue-detail-parts.tsx'
 vi.mock(import('@/components/attachment-upload.tsx'), () => ({ AttachmentUpload: () => createElement(Fragment) }))
 vi.mock('../../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
 vi.mock('../actions', () => ({
-  updateIssue: vi.fn(),
-  addComment: vi.fn(),
-  editComment: vi.fn(),
-  deleteComment: vi.fn(),
-  addAttachmentLink: vi.fn(),
-  addIssueLink: vi.fn(),
-  deleteAttachment: vi.fn(),
-  deleteIssueLink: vi.fn(),
-  readIssue: vi.fn(),
-  searchWikiAttachments: vi.fn(),
-  shareIssue: vi.fn(),
+  updateIssue: vi.fn<typeof Actions.updateIssue>(),
+  addComment: vi.fn<typeof Actions.addComment>(),
+  editComment: vi.fn<typeof Actions.editComment>(),
+  deleteComment: vi.fn<typeof Actions.deleteComment>(),
+  addAttachmentLink: vi.fn<typeof Actions.addAttachmentLink>(),
+  addIssueLink: vi.fn<typeof Actions.addIssueLink>(),
+  deleteAttachment: vi.fn<typeof Actions.deleteAttachment>(),
+  deleteIssueLink: vi.fn<typeof Actions.deleteIssueLink>(),
+  readIssue: vi.fn<typeof Actions.readIssue>(),
+  searchWikiAttachments: vi.fn<typeof Actions.searchWikiAttachments>(),
+  shareIssue: vi.fn<typeof Actions.shareIssue>(),
 }))
 vi.mock(import('./lazy-markdown-editor.tsx'), () => ({
   IssueMarkdownEditor: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (

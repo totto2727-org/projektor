@@ -11,23 +11,24 @@ import type { RequestScope } from '@/server/request-context.ts'
 import { inMemoryKV, testEnvironment } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
+import type * as Actions from './actions.ts'
 import { ConnectorSchema, GroupDetailSchema, McpInfoSchema, TokenSchema } from './schemas.ts'
 import { renderConnectAgent, renderConnectors, renderGroups, renderTokens } from './server.tsx'
 
 vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }))
 vi.mock('./actions', () => ({
-  createGroup: vi.fn(),
-  renameGroup: vi.fn(),
-  describeGroup: vi.fn(),
-  deleteGroup: vi.fn(),
-  addGroupMember: vi.fn(),
-  removeGroupMember: vi.fn(),
-  createGroupGrant: vi.fn(),
-  setGroupGrant: vi.fn(),
-  removeGroupGrant: vi.fn(),
-  createToken: vi.fn(),
-  revokeToken: vi.fn(),
-  disconnectConnector: vi.fn(),
+  createGroup: vi.fn<typeof Actions.createGroup>(),
+  renameGroup: vi.fn<typeof Actions.renameGroup>(),
+  describeGroup: vi.fn<typeof Actions.describeGroup>(),
+  deleteGroup: vi.fn<typeof Actions.deleteGroup>(),
+  addGroupMember: vi.fn<typeof Actions.addGroupMember>(),
+  removeGroupMember: vi.fn<typeof Actions.removeGroupMember>(),
+  createGroupGrant: vi.fn<typeof Actions.createGroupGrant>(),
+  setGroupGrant: vi.fn<typeof Actions.setGroupGrant>(),
+  removeGroupGrant: vi.fn<typeof Actions.removeGroupGrant>(),
+  createToken: vi.fn<typeof Actions.createToken>(),
+  revokeToken: vi.fn<typeof Actions.revokeToken>(),
+  disconnectConnector: vi.fn<typeof Actions.disconnectConnector>(),
 }))
 const workspace = { id: 'w1', name: 'Alpha', slug: 'alpha', role: 'owner' as const }
 const project = {

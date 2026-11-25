@@ -5,38 +5,46 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 // @vitest-environment jsdom
 import { JSON_NULL } from '#tests/json-null.ts'
+import type * as AttachmentActions from '@/attachment-actions.ts'
 import { uploadInlineImage } from '@/attachment-actions.ts'
 
+import type * as Actions from './actions.ts'
 import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions.ts'
 import { navigateFeature } from './navigation.ts'
 import { WikiPageClient } from './wiki-page-client.tsx'
 import type { WikiSeed } from './wiki-page-client.tsx'
 
 vi.mock('../../attachment-actions', () => ({
-  uploadAttachment: vi.fn(),
-  uploadInlineImage: vi.fn(),
+  uploadAttachment: vi.fn<typeof AttachmentActions.uploadAttachment>(),
+  uploadInlineImage: vi.fn<typeof AttachmentActions.uploadInlineImage>(),
 }))
 
 vi.mock(import('./navigation.ts'), () => ({ navigateFeature: vi.fn<typeof navigateFeature>() }))
 
 vi.mock('./actions', () => ({
-  createWikiPage: vi.fn(),
-  deleteWikiAttachment: vi.fn(),
-  discardWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } }),
-  duplicateWikiPage: vi.fn(),
-  getWikiDraftState: vi.fn().mockResolvedValue({ ok: true, value: { draft: null, revision: null } }),
-  getWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: null }),
-  getWikiPage: vi.fn(),
-  getWikiRevisionDiff: vi.fn(),
-  moveWikiPage: vi.fn(),
-  restoreTrashedWikiPage: vi.fn(),
-  restoreWikiRevision: vi.fn(),
+  createWikiPage: vi.fn<typeof Actions.createWikiPage>(),
+  deleteWikiAttachment: vi.fn<typeof Actions.deleteWikiAttachment>(),
+  discardWikiDraft: vi
+    .fn<typeof Actions.discardWikiDraft>()
+    .mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } }),
+  duplicateWikiPage: vi.fn<typeof Actions.duplicateWikiPage>(),
+  getWikiDraftState: vi
+    .fn<typeof Actions.getWikiDraftState>()
+    .mockResolvedValue({ ok: true, value: { draft: null, revision: null } }),
+  getWikiDraft: vi.fn<typeof Actions.getWikiDraft>().mockResolvedValue({ ok: true, value: null }),
+  getWikiPage: vi.fn<typeof Actions.getWikiPage>(),
+  getWikiRevisionDiff: vi.fn<typeof Actions.getWikiRevisionDiff>(),
+  moveWikiPage: vi.fn<typeof Actions.moveWikiPage>(),
+  restoreTrashedWikiPage: vi.fn<typeof Actions.restoreTrashedWikiPage>(),
+  restoreWikiRevision: vi.fn<typeof Actions.restoreWikiRevision>(),
   saveWikiDraft: vi
-    .fn()
+    .fn<typeof Actions.saveWikiDraft>()
     .mockResolvedValue({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'saved' } }),
-  saveWikiPage: vi.fn().mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } }),
-  trashWikiPage: vi.fn(),
-  verifyWikiPage: vi.fn(),
+  saveWikiPage: vi
+    .fn<typeof Actions.saveWikiPage>()
+    .mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } }),
+  trashWikiPage: vi.fn<typeof Actions.trashWikiPage>(),
+  verifyWikiPage: vi.fn<typeof Actions.verifyWikiPage>(),
 }))
 vi.mock('@effront/core/query', () => ({
   query: (operation: (input: unknown) => Promise<unknown>) => (input: unknown) =>

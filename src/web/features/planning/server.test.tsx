@@ -12,16 +12,17 @@ import type { RequestScope } from '@/server/request-context.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 
 import { featureDatabase } from './action-test-fixture.ts'
+import type * as Actions from './actions.ts'
 import { defaultRange, rangeFromUrl } from './helpers.ts'
 import { HeatmapSchema, MetricsSchema, SprintsSchema } from './schemas.ts'
 import { loadSprintIssues, renderMetrics, renderSprints } from './server.tsx'
 
 vi.mock('./actions', () => ({
-  createSprint: vi.fn(),
-  editSprint: vi.fn(),
-  setSprintStatus: vi.fn(),
-  archiveSprint: vi.fn(),
-  moveSprintIssues: vi.fn(),
+  createSprint: vi.fn<typeof Actions.createSprint>(),
+  editSprint: vi.fn<typeof Actions.editSprint>(),
+  setSprintStatus: vi.fn<typeof Actions.setSprintStatus>(),
+  archiveSprint: vi.fn<typeof Actions.archiveSprint>(),
+  moveSprintIssues: vi.fn<typeof Actions.moveSprintIssues>(),
 }))
 vi.hoisted(() =>
   vi.stubGlobal(

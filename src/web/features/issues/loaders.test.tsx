@@ -6,9 +6,11 @@ import { ApiResults } from '#contracts/api-results.ts'
 import { SearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import { AttachmentSchema, IssueSchema, normalizeAttachments } from '#contracts/web-schemas/issues.ts'
 import { runInOrder } from '#tests/run-effect.ts'
+import type * as AttachmentActions from '@/attachment-actions.ts'
 import { ApiError, ScopeError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 
+import type * as Actions from './actions.ts'
 import { readDataIssuePage, searchDataIssues } from './data.ts'
 import {
   filteredIssueQuery,
@@ -24,29 +26,29 @@ import { issueDataFixture } from './test/data-fixture.ts'
 import { issue, project, scope, secondProject, taskTypes, workspace } from './test/fixtures.ts'
 
 vi.mock('../../attachment-actions', () => ({
-  uploadAttachment: vi.fn(),
-  uploadInlineImage: vi.fn(),
+  uploadAttachment: vi.fn<typeof AttachmentActions.uploadAttachment>(),
+  uploadInlineImage: vi.fn<typeof AttachmentActions.uploadInlineImage>(),
 }))
 vi.mock('./actions', () => ({
-  createIssue: vi.fn(),
-  updateIssue: vi.fn(),
-  readIssue: vi.fn(),
-  readIssuePage: vi.fn(),
-  searchIssues: vi.fn(),
-  readComments: vi.fn(),
-  addComment: vi.fn(),
-  editComment: vi.fn(),
-  deleteComment: vi.fn(),
-  readLinks: vi.fn(),
-  addIssueLink: vi.fn(),
-  deleteIssueLink: vi.fn(),
-  shareIssue: vi.fn(),
-  readAttachments: vi.fn(),
-  addAttachmentLink: vi.fn(),
-  deleteAttachment: vi.fn(),
-  setAttachmentReviewStatus: vi.fn(),
-  searchWikiAttachments: vi.fn(),
-  updateSprint: vi.fn(),
+  createIssue: vi.fn<typeof Actions.createIssue>(),
+  updateIssue: vi.fn<typeof Actions.updateIssue>(),
+  readIssue: vi.fn<typeof Actions.readIssue>(),
+  readIssuePage: vi.fn<typeof Actions.readIssuePage>(),
+  searchIssues: vi.fn<typeof Actions.searchIssues>(),
+  readComments: vi.fn<typeof Actions.readComments>(),
+  addComment: vi.fn<typeof Actions.addComment>(),
+  editComment: vi.fn<typeof Actions.editComment>(),
+  deleteComment: vi.fn<typeof Actions.deleteComment>(),
+  readLinks: vi.fn<typeof Actions.readLinks>(),
+  addIssueLink: vi.fn<typeof Actions.addIssueLink>(),
+  deleteIssueLink: vi.fn<typeof Actions.deleteIssueLink>(),
+  shareIssue: vi.fn<typeof Actions.shareIssue>(),
+  readAttachments: vi.fn<typeof Actions.readAttachments>(),
+  addAttachmentLink: vi.fn<typeof Actions.addAttachmentLink>(),
+  deleteAttachment: vi.fn<typeof Actions.deleteAttachment>(),
+  setAttachmentReviewStatus: vi.fn<typeof Actions.setAttachmentReviewStatus>(),
+  searchWikiAttachments: vi.fn<typeof Actions.searchWikiAttachments>(),
+  updateSprint: vi.fn<typeof Actions.updateSprint>(),
 }))
 const databases: ReturnType<typeof issueDataFixture>[] = []
 function fixture() {

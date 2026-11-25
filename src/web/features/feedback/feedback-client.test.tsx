@@ -1,10 +1,11 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
 import { navigateFeature } from '@/features/wiki/navigation.ts'
 
+// @vitest-environment jsdom
+import type * as Actions from './actions.ts'
 import {
   createFeedbackSource,
   markFeedbackReviewed,
@@ -21,14 +22,14 @@ import { NewSourceModal } from './new-source-modal.tsx'
 vi.mock(import('@/features/wiki/navigation.ts'), () => ({ navigateFeature: vi.fn<typeof navigateFeature>() }))
 
 vi.mock('./actions', () => ({
-  markFeedbackReviewed: vi.fn(),
-  revokeFeedbackSource: vi.fn(),
-  rotateFeedbackSourceToken: vi.fn(),
-  setFeedbackSourceActive: vi.fn(),
-  createFeedbackSource: vi.fn(),
-  convertFeedbackToIssue: vi.fn(),
-  markSelectedFeedbackReviewed: vi.fn(),
-  convertSelectedFeedbackToIssue: vi.fn(),
+  markFeedbackReviewed: vi.fn<typeof Actions.markFeedbackReviewed>(),
+  revokeFeedbackSource: vi.fn<typeof Actions.revokeFeedbackSource>(),
+  rotateFeedbackSourceToken: vi.fn<typeof Actions.rotateFeedbackSourceToken>(),
+  setFeedbackSourceActive: vi.fn<typeof Actions.setFeedbackSourceActive>(),
+  createFeedbackSource: vi.fn<typeof Actions.createFeedbackSource>(),
+  convertFeedbackToIssue: vi.fn<typeof Actions.convertFeedbackToIssue>(),
+  markSelectedFeedbackReviewed: vi.fn<typeof Actions.markSelectedFeedbackReviewed>(),
+  convertSelectedFeedbackToIssue: vi.fn<typeof Actions.convertSelectedFeedbackToIssue>(),
 }))
 const row: Feedback = {
   id: 'row',
