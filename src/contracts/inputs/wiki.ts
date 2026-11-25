@@ -1,6 +1,8 @@
 import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { objectInOrder, BooleanQueryParam } from './common.ts'
 
 const MAX_SLUG_LENGTH = 200
@@ -293,23 +295,35 @@ export const WikiFrontmatterPatchValuesSchema = objectInOrder([
 
 export type WikiFrontmatterPatchValues = z.infer<typeof WikiFrontmatterPatchValuesSchema>
 
+const AppendSectionFields = fieldsInOrder([
+  ['op', z.literal('append_to_section')],
+  ['heading', z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH)],
+  ['text', z.string().nonempty().max(MAX_PAGE_CONTENT_LENGTH)],
+])
+
+const ReplaceSectionFields = fieldsInOrder([
+  ['op', z.literal('replace_section')],
+  ['heading', z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH)],
+  ['text', z.string().max(MAX_PAGE_CONTENT_LENGTH)],
+])
+
+const InsertAfterHeadingFields = fieldsInOrder([
+  ['op', z.literal('insert_after_heading')],
+  ['heading', z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH)],
+  ['text', z.string().nonempty().max(MAX_PAGE_CONTENT_LENGTH)],
+])
+
 export const PatchWikiPageInputSchema = z.discriminatedUnion('op', [
   z.object({
-    op: z.literal('append_to_section'),
-    heading: z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH),
-    text: z.string().nonempty().max(MAX_PAGE_CONTENT_LENGTH),
+    ...AppendSectionFields,
     ...PatchBaseFields,
   }),
   z.object({
-    op: z.literal('replace_section'),
-    heading: z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH),
-    text: z.string().max(MAX_PAGE_CONTENT_LENGTH),
+    ...ReplaceSectionFields,
     ...PatchBaseFields,
   }),
   z.object({
-    op: z.literal('insert_after_heading'),
-    heading: z.string().nonempty().max(MAX_PATCH_HEADING_LENGTH),
-    text: z.string().nonempty().max(MAX_PAGE_CONTENT_LENGTH),
+    ...InsertAfterHeadingFields,
     ...PatchBaseFields,
   }),
   z.object({

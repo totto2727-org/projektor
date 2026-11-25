@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { ScopeSchema } from '#contracts/auth-scopes.ts'
 
-import { RoleEnum } from './common.ts'
+import { objectInOrder, RoleEnum } from './common.ts'
 
 const MAX_WORKSPACE_NAME_LENGTH = 100
 const MIN_SLUG_LENGTH = 2
@@ -35,11 +35,11 @@ export const UpdateRoleSchema = z.object({
   role: RoleEnum,
 })
 
-export const CreateTokenSchema = z.object({
-  name: z.string().nonempty().max(MAX_TOKEN_NAME_LENGTH),
-  scopes: z.array(ScopeSchema).nonempty().default(['read', 'write']),
-  expiresInDays: z.number().int().min(MIN_TOKEN_LIFETIME_DAYS).max(MAX_TOKEN_LIFETIME_DAYS).optional(),
-})
+export const CreateTokenSchema = objectInOrder([
+  ['name', z.string().nonempty().max(MAX_TOKEN_NAME_LENGTH)],
+  ['scopes', z.array(ScopeSchema).nonempty().default(['read', 'write'])],
+  ['expiresInDays', z.number().int().min(MIN_TOKEN_LIFETIME_DAYS).max(MAX_TOKEN_LIFETIME_DAYS).optional()],
+])
 
 export const DeleteWorkspaceInput = z.object({
   workspaceSlug: z.string(),
@@ -47,17 +47,18 @@ export const DeleteWorkspaceInput = z.object({
 
 const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
-export const UpdateWorkspaceBrandSchema = z
-  .object({
-    displayName: z.string().nonempty().max(MAX_DISPLAY_NAME_LENGTH).nullable().optional(),
-    accent: HexColor.nullable().optional(),
-    onAccent: HexColor.nullable().optional(),
-    fontFamily: z.string().nonempty().max(MAX_FONT_FAMILY_LENGTH).nullable().optional(),
-    fontUrl: z
+export const UpdateWorkspaceBrandSchema = objectInOrder([
+  ['displayName', z.string().nonempty().max(MAX_DISPLAY_NAME_LENGTH).nullable().optional()],
+  ['accent', HexColor.nullable().optional()],
+  ['onAccent', HexColor.nullable().optional()],
+  ['fontFamily', z.string().nonempty().max(MAX_FONT_FAMILY_LENGTH).nullable().optional()],
+  [
+    'fontUrl',
+    z
       .string()
       .url()
       .refine((fontUrl) => fontUrl.startsWith('https://'), 'fontUrl must be an https:// URL')
       .nullable()
       .optional(),
-  })
-  .strict()
+  ],
+]).strict()

@@ -1,6 +1,8 @@
 import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '../issue-limits.ts'
 import { objectInOrder, BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
 import { CustomFieldFilterSchema } from './custom-fields.ts'
@@ -72,54 +74,62 @@ export const IssueListCursorSchema = z
     return { createdAt: Number(createdAt), id }
   })
 
+const IssueSelectionFields = fieldsInOrder([
+  ['status', StatusEnum.optional()],
+  ['statusId', TaxonomyIdSchema.optional()],
+  ['statusIds', z.string().optional()],
+  ['category', z.enum(['todo', 'in_progress', 'done', 'cancelled']).optional()],
+  ['priority', PriorityEnum.optional()],
+  ['priorities', z.string().optional()],
+  ['projectId', z.string().optional()],
+  /*
+   * PROJ-444: "me" is a sentinel the service resolves to ctx.userId — kept visible in
+   * the schema (rather than folded silently into z.string()) so both surfaces document it.
+   */
+  ['assignee', z.union([z.literal('me'), z.string()]).optional()],
+  ['parentId', z.string().optional()],
+  ['noParent', BooleanQueryParam.optional()],
+  ['typeId', TaxonomyIdSchema.optional()],
+  ['excludeTypeIds', z.string().optional()],
+  ['sprintId', z.uuid().optional()],
+])
+
+const IssueResultFields = fieldsInOrder([
+  ['completedAfter', z.coerce.number().optional()],
+  ['completedBefore', z.coerce.number().optional()],
+  ['updatedAfter', z.coerce.number().optional()],
+  ['updatedBefore', z.coerce.number().optional()],
+  /*
+   * PROJ-375: surface agent-initiated done-closures whose evidence wasn't
+   * externally checkable, for periodic human audit.
+   */
+  ['needsAudit', BooleanQueryParam.optional()],
+  /*
+   * PROJ-441: compute child rollups for the returned page in one grouped query
+   * (see computeChildRollupsForParents in services/issues.ts) instead of the
+   * frontend fanning out a getIssue call per row.
+   */
+  ['includeRollups', BooleanQueryParam.optional()],
+  /*
+   * PROJ-442: list items omit `body` by default (it's rarely needed and can be
+   * large); set this to restore it.
+   */
+  ['includeBody', BooleanQueryParam.optional()],
+  /*
+   * PROJ-857: `<created_at>:<id>` — created_at alone (1 s precision) skipped rows
+   * created in the same second across a page boundary. A bare number (the old
+   * format) is still accepted from clients holding a pre-upgrade cursor.
+   */
+  ['cursor', IssueListCursorSchema.optional()],
+  ['limit', z.coerce.number().min(MIN_PAGE_SIZE).max(MAX_LIST_PAGE_SIZE).default(DEFAULT_LIST_PAGE_SIZE)],
+])
+
 export const ListIssuesSchema = z
   .object({
-    status: StatusEnum.optional(),
-    statusId: TaxonomyIdSchema.optional(),
-    statusIds: z.string().optional(),
-    category: z.enum(['todo', 'in_progress', 'done', 'cancelled']).optional(),
-    priority: PriorityEnum.optional(),
-    priorities: z.string().optional(),
-    projectId: z.string().optional(),
-    /*
-     * PROJ-444: "me" is a sentinel the service resolves to ctx.userId — kept visible in
-     * the schema (rather than folded silently into z.string()) so both surfaces document it.
-     */
-    assignee: z.union([z.literal('me'), z.string()]).optional(),
-    parentId: z.string().optional(),
-    noParent: BooleanQueryParam.optional(),
-    typeId: TaxonomyIdSchema.optional(),
-    excludeTypeIds: z.string().optional(),
-    sprintId: z.uuid().optional(),
+    ...IssueSelectionFields,
     ...CustomFieldFilterSchema.shape,
     // Date-range filters (PROJ-212), epoch seconds; inclusive bounds.
-    completedAfter: z.coerce.number().optional(),
-    completedBefore: z.coerce.number().optional(),
-    updatedAfter: z.coerce.number().optional(),
-    updatedBefore: z.coerce.number().optional(),
-    /*
-     * PROJ-375: surface agent-initiated done-closures whose evidence wasn't
-     * externally checkable, for periodic human audit.
-     */
-    needsAudit: BooleanQueryParam.optional(),
-    /*
-     * PROJ-441: compute child rollups for the returned page in one grouped query
-     * (see computeChildRollupsForParents in services/issues.ts) instead of the
-     * frontend fanning out a getIssue call per row.
-     */
-    includeRollups: BooleanQueryParam.optional(),
-    /*
-     * PROJ-442: list items omit `body` by default (it's rarely needed and can be
-     * large); set this to restore it.
-     */
-    includeBody: BooleanQueryParam.optional(),
-    /*
-     * PROJ-857: `<created_at>:<id>` — created_at alone (1 s precision) skipped rows
-     * created in the same second across a page boundary. A bare number (the old
-     * format) is still accepted from clients holding a pre-upgrade cursor.
-     */
-    cursor: IssueListCursorSchema.optional(),
-    limit: z.coerce.number().min(MIN_PAGE_SIZE).max(MAX_LIST_PAGE_SIZE).default(DEFAULT_LIST_PAGE_SIZE),
+    ...IssueResultFields,
   })
   .strict()
 
