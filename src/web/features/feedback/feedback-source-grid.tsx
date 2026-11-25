@@ -44,6 +44,7 @@ const CARD_CLASS =
   'flex flex-col gap-2 p-4 bg-surface border border-border rounded-lg no-underline shadow-xs ' +
   'transition-all duration-150 hover:border-accent hover:-translate-y-px'
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SourceCard({
   source,
   summary,
@@ -76,6 +77,7 @@ function SourceCard({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function NewSourceCard({ onClick }: { onClick: () => void }): JSX.Element {
   return (
     <button

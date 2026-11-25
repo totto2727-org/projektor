@@ -36,6 +36,7 @@ export const TableRow = function TableRow({
     <PrimitiveTableRow {...props} className={['border-border', legacyClass, className].filter(Boolean).join(' ')} />
   )
 }
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function TableHeaderCell({
   class: legacyClass,
   className,

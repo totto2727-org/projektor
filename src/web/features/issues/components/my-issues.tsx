@@ -80,6 +80,7 @@ function statusBadge(issue: Issue): JSX.Element {
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function IssuesTable({ issues }: { issues: ScopedIssue[] }): JSX.Element {
   return (
     <section>

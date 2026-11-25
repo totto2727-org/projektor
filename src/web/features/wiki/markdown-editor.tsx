@@ -158,6 +158,7 @@ interface EditorToolbarProps {
   onNumberedList: () => void
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function EditorToolbar({
   onBold,
   onItalic,
@@ -207,6 +208,7 @@ function EditorToolbar({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PreviewPane({ preview, mobilePreview }: { preview: string; mobilePreview: boolean }): JSX.Element {
   return (
     <div
@@ -461,6 +463,7 @@ function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) 
   return { bold, italic, heading, link, codeBlock, bulletList, numberedList }
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function MarkdownEditor({
   value,
   onChange,

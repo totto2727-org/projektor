@@ -13,6 +13,7 @@ const Selection = createContext<{
   selected: ReadonlySet<string>
   toggle: (id: string, checked: boolean) => void
 } | null>(null)
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function IssueSelectionControl({
   issue,
 }: {
@@ -34,6 +35,7 @@ export function IssueSelectionControl({
     />
   )
 }
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function IssueBulkProvider({
   children,
   issues,

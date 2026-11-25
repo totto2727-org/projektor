@@ -32,6 +32,7 @@ interface RevokeState {
   cancel: () => void
   confirm: (id: string) => void
 }
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function RevokeControl({ id, state }: { id: string; state: RevokeState }): JSX.Element {
   if (state.id === id) {
     return (
@@ -63,6 +64,7 @@ function RevokeControl({ id, state }: { id: string; state: RevokeState }): JSX.E
     </Button>
   )
 }
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ConnectorManager({
   workspaceSlug,
   initialGrants: grants,

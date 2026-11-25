@@ -298,6 +298,7 @@ interface EpicsTableProps {
   toggleSort: (key: SortKey) => void
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: EpicsTableProps): JSX.Element {
   if (Array.isArrayEmpty(epics)) {
     return <EmptyState title='No epics found. Use the button above to create one.' />
@@ -343,6 +344,7 @@ function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: Epics
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function EpicMobileCard({ ep, rollup }: EpicRowProps): JSX.Element {
   const statusColor = CATEGORY_COLORS[ep.status_category ?? ''] ?? 'var(--text-muted)'
   return (
@@ -371,6 +373,7 @@ interface EpicRowProps {
   rollup: EpicRollup | undefined
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function EpicRow({ ep, rollup }: EpicRowProps): JSX.Element {
   const statusColor = CATEGORY_COLORS[ep.status_category ?? ''] ?? 'var(--text-muted)'
   return (
@@ -424,6 +427,7 @@ interface CreateEpicModalProps {
   submitCreate: (formData: FormData) => void
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function CreateEpicModal({
   showCreate,
   setShowCreate,

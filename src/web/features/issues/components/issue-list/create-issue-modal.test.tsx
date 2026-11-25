@@ -58,6 +58,7 @@ const TWO_PROJECTS = [
 const TASK_TYPES = [{ id: 't1', key: 'BUG', name: 'Bug' }]
 const STATUSES: TaskStatus[] = [{ id: 's1', key: 'todo', name: 'To do', category: 'todo', color: JSON_NULL }]
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function FieldsHarness(): JSX.Element {
   const modal = useCreateIssueModal({
     filterProject: '',

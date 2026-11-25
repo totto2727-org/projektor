@@ -156,6 +156,7 @@ const cfdConfig = {
   inReview: { label: 'In review', color: sequential.inReview },
   done: { label: 'Done', color: sequential.done },
 } satisfies ChartConfig
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][number][]> }): JSX.Element {
   if (!data.length || data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === 0)) {
     return <EmptyChartState message='No issues in this window yet' />
@@ -197,6 +198,7 @@ export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][n
   )
 }
 const bugConfig = { bugSharePercent: { label: 'Bug share', color: accent } } satisfies ChartConfig
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function BugShareChart({
   data,
   bugTypeTracked,
@@ -231,6 +233,7 @@ export function BugShareChart({
   )
 }
 const reviewConfig = { p50: { label: 'Review latency (p50)', color: accent } } satisfies ChartConfig
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyOverTime'] }): JSX.Element {
   if (!data.length || data.every((point) => Predicate.isNullish(point.p50))) {
     return <EmptyChartState message='No review-latency data yet' />
@@ -257,6 +260,7 @@ export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyO
 }
 const wipConfig = { count: { label: 'WIP', color: accent } } satisfies ChartConfig
 const timestampDate = (value: number): string => new Date(value).toISOString().slice(0, 10)
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.Element {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])
   if (!data.length || data.every((point) => point.count === 0)) {
@@ -305,6 +309,7 @@ const arrivalConfig = {
   completed: { label: 'Completed', color: accent },
   net: { label: 'Net (created − completed)', color: muted },
 } satisfies ChartConfig
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalVsCompletionOverTime'] }): JSX.Element {
   if (!data.length || data.every((point) => point.created === 0 && point.completed === 0)) {
     return <EmptyChartState message='No arrivals or completions yet' />
@@ -358,6 +363,7 @@ const agingConfig = {
   p50: { label: 'p50 cycle time', color: muted },
   p90: { label: 'p90 cycle time', color: muted },
 } satisfies ChartConfig
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function AgingWipScatter({
   data,
   p50,

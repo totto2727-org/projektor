@@ -614,6 +614,7 @@ const GroupDetailEditor = function GroupDetailEditor({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function GrantRoleForm({
   grant,
   workspaceSlug,

@@ -31,6 +31,7 @@ function seedViews(names: string[]): void {
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function Harness({ onApply }: { onApply: (filters: SavedViewFilters) => void }): JSX.Element {
   const saved = useSavedViews('PROJ', EMPTY_FILTERS, onApply, 'workspace', 'user-a')
   return <SavedViewsControl saved={saved} />

@@ -355,6 +355,7 @@ function workspaceHref(path: string, scope: RequestScope | null): string {
   return `${path}?${new URLSearchParams({ workspace: selection.workspace.slug })}`
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function ShellContent({
   children,
   scope,
@@ -475,6 +476,7 @@ function ShellContent({
 }
 
 /** Request-local scope stays in props. Generated Base UI owns drawer, menu positioning and sidebar controls. */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function Shell(props: ShellProps): JSX.Element {
   const [prefs, setPrefs] = useState(DEFAULT_PREFS)
   useEffect(() => {

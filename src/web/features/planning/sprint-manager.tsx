@@ -228,6 +228,7 @@ export const SprintManager = function SprintManager({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintForm({
   id,
   initialValues,
@@ -394,6 +395,7 @@ interface RowProps {
   onConfirmComplete: () => void
   onCancelComplete: () => void
 }
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintRow({
   sprint,
   sprints,
@@ -597,6 +599,7 @@ function SprintRow({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function MoveIssuesForm({
   sprint,
   sprints,
@@ -732,6 +735,7 @@ function MoveIssuesForm({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function CompletionSummaryPanel({
   summary,
   workspaceSlug,
@@ -793,6 +797,7 @@ function CompletionSummaryPanel({
     </div>
   )
 }
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function VelocityChart({ sprints, issues }: { sprints: Sprint[]; issues: SprintIssue[] }): JSX.Element {
   const data = sprints.map((sprint) => {
     const rows = issues.filter((issue) => issue.sprint_id === sprint.id)

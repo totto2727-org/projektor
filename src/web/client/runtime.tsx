@@ -17,6 +17,7 @@ export type RuntimeContext = Readonly<{
 const Runtime = createContext<RuntimeContext | null>(null)
 
 /** Display-only request context. Effront owns navigation, refresh and history. */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function RuntimeProvider({ children, scope, url }: RuntimeContext & { children: ReactNode }): JSX.Element {
   return (
     <Runtime.Provider value={{ scope, url }}>

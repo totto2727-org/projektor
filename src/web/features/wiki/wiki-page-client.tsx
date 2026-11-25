@@ -297,6 +297,7 @@ const WIKI_STATUS_PILL_STYLE: Record<string, { bg: string; color: string }> = {
   deprecated: { bg: 'var(--danger-bg)', color: 'var(--danger-text)' },
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiStatusPill({ status }: { status: string }): JSX.Element {
   const style = WIKI_STATUS_PILL_STYLE[status] ?? {
     bg: 'var(--priority-low-bg)',
@@ -326,6 +327,7 @@ const WIKI_FRESHNESS_BADGE_STYLE: Record<string, { bg: string; color: string; la
   },
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiFreshnessBadge({ state }: { state: WikiFreshness['state'] }): undefined | JSX.Element {
   const style = WIKI_FRESHNESS_BADGE_STYLE[state]
   if (!style) {
@@ -345,6 +347,7 @@ const WIKI_TAG_CHIP_CLASS =
   'inline-flex items-center px-2 py-[0.1rem] mr-1 mb-1 rounded-full text-[0.72rem] ' +
   'bg-bg border border-border text-text-base'
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function TagChips({ tags }: { tags: string[] | undefined | null }): undefined | JSX.Element {
   if (!globalThis.Array.isArray(tags) || Array.isArrayEmpty(tags)) {
     return undefined
@@ -369,6 +372,7 @@ function TagChips({ tags }: { tags: string[] | undefined | null }): undefined | 
  * into verification tracking (a verify_interval or a status set) — a page with neither
  * has freshness: null and nothing meaningful to verify against.
  */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiMetadataBadges({ page }: { page: WikiPageData }): JSX.Element {
   return (
     <>
@@ -396,6 +400,7 @@ function WikiMetadataBadges({ page }: { page: WikiPageData }): JSX.Element {
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiVerifyControls({
   hasVerificationSignal,
   onVerify,
@@ -425,6 +430,7 @@ function WikiVerifyControls({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiMetadataCard({
   page,
   onVerify,
@@ -573,6 +579,7 @@ const TREE_ITEM_BASE_CLASS = [
   'focus-visible:outline-accent focus-visible:outline-offset-2',
 ].join(' ')
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function TreeNodeItem({
   node,
   currentSlug,
@@ -643,6 +650,7 @@ const SEARCH_RESULT_BUTTON_CLASS = [
   'focus-visible:outline-accent focus-visible:outline-offset-2',
 ].join(' ')
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SearchResultMetaLine({ r }: { r: SearchResult }): undefined | JSX.Element {
   const isStale = r.freshness && r.freshness.state !== 'fresh'
   const show = r.type || r.status || (r.tags?.length ?? 0) > 0 || isStale
@@ -658,6 +666,7 @@ function SearchResultMetaLine({ r }: { r: SearchResult }): undefined | JSX.Eleme
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SearchResultButton({ r, onSelect }: { r: SearchResult; onSelect: (slug: string) => void }): JSX.Element {
   return (
     <button
@@ -676,6 +685,7 @@ function SearchResultButton({ r, onSelect }: { r: SearchResult; onSelect: (slug:
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SearchResultsList({
   loading,
   results,
@@ -707,6 +717,7 @@ function SearchResultsList({
  * FilteredPagesList's styling below (no existing "maintenance queue" UI precedent to
  * follow elsewhere in this codebase).
  */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function StalePagesList({
   loading,
   results,
@@ -752,6 +763,7 @@ function StalePagesList({
  * scope for this ticket, so an active filter temporarily replaces the tree view instead
  * of pruning it.
  */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function FilteredPagesList({
   loading,
   results,
@@ -792,6 +804,7 @@ function FilteredPagesList({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PageTreeList({
   loading,
   tree,
@@ -828,6 +841,7 @@ function useWikiTemplates(_workspaceSlug: string | undefined): TemplateOption[] 
   return useWikiSeed().templates
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function ScopeControl({
   workspaceSlug,
   projectId,
@@ -861,6 +875,7 @@ function ScopeControl({
  * PROJ-488: type/status dropdowns + a comma-separated tags text filter, shared between
  * the sidebar's filtered browse view and (via useWikiSearch) text search.
  */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiFilterBar({
   filterType,
   onFilterTypeChange,
@@ -910,6 +925,7 @@ function WikiFilterBar({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiSidebar({
   workspaceSlug,
   projectId,
@@ -1059,6 +1075,7 @@ function WikiSidebar({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function CreatePageForm({
   parentTitle,
   title,
@@ -1179,6 +1196,7 @@ const BREADCRUMB_BUTTON_CLASS = [
   'underline decoration-transparent hover:text-accent hover:decoration-accent',
 ].join(' ')
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PageBreadcrumbs({
   breadcrumbs,
   onNavigate,
@@ -1230,6 +1248,7 @@ function PageBreadcrumbs({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function MovePageForm({
   options,
   value,
@@ -1274,6 +1293,7 @@ const TOC_LINK_BASE_CLASS = 'block py-[0.2rem] no-underline border-l-2 transitio
 const TOC_LINK_ACTIVE_CLASS = 'text-accent border-accent font-medium'
 const TOC_LINK_INACTIVE_CLASS = 'text-text-muted border-border hover:text-accent hover:border-accent'
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function TocList({
   toc,
   activeHeadingId,
@@ -1328,6 +1348,7 @@ function useDuplicateWikiPage() {
   return { duplicate, duplicating }
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PageActionOverflowMenu({
   pageId,
   onStartCreateChild,
@@ -1499,6 +1520,7 @@ function PageActionOverflowMenu({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PageHeader({
   editing,
   pageId,
@@ -1599,6 +1621,7 @@ function PageHeader({
  * PROJ-495 (R13): the draft lives server-side now, so this can surface on any device —
  * not just after a crash on the same browser.
  */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function DraftRestoreBanner({
   updatedAt,
   pageChangedSince,
@@ -1652,6 +1675,7 @@ const REFERENCED_BADGE_CLASS =
   'inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold ' +
   'uppercase tracking-wide shrink-0'
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function AttachmentEntry({
   attachment,
   workspaceSlug,
@@ -1702,6 +1726,7 @@ function AttachmentEntry({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function AttachmentUploadForm({
   uploadError,
   onCancel,
@@ -1777,6 +1802,7 @@ function AttachmentUploadForm({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function AttachmentsPanel({
   attachments,
   workspaceSlug,
@@ -1899,6 +1925,7 @@ interface PageArticleProps {
   onUploadInlineImage: (file: File) => Promise<string | null>
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PageArticleMeta(
   props: Pick<
     PageArticleProps,
@@ -2033,6 +2060,7 @@ function PageArticleMeta(
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PageArticle(props: PageArticleProps): JSX.Element {
   const { page, setContentRef, renderedHtml } = props
   // PROJ-860: memoise the rendered-content vnode itself, keyed on the already-memoised
@@ -2126,6 +2154,7 @@ interface CreateFormProps {
   onCancel: () => void
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiMainContent(
   props: Readonly<{
     creating: boolean
@@ -3870,6 +3899,7 @@ function useWikiSidebarDrawer() {
   return { open, setOpen, close, triggerRef, sidebarRef }
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiPageShell(
   props: Readonly<{
     workspaceSlug: string | undefined
@@ -4346,6 +4376,7 @@ const UNDO_TOAST_TIMEOUT_MS = 8000
  * focus state always starts fresh — no reset effect that could race a hover or focus
  * arriving before it runs.
  */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function UndoToastView({
   toast,
   onDismiss,
@@ -4359,6 +4390,7 @@ function UndoToastView({
   return <UndoToastBar key={toast.id} toast={toast} onDismiss={onDismiss} />
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () => void }): JSX.Element {
   const [undoing, setUndoing] = useState(false)
   const [undoError, setUndoError] = useState<string>()
@@ -4457,6 +4489,7 @@ export function WikiPageClient({ initial }: Readonly<{ initial: WikiSeed }>): JS
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugProp }: Props): JSX.Element {
   const seed = useWikiSeed()
   const state = useWikiPageState(workspaceSlug, projectIdProp, slugProp)

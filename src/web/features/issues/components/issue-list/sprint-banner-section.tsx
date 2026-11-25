@@ -95,6 +95,7 @@ const SPRINT_EDIT_INPUT_CLASS = [
   'font-normal normal-case tracking-normal mt-[0.2rem]',
 ].join(' ')
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintEditFields({
   sprintEditName,
   setSprintEditName,
@@ -178,6 +179,7 @@ function SprintEditFields({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintEditForm({
   sprintEditName,
   setSprintEditName,
@@ -243,6 +245,7 @@ function SprintEditForm({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintBannerView({
   sprintDetail,
   openSprintEdit,
@@ -292,6 +295,7 @@ function SprintBannerView({
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintBanner(props: SprintBannerProps): JSX.Element {
   return (
     <div className='mb-4 px-[0.875rem] py-[0.625rem] bg-surface border border-border rounded-md'>
