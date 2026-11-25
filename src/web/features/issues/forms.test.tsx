@@ -4,6 +4,8 @@ import { act, renderHook } from '@testing-library/react'
 import { Schema } from 'effect'
 import { describe, expect, expectTypeOf, test } from 'vite-plus/test'
 
+import { runInOrder } from '#tests/run-effect.ts'
+
 import { PointsText, TitleText, useIssueForm } from './forms.ts'
 
 describe('covers TanStack issue forms with Effect Standard Schema validators', () => {
@@ -36,15 +38,16 @@ describe('covers TanStack issue forms with Effect Standard Schema validators', (
   })
 
   test('keeps original signed, decimal, exponent and empty story point editing', async () => {
+    expect.hasAssertions()
     const hook = renderHook(() => useIssueForm({ points: '' }, Schema.Struct({ points: PointsText })))
-    for (const points of ['', '-1', '.5', '1e2']) {
+    await runInOrder(['', '-1', '.5', '1e2'], async (points): Promise<void> => {
       act(() => hook.result.current.field('points')[1](points))
       let valid = false
       await act(async () => {
         valid = await hook.result.current.validate()
       })
       expect(valid).toBe(true)
-    }
+    })
     act(() => hook.result.current.field('points')[1]('not-a-number'))
     let valid = true
     await act(async () => {

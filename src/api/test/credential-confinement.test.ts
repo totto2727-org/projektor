@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { runInOrder } from '#tests/run-effect.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedMember, seedProject, seedUserToken, seedWorkspace } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
 describe('credential confinement for user-level operations', () => {
   test('workspace credentials see only their workspace in REST catalogs and auth bootstrap', async () => {
+    expect.hasAssertions()
     const fixture = await seedFixture({ role: 'owner' })
     const other = await seedWorkspace()
     await seedMember(other.id, fixture.user.id, 'owner')
@@ -13,13 +16,13 @@ describe('credential confinement for user-level operations', () => {
     const otherProject = await seedProject(other.id, 'OTHER')
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
 
-    for (const path of ['/api/workspaces', '/auth/me']) {
+    await runInOrder(['/api/workspaces', '/auth/me'], async (path): Promise<void> => {
       const response = await fetchNativeApi(`http://localhost${path}`, { headers })
       expect(response.status).toBe(200)
       const body = await response.json<{ id: string }[] | { workspaces: { id: string }[] }>()
       const workspaces = Array.isArray(body) ? body : body.workspaces
       expect(workspaces.map((workspace) => workspace.id)).toStrictEqual([fixture.workspace.id])
-    }
+    })
 
     const response = await fetchNativeApi('http://localhost/api/projects', { headers })
     expect(response.status).toBe(200)
@@ -59,9 +62,10 @@ describe('credential confinement for user-level operations', () => {
   })
 
   test('bearer credentials cannot list or revoke personal connectors', async () => {
+    expect.hasAssertions()
     const fixture = await seedFixture({ role: 'owner' })
     const pat = await seedUserToken(fixture.user.id)
-    for (const token of [fixture.token, pat]) {
+    await runInOrder([fixture.token, pat], async (token): Promise<void> => {
       for (const method of ['GET', 'DELETE']) {
         const suffix = method === 'DELETE' ? '/unknown-grant' : ''
         const response = await fetchNativeApi(
@@ -73,6 +77,6 @@ describe('credential confinement for user-level operations', () => {
         )
         expect(response.status).toBe(403)
       }
-    }
+    })
   })
 })

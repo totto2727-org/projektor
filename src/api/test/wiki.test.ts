@@ -7,7 +7,7 @@ import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
-import { runIndexedInOrder } from '#tests/run-effect.ts'
+import { runIndexedInOrder, runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -1165,6 +1165,7 @@ describe('wiki API', () => {
   })
 
   test('handles DELETE /api/wiki/:slug?cascade=true removes the page and its whole subtree', async () => {
+    expect.hasAssertions()
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1197,12 +1198,12 @@ describe('wiki API', () => {
     await expect(delRes.json()).resolves.toStrictEqual({ deletedCount: 3, linkedByCount: 0, ok: true })
 
     await resetRateLimits()
-    for (const pageSlug of [parent.slug, child.slug, grandchild.slug]) {
+    await runInOrder([parent.slug, child.slug, grandchild.slug], async (pageSlug): Promise<void> => {
       const res = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
         headers: ownerHeaders,
       })
       expect(res.status).toBe(404)
-    }
+    })
   })
 
   const uploadFileToPage = async function uploadFileToPage(
@@ -4020,8 +4021,9 @@ describe('wiki patch operations (PROJ-490)', () => {
   })
 
   test('covers REST: repeated insert_after_heading does not accumulate blank lines', async () => {
+    expect.hasAssertions()
     await createPage('patch-blanklines', 'Patch Blank Lines', TWO_SECTIONS)
-    for (const text of ['First.', 'Second.']) {
+    await runInOrder(['First.', 'Second.'], async (text): Promise<void> => {
       const revRes = await req('http://localhost/api/wiki/patch-blanklines/revisions', {
         headers: authHeaders(token, slug),
       })
@@ -4040,7 +4042,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         ),
       )
       expect(res.status).toBe(200)
-    }
+    })
     const page = await getPage('patch-blanklines')
     expect(page.content).not.toContain('\n\n\n')
     expect(page.content).toContain('## Alpha\nSecond.\n\nFirst.\n\nAlpha body.')
@@ -6437,6 +6439,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('cascade trash moves the whole subtree as one unit: same deleted_at, all 404 via the API', async () => {
+    expect.hasAssertions()
     const parent = await createPage('Trash Cascade Parent', 'content')
     const child = await createPage('Trash Cascade Child', 'content', { parentId: parent.id })
     const grandchild = await createPage('Trash Cascade Grandchild', 'content', {
@@ -6453,12 +6456,12 @@ describe('wiki trash (PROJ-496)', () => {
     expect(deletedAts.size).toBe(1)
     expect(rows.results.every((result) => Predicate.isNotNullish(result.deleted_at))).toBe(true)
 
-    for (const page of [parent, child, grandchild]) {
+    await runInOrder([parent, child, grandchild], async (page): Promise<void> => {
       const res = await req(`http://localhost/api/wiki/${page.slug}`, {
         headers: authHeaders(token, slug),
       })
       expect(res.status).toBe(404)
-    }
+    })
   })
 
   test('handles GET /api/wiki/trash lists trashed pages with a purgeAfter timestamp, and excludes live pages', async () => {
@@ -6756,6 +6759,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('undeleting a cascade-trashed root also restores descendants sharing the same batch', async () => {
+    expect.hasAssertions()
     const parent = await createPage('Cascade Undelete Parent', 'content')
     const child = await createPage('Cascade Undelete Child', 'content', { parentId: parent.id })
     const grandchild = await createPage('Cascade Undelete Grandchild', 'content', {
@@ -6771,7 +6775,7 @@ describe('wiki trash (PROJ-496)', () => {
     expect(undeleteRes.status).toBe(200)
     await expect(undeleteRes.json()).resolves.toMatchObject({ ok: true, restoredCount: 3 })
 
-    for (const page of [parent, child, grandchild]) {
+    await runInOrder([parent, child, grandchild], async (page): Promise<void> => {
       const row = await env.DB.prepare('SELECT deleted_at FROM wiki_pages WHERE id = ?')
         .bind(page.id)
         .first<{ deleted_at: number | null }>()
@@ -6781,7 +6785,7 @@ describe('wiki trash (PROJ-496)', () => {
         headers: authHeaders(token, slug),
       })
       expect(res.status).toBe(200)
-    }
+    })
   })
 
   test("undeleting a cascade-trashed root 409s (not a raw 500) when a descendant's slug was reclaimed", async () => {

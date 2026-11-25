@@ -9,6 +9,7 @@ import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
@@ -51,6 +52,7 @@ describe('agent session ownership at shared command boundaries', () => {
   })
 
   test('denies foreign admin act-as but permits explicit administrative cleanup', async () => {
+    expect.hasAssertions()
     const testFixture = fixture()
     const session = await registerAgent(testFixture.ctx, { name: 'holder', issueId: testFixture.issueId })
     await claimIssue(testFixture.ctx, { issueId: testFixture.issueId, agentId: session.id })
@@ -74,9 +76,9 @@ describe('agent session ownership at shared command boundaries', () => {
       () => updateIssue(admin, testFixture.issueId, { title: 'Spoofed', agentSessionId: session.id }),
       () => finishWork(admin, { sessionId: session.id, issue: testFixture.issueId, status: 'done' }),
     ]
-    for (const action of actions) {
+    await runInOrder(actions, async (action): Promise<void> => {
       await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
-    }
+    })
     await releaseIssue(admin, { issueId: testFixture.issueId })
     await expect(releaseFiles(admin, { paths: ['src/admin.ts'] })).resolves.toMatchObject({ count: 1 })
     await expect(endAgent(admin, { id: session.id })).resolves.toMatchObject({ status: 'ended' })
@@ -100,6 +102,7 @@ describe('agent session ownership at shared command boundaries', () => {
   })
 
   test('rejects explicit cross-credential impersonation and release omissions before any mutation', async () => {
+    expect.hasAssertions()
     const testFixture = fixture()
     const session = await registerAgent(testFixture.ctx, { name: 'holder', issueId: testFixture.issueId })
     await claimIssue(testFixture.ctx, { issueId: testFixture.issueId, agentId: session.id })
@@ -125,9 +128,9 @@ describe('agent session ownership at shared command boundaries', () => {
           completionReport: { summary: 'Spoofed', verification: 'Not performed' },
         }),
     ]
-    for (const action of actions) {
+    await runInOrder(actions, async (action): Promise<void> => {
       await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
-    }
+    })
     expect(testFixture.sqlite.prepare('SELECT * FROM agent_sessions WHERE id = ?').get(session.id)).toStrictEqual(
       before,
     )

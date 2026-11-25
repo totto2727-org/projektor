@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { featureDatabase } from '@/features/planning/action-test-fixture.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import type { ApiError, ScopeError } from '@/server/errors.ts'
@@ -42,9 +42,10 @@ const runWithDatabase = function runWithDatabase<T>(
 
 describe('project pages read named shared queries against migrated D1', () => {
   test('uses the request catalog for active projects and directly loads the archived catalog', async () => {
+    expect.hasAssertions()
     const database = featureDatabase()
     database.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='other'")
-    for (const archived of [false, true]) {
+    await runInOrder([false, true], async (archived): Promise<void> => {
       const url = new URL(`https://front.example/projects${archived ? '?includeArchived=true' : ''}`)
       const run = runWithDatabase(database, url, (scope) => renderProjects(scope, url))
       const node = await run.result
@@ -54,7 +55,7 @@ describe('project pages read named shared queries against migrated D1', () => {
       expect(node.props.initialProjects.map((project) => project.id)).toStrictEqual(archived ? ['other', 'p1'] : ['p1'])
       expect(node.props.showArchived).toBe(archived)
       expect(run.transport).toHaveBeenCalledTimes(0)
-    }
+    })
   })
 
   test('restricts the archived catalog to actual membership and group grants', async () => {

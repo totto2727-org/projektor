@@ -8,6 +8,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { createWikiPage, updateWikiPage } from '#commands/wiki.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { seedFixture } from './helpers.ts'
@@ -57,9 +58,9 @@ describe("covers PROJ-816: wiki_fts is keyed by the page's search_rowid", () => 
       id: string
       slug: string
     }
-    for (const content of ['three', 'four', 'five']) {
+    await runInOrder(['three', 'four', 'five'], async (content): Promise<void> => {
       await updateWikiPage(ctx, a.slug, { content })
-    }
+    })
     const rows = await env.DB.prepare(
       `SELECT f.page_id, f.content, f.rowid = p.search_rowid AS keyed
 			 FROM wiki_fts f JOIN wiki_pages p ON p.id = f.page_id WHERE p.id IN (?, ?) ORDER BY f.page_id`,

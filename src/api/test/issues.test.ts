@@ -6,7 +6,7 @@ import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
-import { runIndexedInOrder } from '#tests/run-effect.ts'
+import { runIndexedInOrder, runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -208,13 +208,13 @@ describe('issues API', () => {
 
   test('auto-increments issue number per project', async () => {
     const { listIssues, projectId, slug, token } = await seedScenarioFixture()
-    for (const title of ['Issue A', 'Issue B', 'Issue C']) {
+    await runInOrder(['Issue A', 'Issue B', 'Issue C'], async (title): Promise<void> => {
       await fetchNativeApi('http://localhost/api/issues', {
         body: JSON.stringify({ projectId, title }),
         headers: authHeaders(token, slug),
         method: 'POST',
       })
-    }
+    })
     const { page } = await listIssues()
     const numbers = (page.items as { number: number }[]).map((i) => i.number).toSorted((left, right) => left - right)
     expect(numbers).toStrictEqual([1, 2, 3])

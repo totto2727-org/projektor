@@ -1,6 +1,8 @@
 import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { runInOrder } from '#tests/run-effect.ts'
+
 import { actionFixture, formData, planningIds } from './action-test-fixture.ts'
 import { calendarTimestamp } from './input-schemas.ts'
 
@@ -114,11 +116,12 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
   })
 
   test('rejects foreign selectors, workspace rows, project rows, missing rows and cross-origin callers without mutation', async () => {
+    expect.hasAssertions()
     const selector = fixture()
     await expect(
       selector.invoke(actions.createSprint, null, formData({ ...draft, workspaceSlug: 'beta' })),
     ).resolves.toMatchObject({ ok: false, status: 403 })
-    for (const sprintId of ['foreign-sprint', 'missing', 's1']) {
+    await runInOrder(['foreign-sprint', 'missing', 's1'], async (sprintId): Promise<void> => {
       const test = fixture()
       await expect(test.invoke(actions.archiveSprint, { ...scope, sprintId })).resolves.toMatchObject({
         ok: false,
@@ -126,7 +129,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
       })
       expect(test.sqlite.prepare('SELECT id FROM sprints WHERE id=?').get(planningIds.source)).toBeDefined()
       expect(test.transport).not.toHaveBeenCalled()
-    }
+    })
     const origin = fixture('https://foreign.example')
     await expect(origin.invoke(actions.createSprint, null, formData(draft))).resolves.toMatchObject({
       ok: false,

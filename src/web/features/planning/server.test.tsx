@@ -4,7 +4,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { coreResult, browserRequest } from '@/core.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import type { ApiError, ScopeError } from '@/server/errors.ts'
@@ -125,23 +125,23 @@ describe('planning SSR named shared queries on real migrated D1', () => {
   })
 
   test('rejects invalid sprint modes and metrics ranges rather than sending HTTP reads', async () => {
+    expect.hasAssertions()
     const database = featureDatabase()
     await expect(
       runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
         renderSprints(scope, new URL('https://front.example/sprints?status=archived')),
       ).result,
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
-    for (const query of [
-      'since=2026-10-04&until=2026-10-01',
-      'since=2026-02-30',
-      'since=2020-01-01&until=2026-01-01',
-    ]) {
-      await expect(
-        runWithDatabase(database, new URL('https://front.example/metrics'), (scope) =>
-          renderMetrics(scope, new URL(`https://front.example/metrics?${query}`)),
-        ).result,
-      ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
-    }
+    await runInOrder(
+      ['since=2026-10-04&until=2026-10-01', 'since=2026-02-30', 'since=2020-01-01&until=2026-01-01'],
+      async (query): Promise<void> => {
+        await expect(
+          runWithDatabase(database, new URL('https://front.example/metrics'), (scope) =>
+            renderMetrics(scope, new URL(`https://front.example/metrics?${query}`)),
+          ).result,
+        ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
+      },
+    )
   })
 
   test('private Core rejects excessive metrics ranges with HTTP 400 before chart allocation', async () => {

@@ -2,7 +2,7 @@ import { String, Iterable, Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { issueDataFixture } from '@/features/issues/test/data-fixture.ts'
 import { scope, workspace } from '@/features/issues/test/fixtures.ts'
 
@@ -137,10 +137,11 @@ describe('cross-project review filters at the Core data boundary', () => {
   })
 
   test('rejects invalid review filters at the Core boundary rather than ignoring them', async () => {
+    expect.hasAssertions()
     const testFixture = fixture()
-    for (const review of ['done', 'invalid', '']) {
+    await runInOrder(['done', 'invalid', ''], async (review): Promise<void> => {
       await expect(testFixture.page(`review=${review}`)).rejects.toMatchObject({ status: 400 })
-    }
+    })
     await expect(testFixture.page('review=active&review=fixing')).rejects.toMatchObject({ status: 400 })
   })
 

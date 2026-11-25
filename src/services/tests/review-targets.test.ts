@@ -6,7 +6,7 @@ import { setAttachmentReviewStatus } from '#commands/files.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { findAttachment, listIssueReviewTargets } from '#services/files.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { sqliteRowFields } from '#tests/sqlite-records.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
@@ -61,14 +61,15 @@ describe('issue attachment review target storage and authorization', () => {
   })
 
   test('defaults existing metadata to null and persists every review state, then removes selection', async () => {
+    expect.hasAssertions()
     const testFixture = fixture()
     await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
-    for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
+    await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', null], async (status): Promise<void> => {
       await expect(testFixture.set('a', status)).resolves.toStrictEqual({ ok: true })
       await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
         reviewStatus: status,
       })
-    }
+    })
     await expect(runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))).resolves.toStrictEqual(new Map())
   })
 

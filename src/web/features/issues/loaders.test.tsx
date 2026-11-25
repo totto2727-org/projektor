@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { ApiResults } from '#contracts/api-results.ts'
 import { SearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import { AttachmentSchema, IssueSchema, normalizeAttachments } from '#contracts/web-schemas/issues.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 import { ApiError, ScopeError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 
@@ -276,17 +277,18 @@ describe('complete direct D1 issues SSR loaders', () => {
   })
 
   test('does not fetch an unauthorized workspace or expand an unauthorized catalog project', async () => {
+    expect.hasAssertions()
     const data = fixture()
     await expect(
       data.run(loadIssue(scope, new URL('https://front.test/issues/view?id=issue-a&workspace=foreign'))),
     ).resolves.toBeNull()
-    for (const id of ['hidden-issue', 'other-issue']) {
+    await runInOrder(['hidden-issue', 'other-issue'], async (id): Promise<void> => {
       const error = await data.run(
         Effect.flip(loadIssue(scope, new URL(`https://front.test/issues/view?id=${id}&workspace=workspace`))),
       )
       expect(error).toBeInstanceOf(ScopeError)
       expect(error.status).toBe(404)
-    }
+    })
   })
 
   test('renders complete detail description, comments, files, custom fields and author controls in SSR', async () => {

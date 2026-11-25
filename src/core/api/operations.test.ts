@@ -8,7 +8,7 @@ import type { CoreActor } from '#core/authorization.ts'
 import { decodeCoreReply } from '#core/client.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
-import { runTestEffect } from '#tests/run-effect.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 import { makeApiIdentityHandlers } from './identity-operations.ts'
@@ -104,13 +104,14 @@ describe('covers API Core authorization and presentation boundaries', () => {
   })
 
   test('authenticates before revealing whether a target workspace exists', async () => {
+    expect.hasAssertions()
     const testFixture = await fixture()
     const unauthorized = { ...testFixture.actor, bearer: 'invalid' }
-    for (const value of ['w', 'missing']) {
+    await runInOrder(['w', 'missing'], async (value): Promise<void> => {
       await expect(
         reply(Schema.Unknown, testFixture.handlers.apiResolveWorkspace(unauthorized, { kind: 'id', value })),
       ).rejects.toMatchObject({ status: 401 })
-    }
+    })
   })
 
   test('does not authorize OAuth consent with an API token even when its owner is a workspace owner', async () => {

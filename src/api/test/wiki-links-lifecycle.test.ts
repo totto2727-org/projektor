@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages } from '#commands/wiki.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
@@ -191,10 +192,10 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     // Oldest page wins a duplicate title.
     await expect(targetsOf(linker.id)).resolves.toStrictEqual([first.id, lone.id].toSorted())
 
-    for (const p of [first, lone]) {
+    await runInOrder([first, lone], async (p): Promise<void> => {
       await deletePage(token, workspace.slug, p.slug)
       await env.DB.prepare('UPDATE wiki_pages SET deleted_at = 1 WHERE id = ?').bind(p.id).run()
-    }
+    })
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,

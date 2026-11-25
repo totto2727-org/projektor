@@ -6,6 +6,7 @@ import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
 import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
 import { seedFixture, seedGroupGrant, seedIssue, seedProject } from './helpers.ts'
@@ -27,6 +28,7 @@ const fixture = async function fixture() {
 
 describe('coordination project authorization', () => {
   test('does not expose or displace a hidden project claim through a visible issue', async () => {
+    expect.hasAssertions()
     const testFixture = await fixture()
     await seedGroupGrant(testFixture.workspace.id, testFixture.user.id, testFixture.project.id, 'member')
     const hiddenProject = await seedProject(testFixture.workspace.id, 'HIDDEN')
@@ -36,13 +38,13 @@ describe('coordination project authorization', () => {
       VALUES (?, ?, ?, 'src/shared.ts', ?)`)
       .bind(id, testFixture.workspace.id, hiddenIssue.id, currentEpochSeconds())
       .run()
-    for (const force of [false, true]) {
+    await runInOrder([false, true], async (force): Promise<void> => {
       await expect(
         claimFiles(testFixture.ctx, { issueId: testFixture.issue.id, paths: ['src/shared.ts'], force }),
       ).rejects.toMatchObject({
         kind: 'not_found',
       })
-    }
+    })
     await expect(releaseFiles(testFixture.ctx, { paths: ['src/shared.ts'] })).rejects.toMatchObject({
       kind: 'not_found',
     })
@@ -57,6 +59,7 @@ describe('coordination project authorization', () => {
   })
 
   test('rejects hidden project coordination before any side effect', async () => {
+    expect.hasAssertions()
     const testFixture = await fixture()
     const actions = [
       () => registerAgent(testFixture.ctx, { name: 'agent', issueId: testFixture.issue.id }),
@@ -67,16 +70,19 @@ describe('coordination project authorization', () => {
       () => postMessage(testFixture.ctx, { scope: `issue:${testFixture.issue.id}`, body: 'secret' }),
       () => listMessages(testFixture.ctx, { scope: `issue:${testFixture.issue.id}` }),
     ]
-    for (const action of actions) {
+    await runInOrder(actions, async (action): Promise<void> => {
       await expect(action()).rejects.toMatchObject({ kind: 'not_found' })
-    }
-    for (const table of ['agent_sessions', 'issue_leases', 'issue_file_claims', 'agent_messages']) {
-      await expect(
-        env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`)
-          .bind(testFixture.workspace.id)
-          .first(),
-      ).resolves.toMatchObject({ n: 0 })
-    }
+    })
+    await runInOrder(
+      ['agent_sessions', 'issue_leases', 'issue_file_claims', 'agent_messages'],
+      async (table): Promise<void> => {
+        await expect(
+          env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`)
+            .bind(testFixture.workspace.id)
+            .first(),
+        ).resolves.toMatchObject({ n: 0 })
+      },
+    )
   })
 
   test('lets a workspace viewer use an effective member grant, then blocks mutations after downgrade', async () => {

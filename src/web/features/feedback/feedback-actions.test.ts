@@ -1,6 +1,7 @@
 import { Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { runInOrder } from '#tests/run-effect.ts'
 import { actionFixture, formData, planningIds } from '@/features/planning/action-test-fixture.ts'
 
 const actions = await import('./actions.ts')
@@ -69,12 +70,18 @@ describe('feedback concrete ServerFn shared commands', () => {
   })
 
   test('rejects empty/oversized selections and origins using actual schemas', async () => {
+    expect.hasAssertions()
     const test = fixture()
-    for (const feedbackIds of [[], Array.from({ length: 501 }, (_value, index) => String(index))]) {
-      await expect(test.invoke(actions.markSelectedFeedbackReviewed, { ...scope, feedbackIds })).rejects.toMatchObject({
-        _tag: 'SchemaError',
-      })
-    }
+    await runInOrder(
+      [[], Array.from({ length: 501 }, (_value, index) => String(index))],
+      async (feedbackIds): Promise<void> => {
+        await expect(
+          test.invoke(actions.markSelectedFeedbackReviewed, { ...scope, feedbackIds }),
+        ).rejects.toMatchObject({
+          _tag: 'SchemaError',
+        })
+      },
+    )
     await expect(
       test.invoke(
         actions.createFeedbackSource,
