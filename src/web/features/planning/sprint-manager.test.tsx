@@ -147,14 +147,14 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
         allSprints={[active, { ...planned, name: 'Refreshed planned row' }, history]}
       />,
     )
-    expect(screen.getByText('Refreshed planned row')).toBeTruthy()
+    expect(screen.getByText('Refreshed planned row')).toBeInstanceOf(Element)
     expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('Draft retained')
     expect(request).not.toHaveBeenCalled()
   })
 
   test('renders canonical SSR issues and velocity without primary browser requests', () => {
     render(<SprintManager {...props} initialSprints={[sprint('sprint-a', 'completed')]} />)
-    expect(screen.getByRole('heading', { name: 'Velocity' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Velocity' })).toBeInstanceOf(Element)
     expect(screen.getAllByText('5').length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: 'View issues →' }).getAttribute('href')).toContain('sprintId=sprint-a')
     expect(request).not.toHaveBeenCalled()
@@ -176,8 +176,8 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
         ]}
       />,
     )
-    expect(screen.getByText('Canonical A')).toBeTruthy()
-    expect(screen.getByText('New server sprint')).toBeTruthy()
+    expect(screen.getByText('Canonical A')).toBeInstanceOf(Element)
+    expect(screen.getByText('New server sprint')).toBeInstanceOf(Element)
     expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('Unsaved iteration')
     expect((screen.getByLabelText('Goal (optional)') as HTMLInputElement).value).toBe('Unsaved goal')
   })
@@ -259,7 +259,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Completion denied'))
     expect(screen.queryByText('Sprint complete: Sprint A')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Yes, complete' }))
-    await waitFor(() => expect(screen.getByText('Sprint complete: Sprint A')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Sprint complete: Sprint A')).toBeInstanceOf(Element))
     expect(screen.getAllByText('5/8')).toHaveLength(2)
     expect(screen.getByRole('link', { name: 'Issue done' }).getAttribute('href')).toContain(
       '/projects/PROJ/issues/1/issue-done?workspace=alpha',

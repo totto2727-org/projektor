@@ -111,7 +111,7 @@ test('offers cross-project review navigation that cannot inherit project, assign
     ['review', 'in_review'],
     ['view', 'list'],
   ])
-  expect(screen.getByText('表示範囲: A · Project A')).toBeTruthy()
+  expect(screen.getByText('表示範囲: A · Project A')).toBeInstanceOf(Element)
   expect(screen.queryByText('表示範囲: アクセスできる全プロジェクト')).toBeNull()
 })
 
@@ -124,7 +124,7 @@ test('labels the workspace-wide scope prominently and puts reviewing first among
       project={null}
     />,
   )
-  expect(screen.getByText('表示範囲: アクセスできる全プロジェクト')).toBeTruthy()
+  expect(screen.getByText('表示範囲: アクセスできる全プロジェクト')).toBeInstanceOf(Element)
   expect(screen.queryByRole('link', { name: '全プロジェクトのレビュー' })).toBeNull()
   const navigation = screen.getByRole('navigation')
   expect(
@@ -196,8 +196,8 @@ test('integrates scope and review navigation above canonical cross-project issue
       initialData={initialData}
     />,
   )
-  expect(screen.getByRole('heading', { name: 'Issues' })).toBeTruthy()
-  expect(screen.getByText('表示範囲: アクセスできる全プロジェクト')).toBeTruthy()
+  expect(screen.getByRole('heading', { name: 'Issues' })).toBeInstanceOf(Element)
+  expect(screen.getByText('表示範囲: アクセスできる全プロジェクト')).toBeInstanceOf(Element)
   expect(screen.getByRole('link', { name: 'レビュー中' }).getAttribute('aria-current')).toBe('page')
   expect(
     within(screen.getByRole('list', { name: 'Canonical issues' }))

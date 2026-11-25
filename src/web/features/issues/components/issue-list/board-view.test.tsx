@@ -115,7 +115,7 @@ describe('covers BoardView — mobile status menu (PROJ-416)', () => {
   test('renders a tap-to-open status menu on each card', () => {
     const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
-    expect(screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' })).toBeInstanceOf(Element)
   })
 
   test('changes status when a different option is chosen from the menu', async () => {

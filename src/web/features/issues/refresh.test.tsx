@@ -125,9 +125,9 @@ describe('canonical issues SSR refresh', () => {
         }}
       />,
     )
-    await waitFor(() => expect(screen.getByText('Canonical description')).toBeTruthy())
-    expect(screen.getByText('Canonical comment')).toBeTruthy()
-    expect(screen.getByDisplayValue('Unsaved edited title')).toBeTruthy()
+    await waitFor(() => expect(screen.getByText('Canonical description')).toBeInstanceOf(Element))
+    expect(screen.getByText('Canonical comment')).toBeInstanceOf(Element)
+    expect(screen.getByDisplayValue('Unsaved edited title')).toBeInstanceOf(Element)
     fireEvent.input(screen.getByPlaceholderText('Add a comment…'), {
       target: { value: 'Private unsent comment' },
     })
@@ -140,7 +140,7 @@ describe('canonical issues SSR refresh', () => {
     )
     await waitFor(() => expect((screen.getByPlaceholderText('Add a comment…') as HTMLTextAreaElement).value).toBe(''))
     view.rerender(<IssueDetailPage scope={scope} workspaceSlug={workspace.slug} initialData={data} />)
-    await waitFor(() => expect(screen.getByDisplayValue('Private unsent comment')).toBeTruthy())
+    await waitFor(() => expect(screen.getByDisplayValue('Private unsent comment')).toBeInstanceOf(Element))
     expect(fetch).not.toHaveBeenCalled()
   })
 

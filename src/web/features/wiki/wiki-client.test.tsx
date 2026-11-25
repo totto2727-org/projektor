@@ -198,7 +198,7 @@ describe('wiki delayed draft lifecycle', () => {
     const view = render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep A' } })
     await debounce()
-    expect(screen.getByText(/Autosave did not complete/u)).toBeTruthy()
+    expect(screen.getByText(/Autosave did not complete/u)).toBeInstanceOf(Element)
     await act(async () => {
       view.unmount()
     })
@@ -292,8 +292,8 @@ describe('wiki delayed draft lifecycle', () => {
       deletion.resolve({ ok: false, status: 503, message: 'Unavailable' })
     })
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Local B')
-    expect(screen.getByRole('button', { name: 'Restore' })).toBeTruthy()
-    expect(screen.getByText(/Save failed/u)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeInstanceOf(Element)
+    expect(screen.getByText(/Save failed/u)).toBeInstanceOf(Element)
   })
 
   test('preserves newer local typing when discard succeeds, then autosaves it under the new head', async () => {
@@ -413,7 +413,7 @@ describe('wiki server prop adoption', () => {
     expect(data.get('tags')).toBe('docs')
     expect(data.get('workspace')).toBe('team')
     expect(data.get('scope')).toBe('workspace')
-    expect(screen.getByText('Server search result')).toBeTruthy()
+    expect(screen.getByText('Server search result')).toBeInstanceOf(Element)
     expect(getWikiPage).not.toHaveBeenCalled()
     expect(navigateFeature).not.toHaveBeenCalled()
     view.rerender(
@@ -426,7 +426,7 @@ describe('wiki server prop adoption', () => {
         }}
       />,
     )
-    expect(screen.getByText('Refreshed server result')).toBeTruthy()
+    expect(screen.getByText('Refreshed server result')).toBeInstanceOf(Element)
     expect(screen.queryByText('Server search result')).toBeNull()
   })
 
@@ -438,7 +438,7 @@ describe('wiki server prop adoption', () => {
     expect(form?.querySelector<HTMLInputElement>('input[name="workspaceSlug"]')?.value).toBe('team')
     expect(form?.querySelector<HTMLInputElement>('input[name="entityType"]')?.value).toBe('wiki_page')
     expect(form?.getAttribute('action')).not.toContain('/attachments/upload')
-    expect(screen.getByText(/10 MiB including form data/u)).toBeTruthy()
+    expect(screen.getByText(/10 MiB including form data/u)).toBeInstanceOf(Element)
     expect(form?.querySelectorAll('input[type="file"][name="file"]')).toHaveLength(1)
     const input = form?.querySelector<HTMLInputElement>('input[type="file"]')
     expect(input).toBeTruthy()
@@ -508,7 +508,7 @@ describe('wiki server prop adoption', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await expect(
       screen.findByText('Use a title between 1 and 300 characters and content at most 500000 characters.'),
-    ).resolves.toBeTruthy()
+    ).resolves.toBeInstanceOf(Element)
     expect(saveWikiPage).not.toHaveBeenCalled()
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
   })
@@ -520,7 +520,7 @@ describe('wiki server prop adoption', () => {
       target: { value: 'My conflicted body' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await expect(screen.findByRole('button', { name: 'Overwrite with mine' })).resolves.toBeTruthy()
+    await expect(screen.findByRole('button', { name: 'Overwrite with mine' })).resolves.toBeInstanceOf(Element)
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('My conflicted body')
   })
 

@@ -76,8 +76,8 @@ describe('flow chart public data and primitive semantics', () => {
         {props.formatter?.(4, 'count', { graphicalItemId: 'test', dataKey: 'count', name: 'count', value: 4 }, 0, [])}
       </>,
     )
-    expect(screen.getByText('Issues completed')).toBeTruthy()
-    expect(screen.getByText('4 completed')).toBeTruthy()
+    expect(screen.getByText('Issues completed')).toBeInstanceOf(Element)
+    expect(screen.getByText('4 completed')).toBeInstanceOf(Element)
   })
 
   test('uses the WIP payload date when generated tooltip passes its numeric-axis config label', () => {
@@ -91,7 +91,7 @@ describe('flow chart public data and primitive semantics', () => {
         {props.formatter?.(3, 'count', { graphicalItemId: 'test', dataKey: 'count', name: 'count', value: 3 }, 0, [])}
       </>,
     )
-    expect(screen.getByText('3 in progress')).toBeTruthy()
+    expect(screen.getByText('3 in progress')).toBeInstanceOf(Element)
   })
 
   test('stacks raw CFD counts once, bottom-up, with linear geometry and existing sequential tokens', () => {
@@ -202,8 +202,8 @@ describe('flow chart public data and primitive semantics', () => {
         )}
       </>,
     )
-    expect(screen.getByText('Age since claim')).toBeTruthy()
-    expect(screen.getByText('1.0h')).toBeTruthy()
+    expect(screen.getByText('Age since claim')).toBeInstanceOf(Element)
+    expect(screen.getByText('1.0h')).toBeInstanceOf(Element)
   })
 
   test('preserves empty and untracked messages instead of plotting synthetic values', () => {
@@ -230,7 +230,7 @@ describe('flow chart public data and primitive semantics', () => {
         'No issues currently in progress or review',
       ],
       (message) => {
-        expect(screen.getByText(message)).toBeTruthy()
+        expect(screen.getByText(message)).toBeInstanceOf(Element)
       },
     )
     expect(calls.size).toBe(0)

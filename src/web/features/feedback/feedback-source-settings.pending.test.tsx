@@ -45,7 +45,7 @@ test('single-flights rapid rotation confirmation and reveals only its resulting 
   expect(screen.getByRole('button', { name: 'Rotating…' }).hasAttribute('disabled')).toBe(true)
   expect(screen.getByRole('button', { name: 'No' }).hasAttribute('disabled')).toBe(true)
   await act(async () => pending.resolve({ ok: true, value: { token: 'new-token' } }))
-  expect(screen.getByText('new-token')).toBeTruthy()
+  expect(screen.getByText('new-token')).toBeInstanceOf(Element)
   expect(screen.queryByRole('button', { name: 'Rotating…' })).toBeNull()
 })
 
@@ -71,6 +71,6 @@ test('releases rotation confirmation after a failure so a deliberate retry can s
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Yes' })))
   expect(screen.getByRole('alert').textContent).toContain('Unavailable')
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Yes' })))
-  expect(screen.getByText('retry-token')).toBeTruthy()
+  expect(screen.getByText('retry-token')).toBeInstanceOf(Element)
   expect(screen.queryByRole('alert')).toBeNull()
 })

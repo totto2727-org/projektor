@@ -42,13 +42,13 @@ describe('covers SearchResultsSection — mobile viewport', () => {
     setViewportWidth(MOBILE_WIDTH)
     render(<SearchResultsSection searchLoading searchResults={null} searchQuery='fix' />)
 
-    expect(screen.getByText('Searching…')).toBeTruthy()
+    expect(screen.getByText('Searching…')).toBeInstanceOf(Element)
   })
 
   test('shows the no-results state regardless of viewport', () => {
     setViewportWidth(MOBILE_WIDTH)
     render(<SearchResultsSection searchLoading={false} searchResults={[]} searchQuery='fix' />)
 
-    expect(screen.getByText('No results for «fix»')).toBeTruthy()
+    expect(screen.getByText('No results for «fix»')).toBeInstanceOf(Element)
   })
 })

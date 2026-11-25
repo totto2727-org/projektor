@@ -91,7 +91,7 @@ test.each(['file', 'url'] as const)(
       status: null,
     })
     rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: null }, second]} />)
-    expect(screen.getByText('first.pdf')).toBeTruthy()
+    expect(screen.getByText('first.pdf')).toBeInstanceOf(Element)
     expect(screen.queryByRole('link', { name: 'first.pdf' })).toBeNull()
     expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('checked', false)
     expect(screen.getByRole('checkbox', { name: 'second.pdfをレビュー対象にする' })).toHaveProperty('checked', true)
@@ -124,8 +124,8 @@ test.each([
       expect(screen.queryByRole('combobox')).toBeNull()
       expect(screen.queryByRole('checkbox')).toBeNull()
       expect(screen.queryByText('first.pdf')).toBeNull()
-      expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeTruthy()
-      expect(screen.getByText('表示するレビュー対象はありません。')).toBeTruthy()
+      expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeInstanceOf(Element)
+      expect(screen.getByText('表示するレビュー対象はありません。')).toBeInstanceOf(Element)
     } else {
       expect(screen.getByRole('combobox')).toHaveProperty('value', to)
       expect(screen.getByRole('combobox')).toHaveProperty('disabled', false)
@@ -232,7 +232,7 @@ test('puts in-review targets first with deterministic ties and gives access link
   expect(screen.getByRole('link', { name: 'a.pdf' }).getAttribute('href')).toBe('/api/files/a?workspace=workspace')
   expect(screen.getByRole('link', { name: 'b.pdf' }).getAttribute('href')).toBe('https://example.com/b')
   expect(screen.getByRole('link', { name: '課題全体に戻る' }).getAttribute('href')).toBe(props.issueHref)
-  expect(screen.getByText('レビュー待ち: 2件')).toBeTruthy()
+  expect(screen.getByText('レビュー待ち: 2件')).toBeInstanceOf(Element)
   expect(screen.getByText('レビュー対象を選択 (1)').closest('details')).toHaveProperty('open', false)
 })
 
@@ -249,12 +249,12 @@ test('renders a textual and colored no-review-needed indicator for mixed fixing 
     within(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).getByRole('option', {
       name: '要修正',
     }),
-  ).toBeTruthy()
+  ).toBeInstanceOf(Element)
   expect(screen.getByRole('combobox', { name: 'second.pdfのレビューステータス' })).toHaveProperty('value', 'fixing')
   Iterable.forEach(
     within(screen.getByRole('list', { name: '選択済みのレビュー対象' })).getAllByRole('listitem'),
     (row) => {
-      expect(within(row).getByText('レビュー不要')).toBeTruthy()
+      expect(within(row).getByText('レビュー不要')).toBeInstanceOf(Element)
       expect(row.className).toContain('text-text-muted')
       expect(row.className).not.toContain('border-accent')
     },
@@ -279,12 +279,12 @@ test.each([false, true])(
         ]}
       />,
     )
-    expect(screen.getByRole('heading', { name: 'レビュー対象 (1)' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'レビュー対象 (1)' })).toBeInstanceOf(Element)
     expect(screen.queryByText('finished-file.pdf')).toBeNull()
     expect(screen.queryByText('finished-url.pdf')).toBeNull()
     expect(screen.queryByRole('checkbox', { name: 'finished-file.pdfをレビュー対象にする' })).toBeNull()
     expect(screen.queryByRole('checkbox', { name: 'finished-url.pdfをレビュー対象にする' })).toBeNull()
-    expect(screen.getByText('レビュー対象を選択 (1)')).toBeTruthy()
+    expect(screen.getByText('レビュー対象を選択 (1)')).toBeInstanceOf(Element)
     expect(screen.queryAllByRole('checkbox', { hidden: true })).toHaveLength(2)
   },
 )
@@ -300,8 +300,8 @@ test('retains React standard protection for executable URLs in browser and serve
 
 test('shows active-empty guidance when every selected target is completed', () => {
   render(<ReviewTargetsSection {...props} focused attachments={[attachment('finished', 'done')]} />)
-  expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeTruthy()
-  expect(screen.getByText('表示するレビュー対象はありません。')).toBeTruthy()
+  expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeInstanceOf(Element)
+  expect(screen.getByText('表示するレビュー対象はありません。')).toBeInstanceOf(Element)
   expect(screen.queryByText('finished.pdf')).toBeNull()
   expect(screen.queryByText(/レビュー対象を選択/u)).toBeNull()
   expect(screen.queryByRole('checkbox')).toBeNull()
@@ -342,10 +342,10 @@ test('distinguishes reviewing rows from fixing and changes-requested rows in the
     } else {
       expect(row.className).toContain('text-text-muted')
       expect(row.className).not.toContain('border-accent')
-      expect(within(row).getByText('レビュー不要')).toBeTruthy()
+      expect(within(row).getByText('レビュー不要')).toBeInstanceOf(Element)
     }
   })
-  expect(screen.getByText('レビュー待ち: 1件')).toBeTruthy()
+  expect(screen.getByText('レビュー待ち: 1件')).toBeInstanceOf(Element)
 })
 
 test('renders focused issue context, status, access links, and back navigation on the server without full issue sections', () => {

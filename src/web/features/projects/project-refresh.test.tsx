@@ -75,10 +75,10 @@ describe('project server-prop refresh', () => {
     const view = render(
       withRuntime(<ProjectList initialProjects={[catalogProject('Optimistic project')]} memberships={[]} />),
     )
-    expect(screen.getByText('Optimistic project')).toBeTruthy()
+    expect(screen.getByText('Optimistic project')).toBeInstanceOf(Element)
 
     view.rerender(withRuntime(<ProjectList initialProjects={[catalogProject('Canonical project')]} memberships={[]} />))
-    expect(screen.getByText('Canonical project')).toBeTruthy()
+    expect(screen.getByText('Canonical project')).toBeInstanceOf(Element)
     expect(screen.queryByText('Optimistic project')).toBeNull()
   })
 
@@ -104,11 +104,11 @@ describe('project server-prop refresh', () => {
     expect(sent.get('name')).toBe('Created optimistically')
     await waitFor(() => expect(screen.getByText('+ New project').closest('details')?.open).toBe(false))
     expect(screen.queryByText('Created optimistically')).toBeNull()
-    expect(screen.getByText('Existing project')).toBeTruthy()
+    expect(screen.getByText('Existing project')).toBeInstanceOf(Element)
     view.rerender(
       withRuntime(<ProjectList initialProjects={[catalogProject('Canonical catalog')]} memberships={memberships} />),
     )
-    await waitFor(() => expect(screen.getByText('Canonical catalog')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Canonical catalog')).toBeInstanceOf(Element))
     expect(screen.queryByText('Created optimistically')).toBeNull()
   })
 
@@ -144,7 +144,7 @@ describe('project server-prop refresh', () => {
     expect(workspace.classList.contains('min-w-0')).toBe(true)
     expect(workspace.value).toBe('')
     expect(workspace.required).toBe(true)
-    expect(screen.getByRole('option', { name: 'Second workspace abc123 (second-abc123)' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Second workspace abc123 (second-abc123)' })).toBeInstanceOf(Element)
 
     fireEvent.change(screen.getByPlaceholderText('My Project'), { target: { value: 'Second native abc123' } })
     await waitFor(() =>
@@ -190,7 +190,7 @@ describe('project server-prop refresh', () => {
     expect((screen.getByLabelText('Project description') as HTMLTextAreaElement).value).toBe('Unsaved draft')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    return waitFor(() => expect(screen.getByText('Canonical server description')).toBeTruthy())
+    return waitFor(() => expect(screen.getByText('Canonical server description')).toBeInstanceOf(Element))
   })
 
   test('releases a failed archive request without erasing the active description draft', async () => {

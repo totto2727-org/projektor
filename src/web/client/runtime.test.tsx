@@ -18,13 +18,13 @@ describe('server-supplied display context', () => {
         <CurrentPage />
       </RuntimeProvider>,
     )
-    expect(screen.getByText('https://app.test/issues')).toBeTruthy()
+    expect(screen.getByText('https://app.test/issues')).toBeInstanceOf(Element)
     rerender(
       <RuntimeProvider scope={null} url='https://app.test/wiki'>
         <CurrentPage />
       </RuntimeProvider>,
     )
-    expect(screen.getByText('https://app.test/wiki')).toBeTruthy()
+    expect(screen.getByText('https://app.test/wiki')).toBeInstanceOf(Element)
     expect(screen.queryByText('https://app.test/issues')).toBeNull()
   })
 })

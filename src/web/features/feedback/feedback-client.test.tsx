@@ -72,7 +72,7 @@ describe('feedback hydrated original controls', () => {
       throw new Error('Missing native source form')
     }
     fireEvent.submit(form)
-    await expect(screen.findByText('new-token')).resolves.toBeTruthy()
+    await expect(screen.findByText('new-token')).resolves.toBeInstanceOf(Element)
     const [previous, data] = vi.mocked(createFeedbackSource).mock.calls[0]
     expect(previous).toBeNull()
     expect(data.get('workspaceSlug')).toBe('team')
@@ -80,7 +80,7 @@ describe('feedback hydrated original controls', () => {
     expect(data.get('name')).toBe('New source')
     expect(data.get('description')).toBe('Notes')
     view.rerender(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn<() => void>()} />)
-    expect(screen.getByText('new-token')).toBeTruthy()
+    expect(screen.getByText('new-token')).toBeInstanceOf(Element)
   })
 
   test('navigates status through the URL and waits for canonical server status props', async () => {
@@ -118,7 +118,9 @@ describe('feedback hydrated original controls', () => {
       target: { value: 'a'.repeat(2001) },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create source' }))
-    await expect(screen.findByText('Enter at most 50 origins, each at most 2000 characters.')).resolves.toBeTruthy()
+    await expect(screen.findByText('Enter at most 50 origins, each at most 2000 characters.')).resolves.toBeInstanceOf(
+      Element,
+    )
     expect(screen.getByRole('button', { name: 'Create source' }).hasAttribute('disabled')).toBe(true)
     expect(createFeedbackSource).not.toHaveBeenCalled()
     expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('New source')
@@ -168,7 +170,7 @@ describe('feedback hydrated original controls', () => {
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Rotate token' }))
-    expect(screen.getByText('Rotate? Old token dies.')).toBeTruthy()
+    expect(screen.getByText('Rotate? Old token dies.')).toBeInstanceOf(Element)
     fireEvent.click(screen.getByRole('button', { name: 'No' }))
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()

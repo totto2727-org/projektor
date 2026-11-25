@@ -150,7 +150,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     next.details[0].members = [{ userId: 'u2', name: 'Bob', email: 'bob@example.test' }]
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={next} />)
     expect(screen.getAllByRole('button', { name: 'Server Team' })).toHaveLength(2)
-    expect(screen.getByLabelText('Remove Bob')).toBeTruthy()
+    expect(screen.getByLabelText('Remove Bob')).toBeInstanceOf(Element)
     expect(screen.queryByLabelText('Remove Alice')).toBeNull()
     expect((screen.getByLabelText('Group name') as HTMLInputElement).value).toBe('Unsaved rename')
     expect((screen.getByLabelText('Description') as HTMLTextAreaElement).value).toBe('Unsaved description')
@@ -216,8 +216,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   test('retains accessible tabs, member chips/pending/admin bypass and read-only groups', () => {
     const data = groupData()
     const view = render(<GroupManager workspaceSlug='alpha' initialData={data} />)
-    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
-    expect(screen.getByText(/Groups grant members access to projects/u)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeInstanceOf(Element)
+    expect(screen.getByText(/Groups grant members access to projects/u)).toBeInstanceOf(Element)
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Groups' }), { key: 'ArrowRight' })
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Members' }))
     expect(screen.getByRole('tabpanel').id).toBe('group-tabpanel-groups')
@@ -233,7 +233,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.getAllByText('Pending: no access')).toHaveLength(2)
     expect(screen.getAllByText('All projects (bypasses groups)')).toHaveLength(2)
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={{ ...data, role: 'viewer', details: [] }} />)
-    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeInstanceOf(Element)
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create group' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Team' })).toBeNull()
@@ -267,7 +267,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create token' }))
-    await waitFor(() => expect(screen.getByText('pk_test_secret')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('pk_test_secret')).toBeInstanceOf(Element))
     expect(request).toHaveBeenLastCalledWith('createToken', {
       expiry: '90',
       name: 'Unsaved agent',
@@ -283,7 +283,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
       ),
     )
     view.rerender(<TokenManager {...props} initialTokens={[token('Refreshed token')]} />)
-    expect(screen.getByText('pk_test_secret')).toBeTruthy()
+    expect(screen.getByText('pk_test_secret')).toBeInstanceOf(Element)
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(screen.queryByText('pk_test_secret')).toBeNull()
   })
@@ -345,8 +345,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   test('preserves every guide step and copies the refreshed server URL', async () => {
     const view = render(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/first' />)
     view.rerender(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/second' />)
-    expect(screen.getByText(/leave request headers empty/u)).toBeTruthy()
-    expect(screen.getByText(/approve the consent screen/u)).toBeTruthy()
+    expect(screen.getByText(/leave request headers empty/u)).toBeInstanceOf(Element)
+    expect(screen.getByText(/approve the consent screen/u)).toBeInstanceOf(Element)
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://api.example/mcp/second'))
   })

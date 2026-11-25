@@ -42,7 +42,7 @@ test('opens epic creation with an interactive priority portal and restores focus
   const trigger = screen.getByRole('button', { name: '+ New Epic' })
   trigger.focus()
   fireEvent.click(trigger)
-  expect(screen.getByRole('dialog', { name: 'Create new epic' })).toBeTruthy()
+  expect(screen.getByRole('dialog', { name: 'Create new epic' })).toBeInstanceOf(Element)
   fireEvent.click(screen.getByRole('combobox', { name: 'Select priority' }))
   const option = await screen.findByRole('option', { name: 'high' })
   fireEvent.pointerDown(option, { pointerType: 'mouse' })

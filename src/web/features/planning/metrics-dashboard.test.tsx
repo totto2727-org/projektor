@@ -138,12 +138,12 @@ describe('full original metrics surfaces', () => {
         'Factory health',
       ],
       (title) => {
-        expect(screen.getByRole('heading', { name: title })).toBeTruthy()
+        expect(screen.getByRole('heading', { name: title })).toBeInstanceOf(Element)
       },
     )
     expect(screen.getAllByText('Count')).toHaveLength(7)
     Iterable.forEach(['Lease expiries', 'Abandoned claims', 'Gate rejections', 'WIP-cap pressure'], (label) => {
-      expect(screen.getByRole('button', { name: `About ${label}` })).toBeTruthy()
+      expect(screen.getByRole('button', { name: `About ${label}` })).toBeInstanceOf(Element)
     })
   })
 
@@ -154,7 +154,7 @@ describe('full original metrics surfaces', () => {
     next.leadTime = { count: 77, avg: 7200, p50: 7200, p90: 7200 }
     view.rerender(<MetricsDashboard {...props} initialMetrics={next} />)
     expect((screen.getByLabelText('From date') as HTMLInputElement).value).toBe('2026-08-01')
-    expect(screen.getByText('77')).toBeTruthy()
+    expect(screen.getByText('77')).toBeInstanceOf(Element)
     const form = screen.getByRole('button', { name: 'Apply' }).closest('form')
     expect(form?.method).toBe('get')
     expect(form?.getAttribute('action')).toBe('/metrics')
@@ -191,7 +191,7 @@ describe('full original metrics surfaces', () => {
         initialUrl={props.initialUrl}
       />,
     )
-    expect(screen.getByRole('heading', { name: 'Where the fleet queues up' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Where the fleet queues up' })).toBeInstanceOf(Element)
     const drill = screen.getByTitle('View files under src/api')
     expect(drill.getAttribute('href')).toContain('prefix=src%2Fapi')
     expect(screen.getByRole('link', { name: 'Claim volume' }).getAttribute('href')).toContain('heatmapMode=claims')
@@ -203,6 +203,6 @@ describe('full original metrics surfaces', () => {
         initialUrl={props.initialUrl}
       />,
     )
-    expect(screen.getByText('No claim conflicts in this window')).toBeTruthy()
+    expect(screen.getByText('No claim conflicts in this window')).toBeInstanceOf(Element)
   })
 })

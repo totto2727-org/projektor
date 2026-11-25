@@ -45,7 +45,7 @@ describe('covers CreateIssueModal — Description caption (PROJ-566)', () => {
 
   test('gives the editor its own accessible name instead', async () => {
     render(<Harness />)
-    await expect(screen.findByLabelText('Description')).resolves.toBeTruthy()
+    await expect(screen.findByLabelText('Description')).resolves.toBeInstanceOf(Element)
   })
 })
 
@@ -82,7 +82,7 @@ describe('covers CreateIssueModal — Select field captions (PROJ-566)', () => {
   test('leaves each Select named by its own ariaLabel', () => {
     render(<FieldsHarness />)
     Iterable.forEach(['Select project', 'Select priority', 'Select type', 'Select status'], (name) => {
-      expect(screen.getByRole('combobox', { name })).toBeTruthy()
+      expect(screen.getByRole('combobox', { name })).toBeInstanceOf(Element)
     })
   })
 })
