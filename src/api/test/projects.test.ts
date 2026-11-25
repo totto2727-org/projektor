@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
@@ -175,8 +175,8 @@ describe('projects REST', () => {
     ).pipe(Schema.mutable)
     const projects = await readNativeJson(listRes, projectsShape)
     const proj = projects.find((project) => project.key === 'NULLD')
-    expect(proj).toBeDefined()
-    expect(proj!.description).toBeNull()
+    assert.isDefined(proj)
+    expect(proj.description).toBeNull()
   })
 
   test('handles GET /api/projects/:id returns the project', async () => {
@@ -258,8 +258,8 @@ describe('projects REST', () => {
     ).pipe(Schema.mutable)
     const withArchived = await readNativeJson(includeArchivedRes, withArchivedShape)
     const archived = withArchived.find((p) => p.key === 'ARCH1')
-    expect(archived).toBeDefined()
-    expect(archived!.archived_at).not.toBeNull()
+    assert.isDefined(archived)
+    expect(archived.archived_at).not.toBeNull()
 
     await resetRateLimits()
 
@@ -417,8 +417,8 @@ describe('projects MCP', () => {
       ),
     )
     const proj = projects.find((project) => project.key === 'MCPND')
-    expect(proj).toBeDefined()
-    expect(proj!.description).toBeNull()
+    assert.isDefined(proj)
+    expect(proj.description).toBeNull()
   })
 
   test('covers REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
@@ -442,12 +442,12 @@ describe('projects MCP', () => {
       ).pipe(Schema.mutable),
     )
     const proj = projects.find((project) => project.key === 'SHAPE')
-    expect(proj).toBeDefined()
-    expect(isNonEmptyText(proj!.workspace_id)).toBe(true)
-    expect(typeof proj!.workspace_slug).toBe('string')
-    expect(typeof proj!.workspace_name).toBe('string')
-    expect(typeof proj!.open_issue_count).toBe('number')
-    expect(proj!.open_issue_count).toBe(0)
+    assert.isDefined(proj)
+    expect(isNonEmptyText(proj.workspace_id)).toBe(true)
+    expect(typeof proj.workspace_slug).toBe('string')
+    expect(typeof proj.workspace_name).toBe('string')
+    expect(typeof proj.open_issue_count).toBe('number')
+    expect(proj.open_issue_count).toBe(0)
   })
 
   test('covers REST and MCP list_projects return the same keys', async () => {
@@ -590,7 +590,7 @@ describe('handles GET /api/projects cross-workspace', () => {
       Schema.Array(Schema.Struct({ key: Schema.String, open_issue_count: Schema.Number })).pipe(Schema.mutable),
     )
     const proj = projects.find((selectedProject) => selectedProject.key === 'ICNT')
-    expect(proj).toBeDefined()
-    expect(proj!.open_issue_count).toBe(2)
+    assert.isDefined(proj)
+    expect(proj.open_issue_count).toBe(2)
   })
 })
