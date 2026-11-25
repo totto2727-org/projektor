@@ -130,6 +130,7 @@ export function SidebarProvider({
           } as React.CSSProperties
         }
         className={cn('group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar', className)}
+        // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
         {...props}
       >
         {children}
@@ -159,6 +160,7 @@ export function Sidebar({
       <div
         data-slot='sidebar'
         className={cn('flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground', className)}
+        // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
         {...props}
       >
         {children}
@@ -168,6 +170,7 @@ export function Sidebar({
 
   if (isMobile) {
     return (
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Sheet.
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
           dir={dir}
@@ -224,6 +227,7 @@ export function Sidebar({
             : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
           className,
         )}
+        // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
         {...props}
       >
         <div
@@ -257,6 +261,7 @@ export function SidebarTrigger({
         onClick?.(event)
         toggleSidebar()
       }}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Button.
       {...props}
     >
       <PanelLeftIcon />
@@ -286,6 +291,7 @@ export function SidebarRail({ className, ...props }: React.ComponentProps<'butto
         '[[data-side=right][data-collapsible=offcanvas]_&]:-left-2',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native button attributes and events.
       {...props}
     />
   )
@@ -300,6 +306,7 @@ export function SidebarInset({ className, ...props }: React.ComponentProps<'main
         'relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native main attributes and events.
       {...props}
     />
   )
@@ -312,6 +319,7 @@ export function SidebarInput({ className, ...props }: React.ComponentProps<typeo
       data-slot='sidebar-input'
       data-sidebar='input'
       className={cn('h-8 w-full bg-background shadow-none', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Input.
       {...props}
     />
   )
@@ -324,6 +332,7 @@ export function SidebarHeader({ className, ...props }: React.ComponentProps<'div
       data-slot='sidebar-header'
       data-sidebar='header'
       className={cn('flex flex-col gap-2 p-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -336,6 +345,7 @@ export function SidebarFooter({ className, ...props }: React.ComponentProps<'div
       data-slot='sidebar-footer'
       data-sidebar='footer'
       className={cn('flex flex-col gap-2 p-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -348,6 +358,7 @@ export function SidebarSeparator({ className, ...props }: React.ComponentProps<t
       data-slot='sidebar-separator'
       data-sidebar='separator'
       className={cn('mx-2 w-auto bg-sidebar-border', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Separator.
       {...props}
     />
   )
@@ -363,6 +374,7 @@ export function SidebarContent({ className, ...props }: React.ComponentProps<'di
         'no-scrollbar flex min-h-0 flex-1 flex-col gap-0 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -375,6 +387,7 @@ export function SidebarGroup({ className, ...props }: React.ComponentProps<'div'
       data-slot='sidebar-group'
       data-sidebar='group'
       className={cn('relative flex w-full min-w-0 flex-col p-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -435,6 +448,7 @@ export function SidebarGroupContent({ className, ...props }: React.ComponentProp
       data-slot='sidebar-group-content'
       data-sidebar='group-content'
       className={cn('w-full text-sm', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -447,6 +461,7 @@ export function SidebarMenu({ className, ...props }: React.ComponentProps<'ul'>)
       data-slot='sidebar-menu'
       data-sidebar='menu'
       className={cn('flex w-full min-w-0 flex-col gap-0', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native ul attributes and events.
       {...props}
     />
   )
@@ -459,6 +474,7 @@ export function SidebarMenuItem({ className, ...props }: React.ComponentProps<'l
       data-slot='sidebar-menu-item'
       data-sidebar='menu-item'
       className={cn('group/menu-item relative', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native li attributes and events.
       {...props}
     />
   )
@@ -531,6 +547,7 @@ export function SidebarMenuButton({
   return (
     <Tooltip>
       {comp}
+      {/* oxlint-disable-next-line react/jsx-props-no-spreading -- Keep the caller's TooltipContent placement, visibility and attributes after the sidebar defaults. */}
       <TooltipContent side='right' align='center' hidden={state !== 'collapsed' || isMobile} {...tooltip} />
     </Tooltip>
   )
@@ -576,6 +593,7 @@ export function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'
         'pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -599,6 +617,7 @@ export function SidebarMenuSkeleton({
       data-slot='sidebar-menu-skeleton'
       data-sidebar='menu-skeleton'
       className={cn('flex h-8 items-center gap-2 rounded-md px-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     >
       {showIcon && <Skeleton className='size-4 rounded-md' data-sidebar='menu-skeleton-icon' />}
@@ -625,6 +644,7 @@ export function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul
         'mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5 group-data-[collapsible=icon]:hidden',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native ul attributes and events.
       {...props}
     />
   )
@@ -637,6 +657,7 @@ export function SidebarMenuSubItem({ className, ...props }: React.ComponentProps
       data-slot='sidebar-menu-sub-item'
       data-sidebar='menu-sub-item'
       className={cn('group/menu-sub-item relative', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native li attributes and events.
       {...props}
     />
   )

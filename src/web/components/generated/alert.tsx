@@ -28,6 +28,7 @@ export const Alert = function Alert({
   variant,
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
   return <div data-slot='alert' role='alert' className={cn(alertVariants({ variant }), className)} {...props} />
 }
 
@@ -40,6 +41,7 @@ export const AlertTitle = function AlertTitle({ className, ...props }: React.Com
         'font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -57,6 +59,7 @@ export const AlertDescription = function AlertDescription({
         'text-sm text-balance text-muted-foreground md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -67,5 +70,6 @@ export const AlertAction = function AlertAction({
   className,
   ...props
 }: React.ComponentProps<'div'>): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
   return <div data-slot='alert-action' className={cn('absolute top-2 right-2', className)} {...props} />
 }

@@ -14,6 +14,7 @@ export const Empty = function Empty({ className, ...props }: React.ComponentProp
         'flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border-dashed p-6 text-center text-balance',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -25,6 +26,7 @@ export const EmptyHeader = function EmptyHeader({
   ...props
 }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
+    // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
     <div data-slot='empty-header' className={cn('flex max-w-sm flex-col items-center gap-2', className)} {...props} />
   )
 }
@@ -55,6 +57,7 @@ export const EmptyMedia = function EmptyMedia({
       data-slot='empty-icon'
       data-variant={variant}
       className={cn(emptyMediaVariants({ variant, className }))}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -66,6 +69,7 @@ export const EmptyTitle = function EmptyTitle({ className, ...props }: React.Com
     <div
       data-slot='empty-title'
       className={cn('font-heading text-sm font-medium tracking-tight', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -83,6 +87,7 @@ export const EmptyDescription = function EmptyDescription({
         'text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
@@ -97,6 +102,7 @@ export const EmptyContent = function EmptyContent({
     <div
       data-slot='empty-content'
       className={cn('flex w-full max-w-sm min-w-0 flex-col items-center gap-2.5 text-sm text-balance', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
