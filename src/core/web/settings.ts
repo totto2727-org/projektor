@@ -91,7 +91,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
       coreReply(
         name,
         codec,
-        browserCommand(env, proof, (ctx) => operation(ctx, env)),
+        browserCommand(env, proof, async (ctx) => operation(ctx, env)),
       ),
     )
   }
@@ -109,7 +109,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
         Effect.gen(function* () {
           const { scope, workspace } = yield* readContext(env, proof)
           yield* authorizeGrantProject(env, scope, workspace.id, projectId)
-          return yield* browserCommand(env, proof, (ctx) =>
+          return yield* browserCommand(env, proof, async (ctx) =>
             Predicate.isNullish(role)
               ? groups.removeGroupGrant(ctx, groupId, projectId)
               : groups.setGroupGrant(ctx, groupId, { projectId, role }),
@@ -195,7 +195,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             })
             const info = yield* Effect.tryPromise({
               catch: publicDomainFailure,
-              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
+              try: async () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
             }).pipe(Effect.catch(() => Effect.succeed(null)))
             return { tokens, tokensDenied: !admin(ctx.role), grants, connectorsDenied: false, info }
           }).pipe(Effect.mapError(publicWebFailure)),
@@ -229,21 +229,21 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             const { ctx, workspace } = yield* readContext(env, proof)
             return yield* Effect.tryPromise({
               catch: publicDomainFailure,
-              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
+              try: async () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
             })
           }),
         ),
       ),
     webCreateGroup: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      mutation('webCreateGroup', CreatedGroupSchema, proof, (ctx) => groups.createGroup(ctx, input)),
+      mutation('webCreateGroup', CreatedGroupSchema, proof, async (ctx) => groups.createGroup(ctx, input)),
     webUpdateGroup: (proof: BrowserCommand, groupId: string, input: unknown): CoreReply<R> =>
-      mutation('webUpdateGroup', SettingsOkSchema, proof, (ctx) => groups.updateGroup(ctx, groupId, input)),
+      mutation('webUpdateGroup', SettingsOkSchema, proof, async (ctx) => groups.updateGroup(ctx, groupId, input)),
     webDeleteGroup: (proof: BrowserCommand, groupId: string): CoreReply<R> =>
-      mutation('webDeleteGroup', SettingsOkSchema, proof, (ctx) => groups.deleteGroup(ctx, groupId)),
+      mutation('webDeleteGroup', SettingsOkSchema, proof, async (ctx) => groups.deleteGroup(ctx, groupId)),
     webAddGroupMember: (proof: BrowserCommand, groupId: string, input: unknown): CoreReply<R> =>
-      mutation('webAddGroupMember', SettingsOkSchema, proof, (ctx) => groups.addGroupMember(ctx, groupId, input)),
+      mutation('webAddGroupMember', SettingsOkSchema, proof, async (ctx) => groups.addGroupMember(ctx, groupId, input)),
     webRemoveGroupMember: (proof: BrowserCommand, groupId: string, userId: string): CoreReply<R> =>
-      mutation('webRemoveGroupMember', SettingsOkSchema, proof, (ctx) =>
+      mutation('webRemoveGroupMember', SettingsOkSchema, proof, async (ctx) =>
         groups.removeGroupMember(ctx, groupId, userId),
       ),
     webSetGroupGrant: (
@@ -255,9 +255,9 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     webRemoveGroupGrant: (proof: BrowserCommand, groupId: string, projectId: string): CoreReply<R> =>
       grant('webRemoveGroupGrant', proof, groupId, projectId),
     webCreateToken: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      mutation('webCreateToken', NewTokenSchema, proof, (ctx) => workspaces.createToken(ctx, input)),
+      mutation('webCreateToken', NewTokenSchema, proof, async (ctx) => workspaces.createToken(ctx, input)),
     webRevokeToken: (proof: BrowserCommand, tokenId: string): CoreReply<R> =>
-      mutation('webRevokeToken', SettingsOkSchema, proof, (ctx) => workspaces.revokeToken(ctx, tokenId)),
+      mutation('webRevokeToken', SettingsOkSchema, proof, async (ctx) => workspaces.revokeToken(ctx, tokenId)),
     webDisconnectConnector: (proof: BrowserCommand, connectorId: string): CoreReply<R> =>
       mutation('webDisconnectConnector', SettingsOkSchema, proof, async (ctx, env) =>
         revokeConnectorGrant(

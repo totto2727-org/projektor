@@ -25,7 +25,7 @@ export const makeBrandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, n
           return yield* coreFailure(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
         }
         const workspace = scope.selection.workspace
-        return yield* Effect.tryPromise(() => getWorkspaceBrandForShare(env.DB, workspace.id, workspace.slug))
+        return yield* Effect.tryPromise(async () => getWorkspaceBrandForShare(env.DB, workspace.id, workspace.slug))
       }),
     ),
 })

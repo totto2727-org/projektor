@@ -126,7 +126,7 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
       coreReply(
         'webCreateProject',
         CreatedProjectSchema,
-        browserCommand(env, proof, (ctx) => commands.createProject(ctx, input)),
+        browserCommand(env, proof, async (ctx) => commands.createProject(ctx, input)),
       ),
     ),
   webUpdateProject: (proof: BrowserCommand, id: string, input: unknown) =>
@@ -134,7 +134,7 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
       coreReply(
         'webUpdateProject',
         ProjectMutationResultSchema,
-        browserCommand(env, proof, (ctx) => commands.updateProject(ctx, id, input)),
+        browserCommand(env, proof, async (ctx) => commands.updateProject(ctx, id, input)),
       ),
     ),
 })

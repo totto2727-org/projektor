@@ -90,7 +90,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
       coreReply(
         'webCreateSprint',
         CommandIdSchema,
-        browserCommand(env, proof, (ctx) => sprints.createSprint(ctx, input)),
+        browserCommand(env, proof, async (ctx) => sprints.createSprint(ctx, input)),
       ),
     ),
   webDeleteSprint: (proof: BrowserCommand, id: string) =>
@@ -98,7 +98,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
       coreReply(
         'webDeleteSprint',
         CommandOkSchema,
-        browserCommand(env, proof, (ctx) => sprints.deleteSprint(ctx, id)),
+        browserCommand(env, proof, async (ctx) => sprints.deleteSprint(ctx, id)),
       ),
     ),
   webMoveSprintIssues: (proof: BrowserCommand, input: unknown) =>
@@ -106,7 +106,7 @@ export const makePlanningHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
       coreReply(
         'webMoveSprintIssues',
         Schema.Struct({ ok: Schema.Boolean, count: Schema.Number }),
-        browserCommand(env, proof, (ctx) => sprints.moveIssuesToSprint(ctx, input)),
+        browserCommand(env, proof, async (ctx) => sprints.moveIssuesToSprint(ctx, input)),
       ),
     ),
 })

@@ -213,7 +213,7 @@ export const loadWikiData = function loadWikiData(
           page && scope.user.email !== 'public-viewer@projektor.local'
             ? Effect.tryPromise({
                 catch: dataError,
-                try: () => readWikiDraftState(db, workspace.id, page.id, scope.user.id),
+                try: async () => readWikiDraftState(db, workspace.id, page.id, scope.user.id),
               }).pipe(
                 Effect.flatMap(Schema.decodeUnknownEffect(DraftState)),
                 Effect.mapError(dataError),

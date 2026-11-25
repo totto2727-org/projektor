@@ -43,7 +43,10 @@ export const browserCommand = function browserCommand<A>(
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
       return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }
-    const limited = yield* Effect.tryPromise({ catch: publicDomainFailure, try: () => checkRateLimit(request, env) })
+    const limited = yield* Effect.tryPromise({
+      catch: publicDomainFailure,
+      try: async () => checkRateLimit(request, env),
+    })
     if (limited) {
       return yield* coreFailure(HTTP_TOO_MANY_REQUESTS, 'Too many requests', { retryAfter: limited.retryAfter })
     }
@@ -58,6 +61,6 @@ export const browserCommand = function browserCommand<A>(
       auth,
       workspaceHub: env.WORKSPACE_HUB,
     }
-    return yield* Effect.tryPromise({ catch: publicDomainFailure, try: () => operation(ctx) })
+    return yield* Effect.tryPromise({ catch: publicDomainFailure, try: async () => operation(ctx) })
   })
 }

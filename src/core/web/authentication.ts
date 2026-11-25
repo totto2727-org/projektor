@@ -56,7 +56,7 @@ export const loadBrowserScope = function loadBrowserScope(
     }
     const principal = yield* Effect.tryPromise({
       catch: publicWebFailure,
-      try: () => authenticateBrowser(request, env),
+      try: async () => authenticateBrowser(request, env),
     })
     if (principal.user.email === 'public-viewer@projektor.local') {
       return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')

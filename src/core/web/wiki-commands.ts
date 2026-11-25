@@ -86,14 +86,14 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           return yield* Effect.tryPromise({
             catch: (cause) =>
               new ApiError('network', HTTP_INTERNAL_SERVER_ERROR, 'Could not read the saved draft.', cause),
-            try: () => drafts.readWikiDraftState(env.DB, workspace.id, page.id, scope.user.id),
+            try: async () => drafts.readWikiDraftState(env.DB, workspace.id, page.id, scope.user.id),
           })
         }),
       ),
     webCreateWikiPage: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      mutation('webCreateWikiPage', Created, proof, (ctx) => wiki.createWikiPage(ctx, input)),
+      mutation('webCreateWikiPage', Created, proof, async (ctx) => wiki.createWikiPage(ctx, input)),
     webUpdateWikiPage: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
-      mutation('webUpdateWikiPage', Ok, proof, (ctx) => wiki.updateWikiPage(ctx, slug, input)),
+      mutation('webUpdateWikiPage', Ok, proof, async (ctx) => wiki.updateWikiPage(ctx, slug, input)),
     webPublishWikiPage: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
       mutation('webPublishWikiPage', Published, proof, async (ctx) => {
         const reserved = await drafts.beginWikiDraftPublish(ctx, slug, input)
@@ -104,7 +104,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         })
       }),
     webSaveWikiDraft: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
-      mutation('webSaveWikiDraft', SavedDraft, proof, (ctx) => {
+      mutation('webSaveWikiDraft', SavedDraft, proof, async (ctx) => {
         const parsed = VersionedWikiDraftInputSchema.safeParse(input)
         if (!parsed.success) {
           throw coreFailure(HTTP_BAD_REQUEST, 'A draft revision precondition is required.')
@@ -112,7 +112,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         return drafts.saveWikiDraft(ctx, slug, parsed.data)
       }),
     webDiscardWikiDraft: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
-      mutation('webDiscardWikiDraft', DraftRevision, proof, (ctx) => {
+      mutation('webDiscardWikiDraft', DraftRevision, proof, async (ctx) => {
         const parsed = WikiDraftRevisionInputSchema.safeParse(input)
         if (!parsed.success) {
           throw coreFailure(HTTP_BAD_REQUEST, 'A draft revision precondition is required.')
@@ -120,11 +120,11 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         return drafts.discardWikiDraft(ctx, slug, parsed.data)
       }),
     webVerifyWikiPage: (proof: BrowserCommand, slug: string): CoreReply<R> =>
-      mutation('webVerifyWikiPage', Verified, proof, (ctx) => wiki.verifyWikiPage(ctx, slug)),
+      mutation('webVerifyWikiPage', Verified, proof, async (ctx) => wiki.verifyWikiPage(ctx, slug)),
     webDeleteWikiPage: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
-      mutation('webDeleteWikiPage', Deleted, proof, (ctx) => wiki.deleteWikiPage(ctx, slug, input)),
+      mutation('webDeleteWikiPage', Deleted, proof, async (ctx) => wiki.deleteWikiPage(ctx, slug, input)),
     webUndeleteWikiPage: (proof: BrowserCommand, id: string): CoreReply<R> =>
-      mutation('webUndeleteWikiPage', Restored, proof, (ctx) => wiki.undeleteWikiPage(ctx, id)),
+      mutation('webUndeleteWikiPage', Restored, proof, async (ctx) => wiki.undeleteWikiPage(ctx, id)),
     webRestoreWikiRevision: (
       proof: BrowserCommand,
       slug: string,

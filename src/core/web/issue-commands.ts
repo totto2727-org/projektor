@@ -32,23 +32,23 @@ export const makeIssueCommandHandlers = <R>(envSource: Effect.Effect<CoreEnviron
   }
   return {
     webCreateIssue: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webCreateIssue', CreatedIssueSchema, proof, (ctx) => issues.createIssue(ctx, input)),
+      reply('webCreateIssue', CreatedIssueSchema, proof, async (ctx) => issues.createIssue(ctx, input)),
     webUpdateIssue: (proof: BrowserCommand, id: string, input: unknown): CoreReply<R> =>
-      reply('webUpdateIssue', CommandOkSchema, proof, (ctx) => issues.updateIssue(ctx, id, input)),
+      reply('webUpdateIssue', CommandOkSchema, proof, async (ctx) => issues.updateIssue(ctx, id, input)),
     webAddComment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webAddComment', CommandIdSchema, proof, (ctx) => comments.addComment(ctx, input)),
+      reply('webAddComment', CommandIdSchema, proof, async (ctx) => comments.addComment(ctx, input)),
     webUpdateComment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webUpdateComment', CommandOkSchema, proof, (ctx) => comments.updateComment(ctx, input)),
+      reply('webUpdateComment', CommandOkSchema, proof, async (ctx) => comments.updateComment(ctx, input)),
     webDeleteComment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webDeleteComment', CommandOkSchema, proof, (ctx) => comments.deleteComment(ctx, input)),
+      reply('webDeleteComment', CommandOkSchema, proof, async (ctx) => comments.deleteComment(ctx, input)),
     webCreateIssueLink: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webCreateIssueLink', CommandIdSchema, proof, (ctx) => links.createLink(ctx, input)),
+      reply('webCreateIssueLink', CommandIdSchema, proof, async (ctx) => links.createLink(ctx, input)),
     webDeleteIssueLink: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webDeleteIssueLink', CommandOkSchema, proof, (ctx) => links.deleteLink(ctx, input)),
+      reply('webDeleteIssueLink', CommandOkSchema, proof, async (ctx) => links.deleteLink(ctx, input)),
     webCreateShareToken: (proof: BrowserCommand, issueId: string): CoreReply<R> =>
-      reply('webCreateShareToken', ShareTokenSchema, proof, (ctx) => createShareToken(ctx, issueId)),
+      reply('webCreateShareToken', ShareTokenSchema, proof, async (ctx) => createShareToken(ctx, issueId)),
     webCreateLinkAttachment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webCreateLinkAttachment', CreatedLinkAttachmentSchema, proof, (ctx) =>
+      reply('webCreateLinkAttachment', CreatedLinkAttachmentSchema, proof, async (ctx) =>
         files.createLinkAttachment(ctx, input),
       ),
     webDeleteStoredAttachment: (proof: BrowserCommand, id: string): CoreReply<R> =>
@@ -57,10 +57,10 @@ export const makeIssueCommandHandlers = <R>(envSource: Effect.Effect<CoreEnviron
         return { ok: true }
       }),
     webSetAttachmentReviewStatus: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
-      reply('webSetAttachmentReviewStatus', CommandOkSchema, proof, (ctx) =>
+      reply('webSetAttachmentReviewStatus', CommandOkSchema, proof, async (ctx) =>
         files.setAttachmentReviewStatus(ctx, input),
       ),
     webUpdateSprint: (proof: BrowserCommand, id: string, input: unknown): CoreReply<R> =>
-      reply('webUpdateSprint', CommandOkSchema, proof, (ctx) => sprints.updateSprint(ctx, id, input)),
+      reply('webUpdateSprint', CommandOkSchema, proof, async (ctx) => sprints.updateSprint(ctx, id, input)),
   }
 }
