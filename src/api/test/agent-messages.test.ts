@@ -122,8 +122,7 @@ describe('agent Messages API', () => {
       res3,
       Schema.Struct({ body: Schema.String, id: Schema.String, scope: Schema.String }),
     )
-    expect(msg3.scope).toBe(scope)
-    expect(msg3.body).toBe('message three')
+    expect({ body: msg3.body, scope: msg3.scope }).toStrictEqual({ body: 'message three', scope })
 
     // Use token2 for list operations — verify all 3 are visible, then grab page 2
     const token2 = await seedToken(workspaceId, userId)

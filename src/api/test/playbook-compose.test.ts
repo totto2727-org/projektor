@@ -71,21 +71,22 @@ describe('compose_playbook', () => {
       Schema.Struct({ directive: Schema.String, name: Schema.String, variant: Schema.String }),
     )
 
-    expect(body.name).toBe('epic-goal')
-    expect(body.variant).toBe('bounded')
-    expect(body.directive).toContain('Ship the widget')
-    expect(body.directive).toContain(`PROJ-${epicNumber}`)
-    expect(body.directive).toContain('Self-feed (bounded)')
+    expect({ name: body.name, variant: body.variant }).toStrictEqual({ name: 'epic-goal', variant: 'bounded' })
+    const contextFragments = ['Ship the widget', `PROJ-${epicNumber}`, 'Self-feed (bounded)']
+    expect(contextFragments.filter((fragment) => !body.directive.includes(fragment))).toStrictEqual([])
     expect(body.directive).not.toContain('Self-feed (full)')
-    expect(body.directive).toContain('every 2 completed tickets')
-    expect(body.directive).toContain('adversarial opus review')
-    expect(body.directive).toContain('Human checkpoint')
-    expect(body.directive).toContain('every 10 completed tickets')
-    expect(body.directive).toContain('Least confident about')
-    expect(body.directive).toContain('cheap to reverse now and expensive later')
-    // One open child (Child 1), one done (Child 2) -> rollup.remaining == 1
-    expect(body.directive).toContain('1 open child ticket(s)')
-    expect(body.directive).toContain('WIP limit is 7')
+    const directiveFragments = [
+      'every 2 completed tickets',
+      'adversarial opus review',
+      'Human checkpoint',
+      'every 10 completed tickets',
+      'Least confident about',
+      'cheap to reverse now and expensive later',
+      // One open child (Child 1), one done (Child 2) -> rollup.remaining == 1
+      '1 open child ticket(s)',
+      'WIP limit is 7',
+    ]
+    expect(directiveFragments.filter((fragment) => !body.directive.includes(fragment))).toStrictEqual([])
     /*
      * Every quoted line starts with "> " and there's no run-on "clause>clause"
      * artifact from a malformed line-join
@@ -110,8 +111,8 @@ describe('compose_playbook', () => {
     expect(body.variant).toBe('full')
     expect(body.directive).toContain('Self-feed (full)')
     expect(body.directive).not.toContain('Self-feed (bounded)')
-    expect(body.directive).toContain('every 5 completed tickets')
-    expect(body.directive).toContain('adversarial sonnet review')
+    const reviewFragments = ['every 5 completed tickets', 'adversarial sonnet review']
+    expect(reviewFragments.filter((fragment) => !body.directive.includes(fragment))).toStrictEqual([])
   })
 
   test('honors a custom checkpointInterval', async () => {

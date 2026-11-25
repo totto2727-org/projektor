@@ -2968,8 +2968,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(res.error).toBeUndefined()
     const issue = parseNativeMcpText(readNativeMcpResultText(res.result), JsonRecordResponse)
     expect(Object.keys(issue).toSorted()).toStrictEqual(['assignee_id', 'id', 'links', 'rollup', 'sprint_id'])
-    expect(issue.assignee_id).toBeNull()
-    expect(issue.sprint_id).toBeNull()
+    expect({ assignee_id: issue.assignee_id, sprint_id: issue.sprint_id }).toStrictEqual({
+      assignee_id: JSON_NULL,
+      sprint_id: JSON_NULL,
+    })
     // Requested fields keep their real value — empty/zero is not the same as absent.
     expect(issue.links).toStrictEqual([])
     expect(issue.rollup).toMatchObject({ total: 0 })
