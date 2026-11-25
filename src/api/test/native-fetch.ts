@@ -20,3 +20,22 @@ export const requestOptionsWithBody = function requestOptionsWithBody(
 export const stringifyOrderedFields = function stringifyOrderedFields(fields: FieldEntries): string {
   return JSON.stringify(fieldsInOrder(fields))
 }
+
+export interface McpToolRequest {
+  arguments: unknown
+  name: string
+}
+
+export const fetchNativeMcpTool = async function fetchNativeMcpTool(
+  workspaceId: string,
+  params: McpToolRequest,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const body = JSON.stringify({
+    id: 1,
+    jsonrpc: '2.0',
+    method: 'tools/call',
+    params,
+  })
+  return fetchNativeApi(`http://localhost/mcp/${workspaceId}`, requestOptionsWithBody('POST', headers, body))
+}

@@ -14,10 +14,20 @@ import {
   seedWorkspaceRoles,
   toolError,
 } from './helpers.ts'
-import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
-import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { stringifyOrderedFields, fetchNativeApi, fetchNativeMcpTool, requestOptionsWithBody } from './native-fetch.ts'
+import type { McpToolRequest } from './native-fetch.ts'
 import { seedRateLimitCounter } from './rate-limit-reset.ts'
-import { ErrorMessageResponse, IdListResponse, IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
+import {
+  ErrorMessageResponse,
+  IdListResponse,
+  IdResponse,
+  JsonListResponse,
+  RpcTextResponse,
+  TokenResponse,
+  parseNativeMcpText,
+  readNativeJson,
+  readNativeMcpResultText,
+} from './response-json.ts'
 
 describe('feedback migration', () => {
   test('creates feedback_sources and feedback tables', async () => {
@@ -544,42 +554,44 @@ describe('feedback triage read/patch', () => {
   })
 })
 
-const mcpCall = async function mcpCall<T>(
+const callMcpTool = async function callMcpTool(
   workspaceId: string,
-  name: string,
-  args: unknown,
+  params: McpToolRequest,
   headers: Record<string, string>,
-): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await fetchNativeApi(
-    `http://localhost/mcp/${workspaceId}`,
-    requestOptionsWithBody(
-      'POST',
-      headers,
-      JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { arguments: args, name },
-      }),
-    ),
-  )
-  return res.json()
+): Promise<typeof RpcTextResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, RpcTextResponse)
 }
 
-const mcpText = function mcpText<T>(r: JsonRpcResult<{ content: { text: string }[] }>): T {
-  return JSON.parse(r.result.content[0].text) as T
+const mcpCall = async function mcpCall(
+  workspaceId: string,
+  params: McpToolRequest,
+  headers: Record<string, string>,
+): Promise<unknown> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return response.json()
+}
+
+const FeedbackSourceTokenResponse = Schema.Struct({ id: Schema.String, token: Schema.String })
+const FeedbackListResponse = Schema.Array(Schema.Struct({ sourceId: Schema.String, status: Schema.String }))
+
+const mcpText = function mcpText<Output extends Schema.Constraint>(
+  response: typeof RpcTextResponse.Type,
+  schema: Output,
+): Output['Type'] {
+  const text = readNativeMcpResultText(response.result)
+  return parseNativeMcpText(text, schema)
 }
 
 describe('feedback source MCP tools', () => {
   test('create_feedback_source returns a one-time token (owner)', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const res = (await mcpCall<{ content: { text: string }[] }>(
+    const res = await callMcpTool(
       testFixture.workspaceId,
-      'create_feedback_source',
-      { projectId: testFixture.projectId, name: 'Onboarding' },
+      { arguments: { projectId: testFixture.projectId, name: 'Onboarding' }, name: 'create_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const out = mcpText<{ id: string; token: string }>(res)
+    )
+    const out = mcpText(res, FeedbackSourceTokenResponse)
     expect(isNonEmptyText(out.id)).toBe(true)
     expect(isNonEmptyText(out.token)).toBe(true)
   })
@@ -588,8 +600,7 @@ describe('feedback source MCP tools', () => {
     const testFixture = await seedProjectFixture({ role: 'member' })
     const res = await mcpCall(
       testFixture.workspaceId,
-      'create_feedback_source',
-      { projectId: testFixture.projectId, name: 'X' },
+      { arguments: { projectId: testFixture.projectId, name: 'X' }, name: 'create_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
     )
     expect(toolError(res)?.code).toBe('forbidden')
@@ -597,39 +608,35 @@ describe('feedback source MCP tools', () => {
 
   test('list_feedback_sources never leaks a raw token', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: { text: string }[] }>(
+    const created = await callMcpTool(
       testFixture.workspaceId,
-      'create_feedback_source',
-      { projectId: testFixture.projectId, name: 'NPS' },
+      { arguments: { projectId: testFixture.projectId, name: 'NPS' }, name: 'create_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { token } = mcpText<{ id: string; token: string }>(created)
+    )
+    const { token } = mcpText(created, FeedbackSourceTokenResponse)
 
-    const listed = (await mcpCall<{ content: { text: string }[] }>(
+    const listed = await callMcpTool(
       testFixture.workspaceId,
-      'list_feedback_sources',
-      { projectId: testFixture.projectId },
+      { arguments: { projectId: testFixture.projectId }, name: 'list_feedback_sources' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
+    )
     expect(listed.result.content[0].text).not.toContain(token)
   })
 
   test('update_feedback_source updates fields via MCP (owner)', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: { text: string }[] }>(
+    const created = await callMcpTool(
       testFixture.workspaceId,
-      'create_feedback_source',
-      { projectId: testFixture.projectId, name: 'Old' },
+      { arguments: { projectId: testFixture.projectId, name: 'Old' }, name: 'create_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { id } = mcpText<{ id: string }>(created)
+    )
+    const { id } = mcpText(created, IdResponse)
 
-    const res = (await mcpCall(
+    const res = await callMcpTool(
       testFixture.workspaceId,
-      'update_feedback_source',
-      { isActive: false, name: 'New', sourceId: id },
+      { arguments: { isActive: false, name: 'New', sourceId: id }, name: 'update_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult
+    )
     expect(res.result).toBeDefined()
 
     const row = await env.DB.prepare('SELECT name, is_active FROM feedback_sources WHERE id = ?')
@@ -641,20 +648,18 @@ describe('feedback source MCP tools', () => {
 
   test('revoke_feedback_source stamps revoked_at via MCP (owner)', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: { text: string }[] }>(
+    const created = await callMcpTool(
       testFixture.workspaceId,
-      'create_feedback_source',
-      { projectId: testFixture.projectId, name: 'S' },
+      { arguments: { projectId: testFixture.projectId, name: 'S' }, name: 'create_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { id } = mcpText<{ id: string }>(created)
+    )
+    const { id } = mcpText(created, IdResponse)
 
-    const res = (await mcpCall(
+    const res = await callMcpTool(
       testFixture.workspaceId,
-      'revoke_feedback_source',
-      { sourceId: id },
+      { arguments: { sourceId: id }, name: 'revoke_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult
+    )
     expect(res.result).toBeDefined()
 
     const row = await env.DB.prepare('SELECT revoked_at FROM feedback_sources WHERE id = ?')
@@ -665,23 +670,21 @@ describe('feedback source MCP tools', () => {
 
   test('rotate_feedback_source_token invalidates the old token, keeps id + history', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: { text: string }[] }>(
+    const created = await callMcpTool(
       testFixture.workspaceId,
-      'create_feedback_source',
-      { projectId: testFixture.projectId, name: 'R' },
+      { arguments: { projectId: testFixture.projectId, name: 'R' }, name: 'create_feedback_source' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { id, token: oldToken } = mcpText<{ id: string; token: string }>(created)
+    )
+    const { id, token: oldToken } = mcpText(created, FeedbackSourceTokenResponse)
     // Existing feedback under this source
     const fbId = await seedFeedbackRow(id, testFixture.workspaceId, testFixture.projectId, { body: 'keep me' })
 
-    const rotated = (await mcpCall<{ content: { text: string }[] }>(
+    const rotated = await callMcpTool(
       testFixture.workspaceId,
-      'rotate_feedback_source_token',
-      { sourceId: id },
+      { arguments: { sourceId: id }, name: 'rotate_feedback_source_token' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { token: newToken } = mcpText<{ token: string }>(rotated)
+    )
+    const { token: newToken } = mcpText(rotated, TokenResponse)
     expect(newToken).not.toBe(oldToken)
 
     // Old token now rejected
@@ -1045,32 +1048,29 @@ describe('feedback read/triage MCP tools', () => {
       status: 'reviewed',
     })
 
-    const res = (await mcpCall<{ content: { text: string }[] }>(
+    const res = await callMcpTool(
       testFixture.workspaceId,
-      'list_feedback',
-      { projectId: testFixture.projectId },
+      { arguments: { projectId: testFixture.projectId }, name: 'list_feedback' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const all = mcpText<{ status: string; sourceId: string }[]>(res)
+    )
+    const all = mcpText(res, FeedbackListResponse)
     expect(all).toHaveLength(2)
 
-    const filtered = (await mcpCall<{ content: { text: string }[] }>(
+    const filtered = await callMcpTool(
       testFixture.workspaceId,
-      'list_feedback',
-      { projectId: testFixture.projectId, status: 'reviewed' },
+      { arguments: { projectId: testFixture.projectId, status: 'reviewed' }, name: 'list_feedback' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const reviewed = mcpText<{ status: string }[]>(filtered)
+    )
+    const reviewed = mcpText(filtered, FeedbackListResponse)
     expect(reviewed).toHaveLength(1)
     expect(reviewed[0].status).toBe('reviewed')
 
-    const bySource = (await mcpCall<{ content: { text: string }[] }>(
+    const bySource = await callMcpTool(
       testFixture.workspaceId,
-      'list_feedback',
-      { projectId: testFixture.projectId, sourceId: src.id },
+      { arguments: { projectId: testFixture.projectId, sourceId: src.id }, name: 'list_feedback' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    expect(mcpText<unknown[]>(bySource)).toHaveLength(2)
+    )
+    expect(mcpText(bySource, JsonListResponse)).toHaveLength(2)
   })
 
   test('list_feedback is readable by a viewer', async () => {
@@ -1088,12 +1088,11 @@ describe('feedback read/triage MCP tools', () => {
     const { id: sourceId } = await readNativeJson(create, IdResponse)
     await seedFeedbackRow(sourceId, roles.workspace.id, proj.id)
 
-    const res = (await mcpCall(
+    const res = await callMcpTool(
       roles.workspace.id,
-      'list_feedback',
-      { projectId: proj.id },
+      { arguments: { projectId: proj.id }, name: 'list_feedback' },
       authHeaders(roles.viewer.token, roles.workspace.slug),
-    )) as JsonRpcResult
+    )
     expect(res.result).toBeDefined()
   })
 
@@ -1106,12 +1105,11 @@ describe('feedback read/triage MCP tools', () => {
     assert.exists(src)
     const fbId = await seedFeedbackRow(src.id, testFixture.workspaceId, testFixture.projectId)
 
-    const res = (await mcpCall(
+    const res = await callMcpTool(
       testFixture.workspaceId,
-      'update_feedback_status',
-      { feedbackId: fbId, status: 'reviewed' },
+      { arguments: { feedbackId: fbId, status: 'reviewed' }, name: 'update_feedback_status' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult
+    )
     expect(res.result).toBeDefined()
 
     const row = await env.DB.prepare('SELECT status FROM feedback WHERE id = ?').bind(fbId).first<{ status: string }>()
@@ -1135,8 +1133,7 @@ describe('feedback read/triage MCP tools', () => {
 
     const res = await mcpCall(
       roles.workspace.id,
-      'update_feedback_status',
-      { feedbackId: fbId, status: 'reviewed' },
+      { arguments: { feedbackId: fbId, status: 'reviewed' }, name: 'update_feedback_status' },
       authHeaders(roles.viewer.token, roles.workspace.slug),
     )
     expect(toolError(res)?.code).toBe('forbidden')
@@ -1153,13 +1150,12 @@ describe('feedback read/triage MCP tools', () => {
       body: 'The export button is broken',
     })
 
-    const res = (await mcpCall<{ content: { text: string }[] }>(
+    const res = await callMcpTool(
       testFixture.workspaceId,
-      'convert_feedback_to_issue',
-      { feedbackId: fbId },
+      { arguments: { feedbackId: fbId }, name: 'convert_feedback_to_issue' },
       authHeaders(testFixture.token, testFixture.slug),
-    )) as JsonRpcResult<{ content: { text: string }[] }>
-    const issue = mcpText<{ id: string }>(res)
+    )
+    const issue = mcpText(res, IdResponse)
     expect(isNonEmptyText(issue.id)).toBe(true)
 
     const row = await env.DB.prepare('SELECT status, linked_issue_id FROM feedback WHERE id = ?')
@@ -1180,14 +1176,12 @@ describe('feedback read/triage MCP tools', () => {
 
     await mcpCall(
       testFixture.workspaceId,
-      'convert_feedback_to_issue',
-      { feedbackId: fbId },
+      { arguments: { feedbackId: fbId }, name: 'convert_feedback_to_issue' },
       authHeaders(testFixture.token, testFixture.slug),
     )
     const second = await mcpCall(
       testFixture.workspaceId,
-      'convert_feedback_to_issue',
-      { feedbackId: fbId },
+      { arguments: { feedbackId: fbId }, name: 'convert_feedback_to_issue' },
       authHeaders(testFixture.token, testFixture.slug),
     )
     expect(toolError(second)?.code).toBe('conflict')
@@ -1210,8 +1204,7 @@ describe('feedback read/triage MCP tools', () => {
 
     const res = await mcpCall(
       roles.workspace.id,
-      'convert_feedback_to_issue',
-      { feedbackId: fbId },
+      { arguments: { feedbackId: fbId }, name: 'convert_feedback_to_issue' },
       authHeaders(roles.viewer.token, roles.workspace.slug),
     )
     expect(toolError(res)?.code).toBe('forbidden')

@@ -17,7 +17,8 @@ import {
   seedWorkspace,
   toolError,
 } from './helpers.ts'
-import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { fetchNativeApi, fetchNativeMcpTool, requestOptionsWithBody } from './native-fetch.ts'
+import type { McpToolRequest } from './native-fetch.ts'
 import {
   OkResponse,
   IdListResponse,
@@ -27,37 +28,12 @@ import {
   readNativeJson,
 } from './response-json.ts'
 
-interface McpToolRequest {
-  arguments: unknown
-  name: string
-}
-
-const fetchMcpTool = async function fetchMcpTool(
-  workspaceId: string,
-  params: McpToolRequest,
-  headers: Record<string, string>,
-): Promise<Response> {
-  return fetchNativeApi(
-    `http://localhost/mcp/${workspaceId}`,
-    requestOptionsWithBody(
-      'POST',
-      headers,
-      JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params,
-      }),
-    ),
-  )
-}
-
 const callMcpTool = async function callMcpTool(
   workspaceId: string,
   params: McpToolRequest,
   headers: Record<string, string>,
 ): Promise<typeof RpcTextResponse.Type> {
-  const response = await fetchMcpTool(workspaceId, params, headers)
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
   return readNativeJson(response, RpcTextResponse)
 }
 
@@ -66,7 +42,7 @@ const mcpCall = async function mcpCall(
   params: McpToolRequest,
   headers: Record<string, string>,
 ): Promise<unknown> {
-  const response = await fetchMcpTool(workspaceId, params, headers)
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
   return response.json()
 }
 
