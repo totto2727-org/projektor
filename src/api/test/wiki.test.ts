@@ -1,5 +1,5 @@
 import { Schema, String, Iterable, Predicate } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
@@ -1080,10 +1080,10 @@ describe('wiki API', () => {
     ).pipe(Schema.mutable)
     const tree = await readNativeJson(treeRes, treeShape)
     const rootNode = tree.find((node) => node.id === root.id)
-    expect(rootNode).toBeDefined()
-    expect(rootNode!.children).toHaveLength(1)
-    expect(rootNode!.children[0].id).toBe(child.id)
-    expect(rootNode!.children[0].children).toHaveLength(0)
+    assert.isDefined(rootNode)
+    expect(rootNode.children).toHaveLength(1)
+    expect(rootNode.children[0].id).toBe(child.id)
+    expect(rootNode.children[0].children).toHaveLength(0)
   })
 
   test('handles PUT /api/wiki/:slug reparents a page via parentId', async () => {
@@ -6420,8 +6420,8 @@ describe('wiki trash (PROJ-496)', () => {
     )
     expect(rows.some((selectedRow) => selectedRow.id === live.id)).toBe(false)
     const row = rows.find((selectedRow) => selectedRow.id === trashed.id)
-    expect(row).toBeDefined()
-    expect(row?.purgeAfter).toBe(row!.deleted_at + 30 * 24 * 60 * 60)
+    assert.isDefined(row)
+    expect(row.purgeAfter).toBe(row.deleted_at + 30 * 24 * 60 * 60)
   })
 
   test('handles POST /api/wiki/trash/:id/undelete restores a trashed page: it becomes visible again', async () => {

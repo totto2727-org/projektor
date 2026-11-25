@@ -1,5 +1,5 @@
 import { Schema, Iterable } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { issuesTools } from '#api/mcp/issues.ts'
 import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
@@ -1804,8 +1804,8 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
     })
     const body = await readNativeJson(res, bodyShape)
     const listIssuesTool = body.result.tools.find((tool) => tool.name === 'list_issues')
-    expect(listIssuesTool).toBeDefined()
-    const advertised = Object.keys(listIssuesTool!.inputSchema.properties)
+    assert.isDefined(listIssuesTool)
+    const advertised = Object.keys(listIssuesTool.inputSchema.properties)
     Iterable.forEach(Object.keys(ListIssuesSchema.shape), (key) => {
       expect(advertised).toContain(key)
     })

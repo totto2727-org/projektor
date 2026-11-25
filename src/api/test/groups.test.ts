@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
@@ -88,9 +88,9 @@ describe('groups REST', () => {
       ),
     )
     const g = groups.find((group) => group.name === 'Engineering')
-    expect(g).toBeDefined()
-    expect(g!.memberCount).toBe(0)
-    expect(g!.grantCount).toBe(0)
+    assert.isDefined(g)
+    expect(g.memberCount).toBe(0)
+    expect(g.grantCount).toBe(0)
   })
 
   test('member cannot create a group (403)', async () => {

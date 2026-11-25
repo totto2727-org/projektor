@@ -1,5 +1,5 @@
 import { Predicate } from 'effect'
-import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import {
   ensureUserProvisioned,
@@ -56,8 +56,8 @@ describe('login provisioning', () => {
     )
 
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
-    expect(ws).not.toBeNull()
-    await expect(memberRole(ws!.id, admin.id)).resolves.toBe('owner')
+    assert.isNotNull(ws)
+    await expect(memberRole(ws.id, admin.id)).resolves.toBe('owner')
   })
 
   test('non-admin auto-joins an existing workspace as viewer', async () => {
@@ -222,8 +222,8 @@ describe('login provisioning', () => {
     )
 
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
-    expect(ws).not.toBeNull()
-    await expect(memberRole(ws!.id, user.id)).resolves.toBe('owner')
+    assert.isNotNull(ws)
+    await expect(memberRole(ws.id, user.id)).resolves.toBe('owner')
   })
 })
 

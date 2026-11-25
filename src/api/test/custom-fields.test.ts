@@ -1,5 +1,5 @@
 import { Schema, Iterable } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { batchLoadCustomFields } from '#commands/custom-fields.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -502,10 +502,10 @@ describe('custom Fields — story_points seed', () => {
     )
       .bind(ws)
       .first<{ key: string; label: string; type: string }>()
-    expect(row).not.toBeNull()
-    expect(row!.key).toBe('story_points')
-    expect(row!.label).toBe('Story Points')
-    expect(row!.type).toBe('number')
+    assert.isNotNull(row)
+    expect(row.key).toBe('story_points')
+    expect(row.label).toBe('Story Points')
+    expect(row.type).toBe('number')
   })
 
   test('seedDefaultCustomFields is idempotent', async () => {

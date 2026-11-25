@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
-import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { ApiPrincipal } from '#contracts/api-auth.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -1173,9 +1173,9 @@ describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
     const tokenRow = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ? AND workspace_id = ?')
       .bind('to-delete', fixture.workspace.id)
       .first<{ id: string }>()
-    expect(tokenRow).not.toBeNull()
+    assert.isNotNull(tokenRow)
 
-    const deleteRes = await humanFetch(fixture.user.email, `http://localhost/auth/tokens/${tokenRow!.id}`, {
+    const deleteRes = await humanFetch(fixture.user.email, `http://localhost/auth/tokens/${tokenRow.id}`, {
       method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)

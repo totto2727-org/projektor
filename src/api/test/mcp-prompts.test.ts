@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
@@ -44,11 +44,11 @@ describe('covers MCP prompts', () => {
       }[]
     }>
     const prompt = json.result.prompts.find((p) => p.name === 'epic-goal')
-    expect(prompt).toBeDefined()
-    const argNames = prompt!.arguments.map((a) => a.name)
+    assert.isDefined(prompt)
+    const argNames = prompt.arguments.map((a) => a.name)
     expect(argNames).toStrictEqual(['epicRef', 'variant', 'reviewModel', 'cadence', 'checkpointInterval'])
-    expect(prompt!.arguments.find((a) => a.name === 'epicRef')?.required).toBe(true)
-    expect(prompt!.arguments.find((a) => a.name === 'variant')?.required).toBe(false)
+    expect(prompt.arguments.find((a) => a.name === 'epicRef')?.required).toBe(true)
+    expect(prompt.arguments.find((a) => a.name === 'variant')?.required).toBe(false)
   })
 
   test('prompts/get with only epicRef returns the composed directive as a user message', async () => {
