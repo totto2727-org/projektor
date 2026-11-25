@@ -313,7 +313,7 @@ const GroupDetailEditor = function GroupDetailEditor({
     (member) => !adminRole(member.role) && !detail.members.some((row) => row.userId === member.id),
   )
   const grantable = projects.filter((project) => !detail.grants.some((row) => row.projectId === project.id))
-  async function removeMember(userId: string): Promise<void> {
+  const removeMember = async function removeMember(userId: string): Promise<void> {
     if (busy) {
       return
     }
@@ -328,7 +328,7 @@ const GroupDetailEditor = function GroupDetailEditor({
     }
     setBusy(false)
   }
-  async function removeGrant(projectId: string): Promise<void> {
+  const removeGrant = async function removeGrant(projectId: string): Promise<void> {
     if (busy) {
       return
     }
@@ -734,7 +734,7 @@ export const GroupManager = function GroupManager({
     }
     setBusy(false)
   }
-  function onTabKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+  const onTabKeyDown = function onTabKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     const next = nextTabId(tabs, activeTab, event.key)
     if (next) {
       event.preventDefault()

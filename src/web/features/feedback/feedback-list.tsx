@@ -404,7 +404,7 @@ export function FeedbackList({
     startTransition,
   )
 
-  function toggleSelectAll(): void {
+  const toggleSelectAll = function toggleSelectAll(): void {
     setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row.id))))
   }
 

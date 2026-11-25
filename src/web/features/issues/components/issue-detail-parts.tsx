@@ -97,7 +97,7 @@ const SidebarField = function SidebarField({ label, children }: { label: string;
 export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: string }): JSX.Element {
   const [copiedRef, setCopiedRef] = useState(false)
 
-  function copyLink(): void {
+  const copyLink = function copyLink(): void {
     navigator.clipboard.writeText(new URL(copyUrl, window.location.origin).href).catch(() => {})
     setCopiedRef(true)
     setTimeout(() => {
@@ -161,7 +161,7 @@ export const ShareButton = function ShareButton({
   const [sharingLoading, setSharingLoading] = useState(false)
   const [copiedShare, setCopiedShare] = useState(false)
 
-  async function createShareLink(): Promise<void> {
+  const createShareLink = async function createShareLink(): Promise<void> {
     if (Predicate.isNotNullish(shareUrl) && String.isNonEmpty(shareUrl)) {
       setShareUrl(null)
       return
@@ -176,7 +176,7 @@ export const ShareButton = function ShareButton({
     setSharingLoading(false)
   }
 
-  function copyShareUrl(): void {
+  const copyShareUrl = function copyShareUrl(): void {
     if (Predicate.isNullish(shareUrl) || String.isEmpty(shareUrl)) {
       return
     }
@@ -266,18 +266,18 @@ export const TitleSection = function TitleSection({
   const [saveTitleError, setSaveTitleError] = useState<string>()
   useUnsavedUnloadGuard(editingTitle && editTitle !== issue.title)
 
-  function startEditTitle(): void {
+  const startEditTitle = function startEditTitle(): void {
     setEditTitle(issue.title)
     setSaveTitleError(undefined)
     setEditingTitle(true)
   }
 
-  function cancelEditTitle(): void {
+  const cancelEditTitle = function cancelEditTitle(): void {
     setEditingTitle(false)
     setSaveTitleError(undefined)
   }
 
-  async function saveTitle(): Promise<void> {
+  const saveTitle = async function saveTitle(): Promise<void> {
     if (!(await titleForm.validate())) {
       setSaveTitleError('Enter a title.')
       return
@@ -405,27 +405,27 @@ const useBodyEditor = function useBodyEditor(
     setAwaitingBody(null)
   }, [awaitingBody, editBody, issue.body, key])
 
-  function startEditBody(fromDraft = false): void {
+  const startEditBody = function startEditBody(fromDraft = false): void {
     setEditBody((fromDraft ? loadDraft(key) : null) ?? issue.body ?? '')
     setSaveBodyError(null)
     setEditingBody(true)
   }
 
-  function updateBody(value: string): void {
+  const updateBody = function updateBody(value: string): void {
     bodyRevision.current += 1
     setEditBody(value)
     saveDraft(key, value)
     setHasDraft(!!value.trim())
   }
 
-  function cancelEditBody(): void {
+  const cancelEditBody = function cancelEditBody(): void {
     setEditingBody(false)
     setSaveBodyError(null)
     clearDraft(key)
     setHasDraft(false)
   }
 
-  async function saveBody(): Promise<void> {
+  const saveBody = async function saveBody(): Promise<void> {
     const revision = bodyRevision.current
     const submittedBody = editBody
     if (!(await bodyForm.validate())) {
@@ -787,7 +787,7 @@ export const RelationsSection = function RelationsSection({
     }))
     .filter((linkGroup) => Array.isArrayNonEmpty(linkGroup.items))
 
-  async function addLink(): Promise<void> {
+  const addLink = async function addLink(): Promise<void> {
     const ref = normalizeIssueRef(linkFormRef)
     setLinkFormRef(ref)
     if (!(await relationForm.validate())) {
@@ -819,7 +819,7 @@ export const RelationsSection = function RelationsSection({
     setAddingLink(false)
   }
 
-  async function removeLink(linkId: string): Promise<void> {
+  const removeLink = async function removeLink(linkId: string): Promise<void> {
     try {
       unwrapResult(await deleteIssueLink({ workspaceSlug, issueId, linkId }))
     } catch {
@@ -1298,13 +1298,13 @@ const useAttachmentLinks = function useAttachmentLinks(
   const [urlValue, setUrlValue] = urlForm.field('url')
   const [labelValue, setLabelValue] = urlForm.field('label')
 
-  function reset(): void {
+  const reset = function reset(): void {
     setLinkError(null)
     setUrlValue('')
     setLabelValue('')
   }
 
-  async function linkWikiPage(wikiPageId: string): Promise<void> {
+  const linkWikiPage = async function linkWikiPage(wikiPageId: string): Promise<void> {
     setLinking(true)
     setLinkError(null)
     try {
@@ -1317,7 +1317,7 @@ const useAttachmentLinks = function useAttachmentLinks(
     setLinking(false)
   }
 
-  async function addUrl(): Promise<void> {
+  const addUrl = async function addUrl(): Promise<void> {
     if (!(await urlForm.validate())) {
       setLinkError('Enter a valid URL.')
       return
@@ -1361,7 +1361,7 @@ const useAttachmentForms = function useAttachmentForms(issueId: string, workspac
     setMode('none')
   })
 
-  function resetForms(): void {
+  const resetForms = function resetForms(): void {
     setMode('none')
     links.reset()
   }
@@ -1579,7 +1579,7 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
   const [originalCommentBody, setOriginalCommentBody] = useState('')
   useUnsavedUnloadGuard(Predicate.isNotNullish(editingCommentId) && editCommentBody !== originalCommentBody)
 
-  function startEditComment(comment: Comment): void {
+  const startEditComment = function startEditComment(comment: Comment): void {
     commentRevision.current += 1
     setOriginalCommentBody(comment.body)
     setEditingCommentId(comment.id)
@@ -1587,17 +1587,17 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
     setEditCommentError(null)
   }
 
-  function cancelEditComment(): void {
+  const cancelEditComment = function cancelEditComment(): void {
     setEditingCommentId(null)
     setEditCommentError(null)
   }
 
-  function updateEditComment(value: string): void {
+  const updateEditComment = function updateEditComment(value: string): void {
     commentRevision.current += 1
     setEditCommentBody(value)
   }
 
-  async function saveEditComment(commentId: string): Promise<void> {
+  const saveEditComment = async function saveEditComment(commentId: string): Promise<void> {
     const revision = commentRevision.current
     const submittedBody = editCommentBody
     if (!(await editForm.validate())) {
@@ -1617,7 +1617,7 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
     setSavingComment(false)
   }
 
-  async function doDeleteComment(commentId: string): Promise<void> {
+  const doDeleteComment = async function doDeleteComment(commentId: string): Promise<void> {
     if (!window.confirm('Delete this comment?')) {
       return
     }
@@ -1662,13 +1662,13 @@ const useNewCommentForm = function useNewCommentForm(
     setNewComment(loadDraft(key) ?? '')
   }, [key, setNewComment])
 
-  function updateComment(value: string): void {
+  const updateComment = function updateComment(value: string): void {
     newCommentRevision.current += 1
     setNewComment(value)
     saveDraft(key, value)
   }
 
-  async function submitComment(event: import('react').FormEvent<HTMLFormElement>): Promise<void> {
+  const submitComment = async function submitComment(event: import('react').FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     const revision = newCommentRevision.current
     const submittedBody = newComment.trim()
@@ -1875,12 +1875,12 @@ const PointsField = function PointsField({
   const [pointsValue, setPointsValue] = pointsForm.field('points')
   const [savingPoints, setSavingPoints] = useState(false)
 
-  function startEditPoints(): void {
+  const startEditPoints = function startEditPoints(): void {
     setPointsValue(storyPointsValue)
     setEditingPoints(true)
   }
 
-  async function savePoints(): Promise<void> {
+  const savePoints = async function savePoints(): Promise<void> {
     if (!(await pointsForm.validate())) {
       return
     }

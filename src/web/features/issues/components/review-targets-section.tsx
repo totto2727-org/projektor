@@ -43,7 +43,7 @@ const ReviewTargetRow = function ReviewTargetRow({
     }
   }, [attachment, pending])
 
-  async function changeStatus(nextStatus: ReviewStatus | null): Promise<void> {
+  const changeStatus = async function changeStatus(nextStatus: ReviewStatus | null): Promise<void> {
     if (busy.current) {
       return
     }

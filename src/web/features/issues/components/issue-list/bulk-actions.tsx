@@ -59,7 +59,7 @@ export function IssueBulkProvider({
       return next
     })
   }
-  async function change(changes: { statusId: string } | { priority: string }): Promise<void> {
+  const change = async function change(changes: { statusId: string } | { priority: string }): Promise<void> {
     const ids = [...selected]
     setBusy(true)
     setError(undefined)

@@ -31,7 +31,7 @@ export const IssueReviewNavigation = function IssueReviewNavigation({
   const currentReview = Schema.is(ReviewFilterSchema)(requestedReview) ? requestedReview : null
   const workspaceReviewHref = `/issues?${new URLSearchParams({ workspace: workspaceSlug, review: 'in_review', view: 'list' })}`
 
-  function href(review: ReviewFilter | null): string {
+  const href = function href(review: ReviewFilter | null): string {
     const next = new URLSearchParams(params)
     next.set('workspace', workspaceSlug)
     next.delete('cursor')

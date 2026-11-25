@@ -245,17 +245,23 @@ export function BacklogView({
   }
   const orderedIssues = applyBacklogOrder(backlogIssues, backlogOrder)
 
-  function onBacklogDragStart(selectedEvent: import('react').DragEvent<HTMLElement>, issueId: string): void {
+  const onBacklogDragStart = function onBacklogDragStart(
+    selectedEvent: import('react').DragEvent<HTMLElement>,
+    issueId: string,
+  ): void {
     selectedEvent.dataTransfer?.setData('text/plain', issueId)
     setBacklogDragId(issueId)
   }
 
-  function onBacklogDragOver(event: import('react').DragEvent<HTMLElement>, issueId: string): void {
+  const onBacklogDragOver = function onBacklogDragOver(
+    event: import('react').DragEvent<HTMLElement>,
+    issueId: string,
+  ): void {
     event.preventDefault()
     setBacklogDragOverId(issueId)
   }
 
-  function onBacklogDrop(event: import('react').DragEvent<HTMLElement>, targetId: string): void {
+  const onBacklogDrop = function onBacklogDrop(event: import('react').DragEvent<HTMLElement>, targetId: string): void {
     event.preventDefault()
     const draggedId = event.dataTransfer?.getData('text/plain')
     if (!draggedId || draggedId === targetId) {
@@ -272,7 +278,7 @@ export function BacklogView({
     setBacklogDragOverId(null)
   }
 
-  function onBacklogDragEnd(): void {
+  const onBacklogDragEnd = function onBacklogDragEnd(): void {
     setBacklogDragId(null)
     setBacklogDragOverId(null)
   }

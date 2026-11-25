@@ -112,7 +112,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
   const [newToken, setNewToken] = useState<string | null>(null)
   const [error, setError] = useState<string>()
 
-  async function toggleActive(): Promise<void> {
+  const toggleActive = async function toggleActive(): Promise<void> {
     try {
       unwrapResult(
         await setFeedbackSourceActive({
@@ -128,7 +128,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
     }
   }
 
-  async function confirmRotate(): Promise<void> {
+  const confirmRotate = async function confirmRotate(): Promise<void> {
     if (rotationInFlight.current) {
       return
     }
@@ -150,7 +150,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
     setRotationBusy(false)
   }
 
-  async function revoke(): Promise<void> {
+  const revoke = async function revoke(): Promise<void> {
     if (!window.confirm(`Revoke ${source.name}? Its token will stop accepting feedback.`)) {
       return
     }

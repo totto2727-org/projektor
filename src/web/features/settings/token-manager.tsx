@@ -59,7 +59,7 @@ const NewTokenPanel = function NewTokenPanel({
 }): JSX.Element {
   const command = template?.replace('{{TOKEN}}', token.token) ?? ''
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
-  async function copy(value: string): Promise<void> {
+  const copy = async function copy(value: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(value)
       setCopyMessage('Copied to clipboard.')
@@ -262,19 +262,19 @@ export const TokenManager = function TokenManager({
     defaultValues: defaults,
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
   })
-  function open(): void {
+  const open = function open(): void {
     setShowCreate(true)
     form.reset()
     setError(undefined)
     setNewToken(null)
     setTimeout(() => inputRef.current?.focus(), 0)
   }
-  function close(): void {
+  const close = function close(): void {
     setShowCreate(false)
     setNewToken(null)
     setError(undefined)
   }
-  async function revoke(id: string): Promise<void> {
+  const revoke = async function revoke(id: string): Promise<void> {
     if (revoking) {
       return
     }

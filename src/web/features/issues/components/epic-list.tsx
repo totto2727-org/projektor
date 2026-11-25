@@ -160,7 +160,7 @@ const useCreateEpicForm = function useCreateEpicForm(
   }, [result])
   useUnsavedUnloadGuard(showCreate && Boolean(createTitle.trim()))
 
-  function openCreate(): void {
+  const openCreate = function openCreate(): void {
     setCreateProjectId(defaultCreateProjectId(projectId, projects))
     setCreateTitle('')
     setCreatePriority('medium')
@@ -231,7 +231,7 @@ export function EpicList({
     submitCreate,
   } = useCreateEpicForm(projectId, projects, epicTypeId)
 
-  function toggleSort(key: SortKey): void {
+  const toggleSort = function toggleSort(key: SortKey): void {
     if (sortBy === key) {
       setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))
     } else {

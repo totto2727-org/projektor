@@ -76,7 +76,7 @@ export const SprintManager = function SprintManager({
   const [summary, setSummary] = useState<{ sprint: Sprint; issues: SprintIssue[] } | null>(null)
   const active = allSprints.filter((sprint) => sprint.status === 'active')
   const completed = allSprints.filter((sprint) => sprint.status === 'completed')
-  async function complete(sprint: Sprint): Promise<void> {
+  const complete = async function complete(sprint: Sprint): Promise<void> {
     if (completing) {
       return
     }
@@ -414,7 +414,7 @@ function SprintRow({
   const [moving, setMoving] = useState(false)
   const sprintIssues = issues.filter((issue) => issue.sprint_id === sprint.id)
   const done = sprintIssues.filter((issue) => issue.status_category === 'done')
-  async function changeStatus(status: Sprint['status']): Promise<void> {
+  const changeStatus = async function changeStatus(status: Sprint['status']): Promise<void> {
     if (busy) {
       return
     }
@@ -427,7 +427,7 @@ function SprintRow({
     }
     setBusy(false)
   }
-  async function archiveConfirmed(): Promise<void> {
+  const archiveConfirmed = async function archiveConfirmed(): Promise<void> {
     if (busy) {
       return
     }

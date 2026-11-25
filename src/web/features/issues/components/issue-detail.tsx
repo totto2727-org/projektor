@@ -32,7 +32,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
   const [typeChangeError, setTypeChangeError] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState<string | null>(null)
 
-  async function changeStatus(statusId: string): Promise<void> {
+  const changeStatus = async function changeStatus(statusId: string): Promise<void> {
     setUpdatingStatus(true)
     setMutationError(null)
     try {
@@ -42,7 +42,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
     }
     setUpdatingStatus(false)
   }
-  async function changePriority(priority: string): Promise<void> {
+  const changePriority = async function changePriority(priority: string): Promise<void> {
     setUpdatingPriority(true)
     setMutationError(null)
     try {
@@ -52,7 +52,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
     }
     setUpdatingPriority(false)
   }
-  async function changeType(typeId: string): Promise<void> {
+  const changeType = async function changeType(typeId: string): Promise<void> {
     setUpdatingType(true)
     setTypeChangeError(null)
     try {
@@ -62,7 +62,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
     }
     setUpdatingType(false)
   }
-  async function changeAssignee(assigneeId: string): Promise<void> {
+  const changeAssignee = async function changeAssignee(assigneeId: string): Promise<void> {
     setUpdatingAssignee(true)
     setMutationError(null)
     try {

@@ -1312,7 +1312,7 @@ function TocList({
 function useDuplicateWikiPage() {
   const seed = useWikiSeed()
   const [duplicating, setDuplicating] = useState(false)
-  async function duplicate(): Promise<void> {
+  const duplicate = async function duplicate(): Promise<void> {
     if (!seed.page || duplicating) {
       return
     }
@@ -1351,7 +1351,7 @@ function PageActionOverflowMenu({
     return !!(rootRef.current?.contains(node) || popoverRef.current?.contains(node))
   }, [])
 
-  function openMenu(): void {
+  const openMenu = function openMenu(): void {
     const rect = triggerRef.current?.getBoundingClientRect()
     if (rect) {
       setPos({ top: rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right) })
@@ -1383,7 +1383,7 @@ function PageActionOverflowMenu({
       return
     }
     menuItems()[0]?.focus()
-    function onPointerDown(event: MouseEvent): void {
+    const onPointerDown = function onPointerDown(event: MouseEvent): void {
       if (!(event.target instanceof Node) || !isInside(event.target)) {
         setOpen(false)
       }
@@ -1420,7 +1420,7 @@ function PageActionOverflowMenu({
    * is about to unmount, which would otherwise drop focus to <body>. An action that
    * moves focus somewhere deliberately still gets the last word.
    */
-  function runAndClose(fn: () => void): void {
+  const runAndClose = function runAndClose(fn: () => void): void {
     closeToTrigger()
     fn()
   }
@@ -1721,7 +1721,7 @@ function AttachmentUploadForm({
   const valid = useStore(form.store, (state) => state.isValid)
   const errors = useStore(form.store, (state) => state.fieldMeta.file?.errors ?? [])
   const validatedSubmit = useRef(false)
-  async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  const submit = async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     if (validatedSubmit.current) {
       validatedSubmit.current = false
       return
@@ -2502,11 +2502,11 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
     ...seed.attachments,
     ...inlineAttachments.filter((file) => !seed.attachments.some((current) => current.id === file.id)),
   ]
-  function cancelUpload(): void {
+  const cancelUpload = function cancelUpload(): void {
     setUploadFormOpen(false)
     setUploadError(undefined)
   }
-  async function deleteAttachment(attachmentId: string): Promise<void> {
+  const deleteAttachment = async function deleteAttachment(attachmentId: string): Promise<void> {
     if (!page) {
       return
     }
@@ -2695,7 +2695,10 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     [drainDrafts],
   )
 
-  function adoptDraftState(state: { revision: string | null; draft: ServerDraft | null }): void {
+  const adoptDraftState = function adoptDraftState(state: {
+    revision: string | null
+    draft: ServerDraft | null
+  }): void {
     revisionRef.current = state.revision
     blockedRef.current = false
     serverHasDraftRef.current = Predicate.isNotNullish(state.draft)
@@ -2703,7 +2706,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     setWriteWarning(undefined)
   }
 
-  function discardDraftNow(p: WikiPageData, title: string, content: string): Promise<void> {
+  const discardDraftNow = function discardDraftNow(p: WikiPageData, title: string, content: string): Promise<void> {
     suspendedRef.current = true
     pendingRef.current = null
     const task = tailRef.current
@@ -2737,7 +2740,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     return task
   }
 
-  function publishDraft(snapshot: Snapshot) {
+  const publishDraft = function publishDraft(snapshot: Snapshot) {
     suspendedRef.current = true
     pendingRef.current = null
     const task = tailRef.current
@@ -2822,7 +2825,7 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
    * above runs, the ref already holds `page: null`, so it can't write — flush here
    * first, then suppress that now-redundant cleanup.
    */
-  function flushDraftNow(): void {
+  const flushDraftNow = function flushDraftNow(): void {
     const draftState = latestDraftStateRef.current
     if (!draftState.editing) {
       return
@@ -3080,7 +3083,7 @@ function useWikiEditing(
     }
   }
 
-  function restoreDraft(): void {
+  const restoreDraft = function restoreDraft(): void {
     if (!draftBanner) {
       return
     }
@@ -3091,7 +3094,7 @@ function useWikiEditing(
     serverHasDraftRef.current = true
   }
 
-  async function discardDraft(): Promise<void> {
+  const discardDraft = async function discardDraft(): Promise<void> {
     if (!page || operationRef.current) {
       return
     }
@@ -3124,7 +3127,7 @@ function useWikiEditing(
     })
   }
 
-  function cancelEdit(): void {
+  const cancelEdit = function cancelEdit(): void {
     sessionRef.current += 1
     /*
      * PROJ-796: while the restore banner is unresolved, the server draft is the
@@ -3140,7 +3143,7 @@ function useWikiEditing(
     setDraftBanner(null)
   }
 
-  async function saveWithBase(baseOverride: string | null | undefined): Promise<void> {
+  const saveWithBase = async function saveWithBase(baseOverride: string | null | undefined): Promise<void> {
     if (!page || operationRef.current) {
       return
     }
@@ -3222,7 +3225,7 @@ function useWikiEditing(
   }
 
   // Wired straight to onClick, so it must not take the event as an argument.
-  function save(): Promise<void> {
+  const save = function save(): Promise<void> {
     return saveWithBase(undefined)
   }
 
@@ -3231,7 +3234,7 @@ function useWikiEditing(
    * revision and saves their text on top of it (a deliberate overwrite). Their text
    * stays in the editor either way, so they can also copy it out instead.
    */
-  async function overwriteWithMine(): Promise<void> {
+  const overwriteWithMine = async function overwriteWithMine(): Promise<void> {
     if (!page) {
       return
     }
@@ -3291,7 +3294,7 @@ function useWikiRestore(
 ) {
   const [restoringId, setRestoringId] = useState<string>()
 
-  async function restore(revision: WikiRevision): Promise<void> {
+  const restore = async function restore(revision: WikiRevision): Promise<void> {
     if (!page) {
       return
     }
@@ -3349,7 +3352,7 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
   const [moveSaving, setMoveSaving] = useState(false)
   const [moveError, setMoveError] = useState<string>()
 
-  function startMove(): void {
+  const startMove = function startMove(): void {
     if (!page) {
       return
     }
@@ -3358,12 +3361,12 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
     setMoving(true)
   }
 
-  function cancelMove(): void {
+  const cancelMove = function cancelMove(): void {
     setMoving(false)
     setMoveError(undefined)
   }
 
-  async function submitMove(): Promise<void> {
+  const submitMove = async function submitMove(): Promise<void> {
     if (!page) {
       return
     }
@@ -3399,7 +3402,7 @@ function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | n
   const [verifying, setVerifying] = useState(false)
   const [verifyError, setVerifyError] = useState<string>()
 
-  async function verifyPage(): Promise<void> {
+  const verifyPage = async function verifyPage(): Promise<void> {
     if (!page) {
       return
     }
@@ -3461,24 +3464,24 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
     setCreateTemplateSlug('')
   }
 
-  function cancelCreate(): void {
+  const cancelCreate = function cancelCreate(): void {
     setCreating(false)
     setCreateError(undefined)
   }
 
-  function onCreateTitleChange(title: string): void {
+  const onCreateTitleChange = function onCreateTitleChange(title: string): void {
     setCreateTitle(title)
     if (!slugManuallyEdited) {
       setCreateSlug(slugify(title))
     }
   }
 
-  function onCreateSlugChange(slug: string): void {
+  const onCreateSlugChange = function onCreateSlugChange(slug: string): void {
     setCreateSlug(slug)
     setSlugManuallyEdited(true)
   }
 
-  function onCreateTemplateChange(templateSlug: string): void {
+  const onCreateTemplateChange = function onCreateTemplateChange(templateSlug: string): void {
     setCreateTemplateSlug(templateSlug)
     if (templateSlug) {
       setCreateContent('')
@@ -3566,7 +3569,7 @@ function createWikiActions(
 ) {
   const { workspaceSlug, page, setSlug, setEditing, setPage, showUndoToast } = args
 
-  function navigateTo(s: string): void {
+  const navigateTo = function navigateTo(s: string): void {
     args.flushDraftNow()
     args.navigate(s ? `/wiki/${encodeURIComponent(s)}` : '/wiki')
   }
@@ -3584,7 +3587,7 @@ function createWikiActions(
     }
   }
 
-  async function deletePage(): Promise<void> {
+  const deletePage = async function deletePage(): Promise<void> {
     if (!page) {
       return
     }
@@ -3831,7 +3834,7 @@ function useWikiSidebarDrawer() {
     if (!open) {
       return
     }
-    function onTrapTab(event: KeyboardEvent): void {
+    const onTrapTab = function onTrapTab(event: KeyboardEvent): void {
       if (event.key !== 'Tab') {
         return
       }
@@ -4380,7 +4383,7 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
 
   const current = toast
 
-  async function handleUndo(): Promise<void> {
+  const handleUndo = async function handleUndo(): Promise<void> {
     setUndoing(true)
     setUndoError(undefined)
     let result: string

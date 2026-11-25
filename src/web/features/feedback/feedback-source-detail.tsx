@@ -189,7 +189,7 @@ export function FeedbackSourceDetail({
     return `/feedback/${encodeURIComponent(sourceId)}?${params}`
   }
 
-  function focusTab(id: TabId): void {
+  const focusTab = function focusTab(id: TabId): void {
     tabRefs.current[id]?.focus()
   }
 

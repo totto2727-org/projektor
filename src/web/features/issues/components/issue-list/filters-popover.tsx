@@ -340,7 +340,7 @@ export function FiltersPopover({
     if (!showFiltersPopover) {
       return
     }
-    function onPointer(event: MouseEvent): void {
+    const onPointer = function onPointer(event: MouseEvent): void {
       const target = event.target as Node
       if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
         setShowFiltersPopover(false)

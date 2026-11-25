@@ -369,7 +369,7 @@ function ShellContent({
   const brandMark = brand?.mark ?? 'P'
   const projectsHref = workspaceHref('/', scope)
   const fullBleed = pathname === '/wiki' || pathname.startsWith('/wiki/')
-  function cycleTheme(): void {
+  const cycleTheme = function cycleTheme(): void {
     const order: Theme[] = ['system', 'light', 'dark']
     update({ theme: order[(order.indexOf(prefs.theme) + 1) % order.length] })
   }
