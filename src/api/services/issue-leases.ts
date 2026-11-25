@@ -4,19 +4,19 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export const claimIssue = function claimIssue(
+export const claimIssue = async function claimIssue(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiClaimIssue']>
 ): Promise<typeof ApiResults.apiClaimIssue.Type> {
   return apiReply(ApiResults.apiClaimIssue, ctx.core.apiClaimIssue(ctx.actor, ctx.workspaceId, ...args))
 }
-export const releaseIssue = function releaseIssue(
+export const releaseIssue = async function releaseIssue(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiReleaseIssue']>
 ): Promise<typeof ApiResults.apiReleaseIssue.Type> {
   return apiReply(ApiResults.apiReleaseIssue, ctx.core.apiReleaseIssue(ctx.actor, ctx.workspaceId, ...args))
 }
-export const listIssueLeases = function listIssueLeases(
+export const listIssueLeases = async function listIssueLeases(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListIssueLeases']>
 ): Promise<typeof ApiResults.apiListIssueLeases.Type> {

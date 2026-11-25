@@ -4,13 +4,13 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export const listAttachments = function listAttachments(
+export const listAttachments = async function listAttachments(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListAttachments']>
 ): Promise<typeof ApiResults.apiListAttachments.Type> {
   return apiReply(ApiResults.apiListAttachments, ctx.core.apiListAttachments(ctx.actor, ctx.workspaceId, ...args))
 }
-export const createLinkAttachment = function createLinkAttachment(
+export const createLinkAttachment = async function createLinkAttachment(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateLinkAttachment']>
 ): Promise<typeof ApiResults.apiCreateLinkAttachment.Type> {
@@ -19,19 +19,19 @@ export const createLinkAttachment = function createLinkAttachment(
     ctx.core.apiCreateLinkAttachment(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const getAttachment = function getAttachment(
+export const getAttachment = async function getAttachment(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiGetAttachment']>
 ): Promise<typeof ApiResults.apiGetAttachment.Type> {
   return apiReply(ApiResults.apiGetAttachment, ctx.core.apiGetAttachment(ctx.actor, ctx.workspaceId, ...args))
 }
-export const deleteAttachment = function deleteAttachment(
+export const deleteAttachment = async function deleteAttachment(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiDeleteAttachment']>
 ): Promise<typeof ApiResults.apiDeleteAttachment.Type> {
   return apiReply(ApiResults.apiDeleteAttachment, ctx.core.apiDeleteAttachment(ctx.actor, ctx.workspaceId, ...args))
 }
-export const setAttachmentReviewStatus = function setAttachmentReviewStatus(
+export const setAttachmentReviewStatus = async function setAttachmentReviewStatus(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiSetAttachmentReviewStatus']>
 ): Promise<typeof ApiResults.apiSetAttachmentReviewStatus.Type> {

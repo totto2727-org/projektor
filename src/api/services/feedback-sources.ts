@@ -4,7 +4,7 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export const createFeedbackSource = function createFeedbackSource(
+export const createFeedbackSource = async function createFeedbackSource(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateFeedbackSource']>
 ): Promise<typeof ApiResults.apiCreateFeedbackSource.Type> {
@@ -13,7 +13,7 @@ export const createFeedbackSource = function createFeedbackSource(
     ctx.core.apiCreateFeedbackSource(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const listFeedbackSources = function listFeedbackSources(
+export const listFeedbackSources = async function listFeedbackSources(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListFeedbackSources']>
 ): Promise<typeof ApiResults.apiListFeedbackSources.Type> {
@@ -22,13 +22,13 @@ export const listFeedbackSources = function listFeedbackSources(
     ctx.core.apiListFeedbackSources(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const getFeedbackSource = function getFeedbackSource(
+export const getFeedbackSource = async function getFeedbackSource(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiGetFeedbackSource']>
 ): Promise<typeof ApiResults.apiGetFeedbackSource.Type> {
   return apiReply(ApiResults.apiGetFeedbackSource, ctx.core.apiGetFeedbackSource(ctx.actor, ctx.workspaceId, ...args))
 }
-export const updateFeedbackSource = function updateFeedbackSource(
+export const updateFeedbackSource = async function updateFeedbackSource(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiUpdateFeedbackSource']>
 ): Promise<typeof ApiResults.apiUpdateFeedbackSource.Type> {
@@ -37,7 +37,7 @@ export const updateFeedbackSource = function updateFeedbackSource(
     ctx.core.apiUpdateFeedbackSource(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const rotateFeedbackSourceToken = function rotateFeedbackSourceToken(
+export const rotateFeedbackSourceToken = async function rotateFeedbackSourceToken(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiRotateFeedbackSourceToken']>
 ): Promise<typeof ApiResults.apiRotateFeedbackSourceToken.Type> {
@@ -46,7 +46,7 @@ export const rotateFeedbackSourceToken = function rotateFeedbackSourceToken(
     ctx.core.apiRotateFeedbackSourceToken(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export const revokeFeedbackSource = function revokeFeedbackSource(
+export const revokeFeedbackSource = async function revokeFeedbackSource(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiRevokeFeedbackSource']>
 ): Promise<typeof ApiResults.apiRevokeFeedbackSource.Type> {

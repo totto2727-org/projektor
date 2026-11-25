@@ -4,7 +4,7 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export const composePlaybook = function composePlaybook(
+export const composePlaybook = async function composePlaybook(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiComposePlaybook']>
 ): Promise<typeof ApiResults.apiComposePlaybook.Type> {
