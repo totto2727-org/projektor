@@ -1,3 +1,5 @@
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import type { MCPTool } from './types.ts'
 
 type InputSchema = MCPTool['inputSchema']
@@ -5,16 +7,21 @@ type InputSchema = MCPTool['inputSchema']
 export const objectInputSchema = function objectInputSchema(
   properties: Readonly<Record<string, unknown>>,
 ): InputSchema {
-  // oxlint-disable-next-line eslint/sort-keys -- tools/list preserves the existing order of the schema fields.
-  return { type: 'object', properties }
+  return fieldsInOrder([
+    ['type', 'object'],
+    ['properties', properties],
+  ])
 }
 
 export const requiredObjectInputSchema = function requiredObjectInputSchema(
   required: string[],
   properties: Readonly<Record<string, unknown>>,
 ): InputSchema {
-  // oxlint-disable-next-line eslint/sort-keys -- tools/list preserves the existing order of the schema fields.
-  return { type: 'object', required, properties }
+  return fieldsInOrder([
+    ['type', 'object'],
+    ['required', required],
+    ['properties', properties],
+  ])
 }
 
 type DescribedPropertyType = 'boolean' | 'number' | 'object' | 'string'
@@ -23,6 +30,8 @@ export const describedInputProperty = function describedInputProperty(
   type: DescribedPropertyType,
   description: string,
 ): InputSchema {
-  // oxlint-disable-next-line eslint/sort-keys -- tools/list preserves the field order of described input properties.
-  return { type, description }
+  return fieldsInOrder([
+    ['type', type],
+    ['description', description],
+  ])
 }
