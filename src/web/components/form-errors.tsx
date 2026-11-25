@@ -49,7 +49,7 @@ export const FormErrors = function FormErrors({
 }: FormErrorsProps): ReactNode {
   const messages = [...new Set(messagesFrom(errors))]
   if (Array.isArrayEmpty(messages)) {
-    return null
+    return false
   }
   const classes = ['mt-1 text-xs text-danger-text', className].filter(Boolean).join(' ')
   if (hasSingleItem(messages)) {

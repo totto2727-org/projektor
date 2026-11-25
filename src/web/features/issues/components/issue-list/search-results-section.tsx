@@ -111,7 +111,7 @@ export function SearchResultsSection({
   searchLoading: boolean
   searchResults: SearchResult[] | null
   searchQuery: string
-}): null | JSX.Element {
+}): false | JSX.Element {
   if (searchLoading) {
     return (
       <p aria-live='polite' className='text-text-muted'>
@@ -120,7 +120,7 @@ export function SearchResultsSection({
     )
   }
   if (Predicate.isNullish(searchResults)) {
-    return null
+    return false
   }
   if (Array.isArrayEmpty(searchResults)) {
     return <p className='text-text-muted'>No results for «{searchQuery.trim()}»</p>

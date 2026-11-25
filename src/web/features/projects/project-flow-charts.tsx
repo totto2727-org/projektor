@@ -12,9 +12,9 @@ export const ProjectFlowCharts = function ProjectFlowCharts({
   flow,
 }: {
   flow: FlowMetrics | null
-}): null | JSX.Element {
+}): false | JSX.Element {
   if (!flow) {
-    return null
+    return false
   }
   return (
     <section className='mb-8' aria-labelledby='flow-charts-heading'>

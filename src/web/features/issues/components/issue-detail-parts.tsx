@@ -222,9 +222,9 @@ export const ShareButton = function ShareButton({
 }
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const ParentBadge = function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }): null | JSX.Element {
+export const ParentBadge = function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }): false | JSX.Element {
   if (!parentEpic) {
-    return null
+    return false
   }
   const isEpic = parentEpic.type_key === 'epic'
   const ref = parentEpic.project_key ? `${parentEpic.project_key}-${parentEpic.number}` : `#${parentEpic.number}`
@@ -583,9 +583,9 @@ export const ChildIssuesSection = function ChildIssuesSection({
 }: {
   issue: IssueData
   childIssues: IssueData[]
-}): null | JSX.Element {
+}): false | JSX.Element {
   if (issue.type_key !== 'epic') {
-    return null
+    return false
   }
 
   return (

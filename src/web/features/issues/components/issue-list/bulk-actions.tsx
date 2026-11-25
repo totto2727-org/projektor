@@ -17,10 +17,10 @@ export function IssueSelectionControl({
   issue,
 }: {
   issue: Pick<Issue, 'id' | 'number' | 'project_key' | 'title'>
-}): null | JSX.Element {
+}): false | JSX.Element {
   const selection = useContext(Selection)
   if (!selection) {
-    return null
+    return false
   }
   return (
     <input

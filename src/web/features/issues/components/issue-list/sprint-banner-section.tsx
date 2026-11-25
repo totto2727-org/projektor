@@ -316,7 +316,7 @@ export function SprintBannerSection({
   setFilterSprintId,
   workspaceSlug,
   issues,
-}: SprintBannerSectionProps): null | JSX.Element {
+}: SprintBannerSectionProps): false | JSX.Element {
   const [sprintEditing, setSprintEditing] = useState(false)
   const sprintForm = useIssueForm(
     {
@@ -384,7 +384,7 @@ export function SprintBannerSection({
   }
 
   if (!filterSprintId || !sprintDetail) {
-    return null
+    return false
   }
 
   return (

@@ -10,10 +10,10 @@ interface ScopeSelectionProps {
 
 /** Native GET forms also work without JavaScript and preserve explicit URL scope. */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const ScopeSelection = function ScopeSelection({ scope, url }: ScopeSelectionProps): JSX.Element | null {
+export const ScopeSelection = function ScopeSelection({ scope, url }: ScopeSelectionProps): JSX.Element | false {
   const selection = scope.selection
   if (selection.kind !== 'selection-required') {
-    return null
+    return false
   }
   const project = selection.target === 'project'
   const options = project
