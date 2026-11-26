@@ -13,21 +13,32 @@ import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
  */
 import { IdResponse, readNativeJson } from './response-json.ts'
 
-let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
-let otherId: string
+type IssueFixture = Awaited<ReturnType<typeof seedIssueFixture>>
 
-const call = (method: string, path: string, body?: unknown): Promise<Response> =>
-  fetchNativeApi(
-    `http://localhost${path}`,
-    requestOptionsWithBody(
-      method,
-      authHeaders(fixture.token, fixture.slug),
-      body === undefined ? undefined : JSON.stringify(body),
-    ),
-  )
-const get = async function get(id: string): Promise<typeof ApiResults.apiGetIssue.Type> {
-  const response = await call('GET', `/api/issues/${id}`)
-  return readNativeJson(response, ApiResults.apiGetIssue)
+interface IssueRequests {
+  call: (method: string, path: string, body?: unknown) => Promise<Response>
+  get: (id: string) => Promise<typeof ApiResults.apiGetIssue.Type>
+}
+
+interface IssueCacheTestContext {
+  issueCache: IssueRequests & { fixture: IssueFixture; otherId: string }
+}
+
+const issueRequests = function issueRequests(fixture: IssueFixture): IssueRequests {
+  const call = (method: string, path: string, body?: unknown): Promise<Response> =>
+    fetchNativeApi(
+      `http://localhost${path}`,
+      requestOptionsWithBody(
+        method,
+        authHeaders(fixture.token, fixture.slug),
+        body === undefined ? undefined : JSON.stringify(body),
+      ),
+    )
+  const get = async function get(id: string): Promise<typeof ApiResults.apiGetIssue.Type> {
+    const response = await call('GET', `/api/issues/${id}`)
+    return readNativeJson(response, ApiResults.apiGetIssue)
+  }
+  return { call, get }
 }
 
 // These tests make more calls per token than vite.config.ts's RATE_LIMIT_API_MAX.
@@ -39,10 +50,11 @@ afterAll(() => {
   env.RATE_LIMIT_API_MAX = prevApiMax
 })
 
-beforeEach(async () => {
-  fixture = await seedIssueFixture({ role: 'owner' })
+beforeEach<IssueCacheTestContext>(async (context) => {
+  const fixture = await seedIssueFixture({ role: 'owner' })
   const result = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Other' })
-  otherId = result.id
+  const otherId = result.id
+  const { call, get } = issueRequests(fixture)
   const link = await call('POST', `/api/issues/${fixture.issueId}/links`, {
     targetIssueId: otherId,
     type: 'blocks',
@@ -50,17 +62,20 @@ beforeEach(async () => {
   expect(link.status).toBeLessThan(300)
   // Warm the cache
   await get(fixture.issueId)
+  context.issueCache = { call, fixture, get, otherId }
 })
 afterEach(() => vi.restoreAllMocks())
 
 describe('covers PROJ-863: no stale embedded data', () => {
-  test('renaming the linked issue', async () => {
+  test<IssueCacheTestContext>('renaming the linked issue', async ({ issueCache: { call, fixture, get, otherId } }) => {
     await call('PATCH', `/api/issues/${otherId}`, { title: 'Other (renamed)' })
     const result = await get(fixture.issueId)
     expect(result.links[0].linkedIssueTitle).toBe('Other (renamed)')
   })
 
-  test("changing the linked issue's status", async () => {
+  test<IssueCacheTestContext>("changing the linked issue's status", async ({
+    issueCache: { call, fixture, get, otherId },
+  }) => {
     const todo = await seedTaskStatus(fixture.workspaceId, { category: 'todo' })
     const done = await seedTaskStatus(fixture.workspaceId, { category: 'done' })
     await env.DB.prepare("UPDATE issues SET status_id = ?, status_category = 'todo' WHERE id = ?")
@@ -73,13 +88,13 @@ describe('covers PROJ-863: no stale embedded data', () => {
     expect(response.links[0].linkedIssueStatusCategory).toBe('done')
   })
 
-  test('deleting the linked issue', async () => {
+  test<IssueCacheTestContext>('deleting the linked issue', async ({ issueCache: { call, fixture, get, otherId } }) => {
     await call('DELETE', `/api/issues/${otherId}`)
     const response = await get(fixture.issueId)
     expect(response.links).toStrictEqual([])
   })
 
-  test("renaming the issue's status", async () => {
+  test<IssueCacheTestContext>("renaming the issue's status", async ({ issueCache: { call, fixture, get } }) => {
     const st = await seedTaskStatus(fixture.workspaceId, { name: 'Doing' })
     await env.DB.prepare('UPDATE issues SET status_id = ? WHERE id = ?').bind(st.id, fixture.issueId).run()
     const response = await get(fixture.issueId)
@@ -89,14 +104,14 @@ describe('covers PROJ-863: no stale embedded data', () => {
     expect(apiResponse.status_name).toBe('In flight')
   })
 
-  test('changing the project key', async () => {
+  test<IssueCacheTestContext>('changing the project key', async ({ issueCache: { call, fixture, get } }) => {
     await call('PATCH', `/api/projects/${fixture.projectId}`, { key: 'NEWK' })
     const issue = await get(fixture.issueId)
     expect(issue.project_key).toBe('NEWK')
     expect(issue.url).toContain('/NEWK/')
   })
 
-  test("deleting the issue's sprint", async () => {
+  test<IssueCacheTestContext>("deleting the issue's sprint", async ({ issueCache: { call, fixture, get } }) => {
     const created = await call('POST', '/api/sprints', { projectId: fixture.projectId, name: 'S1' })
     const sprint = await readNativeJson(created, IdResponse)
     expect(created.status, JSON.stringify(sprint)).toBe(201)
@@ -111,7 +126,7 @@ describe('covers PROJ-863: no stale embedded data', () => {
 })
 
 describe('covers PROJ-863: a cache hit stays cheap', () => {
-  test('getIssue by ref makes <= 5 D1 queries on a hit', async () => {
+  test<IssueCacheTestContext>('getIssue by ref makes <= 5 D1 queries on a hit', async ({ issueCache: { fixture } }) => {
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,
@@ -124,13 +139,9 @@ describe('covers PROJ-863: a cache hit stays cheap', () => {
       project_key: string
       number: number
     }
-    let queries = 0
     const orig = env.DB.prepare.bind(env.DB)
-    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
-      queries += 1
-      return orig(sql)
-    })
+    const preparations = vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => orig(sql))
     await getIssue(ctx, { ref: `${project_key}-${number}` })
-    expect(queries).toBeLessThanOrEqual(5)
+    expect(preparations.mock.calls.length).toBeLessThanOrEqual(5)
   })
 })
