@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL, SQLWrapper } from 'drizzle-orm'
-import { Iterable, Array, Predicate } from 'effect'
+import { Iterable, Array, Option, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
 import { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
@@ -20,6 +20,8 @@ import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
 
 const MIN_DURATION_SECONDS = 0
+const FIRST_ARRAY_INDEX = 0
+const ARRAY_INDEX_STEP = 1
 const LAST_INDEX_OFFSET = 1
 const MEDIAN_FRACTION = 0.5
 const P90_FRACTION = 0.9
@@ -112,11 +114,9 @@ const buildBucketStarts = function buildBucketStarts(
   granularity: 'day' | 'week',
 ): number[] {
   const bucketSize = bucketSizeFor(granularity)
-  const starts: number[] = []
-  for (let bucketStart = firstBucketFor(since, granularity); bucketStart <= until; bucketStart += bucketSize) {
-    starts.push(bucketStart)
-  }
-  return starts
+  return Array.unfold(firstBucketFor(since, granularity), (bucketStart) =>
+    bucketStart <= until ? Option.some([bucketStart, bucketStart + bucketSize]) : Option.none(),
+  )
 }
 
 /*
@@ -152,21 +152,18 @@ const groupBySortedRanges = function groupBySortedRanges<T>(
   ranges: Readonly<BucketRange[]>,
 ): T[][] {
   const sorted = [...items].toSorted((left, right) => time(left) - time(right))
-  const groups: T[][] = ranges.map(() => [])
-  let idx = 0
-  for (let rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
-    const { start, end } = ranges[rangeIndex]
-    while (idx < sorted.length && time(sorted[idx]) < start) {
-      idx++
+  const cursor = { index: FIRST_ARRAY_INDEX }
+  const advanceBefore = function advanceBefore(cutoff: number): void {
+    while (cursor.index < sorted.length && time(sorted[cursor.index]) < cutoff) {
+      cursor.index += ARRAY_INDEX_STEP
     }
-    let itemIndex = idx
-    while (itemIndex < sorted.length && time(sorted[itemIndex]) < end) {
-      groups[rangeIndex].push(sorted[itemIndex])
-      itemIndex++
-    }
-    idx = itemIndex
   }
-  return groups
+  return ranges.map(({ start, end }) => {
+    advanceBefore(start)
+    const first = cursor.index
+    advanceBefore(end)
+    return sorted.slice(first, cursor.index)
+  })
 }
 
 const buildWipOverTime = function buildWipOverTime(
@@ -193,22 +190,17 @@ const buildWipOverTime = function buildWipOverTime(
   })
   events.sort((left, right) => left[0] - right[0])
 
-  const buckets: { date: string; count: number }[] = []
-  let idx = 0
-  let running = 0
-  for (let dayStart = since - (since % SECONDS_PER_DAY); dayStart <= until; dayStart += SECONDS_PER_DAY) {
-    while (idx < events.length && events[idx][0] <= dayStart) {
-      running += events[idx][1]
-      idx++
+  const sweep = { count: NO_EVENTS, index: FIRST_ARRAY_INDEX }
+  return buildBucketStarts(since, until, 'day').map((dayStart) => {
+    while (sweep.index < events.length && events[sweep.index][0] <= dayStart) {
+      sweep.count += events[sweep.index][1]
+      sweep.index += ARRAY_INDEX_STEP
     }
-    buckets.push(
-      fieldsInOrder([
-        ['date', dateLabel(dayStart)],
-        ['count', running],
-      ]),
-    )
-  }
-  return buckets
+    return fieldsInOrder([
+      ['date', dateLabel(dayStart)],
+      ['count', sweep.count],
+    ])
+  })
 }
 
 const buildThroughputOverTime = function buildThroughputOverTime(
