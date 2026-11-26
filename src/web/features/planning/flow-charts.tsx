@@ -17,6 +17,7 @@ import {
   YAxis,
 } from 'recharts'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { formatUtcDatePrefix } from '#contracts/time.ts'
 import {
   ChartContainer,
@@ -50,13 +51,28 @@ export const formatShortDate = function formatShortDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00Z`)
   return Number.isNaN(date.getTime())
     ? iso
-    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+    : date.toLocaleDateString(
+        'en-US',
+        fieldsInOrder([
+          ['month', 'short'],
+          ['day', 'numeric'],
+          ['timeZone', 'UTC'],
+        ]),
+      )
 }
 export const formatFullDate = function formatFullDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00Z`)
   return Number.isNaN(date.getTime())
     ? iso
-    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : date.toLocaleDateString(
+        'en-US',
+        fieldsInOrder([
+          ['month', 'short'],
+          ['day', 'numeric'],
+          ['year', 'numeric'],
+          ['timeZone', 'UTC'],
+        ]),
+      )
 }
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyChartState = function EmptyChartState({ message }: { message: string }): JSX.Element {
@@ -70,7 +86,21 @@ const sequential = {
   inProgress: 'var(--chart-seq-2)',
   inReview: 'var(--chart-seq-3)',
 }
-const margin = { top: 12, right: 12, bottom: 0, left: 0 }
+const CHART_MARGIN_GUTTER = 12
+const CHART_MARGIN_FLUSH = 0
+const margin = fieldsInOrder([
+  ['top', CHART_MARGIN_GUTTER],
+  ['right', CHART_MARGIN_GUTTER],
+  ['bottom', CHART_MARGIN_FLUSH],
+  ['left', CHART_MARGIN_FLUSH],
+])
+
+const chartSeries = function chartSeries(label: string, color: string): { label: string; color: string } {
+  return fieldsInOrder([
+    ['label', label],
+    ['color', color],
+  ])
+}
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FlowChart = function FlowChart({
@@ -139,7 +169,7 @@ const DateTooltip = function DateTooltip({
     />
   )
 }
-const throughputConfig = { count: { label: 'Issues completed', color: accent } } satisfies ChartConfig
+const throughputConfig = { count: chartSeries('Issues completed', accent) } satisfies ChartConfig
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ThroughputChart = function ThroughputChart({
   data,
@@ -167,12 +197,12 @@ export const ThroughputChart = function ThroughputChart({
     </FlowChart>
   )
 }
-const cfdConfig = {
-  backlogTodo: { label: 'Backlog/todo', color: sequential.backlogTodo },
-  inProgress: { label: 'In progress', color: sequential.inProgress },
-  inReview: { label: 'In review', color: sequential.inReview },
-  done: { label: 'Done', color: sequential.done },
-} satisfies ChartConfig
+const cfdConfig = fieldsInOrder([
+  ['backlogTodo', chartSeries('Backlog/todo', sequential.backlogTodo)],
+  ['inProgress', chartSeries('In progress', sequential.inProgress)],
+  ['inReview', chartSeries('In review', sequential.inReview)],
+  ['done', chartSeries('Done', sequential.done)],
+]) satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][number][]> }): JSX.Element {
   if (
@@ -217,7 +247,7 @@ export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][n
     </FlowChart>
   )
 }
-const bugConfig = { bugSharePercent: { label: 'Bug share', color: accent } } satisfies ChartConfig
+const bugConfig = { bugSharePercent: chartSeries('Bug share', accent) } satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function BugShareChart({
   data,
@@ -258,7 +288,7 @@ export function BugShareChart({
     </FlowChart>
   )
 }
-const reviewConfig = { p50: { label: 'Review latency (p50)', color: accent } } satisfies ChartConfig
+const reviewConfig = { p50: chartSeries('Review latency (p50)', accent) } satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyOverTime'] }): JSX.Element {
   if (!data.length || data.every((point) => Predicate.isNullish(point.p50))) {
@@ -284,7 +314,7 @@ export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyO
     </FlowChart>
   )
 }
-const wipConfig = { count: { label: 'WIP', color: accent } } satisfies ChartConfig
+const wipConfig = { count: chartSeries('WIP', accent) } satisfies ChartConfig
 const timestampDate = (value: number): string => formatUtcDatePrefix(new Date(value))
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.Element {
@@ -330,11 +360,11 @@ export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.El
     </FlowChart>
   )
 }
-const arrivalConfig = {
-  created: { label: 'Created', color: 'var(--chart-secondary)' },
-  completed: { label: 'Completed', color: accent },
-  net: { label: 'Net (created − completed)', color: muted },
-} satisfies ChartConfig
+const arrivalConfig = fieldsInOrder([
+  ['created', chartSeries('Created', 'var(--chart-secondary)')],
+  ['completed', chartSeries('Completed', accent)],
+  ['net', chartSeries('Net (created − completed)', muted)],
+]) satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalVsCompletionOverTime'] }): JSX.Element {
   if (!data.length || data.every((point) => point.created === EMPTY_COUNT && point.completed === EMPTY_COUNT)) {
@@ -385,9 +415,9 @@ export function hashJitter(id: string): number {
   return ((hash >>> UNSIGNED_SHIFT_BITS) % JITTER_STEPS) / JITTER_STEPS
 }
 const agingConfig = {
-  ageSeconds: { label: 'Age since claim', color: sequential.inProgress },
-  p50: { label: 'p50 cycle time', color: muted },
-  p90: { label: 'p90 cycle time', color: muted },
+  ageSeconds: chartSeries('Age since claim', sequential.inProgress),
+  p50: chartSeries('p50 cycle time', muted),
+  p90: chartSeries('p90 cycle time', muted),
 } satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function AgingWipScatter({
