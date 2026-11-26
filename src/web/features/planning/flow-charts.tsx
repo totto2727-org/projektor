@@ -1,6 +1,6 @@
 'use client'
 import { Predicate } from 'effect'
-import { useId, useMemo } from 'react'
+import { useCallback, useId, useMemo } from 'react'
 import type { JSX, ComponentProps, ReactNode } from 'react'
 import {
   Area,
@@ -172,16 +172,16 @@ const DateTooltip = function DateTooltip({
   config?: ChartConfig
   formatValue?: (value: number) => string
 }): JSX.Element {
-  return (
-    <ChartTooltip
-      content={
-        <ChartTooltipContent
-          labelFormatter={formatTooltipDate}
-          formatter={formatValue ? valueFormatter(config ?? {}, formatValue) : undefined}
-        />
-      }
-    />
+  const content = useMemo(
+    () => (
+      <ChartTooltipContent
+        labelFormatter={formatTooltipDate}
+        formatter={formatValue ? valueFormatter(config ?? {}, formatValue) : undefined}
+      />
+    ),
+    [config, formatValue],
   )
+  return <ChartTooltip content={content} />
 }
 const throughputConfig = { count: chartSeries('Issues completed', accent) } satisfies ChartConfig
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
@@ -211,6 +211,11 @@ export const ThroughputChart = function ThroughputChart({
     </FlowChart>
   )
 }
+type LegendRenderer = Extract<
+  NonNullable<ComponentProps<typeof ChartLegend>['content']>,
+  (...args: never[]) => ReactNode
+>
+
 const cfdConfig = fieldsInOrder([
   ['backlogTodo', chartSeries('Backlog/todo', sequential.backlogTodo)],
   ['inProgress', chartSeries('In progress', sequential.inProgress)],
@@ -219,6 +224,19 @@ const cfdConfig = fieldsInOrder([
 ]) satisfies ChartConfig
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][number][]> }): JSX.Element {
+  const renderLegend = useCallback<LegendRenderer>(
+    ({ payload }): JSX.Element => (
+      <ChartLegendContent
+        payload={payload?.toSorted(
+          (left, right) =>
+            Object.keys(cfdConfig).indexOf(String(left.dataKey)) -
+            Object.keys(cfdConfig).indexOf(String(right.dataKey)),
+        )}
+        className='flex-wrap gap-x-3 gap-y-1 text-[10px]'
+      />
+    ),
+    [],
+  )
   if (
     !data.length ||
     data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === EMPTY_COUNT)
@@ -233,18 +251,7 @@ export function CfdChart({ data }: { data: Readonly<FlowMetrics['cfdOverTime'][n
         <DateAxis />
         <CountAxis />
         <DateTooltip />
-        <ChartLegend
-          content={({ payload }) => (
-            <ChartLegendContent
-              payload={payload?.toSorted(
-                (left, right) =>
-                  Object.keys(cfdConfig).indexOf(String(left.dataKey)) -
-                  Object.keys(cfdConfig).indexOf(String(right.dataKey)),
-              )}
-              className='flex-wrap gap-x-3 gap-y-1 text-[10px]'
-            />
-          )}
-        />
+        <ChartLegend content={renderLegend} />
         {(['done', 'inReview', 'inProgress', 'backlogTodo'] as const).map((key) => (
           <Area
             key={key}
@@ -335,6 +342,13 @@ const formatWipTooltipDate: NonNullable<ComponentProps<typeof ChartTooltipConten
     return Predicate.isString(date) ? formatFullDate(date) : ''
   }
 
+const wipTooltip = (
+  <ChartTooltipContent
+    labelFormatter={formatWipTooltipDate}
+    formatter={valueFormatter(wipConfig, (value) => `${value} in progress`)}
+  />
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.Element {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])
@@ -356,14 +370,7 @@ export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.El
           minTickGap={24}
         />
         <CountAxis />
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              labelFormatter={formatWipTooltipDate}
-              formatter={valueFormatter(wipConfig, (value) => `${value} in progress`)}
-            />
-          }
-        />
+        <ChartTooltip content={wipTooltip} />
         <Line
           dataKey='count'
           type='linear'
@@ -381,6 +388,8 @@ const arrivalConfig = fieldsInOrder([
   ['completed', chartSeries('Completed', accent)],
   ['net', chartSeries('Net (created − completed)', muted)],
 ]) satisfies ChartConfig
+const arrivalLegend = <ChartLegendContent className='flex-wrap gap-x-3 gap-y-1 text-[10px]' />
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalVsCompletionOverTime'] }): JSX.Element {
   if (!data.length || data.every((point) => point.created === EMPTY_COUNT && point.completed === EMPTY_COUNT)) {
@@ -393,7 +402,7 @@ export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalV
         <DateAxis />
         <CountAxis />
         <DateTooltip />
-        <ChartLegend content={<ChartLegendContent className='flex-wrap gap-x-3 gap-y-1 text-[10px]' />} />
+        <ChartLegend content={arrivalLegend} />
         <Line
           dataKey='created'
           type='linear'
@@ -477,6 +486,10 @@ const formatAgingStatus = function formatAgingStatus(value: number): string {
   return value === IN_PROGRESS_COLUMN ? 'In progress' : 'In review'
 }
 
+const agingTooltip = (
+  <ChartTooltipContent hideLabel formatter={valueFormatter(agingConfig, formatDuration, 'ageSeconds')} />
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function AgingWipScatter({
   data,
@@ -504,6 +517,10 @@ export function AgingWipScatter({
   const legendPayload = useMemo(
     () => [ageLegend, ...(hasP50 ? [p50Legend] : []), ...(hasP90 ? [p90Legend] : [])],
     [hasP50, hasP90],
+  )
+  const renderLegend = useCallback(
+    (): JSX.Element => <ChartLegendContent className='flex-wrap gap-x-3 gap-y-1 text-[10px]' payload={legendPayload} />,
+    [legendPayload],
   )
   const maxAge = Math.max(
     MIN_AGE_SECONDS,
@@ -540,16 +557,8 @@ export function AgingWipScatter({
           axisLine={false}
           width={52}
         />
-        <ChartTooltip
-          content={
-            <ChartTooltipContent hideLabel formatter={valueFormatter(agingConfig, formatDuration, 'ageSeconds')} />
-          }
-        />
-        <ChartLegend
-          content={() => (
-            <ChartLegendContent className='flex-wrap gap-x-3 gap-y-1 text-[10px]' payload={legendPayload} />
-          )}
-        />
+        <ChartTooltip content={agingTooltip} />
+        <ChartLegend content={renderLegend} />
         <Scatter dataKey='ageSeconds' name='ageSeconds' fill='var(--color-ageSeconds)' isAnimationActive={false} />
         {hasP50 && <ReferenceLine y={p50} stroke='var(--color-p50)' strokeDasharray='4 4' label={p50GuideLabel} />}
         {hasP90 && <ReferenceLine y={p90} stroke='var(--color-p90)' strokeDasharray='2 2' label={p90GuideLabel} />}
