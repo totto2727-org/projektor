@@ -171,7 +171,7 @@ describe('complete direct D1 issues SSR loaders', () => {
         ('review-b','workspace-a','url','','Project B review','text/uri-list',0,'https://example.test/b','issue','issue-b','user-a',2,'in_review'),
         ('hidden-review','workspace-a','url','','Secret review','text/uri-list',0,'https://example.test/hidden','issue','hidden-issue','user-a',3,'in_review');
     `)
-    data.insertIssue({ id: 'newest-ordinary', number: 2, title: 'Ordinary issue', createdAt: 99 })
+    data.insertIssue({ createdAt: 99, id: 'newest-ordinary', number: 2, title: 'Ordinary issue' })
     const url = new URL(`${listUrl}&review=in_review&limit=1`)
     const first = await data.run(loadIssues(scope, url))
     expect(first?.initialData.project).toBeNull()
@@ -325,10 +325,10 @@ describe('complete direct D1 issues SSR loaders', () => {
     const data = fixture()
     Iterable.forEach(Iterable.range(0, 103 - 1), (index): void => {
       data.insertIssue({
-        id: `my-${String(index).padStart(3, '0')}`,
-        number: index + 2,
         assigneeId: scope.user.id,
         createdAt: 5,
+        id: `my-${String(index).padStart(3, '0')}`,
+        number: index + 2,
       })
     })
     const other = { ...workspace, id: 'workspace-b', slug: 'other' }
@@ -387,29 +387,29 @@ describe('complete direct D1 issues SSR loaders', () => {
       "INSERT INTO task_statuses (id,workspace_id,key,name,category,position,is_default) VALUES ('review','workspace-a','in_review','In Review','in_progress',2,0)",
     )
     data.insertIssue({
+      assigneeId: scope.user.id,
+      createdAt: 0,
       id: 'review',
       number: 200,
-      title: 'Old review first',
-      statusId: 'review',
-      assigneeId: scope.user.id,
       priority: 'low',
-      createdAt: 0,
+      statusId: 'review',
+      title: 'Old review first',
     })
     Iterable.forEach(Iterable.range(0, 103 - 1), (index): void => {
       data.insertIssue({
+        assigneeId: scope.user.id,
+        createdAt: 10,
         id: `new-${index}`,
         number: index + 2,
         title: `New todo ${index}`,
-        assigneeId: scope.user.id,
-        createdAt: 10,
       })
     })
     data.insertIssue({
+      assigneeId: scope.user.id,
       id: 'closed',
       number: 201,
-      title: 'Closed work excluded',
       statusId: 'done',
-      assigneeId: scope.user.id,
+      title: 'Closed work excluded',
     })
     const html = renderToStaticMarkup(await data.run(renderMyIssues(selected, new URL('https://front.test/my-issues'))))
     expect(html.match(/<table/gu)).toHaveLength(1)
@@ -428,10 +428,10 @@ describe('complete direct D1 issues SSR loaders', () => {
     const data = fixture()
     Iterable.forEach(Iterable.range(0, 102 - 1), (index): void => {
       data.insertIssue({
+        createdAt: 5,
         id: `board-${String(index).padStart(3, '0')}`,
         number: index + 2,
         title: 'needle',
-        createdAt: 5,
       })
     })
     const result = await data.run(

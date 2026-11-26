@@ -80,12 +80,12 @@ export const issueDataFixture = function issueDataFixture() {
       .prepare('INSERT INTO issues_fts (issue_id,workspace_id,title,body) VALUES (?,?,?,?)')
       .run(values.id, workspaceId, title, body)
   }
-  insertIssue({ id: 'issue-a', assigneeId: scope.user.id })
+  insertIssue({ assigneeId: scope.user.id, id: 'issue-a' })
   insertIssue({
+    createdAt: 2,
     id: 'issue-b',
     projectId: secondProject.id,
     title: 'Second project issue',
-    createdAt: 2,
   })
   insertIssue({
     createdAt: 3,
@@ -94,12 +94,12 @@ export const issueDataFixture = function issueDataFixture() {
     title: 'Hidden secret',
   })
   insertIssue({
-    id: 'other-issue',
-    projectId: 'other-project',
-    workspaceId: 'workspace-b',
-    title: 'Other membership issue',
     assigneeId: scope.user.id,
     createdAt: 4,
+    id: 'other-issue',
+    projectId: 'other-project',
+    title: 'Other membership issue',
+    workspaceId: 'workspace-b',
   })
   sqlite.exec(`
 		INSERT INTO custom_field_values (issue_id,field_id,value) VALUES ('issue-a','points','3');
