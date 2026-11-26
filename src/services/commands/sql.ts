@@ -30,8 +30,8 @@ export const sanitizeFtsQuery = function sanitizeFtsQuery(query: string): string
   return query
     .trim()
     .split(/\s+/u)
-    .filter((t) => Boolean(t) && /\w/u.test(t))
-    .map((t) => `"${t.replaceAll('"', '""')}"`)
+    .filter((token) => Boolean(token) && /\w/u.test(token))
+    .map((token) => `"${token.replaceAll('"', '""')}"`)
     .join(' ')
 }
 

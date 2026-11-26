@@ -96,7 +96,7 @@ export function FeedbackSourceGrid({ workspaceSlug, projectId, initialSources, i
   const summaries = initialSummaries
   const [showCreate, setShowCreate] = useState(false)
 
-  const summaryBySource = new Map(summaries.map((s) => [s.sourceId, s]))
+  const summaryBySource = new Map(summaries.map((summary) => [summary.sourceId, summary]))
 
   return (
     <section>

@@ -53,15 +53,15 @@ const isNumericString = function isNumericString(value: unknown): boolean {
   return Predicate.isString(value) && /^-?\d+(?:\.\d+)?$/u.test(value.trim())
 }
 
-const matchesType = function matchesType(value: unknown, t: string): boolean {
-  switch (t) {
+const matchesType = function matchesType(value: unknown, type: string): boolean {
+  switch (type) {
     case 'boolean': {
       return Predicate.isBoolean(value) || (Predicate.isString(value) && BOOLEAN_STRINGS.has(value))
     }
     case 'string':
     case 'object':
     case 'array': {
-      return typeOf(value) === t
+      return typeOf(value) === type
     }
     case 'number': {
       return (Predicate.isNumber(value) && Number.isFinite(value)) || isNumericString(value)
@@ -98,8 +98,10 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     return
   }
 
-  if (globalThis.Array.isArray(schema.enum) && !schema.enum.some((e) => e === value)) {
-    issues.push(argumentIssue(path, `must be one of ${schema.enum.map((e) => JSON.stringify(e)).join(', ')}`))
+  if (globalThis.Array.isArray(schema.enum) && !schema.enum.some((allowed) => allowed === value)) {
+    issues.push(
+      argumentIssue(path, `must be one of ${schema.enum.map((allowed) => JSON.stringify(allowed)).join(', ')}`),
+    )
     return
   }
 
@@ -113,11 +115,11 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
   }
 
   if (Predicate.isNumber(value) || isNumericString(value)) {
-    const n = Number(value)
-    if (Predicate.isNumber(schema.minimum) && n < schema.minimum) {
+    const numericValue = Number(value)
+    if (Predicate.isNumber(schema.minimum) && numericValue < schema.minimum) {
       issues.push(argumentIssue(path, `must be >= ${schema.minimum}`))
     }
-    if (Predicate.isNumber(schema.maximum) && n > schema.maximum) {
+    if (Predicate.isNumber(schema.maximum) && numericValue > schema.maximum) {
       issues.push(argumentIssue(path, `must be <= ${schema.maximum}`))
     }
   }

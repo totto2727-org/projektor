@@ -67,27 +67,31 @@ export const filteredIssueQuery = function filteredIssueQuery(
   taskTypes: Readonly<{ id: string; key: string }[]>,
   project: ReturnType<typeof selectedProject>,
 ): URLSearchParams {
-  const p = url.searchParams
+  const queryParams = url.searchParams
   const query = buildFilterQueryParams(
     {
-      filterStatuses: (p.get('status') ?? '').split(',').filter(Boolean),
-      filterPriorities: (p.get('priority') ?? '').split(',').filter(Boolean),
+      filterStatuses: (queryParams.get('status') ?? '').split(',').filter(Boolean),
+      filterPriorities: (queryParams.get('priority') ?? '').split(',').filter(Boolean),
       filterProject: project?.key ?? '',
-      filterType: p.get('type') ?? '',
-      filterEpicId: p.get('epic') ?? '',
-      filterSprintId: p.get('sprintId') ?? '',
-      hideEpics: p.get('hideEpics') === '1',
+      filterType: queryParams.get('type') ?? '',
+      filterEpicId: queryParams.get('epic') ?? '',
+      filterSprintId: queryParams.get('sprintId') ?? '',
+      hideEpics: queryParams.get('hideEpics') === '1',
       filterDateField:
-        p.get('dateField') === 'completed' ? 'completed' : p.get('dateField') === 'updated' ? 'updated' : '',
-      filterDateFrom: p.get('dateFrom') ?? '',
-      filterDateTo: p.get('dateTo') ?? '',
+        queryParams.get('dateField') === 'completed'
+          ? 'completed'
+          : queryParams.get('dateField') === 'updated'
+            ? 'updated'
+            : '',
+      filterDateFrom: queryParams.get('dateFrom') ?? '',
+      filterDateTo: queryParams.get('dateTo') ?? '',
     },
     projects,
     [...taskTypes],
   )
   Iterable.forEach(['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId', 'review'], (key) => {
-    if (p.has(key)) {
-      query.set(key, p.get(key) ?? '')
+    if (queryParams.has(key)) {
+      query.set(key, queryParams.get(key) ?? '')
     }
   })
   if (!query.has('limit')) {
@@ -180,7 +184,7 @@ export const loadIssues = function loadIssues(
       epicQuery.set('project', project.id)
     }
     const sprintId = url.searchParams.get('sprintId'),
-      q = url.searchParams.get('q') ?? ''
+      searchTerm = url.searchParams.get('q') ?? ''
     const { page, epics, sprints, sprintDetail, search } = yield* Effect.all(
       {
         page: view === 'list' ? readDataIssuePage(workspace.id, query) : allPages(scope, workspace.id, query),
@@ -190,7 +194,9 @@ export const loadIssues = function loadIssues(
           Predicate.isNotNullish(sprintId) && String.isNonEmpty(sprintId)
             ? readSprint(workspace.id, sprintId)
             : Effect.succeed(null),
-        search: q ? searchDataIssues(workspace.id, q, { projectId: project?.id, review }) : Effect.succeed(null),
+        search: searchTerm
+          ? searchDataIssues(workspace.id, searchTerm, { projectId: project?.id, review })
+          : Effect.succeed(null),
       },
       { concurrency: CONCURRENCY },
     )
@@ -208,7 +214,7 @@ export const loadIssues = function loadIssues(
         sprints: sprints.map((entry) => ({ ...entry })),
         sprintDetail,
         search: {
-          query: q,
+          query: searchTerm,
           results: search?.map((entry) => ({ ...entry, workspaceSlug })) ?? null,
         },
       },

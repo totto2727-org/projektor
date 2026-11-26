@@ -60,7 +60,7 @@ wikiRouter.get('/tree', async (httpContext) => {
 
 wikiRouter.get('/search', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
-  const q = httpContext.req.query('q') ?? ''
+  const searchTerm = httpContext.req.query('q') ?? ''
   const projectId = httpContext.req.query('projectId')
   const limit = httpContext.req.query('limit')
   const offset = httpContext.req.query('offset')
@@ -71,7 +71,7 @@ wikiRouter.get('/search', async (httpContext) => {
   try {
     return httpContext.json(
       await wikiService.searchWiki(ctx, {
-        query: q,
+        query: searchTerm,
         projectId,
         limit,
         offset,

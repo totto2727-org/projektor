@@ -355,16 +355,16 @@ async function insertNotifications(
     return
   }
   const now = currentEpochSeconds()
-  const values = deliverable.map((e) => ({
+  const values = deliverable.map((delivery) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
-    userId: e.userId,
-    pageId: e.pageId,
-    pageSlug: e.slug,
-    pageTitle: e.title,
-    action: e.action,
+    userId: delivery.userId,
+    pageId: delivery.pageId,
+    pageSlug: delivery.slug,
+    pageTitle: delivery.title,
+    action: delivery.action,
     actorId: ctx.userId,
-    summary: `${ACTION_LABEL[e.action]}: ${e.title}`,
+    summary: `${ACTION_LABEL[delivery.action]}: ${delivery.title}`,
     createdAt: now,
     readAt: SQL_NULL,
   }))
@@ -396,7 +396,7 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
   descendants: Readonly<{ id: string; slug: string; title: string; isTemplate: boolean }[]>,
   action: 'created' | 'updated' | 'deleted' = 'deleted',
 ): Promise<void> {
-  const pages = descendants.filter((p) => !p.isTemplate)
+  const pages = descendants.filter((page) => !page.isTemplate)
   if (Array.isArrayEmpty(pages)) {
     return
   }
@@ -650,18 +650,18 @@ interface WikiActivityRow {
  */
 const eventFieldsFor = function eventFieldsFor(
   action: 'created' | 'updated' | 'deleted',
-  r: WikiActivityRow,
+  row: WikiActivityRow,
 ): {
   slug: string | null
   title: string | null
   eventProjectId: string | null
   deleted: ReturnType<typeof extractDeletedPageInfo> | undefined
 } {
-  const deleted = action === 'deleted' ? extractDeletedPageInfo(r.diff) : undefined
+  const deleted = action === 'deleted' ? extractDeletedPageInfo(row.diff) : undefined
   return fieldsInOrder([
-    ['slug', deleted ? deleted.slug : r.pageSlug],
-    ['title', deleted ? deleted.title : r.pageTitle],
-    ['eventProjectId', deleted ? deleted.projectId : r.pageProjectId],
+    ['slug', deleted ? deleted.slug : row.pageSlug],
+    ['title', deleted ? deleted.title : row.pageTitle],
+    ['eventProjectId', deleted ? deleted.projectId : row.pageProjectId],
     ['deleted', deleted],
   ])
 }
@@ -685,29 +685,29 @@ const isEventVisible = async function isEventVisible(
  * trash-shadowed row, wrong project, or not visible to the caller).
  */
 const toWikiChangeEvent = async function toWikiChangeEvent(
-  r: WikiActivityRow,
+  row: WikiActivityRow,
   projectId: string | undefined,
   canSeeProject: (id: string) => Promise<boolean>,
 ): Promise<WikiChangeEvent | undefined> {
-  const action = r.action as 'created' | 'updated' | 'deleted'
-  if (action !== 'deleted' && Predicate.isNotNullish(r.pageDeletedAt) && Predicate.isNotNullish(r.pageDeletedAt)) {
+  const action = row.action as 'created' | 'updated' | 'deleted'
+  if (action !== 'deleted' && Predicate.isNotNullish(row.pageDeletedAt) && Predicate.isNotNullish(row.pageDeletedAt)) {
     return undefined
   }
 
-  const { slug, title, eventProjectId, deleted } = eventFieldsFor(action, r)
+  const { slug, title, eventProjectId, deleted } = eventFieldsFor(action, row)
   if (!(await isEventVisible(projectId, eventProjectId, canSeeProject))) {
     return undefined
   }
 
   return fieldsInOrder([
-    ['id', r.id],
+    ['id', row.id],
     ['action', action],
-    ['pageId', r.entityId],
+    ['pageId', row.entityId],
     ['slug', slug],
     ['title', title],
     ['projectId', eventProjectId],
-    ['actorId', r.actorId],
-    ['createdAt', r.createdAt],
+    ['actorId', row.actorId],
+    ['createdAt', row.createdAt],
     ['deletedPageIds', deleted?.deletedPageIds ?? JSON_NULL],
     ['deletedPageIdsTruncated', deleted?.deletedPageIdsTruncated ?? false],
   ])
@@ -910,11 +910,11 @@ export const listWikiChanges = async function listWikiChanges(
 
   let nextSince = since
   const events: WikiChangeEvent[] = []
-  for (const r of batch) {
-    if (r.createdAt > nextSince) {
-      nextSince = r.createdAt
+  for (const row of batch) {
+    if (row.createdAt > nextSince) {
+      nextSince = row.createdAt
     }
-    const event = await toWikiChangeEvent(r, projectId, canSeeProject)
+    const event = await toWikiChangeEvent(row, projectId, canSeeProject)
     if (event) {
       events.push(event)
     }

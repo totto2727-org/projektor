@@ -102,23 +102,26 @@ const parseFeedbackBody = async function parseFeedbackBody(httpContext: Context<
 
 const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
   httpContext: Context<HonoEnv>,
-  e: unknown,
+  failure: unknown,
 ): Response {
   /*
    * Endpoint-specific mapping: an unknown/revoked source is an invalid
    * credential (401), an inactive source is a paused resource (403), a bad
    * body is 400. (NotFound → 401 here, unlike every other endpoint.)
    */
-  if (e instanceof CorePublicError) {
-    if (e.kind === 'validation') {
-      return httpContext.json({ error: e.details }, HTTP_BAD_REQUEST)
+  if (failure instanceof CorePublicError) {
+    if (failure.kind === 'validation') {
+      return httpContext.json({ error: failure.details }, HTTP_BAD_REQUEST)
     }
-    if (e.status === HTTP_FORBIDDEN || e.status === HTTP_NOT_FOUND) {
-      return httpContext.json({ error: e.message }, e.status === HTTP_NOT_FOUND ? HTTP_UNAUTHORIZED : HTTP_FORBIDDEN)
+    if (failure.status === HTTP_FORBIDDEN || failure.status === HTTP_NOT_FOUND) {
+      return httpContext.json(
+        { error: failure.message },
+        failure.status === HTTP_NOT_FOUND ? HTTP_UNAUTHORIZED : HTTP_FORBIDDEN,
+      )
     }
-    return serviceErrToResponse(httpContext, e)
+    return serviceErrToResponse(httpContext, failure)
   }
-  throw e
+  throw failure
 }
 
 feedbackPublicRouter.post('/submit', async (httpContext) => {

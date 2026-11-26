@@ -39,33 +39,33 @@ interface LabelMatchers {
 const matcherCache = new Map<string, LabelMatchers>()
 const labelMatchers = function labelMatchers(label: RegExp): LabelMatchers {
   const key = `${label.source}/${label.flags}`
-  let m = matcherCache.get(key)
-  if (!m) {
-    m = {
+  let matchers = matcherCache.get(key)
+  if (!matchers) {
+    matchers = {
       word: ci(`\\b(?:${label.source})\\b`, label.flags),
       prefix: ci(`^\\s*(?:${label.source})\\b[^:—–]*[:—–]`, label.flags),
     }
-    matcherCache.set(key, m)
+    matcherCache.set(key, matchers)
   }
-  return m
+  return matchers
 }
 
 // Is `line` a STRUCTURAL label line for `label` — a heading, a bold label, or a
 // "Label:"-prefixed line — rather than prose that merely mentions the phrase
 // (PROJ-291)? "## Scope / files", "**Acceptance criteria**", "Verification:" pass;
 // "acceptance criteria are unclear" does not.
-const isLabelLine = function isLabelLine(line: string, m: LabelMatchers): boolean {
-  const t = line.trim()
+const isLabelLine = function isLabelLine(line: string, matchers: LabelMatchers): boolean {
+  const trimmedLine = line.trim()
 
-  const isHeading = /^#{1,6}\s+/u.test(t)
-  const isBold = /^\*\*[^*]+\*\*:?\s*$/u.test(t) || /^[-*]\s+\*\*[^*]+\*\*/u.test(t)
+  const isHeading = /^#{1,6}\s+/u.test(trimmedLine)
+  const isBold = /^\*\*[^*]+\*\*:?\s*$/u.test(trimmedLine) || /^[-*]\s+\*\*[^*]+\*\*/u.test(trimmedLine)
   if (isHeading || isBold) {
-    return m.word.test(t)
+    return matchers.word.test(trimmedLine)
   }
 
   // A plain line only counts when the label is a "Label:" prefix, not mid-sentence.
-  const stripped = t.replace(/^[-*]\s+/u, '').replaceAll('**', '')
-  return m.prefix.test(stripped)
+  const stripped = trimmedLine.replace(/^[-*]\s+/u, '').replaceAll('**', '')
+  return matchers.prefix.test(stripped)
 }
 
 /*
@@ -74,8 +74,8 @@ const isLabelLine = function isLabelLine(line: string, m: LabelMatchers): boolea
  */
 const sectionHasContent = function sectionHasContent(body: string, label: RegExp): boolean {
   const lines = body.split(/\r?\n/u)
-  const m = labelMatchers(label)
-  const idx = lines.findIndex((l) => isLabelLine(l, m))
+  const matchers = labelMatchers(label)
+  const idx = lines.findIndex((line) => isLabelLine(line, matchers))
   if (idx === SEPARATOR_NOT_FOUND) {
     return false
   }
@@ -112,8 +112,8 @@ const hasFilePathToken = function hasFilePathToken(body: string): boolean {
   if (!spans) {
     return false
   }
-  return spans.some((s) => {
-    const inner = s.slice(INLINE_LIST_START, INLINE_LIST_END).trim()
+  return spans.some((span) => {
+    const inner = span.slice(INLINE_LIST_START, INLINE_LIST_END).trim()
     return inner.includes('/') || /[\w-]+\.[a-z]{1,5}\b/i.test(inner)
   })
 }

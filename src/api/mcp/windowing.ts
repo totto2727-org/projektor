@@ -137,7 +137,7 @@ const headings = function headings(content: string): Heading[] {
  * @returns {string[]} The heading lines, with a prefix such as `##` for each level.
  */
 export const outlineOf = function outlineOf(content: string): string[] {
-  return headings(content).map((h) => `${'#'.repeat(h.level)} ${h.text}`)
+  return headings(content).map((heading) => `${'#'.repeat(heading.level)} ${heading.text}`)
 }
 
 const slugify = function slugify(text: string): string {
@@ -163,12 +163,14 @@ export const sectionOf = function sectionOf(content: string, name: string): stri
     .trim()
     .toLowerCase()
   const hs = headings(content)
-  const i = hs.findIndex((h) => h.text.toLowerCase() === wanted || slugify(h.text) === wanted)
-  if (i < FIRST_HEADING_INDEX) {
+  const headingIndex = hs.findIndex(
+    (heading) => heading.text.toLowerCase() === wanted || slugify(heading.text) === wanted,
+  )
+  if (headingIndex < FIRST_HEADING_INDEX) {
     return undefined
   }
-  const next = hs.slice(i + HEADING_INDEX_STEP).find((h) => h.level <= hs[i].level)
-  return content.slice(hs[i].start, next ? next.start : content.length).replace(/\n+$/u, '')
+  const next = hs.slice(headingIndex + HEADING_INDEX_STEP).find((heading) => heading.level <= hs[headingIndex].level)
+  return content.slice(hs[headingIndex].start, next ? next.start : content.length).replace(/\n+$/u, '')
 }
 
 /**

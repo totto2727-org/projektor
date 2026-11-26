@@ -200,7 +200,7 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
           serverInfo: { name: 'projektor', version: SERVER_VERSION },
           instructions: buildServerInstructions(
             await getWorkflow(ctx).then(
-              (w) => w.version,
+              (workflow) => workflow.version,
               () => null,
             ),
           ),
@@ -215,7 +215,7 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
         const requested = dedupe(
           domainsParam
             .split(',')
-            .map((s) => s.trim())
+            .map((domain) => domain.trim())
             .filter(Boolean),
         )
         if (Array.isArrayNonEmpty(requested)) {
@@ -273,7 +273,7 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
           }),
         )
       }
-      const tool = getAllTools(workspace.id).find((t) => t.name === name)
+      const tool = getAllTools(workspace.id).find((candidate) => candidate.name === name)
       if (!tool) {
         return httpContext.json(
           jsonRpcError(body.id, { code: JSON_RPC_METHOD_NOT_FOUND, message: `Tool not found: ${name}` }),
@@ -288,10 +288,10 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
       const argIssues = validateToolArgs(tool.inputSchema, args)
       if (Array.isArrayNonEmpty(argIssues)) {
         const fieldErrors: Record<string, string[]> = {}
-        Iterable.forEach(argIssues, (i) => {
-          fieldErrors[i.path] = [...(fieldErrors[i.path] ?? []), i.message]
+        Iterable.forEach(argIssues, (issue) => {
+          fieldErrors[issue.path] = [...(fieldErrors[issue.path] ?? []), issue.message]
         })
-        const missing = argIssues.filter((i) => i.message === 'is required').map((i) => i.path)
+        const missing = argIssues.filter((issue) => issue.message === 'is required').map((issue) => issue.path)
         const formErrors =
           missing.length === argIssues.length ? [`Missing required argument(s): ${missing.join(', ')}`] : []
         const toolError = toToolError(new ValidationError(validationIssues(formErrors, fieldErrors)))

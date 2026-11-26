@@ -38,11 +38,11 @@ const NewSourceForm = function NewSourceForm({
   onCancel,
 }: {
   name: string
-  setName: (v: string) => void
+  setName: (nextName: string) => void
   description: string
-  setDescription: (v: string) => void
+  setDescription: (nextDescription: string) => void
   origins: string
-  setOrigins: (v: string) => void
+  setOrigins: (nextOrigins: string) => void
   creating: boolean
   error: string | null
   validationErrors: unknown

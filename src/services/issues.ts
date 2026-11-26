@@ -206,7 +206,7 @@ const listConditions = function listConditions(
   }
   const statusIds = options.statusIds
     ?.split(',')
-    .map((s) => s.trim())
+    .map((statusId) => statusId.trim())
     .filter(Boolean)
   /*
    * Membership filters bind one JSON value instead of an input-scaled array, keeping
@@ -226,7 +226,7 @@ const listConditions = function listConditions(
   }
   const priorities = options.priorities
     ?.split(',')
-    .map((s) => s.trim())
+    .map((priority) => priority.trim())
     .filter(Boolean) as NonNullable<IssueListOptions['priority']>[] | undefined
   if (priorities?.length) {
     conditions.push(sql`${schema.issues.priority} IN (SELECT value FROM json_each(${JSON.stringify(priorities)}))`)
@@ -248,7 +248,7 @@ const listConditions = function listConditions(
   }
   const excluded = options.excludeTypeIds
     ?.split(',')
-    .map((s) => s.trim())
+    .map((typeId) => typeId.trim())
     .filter(Boolean)
   if (excluded?.length) {
     conditions.push(
@@ -433,7 +433,7 @@ export const getIssuesBatch = function getIssuesBatch(
       })
       const ids = [
         ...new Set(
-          order.map((o) => o.id).filter((id): id is string => !(Predicate.isNullish(id) || String.isEmpty(id))),
+          order.map((entry) => entry.id).filter((id): id is string => !(Predicate.isNullish(id) || String.isEmpty(id))),
         ),
       ]
       const rows = await inChunks(ids, (chunk) =>
@@ -505,8 +505,8 @@ export const searchIssues = function searchIssues(
     const query = options.query
       .trim()
       .split(/\s+/u)
-      .filter((t) => Boolean(t) && /\w/u.test(t))
-      .map((t) => `"${t.replaceAll('"', '""')}"`)
+      .filter((token) => Boolean(token) && /\w/u.test(token))
+      .map((token) => `"${token.replaceAll('"', '""')}"`)
       .join(' ')
     if (!query) {
       return []

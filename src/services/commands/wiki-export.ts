@@ -156,7 +156,7 @@ const collectDescendantIds = async function collectDescendantIds(
         ),
     )
     const inScope = children.filter((child) => (child.projectId ?? null) === rootProjectId)
-    frontier = inScope.map((c) => c.id)
+    frontier = inScope.map((child) => child.id)
     descendants.push(...frontier)
     /*
      * Bail out as soon as the walk itself proves the subtree is oversized, rather than
@@ -267,17 +267,17 @@ const safeZipPathSegment = function safeZipPathSegment(value: string): string {
 const reserveUniqueName = function reserveUniqueName(
   usedNames: Set<string>,
   candidate: string,
-  altFor: (n: number) => string,
+  altFor: (suffix: number) => string,
 ): string {
   if (!usedNames.has(candidate)) {
     usedNames.add(candidate)
     return candidate
   }
-  let n = 1
-  let alt = altFor(n)
+  let suffix = 1
+  let alt = altFor(suffix)
   while (usedNames.has(alt)) {
-    n += 1
-    alt = altFor(n)
+    suffix += 1
+    alt = altFor(suffix)
   }
   usedNames.add(alt)
   return alt
