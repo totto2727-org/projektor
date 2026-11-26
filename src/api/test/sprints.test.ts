@@ -2,6 +2,7 @@ import { Schema } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import { env } from './fixture-api.ts'
@@ -47,7 +48,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles POST /api/sprints creates a sprint', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    const res = await createSprint({ slug, token }, { projectId, name: 'Sprint 1' })
+    const res = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Sprint 1'],
+      ]),
+    )
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, IdResponse)
     expect(isNonEmptyText(body.id)).toBe(true)
@@ -68,7 +75,14 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles POST then GET lists the sprint', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    await createSprint({ slug, token }, { projectId, name: 'Sprint 1', goal: 'Ship the feature' })
+    await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Sprint 1'],
+        ['goal', 'Ship the feature'],
+      ]),
+    )
 
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
@@ -86,7 +100,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles GET /api/sprints/:id returns the sprint', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    const createRes = await createSprint({ slug, token }, { projectId, name: 'Sprint 2' })
+    const createRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Sprint 2'],
+      ]),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
@@ -110,7 +130,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles PATCH /api/sprints/:id updates sprint fields', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    const createRes = await createSprint({ slug, token }, { projectId, name: 'Draft Sprint' })
+    const createRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Draft Sprint'],
+      ]),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
@@ -135,7 +161,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles POST /api/sprints/:id/complete marks active sprint completed', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    const createRes = await createSprint({ slug, token }, { projectId, name: 'Active Sprint' })
+    const createRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Active Sprint'],
+      ]),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     // First make it active
@@ -161,7 +193,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles POST /api/sprints/:id/complete rejects planned sprint', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    const createRes = await createSprint({ slug, token }, { projectId, name: 'Planned Sprint' })
+    const createRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Planned Sprint'],
+      ]),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
@@ -174,7 +212,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles DELETE /api/sprints/:id removes the sprint', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    const createRes = await createSprint({ slug, token }, { projectId, name: 'To delete' })
+    const createRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'To delete'],
+      ]),
+    )
     const { id } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
@@ -192,7 +236,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles POST /api/sprints/:id/move-issues bulk moves issues to sprint', async ({
     projectFixture: { projectId, slug, token, userId, workspaceId },
   }) => {
-    const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Target Sprint' })
+    const sprintRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Target Sprint'],
+      ]),
+    )
     const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue A' })
@@ -224,7 +274,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('handles DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async ({
     projectFixture: { projectId, slug, token, userId, workspaceId },
   }) => {
-    const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Sprint to delete' })
+    const sprintRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Sprint to delete'],
+      ]),
+    )
     const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Sprint issue' })
@@ -255,7 +311,13 @@ describe('sprints API', () => {
   test<SprintTestContext>('covers PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async ({
     projectFixture: { projectId, slug, token, userId, workspaceId },
   }) => {
-    const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Cache Target Sprint' })
+    const sprintRes = await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Cache Target Sprint'],
+      ]),
+    )
     const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Cache issue' })
@@ -320,7 +382,13 @@ describe('sprints API', () => {
     test<SprintTestContext>('moving 500 issues succeeds within <=50 KV deletes, and a subsequent GET shows the new sprint', async ({
       projectFixture: { projectId, slug, token, userId, workspaceId },
     }) => {
-      const sprintRes = await createSprint({ slug, token }, { projectId, name: 'Bulk Target Sprint' })
+      const sprintRes = await createSprint(
+        { slug, token },
+        fieldsInOrder([
+          ['projectId', projectId],
+          ['name', 'Bulk Target Sprint'],
+        ]),
+      )
       const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
       const issueIds: string[] = []
@@ -378,9 +446,27 @@ describe('sprints API', () => {
   test<SprintTestContext>('lists multiple sprints ordered by created_at', async ({
     projectFixture: { projectId, slug, token },
   }) => {
-    await createSprint({ slug, token }, { projectId, name: 'First Sprint' })
-    await createSprint({ slug, token }, { projectId, name: 'Second Sprint' })
-    await createSprint({ slug, token }, { projectId, name: 'Third Sprint' })
+    await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'First Sprint'],
+      ]),
+    )
+    await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Second Sprint'],
+      ]),
+    )
+    await createSprint(
+      { slug, token },
+      fieldsInOrder([
+        ['projectId', projectId],
+        ['name', 'Third Sprint'],
+      ]),
+    )
 
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),

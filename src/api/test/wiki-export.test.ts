@@ -1,6 +1,7 @@
 import { unzipSync } from 'fflate'
 import { afterAll, assert, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -135,11 +136,22 @@ describe('wiki export (PROJ-497)', () => {
   test<WikiExportTestContext>('exports workspace-level pages with frontmatter when scope=space and no projectId', async ({
     identity: { slug, token },
   }) => {
-    await createPage(token, slug, {
-      title: 'Runbook One',
-      content: '---\ntype: runbook\n---\nBody one',
-    })
-    await createPage(token, slug, { title: 'Note Two', content: 'Plain body, no frontmatter' })
+    await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Runbook One'],
+        ['content', '---\ntype: runbook\n---\nBody one'],
+      ]),
+    )
+    await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Note Two'],
+        ['content', 'Plain body, no frontmatter'],
+      ]),
+    )
 
     const { status, entries } = await exportZip(token, slug, 'scope=space')
     expect(status).toBe(200)
@@ -159,12 +171,23 @@ describe('wiki export (PROJ-497)', () => {
     identity: { slug, token, workspaceId },
   }) => {
     const project = await seedProject(workspaceId)
-    await createPage(token, slug, { title: 'Workspace Page', content: 'ws' })
-    await createPage(token, slug, {
-      title: 'Project Page',
-      content: 'proj',
-      projectId: project.id,
-    })
+    await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Workspace Page'],
+        ['content', 'ws'],
+      ]),
+    )
+    await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Project Page'],
+        ['content', 'proj'],
+        ['projectId', project.id],
+      ]),
+    )
 
     const { entries } = await exportZip(token, slug, `scope=space&projectId=${project.id}`)
     expect(Object.keys(entries ?? {})).toStrictEqual(['pages/project-page.md'])
@@ -173,18 +196,40 @@ describe('wiki export (PROJ-497)', () => {
   test<WikiExportTestContext>('exports a subtree: the target page plus all descendants, excluding unrelated pages', async ({
     identity: { slug, token },
   }) => {
-    const root = await createPage(token, slug, { title: 'Root', content: 'root body' })
-    const child = await createPage(token, slug, {
-      title: 'Child',
-      content: 'child body',
-      parentId: root.id,
-    })
-    await createPage(token, slug, {
-      title: 'Grandchild',
-      content: 'grandchild body',
-      parentId: child.id,
-    })
-    await createPage(token, slug, { title: 'Unrelated', content: 'unrelated body' })
+    const root = await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Root'],
+        ['content', 'root body'],
+      ]),
+    )
+    const child = await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Child'],
+        ['content', 'child body'],
+        ['parentId', root.id],
+      ]),
+    )
+    await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Grandchild'],
+        ['content', 'grandchild body'],
+        ['parentId', child.id],
+      ]),
+    )
+    await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Unrelated'],
+        ['content', 'unrelated body'],
+      ]),
+    )
 
     const { entries } = await exportZip(token, slug, `scope=subtree&pageId=${root.slug}`)
     const names = Object.keys(entries ?? {}).toSorted()
@@ -194,7 +239,14 @@ describe('wiki export (PROJ-497)', () => {
   test<WikiExportTestContext>('includes file attachments under attachments/<page-slug>/', async ({
     identity: { slug, token },
   }) => {
-    const page = await createPage(token, slug, { title: 'With Attachment', content: 'see file' })
+    const page = await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'With Attachment'],
+        ['content', 'see file'],
+      ]),
+    )
     await uploadAttachment(token, slug, page.id, 'notes.txt', 'attachment bytes')
 
     const { entries } = await exportZip(token, slug, 'scope=space')
@@ -208,10 +260,24 @@ describe('wiki export (PROJ-497)', () => {
   test<WikiExportTestContext>("never leaks another workspace's pages into a space export", async ({
     identity: { slug, token },
   }) => {
-    await createPage(token, slug, { title: 'Mine', content: 'mine' })
+    await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Mine'],
+        ['content', 'mine'],
+      ]),
+    )
 
     const other = await seedFixture({ role: 'admin' })
-    await createPage(other.token, other.workspace.slug, { title: 'Theirs', content: 'theirs' })
+    await createPage(
+      other.token,
+      other.workspace.slug,
+      fieldsInOrder([
+        ['title', 'Theirs'],
+        ['content', 'theirs'],
+      ]),
+    )
 
     const { entries } = await exportZip(token, slug, 'scope=space')
     expect(Object.keys(entries ?? {})).toStrictEqual(['pages/mine.md'])
@@ -221,10 +287,14 @@ describe('wiki export (PROJ-497)', () => {
     identity: { slug, token },
   }) => {
     const other = await seedFixture({ role: 'admin' })
-    const otherPage = await createPage(other.token, other.workspace.slug, {
-      title: 'Theirs',
-      content: 'theirs',
-    })
+    const otherPage = await createPage(
+      other.token,
+      other.workspace.slug,
+      fieldsInOrder([
+        ['title', 'Theirs'],
+        ['content', 'theirs'],
+      ]),
+    )
 
     const { status } = await exportZip(token, slug, `scope=subtree&pageId=${otherPage.id}`)
     expect(status).toBe(404)
@@ -241,11 +311,15 @@ describe('wiki export (PROJ-497)', () => {
 
   test('allows a project export for a member with a group grant on that project', async () => {
     const fixture = await seedProjectFixture({ role: 'member' })
-    await createPage(fixture.token, fixture.slug, {
-      title: 'Granted',
-      content: 'granted',
-      projectId: fixture.projectId,
-    })
+    await createPage(
+      fixture.token,
+      fixture.slug,
+      fieldsInOrder([
+        ['title', 'Granted'],
+        ['content', 'granted'],
+        ['projectId', fixture.projectId],
+      ]),
+    )
 
     const { status, entries } = await exportZip(
       fixture.token,
@@ -266,7 +340,14 @@ describe('wiki export (PROJ-497)', () => {
   test<WikiExportTestContext>('keeps colliding attachment filenames distinct in the zip, with correct content each', async ({
     identity: { slug, token },
   }) => {
-    const page = await createPage(token, slug, { title: 'Collide', content: 'body' })
+    const page = await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Collide'],
+        ['content', 'body'],
+      ]),
+    )
     /*
      * The second "notes.txt" renames to "1-notes.txt", which must not clobber the
      * real "1-notes.txt" uploaded after it.
@@ -290,11 +371,15 @@ describe('wiki export (PROJ-497)', () => {
     identity: { slug, token, workspaceId },
   }) => {
     const project = await seedProject(workspaceId)
-    const root = await createPage(token, slug, {
-      title: 'Root',
-      content: 'root body',
-      projectId: project.id,
-    })
+    const root = await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Root'],
+        ['content', 'root body'],
+        ['projectId', project.id],
+      ]),
+    )
     const now = currentEpochSeconds()
     const mismatchedId = crypto.randomUUID()
     /*
@@ -345,7 +430,14 @@ describe('wiki export (PROJ-497)', () => {
   test<WikiExportTestContext>('rejects a subtree export whose descendant count exceeds the cap during the BFS walk', async ({
     identity: { slug, token, userId, workspaceId },
   }) => {
-    const root = await createPage(token, slug, { title: 'Big Root', content: 'root' })
+    const root = await createPage(
+      token,
+      slug,
+      fieldsInOrder([
+        ['title', 'Big Root'],
+        ['content', 'root'],
+      ]),
+    )
     /*
      * Every bulk page is parented directly under root, so collectDescendantIds's BFS
      * sees the whole set on its first level and must bail before pagesByIds fetches
@@ -387,8 +479,22 @@ describe('wiki export (PROJ-497)', () => {
     })
 
     test<WikiExportTestContext>('omits a trashed page from a space export', async ({ identity: { slug, token } }) => {
-      await createPage(token, slug, { title: 'Kept', content: 'kept body' })
-      const leaked = await createPage(token, slug, { title: 'Leaked Secret', content: 'hunter2' })
+      await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Kept'],
+          ['content', 'kept body'],
+        ]),
+      )
+      const leaked = await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Leaked Secret'],
+          ['content', 'hunter2'],
+        ]),
+      )
       await trash({ slug, token }, leaked.id)
 
       const { entries } = await exportZip(token, slug, 'scope=space')
@@ -398,11 +504,33 @@ describe('wiki export (PROJ-497)', () => {
     test<WikiExportTestContext>('with a reused slug, exports only the live page and resolves the subtree root to it', async ({
       identity: { slug, token },
     }) => {
-      const old = await createPage(token, slug, { title: 'Notes', content: 'old secret' })
+      const old = await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Notes'],
+          ['content', 'old secret'],
+        ]),
+      )
       await trash({ slug, token }, old.id)
-      const live = await createPage(token, slug, { title: 'Notes', content: 'live body' })
+      const live = await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Notes'],
+          ['content', 'live body'],
+        ]),
+      )
       expect(live.slug).toBe(old.slug)
-      await createPage(token, slug, { title: 'Live Child', content: 'c', parentId: live.id })
+      await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Live Child'],
+          ['content', 'c'],
+          ['parentId', live.id],
+        ]),
+      )
 
       const space = await exportZip(token, slug, 'scope=space')
       const spaceNames = Object.keys(space.entries ?? {}).toSorted()
@@ -419,13 +547,32 @@ describe('wiki export (PROJ-497)', () => {
     test<WikiExportTestContext>('excludes a trashed descendant from a subtree export and 404s a trashed root', async ({
       identity: { slug, token },
     }) => {
-      const root = await createPage(token, slug, { title: 'Tree Root', content: 'r' })
-      const gone = await createPage(token, slug, {
-        title: 'Gone Child',
-        content: 'g',
-        parentId: root.id,
-      })
-      await createPage(token, slug, { title: 'Kept Child', content: 'k', parentId: root.id })
+      const root = await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Tree Root'],
+          ['content', 'r'],
+        ]),
+      )
+      const gone = await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Gone Child'],
+          ['content', 'g'],
+          ['parentId', root.id],
+        ]),
+      )
+      await createPage(
+        token,
+        slug,
+        fieldsInOrder([
+          ['title', 'Kept Child'],
+          ['content', 'k'],
+          ['parentId', root.id],
+        ]),
+      )
       await trash({ slug, token }, gone.id)
 
       const { entries } = await exportZip(token, slug, `scope=subtree&pageId=${root.id}`)

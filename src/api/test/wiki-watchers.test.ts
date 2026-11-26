@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seedToken, seedUser } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -77,7 +79,13 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     const { createPage, edit, notificationCount, watch, watcherId, workspaceId } = await seedWatcherFixture()
     const project = await seedProject(workspaceId)
     const { groupId } = await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
-    const pageId = await createPage({ title: 'Secret Plan', content: 'v1', projectId: project.id })
+    const pageId = await createPage(
+      fieldsInOrder([
+        ['title', 'Secret Plan'],
+        ['content', 'v1'],
+        ['projectId', project.id],
+      ]),
+    )
     await watch(pageId)
 
     await edit(pageId, 'v2')
@@ -93,7 +101,12 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
 
   test('stops notifying a watcher removed from the workspace, even for workspace-level pages', async () => {
     const { createPage, edit, notificationCount, watch, watcherId, workspaceId } = await seedWatcherFixture()
-    const pageId = await createPage({ title: 'Handbook', content: 'v1' })
+    const pageId = await createPage(
+      fieldsInOrder([
+        ['title', 'Handbook'],
+        ['content', 'v1'],
+      ]),
+    )
     await watch(pageId)
 
     await edit(pageId, 'v2')
@@ -111,7 +124,13 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     const { createPage, notificationCount, slug, watcherId, watcherToken, workspaceId } = await seedWatcherFixture()
     const project = await seedProject(workspaceId)
     await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
-    const parentId = await createPage({ title: 'Parent', content: 'p', projectId: project.id })
+    const parentId = await createPage(
+      fieldsInOrder([
+        ['title', 'Parent'],
+        ['content', 'p'],
+        ['projectId', project.id],
+      ]),
+    )
     const res = await fetchNativeApi(`http://localhost/api/wiki/${parentId}/watch`, {
       body: JSON.stringify({ subtree: true }),
       headers: authHeaders(watcherToken, slug),
@@ -120,7 +139,14 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     expect(res.status).toBeLessThan(300)
 
     await resetRateLimits()
-    await createPage({ title: 'Child', content: 'c', parentId, projectId: project.id })
+    await createPage(
+      fieldsInOrder([
+        ['title', 'Child'],
+        ['content', 'c'],
+        ['parentId', parentId],
+        ['projectId', project.id],
+      ]),
+    )
     await expect(notificationCount()).resolves.toBe(1)
   })
 })

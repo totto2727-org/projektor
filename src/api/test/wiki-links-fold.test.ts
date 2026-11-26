@@ -1,6 +1,8 @@
 import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -53,19 +55,27 @@ describe('covers PROJ-818: accented Latin titles fold on both sides', () => {
   test("[[über uns]] resolves to a page titled 'Über uns'", async () => {
     const { token, workspace } = await seedFixture({ role: 'owner' })
     const target = await createPage(token, workspace.slug, { title: 'Über uns' })
-    const source = await createPage(token, workspace.slug, {
-      title: 'Home',
-      content: 'See [[über uns]].',
-    })
+    const source = await createPage(
+      token,
+      workspace.slug,
+      fieldsInOrder([
+        ['title', 'Home'],
+        ['content', 'See [[über uns]].'],
+      ]),
+    )
     await expect(targetOf(source.id)).resolves.toBe(target.id)
   })
 
   test("a link written before the page exists resolves when 'Über uns' is created", async () => {
     const { token, workspace } = await seedFixture({ role: 'owner' })
-    const source = await createPage(token, workspace.slug, {
-      title: 'Home',
-      content: 'See [[ÜBER UNS]].',
-    })
+    const source = await createPage(
+      token,
+      workspace.slug,
+      fieldsInOrder([
+        ['title', 'Home'],
+        ['content', 'See [[ÜBER UNS]].'],
+      ]),
+    )
     await expect(targetOf(source.id)).resolves.toBeNull()
     const target = await createPage(token, workspace.slug, { title: 'über uns' })
     await expect(targetOf(source.id)).resolves.toBe(target.id)
@@ -80,10 +90,14 @@ describe('covers PROJ-818: accented Latin titles fold on both sides', () => {
     )
       .bind(legacyId, workspace.id, user.id, user.id)
       .run()
-    const source = await createPage(token, workspace.slug, {
-      title: 'Links',
-      content: '[[über legacy]]',
-    })
+    const source = await createPage(
+      token,
+      workspace.slug,
+      fieldsInOrder([
+        ['title', 'Links'],
+        ['content', '[[über legacy]]'],
+      ]),
+    )
     await expect(targetOf(source.id)).resolves.toBe(legacyId)
   })
 })
@@ -92,16 +106,31 @@ describe("covers PROJ-818: link reads don't reveal pages in hidden projects", ()
   test('a link to a page in a hidden project is reported broken, as written', async () => {
     const { workspace, owner, member } = await seedWorkspaceRoles()
     const hidden = await seedProject(workspace.id, 'HID')
-    await createPage(owner.token, workspace.slug, { title: 'Secret Plan', projectId: hidden.id })
-    const secretBySlug = await createPage(owner.token, workspace.slug, {
-      title: 'Other Secret Title',
-      projectId: hidden.id,
-    })
+    await createPage(
+      owner.token,
+      workspace.slug,
+      fieldsInOrder([
+        ['title', 'Secret Plan'],
+        ['projectId', hidden.id],
+      ]),
+    )
+    const secretBySlug = await createPage(
+      owner.token,
+      workspace.slug,
+      fieldsInOrder([
+        ['title', 'Other Secret Title'],
+        ['projectId', hidden.id],
+      ]),
+    )
     // Workspace-level page (visible to everyone) linking into the hidden project.
-    await createPage(owner.token, workspace.slug, {
-      title: 'Public Index',
-      content: `[[Secret Plan]] and [x](/wiki/${secretBySlug.slug})`,
-    })
+    await createPage(
+      owner.token,
+      workspace.slug,
+      fieldsInOrder([
+        ['title', 'Public Index'],
+        ['content', `[[Secret Plan]] and [x](/wiki/${secretBySlug.slug})`],
+      ]),
+    )
 
     const asMember = await broken(member.token, workspace.slug)
     const fromIndex = asMember.filter((backlink) => backlink.sourceSlug === 'public-index').map((b) => b.targetTitle)
@@ -118,10 +147,14 @@ describe("covers PROJ-818: legacy link rows don't leak a hidden page's title", (
   test('a pre-0063 resolved row (no target_text) into a hidden project shows no title', async () => {
     const { workspace, owner, member } = await seedWorkspaceRoles()
     const hidden = await seedProject(workspace.id, 'HID')
-    const secret = await createPage(owner.token, workspace.slug, {
-      title: 'Hidden Title',
-      projectId: hidden.id,
-    })
+    const secret = await createPage(
+      owner.token,
+      workspace.slug,
+      fieldsInOrder([
+        ['title', 'Hidden Title'],
+        ['projectId', hidden.id],
+      ]),
+    )
     const src = await createPage(owner.token, workspace.slug, { title: 'Legacy Src' })
     // As a pre-0063 slug link resolved to the hidden page would look.
     await env.DB.prepare(
