@@ -1,6 +1,6 @@
 'use client'
 
-import { Array } from 'effect'
+import { Array, Number } from 'effect'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 
@@ -30,6 +30,9 @@ const TAB_BASE_CLASS =
   'inline-flex items-center shrink-0 whitespace-nowrap px-3 py-2 rounded-t-md text-sm font-medium no-underline border border-b-0 -mb-px transition-[color,background] duration-100 max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[0.8125rem]'
 const MORE_TRIGGER_RESERVE_PX = 84
 const TAB_GAP_PX = 2
+const NO_TAB_WIDTH = 0
+const NO_TAB_GAPS = 0
+const FIRST_TAB_INDEX = 0
 
 const normalPath = function normalPath(pathname: string): string {
   return pathname === '/' ? pathname : pathname.replace(/\/+$/u, '') || '/'
@@ -42,13 +45,15 @@ const tabClass = function tabClass(active: boolean): string {
   return `${TAB_BASE_CLASS} ${active ? 'text-accent bg-bg border-border font-semibold' : 'text-text-muted border-transparent hover:text-text-base hover:bg-surface'}`
 }
 const visibleCount = function visibleCount(width: number, tabs: Readonly<number[]>): number {
-  const total = tabs.reduce((sum, item) => sum + item, 0) + TAB_GAP_PX * Math.max(tabs.length - 1, 0)
+  const total =
+    tabs.reduce((sum, item) => sum + item, NO_TAB_WIDTH) +
+    TAB_GAP_PX * Math.max(Number.decrement(tabs.length), NO_TAB_GAPS)
   if (total <= width) {
     return tabs.length
   }
-  let used = 0
-  for (let index = 0; index < tabs.length; index += 1) {
-    const next = used + tabs[index] + (index ? TAB_GAP_PX : 0)
+  let used = NO_TAB_WIDTH
+  for (let index = FIRST_TAB_INDEX; index < tabs.length; index = Number.increment(index)) {
+    const next = used + tabs[index] + (index ? TAB_GAP_PX : NO_TAB_WIDTH)
     if (next + TAB_GAP_PX + MORE_TRIGGER_RESERVE_PX > width) {
       return index
     }
@@ -65,7 +70,7 @@ const visibleCount = function visibleCount(width: number, tabs: Readonly<number[
  */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): JSX.Element {
-  const [width, setWidth] = useState(0)
+  const [width, setWidth] = useState(NO_TAB_WIDTH)
   const [tabWidths, setTabWidths] = useState<number[]>()
   const [moreOpen, setMoreOpen] = useState(false)
   const navRef = useRef<HTMLElement>(null)
@@ -75,8 +80,8 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
   const menuId = useId()
   const parsed = new URL(url, 'http://projektor.local')
   const pathname = normalPath(parsed.pathname)
-  const project = scope.selection.kind === 'project' ? scope.selection.project : null
-  const workspace = scope.selection.kind === 'project' ? scope.selection.workspace : null
+  const project = scope.selection.kind === 'project' ? scope.selection.project : undefined
+  const workspace = scope.selection.kind === 'project' ? scope.selection.workspace : undefined
   useLayoutEffect(() => {
     const element = navRef.current
     if (!element || !project) {
@@ -85,10 +90,10 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
     const measure = (): void => {
       setWidth(
         element.clientWidth -
-          Number.parseFloat(getComputedStyle(element).paddingLeft || '0') -
-          Number.parseFloat(getComputedStyle(element).paddingRight || '0'),
+          globalThis.Number.parseFloat(getComputedStyle(element).paddingLeft || '0') -
+          globalThis.Number.parseFloat(getComputedStyle(element).paddingRight || '0'),
       )
-      const next = measureRefs.current.map((item) => item?.offsetWidth ?? 0)
+      const next = measureRefs.current.map((item) => item?.offsetWidth ?? NO_TAB_WIDTH)
       if (next.every(Boolean)) {
         setTabWidths(next)
       }
@@ -137,7 +142,7 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
           })),
     [project, scope],
   )
-  const count = tabWidths && width > 0 ? visibleCount(width, tabWidths) : tabs.length
+  const count = tabWidths && width > NO_TAB_WIDTH ? visibleCount(width, tabWidths) : tabs.length
   if (!project || !workspace) {
     return (
       <p role='alert' className='text-danger-text px-3 py-2 text-sm'>
@@ -145,7 +150,7 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
       </p>
     )
   }
-  const visible = tabs.slice(0, count)
+  const visible = tabs.slice(FIRST_TAB_INDEX, count)
   const overflow = tabs.slice(count)
   const activeOverflow = overflow.some((tab) => isTabActive(tab.path, pathname))
   const overviewHref = scopedHref(

@@ -4,13 +4,24 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { Array, Iterable } from 'effect'
+import { Array, Iterable, Number } from 'effect'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 
 import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 
 import { imageUploads, insertUploadedImages } from './image-uploads.ts'
+
+const KEYBOARD_CLICK_DETAIL = 0
+const HEADING_ONE = 1
+const HEADING_TWO = 2
+const HEADING_THREE = 3
+type HeadingLevel = typeof HEADING_ONE | typeof HEADING_TWO | typeof HEADING_THREE
+
+const LINK_LABEL_OPEN = '['
+const LINK_LABEL_PLACEHOLDER = 'link text'
+const LINK_TEMPLATE = `${LINK_LABEL_OPEN}${LINK_LABEL_PLACEHOLDER}](url)`
+const LINK_LABEL_END_OFFSET = LINK_LABEL_OPEN.length + LINK_LABEL_PLACEHOLDER.length
 
 export interface Props {
   value: string
@@ -96,7 +107,7 @@ function prefixLines(view: EditorView, prefix: string): boolean {
   const tr = state.changeByRange((range) => {
     const fromLine = state.doc.lineAt(range.from)
     const toLine = state.doc.lineAt(range.to)
-    const lineCount = toLine.number - fromLine.number + 1
+    const lineCount = Number.increment(toLine.number - fromLine.number)
     const changes = globalThis.Array.from({ length: lineCount }, (_value, index) => ({
       from: state.doc.line(fromLine.number + index).from,
       insert: prefix,
@@ -120,11 +131,18 @@ function prefixLines(view: EditorView, prefix: string): boolean {
  * click, which land outside the button's own box; a genuine click on the button never
  * does. Keyboard activation reports detail 0 (and 0,0 coords) and must still pass.
  */
-const isDirectPointerActivation = function isDirectPointerActivation(event: React.MouseEvent): boolean {
-  if (event.detail === 0) {
+type PointerActivationEvent = Readonly<{
+  clientX: number
+  clientY: number
+  currentTarget: Element | null
+  detail: number
+}>
+
+const isDirectPointerActivation = function isDirectPointerActivation(event: PointerActivationEvent): boolean {
+  if (event.detail === KEYBOARD_CLICK_DETAIL) {
     return true
   }
-  const target = event.currentTarget as HTMLElement | null
+  const target = event.currentTarget
   if (!target) {
     return false
   }
@@ -151,11 +169,27 @@ const direct = function direct<Args extends unknown[]>(
 interface EditorToolbarProps {
   onBold: () => void
   onItalic: () => void
-  onHeading: (level: 1 | 2 | 3) => void
+  onHeading: (level: HeadingLevel) => void
   onLink: () => void
   onCodeBlock: () => void
   onBulletList: () => void
   onNumberedList: () => void
+}
+
+const renderHeadingButton = function renderHeadingButton(
+  onHeading: EditorToolbarProps['onHeading'],
+  level: HeadingLevel,
+): JSX.Element {
+  return (
+    <button
+      type='button'
+      className={TOOLBAR_BUTTON_CLASS}
+      onClick={direct(onHeading, level)}
+      title={`Heading ${level}`}
+    >
+      {`H${level}`}
+    </button>
+  )
 }
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
@@ -182,15 +216,9 @@ function EditorToolbar({
         I
       </button>
       <div className='w-px bg-border mx-[3px] my-[2px] self-stretch min-h-[16px]' />
-      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onHeading, 1)} title='Heading 1'>
-        H1
-      </button>
-      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onHeading, 2)} title='Heading 2'>
-        H2
-      </button>
-      <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onHeading, 3)} title='Heading 3'>
-        H3
-      </button>
+      {renderHeadingButton(onHeading, HEADING_ONE)}
+      {renderHeadingButton(onHeading, HEADING_TWO)}
+      {renderHeadingButton(onHeading, HEADING_THREE)}
       <div className='w-px bg-border mx-[3px] my-[2px] self-stretch min-h-[16px]' />
       <button type='button' className={TOOLBAR_BUTTON_CLASS} onClick={direct(onLink)} title='Link'>
         Link
@@ -420,7 +448,7 @@ function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) 
       wrapSelection(viewRef.current, '_', '_')
     }
   }
-  const heading = function heading(level: 1 | 2 | 3): void {
+  const heading = function heading(level: HeadingLevel): void {
     if (viewRef.current) {
       prefixLines(viewRef.current, `${'#'.repeat(level)} `)
     }
@@ -432,14 +460,13 @@ function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) 
     }
     const sel = view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)
     if (sel) {
-      wrapSelection(view, '[', '](url)')
+      wrapSelection(view, LINK_LABEL_OPEN, '](url)')
     } else {
       // No selection — insert template and select the placeholder so user can type immediately
       const pos = view.state.selection.main.from
-      const insert = '[link text](url)'
       view.dispatch({
-        changes: { from: pos, insert },
-        selection: EditorSelection.range(pos + 1, pos + 10),
+        changes: { from: pos, insert: LINK_TEMPLATE },
+        selection: EditorSelection.range(pos + LINK_LABEL_OPEN.length, pos + LINK_LABEL_END_OFFSET),
       })
       view.focus()
     }
