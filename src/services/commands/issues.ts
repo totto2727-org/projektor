@@ -17,7 +17,7 @@ import { DEFAULT_PRIORITIZED_ISSUE_LIMIT, MAX_PRIORITIZED_ISSUE_LIMIT } from '#c
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { issuePath } from '#contracts/urls.ts'
-import { SQLITE_TRUE, drizzle, schema } from '#db'
+import { SQL_NULL, SQLITE_TRUE, drizzle, schema } from '#db'
 import * as issueQueries from '#services/issues.ts'
 
 import {
@@ -470,19 +470,19 @@ const buildInsertIssueStatement = function buildInsertIssueStatement(
       params.title,
       params.resolvedBody,
       params.resolvedStatusKey,
-      params.resolvedStatusId ?? null,
+      params.resolvedStatusId ?? SQL_NULL,
       params.resolvedStatusCategory ?? '',
       params.priority ?? 'none',
-      params.assigneeId ?? null,
+      params.assigneeId ?? SQL_NULL,
       JSON.stringify(params.labels ?? []),
-      params.parentId ?? null,
+      params.parentId ?? SQL_NULL,
       params.resolvedTypeId,
       ctx.userId,
       /*
        * PROJ-396: stamped from the authenticated principal type, not a caller-supplied
        * field — see ServiceCtx.authKind and the issueComments.authorKind precedent (PROJ-328).
        */
-      ctx.authKind ?? null,
+      ctx.authKind ?? SQL_NULL,
       params.now,
       params.now,
       ...dorColumns(params.resolvedBody),
@@ -544,7 +544,7 @@ const buildActivityInsertStatement = function buildActivityInsertStatement(
         opts.entityId,
         ctx.userId,
         opts.action,
-        opts.diff ? JSON.stringify(opts.diff) : null,
+        opts.diff ? JSON.stringify(opts.diff) : SQL_NULL,
         now(),
         opts.entityId,
         ctx.workspaceId,
@@ -702,11 +702,11 @@ async function createIssueInternal(
       resolvedStatusId,
       resolvedStatusCategory,
       priority,
-      assigneeId: assigneeId ?? null,
+      assigneeId: assigneeId ?? SQL_NULL,
       labels: labels ?? [],
-      parentId: parentId ?? null,
+      parentId: parentId ?? SQL_NULL,
       resolvedTypeId,
-      readyAt: isOpenPastBacklog(resolvedStatusKey, resolvedStatusCategory) ? nowTs : null,
+      readyAt: isOpenPastBacklog(resolvedStatusKey, resolvedStatusCategory) ? nowTs : SQL_NULL,
       now: nowTs,
       feedbackIds,
     }),
@@ -793,13 +793,13 @@ const buildSimpleFields = function buildSimpleFields(data: UpdateIssueData): Set
     setValues.priority = data.priority
   }
   if ('assigneeId' in data) {
-    setValues.assigneeId = data.assigneeId ?? null
+    setValues.assigneeId = data.assigneeId ?? SQL_NULL
   }
   if (Predicate.isNotNullish(data.labels)) {
     setValues.labels = data.labels
   }
   if ('parentId' in data) {
-    setValues.parentId = data.parentId ?? null
+    setValues.parentId = data.parentId ?? SQL_NULL
   }
   return setValues
 }
@@ -822,7 +822,7 @@ const buildCompletedAtTransition = function buildCompletedAtTransition(
     return { completedAt: now() }
   }
   if (!isDone && wasDone) {
-    return { completedAt: null }
+    return { completedAt: SQL_NULL }
   }
   return {}
 }
@@ -1611,7 +1611,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
     // ON DELETE SET NULL rows — null the referencing column instead.
     toD1Statement(
       ctx,
-      orm.update(schema.agentSessions).set({ issueId: null }).where(issueSessionsInWorkspace(ctx, id)).toSQL(),
+      orm.update(schema.agentSessions).set({ issueId: SQL_NULL }).where(issueSessionsInWorkspace(ctx, id)).toSQL(),
     ),
     ctx.db
       .prepare('UPDATE feedback SET linked_issue_id = NULL WHERE linked_issue_id = ? AND workspace_id = ?')
@@ -1622,7 +1622,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
      */
     toD1Statement(
       ctx,
-      orm.update(schema.issues).set({ parentId: null }).where(issueChildrenInWorkspace(ctx, id)).toSQL(),
+      orm.update(schema.issues).set({ parentId: SQL_NULL }).where(issueChildrenInWorkspace(ctx, id)).toSQL(),
     ),
   ]
 

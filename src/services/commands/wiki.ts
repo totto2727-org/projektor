@@ -24,7 +24,7 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
-import { drizzle, schema } from '#db'
+import { SQL_NULL, drizzle, schema } from '#db'
 import { isUniqueConstraintError } from '#services/errors.ts'
 import * as wikiData from '#services/wiki.ts'
 
@@ -1244,7 +1244,7 @@ const buildWikiRevisionStatement = function buildWikiRevisionStatement(
     ['pageId', page.id],
     ['content', page.content],
     ['title', page.title],
-    ['summary', readSummary() ?? null],
+    ['summary', readSummary() ?? SQL_NULL],
     ['authorId', ctx.userId],
     ['createdAt', now],
   ])
@@ -2238,12 +2238,12 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
     // PROJ-816
     ['searchRowid', newSearchRowid()],
     ['workspaceId', workspaceId],
-    ['projectId', null],
+    ['projectId', SQL_NULL],
     ['slug', 'page-templates'],
     ['title', 'Templates'],
     ['titleFold', foldWikiTitle('Templates')],
     ['content', ''],
-    ['parentId', null],
+    ['parentId', SQL_NULL],
     ['createdById', userId],
     ['updatedById', userId],
     ['createdAt', now],
@@ -2273,7 +2273,7 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
       // PROJ-816
       ['searchRowid', newSearchRowid()],
       ['workspaceId', workspaceId],
-      ['projectId', null],
+      ['projectId', SQL_NULL],
       ['slug', template.slug],
       ['title', template.title],
       ['titleFold', foldWikiTitle(template.title)],
@@ -2725,8 +2725,8 @@ export const undeleteWikiPage = async function undeleteWikiPage(
     await orm
       .update(schema.wikiPages)
       .set({
-        deletedAt: null,
-        trashBatchId: null,
+        deletedAt: SQL_NULL,
+        trashBatchId: SQL_NULL,
         updatedAt: now,
         updatedById: ctx.userId,
         version: sql`${schema.wikiPages.version} + 1`,

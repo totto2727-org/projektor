@@ -7,7 +7,7 @@ import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
 import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '#contracts/inputs/file-claims.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
-import { drizzle, schema } from '#db'
+import { SQL_NULL, drizzle, schema } from '#db'
 
 import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access.ts'
 import { assertAgentSessionAccess } from './agent-identity.ts'
@@ -378,7 +378,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
           workspaceId: ctx.workspaceId,
           path,
           rejectedIssueId: issueId,
-          rejectedAgentId: agentId ?? null,
+          rejectedAgentId: agentId ?? SQL_NULL,
           holdingIssueId: existing.issueId,
           holdingAgentId: existing.agentId,
           forced: 0,
@@ -421,7 +421,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
           workspaceId: ctx.workspaceId,
           path,
           rejectedIssueId: issueId,
-          rejectedAgentId: agentId ?? null,
+          rejectedAgentId: agentId ?? SQL_NULL,
           holdingIssueId: existing.issueId,
           holdingAgentId: existing.agentId,
           forced: 1,
@@ -455,10 +455,10 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
     issueId,
-    agentId: agentId ?? null,
+    agentId: agentId ?? SQL_NULL,
     path,
     claimedAt: now,
-    releasedAt: null,
+    releasedAt: SQL_NULL,
   }))
   statements.push(...buildClaimInsertStatements(ctx, orm, created))
 
