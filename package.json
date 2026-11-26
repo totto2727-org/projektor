@@ -20,6 +20,7 @@
     "#api/*": "./src/api/*",
     "#migrations/*": "./migrations/*",
     "#worker-graph": "./worker-graph.ts",
+    "#worker-core": "./workers/core.ts",
     "#vite-config": "./vite.config.ts",
     "#package-metadata": "./package.json",
     "#worker-environment": "./worker-environment.ts"

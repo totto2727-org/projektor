@@ -9,6 +9,8 @@ declare module 'virtual:production-api-entrypoint' {
 }
 
 declare module 'virtual:production-core-entrypoint' {
-  const entrypoint: typeof import('../../workers/core').default
+  import type CoreWorker from '#worker-core'
+
+  const entrypoint: typeof CoreWorker
   export default entrypoint
 }
