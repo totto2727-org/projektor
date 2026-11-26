@@ -80,7 +80,7 @@ const GroupDetailEditor = function GroupDetailEditor({
   onClose: () => void
 }): JSX.Element {
   const [operationBusy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const [nameResult, nameAction, namePending] = useActionState(renameGroup, null)
   const [descriptionResult, descriptionAction, descriptionPending] = useActionState(describeGroup, null)
   const [memberResult, memberAction, memberPending] = useActionState(addGroupMember, null)
@@ -135,7 +135,7 @@ const GroupDetailEditor = function GroupDetailEditor({
       return
     }
     setBusy(true)
-    setError(null)
+    setError(undefined)
     try {
       unwrapResult(await removeGroupMember({ workspaceSlug: slug, groupId: detail.id, userId }))
     } catch (currentError) {
@@ -150,7 +150,7 @@ const GroupDetailEditor = function GroupDetailEditor({
       return
     }
     setBusy(true)
-    setError(null)
+    setError(undefined)
     try {
       unwrapResult(await removeGroupGrant({ workspaceSlug: slug, groupId: detail.id, projectId }))
     } catch (currentError) {
@@ -434,7 +434,7 @@ export const GroupManager = function GroupManager({
   initialData: GroupData
   view?: GroupView
 }): JSX.Element {
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string>()
   const [error, setError] = useState<string>()
   const [operationBusy, setBusy] = useState(false)
   const [createResult, createAction, createPending] = useActionState(createGroup, null)
@@ -462,7 +462,7 @@ export const GroupManager = function GroupManager({
     try {
       unwrapResult(await deleteGroup({ workspaceSlug, groupId: id }))
       if (selected === id) {
-        setSelected(null)
+        setSelected(undefined)
       }
     } catch (currentError) {
       setBusy(false)
@@ -544,7 +544,7 @@ export const GroupManager = function GroupManager({
           members={data.members}
           projects={data.projects}
           onClose={() => {
-            setSelected(null)
+            setSelected(undefined)
           }}
         />
       )}

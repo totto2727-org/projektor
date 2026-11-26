@@ -60,7 +60,7 @@ export const renderGroupGrantRows = function renderGroupGrantRows({
   grants: GroupDetail['grants']
   groupId: string
   onBusy: (busy: boolean) => void
-  onError: (message: string | null) => void
+  onError: (message?: string) => void
   onRemove: (projectId: string) => Promise<void>
   workspaceSlug: string
 }): JSX.Element {

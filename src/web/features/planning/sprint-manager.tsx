@@ -84,10 +84,10 @@ export const SprintManager = function SprintManager({
   project?: ProjectIdentity
 }): JSX.Element {
   const [showCreate, setShowCreate] = useState(false)
-  const [completeId, setCompleteId] = useState<string | null>(null)
+  const [completeId, setCompleteId] = useState<string>()
   const [completing, setCompleting] = useState(false)
-  const [completeError, setCompleteError] = useState<string | null>(null)
-  const [summary, setSummary] = useState<{ sprint: Sprint; issues: SprintIssue[] } | null>(null)
+  const [completeError, setCompleteError] = useState<string>()
+  const [summary, setSummary] = useState<{ sprint: Sprint; issues: SprintIssue[] }>()
   const active = allSprints.filter((sprint) => sprint.status === 'active')
   const completed = allSprints.filter((sprint) => sprint.status === 'completed')
   const complete = async function complete(sprint: Sprint): Promise<void> {
@@ -95,7 +95,7 @@ export const SprintManager = function SprintManager({
       return
     }
     setCompleting(true)
-    setCompleteError(null)
+    setCompleteError(undefined)
     // Snapshot the SSR issues before the mutation refresh, as in the original summary.
     const completedIssues = issues.filter((issue) => issue.sprint_id === sprint.id)
     try {
@@ -107,7 +107,7 @@ export const SprintManager = function SprintManager({
           status: 'completed',
         }),
       )
-      setCompleteId(null)
+      setCompleteId(undefined)
       setSummary({ sprint, issues: completedIssues })
     } catch (error) {
       setCompleteError(globalThis.String(error))
@@ -142,7 +142,7 @@ export const SprintManager = function SprintManager({
           summary={summary}
           workspaceSlug={workspaceSlug}
           onClose={() => {
-            setSummary(null)
+            setSummary(undefined)
           }}
         />
       )}
@@ -228,11 +228,11 @@ export const SprintManager = function SprintManager({
             completeError={completeError}
             onStartComplete={() => {
               setCompleteId(sprint.id)
-              setCompleteError(null)
+              setCompleteError(undefined)
             }}
             onConfirmComplete={() => complete(sprint)}
             onCancelComplete={() => {
-              setCompleteId(null)
+              setCompleteId(undefined)
             }}
           />
         ))
@@ -438,9 +438,9 @@ interface RowProps {
   issues: SprintIssue[]
   workspaceSlug: string
   projectId: string
-  completeId: string | null
+  completeId: string | undefined
   completing: boolean
-  completeError: string | null
+  completeError: string | undefined
   onStartComplete: () => void
   onConfirmComplete: () => void
   onCancelComplete: () => void

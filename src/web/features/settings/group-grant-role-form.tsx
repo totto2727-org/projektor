@@ -33,7 +33,7 @@ export function GrantRoleForm({
   groupId: string
   busy: boolean
   onBusy: (busy: boolean) => void
-  onError: (error: string | null) => void
+  onError: (error?: string) => void
 }): JSX.Element {
   const [defaults] = useState(() => ({
     workspaceSlug,
@@ -47,7 +47,7 @@ export function GrantRoleForm({
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
     onSubmit: async ({ value }) => {
       onBusy(true)
-      onError(null)
+      onError()
       try {
         unwrapResult(await setGroupGrant(value))
       } catch (error) {
