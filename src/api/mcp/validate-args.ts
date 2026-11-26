@@ -82,17 +82,19 @@ const matchesType = function matchesType(value: unknown, type: string): boolean 
   }
 }
 
+const declaredTypes = function declaredTypes(declared: unknown): string[] {
+  if (globalThis.Array.isArray(declared)) {
+    return declared.filter((item) => Predicate.isString(item))
+  }
+  return Predicate.isString(declared) ? [declared] : []
+}
+
 const validate = function validate(value: unknown, schema: Schema, path: string, issues: ArgIssue[]): void {
   if (typeOf(value) === 'null' && schema.nullable === true) {
     return
   }
 
-  const declared = schema.type
-  const types = globalThis.Array.isArray(declared)
-    ? declared.filter((item) => Predicate.isString(item))
-    : Predicate.isString(declared)
-      ? [declared]
-      : []
+  const types = declaredTypes(schema.type)
   if (Array.isArrayNonEmpty(types) && !types.some((type) => matchesType(value, type))) {
     issues.push(argumentIssue(path, `must be ${types.join(' or ')}, got ${typeOf(value)}`))
     return

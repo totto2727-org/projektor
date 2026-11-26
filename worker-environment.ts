@@ -150,8 +150,10 @@ export type EnvironmentLayer = Layer.Layer<
 
 export const DeploymentLayer = Layer.unwrap(
   Effect.gen(function* () {
-    const layer: EnvironmentLayer =
-      (yield* ALCHEMY_PHASE) === 'runtime' ? RuntimeLayer : (yield* ALCHEMY_DEV) ? LocalLayer : ProductionLayer
+    if ((yield* ALCHEMY_PHASE) === 'runtime') {
+      return RuntimeLayer
+    }
+    const layer: EnvironmentLayer = (yield* ALCHEMY_DEV) ? LocalLayer : ProductionLayer
     return layer
   }),
 )

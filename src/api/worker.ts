@@ -216,23 +216,29 @@ app.get('/wiki', async (httpContext) => {
   const page = await resolveWikiPageForSsr(httpContext, slug)
   return page ? httpContext.redirect(page.url, HTTP_MOVED_PERMANENTLY) : shell()
 })
+const fallbackAssetPath = function fallbackAssetPath(pathname: string, wikiSlugMatch: RegExpExecArray | null): string {
+  if (/^\/projects\/[^/]+\/issues\/\d+\//u.test(pathname)) {
+    return '/issues/view/index.html'
+  }
+  if (/^\/projects\/view\/[^/]+/u.test(pathname)) {
+    return '/projects/view/index.html'
+  }
+  if (pathname.startsWith('/share/')) {
+    return '/share/view/index.html'
+  }
+  if (/^\/feedback\/[^/]+/u.test(pathname)) {
+    return '/feedback/view/index.html'
+  }
+  return wikiSlugMatch ? '/wiki/view/index.html' : '/index.html'
+}
+
 app.get('*', async (httpContext) => {
   if (!httpContext.env.ASSETS) {
     return httpContext.notFound()
   }
   const { pathname } = new URL(httpContext.req.url)
   const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/u.exec(pathname)
-  const fallbackPath = /^\/projects\/[^/]+\/issues\/\d+\//u.test(pathname)
-    ? '/issues/view/index.html'
-    : /^\/projects\/view\/[^/]+/u.test(pathname)
-      ? '/projects/view/index.html'
-      : pathname.startsWith('/share/')
-        ? '/share/view/index.html'
-        : /^\/feedback\/[^/]+/u.test(pathname)
-          ? '/feedback/view/index.html'
-          : wikiSlugMatch
-            ? '/wiki/view/index.html'
-            : '/index.html'
+  const fallbackPath = fallbackAssetPath(pathname, wikiSlugMatch)
   const response = await httpContext.env.ASSETS.fetch(new Request(new URL(fallbackPath, httpContext.req.url)))
   if (wikiSlugMatch) {
     const slug = safeDecodeURIComponent(wikiSlugMatch[1])

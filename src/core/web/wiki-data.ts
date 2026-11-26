@@ -1,7 +1,7 @@
 import { isNull, or, sql } from 'drizzle-orm'
 import type { QueryWithTypings, SQL } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
-import { Iterable, Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema, String } from 'effect'
 
 import { readWikiDraftState } from '#commands/wiki-drafts.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
@@ -52,6 +52,13 @@ const decodeWikiRevisions = Schema.decodeUnknownEffect(Schema.mutable(Schema.Arr
 const decodeWikiAttachments = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Attachment)))
 const decodeWikiDraftState = Schema.decodeUnknownEffect(DraftState)
 
+const wikiRouteMode = function wikiRouteMode(url: URL): 'create' | 'edit' | 'read' {
+  if (/\/wiki\/new\/?$/u.test(url.pathname) || String.isNonEmpty(url.searchParams.get('createTitle') ?? '')) {
+    return 'create'
+  }
+  return /\/edit\/?$/u.test(url.pathname) ? 'edit' : 'read'
+}
+
 /** The request owns authorization, presentation and rendering. Shared queries own only SQL. */
 export const loadWikiData = function loadWikiData(
   env: CoreEnvironment,
@@ -83,12 +90,7 @@ export const loadWikiData = function loadWikiData(
         return predicate ? or(isNull(schema.wikiPages.projectId), predicate) : undefined
       },
     })
-    const mode =
-      /\/wiki\/new\/?$/u.test(url.pathname) || url.searchParams.get('createTitle')
-        ? 'create'
-        : /\/edit\/?$/u.test(url.pathname)
-          ? 'edit'
-          : 'read'
+    const mode = wikiRouteMode(url)
     const filterType = url.searchParams.get('type') ?? ''
     const filterStatus = url.searchParams.get('status') ?? ''
     const filterTags = url.searchParams.get('tags') ?? ''
