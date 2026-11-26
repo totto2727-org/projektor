@@ -6,6 +6,7 @@ import { String, Predicate } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { outlineOf, sectionOf, windowText } from '#api/mcp/windowing.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { env } from './fixture-api.ts'
 import { seedProjectFixture } from './helpers.ts'
@@ -26,7 +27,7 @@ describe('covers PROJ-892: windowing (unit)', () => {
     let out = first.text
     let cursor = first.next
     while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
-      const currentWindow = windowText(text, { max: 3, cursor })
+      const currentWindow = windowText(text, { cursor, max: 3 })
       out += currentWindow.text
       cursor = currentWindow.next
     }
@@ -39,7 +40,7 @@ describe('covers PROJ-892: windowing (unit)', () => {
     const first = windowText(text, { max: 1 })
     expect(first.text).toBe('😀')
     expect(first.next).toBe('2')
-    expect(windowText(text, { max: 1, cursor: first.next }).text).toBe('a')
+    expect(windowText(text, { cursor: first.next, max: 1 }).text).toBe('a')
   })
 
   test('rejects a bad cursor', () => {
@@ -47,8 +48,8 @@ describe('covers PROJ-892: windowing (unit)', () => {
       issues: { fieldErrors: { cursor: ['invalid cursor'] }, formErrors: [] },
       message: 'Validation failed',
     })
-    expect(() => windowText('abc', { max: 2, cursor: 'x' })).toThrow(invalidCursor)
-    expect(() => windowText('abc', { max: 2, cursor: '99' })).toThrow(invalidCursor)
+    expect(() => windowText('abc', { cursor: 'x', max: 2 })).toThrow(invalidCursor)
+    expect(() => windowText('abc', { cursor: '99', max: 2 })).toThrow(invalidCursor)
   })
 
   test('outline skips code fences and frontmatter; sectionOf stops at the next same-or-higher heading', () => {
@@ -99,12 +100,22 @@ describe('covers PROJ-892: MCP tools', () => {
   }
 
   test('list_issues: bodyChars previews and flags truncation; default has no body', async () => {
-    await tool('create_issue', {
-      projectId: fixture.projectId,
-      title: 'Long',
-      body: 'z'.repeat(3000),
-    })
-    await tool('create_issue', { projectId: fixture.projectId, title: 'Short', body: 'tiny' })
+    await tool(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Long'],
+        ['body', 'z'.repeat(3000)],
+      ]),
+    )
+    await tool(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Short'],
+        ['body', 'tiny'],
+      ]),
+    )
 
     const none = await tool<{ items: Record<string, unknown>[] }>('list_issues', {})
     expect(none.items.every((item) => !('body' in item))).toBe(true)
@@ -129,11 +140,14 @@ describe('covers PROJ-892: MCP tools', () => {
   test('get_issue: a body over 16,000 chars is windowed and continues via cursor', async () => {
     // 20,000 chars
     const body = 'abcdefghij'.repeat(2000)
-    const created = await tool<{ id: string }>('create_issue', {
-      projectId: fixture.projectId,
-      title: 'Huge',
-      body,
-    })
+    const created = await tool<{ id: string }>(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Huge'],
+        ['body', body],
+      ]),
+    )
     const first = await tool<{
       body: string
       bodyTruncated?: boolean
@@ -143,20 +157,26 @@ describe('covers PROJ-892: MCP tools', () => {
     expect(first.body).toHaveLength(16_000)
     expect(first.bodyTruncated).toBe(true)
     expect(first.bodyTotalChars).toBe(20_000)
-    const second = await tool<{ body: string; next?: string }>('get_issue', {
-      id: created.id,
-      cursor: first.next,
-    })
+    const second = await tool<{ body: string; next?: string }>(
+      'get_issue',
+      fieldsInOrder([
+        ['id', created.id],
+        ['cursor', first.next],
+      ]),
+    )
     expect(second.next).toBeUndefined()
     expect(first.body + second.body).toBe(body)
   })
 
   test('get_issue: a short body is returned whole with no window fields', async () => {
-    const created = await tool<{ id: string }>('create_issue', {
-      projectId: fixture.projectId,
-      title: 'Small',
-      body: 'hello',
-    })
+    const created = await tool<{ id: string }>(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Small'],
+        ['body', 'hello'],
+      ]),
+    )
     const got = await tool('get_issue', { id: created.id })
     expect(got.body).toBe('hello')
     expect(got).not.toHaveProperty('next')
@@ -164,7 +184,13 @@ describe('covers PROJ-892: MCP tools', () => {
   })
 
   const makeWiki = async function makeWiki(content: string): Promise<string> {
-    const createdPage = await tool<{ slug: string }>('create_wiki_page', { title: 'Long Doc', content })
+    const createdPage = await tool<{ slug: string }>(
+      'create_wiki_page',
+      fieldsInOrder([
+        ['title', 'Long Doc'],
+        ['content', content],
+      ]),
+    )
     return createdPage.slug
   }
 
@@ -177,7 +203,13 @@ describe('covers PROJ-892: MCP tools', () => {
       outline: string[]
       next?: string
       revisionId: string
-    }>('get_wiki_page', { slug, maxChars: 40 })
+    }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 40],
+      ]),
+    )
     expect(first.content).toHaveLength(40)
     expect(first.totalChars).toBe(content.length)
     expect(first.outline).toStrictEqual(['# Intro', '## Details'])
@@ -186,11 +218,14 @@ describe('covers PROJ-892: MCP tools', () => {
     let text = first.content
     let { next } = first
     while (Predicate.isNotNullish(next) && String.isNonEmpty(next)) {
-      const segment = await tool<{ content: string; next?: string }>('get_wiki_page', {
-        slug,
-        maxChars: 40,
-        cursor: next,
-      })
+      const segment = await tool<{ content: string; next?: string }>(
+        'get_wiki_page',
+        fieldsInOrder([
+          ['slug', slug],
+          ['maxChars', 40],
+          ['cursor', next],
+        ]),
+      )
       text += segment.content
       ;({ next } = segment)
     }
@@ -199,10 +234,13 @@ describe('covers PROJ-892: MCP tools', () => {
 
   test('get_wiki_page: contentTruncated is set on a partial window and absent on a whole page', async () => {
     const slug = await makeWiki(`# T\n${'q'.repeat(200)}`)
-    const part = await tool<{ contentTruncated?: boolean }>('get_wiki_page', {
-      slug,
-      maxChars: 50,
-    })
+    const part = await tool<{ contentTruncated?: boolean }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 50],
+      ]),
+    )
     expect(part.contentTruncated).toBe(true)
     const whole = await tool('get_wiki_page', { slug })
     expect(whole).not.toHaveProperty('contentTruncated')
@@ -218,16 +256,22 @@ describe('covers PROJ-892: MCP tools', () => {
 
   test('get_wiki_page: section returns just that section; a miss returns the outline', async () => {
     const slug = await makeWiki('# Top\nintro\n## Alpha\nalpha text\n## Beta\nbeta text\n')
-    const hit = await tool<{ content: string; section: string }>('get_wiki_page', {
-      slug,
-      section: 'alpha',
-    })
+    const hit = await tool<{ content: string; section: string }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['section', 'alpha'],
+      ]),
+    )
     expect(hit.content).toBe('## Alpha\nalpha text')
 
-    const miss = await tool<{ sectionFound: boolean; outline: string[]; content?: string }>('get_wiki_page', {
-      slug,
-      section: 'gamma',
-    })
+    const miss = await tool<{ sectionFound: boolean; outline: string[]; content?: string }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['section', 'gamma'],
+      ]),
+    )
     expect(miss.sectionFound).toBe(false)
     expect(miss.outline).toStrictEqual(['# Top', '## Alpha', '## Beta'])
     expect(miss).not.toHaveProperty('content')
@@ -235,12 +279,21 @@ describe('covers PROJ-892: MCP tools', () => {
 
   test('get_wiki_page: maxChars is validated and a multi-byte boundary is not split', async () => {
     const slug = await makeWiki('😀'.repeat(10))
-    const bad = await call('get_wiki_page', { slug, maxChars: 99_999 })
+    const bad = await call(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 99_999],
+      ]),
+    )
     expect(bad.result?.isError).toBe(true)
-    const segment = await tool<{ content: string; next?: string }>('get_wiki_page', {
-      slug,
-      maxChars: 3,
-    })
+    const segment = await tool<{ content: string; next?: string }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 3],
+      ]),
+    )
     expect(segment.content).toBe('😀')
     expect(segment.next).toBe('2')
   })

@@ -54,6 +54,30 @@ export interface TextWindow {
   next?: string
 }
 
+interface WindowOptions {
+  cursor?: string
+  max: number
+}
+
+const windowStart = function windowStart(text: string, opts: WindowOptions): number {
+  if (Predicate.isNullish(opts.cursor)) {
+    return TEXT_START_INDEX
+  }
+  const start = Number(opts.cursor)
+  if (!Number.isInteger(start) || start < TEXT_START_INDEX || start > text.length) {
+    throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
+  }
+  return start
+}
+
+const windowEnd = function windowEnd(text: string, start: number, end: number): number {
+  // A window smaller than one code point (max:1 on an emoji) must still make progress.
+  if (end <= start && start < text.length) {
+    return start + (isHighSurrogateAt(text, start) ? SURROGATE_PAIR_WIDTH : CODE_UNIT_WIDTH)
+  }
+  return end
+}
+
 /**
  * Window the text from the previous cursor, or from the start on the first request.
  * A window that starts with a surrogate pair allows both units so it can advance.
@@ -62,19 +86,10 @@ export interface TextWindow {
  * @param {{max: number, cursor?: string}} opts The limit in UTF-16 units and optional continuation cursor.
  * @returns {TextWindow} The text slice, its source length and a next cursor when more text follows.
  */
-export const windowText = function windowText(text: string, opts: { max: number; cursor?: string }): TextWindow {
-  let start = 0
-  if (Predicate.isNotNullish(opts.cursor)) {
-    start = Number(opts.cursor)
-    if (!Number.isInteger(start) || start < TEXT_START_INDEX || start > text.length) {
-      throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
-    }
-  }
-  let end = safeEnd(text, Math.min(text.length, start + opts.max))
-  // A window smaller than one code point (max:1 on an emoji) must still make progress.
-  if (end <= start && start < text.length) {
-    end = start + (isHighSurrogateAt(text, start) ? SURROGATE_PAIR_WIDTH : CODE_UNIT_WIDTH)
-  }
+export const windowText = function windowText(text: string, opts: WindowOptions): TextWindow {
+  const start = windowStart(text, opts)
+  const boundedEnd = safeEnd(text, Math.min(text.length, start + opts.max))
+  const end = windowEnd(text, start, boundedEnd)
   return {
     text: text.slice(start, end),
     totalChars: text.length,
