@@ -14,7 +14,7 @@ import { usePublicViewer } from './wiki-seed-context.ts'
  * good enough to tell "referenced" from "orphaned" without parsing markdown image syntax,
  * and it also catches an id pasted into a manual link or wiki_ref-style reference.
  */
-function isReferenced(attachmentId: string, content: string): boolean {
+const isReferenced = function isReferenced(attachmentId: string, content: string): boolean {
   return content.includes(attachmentId)
 }
 

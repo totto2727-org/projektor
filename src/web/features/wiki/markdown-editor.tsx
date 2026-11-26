@@ -51,7 +51,7 @@ export interface Props {
  */
 export const PASTE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
-function imageFilesFromClipboard(data: DataTransfer | null): File[] {
+const imageFilesFromClipboard = function imageFilesFromClipboard(data: DataTransfer | null): File[] {
   if (!data) {
     return []
   }
@@ -67,7 +67,7 @@ function imageFilesFromClipboard(data: DataTransfer | null): File[] {
   return files
 }
 
-function imageFilesFromDrop(data: DataTransfer | null): File[] {
+const imageFilesFromDrop = function imageFilesFromDrop(data: DataTransfer | null): File[] {
   if (!data) {
     return []
   }
@@ -83,13 +83,13 @@ const TOOLBAR_BUTTON_CLASS =
   'px-[7px] py-[2px] border border-transparent rounded-[3px] bg-transparent text-text-base ' +
   'cursor-pointer text-[0.8rem] font-[inherit] leading-[1.5] hover:bg-border'
 
-function mobileToggleClass(active: boolean): string {
+const mobileToggleClass = function mobileToggleClass(active: boolean): string {
   const base = 'min-h-[44px] px-[14px] py-[2px] border rounded-[3px] text-[0.8rem] font-[inherit] cursor-pointer'
   const state = active ? ' bg-accent text-white border-accent' : ' border-border bg-transparent text-text-base'
   return base + state
 }
 
-function wrapSelection(view: EditorView, before: string, after: string): boolean {
+const wrapSelection = function wrapSelection(view: EditorView, before: string, after: string): boolean {
   const tr = view.state.changeByRange((range) => {
     const selected = view.state.sliceDoc(range.from, range.to)
     return {
@@ -102,7 +102,7 @@ function wrapSelection(view: EditorView, before: string, after: string): boolean
   return true
 }
 
-function prefixLines(view: EditorView, prefix: string): boolean {
+const prefixLines = function prefixLines(view: EditorView, prefix: string): boolean {
   const { state } = view
   const tr = state.changeByRange((range) => {
     const fromLine = state.doc.lineAt(range.from)
@@ -269,7 +269,7 @@ function PreviewPane({ preview, mobilePreview }: { preview: string; mobilePrevie
   )
 }
 
-function useMarkdownEditorView(
+const useMarkdownEditorView = function useMarkdownEditorView(
   value: string,
   onChange: (value: string) => void,
   minHeight: string,
@@ -437,7 +437,7 @@ function useMarkdownEditorView(
   return { containerRef, viewRef }
 }
 
-function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) {
+const useMarkdownCommands = function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) {
   const bold = function bold(): void {
     if (viewRef.current) {
       wrapSelection(viewRef.current, '**', '**')

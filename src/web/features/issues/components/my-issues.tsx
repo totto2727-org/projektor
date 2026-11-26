@@ -40,14 +40,14 @@ const PRIORITY_ORDER = new Map([
   ['none', NONE_ORDER],
 ])
 
-function statusOrder(issue: Issue): number {
+const statusOrder = function statusOrder(issue: Issue): number {
   if (issue.status_key === 'backlog' || issue.status_key === 'in_review') {
     return STATUS_ORDER.get(issue.status_key) ?? UNKNOWN_STATUS_ORDER
   }
   return STATUS_ORDER.get(issue.status_category ?? '') ?? UNKNOWN_STATUS_ORDER
 }
 
-function compareIssues(issue: Issue, selectedIssue: Issue): number {
+const compareIssues = function compareIssues(issue: Issue, selectedIssue: Issue): number {
   return (
     statusOrder(issue) - statusOrder(selectedIssue) ||
     (PRIORITY_ORDER.get(issue.priority) ?? UNKNOWN_PRIORITY_ORDER) -
@@ -55,12 +55,12 @@ function compareIssues(issue: Issue, selectedIssue: Issue): number {
     selectedIssue.updated_at - issue.updated_at
   )
 }
-function getStoryPoints(issue: Issue): string | null {
+const getStoryPoints = function getStoryPoints(issue: Issue): string | null {
   const field = (issue.customFields ?? []).find((selectedField) => selectedField.key === 'story_points')
   return field?.value ?? null
 }
 
-function spBadge(pts: string): JSX.Element {
+const spBadge = function spBadge(pts: string): JSX.Element {
   return (
     <span
       className='text-[0.68rem] text-text-muted bg-surface border border-border rounded-[3px]
@@ -71,7 +71,7 @@ function spBadge(pts: string): JSX.Element {
   )
 }
 
-function priorityBadge(issue: Issue): JSX.Element {
+const priorityBadge = function priorityBadge(issue: Issue): JSX.Element {
   return (
     <span
       className='inline-flex items-center px-1.5 py-0.5 rounded text-[0.7rem] font-semibold capitalize whitespace-nowrap'
@@ -85,7 +85,7 @@ function priorityBadge(issue: Issue): JSX.Element {
   )
 }
 
-function statusBadge(issue: Issue): JSX.Element {
+const statusBadge = function statusBadge(issue: Issue): JSX.Element {
   return (
     <span className='font-medium text-sm' style={{ color: categoryColor(issue.status_category) }}>
       {statusDisplayName(issue.status_name, issue.status_key)}
