@@ -9,42 +9,71 @@ import { IssuePageSchema } from '#contracts/web-schemas/issues.ts'
 import type { WebRequest } from '#core/web/scope.ts'
 import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 
-let request: WebRequest
-let workspaceId: string
-let foreignWorkspaceId: string
-let firstProject: string
-let secondProject: string
-let hiddenProject: string
-let groupId: string
-let selected: { id: string; projectId: string; status: ReviewStatus }[]
-
-const page = function page(query: string, workspace = workspaceId) {
-  return runTestEffect(
-    decodeCoreReply(IssuePageSchema, makeCoreClient(Reflect.get(env, 'CORE')).webIssuePage(request, workspace, query)),
-  )
+interface ReviewQueries {
+  page: (query: string, workspace?: string) => Promise<typeof IssuePageSchema.Type>
+  search: (review?: ReviewFilter, projectId?: string, workspace?: string) => Promise<typeof SearchResultsSchema.Type>
 }
-const search = function search(review?: ReviewFilter, projectId?: string, workspace = workspaceId) {
-  return runTestEffect(
-    decodeCoreReply(
-      SearchResultsSchema,
-      makeCoreClient(Reflect.get(env, 'CORE')).webIssueSearch(request, workspace, 'Needle', projectId, review),
-    ),
-  )
+
+interface ReviewFilterTestContext {
+  reviewFixture: ReviewQueries & {
+    firstProject: string
+    foreignWorkspaceId: string
+    groupId: string
+    hiddenProject: string
+    secondProject: string
+    selected: { id: string; projectId: string; status: ReviewStatus }[]
+  }
+}
+
+const createReviewQueries = function createReviewQueries(request: WebRequest, workspaceId: string): ReviewQueries {
+  return {
+    page(query, workspace = workspaceId) {
+      return runTestEffect(
+        decodeCoreReply(
+          IssuePageSchema,
+          makeCoreClient(Reflect.get(env, 'CORE')).webIssuePage(request, workspace, query),
+        ),
+      )
+    },
+    search(review, projectId, workspace = workspaceId) {
+      return runTestEffect(
+        decodeCoreReply(
+          SearchResultsSchema,
+          makeCoreClient(Reflect.get(env, 'CORE')).webIssueSearch(request, workspace, 'Needle', projectId, review),
+        ),
+      )
+    },
+  }
+}
+
+const verifyReviewFilter = async function verifyReviewFilter(
+  { page, search, selected }: ReviewFilterTestContext['reviewFixture'],
+  review: Exclude<ReviewFilter, 'active'>,
+): Promise<void> {
+  const expected = selected
+    .filter((row) => row.status === review)
+    .map((row) => row.id)
+    .toSorted()
+  const result = await page(`review=${review}&limit=100`)
+  expect(result.total).toBe(expected.length)
+  expect(result.items.map((row) => row.id).toSorted()).toStrictEqual(expected)
+  const resolvedValue = await search(review)
+  expect(resolvedValue.map((row) => row.id).toSorted()).toStrictEqual(expected)
 }
 
 describe('cross-project review filters through actual named Core bindings', () => {
-  beforeEach(async () => {
+  beforeEach<ReviewFilterTestContext>(async (context) => {
     const suffix = crypto.randomUUID()
     const userId = `filter-user-${suffix}`
     const email = `filter-${suffix}@example.test`
     const slug = `filter-${suffix}`
-    workspaceId = `filter-workspace-${suffix}`
-    foreignWorkspaceId = `foreign-workspace-${suffix}`
-    firstProject = `first-${suffix}`
-    secondProject = `second-${suffix}`
-    hiddenProject = `hidden-${suffix}`
+    const workspaceId = `filter-workspace-${suffix}`
+    const foreignWorkspaceId = `foreign-workspace-${suffix}`
+    const firstProject = `first-${suffix}`
+    const secondProject = `second-${suffix}`
+    const hiddenProject = `hidden-${suffix}`
     const foreignProject = `foreign-${suffix}`
-    groupId = `filter-group-${suffix}`
+    const groupId = `filter-group-${suffix}`
     await configureCore({ DEV_USER_EMAIL: email, DEFAULT_WORKSPACE_SLUG: slug })
     await env.DB.batch([
       env.DB.prepare("INSERT INTO users (id,email,name,created_at) VALUES (?,?,'Reviewer',1)").bind(userId, email),
@@ -83,7 +112,7 @@ describe('cross-project review filters through actual named Core bindings', () =
       ).bind(groupId, firstProject, groupId, secondProject),
     ])
     const statements: D1PreparedStatement[] = []
-    selected = []
+    const selected: ReviewFilterTestContext['reviewFixture']['selected'] = []
     const states = ['fixing', 'in_review', 'changes_requested'] as const
     for (let index = 0; index < 62; index += 1) {
       const active = index < 35
@@ -130,10 +159,23 @@ describe('cross-project review filters through actual named Core bindings', () =
     for (let offset = 0; offset < statements.length; offset += 75) {
       await env.DB.batch(statements.slice(offset, offset + 75))
     }
-    request = { url: `https://front.test/issues?workspace=${slug}`, method: 'GET', headers: [] }
+    context.reviewFixture = {
+      ...createReviewQueries(
+        { url: `https://front.test/issues?workspace=${slug}`, method: 'GET', headers: [] },
+        workspaceId,
+      ),
+      firstProject,
+      foreignWorkspaceId,
+      groupId,
+      hiddenProject,
+      secondProject,
+      selected,
+    }
   })
 
-  test('counts all filtered visible issues and pages them without unselected or hidden leaks', async () => {
+  test<ReviewFilterTestContext>('counts all filtered visible issues and pages them without unselected or hidden leaks', async ({
+    reviewFixture: { page, selected },
+  }) => {
     const seen: string[] = []
     let cursor: string | null | undefined
     do {
@@ -150,29 +192,39 @@ describe('cross-project review filters through actual named Core bindings', () =
     expect(seen).toStrictEqual(selected.map((row) => row.id).reverse())
   })
 
-  test.each(['fixing', 'in_review', 'changes_requested'] as const)(
-    'uses the same %s filter for list and native FTS search across projects',
-    async (review) => {
-      const expected = selected
-        .filter((row) => row.status === review)
-        .map((row) => row.id)
-        .toSorted()
-      const result = await page(`review=${review}&limit=100`)
-      expect(result.total).toBe(expected.length)
-      expect(result.items.map((row) => row.id).toSorted()).toStrictEqual(expected)
-      const resolvedValue = await search(review)
-      expect(resolvedValue.map((row) => row.id).toSorted()).toStrictEqual(expected)
-    },
-  )
+  test<ReviewFilterTestContext>('uses the same fixing filter for list and native FTS search across projects', async ({
+    reviewFixture,
+  }) => {
+    expect.hasAssertions()
+    await verifyReviewFilter(reviewFixture, 'fixing')
+  })
 
-  test('applies active review selection before the native FTS result limit', async () => {
+  test<ReviewFilterTestContext>('uses the same in_review filter for list and native FTS search across projects', async ({
+    reviewFixture,
+  }) => {
+    expect.hasAssertions()
+    await verifyReviewFilter(reviewFixture, 'in_review')
+  })
+
+  test<ReviewFilterTestContext>('uses the same changes_requested filter for list and native FTS search across projects', async ({
+    reviewFixture,
+  }) => {
+    expect.hasAssertions()
+    await verifyReviewFilter(reviewFixture, 'changes_requested')
+  })
+
+  test<ReviewFilterTestContext>('applies active review selection before the native FTS result limit', async ({
+    reviewFixture: { firstProject, search, secondProject, selected },
+  }) => {
     const rows = await search('active')
     expect(rows).toHaveLength(20)
     expect(rows.every((row) => selected.some((entry) => entry.id === row.id))).toBe(true)
     expect(new Set(rows.map((row) => row.project_id))).toStrictEqual(new Set([firstProject, secondProject]))
   })
 
-  test('intersects selected project filters and denies ungranted projects and foreign workspaces', async () => {
+  test<ReviewFilterTestContext>('intersects selected project filters and denies ungranted projects and foreign workspaces', async ({
+    reviewFixture: { foreignWorkspaceId, hiddenProject, page, search, secondProject, selected },
+  }) => {
     const expected = selected
       .filter((row) => row.projectId === secondProject)
       .map((row) => row.id)
@@ -187,7 +239,9 @@ describe('cross-project review filters through actual named Core bindings', () =
     await expect(search('active', undefined, foreignWorkspaceId)).rejects.toMatchObject({ status: 403 })
   })
 
-  test('rechecks revoked project grants in filtered counts and search results on the next invocation', async () => {
+  test<ReviewFilterTestContext>('rechecks revoked project grants in filtered counts and search results on the next invocation', async ({
+    reviewFixture: { firstProject, groupId, page, search, secondProject, selected },
+  }) => {
     await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id=? AND project_id=?')
       .bind(groupId, secondProject)
       .run()
@@ -202,7 +256,9 @@ describe('cross-project review filters through actual named Core bindings', () =
     expect(resolvedValue.map((row) => row.id).toSorted()).toStrictEqual(expected)
   })
 
-  test('rejects malformed review query values at the native Core boundary', async () => {
+  test<ReviewFilterTestContext>('rejects malformed review query values at the native Core boundary', async ({
+    reviewFixture: { page },
+  }) => {
     expect.hasAssertions()
     await runInOrder(['done', 'invalid', ''], async (review): Promise<void> => {
       await expect(page(`review=${review}`)).rejects.toMatchObject({ status: 400 })
