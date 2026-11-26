@@ -26,51 +26,72 @@ const statusBadge = function statusBadge(result: SearchResult): JSX.Element {
   return <span className='font-medium text-sm text-text-muted'>{result.status.replaceAll('_', ' ')}</span>
 }
 
+const renderSearchTableHead = (): JSX.Element => (
+  <thead>
+    <tr className='bg-surface'>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>#</th>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold w-full text-text-base'>Title</th>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
+        Priority
+      </th>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
+        Status
+      </th>
+    </tr>
+  </thead>
+)
+
+const renderSearchResultRow = (result: SearchResult): JSX.Element => (
+  <tr key={result.id} className='border-b border-border'>
+    <td className='px-3 py-2 align-middle whitespace-nowrap'>
+      <span className='text-text-muted font-mono text-[0.8rem]'>
+        {formatIssueRef(result.project_key, result.number)}
+      </span>
+    </td>
+    <td className='px-3 py-2 align-middle text-text-base'>
+      <a
+        href={issueUrl(result.project_key, result.number, result.title, result.id, result.workspaceSlug)}
+        className='text-text-base no-underline hover:underline focus:underline'
+      >
+        {result.title}
+      </a>
+      <ReviewTargetsSummary issue={result} />
+    </td>
+    <td className='px-3 py-2 align-middle whitespace-nowrap'>{priorityBadge(result)}</td>
+    <td className='px-3 py-2 align-middle whitespace-nowrap'>{statusBadge(result)}</td>
+  </tr>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SearchResultsTable = function SearchResultsTable({ results }: { results: SearchResult[] }): JSX.Element {
   return (
     <div className='overflow-x-auto max-sm:hidden'>
       <table className='w-full border-collapse text-[0.9rem]'>
-        <thead>
-          <tr className='bg-surface'>
-            <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
-              #
-            </th>
-            <th className='text-left px-3 py-2 border-b-2 border-border font-semibold w-full text-text-base'>Title</th>
-            <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
-              Priority
-            </th>
-            <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
-              Status
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.map((result) => (
-            <tr key={result.id} className='border-b border-border'>
-              <td className='px-3 py-2 align-middle whitespace-nowrap'>
-                <span className='text-text-muted font-mono text-[0.8rem]'>
-                  {formatIssueRef(result.project_key, result.number)}
-                </span>
-              </td>
-              <td className='px-3 py-2 align-middle text-text-base'>
-                <a
-                  href={issueUrl(result.project_key, result.number, result.title, result.id, result.workspaceSlug)}
-                  className='text-text-base no-underline hover:underline focus:underline'
-                >
-                  {result.title}
-                </a>
-                <ReviewTargetsSummary issue={result} />
-              </td>
-              <td className='px-3 py-2 align-middle whitespace-nowrap'>{priorityBadge(result)}</td>
-              <td className='px-3 py-2 align-middle whitespace-nowrap'>{statusBadge(result)}</td>
-            </tr>
-          ))}
-        </tbody>
+        {renderSearchTableHead()}
+        <tbody>{results.map((result) => renderSearchResultRow(result))}</tbody>
       </table>
     </div>
   )
 }
+
+const renderSearchResultCard = (result: SearchResult): JSX.Element => (
+  <div key={result.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+    <span className='inline-block font-mono text-[0.8rem] text-text-muted mb-1'>
+      {formatIssueRef(result.project_key, result.number)}
+    </span>
+    <a
+      href={issueUrl(result.project_key, result.number, result.title, result.id, result.workspaceSlug)}
+      className='no-underline'
+    >
+      <div className='text-[0.9rem] text-text-base font-medium mb-2'>{result.title}</div>
+    </a>
+    <ReviewTargetsSummary issue={result} />
+    <div className='flex gap-[0.375rem] flex-wrap items-center'>
+      {priorityBadge(result)}
+      {statusBadge(result)}
+    </div>
+  </div>
+)
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SearchResultsMobileCards = function SearchResultsMobileCards({
@@ -80,24 +101,7 @@ const SearchResultsMobileCards = function SearchResultsMobileCards({
 }): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-      {results.map((result) => (
-        <div key={result.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-          <span className='inline-block font-mono text-[0.8rem] text-text-muted mb-1'>
-            {formatIssueRef(result.project_key, result.number)}
-          </span>
-          <a
-            href={issueUrl(result.project_key, result.number, result.title, result.id, result.workspaceSlug)}
-            className='no-underline'
-          >
-            <div className='text-[0.9rem] text-text-base font-medium mb-2'>{result.title}</div>
-          </a>
-          <ReviewTargetsSummary issue={result} />
-          <div className='flex gap-[0.375rem] flex-wrap items-center'>
-            {priorityBadge(result)}
-            {statusBadge(result)}
-          </div>
-        </div>
-      ))}
+      {results.map((result) => renderSearchResultCard(result))}
     </div>
   )
 }
