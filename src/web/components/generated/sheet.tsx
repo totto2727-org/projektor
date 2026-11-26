@@ -49,6 +49,16 @@ const SheetOverlay = function SheetOverlay({ className, ...props }: SheetPrimiti
   )
 }
 
+const renderSheetCloseButton = (): React.JSX.Element => (
+  <SheetPrimitive.Close
+    data-slot='sheet-close'
+    render={<Button variant='ghost' className='absolute top-3 right-3' size='icon-sm' />}
+  >
+    <XIcon />
+    <span className='sr-only'>Close</span>
+  </SheetPrimitive.Close>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetContent = function SheetContent({
   className,
@@ -75,15 +85,7 @@ export const SheetContent = function SheetContent({
         {...props}
       >
         {children}
-        {showCloseButton && (
-          <SheetPrimitive.Close
-            data-slot='sheet-close'
-            render={<Button variant='ghost' className='absolute top-3 right-3' size='icon-sm' />}
-          >
-            <XIcon />
-            <span className='sr-only'>Close</span>
-          </SheetPrimitive.Close>
-        )}
+        {showCloseButton && renderSheetCloseButton()}
       </SheetPrimitive.Popup>
     </SheetPortal>
   )

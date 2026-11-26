@@ -121,6 +121,13 @@ export function SidebarProvider({
   )
 }
 
+const renderSidebarMobileHeading = (): React.JSX.Element => (
+  <SheetHeader className='sr-only'>
+    <SheetTitle>Sidebar</SheetTitle>
+    <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+  </SheetHeader>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function Sidebar({
   side = 'left',
@@ -167,10 +174,7 @@ export function Sidebar({
           }
           side={side}
         >
-          <SheetHeader className='sr-only'>
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
+          {renderSidebarMobileHeading()}
           <div className='flex h-full w-full flex-col'>{children}</div>
         </SheetContent>
       </Sheet>

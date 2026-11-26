@@ -180,6 +180,16 @@ export const DropdownMenuSubContent = function DropdownMenuSubContent({
   )
 }
 
+const renderDropdownCheckboxIndicator = (): React.JSX.Element => (
+  <span
+    className='pointer-events-none absolute right-2 flex items-center justify-center'
+    data-slot='dropdown-menu-checkbox-item-indicator'
+  >
+    <MenuPrimitive.CheckboxItemIndicator>
+      <CheckIcon />
+    </MenuPrimitive.CheckboxItemIndicator>
+  </span>
+)
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuCheckboxItem = function DropdownMenuCheckboxItem({
   className,
@@ -203,14 +213,7 @@ export const DropdownMenuCheckboxItem = function DropdownMenuCheckboxItem({
       // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI CheckboxItem.
       {...props}
     >
-      <span
-        className='pointer-events-none absolute right-2 flex items-center justify-center'
-        data-slot='dropdown-menu-checkbox-item-indicator'
-      >
-        <MenuPrimitive.CheckboxItemIndicator>
-          <CheckIcon />
-        </MenuPrimitive.CheckboxItemIndicator>
-      </span>
+      {renderDropdownCheckboxIndicator()}
       {children}
     </MenuPrimitive.CheckboxItem>
   )
@@ -223,6 +226,17 @@ export const DropdownMenuRadioGroup = function DropdownMenuRadioGroup({
   // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI RadioGroup.
   return <MenuPrimitive.RadioGroup data-slot='dropdown-menu-radio-group' {...props} />
 }
+
+const renderDropdownRadioIndicator = (): React.JSX.Element => (
+  <span
+    className='pointer-events-none absolute right-2 flex items-center justify-center'
+    data-slot='dropdown-menu-radio-item-indicator'
+  >
+    <MenuPrimitive.RadioItemIndicator>
+      <CheckIcon />
+    </MenuPrimitive.RadioItemIndicator>
+  </span>
+)
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuRadioItem = function DropdownMenuRadioItem({
@@ -245,14 +259,7 @@ export const DropdownMenuRadioItem = function DropdownMenuRadioItem({
       // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI RadioItem.
       {...props}
     >
-      <span
-        className='pointer-events-none absolute right-2 flex items-center justify-center'
-        data-slot='dropdown-menu-radio-item-indicator'
-      >
-        <MenuPrimitive.RadioItemIndicator>
-          <CheckIcon />
-        </MenuPrimitive.RadioItemIndicator>
-      </span>
+      {renderDropdownRadioIndicator()}
       {children}
     </MenuPrimitive.RadioItem>
   )

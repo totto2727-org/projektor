@@ -52,6 +52,16 @@ export const DialogOverlay = function DialogOverlay({
   )
 }
 
+const renderDialogCloseButton = (): React.JSX.Element => (
+  <DialogPrimitive.Close
+    data-slot='dialog-close'
+    render={<Button variant='ghost' className='absolute top-2 right-2' size='icon-sm' />}
+  >
+    <XIcon />
+    <span className='sr-only'>Close</span>
+  </DialogPrimitive.Close>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogContent = function DialogContent({
   className,
@@ -75,15 +85,7 @@ export const DialogContent = function DialogContent({
         {...props}
       >
         {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot='dialog-close'
-            render={<Button variant='ghost' className='absolute top-2 right-2' size='icon-sm' />}
-          >
-            <XIcon />
-            <span className='sr-only'>Close</span>
-          </DialogPrimitive.Close>
-        )}
+        {showCloseButton && renderDialogCloseButton()}
       </DialogPrimitive.Popup>
     </DialogPortal>
   )
