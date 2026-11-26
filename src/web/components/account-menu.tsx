@@ -39,29 +39,37 @@ const Preferences = function Preferences({
   update: (patch: Partial<Prefs>) => void
 }): JSX.Element {
   const { open, setOpen } = useSidebar()
+  const renderDensityPreference = (): JSX.Element => (
+    <DropdownMenuRadioGroup
+      value={prefs.density}
+      onValueChange={(value) => update({ density: value === 'compact' ? 'compact' : 'comfortable' })}
+    >
+      <DropdownMenuRadioItem value='comfortable'>Comfortable</DropdownMenuRadioItem>
+      <DropdownMenuRadioItem value='compact'>Compact</DropdownMenuRadioItem>
+    </DropdownMenuRadioGroup>
+  )
+
+  const renderSidebarPreference = (): JSX.Element => (
+    <DropdownMenuRadioGroup
+      value={open ? 'expanded' : 'collapsed'}
+      onValueChange={(value) => setOpen(value !== 'collapsed')}
+    >
+      <DropdownMenuRadioItem value='expanded'>Expanded</DropdownMenuRadioItem>
+      <DropdownMenuRadioItem value='collapsed'>Collapsed</DropdownMenuRadioItem>
+    </DropdownMenuRadioGroup>
+  )
+
   return (
     <>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuLabel>Density</DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={prefs.density}
-          onValueChange={(value) => update({ density: value === 'compact' ? 'compact' : 'comfortable' })}
-        >
-          <DropdownMenuRadioItem value='comfortable'>Comfortable</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value='compact'>Compact</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+        {renderDensityPreference()}
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuLabel>Sidebar</DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={open ? 'expanded' : 'collapsed'}
-          onValueChange={(value) => setOpen(value !== 'collapsed')}
-        >
-          <DropdownMenuRadioItem value='expanded'>Expanded</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value='collapsed'>Collapsed</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+        {renderSidebarPreference()}
       </DropdownMenuGroup>
     </>
   )
@@ -93,6 +101,43 @@ export const AccountMenu = function AccountMenu({
       </form>
     )
   }
+  const renderAccountTrigger = (): JSX.Element => (
+    <DropdownMenuTrigger
+      render={
+        <Button variant='ghost' aria-label={`Account: ${user.name || user.email}`} className='max-w-full gap-2' />
+      }
+    >
+      <Avatar className='size-7'>
+        <AvatarFallback>{initials(user.name, user.email)}</AvatarFallback>
+      </Avatar>
+      <span className='hidden max-w-48 truncate sm:inline'>{user.name || user.email}</span>
+      <span aria-hidden='true'>▾</span>
+    </DropdownMenuTrigger>
+  )
+
+  const renderAccountLabel = (): JSX.Element => (
+    <DropdownMenuGroup>
+      <DropdownMenuLabel>
+        <span className='block truncate font-semibold'>{user.name}</span>
+        <span className='block truncate font-normal'>{user.email}</span>
+      </DropdownMenuLabel>
+    </DropdownMenuGroup>
+  )
+
+  const renderAccountItems = (): JSX.Element => (
+    <DropdownMenuContent align='end' sideOffset={8} className='w-60'>
+      {renderAccountLabel()}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem nativeButton render={<button type='submit' form={refreshId} />}>
+        Refresh session
+      </DropdownMenuItem>
+      <DropdownMenuItem nativeButton render={<button type='submit' form={logoutId} />}>
+        Log out
+      </DropdownMenuItem>
+      <Preferences prefs={prefs} update={update} />
+    </DropdownMenuContent>
+  )
+
   return (
     <>
       {/* Keep native auth forms outside the portalled menu so closing it cannot discard the form. */}
@@ -104,33 +149,8 @@ export const AccountMenu = function AccountMenu({
         <input type='hidden' name='action' value='logout' />
       </form>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button variant='ghost' aria-label={`Account: ${user.name || user.email}`} className='max-w-full gap-2' />
-          }
-        >
-          <Avatar className='size-7'>
-            <AvatarFallback>{initials(user.name, user.email)}</AvatarFallback>
-          </Avatar>
-          <span className='hidden max-w-48 truncate sm:inline'>{user.name || user.email}</span>
-          <span aria-hidden='true'>▾</span>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' sideOffset={8} className='w-60'>
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>
-              <span className='block truncate font-semibold'>{user.name}</span>
-              <span className='block truncate font-normal'>{user.email}</span>
-            </DropdownMenuLabel>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem nativeButton render={<button type='submit' form={refreshId} />}>
-            Refresh session
-          </DropdownMenuItem>
-          <DropdownMenuItem nativeButton render={<button type='submit' form={logoutId} />}>
-            Log out
-          </DropdownMenuItem>
-          <Preferences prefs={prefs} update={update} />
-        </DropdownMenuContent>
+        {renderAccountTrigger()}
+        {renderAccountItems()}
       </DropdownMenu>
     </>
   )

@@ -235,6 +235,89 @@ function workspaceHref(path: string, scope: RequestScope | null): string {
   return `${path}?${new URLSearchParams({ workspace: selection.workspace.slug })}`
 }
 
+const renderSidebarHelpButton = (): JSX.Element => (
+  <Button
+    variant='ghost'
+    size='icon-sm'
+    render={<a href='/help' />}
+    nativeButton={false}
+    aria-label='Help, glossary of terms'
+    title='Help'
+  >
+    <Icon>
+      <circle cx='12' cy='12' r='10' />
+      <path d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01' />
+    </Icon>
+  </Button>
+)
+
+const renderSidebarControls = (prefs: Prefs, cycleTheme: () => void): JSX.Element => (
+  <div className='flex flex-wrap gap-1 group-data-[collapsible=icon]:flex-col'>
+    {renderSidebarHelpButton()}
+    <Button variant='ghost' size='icon-sm' aria-label={`Theme: ${prefs.theme}, switch theme`} onClick={cycleTheme}>
+      <ThemeIcon theme={prefs.theme} />
+    </Button>
+    <SidebarTrigger />
+  </div>
+)
+
+const renderSidebarFooter = (prefs: Prefs, cycleTheme: () => void): JSX.Element => (
+  <SidebarFooter>
+    {renderSidebarControls(prefs, cycleTheme)}
+    <span className='px-2 text-[0.6875rem] text-muted-foreground group-data-[collapsible=icon]:hidden'>
+      v{pkg.version}
+    </span>
+  </SidebarFooter>
+)
+
+const renderPrimaryNavigation = (
+  pathname: string,
+  scope: RequestScope | null,
+  setOpenMobile: (open: boolean) => void,
+): JSX.Element => {
+  const renderNavigationMenu = (): JSX.Element => (
+    <SidebarMenu aria-label='Primary navigation'>
+      {nav.map((item) => {
+        const active =
+          item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(`${item.href}/`)
+        const renderNavigationButton = (): JSX.Element => (
+          <SidebarMenuButton
+            isActive={active}
+            tooltip={item.label}
+            render={
+              <a
+                href={workspaceHref(item.href, scope)}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => {
+                  setOpenMobile(false)
+                }}
+              />
+            }
+          >
+            <Icon>{item.icon}</Icon>
+            <span>{item.label}</span>
+          </SidebarMenuButton>
+        )
+
+        return (
+          <SidebarMenuItem key={item.href}>
+            {renderNavigationButton()}
+            {'glossary' in item && <GlossaryHelp term={item.glossary} />}
+          </SidebarMenuItem>
+        )
+      })}
+    </SidebarMenu>
+  )
+
+  return (
+    <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupContent>{renderNavigationMenu()}</SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  )
+}
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function ShellContent({
   children,
@@ -254,97 +337,41 @@ function ShellContent({
     const order: Theme[] = ['system', 'light', 'dark']
     update({ theme: order[(order.indexOf(prefs.theme) + 1) % order.length] })
   }
+  const renderTopbarBrand = (): JSX.Element => (
+    <div className='flex min-w-0 items-center gap-2'>
+      {/* CSS shows the trigger before the provider detects the mobile viewport. */}
+      <SidebarTrigger className='md:hidden' disabled={!isMobile} />
+      <a href={projectsHref} className='topbar-brand min-w-0'>
+        <span className='brand-mark'>{brandMark}</span>
+        <span className='truncate'>{brandName}</span>
+      </a>
+    </div>
+  )
+
+  const renderMobileBrand = (): JSX.Element => (
+    <a
+      href={projectsHref}
+      className='topbar-brand'
+      onClick={() => {
+        setOpenMobile(false)
+      }}
+    >
+      <span className='brand-mark'>{brandMark}</span>
+      <span>{brandName}</span>
+    </a>
+  )
+
   return (
     <>
       <header className='projektor-topbar'>
-        <div className='flex min-w-0 items-center gap-2'>
-          {/* CSS shows the trigger before the provider detects the mobile viewport. */}
-          <SidebarTrigger className='md:hidden' disabled={!isMobile} />
-          <a href={projectsHref} className='topbar-brand min-w-0'>
-            <span className='brand-mark'>{brandMark}</span>
-            <span className='truncate'>{brandName}</span>
-          </a>
-        </div>
+        {renderTopbarBrand()}
         <AccountMenu scope={scope} returnTo={returnTo ?? '/'} prefs={prefs} update={update} />
       </header>
       <Sidebar collapsible='icon' className='border-border pt-[var(--topbar-height)]'>
-        <SidebarHeader className='md:hidden'>
-          <a
-            href={projectsHref}
-            className='topbar-brand'
-            onClick={() => {
-              setOpenMobile(false)
-            }}
-          >
-            <span className='brand-mark'>{brandMark}</span>
-            <span>{brandName}</span>
-          </a>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu aria-label='Primary navigation'>
-                {nav.map((item) => {
-                  const active =
-                    item.href === '/'
-                      ? pathname === '/'
-                      : pathname === item.href || pathname.startsWith(`${item.href}/`)
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        isActive={active}
-                        tooltip={item.label}
-                        render={
-                          <a
-                            href={workspaceHref(item.href, scope)}
-                            aria-current={active ? 'page' : undefined}
-                            onClick={() => {
-                              setOpenMobile(false)
-                            }}
-                          />
-                        }
-                      >
-                        <Icon>{item.icon}</Icon>
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                      {'glossary' in item && <GlossaryHelp term={item.glossary} />}
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
+        <SidebarHeader className='md:hidden'>{renderMobileBrand()}</SidebarHeader>
+        {renderPrimaryNavigation(pathname, scope, setOpenMobile)}
         <SidebarSeparator />
-        <SidebarFooter>
-          <div className='flex flex-wrap gap-1 group-data-[collapsible=icon]:flex-col'>
-            <Button
-              variant='ghost'
-              size='icon-sm'
-              render={<a href='/help' />}
-              nativeButton={false}
-              aria-label='Help, glossary of terms'
-              title='Help'
-            >
-              <Icon>
-                <circle cx='12' cy='12' r='10' />
-                <path d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01' />
-              </Icon>
-            </Button>
-            <Button
-              variant='ghost'
-              size='icon-sm'
-              aria-label={`Theme: ${prefs.theme}, switch theme`}
-              onClick={cycleTheme}
-            >
-              <ThemeIcon theme={prefs.theme} />
-            </Button>
-            <SidebarTrigger />
-          </div>
-          <span className='px-2 text-[0.6875rem] text-muted-foreground group-data-[collapsible=icon]:hidden'>
-            v{pkg.version}
-          </span>
-        </SidebarFooter>
+        {renderSidebarFooter(prefs, cycleTheme)}
       </Sidebar>
       <SidebarInset id='main-content' tabIndex={-1} className='min-w-0 pt-[var(--topbar-height)]'>
         <div className='projektor-page-content' data-full-bleed={fullBleed || undefined}>
@@ -375,6 +402,8 @@ export function Shell(props: ShellProps): JSX.Element {
     applyPrefs(next)
     setPrefs(next)
   }
+  const renderShellContent = (): JSX.Element => <ShellContent {...props} prefs={prefs} update={update} />
+
   return (
     <>
       <a className='skip-link' href='#main-content'>
@@ -386,7 +415,7 @@ export function Shell(props: ShellProps): JSX.Element {
           open={prefs.sidebar === 'expanded'}
           onOpenChange={(open) => update({ sidebar: open ? 'expanded' : 'collapsed' })}
         >
-          <ShellContent {...props} prefs={prefs} update={update} />
+          {renderShellContent()}
         </SidebarProvider>
       </TooltipProvider>
     </>
