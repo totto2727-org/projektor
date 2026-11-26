@@ -12,6 +12,26 @@ import { Button } from '@/components/ui/button.tsx'
 import { AttachmentFields } from './form-schemas.ts'
 import { useWikiSeed } from './wiki-seed-context.ts'
 
+const renderWikiAttachmentPicker = (
+  form: { setFieldValue: (name: 'file', value: File | null) => void },
+  uploadFile: File | null,
+): JSX.Element => (
+  <label className='relative cursor-pointer'>
+    <input
+      type='file'
+      name='file'
+      required
+      className='sr-only'
+      onChange={(event) => {
+        form.setFieldValue('file', event.currentTarget.files?.[0] ?? null)
+      }}
+    />
+    <Button as='span' variant='outline' size='sm'>
+      {uploadFile ? uploadFile.name : 'Choose file'}
+    </Button>
+  </label>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function AttachmentUploadForm({
   uploadError,
@@ -57,20 +77,7 @@ export function AttachmentUploadForm({
       onSubmit={submit}
     >
       <div className='flex flex-wrap gap-2 items-center'>
-        <label className='relative cursor-pointer'>
-          <input
-            type='file'
-            name='file'
-            required
-            className='sr-only'
-            onChange={(event) => {
-              form.setFieldValue('file', event.currentTarget.files?.[0] ?? null)
-            }}
-          />
-          <Button as='span' variant='outline' size='sm'>
-            {uploadFile ? uploadFile.name : 'Choose file'}
-          </Button>
-        </label>
+        {renderWikiAttachmentPicker(form, uploadFile)}
         <Button type='submit' variant='primary' disabled={!valid}>
           Upload
         </Button>

@@ -13,6 +13,16 @@ import { ScopeControl } from './wiki-project-scope.tsx'
 import { usePublicViewer, useWikiSeed } from './wiki-seed-context.ts'
 import { StalePagesList } from './wiki-stale-pages.tsx'
 
+const renderStaleWikiPages = (
+  staleLoading: boolean,
+  stalePages: StalePageItem[],
+  onNavigate: (slug: string) => void,
+): JSX.Element => (
+  <div className='pt-2'>
+    <StalePagesList loading={staleLoading} results={stalePages} onSelect={onNavigate} />
+  </div>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WikiSidebar({
   workspaceSlug,
@@ -161,9 +171,7 @@ export function WikiSidebar({
         }}
       >
         <summary className='cursor-pointer text-[0.8rem] text-text-muted select-none'>Needs verification</summary>
-        <div className='pt-2'>
-          <StalePagesList loading={staleLoading} results={stalePages} onSelect={onNavigate} />
-        </div>
+        {renderStaleWikiPages(staleLoading, stalePages, onNavigate)}
       </details>
     </aside>
   )

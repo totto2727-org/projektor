@@ -10,6 +10,26 @@ import { WikiStatusPill } from './wiki-status-pill.tsx'
 
 const EMPTY_TAG_COUNT = 0
 
+const renderFilteredWikiPageButton = (result: WikiListItem, onSelect: (slug: string) => void): JSX.Element => (
+  <button
+    type='button'
+    className={WIKI_PAGE_LIST_ITEM_CLASS}
+    onClick={() => {
+      onSelect(result.slug)
+    }}
+  >
+    <span className='font-medium'>{result.title}</span>
+    {(String.isNonEmpty(result.type ?? '') ||
+      String.isNonEmpty(result.status ?? '') ||
+      (result.tags?.length ?? EMPTY_TAG_COUNT) > EMPTY_TAG_COUNT) && (
+      <span className='block mt-[0.15rem]'>
+        {result.status && <WikiStatusPill status={result.status} />}
+        <TagChips tags={result.tags} />
+      </span>
+    )}
+  </button>
+)
+
 /*
  * PROJ-488: flat, non-hierarchical list shown in the sidebar when a type/status/tag
  * filter is active — filtering the page *tree* (does any descendant match?) is out of
@@ -35,25 +55,7 @@ export function FilteredPagesList({
   return (
     <ul className='list-none m-0 p-0'>
       {results.map((result) => (
-        <li key={result.id}>
-          <button
-            type='button'
-            className={WIKI_PAGE_LIST_ITEM_CLASS}
-            onClick={() => {
-              onSelect(result.slug)
-            }}
-          >
-            <span className='font-medium'>{result.title}</span>
-            {(String.isNonEmpty(result.type ?? '') ||
-              String.isNonEmpty(result.status ?? '') ||
-              (result.tags?.length ?? EMPTY_TAG_COUNT) > EMPTY_TAG_COUNT) && (
-              <span className='block mt-[0.15rem]'>
-                {result.status && <WikiStatusPill status={result.status} />}
-                <TagChips tags={result.tags} />
-              </span>
-            )}
-          </button>
-        </li>
+        <li key={result.id}>{renderFilteredWikiPageButton(result, onSelect)}</li>
       ))}
     </ul>
   )

@@ -14,6 +14,18 @@ export interface AttachmentUploadProps {
   onSubmit?: FormEventHandler<HTMLFormElement>
 }
 
+const renderDefaultAttachmentControls = (): JSX.Element => (
+  <>
+    <label className='btn btn-secondary cursor-pointer'>
+      <span>Choose file</span>
+      <input type='file' name='file' required className='sr-only' />
+    </label>
+    <button type='submit' className='btn btn-primary ml-2'>
+      Upload
+    </button>
+  </>
+)
+
 /**
  * Effront form action owns upload decoding, request limits and canonical SSR refresh.
  *
@@ -36,17 +48,7 @@ export const AttachmentUpload = function AttachmentUpload({
       <input type='hidden' name='entityType' value={entityType} />
       <input type='hidden' name='entityId' value={entityId} />
       <fieldset disabled={pending} className='border-0 p-0 m-0 min-w-0'>
-        {children ?? (
-          <>
-            <label className='btn btn-secondary cursor-pointer'>
-              <span>Choose file</span>
-              <input type='file' name='file' required className='sr-only' />
-            </label>
-            <button type='submit' className='btn btn-primary ml-2'>
-              Upload
-            </button>
-          </>
-        )}
+        {children ?? renderDefaultAttachmentControls()}
       </fieldset>
       <p className='text-xs text-text-muted'>
         Uploads are subject to Effront’s request-body limit, currently 10 MiB including form data.

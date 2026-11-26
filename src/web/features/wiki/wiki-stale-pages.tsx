@@ -7,6 +7,23 @@ import { WikiFreshnessBadge } from './wiki-freshness-badge.tsx'
 import { WIKI_PAGE_LIST_ITEM_CLASS } from './wiki-page-list-style.ts'
 import type { StalePageItem } from './wiki-page-model.ts'
 
+const renderStaleWikiPageButton = (result: StalePageItem, onSelect: (slug: string) => void): JSX.Element => (
+  <button
+    type='button'
+    className={WIKI_PAGE_LIST_ITEM_CLASS}
+    onClick={() => {
+      onSelect(result.slug)
+    }}
+  >
+    <span className='font-medium'>{result.title}</span>
+    {result.freshness && (
+      <span className='block mt-[0.15rem]'>
+        <WikiFreshnessBadge state={result.freshness.state} />
+      </span>
+    )}
+  </button>
+)
+
 /*
  * PROJ-489 (R7): the list_stale_pages maintenance queue — a simple flat list, matching
  * FilteredPagesList's styling below (no existing "maintenance queue" UI precedent to
@@ -31,22 +48,7 @@ export function StalePagesList({
   return (
     <ul className='list-none m-0 p-0'>
       {results.map((result) => (
-        <li key={result.id}>
-          <button
-            type='button'
-            className={WIKI_PAGE_LIST_ITEM_CLASS}
-            onClick={() => {
-              onSelect(result.slug)
-            }}
-          >
-            <span className='font-medium'>{result.title}</span>
-            {result.freshness && (
-              <span className='block mt-[0.15rem]'>
-                <WikiFreshnessBadge state={result.freshness.state} />
-              </span>
-            )}
-          </button>
-        </li>
+        <li key={result.id}>{renderStaleWikiPageButton(result, onSelect)}</li>
       ))}
     </ul>
   )

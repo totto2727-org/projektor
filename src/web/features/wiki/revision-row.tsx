@@ -28,6 +28,14 @@ export interface WikiRevision {
  */
 const RESTORE_DISABLED_WHILE_EDITING_REASON = 'Finish or cancel editing before restoring a previous revision'
 
+const renderRevisionMetadata = (revision: WikiRevision): JSX.Element => (
+  <span>
+    <strong className='text-text-base'>{revision.author_name ?? 'Unknown'}</strong>
+    {' — '}
+    {formatTimestamp(revision.created_at)}
+  </span>
+)
+
 // oxlint-disable-next-line eslint/func-style -- react/function-component-definition requires a function declaration.
 export function RevisionRow({
   revision,
@@ -74,11 +82,7 @@ export function RevisionRow({
   return (
     <li className='py-[0.375rem] border-b border-border text-[0.8rem] text-text-muted'>
       <div className='flex items-center flex-wrap gap-2'>
-        <span>
-          <strong className='text-text-base'>{revision.author_name ?? 'Unknown'}</strong>
-          {' — '}
-          {formatTimestamp(revision.created_at)}
-        </span>
+        {renderRevisionMetadata(revision)}
         <Button variant='outline' size='sm' onClick={toggleDiff} className='text-text-muted py-0 px-2'>
           {diffOpen ? 'Hide diff' : 'Diff vs current'}
         </Button>
