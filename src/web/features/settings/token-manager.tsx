@@ -108,6 +108,152 @@ export const TokenManager = function TokenManager({
     },
     confirm: revoke,
   }
+  interface TokenScopeField {
+    state: { value: (typeof defaults)['scope'] }
+    handleBlur: () => void
+    handleChange: (value: (typeof defaults)['scope']) => void
+  }
+
+  const renderTokenScopeOptions = (field: TokenScopeField): JSX.Element => (
+    <>
+      <label className='flex items-center gap-2 cursor-pointer text-sm text-text-base'>
+        <input
+          type='radio'
+          name='scope'
+          value='readwrite'
+          checked={field.state.value === 'readwrite'}
+          disabled={creating}
+          onBlur={field.handleBlur}
+          onChange={() => {
+            field.handleChange('readwrite')
+          }}
+        />
+        Read + Write (recommended)
+      </label>
+      <label className='flex items-center gap-2 cursor-pointer text-sm text-text-base'>
+        <input
+          type='radio'
+          name='scope'
+          value='read'
+          checked={field.state.value === 'read'}
+          disabled={creating}
+          onBlur={field.handleBlur}
+          onChange={() => {
+            field.handleChange('read')
+          }}
+        />
+        Read-only
+      </label>
+    </>
+  )
+
+  const renderTokenScopeField = (): JSX.Element => <form.Field name='scope'>{renderTokenScopeOptions}</form.Field>
+
+  const renderTokenNameField = (): JSX.Element => (
+    <div className='flex flex-col gap-1 mb-[0.875rem]'>
+      <label className='text-[0.8rem] font-semibold text-text-muted' htmlFor='tok-name'>
+        Name *
+      </label>
+      <form.Field name='name'>
+        {(field) => (
+          <Input
+            inputRef={inputRef}
+            id='tok-name'
+            name='name'
+            type='text'
+            placeholder='e.g. Claude Code agent'
+            value={field.state.value}
+            onBlur={field.handleBlur}
+            onChange={(event) => {
+              field.handleChange(event.currentTarget.value)
+            }}
+            disabled={creating}
+            required
+            maxLength={100}
+          />
+        )}
+      </form.Field>
+    </div>
+  )
+
+  const renderTokenScope = (): JSX.Element => (
+    <div className='flex flex-col gap-1 mb-[0.875rem]'>
+      <span className='text-[0.8rem] font-semibold text-text-muted'>Scope</span>
+      <div className='flex flex-col gap-[0.375rem]'>{renderTokenScopeField()}</div>
+    </div>
+  )
+
+  const renderTokenExpiryField = (): JSX.Element => (
+    <div className='flex flex-col gap-1 mb-[0.875rem]'>
+      <label className='text-[0.8rem] font-semibold text-text-muted' htmlFor='tok-expiry'>
+        Expires in (days, optional)
+      </label>
+      <form.Field name='expiry'>
+        {(field) => (
+          <Input
+            id='tok-expiry'
+            name='expiry'
+            className='sm:max-w-[240px]'
+            type='number'
+            min={1}
+            max={365}
+            placeholder='e.g. 90 (leave blank for no expiry)'
+            value={field.state.value}
+            disabled={creating}
+            onBlur={field.handleBlur}
+            onChange={(event) => {
+              field.handleChange(event.currentTarget.value)
+            }}
+          />
+        )}
+      </form.Field>
+    </div>
+  )
+
+  interface TokenFormStatus {
+    canSubmit: boolean
+    errors: typeof form.state.errors
+    dirty: boolean
+  }
+
+  const renderTokenFormFields = ({ canSubmit, errors, dirty }: TokenFormStatus): JSX.Element => (
+    <>
+      <h3 className='m-0 mb-4 text-base font-semibold text-text-base'>New API token</h3>
+      {renderTokenNameField()}
+      {renderTokenScope()}
+      {renderTokenExpiryField()}
+      {error && (
+        <p role='alert' className='text-danger-text text-[0.8rem] m-0 mb-3'>
+          {error}
+        </p>
+      )}
+      <div className='flex gap-2'>
+        {dirty && <FormErrors errors={errors} />}
+        <Button type='submit' variant='primary' size='sm' disabled={creating || !canSubmit}>
+          {creating ? 'Creating…' : 'Create token'}
+        </Button>
+        <Button variant='outline' size='sm' disabled={creating} onClick={close}>
+          Cancel
+        </Button>
+      </div>
+    </>
+  )
+
+  const renderTokenCreateForm = (): JSX.Element => (
+    <form action={createAction}>
+      <input type='hidden' name='workspaceSlug' value={workspaceSlug} />
+      <form.Subscribe<TokenFormStatus>
+        selector={(formState) => ({
+          canSubmit: formState.canSubmit,
+          errors: formState.errors,
+          dirty: formState.isDirty,
+        })}
+      >
+        {renderTokenFormFields}
+      </form.Subscribe>
+    </form>
+  )
+
   return (
     <div>
       <div className='flex justify-between items-center mb-5'>
@@ -125,123 +271,7 @@ export const TokenManager = function TokenManager({
           {newToken ? (
             <NewTokenPanel token={newToken} template={mcpCommandTemplate} onDone={close} />
           ) : (
-            <form action={createAction}>
-              <input type='hidden' name='workspaceSlug' value={workspaceSlug} />
-              <form.Subscribe
-                selector={(formState) => ({
-                  canSubmit: formState.canSubmit,
-                  errors: formState.errors,
-                  dirty: formState.isDirty,
-                })}
-              >
-                {({ canSubmit, errors, dirty }) => (
-                  <>
-                    <h3 className='m-0 mb-4 text-base font-semibold text-text-base'>New API token</h3>
-                    <div className='flex flex-col gap-1 mb-[0.875rem]'>
-                      <label className='text-[0.8rem] font-semibold text-text-muted' htmlFor='tok-name'>
-                        Name *
-                      </label>
-                      <form.Field name='name'>
-                        {(field) => (
-                          <Input
-                            inputRef={inputRef}
-                            id='tok-name'
-                            name='name'
-                            type='text'
-                            placeholder='e.g. Claude Code agent'
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => {
-                              field.handleChange(event.currentTarget.value)
-                            }}
-                            disabled={creating}
-                            required
-                            maxLength={100}
-                          />
-                        )}
-                      </form.Field>
-                    </div>
-                    <div className='flex flex-col gap-1 mb-[0.875rem]'>
-                      <span className='text-[0.8rem] font-semibold text-text-muted'>Scope</span>
-                      <div className='flex flex-col gap-[0.375rem]'>
-                        <form.Field name='scope'>
-                          {(field) => (
-                            <>
-                              <label className='flex items-center gap-2 cursor-pointer text-sm text-text-base'>
-                                <input
-                                  type='radio'
-                                  name='scope'
-                                  value='readwrite'
-                                  checked={field.state.value === 'readwrite'}
-                                  disabled={creating}
-                                  onBlur={field.handleBlur}
-                                  onChange={() => {
-                                    field.handleChange('readwrite')
-                                  }}
-                                />
-                                Read + Write (recommended)
-                              </label>
-                              <label className='flex items-center gap-2 cursor-pointer text-sm text-text-base'>
-                                <input
-                                  type='radio'
-                                  name='scope'
-                                  value='read'
-                                  checked={field.state.value === 'read'}
-                                  disabled={creating}
-                                  onBlur={field.handleBlur}
-                                  onChange={() => {
-                                    field.handleChange('read')
-                                  }}
-                                />
-                                Read-only
-                              </label>
-                            </>
-                          )}
-                        </form.Field>
-                      </div>
-                    </div>
-                    <div className='flex flex-col gap-1 mb-[0.875rem]'>
-                      <label className='text-[0.8rem] font-semibold text-text-muted' htmlFor='tok-expiry'>
-                        Expires in (days, optional)
-                      </label>
-                      <form.Field name='expiry'>
-                        {(field) => (
-                          <Input
-                            id='tok-expiry'
-                            name='expiry'
-                            className='sm:max-w-[240px]'
-                            type='number'
-                            min={1}
-                            max={365}
-                            placeholder='e.g. 90 (leave blank for no expiry)'
-                            value={field.state.value}
-                            disabled={creating}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => {
-                              field.handleChange(event.currentTarget.value)
-                            }}
-                          />
-                        )}
-                      </form.Field>
-                    </div>
-                    {error && (
-                      <p role='alert' className='text-danger-text text-[0.8rem] m-0 mb-3'>
-                        {error}
-                      </p>
-                    )}
-                    <div className='flex gap-2'>
-                      {dirty && <FormErrors errors={errors} />}
-                      <Button type='submit' variant='primary' size='sm' disabled={creating || !canSubmit}>
-                        {creating ? 'Creating…' : 'Create token'}
-                      </Button>
-                      <Button variant='outline' size='sm' disabled={creating} onClick={close}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </form.Subscribe>
-            </form>
+            renderTokenCreateForm()
           )}
         </div>
       )}
