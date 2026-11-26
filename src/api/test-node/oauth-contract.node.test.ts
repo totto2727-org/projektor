@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { OAUTH_SCOPES_SUPPORTED } from '#contracts/auth-scopes.ts'
@@ -12,9 +13,13 @@ import {
 /** These are protocol contracts. Live provider/consent integration stays in oauth.test.ts. */
 describe('neutral OAuth workspace audience and scope protocol', () => {
   test('requires exactly one MCP workspace audience', () => {
-    for (const resource of [undefined, [], ['https://host/mcp/a', 'https://host/mcp/b'], 'https://host/api/issues']) {
-      expect(() => workspaceIdFromResource(resource)).toThrow(OAuthRequestError)
-    }
+    expect.assertions(5)
+    Iterable.forEach(
+      [undefined, [], ['https://host/mcp/a', 'https://host/mcp/b'], 'https://host/api/issues'],
+      (resource) => {
+        expect(() => workspaceIdFromResource(resource)).toThrow(OAuthRequestError)
+      },
+    )
     expect(workspaceIdFromResource(['https://host/mcp/workspace-id'])).toBe('workspace-id')
   })
 
