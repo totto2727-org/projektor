@@ -5,7 +5,13 @@ import type { Issue, TaskStatus } from '@/features/issues/components/board-utils
 
 import type { ProjectMeta } from './types.ts'
 
-/** Description of the active project filter, for the banner under the toolbar. */
+/**
+ * Description of the active project filter, for the banner under the toolbar.
+ *
+ * @param {Readonly<ProjectMeta[]>} projects The projects available to the issue list.
+ * @param {string} filterProject The currently selected project key.
+ * @returns {string | null} The selected project's description, or null without an available description.
+ */
 export const deriveProjectDescription = function deriveProjectDescription(
   projects: Readonly<ProjectMeta[]>,
   filterProject: string,
@@ -16,7 +22,13 @@ export const deriveProjectDescription = function deriveProjectDescription(
   return projects.find((project) => project.key === filterProject)?.description ?? null
 }
 
-/** Status filter options: prefer the statuses endpoint, else derive from loaded issues. */
+/**
+ * Status filter options: prefer the statuses endpoint, else derive from loaded issues.
+ *
+ * @param {Readonly<Issue[]>} issues The loaded issues used to derive a fallback status catalog.
+ * @param {Readonly<TaskStatus[]>} statuses The status catalog supplied by the endpoint.
+ * @returns {Readonly<TaskStatus[]>} The supplied status catalog, or the distinct statuses found in the loaded issues.
+ */
 export const deriveStatusOptions = function deriveStatusOptions(
   issues: Readonly<Issue[]>,
   statuses: Readonly<TaskStatus[]>,

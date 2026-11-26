@@ -40,7 +40,13 @@ interface UrlSyncState {
   setFilterDateTo: Dispatch<SetStateAction<string>>
 }
 
-/** Keeps the URL in sync with filter state (PROJ-60/211/212). */
+/**
+ * Keeps the URL in sync with filter state (PROJ-60/211/212).
+ *
+ * @param {UrlSyncState} state The active issue filters and their state setters.
+ * @param {string} search The current URL query string.
+ * @param {Readonly<{ key: string; id: string }[]>} projects The project keys and IDs used to resolve project selectors.
+ */
 export const useFilterUrlSync = function useFilterUrlSync(
   state: UrlSyncState,
   search: string,

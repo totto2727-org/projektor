@@ -1,7 +1,12 @@
 'use client'
 import { Predicate } from 'effect'
 import { useEffect, useState } from 'react'
-/** Null preserves both CSS-controlled layouts in SSR and the hydration snapshot. */
+/**
+ * Null preserves both CSS-controlled layouts in SSR and the hydration snapshot.
+ *
+ * @param {string} query The media query observed by the browser.
+ * @returns {boolean | null} The current match, or null before the browser has evaluated the query.
+ */
 export const useMediaQuery = function useMediaQuery(query: string): boolean | null {
   const [matches, setMatches] = useState<boolean | null>(null)
   useEffect(() => {

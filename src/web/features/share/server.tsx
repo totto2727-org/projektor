@@ -36,7 +36,16 @@ const SHARE_STYLES = `
 .share-page .prose blockquote { border-left: 3px solid var(--border); margin: 0.75em 0; padding: 0.25em 1em; color: var(--text-muted); }
 `
 
-/** Token-authorized public view. Never requests a protected workspace/session lookup. */
+/**
+ * Token-authorized public view. Never requests a protected workspace/session lookup.
+ *
+ * @param {Pick<Env, 'CORE' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>} env
+ *   The Core binding and deployment branding available to the public page.
+ * @param {null} _scope The empty scope supplied by the public route.
+ * @param {URL} url The request URL, which can supply the share token as a query parameter.
+ * @param {Readonly<Record<string, string | undefined>>} params The route parameters. A token in the path takes precedence over the query.
+ * @returns {Effect.Effect<React.ReactElement, PageFailure>} An effect that renders the shared issue or its public not-found view.
+ */
 export const renderShare = function renderShare(
   env: Pick<Env, 'CORE' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>,
   _scope: null,

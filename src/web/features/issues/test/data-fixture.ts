@@ -11,7 +11,11 @@ import { createTestDatabase } from '@/test/database.ts'
 
 import { project, scope, secondProject, workspace } from './fixtures.ts'
 
-/** Actual migrated relational database and native SQLite FTS5, never a HTTP-shaped read fake. */
+/**
+ * Actual migrated relational database and native SQLite FTS5, never a HTTP-shaped read fake.
+ *
+ * @returns {ReturnType<typeof issueDataFixture>} The migrated database, issue seed helper, native request services, and invalidation log.
+ */
 export const issueDataFixture = function issueDataFixture() {
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()

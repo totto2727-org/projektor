@@ -15,7 +15,14 @@ import { WikiSeedDataSchema } from './schemas.ts'
 import { WikiPageClient } from './wiki-page-client.tsx'
 import type { WikiSeed } from './wiki-page-client.tsx'
 
-/** Native Effront SSR keeps presentation and markdown rendering, never storage. */
+/**
+ * Native Effront SSR keeps presentation and markdown rendering, never storage.
+ *
+ * @param {RequestScope} scope The workspace or project scope resolved for this request.
+ * @param {URL} url The Wiki URL forwarded to Core for the page seed.
+ * @param {Readonly<Record<string, string | undefined>>} params The route parameters, including the optional Wiki page slug.
+ * @returns {Effect.Effect<React.ReactElement, PageFailure, RequestServices>} An effect that renders the Wiki page or the workspace selection message.
+ */
 export const renderWiki = function renderWiki(
   scope: RequestScope,
   url: URL,

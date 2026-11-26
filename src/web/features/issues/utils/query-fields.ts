@@ -1,4 +1,10 @@
-/** Stable identities for immutable query inputs, including repeated name/value pairs. */
+/**
+ * Stable identities for immutable query inputs, including repeated name/value pairs.
+ *
+ * @param {string} search The URL query string to parse.
+ * @param {Readonly<string[]>} omitted The parameter names to exclude from the resulting fields.
+ * @returns {{ name: string; value: string; key: string }[]} The ordered query inputs with a distinct key for each occurrence.
+ */
 export const queryFields = function queryFields(
   search: string,
   omitted: Readonly<string[]> = [],

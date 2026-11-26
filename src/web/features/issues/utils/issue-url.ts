@@ -1,7 +1,16 @@
 import { String, Predicate } from 'effect'
 
 import { slugify } from '@/features/issues/lib/slugify.ts'
-/** Issue identity crosses route boundaries with explicit authorized workspace scope. */
+/**
+ * Issue identity crosses route boundaries with explicit authorized workspace scope.
+ *
+ * @param {string | null | undefined} projectSlug The authorized project's route slug, when available.
+ * @param {number} issueNumber The issue number within its project.
+ * @param {string} title The title used to form the last segment of the canonical URL.
+ * @param {string} fallbackId The issue ID to use when a project route is unavailable.
+ * @param {string} workspaceSlug The authorized workspace selector to carry in the URL.
+ * @returns {string} The relative issue URL, or a fragment when no issue route can be formed.
+ */
 export const issueUrl = function issueUrl(
   projectSlug: string | null | undefined,
   issueNumber: number,

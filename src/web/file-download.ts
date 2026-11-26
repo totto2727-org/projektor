@@ -10,7 +10,12 @@ import { ScopeError } from './server/errors.ts'
 
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
-/** Same-origin delivery keeps browser policy here and persistent authorization in Core. */
+/**
+ * Same-origin delivery keeps browser policy here and persistent authorization in Core.
+ *
+ * @param {Request} request The browser attachment request with its file ID and workspace selector.
+ * @returns {Effect.Effect<HttpServerResponse.HttpServerResponse, PageFailure, RequestServices>} An effect that authorizes and returns the attachment or a public route failure.
+ */
 export const downloadFile = function downloadFile(
   request: Request,
 ): Effect.Effect<HttpServerResponse.HttpServerResponse, PageFailure, RequestServices> {

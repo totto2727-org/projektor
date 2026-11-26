@@ -1,7 +1,12 @@
 import { renderMarkdownDocument } from '@/components/markdown/render.ts'
 import type { MarkdownOptions } from '@/components/markdown/render.ts'
 
-/** Untrusted dynamic Markdown uses the same async Comark pipeline on server and client. */
+/**
+ * Untrusted dynamic Markdown uses the same async Comark pipeline on server and client.
+ *
+ * @param {string} markdown The Markdown source to render.
+ * @returns {Promise<string>} The rendered HTML document body.
+ */
 export const renderMd = async function renderMd(markdown: string): Promise<string> {
   const document = await renderMarkdownDocument(markdown)
   return document.html
