@@ -50,8 +50,8 @@ const GUARDS = new Set([
   'visibleProjectIds',
 ])
 
-const ENTITY_PARAM = /^(issueId|projectId|sprintId|pageId|wikiPageId|parentId|issueRef)$/u
-const GENERIC_ID_PARAM = /^(id|idOrSlug|slug|pageIdOrSlug|ref)$/u
+const ENTITY_PARAM = /^(?:issueId|projectId|sprintId|pageId|wikiPageId|parentId|issueRef)$/u
+const GENERIC_ID_PARAM = /^(?:id|idOrSlug|slug|pageIdOrSlug|ref)$/u
 const PROJECT_SCOPED_FILES = new Set([
   'issues',
   'sprints',

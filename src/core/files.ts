@@ -23,7 +23,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
 ): Promise<Response> {
   try {
     const url = new URL(request.url)
-    const download = /^\/files\/([^/]+)$/u.exec(url.pathname)
+    const download = /^\/files\/(?<id>[^/]+)$/u.exec(url.pathname)?.groups
     const upload = url.pathname === '/files' && request.method === 'POST'
     if (!download && !upload) {
       return new Response('Not found', { status: 404 })
@@ -42,7 +42,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
       throw coreFailure(HTTP_BAD_REQUEST, 'Workspace not specified')
     }
     const ctx = await resolveCoreServiceCtx(actor, workspaceIds[0], upload ? 'write' : 'read', env)
-    if (upload) {
+    if (!download) {
       const form = await request.formData().catch(() => null)
       if (!form) {
         throw coreFailure(HTTP_BAD_REQUEST, 'Expected multipart/form-data')
@@ -65,7 +65,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
     }
     let id: string
     try {
-      id = decodeURIComponent(download![1])
+      id = decodeURIComponent(download.id)
     } catch {
       throw coreFailure(HTTP_BAD_REQUEST, 'Invalid attachment identifier')
     }

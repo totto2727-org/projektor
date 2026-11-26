@@ -30,15 +30,19 @@ const declaredFkActions = function declaredFkActions(): Set<string> {
       const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replaceAll(/--[^\n]*/gu, '')
       Iterable.forEach(sql.split(';'), (stmt) => {
         const table =
-          /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(\w+)[`"]?/i.exec(stmt) ??
-          /ALTER TABLE\s+[`"]?(\w+)[`"]?\s+ADD/i.exec(stmt)
-        if (!table) {
+          /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(?<name>\w+)[`"]?/i.exec(stmt) ??
+          /ALTER TABLE\s+[`"]?(?<name>\w+)[`"]?\s+ADD/i.exec(stmt)
+        if (!table?.groups) {
           return
         }
+        const { name } = table.groups
         const fk =
-          /[`"]?\w+[`"]?\s+\w[^,]*?REFERENCES\s+[`"]?(\w+)[`"]?\s*\([^)]*\)[^,]*?ON DELETE\s+(CASCADE|SET NULL)/gi
+          /[`"]?\w+[`"]?\s+\w[^,]*?REFERENCES\s+[`"]?(?<target>\w+)[`"]?\s*\([^)]*\)[^,]*?ON DELETE\s+(?<action>CASCADE|SET NULL)/gi
         Iterable.forEach(stmt.matchAll(fk), (match) => {
-          keys.add(`${table[1]} -> ${match[1]} (${match[2].toUpperCase()})`)
+          if (match.groups) {
+            const { action, target } = match.groups
+            keys.add(`${name} -> ${target} (${action.toUpperCase()})`)
+          }
         })
       })
     },
@@ -68,7 +72,7 @@ const declarationSource = function declarationSource(ref: string): string | null
 }
 
 const camel = function camel(snake: string): string {
-  return snake.replaceAll(/_([a-z])/gu, (_match, letter: string) => letter.toUpperCase())
+  return snake.replaceAll(/_(?<letter>[a-z])/gu, (_match, letter: string) => letter.toUpperCase())
 }
 
 describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {

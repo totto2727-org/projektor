@@ -31,13 +31,14 @@ describe('tokens.css — brand-derived tokens stay derived from --accent (PROJ-7
   test.each(BRAND_DERIVED_PROPERTIES)(
     "--light-%s and --dark-%s reference their theme's --accent, not a literal color",
     (name) => {
-      const lightMatch = /--light-([a-z0-9-]+):\s*([^;]+);/gu
-      const darkMatch = /--dark-([a-z0-9-]+):\s*([^;]+);/gu
+      const lightMatch = /--light-(?<property>[a-z0-9-]+):\s*(?<value>[^;]+);/gu
+      const darkMatch = /--dark-(?<property>[a-z0-9-]+):\s*(?<value>[^;]+);/gu
 
       const findValue = (regex: RegExp, propName: string): undefined | string => {
         for (const match of tokensCss.matchAll(regex)) {
-          if (match[1] === propName) {
-            return match[2]
+          const { groups } = match
+          if (groups?.property === propName) {
+            return groups.value
           }
         }
         return undefined

@@ -149,7 +149,7 @@ const expandToFiles = function expandToFiles(path: string): string[] {
 }
 
 const snakeCase = function snakeCase(name: string): string {
-  return name.replaceAll(/([a-z0-9])([A-Z])/gu, '$1_$2').toLowerCase()
+  return name.replaceAll(/(?<lowerOrDigit>[a-z0-9])(?<upper>[A-Z])/gu, '$<lowerOrDigit>_$<upper>').toLowerCase()
 }
 
 /** Qualified import bindings keep facade names distinct from their canonical domain operations. */
@@ -389,18 +389,21 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): BinaryV
       }
     }
   }
+  const readsGroups = ts.isPropertyAccessExpression(node) && node.name.text === 'groups'
+  const matchCall = readsGroups ? node.expression : node
   if (
-    ts.isCallExpression(node) &&
-    ts.isPropertyAccessExpression(node.expression) &&
-    node.expression.name.text === 'exec' &&
-    ts.isRegularExpressionLiteral(node.expression.expression)
+    ts.isCallExpression(matchCall) &&
+    ts.isPropertyAccessExpression(matchCall.expression) &&
+    matchCall.expression.name.text === 'exec' &&
+    ts.isRegularExpressionLiteral(matchCall.expression.expression)
   ) {
-    const { text } = node.expression.expression
+    const { text } = matchCall.expression.expression
     const end = text.lastIndexOf('/')
-    const argument = node.arguments.at(0)
+    const argument = matchCall.arguments.at(0)
     const input = Predicate.isNotNullish(argument) ? valueOf(argument, context) : undefined
     if (Predicate.isString(input)) {
-      return new RegExp(text.slice(1, end), text.slice(end + 1)).test(input)
+      const match = new RegExp(text.slice(1, end), text.slice(end + 1)).exec(input)
+      return readsGroups ? Predicate.isNotNullish(match?.groups) : Predicate.isNotNullish(match)
     }
   }
   return undefined

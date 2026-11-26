@@ -171,7 +171,7 @@ const authorizeUrl = function authorizeUrl(
  * @returns {string} The signed consent token rendered by the form.
  */
 const consentTokenFrom = function consentTokenFrom(html: string): string {
-  const match = /name="consent_token" value="([^"]+)"/u.exec(html)
+  const match = /name="consent_token" value="(?<token>[^"]+)"/u.exec(html)
   expect(match, 'consent screen did not render a consent_token').not.toBeNull()
   return (match as RegExpExecArray)[1]
 }

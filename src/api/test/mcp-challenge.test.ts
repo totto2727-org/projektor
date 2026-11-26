@@ -38,8 +38,8 @@ const parseChallenge = function parseChallenge(header: string | null): Record<st
   const bearer = header as string
   expect(bearer.startsWith('Bearer ')).toBe(true)
   const out: Record<string, string> = {}
-  Iterable.forEach(bearer.slice(7).matchAll(/([a-z_]+)="((?:[^"\\]|\\.)*)"/g), ([, key, value]) => {
-    out[key] = value.replaceAll(/\\(.)/g, '$1')
+  Iterable.forEach(bearer.slice(7).matchAll(/(?<key>[a-z_]+)="(?<value>(?:[^"\\]|\\.)*)"/g), ([, key, value]) => {
+    out[key] = value.replaceAll(/\\(?<character>.)/g, '$<character>')
   })
   return out
 }

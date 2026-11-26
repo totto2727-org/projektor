@@ -307,7 +307,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
 
 const assertShell = async function assertShell(page: Page): Promise<void> {
   await expect(page.locator('main#main-content')).toBeVisible()
-  await expect(page.getByRole('link', { name: /skip to (main )?content/i })).toBeAttached()
+  await expect(page.getByRole('link', { name: /skip to (?:main )?content/i })).toBeAttached()
   await expect(page.getByRole('button', { name: /^Account(?::|$)/u })).toBeVisible()
   const menu = page.locator('header.projektor-topbar').getByRole('button', { exact: true, name: 'Toggle Sidebar' })
   if (await menu.isVisible()) {
