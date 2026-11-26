@@ -211,7 +211,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getByRole('button', { name: 'Grant' }))
     await submitted('setGrant', { projectId: 'p2', role: 'admin' })
     Iterable.forEach(['renameGroup', 'describeGroup', 'addMember', 'createGrant'], (operation) => {
-      expect(nativeSubmitted).toHaveBeenCalledWith(operation, null, expect.any(FormData))
+      expect(nativeSubmitted).toHaveBeenCalledWith(operation, JSON_NULL, expect.any(FormData))
     })
   })
 
@@ -326,7 +326,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     })
     expect(screen.getByRole('alert').textContent).toContain('Group name is required')
     view.unmount()
-    render(<TokenManager workspaceSlug='alpha' mcpUrl={null} initialTokens={[]} />)
+    render(<TokenManager workspaceSlug='alpha' mcpUrl={JSON_NULL} initialTokens={[]} />)
     fireEvent.click(screen.getByRole('button', { name: '+ New token' }))
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Agent' } })
     fireEvent.change(screen.getByLabelText('Expires in (days, optional)'), {
@@ -341,7 +341,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
 
   test('requires token revoke confirmation and retains expected failure/retry controls', async () => {
     expect.hasAssertions()
-    render(<TokenManager workspaceSlug='alpha' mcpUrl={null} initialTokens={[token()]} />)
+    render(<TokenManager workspaceSlug='alpha' mcpUrl={JSON_NULL} initialTokens={[token()]} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Revoke' })[0])
     expect(request).not.toHaveBeenCalled()
     request.mockResolvedValueOnce({ message: 'Denied', ok: false, status: 403 })

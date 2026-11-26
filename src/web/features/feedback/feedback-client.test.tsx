@@ -137,7 +137,7 @@ describe('feedback hydrated original controls', () => {
         initialSource={source}
         initialSources={[source]}
         initialRows={[row]}
-        initialSummary={null}
+        initialSummary={JSON_NULL}
       />,
     )
     const items = screen.getByRole('tab', { name: 'Items' })
@@ -153,7 +153,7 @@ describe('feedback hydrated original controls', () => {
         initialSource={source}
         initialSources={[source]}
         initialRows={[row]}
-        initialSummary={null}
+        initialSummary={JSON_NULL}
         initialTab='summary'
       />,
     )

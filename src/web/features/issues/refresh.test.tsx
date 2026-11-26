@@ -36,12 +36,12 @@ const listData = function listData(): IssuesInitialData {
     page: { items: [issue()], nextCursor: JSON_NULL, total: 1 },
     statuses,
     taskTypes,
-    project: null,
+    project: JSON_NULL,
     projects: [project, secondProject],
     epics: [],
     sprints: [],
-    sprintDetail: null,
-    search: { query: '', results: null },
+    sprintDetail: JSON_NULL,
+    search: { query: '', results: JSON_NULL },
   }
 }
 const detailData = function detailData(): IssueDetailInitialData {
@@ -53,7 +53,7 @@ const detailData = function detailData(): IssueDetailInitialData {
     statuses,
     taskTypes,
     members: [scope.user],
-    parent: null,
+    parent: JSON_NULL,
     children: [],
     currentUserId: scope.user.id,
   }
