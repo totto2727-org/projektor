@@ -7,11 +7,9 @@ import type { JSX, KeyboardEvent } from 'react'
 
 import { hasMultipleItems } from '#contracts/item-count.ts'
 import { unwrapResult } from '@/client/functions.ts'
-import { Badge } from '@/components/ui/badge.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { EmptyState } from '@/components/ui/empty-state.tsx'
 import { Input, Textarea } from '@/components/ui/input.tsx'
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/table.tsx'
 import { FormErrors } from '@/features/planning/form-ui.tsx'
 
 import {
@@ -23,8 +21,14 @@ import {
   removeGroupGrant,
   removeGroupMember,
   renameGroup,
-  setGroupGrant,
 } from './actions.ts'
+import { GrantRoleForm } from './group-grant-role-form.tsx'
+import { GroupsList } from './group-list.tsx'
+import { MembersOverview } from './group-members-overview.tsx'
+import { adminRole, ROLES } from './group-roles.ts'
+import { CARD, CHIP, H2, INPUT } from './group-styles.ts'
+import { nextTabId } from './group-tab-navigation.ts'
+import type { Tab } from './group-tab-navigation.ts'
 import {
   CreateGroupInputSchema,
   GroupDescriptionInputSchema,
@@ -33,227 +37,12 @@ import {
   RenameGroupInputSchema,
 } from './input-schemas.ts'
 import type { GroupView } from './input-schemas.ts'
-import type {
-  GrantRole,
-  GroupData,
-  GroupDetail,
-  GroupGrant,
-  GroupSummary,
-  MemberGroupsRow,
-  ProjectLite,
-  WorkspaceMember,
-} from './types.ts'
+import type { GroupData, GroupDetail, ProjectLite, WorkspaceMember } from './types.ts'
 
-const ROLES: GrantRole[] = ['viewer', 'member', 'admin']
-const INPUT =
-  'px-[0.625rem] py-[0.4rem] border border-border rounded text-[0.85rem] bg-bg text-text-base font-[inherit] focus:outline-[2px] focus:outline-accent focus:outline-offset-1'
-const CARD = 'border border-border rounded-lg bg-surface p-4 mb-4'
 const INFO =
   'flex items-center gap-2 border border-border rounded-lg bg-bg px-4 py-3 mb-4 text-[0.82rem] text-text-base'
 const ROLE_TAG =
   'inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold bg-accent text-white uppercase tracking-wide'
-const CHIP =
-  'inline-flex items-center px-2 py-[0.1rem] mr-1 mb-1 rounded-full text-[0.72rem] bg-bg border border-border text-text-base'
-const H2 = 'text-[1.05rem] font-bold text-text-base m-0 mb-3'
-const adminRole = (role: string): boolean => role === 'owner' || role === 'admin'
-type Tab = 'groups' | 'members'
-export const nextTabId = function nextTabId(tabs: Readonly<Tab[]>, active: Tab, key: string): Tab | null {
-  const index = tabs.indexOf(active)
-  if (key === 'ArrowRight') {
-    return tabs[(index + 1) % tabs.length]
-  }
-  if (key === 'ArrowLeft') {
-    return tabs[(index - 1 + tabs.length) % tabs.length]
-  }
-  if (key === 'Home') {
-    return tabs[0]
-  }
-  if (key === 'End') {
-    return tabs[tabs.length - 1]
-  }
-  return null
-}
-// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-const MemberGroupsCell = function MemberGroupsCell({
-  member,
-  groups,
-}: {
-  member: WorkspaceMember
-  groups: { id: string; name: string }[]
-}): JSX.Element {
-  if (adminRole(member.role)) {
-    return <span className='text-[0.78rem] text-text-muted'>All projects (bypasses groups)</span>
-  }
-  if (Array.isArrayEmpty(groups)) {
-    return <Badge>Pending: no access</Badge>
-  }
-  return (
-    <>
-      {groups.map((group) => (
-        <span key={group.id} className={CHIP}>
-          {group.name}
-        </span>
-      ))}
-    </>
-  )
-}
-// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-const MembersOverview = function MembersOverview({
-  members,
-  memberGroups,
-}: {
-  members: WorkspaceMember[]
-  memberGroups: MemberGroupsRow[]
-}): JSX.Element {
-  const byUser = new Map(memberGroups.map((row) => [row.userId, row.groups]))
-  return (
-    <section className={CARD}>
-      <h2 className={H2}>Members</h2>
-      <div className='overflow-x-auto max-sm:hidden'>
-        <Table className='text-[0.85rem]'>
-          <TableHead>
-            <TableRow>
-              <TableHeaderCell>Member</TableHeaderCell>
-              <TableHeaderCell>Workspace role</TableHeaderCell>
-              <TableHeaderCell>Groups</TableHeaderCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {members.map((member) => (
-              <TableRow key={member.id}>
-                <TableCell>
-                  <div className='font-medium text-text-base'>{member.name || member.email}</div>
-                  <div className='text-[0.75rem] text-text-muted'>{member.email}</div>
-                </TableCell>
-                <TableCell>{member.role}</TableCell>
-                <TableCell>
-                  <MemberGroupsCell member={member} groups={byUser.get(member.id) ?? []} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-        {members.map((member) => (
-          <div key={member.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-            <div className='font-medium text-text-base'>{member.name || member.email}</div>
-            <div className='text-[0.75rem] text-text-muted mb-1'>{member.email}</div>
-            <div className='text-[0.75rem] text-text-muted mb-2'>Role: {member.role}</div>
-            <div>
-              <MemberGroupsCell member={member} groups={byUser.get(member.id) ?? []} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-interface GroupListProps {
-  groups: GroupSummary[]
-  admin: boolean
-  busy: boolean
-  onSelect: (id: string) => void
-  onDelete: (id: string) => void
-}
-// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps): JSX.Element {
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const name = (group: GroupSummary): JSX.Element =>
-    admin ? (
-      <button
-        type='button'
-        className='text-accent font-medium bg-transparent border-0 cursor-pointer p-0'
-        onClick={() => {
-          onSelect(group.id)
-        }}
-      >
-        {group.name}
-      </button>
-    ) : (
-      <span className='font-medium text-text-base'>{group.name}</span>
-    )
-  const remove = (group: GroupSummary): JSX.Element =>
-    deleteId === group.id ? (
-      <span className='inline-flex gap-2 items-center'>
-        <span className='text-xs text-text-muted'>Delete group?</span>
-        <Button
-          variant='danger'
-          size='sm'
-          disabled={busy}
-          onClick={() => {
-            onDelete(group.id)
-          }}
-        >
-          Yes
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          disabled={busy}
-          onClick={() => {
-            setDeleteId(null)
-          }}
-        >
-          No
-        </Button>
-      </span>
-    ) : (
-      <Button
-        variant='danger'
-        size='sm'
-        disabled={busy}
-        onClick={() => {
-          setDeleteId(group.id)
-        }}
-      >
-        Delete
-      </Button>
-    )
-  return (
-    <>
-      <div className='overflow-x-auto max-sm:hidden'>
-        <Table className='text-[0.85rem]'>
-          <TableHead>
-            <TableRow>
-              <TableHeaderCell>Name</TableHeaderCell>
-              <TableHeaderCell>Members</TableHeaderCell>
-              <TableHeaderCell>Projects</TableHeaderCell>
-              {admin && <TableHeaderCell />}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {groups.map((group) => (
-              <TableRow key={group.id}>
-                <TableCell>
-                  {name(group)}
-                  {group.description && <p className='text-[0.75rem] text-text-muted m-0 mt-1'>{group.description}</p>}
-                </TableCell>
-                <TableCell>{group.memberCount}</TableCell>
-                <TableCell>{group.grantCount}</TableCell>
-                {admin && <TableCell>{remove(group)}</TableCell>}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-        {groups.map((group) => (
-          <div key={group.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-            <div className='flex justify-between items-center gap-2 mb-1'>
-              {name(group)}
-              {admin && remove(group)}
-            </div>
-            {group.description && <p className='text-[0.75rem] text-text-muted m-0 mb-1'>{group.description}</p>}
-            <div className='text-[0.75rem] text-text-muted'>
-              {group.memberCount} members · {group.grantCount} projects
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
-  )
-}
 /** Details, membership and grant rows are prop-owned, while unsaved editor fields are local. */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const GroupDetailEditor = function GroupDetailEditor({
@@ -622,78 +411,6 @@ const GroupDetailEditor = function GroupDetailEditor({
         )}
       </form>
     </section>
-  )
-}
-
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-function GrantRoleForm({
-  grant,
-  workspaceSlug,
-  groupId,
-  busy,
-  onBusy,
-  onError,
-}: {
-  grant: GroupGrant
-  workspaceSlug: string
-  groupId: string
-  busy: boolean
-  onBusy: (busy: boolean) => void
-  onError: (error: string | null) => void
-}): JSX.Element {
-  const [defaults] = useState(() => ({
-    workspaceSlug,
-    groupId,
-    projectId: grant.projectId,
-    role: grant.role,
-  }))
-  const standard = Schema.toStandardSchemaV1(GroupGrantInputSchema)
-  const form = useForm({
-    defaultValues: defaults,
-    validators: { onMount: standard, onChange: standard, onSubmit: standard },
-    onSubmit: async ({ value }) => {
-      onBusy(true)
-      onError(null)
-      try {
-        unwrapResult(await setGroupGrant(value))
-      } catch (error) {
-        onBusy(false)
-        onError(String(error))
-        return
-      }
-      onBusy(false)
-    },
-  })
-  return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault()
-        void form.handleSubmit()
-      }}
-    >
-      <form.Field name='role'>
-        {(field) => (
-          <select
-            className={INPUT}
-            aria-label={`Role for ${grant.projectName}`}
-            value={grant.role}
-            disabled={busy}
-            onBlur={field.handleBlur}
-            onChange={(event) => {
-              field.handleChange(event.currentTarget.value as GrantRole)
-              void form.handleSubmit()
-            }}
-          >
-            {ROLES.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
-        )}
-      </form.Field>
-    </form>
   )
 }
 
