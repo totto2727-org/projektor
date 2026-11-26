@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { String, Predicate, Effect } from 'effect'
+import { Function, String, Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
@@ -362,8 +362,8 @@ describe('wiki server prop adoption', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('max-width'),
       media: query,
-      addEventListener() {},
-      removeEventListener() {},
+      addEventListener: Function.constVoid,
+      removeEventListener: Function.constVoid,
     }))
     const { container } = render(<WikiPageClient initial={seed()} />)
     const trigger = screen.getByRole('button', { name: 'Pages' })

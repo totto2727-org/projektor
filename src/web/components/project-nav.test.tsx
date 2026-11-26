@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Iterable } from 'effect'
+import { Function, Iterable } from 'effect'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -70,8 +70,8 @@ describe('covers ProjectNav SSR width fallback', () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        public observe(): void {}
-        public disconnect(): void {}
+        public observe = Function.constVoid
+        public disconnect = Function.constVoid
       },
     )
     render(<ProjectNav scope={scope} url={url} />)

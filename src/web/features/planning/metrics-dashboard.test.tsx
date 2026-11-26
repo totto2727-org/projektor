@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { Iterable } from 'effect'
+import { Function, Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { JSON_NULL } from '#tests/json-null.ts'
@@ -14,9 +14,9 @@ vi.hoisted(() => {
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      public observe(): void {}
-      public unobserve(): void {}
-      public disconnect(): void {}
+      public observe = Function.constVoid
+      public unobserve = Function.constVoid
+      public disconnect = Function.constVoid
     },
   )
   vi.stubGlobal(
@@ -79,7 +79,7 @@ describe('full original metrics surfaces', () => {
 
   test('uses the shared Effect Standard Schema to block reversed native GET ranges', async () => {
     expect.hasAssertions()
-    const nativeSubmit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {})
+    const nativeSubmit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(Function.constVoid)
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-10-05' } })
     fireEvent.submit(screen.getByRole('button', { name: 'Apply' }).closest('form') as HTMLFormElement)

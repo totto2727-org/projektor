@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { Iterable } from 'effect'
+import { Function, Iterable } from 'effect'
 import { renderToString } from 'react-dom/server'
 import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -32,8 +32,8 @@ const viewport = function viewport(width: number): void {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('max-width') && width < 768,
     media: query,
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener: Function.constVoid,
+    removeEventListener: Function.constVoid,
   }))
 }
 
@@ -44,9 +44,9 @@ describe('generated Base UI Shell', () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        public observe(): void {}
-        public unobserve(): void {}
-        public disconnect(): void {}
+        public observe = Function.constVoid
+        public unobserve = Function.constVoid
+        public disconnect = Function.constVoid
       },
     )
   })
