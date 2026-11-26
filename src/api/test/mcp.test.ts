@@ -2,6 +2,7 @@ import { Predicate, Schema, Iterable } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { runIndexedInOrder } from '#tests/run-effect.ts'
 
 import {
@@ -206,10 +207,10 @@ describe('covers MCP endpoint', () => {
     await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'create_issue',
-        arguments: { projectId, title: 'MCP-created issue', priority: 'high' },
-      },
+      fieldsInOrder([
+        ['name', 'create_issue'],
+        ['arguments', { projectId, title: 'MCP-created issue', priority: 'high' }],
+      ]),
       headers,
     )
 
@@ -278,7 +279,10 @@ describe('covers MCP endpoint', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'create_issue', arguments: { projectId, title: 123 } },
+      fieldsInOrder([
+        ['name', 'create_issue'],
+        ['arguments', { projectId, title: 123 }],
+      ]),
       headers,
     )
     const err = toolError(res)
@@ -297,7 +301,10 @@ describe('covers MCP endpoint', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_issue', arguments: { id: crypto.randomUUID() } },
+      fieldsInOrder([
+        ['name', 'get_issue'],
+        ['arguments', { id: crypto.randomUUID() }],
+      ]),
       headers,
     )
     const err = toolError(res)
@@ -314,15 +321,18 @@ describe('covers MCP endpoint', () => {
 
     const createRes = await callMcpTool(
       workspaceId,
-      {
-        name: 'create_issue',
-        arguments: {
-          projectId,
-          title: 'With assignee',
-          assigneeId: assignee.id,
-          labels: ['mcp', 'test'],
-        },
-      },
+      fieldsInOrder([
+        ['name', 'create_issue'],
+        [
+          'arguments',
+          {
+            projectId,
+            title: 'With assignee',
+            assigneeId: assignee.id,
+            labels: ['mcp', 'test'],
+          },
+        ],
+      ]),
       headers,
     )
     const created = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
@@ -341,7 +351,10 @@ describe('covers MCP endpoint', () => {
 
     const createRes = await callMcpTool(
       workspaceId,
-      { name: 'create_issue', arguments: { projectId, title: 'Before update' } },
+      fieldsInOrder([
+        ['name', 'create_issue'],
+        ['arguments', { projectId, title: 'Before update' }],
+      ]),
       headers,
     )
     const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
@@ -349,10 +362,10 @@ describe('covers MCP endpoint', () => {
     await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'update_issue',
-        arguments: { id, assigneeId: assignee.id, labels: ['updated'] },
-      },
+      fieldsInOrder([
+        ['name', 'update_issue'],
+        ['arguments', { id, assigneeId: assignee.id, labels: ['updated'] }],
+      ]),
       headers,
     )
 
@@ -371,26 +384,29 @@ describe('covers MCP endpoint', () => {
     await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'create_issue',
-        arguments: { projectId, title: 'Unassigned' },
-      },
+      fieldsInOrder([
+        ['name', 'create_issue'],
+        ['arguments', { projectId, title: 'Unassigned' }],
+      ]),
       headers,
     )
     await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'create_issue',
-        arguments: { projectId, title: 'Assigned', assigneeId: assignee.id },
-      },
+      fieldsInOrder([
+        ['name', 'create_issue'],
+        ['arguments', { projectId, title: 'Assigned', assigneeId: assignee.id }],
+      ]),
       headers,
     )
 
     // MCP filter
     const mcpRes = await callMcpTool(
       workspaceId,
-      { name: 'list_issues', arguments: { assignee: assignee.id } },
+      fieldsInOrder([
+        ['name', 'list_issues'],
+        ['arguments', { assignee: assignee.id }],
+      ]),
       headers,
     )
     const mcpData = parseNativeMcpText(mcpRes.result.content[0].text, IssuePageResponse)
@@ -426,10 +442,10 @@ describe('covers MCP endpoint', () => {
     await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'create_issue',
-        arguments: { projectId, title: 'Ref via MCP' },
-      },
+      fieldsInOrder([
+        ['name', 'create_issue'],
+        ['arguments', { projectId, title: 'Ref via MCP' }],
+      ]),
       headers,
     )
 
@@ -443,7 +459,10 @@ describe('covers MCP endpoint', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_issue', arguments: { id: crypto.randomUUID() } },
+      fieldsInOrder([
+        ['name', 'get_issue'],
+        ['arguments', { id: crypto.randomUUID() }],
+      ]),
       headers,
     )
     const err = toolError(res)
@@ -527,10 +546,10 @@ describe('covers MCP endpoint', () => {
     await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'update_wiki_page',
-        arguments: { id, content: 'v2' },
-      },
+      fieldsInOrder([
+        ['name', 'update_wiki_page'],
+        ['arguments', { id, content: 'v2' }],
+      ]),
       headers,
     )
 
@@ -553,10 +572,10 @@ describe('covers MCP endpoint', () => {
     await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'update_wiki_page',
-        arguments: { id, title: 'New Title' },
-      },
+      fieldsInOrder([
+        ['name', 'update_wiki_page'],
+        ['arguments', { id, title: 'New Title' }],
+      ]),
       headers,
     )
 
@@ -622,7 +641,10 @@ describe('covers MCP endpoint', () => {
 
     const delRes = await callMcpTool(
       owner.workspace.id,
-      { name: 'delete_wiki_page', arguments: { slug: parent.slug, cascade: true } },
+      fieldsInOrder([
+        ['name', 'delete_wiki_page'],
+        ['arguments', { slug: parent.slug, cascade: true }],
+      ]),
       ownerHeaders,
     )
     expect(JSON.parse(delRes.result.content[0].text)).toStrictEqual({
@@ -659,7 +681,10 @@ describe('covers MCP endpoint', () => {
     await mcpCall(
       owner.workspace.id,
       'tools/call',
-      { name: 'delete_wiki_page', arguments: { slug: parent.slug } },
+      fieldsInOrder([
+        ['name', 'delete_wiki_page'],
+        ['arguments', { slug: parent.slug }],
+      ]),
       ownerHeaders,
     )
 

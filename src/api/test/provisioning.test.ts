@@ -7,6 +7,7 @@ import {
   provisionPublicViewer,
   resetProvisioningCacheForTests,
 } from '#commands/provisioning.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import type { Env } from '#types'
 
@@ -47,11 +48,13 @@ describe('login provisioning', () => {
     const admin = await seedUser('admin-create@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'admin-create@example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'admin-create@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       admin,
     )
 
@@ -66,11 +69,13 @@ describe('login provisioning', () => {
     const user = await seedUser('viewer-join@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'someone-else@example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'someone-else@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       user,
     )
 
@@ -82,11 +87,13 @@ describe('login provisioning', () => {
     const user = await seedUser('early-bird@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'boss@example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'boss@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       user,
     )
 
@@ -100,11 +107,13 @@ describe('login provisioning', () => {
     const user = await seedUser('no-autojoin@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'boss@example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: 'none',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'boss@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', 'none'],
+        ]),
+      ),
       user,
     )
 
@@ -117,11 +126,13 @@ describe('login provisioning', () => {
     const user = await seedUser('unset-autojoin@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'boss@example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: undefined,
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'boss@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', undefined],
+        ]),
+      ),
       user,
     )
 
@@ -135,11 +146,13 @@ describe('login provisioning', () => {
     await seedMember(ws.id, user.id, 'viewer')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'promote-me@example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'promote-me@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       user,
     )
 
@@ -152,12 +165,14 @@ describe('login provisioning', () => {
     const user = await seedUser('colleague@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'boss@example.com',
-        DEFAULT_WORKSPACE_SLUG: 'prov-default-1',
-        AUTO_JOIN_ROLE: 'viewer',
-        WORKSPACE_DOMAIN_MAP: '{"example.com":{"slug":"prov-mapped","role":"member"}}',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'boss@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', 'prov-default-1'],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+          ['WORKSPACE_DOMAIN_MAP', '{"example.com":{"slug":"prov-mapped","role":"member"}}'],
+        ]),
+      ),
       user,
     )
 
@@ -172,12 +187,14 @@ describe('login provisioning', () => {
     const admin = await seedUser('tajd@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'tajd@example.com',
-        DEFAULT_WORKSPACE_SLUG: 'prov-default-2',
-        AUTO_JOIN_ROLE: 'viewer',
-        WORKSPACE_DOMAIN_MAP: '{"example.com":{"slug":"prov-mapped-2","role":"member"}}',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'tajd@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', 'prov-default-2'],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+          ['WORKSPACE_DOMAIN_MAP', '{"example.com":{"slug":"prov-mapped-2","role":"member"}}'],
+        ]),
+      ),
       admin,
     )
 
@@ -195,11 +212,13 @@ describe('login provisioning', () => {
     await seedMember(wsA.id, admin.id, 'viewer')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'owns-everything@example.com',
-        DEFAULT_WORKSPACE_SLUG: 'prov-own-all-default',
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'owns-everything@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', 'prov-own-all-default'],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       admin,
     )
 
@@ -213,11 +232,13 @@ describe('login provisioning', () => {
     const user = await seedUser('mixed-case@example.com')
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'Mixed-Case@Example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'Mixed-Case@Example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       user,
     )
 
@@ -240,11 +261,13 @@ describe('covers PROJ-436: removal tombstone', () => {
     await tombstoneRemoval(removedFrom.id, admin.id)
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'removed-admin@example.com',
-        DEFAULT_WORKSPACE_SLUG: 'prov-436-admin-default-unused',
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'removed-admin@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', 'prov-436-admin-default-unused'],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       admin,
     )
 
@@ -259,11 +282,13 @@ describe('covers PROJ-436: removal tombstone', () => {
     await tombstoneRemoval(ws.id, user.id)
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'boss@example.com',
-        DEFAULT_WORKSPACE_SLUG: slug,
-        AUTO_JOIN_ROLE: 'viewer',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'boss@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', slug],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+        ]),
+      ),
       user,
     )
 
@@ -276,12 +301,14 @@ describe('covers PROJ-436: removal tombstone', () => {
     await tombstoneRemoval(mappedWs.id, user.id)
 
     await ensureUserProvisioned(
-      envWith({
-        ADMIN_EMAILS: 'boss@example.com',
-        DEFAULT_WORKSPACE_SLUG: 'prov-436-domain-default-unused',
-        AUTO_JOIN_ROLE: 'viewer',
-        WORKSPACE_DOMAIN_MAP: '{"example.com":{"slug":"prov-436-domain-removed","role":"member"}}',
-      }),
+      envWith(
+        fieldsInOrder([
+          ['ADMIN_EMAILS', 'boss@example.com'],
+          ['DEFAULT_WORKSPACE_SLUG', 'prov-436-domain-default-unused'],
+          ['AUTO_JOIN_ROLE', 'viewer'],
+          ['WORKSPACE_DOMAIN_MAP', '{"example.com":{"slug":"prov-436-domain-removed","role":"member"}}'],
+        ]),
+      ),
       user,
     )
 
@@ -306,11 +333,13 @@ describe('covers PROJ-433: provisioning runs once per user, not per request', ()
     const slug = 'prov-cache-hit'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('cache-hit@example.com')
-    const config = envWith({
-      ADMIN_EMAILS: '',
-      DEFAULT_WORKSPACE_SLUG: slug,
-      AUTO_JOIN_ROLE: 'viewer',
-    })
+    const config = envWith(
+      fieldsInOrder([
+        ['ADMIN_EMAILS', ''],
+        ['DEFAULT_WORKSPACE_SLUG', slug],
+        ['AUTO_JOIN_ROLE', 'viewer'],
+      ]),
+    )
 
     await ensureUserProvisioned(config, user)
     await expect(memberRole(ws.id, user.id)).resolves.toBe('viewer')
@@ -326,11 +355,13 @@ describe('covers PROJ-433: provisioning runs once per user, not per request', ()
     const slug = 'prov-cache-expiry'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('cache-expiry@example.com')
-    const config = envWith({
-      ADMIN_EMAILS: '',
-      DEFAULT_WORKSPACE_SLUG: slug,
-      AUTO_JOIN_ROLE: 'viewer',
-    })
+    const config = envWith(
+      fieldsInOrder([
+        ['ADMIN_EMAILS', ''],
+        ['DEFAULT_WORKSPACE_SLUG', slug],
+        ['AUTO_JOIN_ROLE', 'viewer'],
+      ]),
+    )
 
     await ensureUserProvisioned(config, user)
     await dropMembership(ws.id, user.id)
@@ -345,11 +376,13 @@ describe('covers PROJ-433: provisioning runs once per user, not per request', ()
     const slug = 'prov-kv-read-fail'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('kv-read-fail@example.com')
-    const config = envWith({
-      ADMIN_EMAILS: '',
-      DEFAULT_WORKSPACE_SLUG: slug,
-      AUTO_JOIN_ROLE: 'viewer',
-    })
+    const config = envWith(
+      fieldsInOrder([
+        ['ADMIN_EMAILS', ''],
+        ['DEFAULT_WORKSPACE_SLUG', slug],
+        ['AUTO_JOIN_ROLE', 'viewer'],
+      ]),
+    )
 
     await ensureUserProvisioned(config, user)
     await dropMembership(ws.id, user.id)
@@ -369,11 +402,13 @@ describe('covers PROJ-433: provisioning runs once per user, not per request', ()
   test('does not cache a run that bailed waiting for the default workspace', async () => {
     const slug = 'prov-cache-early-bird'
     const user = await seedUser('cache-early-bird@example.com')
-    const config = envWith({
-      ADMIN_EMAILS: '',
-      DEFAULT_WORKSPACE_SLUG: slug,
-      AUTO_JOIN_ROLE: 'viewer',
-    })
+    const config = envWith(
+      fieldsInOrder([
+        ['ADMIN_EMAILS', ''],
+        ['DEFAULT_WORKSPACE_SLUG', slug],
+        ['AUTO_JOIN_ROLE', 'viewer'],
+      ]),
+    )
 
     await ensureUserProvisioned(config, user)
 

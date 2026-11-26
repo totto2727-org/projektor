@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { relyingPartyHost } from '#commands/oauth.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { purgeExpiredOAuthData } from '#core/api/maintenance.ts'
 import { runIndexedInOrder } from '#tests/run-effect.ts'
@@ -326,7 +327,14 @@ describe('dynamic client registration', () => {
     })
     const resolvedValue = await registerClient()
     expect(resolvedValue.status).toBe(429)
-    const response = await exchange({ grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }, clientIp)
+    const response = await exchange(
+      fieldsInOrder([
+        ['grant_type', 'authorization_code'],
+        ['code', 'nope'],
+        ['client_id', 'nope'],
+      ]),
+      clientIp,
+    )
     expect(response.status).toBe(401)
   })
 })
@@ -353,7 +361,13 @@ describe('only a signed-in human reaches the consent screen', () => {
     const { clientId } = await seedOAuthClient()
 
     const res = await fetchNativeApi(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${fixture.workspace.id}` }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${fixture.workspace.id}`],
+        ]),
+      ),
       { headers: { Authorization: `Bearer ${token}` } },
     )
 
@@ -412,10 +426,19 @@ describe('the authorization request must name a workspace the user belongs to', 
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/api/projects` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
-      redirect: 'manual',
-    })
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/api/projects`],
+        ]),
+      ),
+      {
+        headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
+        redirect: 'manual',
+      },
+    )
 
     expect(res.status).toBe(302)
     expect(new URL(res.headers.get('Location') as string).searchParams.get('error')).toBe('invalid_target')
@@ -428,10 +451,19 @@ describe('the authorization request must name a workspace the user belongs to', 
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${other.id}` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
-      redirect: 'manual',
-    })
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${other.id}`],
+        ]),
+      ),
+      {
+        headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
+        redirect: 'manual',
+      },
+    )
 
     /*
      * Rendered locally on purpose. Bouncing back with access_denied would tell the
@@ -464,9 +496,18 @@ describe('the consent screen', () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
-    })
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
+      {
+        headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
+      },
+    )
     const body = await res.text()
 
     expect(res.status).toBe(200)
@@ -497,12 +538,14 @@ describe('the consent screen', () => {
     const { challenge } = await pkce()
 
     const res = await fetchNativeApi(
-      authorizeUrl({
-        clientId,
-        challenge,
-        resource: `${HOST}/mcp/${workspaceId}`,
-        redirectUri: 'http://127.0.0.1:8976/callback',
-      }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+          ['redirectUri', 'http://127.0.0.1:8976/callback'],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
 
@@ -517,12 +560,14 @@ describe('the consent screen', () => {
     const { challenge } = await pkce()
 
     const res = await fetchNativeApi(
-      authorizeUrl({
-        clientId,
-        challenge,
-        resource: `${HOST}/mcp/${workspaceId}`,
-        redirectUri: 'http://127.0.0.1:54321/callback',
-      }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+          ['redirectUri', 'http://127.0.0.1:54321/callback'],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
 
@@ -535,12 +580,14 @@ describe('the consent screen', () => {
     const { challenge } = await pkce()
 
     const res = await fetchNativeApi(
-      authorizeUrl({
-        clientId,
-        challenge,
-        resource: `${HOST}/mcp/${workspaceId}`,
-        redirectUri: 'https://attacker.example/steal',
-      }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+          ['redirectUri', 'https://attacker.example/steal'],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }), redirect: 'manual' },
     )
 
@@ -557,7 +604,13 @@ describe('the consent screen', () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     const consentPage = await fetchNativeApi(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
 
@@ -601,7 +654,13 @@ describe('the consent POST cannot be forged or replayed', () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     const consentPage = await fetchNativeApi(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
     const token = consentTokenFrom(await consentPage.text())
@@ -621,7 +680,13 @@ describe('the consent POST cannot be forged or replayed', () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     const consentPage = await fetchNativeApi(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
     const token = consentTokenFrom(await consentPage.text())
@@ -705,7 +770,14 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     const { email, workspaceId } = await seedTestData()
     const { tokens, clientId, resource } = await connect({ email, workspaceId })
     const refresh = (refresh_token: string): Promise<Response> =>
-      exchange({ grant_type: 'refresh_token', refresh_token, client_id: clientId, resource })
+      exchange(
+        fieldsInOrder([
+          ['grant_type', 'refresh_token'],
+          ['refresh_token', refresh_token],
+          ['client_id', clientId],
+          ['resource', resource],
+        ]),
+      )
 
     const first = await refresh(tokens.refresh_token)
     expect(first.status).toBe(200)
@@ -744,7 +816,12 @@ describe('the issued token is bound to the workspace it was granted for', () => 
      */
     const { tokens, clientId } = await connect({ email, workspaceId })
 
-    const revoked = await exchange({ token: tokens.access_token, client_id: clientId })
+    const revoked = await exchange(
+      fieldsInOrder([
+        ['token', tokens.access_token],
+        ['client_id', clientId],
+      ]),
+    )
     expect(revoked.status).toBe(200)
 
     await expect(mcpCall(workspaceId, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
@@ -897,7 +974,15 @@ describe("the token endpoint's failure modes", () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const url = new URL(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }))
+    const url = new URL(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
+    )
     url.searchParams.delete('code_challenge_method')
 
     const res = await fetchNativeApi(url.toString(), {
@@ -926,14 +1011,16 @@ describe("the token endpoint's failure modes", () => {
      * A code intercepted from the redirect is worthless without the verifier that
      * only the client that started the flow holds.
      */
-    const res = await exchange({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: CLIENT_REDIRECT,
-      client_id: clientId,
-      code_verifier: (await pkce()).verifier,
-      resource,
-    })
+    const res = await exchange(
+      fieldsInOrder([
+        ['grant_type', 'authorization_code'],
+        ['code', code],
+        ['redirect_uri', CLIENT_REDIRECT],
+        ['client_id', clientId],
+        ['code_verifier', (await pkce()).verifier],
+        ['resource', resource],
+      ]),
+    )
 
     expect(res.status).toBe(400)
     await expect(res.json()).resolves.toMatchObject({ error: 'invalid_grant' })
@@ -995,7 +1082,12 @@ describe('a grant is only as live as the membership behind it (PROJ-658)', () =>
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
     await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
-    const revoked = await exchange({ token: tokens.refresh_token, client_id: clientId })
+    const revoked = await exchange(
+      fieldsInOrder([
+        ['token', tokens.refresh_token],
+        ['client_id', clientId],
+      ]),
+    )
     expect(revoked.status).toBe(200)
 
     await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
@@ -1019,11 +1111,13 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
       await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
     })
 
-    const refreshed = await exchange({
-      grant_type: 'refresh_token',
-      refresh_token: tokens.refresh_token,
-      client_id: clientId,
-    })
+    const refreshed = await exchange(
+      fieldsInOrder([
+        ['grant_type', 'refresh_token'],
+        ['refresh_token', tokens.refresh_token],
+        ['client_id', clientId],
+      ]),
+    )
     expect(refreshed.status).toBe(200)
     const rotated = await refreshed.json<TokenResponse>()
     expect(rotated.access_token).not.toBe(tokens.access_token)
@@ -1097,7 +1191,13 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     const consentPage = await fetchNativeApi(
-      authorizeUrl({ clientId, resource: `${HOST}/mcp/${workspace.id}`, challenge }),
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['resource', `${HOST}/mcp/${workspace.id}`],
+          ['challenge', challenge],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
@@ -1234,9 +1334,18 @@ interface ConsentTestContext {
 const consentPage = async function consentPage({ email, workspaceId }: ConsentFixture): Promise<Response> {
   const { clientId } = await seedOAuthClient()
   const { challenge } = await pkce()
-  return fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
-    headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
-  })
+  return fetchNativeApi(
+    authorizeUrl(
+      fieldsInOrder([
+        ['clientId', clientId],
+        ['challenge', challenge],
+        ['resource', `${HOST}/mcp/${workspaceId}`],
+      ]),
+    ),
+    {
+      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
+    },
+  )
 }
 
 describe('hardening the consent screen itself', () => {
