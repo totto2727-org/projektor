@@ -38,19 +38,19 @@ const attachment = function attachment(
   kind: Attachment['kind'] = 'file',
 ): Attachment {
   return {
+    contentType: 'application/pdf',
+    createdAt: 1,
+    filename: `${id}.pdf`,
     id,
     kind,
-    filename: `${id}.pdf`,
-    contentType: 'application/pdf',
+    reviewStatus: status,
     size: 10,
     url: kind === 'url' ? `https://example.com/${id}` : JSON_NULL,
-    createdAt: 1,
     wikiPage: JSON_NULL,
-    reviewStatus: status,
   }
 }
 
-const props = { workspaceSlug: 'workspace', issueId: 'issue', issueHref: '/issues/PROJ-1?workspace=workspace' }
+const props = { issueHref: '/issues/PROJ-1?workspace=workspace', issueId: 'issue', workspaceSlug: 'workspace' }
 const success = { ok: true, value: { ok: true } } satisfies Awaited<ReturnType<typeof setAttachmentReviewStatus>>
 
 describe('covers issue review target controls', () => {
@@ -69,10 +69,10 @@ describe('covers issue review target controls', () => {
     const { rerender } = render(<ReviewTargetsSection {...props} attachments={attachments} />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' }))
     expect(setAttachmentReviewStatus).toHaveBeenCalledExactlyOnceWith({
-      workspaceSlug: 'workspace',
-      issueId: 'issue',
       attachmentId: 'first',
+      issueId: 'issue',
       status: 'fixing',
+      workspaceSlug: 'workspace',
     })
     expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('checked', false)
     expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('disabled', true)
@@ -98,10 +98,10 @@ describe('covers issue review target controls', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' }))
       await act(async () => {})
       expect(setAttachmentReviewStatus).toHaveBeenCalledExactlyOnceWith({
-        workspaceSlug: 'workspace',
-        issueId: 'issue',
         attachmentId: 'first',
+        issueId: 'issue',
         status: JSON_NULL,
+        workspaceSlug: 'workspace',
       })
       rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: JSON_NULL }, second]} />)
       expect(screen.getByText('first.pdf')).toBeInstanceOf(Element)
@@ -206,7 +206,7 @@ describe('covers issue review target controls', () => {
     await act(async () => {})
     rerender(<ReviewTargetsSection {...props} attachments={[first, { ...second, reviewStatus: 'in_review' }]} />)
     await act(async () => {
-      pending.resolve({ ok: false, status: 409, message: 'Target changed. Refresh and try again.' })
+      pending.resolve({ message: 'Target changed. Refresh and try again.', ok: false, status: 409 })
     })
     expect(screen.getByRole('alert').textContent).toBe('Target changed. Refresh and try again.')
     expect(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).toHaveProperty('value', 'in_review')
@@ -370,41 +370,41 @@ describe('covers issue review target controls', () => {
 
   test('renders focused issue context, status, access links, and back navigation on the server without full issue sections', () => {
     const initialData: IssueDetailInitialData = {
+      attachments: [attachment('spec', 'in_review')],
+      children: [],
+      comments: [],
+      currentUserId: 'user',
       issue: {
+        assignee_id: JSON_NULL,
+        assignee_name: JSON_NULL,
+        body: 'Full body',
+        created_at: 1,
+        customFields: [],
         id: 'issue',
         number: 1,
-        title: 'Review this issue',
-        body: 'Full body',
+        parent_id: JSON_NULL,
         priority: 'medium',
         project_id: 'project',
         project_key: 'PROJ',
         project_name: 'Project',
-        assignee_id: JSON_NULL,
-        assignee_name: JSON_NULL,
-        parent_id: JSON_NULL,
+        reviewTargets: [],
         sprint_id: JSON_NULL,
-        type_id: JSON_NULL,
-        type_key: JSON_NULL,
-        type_name: JSON_NULL,
+        status_category: JSON_NULL,
         status_id: JSON_NULL,
         status_key: JSON_NULL,
         status_name: JSON_NULL,
-        status_category: JSON_NULL,
-        created_at: 1,
+        title: 'Review this issue',
+        type_id: JSON_NULL,
+        type_key: JSON_NULL,
+        type_name: JSON_NULL,
         updated_at: 1,
-        customFields: [],
-        reviewTargets: [],
       },
-      attachments: [attachment('spec', 'in_review')],
-      comments: [],
       links: [],
-      statuses: [],
-      taskTypes: [],
       members: [],
       parent: JSON_NULL,
-      children: [],
-      currentUserId: 'user',
       reviewTargetsFocused: true,
+      statuses: [],
+      taskTypes: [],
     }
     const html = renderToStaticMarkup(<IssueDetail workspaceSlug='workspace' initialData={initialData} />)
     const parsed = new DOMParser().parseFromString(html, 'text/html')

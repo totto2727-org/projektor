@@ -39,10 +39,10 @@ vi.mock('./actions', () => ({
   restoreWikiRevision: vi.fn<typeof Actions.restoreWikiRevision>(),
   saveWikiDraft: vi
     .fn<typeof Actions.saveWikiDraft>()
-    .mockResolvedValue({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'saved' } }),
+    .mockResolvedValue({ ok: true, value: { ok: true, pageId: 'page', revision: 'saved', updatedAt: 1 } }),
   saveWikiPage: vi
     .fn<typeof Actions.saveWikiPage>()
-    .mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } }),
+    .mockResolvedValue({ ok: true, value: { draftRevision: 'published', ok: true } }),
   trashWikiPage: vi.fn<typeof Actions.trashWikiPage>(),
   verifyWikiPage: vi.fn<typeof Actions.verifyWikiPage>(),
 }))
@@ -84,45 +84,45 @@ vi.mock(import('./lazy-markdown-editor.tsx'), () => ({
 }))
 const seed = function seed(): WikiSeed & { page: NonNullable<WikiSeed['page']> } {
   return {
-    workspaceSlug: 'team',
-    projectId: '',
-    slug: 'guide',
-    mode: 'edit',
+    attachments: [],
     brandName: 'Acme',
-    publicViewer: false,
     createTitle: '',
-    filterType: '',
-    filterStatus: '',
-    filterTags: '',
-    searchQuery: '',
     draft: JSON_NULL,
     draftStatus: 'ready',
-    tree: [],
-    revisions: [],
-    attachments: [],
-    templates: [],
-    projects: [],
-    stalePages: [],
+    filterStatus: '',
+    filterTags: '',
+    filterType: '',
     filteredPages: [],
-    searchResults: [],
+    mode: 'edit',
     page: {
-      id: 'page',
-      slug: 'guide',
-      title: 'Guide',
       content: 'Published',
-      project_id: JSON_NULL,
+      freshness: JSON_NULL,
+      id: 'page',
+      owners: [],
       parent_id: JSON_NULL,
+      project_id: JSON_NULL,
       revisionId: 'rev',
-      updated_at: 1,
-      type: JSON_NULL,
+      slug: 'guide',
       status: JSON_NULL,
       tags: [],
-      owners: [],
+      title: 'Guide',
+      type: JSON_NULL,
+      updated_at: 1,
       verified_at: JSON_NULL,
       verified_by: JSON_NULL,
       verify_interval: JSON_NULL,
-      freshness: JSON_NULL,
     },
+    projectId: '',
+    projects: [],
+    publicViewer: false,
+    revisions: [],
+    searchQuery: '',
+    searchResults: [],
+    slug: 'guide',
+    stalePages: [],
+    templates: [],
+    tree: [],
+    workspaceSlug: 'team',
   }
 }
 afterEach(() => {
@@ -130,10 +130,10 @@ afterEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
   vi.unstubAllGlobals()
-  vi.mocked(saveWikiPage).mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } })
+  vi.mocked(saveWikiPage).mockResolvedValue({ ok: true, value: { draftRevision: 'published', ok: true } })
   vi.mocked(saveWikiDraft).mockResolvedValue({
     ok: true,
-    value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'saved' },
+    value: { ok: true, pageId: 'page', revision: 'saved', updatedAt: 1 },
   })
   vi.mocked(discardWikiDraft).mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } })
 })
@@ -157,7 +157,7 @@ describe('wiki delayed draft lifecycle', () => {
     })
     view.unmount()
     await act(async () => {
-      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+      publication.resolve({ ok: true, value: { draftRevision: 'published-head', ok: true } })
     })
     expect(saveWikiDraft).not.toHaveBeenCalled()
   })
@@ -167,7 +167,7 @@ describe('wiki delayed draft lifecycle', () => {
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
     const view = render(
       <WikiPageClient
-        initial={{ ...seed(), draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+        initial={{ ...seed(), draft: { baseRevisionId: 'rev', content: 'Recover me', title: 'Saved', updatedAt: 2 } }}
       />,
     )
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Discarded A' } })
@@ -194,7 +194,7 @@ describe('wiki delayed draft lifecycle', () => {
     await debounce()
     expect(saveWikiDraft).toHaveBeenCalledOnce()
     await act(async () => {
-      pending.resolve({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'A-revision' } })
+      pending.resolve({ ok: true, value: { ok: true, pageId: 'page', revision: 'A-revision', updatedAt: 1 } })
     })
     expect(saveWikiDraft).toHaveBeenCalledTimes(2)
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
@@ -204,7 +204,7 @@ describe('wiki delayed draft lifecycle', () => {
 
   test('keeps failed autosaves unacknowledged without blindly retrying on leave', async () => {
     timers()
-    vi.mocked(saveWikiDraft).mockResolvedValueOnce({ ok: false, status: 503, message: 'Unavailable' })
+    vi.mocked(saveWikiDraft).mockResolvedValueOnce({ message: 'Unavailable', ok: false, status: 503 })
     const view = render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep A' } })
     await debounce()
@@ -243,7 +243,7 @@ describe('wiki delayed draft lifecycle', () => {
     })
     expect(saveWikiPage).not.toHaveBeenCalled()
     await act(async () => {
-      draft.resolve({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'A-head' } })
+      draft.resolve({ ok: true, value: { ok: true, pageId: 'page', revision: 'A-head', updatedAt: 1 } })
     })
     expect(saveWikiPage).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'A', expectedDraftRevision: 'A-head' }),
@@ -251,7 +251,7 @@ describe('wiki delayed draft lifecycle', () => {
     expect(saveWikiPage).toHaveBeenCalledOnce()
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Newer B' } })
     await act(async () => {
-      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+      publication.resolve({ ok: true, value: { draftRevision: 'published-head', ok: true } })
     })
     expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Newer B')
     await debounce()
@@ -276,7 +276,7 @@ describe('wiki delayed draft lifecycle', () => {
     view.unmount()
     expect(saveWikiDraft).not.toHaveBeenCalled()
     await act(async () => {
-      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+      publication.resolve({ ok: true, value: { draftRevision: 'published-head', ok: true } })
     })
     expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenCalledWith(
@@ -290,7 +290,7 @@ describe('wiki delayed draft lifecycle', () => {
     const initial = seed()
     render(
       <WikiPageClient
-        initial={{ ...initial, draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+        initial={{ ...initial, draft: { baseRevisionId: 'rev', content: 'Recover me', title: 'Saved', updatedAt: 2 } }}
       />,
     )
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Local A' } })
@@ -299,7 +299,7 @@ describe('wiki delayed draft lifecycle', () => {
     })
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Local B' } })
     await act(async () => {
-      deletion.resolve({ ok: false, status: 503, message: 'Unavailable' })
+      deletion.resolve({ message: 'Unavailable', ok: false, status: 503 })
     })
     expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Local B')
     expect(screen.getByRole('button', { name: 'Restore' })).toBeInstanceOf(Element)
@@ -312,7 +312,7 @@ describe('wiki delayed draft lifecycle', () => {
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
     render(
       <WikiPageClient
-        initial={{ ...seed(), draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+        initial={{ ...seed(), draft: { baseRevisionId: 'rev', content: 'Recover me', title: 'Saved', updatedAt: 2 } }}
       />,
     )
     await act(async () => {
@@ -389,15 +389,15 @@ describe('wiki server prop adoption', () => {
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     })
     const result = {
-      id: 'result',
-      slug: 'result',
-      title: 'Server search result',
-      project_id: JSON_NULL,
       excerpt: JSON_NULL,
-      type: JSON_NULL,
+      freshness: JSON_NULL,
+      id: 'result',
+      project_id: JSON_NULL,
+      slug: 'result',
       status: JSON_NULL,
       tags: [],
-      freshness: JSON_NULL,
+      title: 'Server search result',
+      type: JSON_NULL,
     }
     const initial = {
       ...seed(),
@@ -476,7 +476,7 @@ describe('wiki server prop adoption', () => {
     expect.hasAssertions()
     vi.mocked(uploadInlineImage).mockResolvedValue({
       ok: true,
-      value: { id: 'inline-file', filename: 'inline.png', contentType: 'image/png', size: 5 },
+      value: { contentType: 'image/png', filename: 'inline.png', id: 'inline-file', size: 5 },
     })
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Unsaved draft' } })
@@ -497,9 +497,9 @@ describe('wiki server prop adoption', () => {
 
   test('preserves the unsaved draft when an inline ServerFn upload is rejected by request limits', async () => {
     vi.mocked(uploadInlineImage).mockResolvedValue({
+      message: "Request body exceeds Effront's limit.",
       ok: false,
       status: 413,
-      message: "Request body exceeds Effront's limit.",
     })
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep my draft' } })
@@ -524,7 +524,7 @@ describe('wiki server prop adoption', () => {
   })
 
   test('retains editor content and exposes original overwrite controls on a revision conflict', async () => {
-    vi.mocked(saveWikiPage).mockResolvedValue({ ok: false, status: 409, message: 'Conflict' })
+    vi.mocked(saveWikiPage).mockResolvedValue({ message: 'Conflict', ok: false, status: 409 })
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), {
       target: { value: 'My conflicted body' },
