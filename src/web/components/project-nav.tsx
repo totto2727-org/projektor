@@ -104,7 +104,7 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
       return
     }
     const outside = (event: MouseEvent): void => {
-      if (event.target instanceof Node && !moreRef.current?.contains(event.target)) {
+      if (event.target instanceof Node && moreRef.current?.contains(event.target) !== true) {
         setMoreOpen(false)
       }
     }

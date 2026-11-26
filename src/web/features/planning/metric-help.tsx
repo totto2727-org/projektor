@@ -57,7 +57,7 @@ export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Ele
     const inside = (node: Node): undefined | boolean =>
       root.current?.contains(node) === true ? true : panel.current?.contains(node)
     const pointer = (event: MouseEvent): void => {
-      if (!(event.target instanceof Node) || !inside(event.target)) {
+      if (!(event.target instanceof Node) || inside(event.target) !== true) {
         setOpen(false)
       }
     }
@@ -67,7 +67,7 @@ export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Ele
       }
     }
     const scroll = (event: Event): void => {
-      if (!(event.target instanceof Node) || !inside(event.target)) {
+      if (!(event.target instanceof Node) || inside(event.target) !== true) {
         setOpen(false)
       }
     }
