@@ -8,6 +8,12 @@ interface ScopeSelectionProps {
   url: URL
 }
 
+const renderScopeChoiceOption = (item: { value: string; label: string }): JSX.Element => (
+  <option key={item.value} value={item.value}>
+    {item.label}
+  </option>
+)
+
 /**
  * Native GET forms also work without JavaScript and preserve explicit URL scope.
  *
@@ -50,11 +56,7 @@ export const ScopeSelection = function ScopeSelection({ scope, url }: ScopeSelec
             {project ? 'Project' : 'Workspace'}
           </label>
           <select id='scope-choice' name={name} className='input' defaultValue={options[0].value}>
-            {options.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
+            {options.map((item) => renderScopeChoiceOption(item))}
           </select>
           <button type='submit' className='btn btn-primary mt-3'>
             Continue

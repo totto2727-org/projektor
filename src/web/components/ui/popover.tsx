@@ -32,6 +32,10 @@ export interface PopoverProps {
   children: ReactNode
 }
 
+const renderFixedPopover = (popup: JSX.Element): JSX.Element => (
+  <PopoverPrimitive.Portal>{popup}</PopoverPrimitive.Portal>
+)
+
 /**
  * Existing callers control visibility and supply coordinates, so no trigger is invented.
  * Base UI owns the popup and portal. The generated root shares the same context.
@@ -97,7 +101,7 @@ export const Popover = function Popover({
   )
   return (
     <PrimitivePopover open modal={ariaModal ?? false}>
-      {strategy === 'portal-fixed' ? <PopoverPrimitive.Portal>{popup}</PopoverPrimitive.Portal> : popup}
+      {strategy === 'portal-fixed' ? renderFixedPopover(popup) : popup}
     </PrimitivePopover>
   )
 }

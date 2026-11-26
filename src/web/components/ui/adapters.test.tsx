@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRef } from 'react'
+import type { JSX } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { Badge } from './badge.tsx'
@@ -13,6 +14,22 @@ import { Input, Textarea } from './input.tsx'
 import { Popover, Portal } from './popover.tsx'
 import { Select } from './select.tsx'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './table.tsx'
+
+const renderTableAdapterHead = (): JSX.Element => (
+  <TableHead>
+    <TableRow>
+      <TableHeader>Name</TableHeader>
+    </TableRow>
+  </TableHead>
+)
+
+const renderTableAdapterBody = (): JSX.Element => (
+  <TableBody>
+    <TableRow data-testid='row'>
+      <TableCell muted>Issue</TableCell>
+    </TableRow>
+  </TableBody>
+)
 
 describe('generated UI compatibility adapters', () => {
   afterEach(cleanup)
@@ -88,16 +105,8 @@ describe('generated UI compatibility adapters', () => {
           action={<Button>Create</Button>}
         />
         <Table class='old' className='new'>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Name</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            <TableRow data-testid='row'>
-              <TableCell muted>Issue</TableCell>
-            </TableRow>
-          </TableBody>
+          {renderTableAdapterHead()}
+          {renderTableAdapterBody()}
         </Table>
       </>,
     )

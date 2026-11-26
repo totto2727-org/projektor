@@ -30,6 +30,24 @@ export interface SelectProps {
   className?: string
 }
 
+const renderLegacySelectOptions = (
+  options: SelectProps['options'],
+  capitalize: SelectProps['capitalize'],
+): JSX.Element => (
+  <SelectContent align='start' alignItemWithTrigger={false}>
+    {options.map((option) => (
+      <SelectItem
+        key={option.value}
+        value={option.value}
+        label={option.label}
+        style={{ textTransform: capitalize === true ? 'capitalize' : undefined }}
+      >
+        {option.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+)
+
 /**
  * Translate legacy options into Base UI selection. No app-owned dropdown state.
  *
@@ -51,6 +69,16 @@ export function Select({
   className,
 }: SelectProps): JSX.Element {
   const label = options.find((option) => option.value === value)?.label ?? firstNonEmptyText(value, placeholder) ?? ''
+  const renderLegacySelectTrigger = (): JSX.Element => (
+    <SelectTrigger
+      aria-label={ariaLabel}
+      className={buttonClass}
+      style={{ textTransform: capitalize === true ? 'capitalize' : undefined, ...buttonStyle }}
+    >
+      <SelectValue>{label}</SelectValue>
+    </SelectTrigger>
+  )
+
   return (
     <div className={[legacyClass, className].filter(Boolean).join(' ')}>
       <PrimitiveSelect
@@ -63,25 +91,8 @@ export function Select({
           }
         }}
       >
-        <SelectTrigger
-          aria-label={ariaLabel}
-          className={buttonClass}
-          style={{ textTransform: capitalize === true ? 'capitalize' : undefined, ...buttonStyle }}
-        >
-          <SelectValue>{label}</SelectValue>
-        </SelectTrigger>
-        <SelectContent align='start' alignItemWithTrigger={false}>
-          {options.map((option) => (
-            <SelectItem
-              key={option.value}
-              value={option.value}
-              label={option.label}
-              style={{ textTransform: capitalize === true ? 'capitalize' : undefined }}
-            >
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
+        {renderLegacySelectTrigger()}
+        {renderLegacySelectOptions(options, capitalize)}
       </PrimitiveSelect>
     </div>
   )
