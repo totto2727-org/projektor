@@ -1,6 +1,6 @@
 'use client'
 
-import { Predicate } from 'effect'
+import { Function, Predicate } from 'effect'
 import { useCallback, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
@@ -135,7 +135,7 @@ export const useServerDraftAutosave = function useServerDraftAutosave(
       .finally(() => {
         drainingRef.current = false
       })
-    tailRef.current = task.catch(() => {})
+    tailRef.current = task.catch(Function.constVoid)
   }, [workspaceSlug])
 
   const persistDraft = useCallback(
@@ -197,7 +197,7 @@ export const useServerDraftAutosave = function useServerDraftAutosave(
           drainDrafts()
         }
       })
-    tailRef.current = task.catch(() => {})
+    tailRef.current = task.catch(Function.constVoid)
     return task
   }
 
@@ -247,7 +247,7 @@ export const useServerDraftAutosave = function useServerDraftAutosave(
           drainDrafts()
         }
       })
-    tailRef.current = task.catch(() => {})
+    tailRef.current = task.catch(Function.constVoid)
     return task
   }
 

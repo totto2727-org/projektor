@@ -1,6 +1,6 @@
 'use client'
 import { query as serverQuery } from '@effront/core/query'
-import { String, Array, Predicate, Effect, Schema } from 'effect'
+import { String, Array, Predicate, Effect, Function, Schema } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, JSX, ReactNode } from 'react'
 
@@ -103,7 +103,7 @@ export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: strin
   const [copiedRef, setCopiedRef] = useState(false)
 
   const copyLink = function copyLink(): void {
-    navigator.clipboard.writeText(new URL(copyUrl, window.location.origin).href).catch(() => {})
+    navigator.clipboard.writeText(new URL(copyUrl, window.location.origin).href).catch(Function.constVoid)
     setCopiedRef(true)
     setTimeout(() => {
       setCopiedRef(false)
@@ -185,7 +185,7 @@ export const ShareButton = function ShareButton({
     if (Predicate.isNullish(shareUrl) || String.isEmpty(shareUrl)) {
       return
     }
-    navigator.clipboard.writeText(shareUrl).catch(() => {})
+    navigator.clipboard.writeText(shareUrl).catch(Function.constVoid)
     setCopiedShare(true)
     setTimeout(() => {
       setCopiedShare(false)
