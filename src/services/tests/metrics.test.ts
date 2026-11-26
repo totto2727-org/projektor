@@ -24,11 +24,11 @@ const now = 3 * DAY
 const readDatabase = function readDatabase(sqlite: DatabaseSync, onQuery: () => void = () => {}): D1Database {
   const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
-      bind: (...values: SQLInputValue[]) => prepare(sql, values),
       all: async () => {
         onQuery()
         return { results: sqlite.prepare(sql).all(...bindings) }
       },
+      bind: (...values: SQLInputValue[]) => prepare(sql, values),
       raw: async () => {
         onQuery()
         return sqlite
@@ -42,8 +42,8 @@ const readDatabase = function readDatabase(sqlite: DatabaseSync, onQuery: () => 
 }
 
 const distribution = (value: number): { count: number; avg: number; p50: number; p90: number } => ({
-  count: 1,
   avg: value,
+  count: 1,
   p50: value,
   p90: value,
 })
@@ -115,49 +115,49 @@ describe('shared metrics migrated SQLite reads', () => {
 
   test('preserves the complete windowed output, historical CFD baseline, human attribution and present aging snapshot', async () => {
     const result = await runTestEffect(
-      getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY, until: now - 1, granularity: 'day' }, now),
+      getFlowMetrics(db, 'wa', { granularity: 'day', projectId: 'pa', since: DAY, until: now - 1 }, now),
     )
     expect(result).toStrictEqual({
-      leadTime: distribution(50),
-      leadTimeExcluded: 0,
-      cycleTime: distribution(40),
-      wipOverTime: [
-        { date: '1970-01-02', count: 0 },
-        { date: '1970-01-03', count: 0 },
+      agingWip: [{ ageSeconds: 0, id: 'future-open', status: 'in_progress' }],
+      arrivalVsCompletionOverTime: [
+        { bucketStart: '1970-01-02', completed: 1, created: 1, net: 0 },
+        { bucketStart: '1970-01-03', completed: 0, created: 0, net: 0 },
       ],
-      throughputOverTime: [
-        { bucketStart: '1970-01-02', count: 1 },
-        { bucketStart: '1970-01-03', count: 0 },
-      ],
+      autonomyRatio: distribution(0.5),
       bugShareOverTime: [
-        { bucketStart: '1970-01-02', total: 1, bugCount: 1, bugSharePercent: 1 },
-        { bucketStart: '1970-01-03', total: 0, bugCount: 0, bugSharePercent: JSON_NULL },
+        { bucketStart: '1970-01-02', bugCount: 1, bugSharePercent: 1, total: 1 },
+        { bucketStart: '1970-01-03', bugCount: 0, bugSharePercent: JSON_NULL, total: 0 },
       ],
       bugTypeTracked: true,
+      cfdOverTime: [
+        { backlogTodo: 0, bucketStart: '1970-01-02', done: 2, inProgress: 0, inReview: 0 },
+        { backlogTodo: 0, bucketStart: '1970-01-03', done: 2, inProgress: 0, inReview: 0 },
+      ],
+      cycleTime: distribution(40),
+      factoryHealth: { abandonedClaims: 1, gateRejections: 1, leaseExpiries: 1, wipCapPressure: 1 },
+      flowEfficiency: distribution(0.4),
+      humanInterventions: distribution(3),
+      leadTime: distribution(50),
+      leadTimeExcluded: 0,
       reviewLatency: distribution(20),
       reviewLatencyOverTime: [
         { bucketStart: '1970-01-02', p50: 20 },
         { bucketStart: '1970-01-03', p50: JSON_NULL },
       ],
-      humanInterventions: distribution(3),
-      autonomyRatio: distribution(0.5),
-      cfdOverTime: [
-        { bucketStart: '1970-01-02', backlogTodo: 0, inProgress: 0, inReview: 0, done: 2 },
-        { bucketStart: '1970-01-03', backlogTodo: 0, inProgress: 0, inReview: 0, done: 2 },
+      throughputOverTime: [
+        { bucketStart: '1970-01-02', count: 1 },
+        { bucketStart: '1970-01-03', count: 0 },
       ],
       timeInProgress: distribution(20),
-      arrivalVsCompletionOverTime: [
-        { bucketStart: '1970-01-02', created: 1, completed: 1, net: 0 },
-        { bucketStart: '1970-01-03', created: 0, completed: 0, net: 0 },
+      wipOverTime: [
+        { count: 0, date: '1970-01-02' },
+        { count: 0, date: '1970-01-03' },
       ],
-      flowEfficiency: distribution(0.4),
-      agingWip: [{ id: 'future-open', status: 'in_progress', ageSeconds: 0 }],
-      factoryHealth: { leaseExpiries: 1, abandonedClaims: 1, gateRejections: 1, wipCapPressure: 1 },
     })
   })
 
   test('retains unbounded default distributions and deterministic default day/ISO-week buckets', async () => {
-    const result = await runTestEffect(getFlowMetrics(db, 'wa', { projectId: 'pa', granularity: 'week' }, now))
+    const result = await runTestEffect(getFlowMetrics(db, 'wa', { granularity: 'week', projectId: 'pa' }, now))
     expect(result.leadTime).toStrictEqual(distribution(50))
     expect(result.leadTimeExcluded).toBe(1)
     expect(result.humanInterventions.count).toBe(2)
@@ -168,7 +168,7 @@ describe('shared metrics migrated SQLite reads', () => {
 
   test('clamps partial weekly edges and returns empty data without cross-workspace leakage', async () => {
     const partial = await runTestEffect(
-      getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY + 60, until: DAY + 70, granularity: 'week' }, now),
+      getFlowMetrics(db, 'wa', { granularity: 'week', projectId: 'pa', since: DAY + 60, until: DAY + 70 }, now),
     )
     expect(partial.throughputOverTime).toStrictEqual([{ bucketStart: '1969-12-29', count: 1 }])
     expect(partial.arrivalVsCompletionOverTime[0]).toMatchObject({
@@ -177,7 +177,7 @@ describe('shared metrics migrated SQLite reads', () => {
       net: -1,
     })
     const foreign = await runTestEffect(
-      getFlowMetrics(db, 'wa', { projectId: 'pb', since: DAY, until: now, granularity: 'day' }, now),
+      getFlowMetrics(db, 'wa', { granularity: 'day', projectId: 'pb', since: DAY, until: now }, now),
     )
     expect(foreign.leadTime).toStrictEqual({ avg: JSON_NULL, count: 0, p50: JSON_NULL, p90: JSON_NULL })
     expect(foreign.agingWip).toStrictEqual([])
@@ -212,7 +212,7 @@ describe('shared metrics migrated SQLite reads', () => {
       totalDistinctIssues: 3,
     })
     const nested = await runTestEffect(
-      getCodeHeatmap(db, 'wa', { projectId: 'pa', since: DAY, until: now, prefix: 'src' }, now),
+      getCodeHeatmap(db, 'wa', { prefix: 'src', projectId: 'pa', since: DAY, until: now }, now),
     )
     expect(nested).toStrictEqual({
       entries: [
@@ -240,7 +240,7 @@ describe('shared metrics migrated SQLite reads', () => {
     insert.run('c3', 'wa', 'src/a.ts', 'done', 'old', DAY + 1)
     insert.run('cf', 'wb', 'foreign.ts', 'foreign', 'foreign', DAY)
     insert.run('cp', 'wa', 'other.ts', 'other-project', 'done', DAY)
-    const result = await runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pa', mode: 'contention' }, now))
+    const result = await runTestEffect(getCodeHeatmap(db, 'wa', { mode: 'contention', projectId: 'pa' }, now))
     expect(result).toStrictEqual({
       entries: [
         {
@@ -256,7 +256,7 @@ describe('shared metrics migrated SQLite reads', () => {
       totalDistinctIssues: 2,
     })
     await expect(
-      runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pb', mode: 'contention' }, now)),
+      runTestEffect(getCodeHeatmap(db, 'wa', { mode: 'contention', projectId: 'pb' }, now)),
     ).resolves.toStrictEqual({
       entries: [],
       mode: 'contention',
@@ -270,7 +270,7 @@ describe('shared metrics migrated SQLite reads', () => {
     const tracked = readDatabase(sqlite, () => {
       queries++
     })
-    const flow = getFlowMetrics(tracked, 'wa', { projectId: 'pa', since: DAY, until: now, granularity: 'day' }, now)
+    const flow = getFlowMetrics(tracked, 'wa', { granularity: 'day', projectId: 'pa', since: DAY, until: now }, now)
     const heatmap = getCodeHeatmap(tracked, 'wa', { projectId: 'pa' }, now)
     expect(queries).toBe(0)
     await runTestEffect(flow)
@@ -285,7 +285,7 @@ describe('shared metrics migrated SQLite reads', () => {
     expect(error).toBeInstanceOf(DataQueryError)
     expect(error.operation).toBe('getCodeHeatmap')
     const flowError = await runTestEffect(
-      getFlowMetrics(failed, 'wa', { projectId: 'pa', granularity: 'day' }, now).pipe(Effect.flip),
+      getFlowMetrics(failed, 'wa', { granularity: 'day', projectId: 'pa' }, now).pipe(Effect.flip),
     )
     expect(flowError).toBeInstanceOf(DataQueryError)
     expect(flowError.operation).toBe('getFlowMetrics')

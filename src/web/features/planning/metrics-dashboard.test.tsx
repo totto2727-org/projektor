@@ -28,42 +28,42 @@ vi.hoisted(() => {
     })),
   )
 })
-const distribution = { count: 2, avg: 3600, p50: 1800, p90: 7200 }
+const distribution = { avg: 3600, count: 2, p50: 1800, p90: 7200 }
 const metrics = (): FlowMetrics => ({
-  leadTime: distribution,
-  cycleTime: distribution,
-  reviewLatency: distribution,
-  humanInterventions: { count: 2, avg: 1.5, p50: 1, p90: 2 },
-  autonomyRatio: { count: 2, avg: 0.75, p50: 0.5, p90: 0.9 },
-  timeInProgress: distribution,
-  flowEfficiency: { count: 2, avg: 0.25, p50: 0.5, p90: 0.9 },
-  wipOverTime: [{ date: '2026-10-01', count: 3 }],
-  throughputOverTime: [{ bucketStart: '2026-10-01', count: 4 }],
+  agingWip: [
+    { ageSeconds: 86_400, id: 'i1', status: 'in_progress' },
+    { ageSeconds: 3600, id: 'i2', status: 'in_review' },
+  ],
+  arrivalVsCompletionOverTime: [{ bucketStart: '2026-10-01', completed: 4, created: 6, net: 2 }],
+  autonomyRatio: { avg: 0.75, count: 2, p50: 0.5, p90: 0.9 },
   bugShareOverTime: [
-    { bucketStart: '2026-10-01', total: 4, bugCount: 1, bugSharePercent: 0.25 },
-    { bucketStart: '2026-10-02', total: 0, bugCount: 0, bugSharePercent: JSON_NULL },
+    { bucketStart: '2026-10-01', bugCount: 1, bugSharePercent: 0.25, total: 4 },
+    { bucketStart: '2026-10-02', bugCount: 0, bugSharePercent: JSON_NULL, total: 0 },
   ],
   bugTypeTracked: true,
-  reviewLatencyOverTime: [{ bucketStart: '2026-10-01', p50: 1800 }],
   cfdOverTime: [
-    { bucketStart: '2026-10-01', backlogTodo: 4, inProgress: 3, inReview: 2, done: 1 },
-    { bucketStart: '2026-10-02', backlogTodo: 3, inProgress: 3, inReview: 2, done: 2 },
+    { backlogTodo: 4, bucketStart: '2026-10-01', done: 1, inProgress: 3, inReview: 2 },
+    { backlogTodo: 3, bucketStart: '2026-10-02', done: 2, inProgress: 3, inReview: 2 },
   ],
-  arrivalVsCompletionOverTime: [{ bucketStart: '2026-10-01', created: 6, completed: 4, net: 2 }],
-  agingWip: [
-    { id: 'i1', status: 'in_progress', ageSeconds: 86_400 },
-    { id: 'i2', status: 'in_review', ageSeconds: 3600 },
-  ],
-  factoryHealth: { leaseExpiries: 1, abandonedClaims: 2, gateRejections: 3, wipCapPressure: 4 },
+  cycleTime: distribution,
+  factoryHealth: { abandonedClaims: 2, gateRejections: 3, leaseExpiries: 1, wipCapPressure: 4 },
+  flowEfficiency: { avg: 0.25, count: 2, p50: 0.5, p90: 0.9 },
+  humanInterventions: { avg: 1.5, count: 2, p50: 1, p90: 2 },
+  leadTime: distribution,
+  reviewLatency: distribution,
+  reviewLatencyOverTime: [{ bucketStart: '2026-10-01', p50: 1800 }],
+  throughputOverTime: [{ bucketStart: '2026-10-01', count: 4 }],
+  timeInProgress: distribution,
+  wipOverTime: [{ count: 3, date: '2026-10-01' }],
 })
 const props = {
   projectId: 'p1',
   workspaceSlug: 'alpha',
   initialUrl: 'https://front.example/metrics?projectId=p1&workspace=alpha&since=2026-09-01&until=2026-10-01',
   initialHeatmap: {
+    entries: [{ distinctIssueCount: 2, isLeaf: false, path: 'src', segment: 'src' }],
     prefix: '',
     totalDistinctIssues: 2,
-    entries: [{ path: 'src', segment: 'src', isLeaf: false, distinctIssueCount: 2 }],
   },
 }
 
@@ -161,7 +161,7 @@ describe('full original metrics surfaces', () => {
     const view = render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-08-01' } })
     const next = metrics()
-    next.leadTime = { count: 77, avg: 7200, p50: 7200, p90: 7200 }
+    next.leadTime = { avg: 7200, count: 77, p50: 7200, p90: 7200 }
     view.rerender(<MetricsDashboard {...props} initialMetrics={next} />)
     expect(screen.getByLabelText<HTMLInputElement>('From date').value).toBe('2026-08-01')
     expect(screen.getByText('77')).toBeInstanceOf(Element)
@@ -185,17 +185,17 @@ describe('full original metrics surfaces', () => {
     const view = render(
       <CodeHeatmap
         data={{
-          prefix: 'src',
-          totalDistinctIssues: 3,
           entries: [
-            { path: 'src/api', segment: 'api', isLeaf: false, distinctRejectedIssueCount: 3 },
+            { distinctRejectedIssueCount: 3, isLeaf: false, path: 'src/api', segment: 'api' },
             {
+              distinctRejectedIssueCount: 1,
+              isLeaf: true,
               path: 'src/index.ts',
               segment: 'index.ts',
-              isLeaf: true,
-              distinctRejectedIssueCount: 1,
             },
           ],
+          prefix: 'src',
+          totalDistinctIssues: 3,
         }}
         mode='contention'
         initialUrl={props.initialUrl}
@@ -208,7 +208,7 @@ describe('full original metrics surfaces', () => {
     expect(screen.getByText('index.ts').closest('a')).toBeNull()
     view.rerender(
       <CodeHeatmap
-        data={{ prefix: '', totalDistinctIssues: 0, entries: [] }}
+        data={{ entries: [], prefix: '', totalDistinctIssues: 0 }}
         mode='contention'
         initialUrl={props.initialUrl}
       />,
