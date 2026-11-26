@@ -38,6 +38,17 @@ export interface FlowMetricsRange {
   granularity: 'day' | 'week'
 }
 
+interface MetricBucketWindow {
+  since: number
+  until: number
+  granularity: FlowMetricsRange['granularity']
+}
+
+interface BucketRange {
+  start: number
+  end: number
+}
+
 export interface Distribution {
   count: number
   avg: number | null
@@ -113,31 +124,32 @@ const buildBucketStarts = function buildBucketStarts(
  * doesn't pull in events from just outside the requested window (matches leadTime/
  * cycleTime's inWindow semantics exactly).
  */
-const bucketRanges = function bucketRanges(
-  starts: Readonly<number[]>,
-  bucketSize: number,
-  since: number,
-  until: number,
-): { start: number; end: number }[] {
-  return starts.map((bucketStart) =>
+const metricBuckets = function metricBuckets({ granularity, since, until }: MetricBucketWindow): {
+  ranges: BucketRange[]
+  starts: number[]
+} {
+  const bucketSize = bucketSizeFor(granularity)
+  const starts = buildBucketStarts(since, until, granularity)
+  const ranges = starts.map((bucketStart): BucketRange =>
     fieldsInOrder([
       ['start', Math.max(bucketStart, since)],
       ['end', Math.min(bucketStart + bucketSize, until + TIMESTAMP_STEP_SECONDS)],
     ]),
   )
+  return { ranges, starts }
 }
 
 /*
  * PROJ-866: assign each item to its bucket in one pass over the SORTED item list plus
  * one pass over the (already small, bounded) bucket ranges — O(n log n + buckets)
  * instead of the old O(buckets * n) (filtering every issue per bucket). Ranges must be
- * non-decreasing and non-overlapping in `start`/`end` (true for bucketRanges() above,
+ * non-decreasing and non-overlapping in `start`/`end` (true for metricBuckets() above,
  * since consecutive buckets are contiguous and since/until only clamp the two edges).
  */
 const groupBySortedRanges = function groupBySortedRanges<T>(
   items: Readonly<T[]>,
   time: (item: T) => number,
-  ranges: Readonly<{ start: number; end: number }[]>,
+  ranges: Readonly<BucketRange[]>,
 ): T[][] {
   const sorted = [...items].toSorted((left, right) => time(left) - time(right))
   const groups: T[][] = ranges.map(() => [])
@@ -201,13 +213,9 @@ const buildWipOverTime = function buildWipOverTime(
 
 const buildThroughputOverTime = function buildThroughputOverTime(
   issues: Readonly<FlowIssueRow[]>,
-  since: number,
-  until: number,
-  granularity: 'day' | 'week',
+  window: MetricBucketWindow,
 ): { bucketStart: string; count: number }[] {
-  const bucketSize = bucketSizeFor(granularity)
-  const starts = buildBucketStarts(since, until, granularity)
-  const ranges = bucketRanges(starts, bucketSize, since, until)
+  const { ranges, starts } = metricBuckets(window)
   const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
     Predicate.isNotNullish(issue.doneAt),
   )
@@ -224,13 +232,9 @@ const buildThroughputOverTime = function buildThroughputOverTime(
  */
 const buildBugShareOverTime = function buildBugShareOverTime(
   issues: Readonly<FlowIssueRow[]>,
-  since: number,
-  until: number,
-  granularity: 'day' | 'week',
+  window: MetricBucketWindow,
 ): { bucketStart: string; total: number; bugCount: number; bugSharePercent: number | null }[] {
-  const bucketSize = bucketSizeFor(granularity)
-  const starts = buildBucketStarts(since, until, granularity)
-  const ranges = bucketRanges(starts, bucketSize, since, until)
+  const { ranges, starts } = metricBuckets(window)
   const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
     Predicate.isNotNullish(issue.doneAt),
   )
@@ -253,13 +257,9 @@ const buildBugShareOverTime = function buildBugShareOverTime(
  */
 const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
   issues: Readonly<FlowIssueRow[]>,
-  since: number,
-  until: number,
-  granularity: 'day' | 'week',
+  window: MetricBucketWindow,
 ): { bucketStart: string; p50: number | null }[] {
-  const bucketSize = bucketSizeFor(granularity)
-  const starts = buildBucketStarts(since, until, granularity)
-  const ranges = bucketRanges(starts, bucketSize, since, until)
+  const { ranges, starts } = metricBuckets(window)
   const reviewed = issues.filter(
     (issue): issue is FlowIssueRow & { doneAt: number; inReviewAt: number } =>
       Predicate.isNotNullish(issue.doneAt) && Predicate.isNotNullish(issue.inReviewAt),
@@ -278,13 +278,9 @@ const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
  */
 const buildArrivalVsCompletion = function buildArrivalVsCompletion(
   issues: Readonly<FlowIssueRow[]>,
-  since: number,
-  until: number,
-  granularity: 'day' | 'week',
+  window: MetricBucketWindow,
 ): { bucketStart: string; created: number; completed: number; net: number }[] {
-  const bucketSize = bucketSizeFor(granularity)
-  const starts = buildBucketStarts(since, until, granularity)
-  const ranges = bucketRanges(starts, bucketSize, since, until)
+  const { ranges, starts } = metricBuckets(window)
   const createdGroups = groupBySortedRanges(issues, (issue) => issue.createdAt, ranges)
   const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
     Predicate.isNotNullish(issue.doneAt),
@@ -401,11 +397,8 @@ const buildCfdEvents = function buildCfdEvents(issues: Readonly<FlowIssueRow[]>)
  */
 const buildCfdOverTime = function buildCfdOverTime(
   issues: Readonly<FlowIssueRow[]>,
-  since: number,
-  until: number,
-  granularity: 'day' | 'week',
-  now: number,
-  doneBeforeWindow: number,
+  { granularity, since, until }: MetricBucketWindow,
+  { doneBeforeWindow, now }: { doneBeforeWindow: number; now: number },
 ): {
   bucketStart: string
   backlogTodo: number
@@ -890,12 +883,13 @@ const readFlowMetrics = async function readFlowMetrics(
   const humanInterventions = computeHumanInterventions(issues, humanCommentCounts, inWindow)
   const autonomyRatios = computeAutonomyRatios(issues, leaseHeldSeconds, inWindow)
   const wipOverTime = buildWipOverTime(issues, wipSince, wipUntil)
-  const throughputOverTime = buildThroughputOverTime(issues, throughputSince, throughputUntil, granularity)
-  const reviewLatencyOverTime = buildReviewLatencyOverTime(issues, throughputSince, throughputUntil, granularity)
-  const cfdOverTime = buildCfdOverTime(issues, throughputSince, throughputUntil, granularity, now, doneBeforeWindow)
-  const bugShareOverTime = buildBugShareOverTime(issues, throughputSince, throughputUntil, granularity)
+  const throughputWindow = { granularity, since: throughputSince, until: throughputUntil }
+  const throughputOverTime = buildThroughputOverTime(issues, throughputWindow)
+  const reviewLatencyOverTime = buildReviewLatencyOverTime(issues, throughputWindow)
+  const cfdOverTime = buildCfdOverTime(issues, throughputWindow, { doneBeforeWindow, now })
+  const bugShareOverTime = buildBugShareOverTime(issues, throughputWindow)
   const bugTypeTracked = Predicate.isNotNullish(bugTypeExists)
-  const arrivalVsCompletionOverTime = buildArrivalVsCompletion(issues, throughputSince, throughputUntil, granularity)
+  const arrivalVsCompletionOverTime = buildArrivalVsCompletion(issues, throughputWindow)
   const flowEfficiencies = computeFlowEfficiencies(issues, leaseHeldSeconds, inWindow)
   const agingWip = buildAgingWip(loaded, now)
 
