@@ -3,7 +3,7 @@
 import { query } from '@effront/core/query'
 import { useForm, useStore } from '@tanstack/react-form'
 import { String, Array, Iterable, Predicate, Effect, Schema } from 'effect'
-import { Fragment, useCallback, useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX, RefObject } from 'react'
 
 import { HTTP_CONFLICT } from '#contracts/http-status.ts'
@@ -23,15 +23,12 @@ import { formatTimestamp } from '@/features/timestamp.ts'
 import {
   createWikiPage,
   deleteWikiAttachment,
-  discardWikiDraft,
   duplicateWikiPage,
   getWikiDraftState,
   getWikiPage,
   moveWikiPage,
   restoreTrashedWikiPage,
   restoreWikiRevision,
-  saveWikiDraft,
-  saveWikiPage,
   trashWikiPage,
   verifyWikiPage,
 } from './actions.ts'
@@ -44,9 +41,22 @@ import { stripFrontmatter } from './render-markdown.ts'
 import { RevisionsHistory } from './revisions-history.tsx'
 import type { WikiRevision } from './revisions-history.tsx'
 import { TagChips } from './tag-chips.tsx'
+import { useServerDraftAutosave } from './wiki-draft-autosave.ts'
+import { differsFromPublished } from './wiki-draft-lifecycle.ts'
 import { WikiFreshnessBadge } from './wiki-freshness-badge.tsx'
-import type { WikiFreshness } from './wiki-freshness-badge.tsx'
 import { WikiMetadataCard } from './wiki-metadata-card.tsx'
+import type {
+  DraftStatus,
+  ProjectOption,
+  SearchResult,
+  ServerDraft,
+  StalePageItem,
+  TemplateOption,
+  TreeNode,
+  WikiListItem,
+  WikiPageData,
+  WikiSeed,
+} from './wiki-page-model.ts'
 import { SeedContext, usePublicViewer, useWikiSeed } from './wiki-seed-context.ts'
 import { useIsMobileViewport, useWikiSidebarDrawer } from './wiki-sidebar-drawer.ts'
 import { WikiStatusPill } from './wiki-status-pill.tsx'
@@ -73,7 +83,6 @@ const CONTENT_MOUNT_TOKEN_STEP = 1
 const EXCERPT_START = 0
 const MIN_TOC_ENTRIES = 3
 const HASH_CONTENT_START = 1
-const DRAFT_AUTOSAVE_DELAY_MS = 1000
 const INITIAL_EDIT_VERSION = 0
 const INITIAL_EDIT_SESSION = 0
 
@@ -95,40 +104,8 @@ const INITIAL_EDIT_SESSION = 0
  * alone, running this again over headings it already labelled is a no-op.
  */
 export { assignHeadingIds } from './headings.ts'
+export type { DraftStatus, ServerDraft, WikiPageData, WikiSeed } from './wiki-page-model.ts'
 
-interface ProjectOption {
-  id: string
-  key: string
-  name: string
-  workspace_slug: string
-}
-export interface WikiSeed {
-  page: WikiPageData | null
-  tree: TreeNode[]
-  revisions: WikiRevision[]
-  attachments: Attachment[]
-  templates: TemplateOption[]
-  projects: ProjectOption[]
-  stalePages: StalePageItem[]
-  filteredPages: WikiListItem[]
-  searchResults: SearchResult[]
-  draft: ServerDraft | null
-  draftRevision?: string | null
-  draftStatus: DraftStatus
-  workspaceSlug: string
-  projectId: string
-  slug: string
-  filterType: string
-  filterStatus: string
-  filterTags: string
-  searchQuery: string
-  createTitle: string
-  mode: 'read' | 'create' | 'edit'
-  publicViewer: boolean
-  brandName: string
-  /** Compiled in request scope so first server HTML includes body and hash targets. */
-  renderedMarkdown?: RenderedMarkdown
-}
 const slugify = function slugify(title: string): string {
   return title
     .toLowerCase()
@@ -157,74 +134,6 @@ const undeleteWikiPage = async function undeleteWikiPage(
   workspaceSlug?: string,
 ): Promise<{ slug: string }> {
   return unwrapResult(await restoreTrashedWikiPage({ pageId: id, workspaceSlug }))
-}
-
-// PROJ-491 (R9): the create-form's template picker draws from list_wiki_templates.
-interface TemplateOption {
-  id: string
-  slug: string
-  title: string
-}
-
-interface SearchResult {
-  id: string
-  slug: string
-  title: string
-  project_id: string | null
-  excerpt: string | null
-  // PROJ-488 (R6): denormalized frontmatter metadata, surfaced as chips in search results.
-  type: string | null
-  status: string | null
-  tags: string[]
-  /*
-   * PROJ-489 (R7): search demotes stale/deprecated results — surfaced here so the UI
-   * can show why a result ranks low.
-   */
-  freshness: WikiFreshness | null
-}
-
-export interface WikiPageData {
-  id: string
-  slug: string
-  title: string
-  content: string
-  // PROJ-809: revision pointer for exactly this content (undefined from older servers).
-  revisionId?: string | null
-  project_id?: string | null
-  parent_id: string | null
-  updated_at: number
-  // PROJ-488 (R6): optional YAML frontmatter, denormalized on the API side.
-  type: string | null
-  tags: string[]
-  status: string | null
-  verified_at: number | null
-  verified_by: string | null
-  owners: string[]
-  verify_interval: number | null
-  // PROJ-489 (R7): computed freshness, surfaced in the page header.
-  freshness: WikiFreshness | null
-}
-
-// PROJ-489 (R7): the list_stale_pages maintenance queue shape.
-interface StalePageItem {
-  id: string
-  slug: string
-  title: string
-  freshness: WikiFreshness | null
-}
-
-/*
- * PROJ-488: shape returned by GET /api/wiki (listWikiPages) — used for the sidebar's
- * type/status/tags filtered browse view (WikiSidebar's flat list, distinct from the
- * hierarchical tree shown when no filter is active).
- */
-interface WikiListItem {
-  id: string
-  slug: string
-  title: string
-  type: string | null
-  status: string | null
-  tags: string[]
 }
 
 const WIKI_TYPE_FILTER_OPTIONS: SelectOption[] = [
@@ -271,14 +180,6 @@ const WIKI_STATUS_FILTER_OPTIONS: SelectOption[] = [
   { value: 'deprecated', label: 'Deprecated' },
 ]
 
-interface TreeNode {
-  id: string
-  slug: string
-  title: string
-  type: string | null
-  children: TreeNode[]
-}
-
 interface FlatEntry {
   id: string
   slug: string
@@ -311,16 +212,6 @@ interface Props {
   workspaceSlug?: string
   projectId?: string
   slug?: string
-}
-
-// PROJ-495 (R13): shape of a saved server-side draft (services/wiki-drafts.ts#getWikiDraft).
-export interface ServerDraft {
-  title: string
-  content: string
-  baseRevisionId: string | null
-  updatedAt: number
-  // PROJ-797 (client-only): the page was saved by someone since this draft started.
-  pageChangedSince?: boolean
 }
 
 /*
@@ -2202,336 +2093,6 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
     cancelUpload,
     deleteAttachment,
     uploadInlineImage,
-  }
-}
-
-/*
- * PROJ-495 (R13): server-side per-user draft autosave, replacing the PROJ-227
- * localStorage version so an in-progress edit survives a device switch, not just a
- * same-browser crash. Same ~1s debounce cadence as before; debouncing stays entirely
- * client-side (no server-side throttling) so this is just a plain PUT on a timer.
- *
- * PROJ-799: a draft is only written when the edit actually differs from the
- * published page (so opening and cancelling never leaves a spurious "Restore unsaved
- * draft?" behind), and reverting to the published text deletes the draft this
- * session wrote. Autosave is paused while a save is in flight, and stays off until
- * the existing server draft has been checked — if that check fails, autosave is
- * disabled for the session rather than risk overwriting a draft from another device.
- */
-export type DraftStatus = 'loading' | 'ready' | 'failed'
-
-interface UseServerDraftAutosaveOptions {
-  workspaceSlug: string | undefined
-  editing: boolean
-  editTitle: string
-  editContent: string
-  page: WikiPageData | null
-  draftBanner: ServerDraft | null
-  baseRevisionId: string | null | undefined
-  saving: boolean
-  draftStatus: DraftStatus
-}
-
-export function differsFromPublished(
-  page: Readonly<{ title: string; content: string }>,
-  title: string,
-  content: string,
-): boolean {
-  return title !== page.title || content !== page.content
-}
-
-function mayWrite(s: UseServerDraftAutosaveOptions): s is UseServerDraftAutosaveOptions & { page: WikiPageData } {
-  return !!s.page && !s.draftBanner && s.draftStatus === 'ready'
-}
-
-async function saveWikiPageEdit(
-  params: Readonly<{
-    workspaceSlug: string | undefined
-    page: WikiPageData
-    editTitle: string
-    editContent: string
-    baseRevisionId: string | null | undefined
-    expectedDraftRevision: string | null
-  }>,
-) {
-  const { workspaceSlug, page, editTitle, editContent, baseRevisionId, expectedDraftRevision } = params
-  return unwrapResult(
-    await saveWikiPage({
-      workspaceSlug,
-      slug: page.slug,
-      title: editTitle,
-      content: editContent,
-      baseRevisionId,
-      expectedDraftRevision,
-    }),
-  )
-}
-
-function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
-  const { workspaceSlug, editing, editTitle, editContent, page, draftBanner, baseRevisionId, saving, draftStatus } =
-    options
-  /*
-   * Latest edit state for the flush-on-leave effect below, since its cleanup
-   * closure would otherwise only see the values from when `editing` last changed.
-   */
-  const latestDraftStateRef = useRef(options)
-  useLayoutEffect(() => {
-    latestDraftStateRef.current = options
-  }, [options])
-
-  /* The save() function clears the draft itself right before leaving edit mode; set this to
-   * suppress the flush below so it doesn't resurrect the just-cleared draft. */
-  const skipLeaveFlushRef = useRef(false)
-  /*
-   * PROJ-799: whether a server draft for this page is known to exist (this session
-   * wrote one, or the user restored the one found on open). Only then does reverting
-   * to the published text issue a DELETE — never for a draft this session hasn't seen.
-   */
-  const seed = useWikiSeed()
-  const serverHasDraftRef = useRef(seed.mode === 'edit' && !!seed.draft)
-  const revisionRef = useRef(seed.draftRevision ?? null)
-  const lastPersistedRef = useRef('')
-  const tailRef = useRef<Promise<unknown>>(Promise.resolve())
-  interface Snapshot {
-    page: WikiPageData
-    title: string
-    content: string
-    base: string | null | undefined
-  }
-  const emptyQueue = 'empty'
-  const pendingRef = useRef<Snapshot | typeof emptyQueue>(emptyQueue)
-  const drainingRef = useRef(false)
-  const blockedRef = useRef(false)
-  const suspendedRef = useRef(false)
-  const [writeWarning, setWriteWarning] = useState<string>()
-
-  /*
-   * One page-local chain orders autosave, explicit discard and publication. Only
-   * its pending snapshot is replaceable, so typing B/C while A saves writes C next.
-   */
-  const drainDrafts = useCallback(() => {
-    if (drainingRef.current) {
-      return
-    }
-    drainingRef.current = true
-    const task = tailRef.current
-      .then(async () => {
-        while (pendingRef.current !== emptyQueue && !suspendedRef.current && !blockedRef.current) {
-          const { page: p, title, content, base } = pendingRef.current
-          pendingRef.current = emptyQueue
-          const fingerprint = JSON.stringify([p.id, title, content, base ?? null])
-          if (lastPersistedRef.current === fingerprint) {
-            continue
-          }
-          try {
-            if (differsFromPublished(p, title, content)) {
-              const result = unwrapResult(
-                await saveWikiDraft({
-                  workspaceSlug,
-                  slug: p.slug,
-                  title,
-                  content,
-                  baseRevisionId: base ?? null,
-                  expectedDraftRevision: revisionRef.current,
-                }),
-              )
-              revisionRef.current = result.revision
-              serverHasDraftRef.current = true
-            } else if (serverHasDraftRef.current) {
-              const result = unwrapResult(
-                await discardWikiDraft({
-                  workspaceSlug,
-                  slug: p.slug,
-                  expectedDraftRevision: revisionRef.current,
-                }),
-              )
-              revisionRef.current = result.revision
-              serverHasDraftRef.current = false
-            }
-            // Failed or unacknowledged writes never mark a fingerprint persisted.
-            lastPersistedRef.current = fingerprint
-            setWriteWarning(undefined)
-          } catch {
-            blockedRef.current = true
-            setWriteWarning('Autosave did not complete. Your text is still here. Save before leaving this page.')
-            pendingRef.current = emptyQueue
-            break
-          }
-        }
-      })
-      .finally(() => {
-        drainingRef.current = false
-      })
-    tailRef.current = task.catch(() => {})
-  }, [workspaceSlug])
-
-  const persistDraft = useCallback(
-    (p: WikiPageData, title: string, content: string, base: string | null | undefined) => {
-      pendingRef.current = { page: p, title, content, base }
-      drainDrafts()
-    },
-    [drainDrafts],
-  )
-
-  const adoptDraftState = function adoptDraftState(state: {
-    revision: string | null
-    draft: ServerDraft | null
-  }): void {
-    revisionRef.current = state.revision
-    blockedRef.current = false
-    serverHasDraftRef.current = Predicate.isNotNullish(state.draft)
-    lastPersistedRef.current = ''
-    setWriteWarning(undefined)
-  }
-
-  const discardDraftNow = function discardDraftNow(p: WikiPageData, title: string, content: string): Promise<void> {
-    suspendedRef.current = true
-    pendingRef.current = emptyQueue
-    const task = tailRef.current
-      .then(async () => {
-        const result = unwrapResult(
-          await discardWikiDraft({
-            workspaceSlug,
-            slug: p.slug,
-            expectedDraftRevision: revisionRef.current,
-          }),
-        )
-        revisionRef.current = result.revision
-        serverHasDraftRef.current = false
-        lastPersistedRef.current = ''
-        if (
-          pendingRef.current !== emptyQueue &&
-          pendingRef.current.title === title &&
-          pendingRef.current.content === content
-        ) {
-          pendingRef.current = emptyQueue
-        }
-      })
-      .catch((error: unknown) => {
-        blockedRef.current = true
-        pendingRef.current = emptyQueue
-        throw error
-      })
-      .finally(() => {
-        suspendedRef.current = false
-        if (pendingRef.current !== emptyQueue) {
-          drainDrafts()
-        }
-      })
-    tailRef.current = task.catch(() => {})
-    return task
-  }
-
-  const publishDraft = function publishDraft(snapshot: Snapshot) {
-    suspendedRef.current = true
-    pendingRef.current = emptyQueue
-    const task = tailRef.current
-      .then(async () => {
-        const result = await saveWikiPageEdit({
-          workspaceSlug,
-          page: snapshot.page,
-          editTitle: snapshot.title,
-          editContent: snapshot.content,
-          baseRevisionId: snapshot.base,
-          expectedDraftRevision: revisionRef.current,
-        })
-        if (Predicate.isNullish(result.draftRevision)) {
-          blockedRef.current = true
-          pendingRef.current = emptyQueue
-          setWriteWarning(
-            'The page was published, but its saved draft changed. Reopen editing to reconcile it before autosaving.',
-          )
-        } else {
-          revisionRef.current = result.draftRevision
-          serverHasDraftRef.current = false
-          lastPersistedRef.current = ''
-        }
-        if (
-          pendingRef.current !== emptyQueue &&
-          pendingRef.current.title === snapshot.title &&
-          pendingRef.current.content === snapshot.content
-        ) {
-          pendingRef.current = emptyQueue
-        }
-        return result
-      })
-      .catch((error: unknown) => {
-        blockedRef.current = true
-        pendingRef.current = emptyQueue
-        throw error
-      })
-      .finally(() => {
-        suspendedRef.current = false
-        if (pendingRef.current !== emptyQueue) {
-          drainDrafts()
-        }
-      })
-    tailRef.current = task.catch(() => {})
-    return task
-  }
-
-  useEffect(() => {
-    if (!editing || !page || draftBanner || saving || draftStatus !== 'ready') {
-      return
-    }
-    const timer = setTimeout(() => {
-      persistDraft(page, editTitle, editContent, baseRevisionId)
-    }, DRAFT_AUTOSAVE_DELAY_MS)
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [editing, editTitle, editContent, page, draftBanner, baseRevisionId, saving, draftStatus, persistDraft])
-
-  /*
-   * Flush any not-yet-debounced edits when leaving edit mode via navigation (not
-   * just Save/Cancel), so a quick click-away doesn't drop the last <1s of
-   * keystrokes from the safety-net draft.
-   */
-  useEffect(() => {
-    const wasEditing = editing
-    return () => {
-      if (!wasEditing) {
-        return
-      }
-      if (skipLeaveFlushRef.current) {
-        skipLeaveFlushRef.current = false
-        return
-      }
-      const draftState = latestDraftStateRef.current
-      if (!mayWrite(draftState)) {
-        return
-      }
-      persistDraft(draftState.page, draftState.editTitle, draftState.editContent, draftState.baseRevisionId)
-    }
-  }, [editing, persistDraft])
-
-  /*
-   * PROJ-800: an explicit flush for callers about to clear page state in the same
-   * batch as leaving edit mode (navigation). By the time the leave-flush cleanup
-   * above runs, the ref already holds `page: null`, so it can't write — flush here
-   * first, then suppress that now-redundant cleanup.
-   */
-  const flushDraftNow = function flushDraftNow(): void {
-    const draftState = latestDraftStateRef.current
-    if (!draftState.editing) {
-      return
-    }
-    skipLeaveFlushRef.current = true
-    if (!mayWrite(draftState)) {
-      return
-    }
-    persistDraft(draftState.page, draftState.editTitle, draftState.editContent, draftState.baseRevisionId)
-  }
-
-  return {
-    skipLeaveFlushRef,
-    serverHasDraftRef,
-    flushDraftNow,
-    adoptDraftState,
-    discardDraftNow,
-    publishDraft,
-    writeWarning,
-    needsReconciliation: () => blockedRef.current,
   }
 }
 

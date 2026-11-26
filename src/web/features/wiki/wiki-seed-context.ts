@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 
-import type { WikiSeed } from './wiki-page-client.tsx'
+import type { WikiSeed } from './wiki-page-model.ts'
 
 export const SeedContext = createContext<WikiSeed | undefined>(undefined)
 export const useWikiSeed = function useWikiSeed(): WikiSeed {
