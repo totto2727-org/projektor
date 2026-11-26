@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 
 import { coreReply } from '#core/contract.ts'
+import type { CoreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 import { loadBrowserScope } from './authentication.ts'
@@ -17,7 +18,20 @@ import { makeShareHandlers } from './share.ts'
 import { makeWikiCommandHandlers } from './wiki-commands.ts'
 import { makeWikiHandlers } from './wiki.ts'
 
-export const makeWebCoreHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => ({
+type WebCoreHandlers<R> = ReturnType<typeof makeBrandHandlers<R>> &
+  ReturnType<typeof makeFeedbackHandlers<R>> &
+  ReturnType<typeof makeIssueReadHandlers<R>> &
+  ReturnType<typeof makeIssueCommandHandlers<R>> &
+  ReturnType<typeof makePlanningHandlers<R>> &
+  ReturnType<typeof makeProjectHandlers<R>> &
+  ReturnType<typeof makeWikiHandlers<R>> &
+  ReturnType<typeof makeWikiCommandHandlers<R>> &
+  ReturnType<typeof makeSettingsHandlers<R>> &
+  ReturnType<typeof makeShareHandlers<R>> & {
+    browserScope: (request: WebRequest, options?: ScopeOptions) => CoreReply<R, typeof RequestScopeSchema>
+  }
+
+export const makeWebCoreHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>): WebCoreHandlers<R> => ({
   ...makeBrandHandlers(envSource),
   ...makeFeedbackHandlers(envSource),
   ...makeIssueReadHandlers(envSource),

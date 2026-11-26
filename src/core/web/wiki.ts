@@ -2,13 +2,20 @@ import { String, Predicate, Effect } from 'effect'
 
 import { WikiSeedDataSchema } from '#contracts/web-schemas/wiki.ts'
 import { coreReply } from '#core/contract.ts'
+import type { CoreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 import { loadWikiData } from './wiki-data.ts'
 
-export const makeWikiHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => ({
+type WikiSeedArguments = [request: WebRequest, workspaceId: string, url: string, slug?: string, projectId?: string]
+
+interface WikiHandlers<R> {
+  webWikiSeed: (...args: WikiSeedArguments) => CoreReply<R, typeof WikiSeedDataSchema>
+}
+
+export const makeWikiHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>): WikiHandlers<R> => ({
   webWikiSeed: (request: WebRequest, workspaceId: string, url: string, slug?: string, projectId?: string) =>
     Effect.flatMap(envSource, (env) =>
       coreReply(

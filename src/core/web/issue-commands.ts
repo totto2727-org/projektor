@@ -22,7 +22,24 @@ import {
 import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'
 
-export const makeIssueCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
+interface IssueCommandHandlers<R> {
+  webCreateIssue: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webUpdateIssue: (proof: BrowserCommand, id: string, input: unknown) => CoreReply<R>
+  webAddComment: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webUpdateComment: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webDeleteComment: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webCreateIssueLink: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webDeleteIssueLink: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webCreateShareToken: (proof: BrowserCommand, issueId: string) => CoreReply<R>
+  webCreateLinkAttachment: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webDeleteStoredAttachment: (proof: BrowserCommand, id: string) => CoreReply<R>
+  webSetAttachmentReviewStatus: (proof: BrowserCommand, input: unknown) => CoreReply<R>
+  webUpdateSprint: (proof: BrowserCommand, id: string, input: unknown) => CoreReply<R>
+}
+
+export const makeIssueCommandHandlers = <R>(
+  envSource: Effect.Effect<CoreEnvironment, never, R>,
+): IssueCommandHandlers<R> => {
   const reply = function reply<S extends Schema.Top, A>(
     name: string,
     schema: S,
