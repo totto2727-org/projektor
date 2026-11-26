@@ -12,12 +12,12 @@ export const MOBILE_WIDTH = 375
 export const DESKTOP_WIDTH = 1024
 
 export const setViewportWidth = function setViewportWidth(width: number): void {
-  Object.defineProperty(window, 'innerWidth', {
+  Object.defineProperty(globalThis, 'innerWidth', {
     writable: true,
     configurable: true,
     value: width,
   })
-  window.dispatchEvent(new Event('resize'))
+  globalThis.dispatchEvent(new Event('resize'))
 }
 
 /*

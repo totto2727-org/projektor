@@ -35,13 +35,13 @@ vi.mock('@effront/core/query', async () => {
   }
 })
 beforeEach(() => {
-  Object.defineProperty(window, 'matchMedia', {
+  Object.defineProperty(globalThis, 'matchMedia', {
     configurable: true,
     writable: true,
     value: (query: string) => ({
       matches: query.includes('max-width')
-        ? window.innerWidth < ISSUE_BOARD_WIDE_MIN_WIDTH
-        : window.innerWidth >= ISSUE_BOARD_WIDE_MIN_WIDTH,
+        ? globalThis.innerWidth < ISSUE_BOARD_WIDE_MIN_WIDTH
+        : globalThis.innerWidth >= ISSUE_BOARD_WIDE_MIN_WIDTH,
       media: query,
       onchange: null,
       addListener: vi.fn(),

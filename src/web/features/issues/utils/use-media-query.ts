@@ -14,11 +14,11 @@ type MediaQueryResult = Pick<MediaQueryList, 'matches'> &
 export const useMediaQuery = function useMediaQuery(query: string): boolean | undefined {
   const [matches, setMatches] = useState<boolean>()
   useEffect(() => {
-    if (!Predicate.isFunction(window.matchMedia)) {
+    if (!Predicate.isFunction(globalThis.matchMedia)) {
       setMatches(false)
       return
     }
-    const mql: MediaQueryResult = window.matchMedia(query)
+    const mql: MediaQueryResult = globalThis.matchMedia(query)
     const onChange = (): void => {
       setMatches(mql.matches)
     }
