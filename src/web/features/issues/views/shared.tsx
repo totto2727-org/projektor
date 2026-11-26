@@ -6,6 +6,28 @@ export const projectHref = function projectHref(project: ProjectSummary, path: '
   return `/${path}?projectId=${encodeURIComponent(project.id)}&workspace=${encodeURIComponent(project.workspace_slug)}`
 }
 
+const renderAuthorizedWorkspaces = (scope: RequestScope): JSX.Element => (
+  <ul>
+    {scope.workspaces.map((workspace) => (
+      <li key={workspace.id}>
+        <a href={`/issues?workspace=${encodeURIComponent(workspace.slug)}`}>{workspace.name}</a>
+      </li>
+    ))}
+  </ul>
+)
+
+const renderAuthorizedProjects = (scope: RequestScope, label: string): JSX.Element => (
+  <ul>
+    {scope.projects.map((project) => (
+      <li key={project.id}>
+        <a href={projectHref(project, label === 'Epics' ? 'epics' : 'issues')}>
+          {project.workspace_name} / {project.name}
+        </a>
+      </li>
+    ))}
+  </ul>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SelectionRequired = function SelectionRequired({
   scope,
@@ -20,13 +42,7 @@ export const SelectionRequired = function SelectionRequired({
       {label === 'Issues' ? (
         <>
           <p>Select a workspace to view issues across its authorized projects.</p>
-          <ul>
-            {scope.workspaces.map((workspace) => (
-              <li key={workspace.id}>
-                <a href={`/issues?workspace=${encodeURIComponent(workspace.slug)}`}>{workspace.name}</a>
-              </li>
-            ))}
-          </ul>
+          {renderAuthorizedWorkspaces(scope)}
         </>
       ) : (
         <>
@@ -35,15 +51,7 @@ export const SelectionRequired = function SelectionRequired({
               ? 'Select a project to view epics.'
               : 'The issue could not be resolved in an authorized workspace. Select a project to browse its issues.'}
           </p>
-          <ul>
-            {scope.projects.map((project) => (
-              <li key={project.id}>
-                <a href={projectHref(project, label === 'Epics' ? 'epics' : 'issues')}>
-                  {project.workspace_name} / {project.name}
-                </a>
-              </li>
-            ))}
-          </ul>
+          {renderAuthorizedProjects(scope, label)}
         </>
       )}
     </section>

@@ -35,6 +35,31 @@ interface HeaderRowProps {
   openCreateModal: () => void
 }
 
+const renderIssueViewModes = (view: ViewMode, setView: HeaderRowProps['setView']): JSX.Element => (
+  <fieldset aria-label='View mode' className='flex border border-border rounded-md overflow-hidden m-0 p-0'>
+    <legend className='hidden'>View mode</legend>
+    {(['list', 'board', 'backlog'] as const).map((mode) => (
+      <button
+        type='button'
+        key={mode}
+        aria-pressed={view === mode}
+        onClick={() => {
+          setView(mode)
+        }}
+        className='border-none py-1 px-3 cursor-pointer text-[0.8rem] capitalize transition-colors duration-100'
+        style={{
+          borderRight: mode !== 'backlog' ? '1px solid var(--border)' : 'none',
+          background: view === mode ? 'var(--accent)' : 'var(--bg)',
+          color: view === mode ? 'var(--on-accent)' : 'var(--text-muted)',
+          fontWeight: view === mode ? 600 : 400,
+        }}
+      >
+        {mode}
+      </button>
+    ))}
+  </fieldset>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function HeaderRow({
   isSearchActive,
@@ -63,30 +88,7 @@ export function HeaderRow({
           </Button>
         )}
 
-        {!isSearchActive && (
-          <fieldset aria-label='View mode' className='flex border border-border rounded-md overflow-hidden m-0 p-0'>
-            <legend className='hidden'>View mode</legend>
-            {(['list', 'board', 'backlog'] as const).map((mode) => (
-              <button
-                type='button'
-                key={mode}
-                aria-pressed={view === mode}
-                onClick={() => {
-                  setView(mode)
-                }}
-                className='border-none py-1 px-3 cursor-pointer text-[0.8rem] capitalize transition-colors duration-100'
-                style={{
-                  borderRight: mode !== 'backlog' ? '1px solid var(--border)' : 'none',
-                  background: view === mode ? 'var(--accent)' : 'var(--bg)',
-                  color: view === mode ? 'var(--on-accent)' : 'var(--text-muted)',
-                  fontWeight: view === mode ? 600 : 400,
-                }}
-              >
-                {mode}
-              </button>
-            ))}
-          </fieldset>
-        )}
+        {!isSearchActive && renderIssueViewModes(view, setView)}
       </div>
     </div>
   )

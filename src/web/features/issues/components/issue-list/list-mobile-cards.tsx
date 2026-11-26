@@ -16,6 +16,39 @@ type MobileCardsProps = Readonly<{
   changePriority: (issueId: string, priority: string) => void
 }>
 
+const renderMobileIssueCard = (
+  issue: Issue,
+  updatingPriorityId: MobileCardsProps['updatingPriorityId'],
+  changePriority: MobileCardsProps['changePriority'],
+): JSX.Element => (
+  <div key={issue.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+    <IssueSelectionControl issue={issue} />
+    <a
+      href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
+      className='inline-block font-mono text-[0.8rem] text-text-muted no-underline hover:underline focus:underline mb-1'
+    >
+      {formatIssueRef(issue.project_key, issue.number)}
+    </a>
+    <a
+      href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
+      className='no-underline'
+    >
+      <div className='text-[0.9rem] text-text-base font-medium mb-2'>{issue.title}</div>
+    </a>
+    <ReviewTargetsSummary issue={issue} />
+    <div className='flex gap-[0.375rem] flex-wrap'>
+      <PrioritySelect
+        issue={issue}
+        busy={updatingPriorityId === issue.id}
+        onChange={(value) => {
+          changePriority(issue.id, value)
+        }}
+      />
+      {statusBadge(issue)}
+    </div>
+  </div>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MobileCards = function MobileCards({
   issues,
@@ -24,34 +57,7 @@ export const MobileCards = function MobileCards({
 }: MobileCardsProps): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-      {issues.map((issue) => (
-        <div key={issue.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-          <IssueSelectionControl issue={issue} />
-          <a
-            href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
-            className='inline-block font-mono text-[0.8rem] text-text-muted no-underline hover:underline focus:underline mb-1'
-          >
-            {formatIssueRef(issue.project_key, issue.number)}
-          </a>
-          <a
-            href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
-            className='no-underline'
-          >
-            <div className='text-[0.9rem] text-text-base font-medium mb-2'>{issue.title}</div>
-          </a>
-          <ReviewTargetsSummary issue={issue} />
-          <div className='flex gap-[0.375rem] flex-wrap'>
-            <PrioritySelect
-              issue={issue}
-              busy={updatingPriorityId === issue.id}
-              onChange={(value) => {
-                changePriority(issue.id, value)
-              }}
-            />
-            {statusBadge(issue)}
-          </div>
-        </div>
-      ))}
+      {issues.map((issue) => renderMobileIssueCard(issue, updatingPriorityId, changePriority))}
     </div>
   )
 }

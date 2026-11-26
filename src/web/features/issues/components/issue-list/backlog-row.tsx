@@ -42,6 +42,19 @@ export const BacklogRow = function BacklogRow({
   onDragEnd,
 }: RowProps): JSX.Element {
   const pts = getStoryPoints(issue)
+  const renderBacklogPriority = (): JSX.Element => (
+    <div className='flex items-center gap-[0.375rem]'>
+      <PrioritySelect
+        issue={issue}
+        busy={updatingPriorityId === issue.id}
+        onChange={(value) => {
+          changePriority(issue.id, value)
+        }}
+      />
+      {pts && spBadge(pts)}
+    </div>
+  )
+
   return (
     <tr
       key={issue.id}
@@ -89,18 +102,7 @@ export const BacklogRow = function BacklogRow({
         </a>
         <ReviewTargetsSummary issue={issue} />
       </td>
-      <td className='px-3 py-2 align-middle whitespace-nowrap'>
-        <div className='flex items-center gap-[0.375rem]'>
-          <PrioritySelect
-            issue={issue}
-            busy={updatingPriorityId === issue.id}
-            onChange={(value) => {
-              changePriority(issue.id, value)
-            }}
-          />
-          {pts && spBadge(pts)}
-        </div>
-      </td>
+      <td className='px-3 py-2 align-middle whitespace-nowrap'>{renderBacklogPriority()}</td>
       <td className='px-3 py-2 align-middle whitespace-nowrap text-text-base'>
         {issue.assignee_name ?? <span className='text-text-muted'>—</span>}
       </td>

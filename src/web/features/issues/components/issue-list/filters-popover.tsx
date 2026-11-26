@@ -144,6 +144,35 @@ const DateRangeFilter = function DateRangeFilter({
   filterDateTo: string
   setFilterDateTo: Dispatch<SetStateAction<string>>
 }): JSX.Element {
+  const renderDateRangeInputs = (): JSX.Element => (
+    <div className='flex gap-2 mt-2'>
+      <label className='flex-1 text-[0.7rem] text-text-muted'>
+        From (UTC){' '}
+        <input
+          type='date'
+          aria-label='From date'
+          value={filterDateFrom}
+          onInput={(event) => {
+            setFilterDateFrom((event.target as HTMLInputElement).value)
+          }}
+          className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
+        />
+      </label>
+      <label className='flex-1 text-[0.7rem] text-text-muted'>
+        To (UTC){' '}
+        <input
+          type='date'
+          aria-label='To date'
+          value={filterDateTo}
+          onInput={(event) => {
+            setFilterDateTo((event.target as HTMLInputElement).value)
+          }}
+          className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
+        />
+      </label>
+    </div>
+  )
+
   return (
     <>
       {/* Date range (PROJ-212) — bound a chosen timestamp column server-side */}
@@ -162,34 +191,7 @@ const DateRangeFilter = function DateRangeFilter({
         <option value='completed'>Completed date</option>
         <option value='updated'>Last edited date</option>
       </select>
-      {filterDateField && (
-        <div className='flex gap-2 mt-2'>
-          <label className='flex-1 text-[0.7rem] text-text-muted'>
-            From (UTC){' '}
-            <input
-              type='date'
-              aria-label='From date'
-              value={filterDateFrom}
-              onInput={(event) => {
-                setFilterDateFrom((event.target as HTMLInputElement).value)
-              }}
-              className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
-            />
-          </label>
-          <label className='flex-1 text-[0.7rem] text-text-muted'>
-            To (UTC){' '}
-            <input
-              type='date'
-              aria-label='To date'
-              value={filterDateTo}
-              onInput={(event) => {
-                setFilterDateTo((event.target as HTMLInputElement).value)
-              }}
-              className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
-            />
-          </label>
-        </div>
-      )}
+      {filterDateField && renderDateRangeInputs()}
     </>
   )
 }
