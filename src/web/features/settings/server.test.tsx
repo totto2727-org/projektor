@@ -192,7 +192,7 @@ describe('settings authorized direct D1 SSR', () => {
     expect(node.props.initialData.details).toStrictEqual([])
     expect(node.props.initialData.memberGroups).toStrictEqual([])
     expect(prepare.mock.calls.some(([query]) => /left join "user_group_members"/i.test(query))).toBe(false)
-    expect(prepare.mock.calls.some(([query]) => /"added_by".*inner join "users"/s.test(query))).toBe(false)
+    expect(prepare.mock.calls.some(([query]) => /"added_by".*inner join "users"/su.test(query))).toBe(false)
     expect(renderToStaticMarkup(node)).toContain('Only owners and admins manage groups.')
   })
 

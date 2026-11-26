@@ -55,7 +55,7 @@ const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): str
    * as same-workspace links (even a same-origin absolute URL is written as relative
    * by the app, so this doesn't lose any real link).
    */
-  if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(url)) {
+  if (/^(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\//u.test(url)) {
     return null
   }
   const pathSlug = url.match(/^\/wiki\/(?<slug>[a-z0-9-]+)\/?$/i)?.groups?.slug

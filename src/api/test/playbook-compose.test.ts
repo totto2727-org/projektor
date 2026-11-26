@@ -85,7 +85,7 @@ describe('compose_playbook', () => {
     Iterable.forEach(body.directive.split('\n'), (line) => {
       expect(line === '>' || line.startsWith('> ')).toBe(true)
     })
-    expect(body.directive).not.toMatch(/[^\n]>\s*$/m)
+    expect(body.directive).not.toMatch(/[^\n]>\s*$/mu)
   })
 
   test('composes the full variant with a custom review model and cadence', async () => {

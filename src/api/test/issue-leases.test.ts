@@ -365,7 +365,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
      * also lists `cap` held issue UUIDs, and a single digit occurs in those by
      * chance often enough that the loose form passes even if the cap is dropped.
      */
-    expect(body.error).toMatch(new RegExp(`WIP limit reached \\(${cap}\\)`))
+    expect(body.error).toMatch(new RegExp(`WIP limit reached \\(${cap}\\)`, 'u'))
   })
 
   test('records a wip_cap_denials event when a claim is rejected over-cap (PROJ-342)', async () => {

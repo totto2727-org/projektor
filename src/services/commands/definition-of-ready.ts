@@ -114,7 +114,7 @@ const hasFilePathToken = function hasFilePathToken(body: string): boolean {
   }
   return spans.some((span) => {
     const inner = span.slice(INLINE_LIST_START, INLINE_LIST_END).trim()
-    return inner.includes('/') || /[\w-]+\.[a-z]{1,5}\b/i.test(inner)
+    return inner.includes('/') || /[\w-]+\.[A-Za-z]{1,5}\b/u.test(inner)
   })
 }
 
