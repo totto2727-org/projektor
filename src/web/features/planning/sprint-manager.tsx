@@ -658,6 +658,15 @@ function SprintRow({
   )
 }
 
+// Keep the label and separator as separate text children.
+const MOVE_DESTINATION_LABEL = 'Destination'
+
+interface MoveIssueField<Value> {
+  handleBlur: () => void
+  handleChange: (value: Value) => void
+  state: { value: Value }
+}
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function MoveIssuesForm({
   sprint,
@@ -696,6 +705,96 @@ function MoveIssuesForm({
       }
     },
   })
+  interface MoveFormStatus {
+    busy: boolean
+    canSubmit: boolean
+    errors: typeof form.state.errors
+    showErrors: boolean
+  }
+  const renderMoveFields = ({ busy, canSubmit, errors, showErrors }: MoveFormStatus): JSX.Element => {
+    const renderIssueSelection = (field: MoveIssueField<string[]>): JSX.Element => {
+      const renderMoveIssueRows = (): JSX.Element[] =>
+        issues.map((issue) => (
+          <label key={issue.id} className='text-sm flex gap-2 items-center'>
+            <input
+              type='checkbox'
+              checked={field.state.value.includes(issue.id)}
+              onBlur={field.handleBlur}
+              onChange={(event) => {
+                field.handleChange(
+                  event.currentTarget.checked
+                    ? [...field.state.value, issue.id]
+                    : field.state.value.filter((id) => id !== issue.id),
+                )
+              }}
+              disabled={busy}
+            />
+            <a className='text-accent' href={issueHref(issue, workspaceSlug)}>
+              {issue.project_key}-{issue.number}: {issue.title}
+            </a>
+          </label>
+        ))
+      return <>{renderMoveIssueRows()}</>
+    }
+    const renderIssueList = (): JSX.Element => (
+      <div className='flex flex-col gap-1 mb-3'>
+        <form.Field name='issueIds'>{renderIssueSelection}</form.Field>
+        {Array.isArrayEmpty(issues) && <p className='text-text-muted text-sm'>No issues in this sprint.</p>}
+      </div>
+    )
+    const renderDestinationSelect = (field: MoveIssueField<string>): JSX.Element => (
+      <select
+        id={`move-target-${sprint.id}`}
+        className='px-3 py-2 border border-border rounded bg-bg text-text-base'
+        value={field.state.value}
+        onBlur={field.handleBlur}
+        onChange={(event) => {
+          field.handleChange(event.currentTarget.value)
+        }}
+        disabled={busy}
+      >
+        <option value=''>Select sprint…</option>
+        {sprints
+          .filter((item) => item.id !== sprint.id && item.status !== 'completed')
+          .map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+      </select>
+    )
+    const renderDestinationField = (): JSX.Element => (
+      <label className='text-sm' htmlFor={`move-target-${sprint.id}`}>
+        {MOVE_DESTINATION_LABEL} <form.Field name='targetId'>{renderDestinationSelect}</form.Field>
+      </label>
+    )
+    const renderMoveSubmit = (): JSX.Element => (
+      <form.Subscribe selector={(state) => state.values.issueIds.length}>
+        {(count) => (
+          <Button type='submit' variant='primary' size='sm' disabled={busy || !canSubmit}>
+            Move {count} issues
+          </Button>
+        )}
+      </form.Subscribe>
+    )
+    return (
+      <>
+        <h3 className='text-sm font-semibold'>Move issues to another sprint</h3>
+        {renderIssueList()}
+        {renderDestinationField()}
+        {showErrors && <FormErrors errors={errors} />}
+        {error && (
+          <p role='alert' className='text-danger-text text-xs'>
+            {error}
+          </p>
+        )}
+        {renderMoveSubmit()}
+        <Button size='sm' variant='outline' disabled={busy} onClick={onClose}>
+          Cancel
+        </Button>
+      </>
+    )
+  }
   return (
     <form
       className='mt-4'
@@ -705,7 +804,7 @@ function MoveIssuesForm({
         void form.handleSubmit()
       }}
     >
-      <form.Subscribe
+      <form.Subscribe<MoveFormStatus>
         selector={(state) => ({
           busy: state.isSubmitting,
           canSubmit: state.canSubmit,
@@ -713,82 +812,7 @@ function MoveIssuesForm({
           showErrors: state.isDirty || state.submissionAttempts > NO_SUBMISSION_ATTEMPTS,
         })}
       >
-        {({ busy, canSubmit, errors, showErrors }) => (
-          <>
-            <h3 className='text-sm font-semibold'>Move issues to another sprint</h3>
-            <div className='flex flex-col gap-1 mb-3'>
-              <form.Field name='issueIds'>
-                {(field) => (
-                  <>
-                    {issues.map((issue) => (
-                      <label key={issue.id} className='text-sm flex gap-2 items-center'>
-                        <input
-                          type='checkbox'
-                          checked={field.state.value.includes(issue.id)}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => {
-                            field.handleChange(
-                              event.currentTarget.checked
-                                ? [...field.state.value, issue.id]
-                                : field.state.value.filter((id) => id !== issue.id),
-                            )
-                          }}
-                          disabled={busy}
-                        />
-                        <a className='text-accent' href={issueHref(issue, workspaceSlug)}>
-                          {issue.project_key}-{issue.number}: {issue.title}
-                        </a>
-                      </label>
-                    ))}
-                  </>
-                )}
-              </form.Field>
-              {Array.isArrayEmpty(issues) && <p className='text-text-muted text-sm'>No issues in this sprint.</p>}
-            </div>
-            <label className='text-sm' htmlFor={`move-target-${sprint.id}`}>
-              Destination{' '}
-              <form.Field name='targetId'>
-                {(field) => (
-                  <select
-                    id={`move-target-${sprint.id}`}
-                    className='px-3 py-2 border border-border rounded bg-bg text-text-base'
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.currentTarget.value)
-                    }}
-                    disabled={busy}
-                  >
-                    <option value=''>Select sprint…</option>
-                    {sprints
-                      .filter((item) => item.id !== sprint.id && item.status !== 'completed')
-                      .map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                  </select>
-                )}
-              </form.Field>
-            </label>
-            {showErrors && <FormErrors errors={errors} />}
-            {error && (
-              <p role='alert' className='text-danger-text text-xs'>
-                {error}
-              </p>
-            )}
-            <form.Subscribe selector={(state) => state.values.issueIds.length}>
-              {(count) => (
-                <Button type='submit' variant='primary' size='sm' disabled={busy || !canSubmit}>
-                  Move {count} issues
-                </Button>
-              )}
-            </form.Subscribe>
-            <Button size='sm' variant='outline' disabled={busy} onClick={onClose}>
-              Cancel
-            </Button>
-          </>
-        )}
+        {renderMoveFields}
       </form.Subscribe>
     </form>
   )
