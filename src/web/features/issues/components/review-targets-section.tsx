@@ -47,14 +47,14 @@ const ReviewTargetRow = function ReviewTargetRow({
   issueId: string
 }): JSX.Element {
   const status = attachment.reviewStatus
-  const [pending, setPending] = useState<{ attachment: Attachment; saved: boolean } | null>(null)
+  const [pending, setPending] = useState<{ attachment: Attachment; saved: boolean }>()
   const [error, setError] = useState<string>()
   const busy = useRef(false)
   const { href, name, option } = getReviewTargetDisplay(attachment, status, workspaceSlug)
 
   useEffect(() => {
     if (pending?.saved === true && pending.attachment !== attachment) {
-      setPending(null)
+      setPending(undefined)
       busy.current = false
     }
   }, [attachment, pending])
@@ -82,7 +82,7 @@ const ReviewTargetRow = function ReviewTargetRow({
           ? currentError.message
           : 'レビューステータスを更新できませんでした。もう一度お試しください。',
       )
-      setPending(null)
+      setPending(undefined)
       busy.current = false
     }
   }

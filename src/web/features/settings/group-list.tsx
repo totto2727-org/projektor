@@ -35,7 +35,7 @@ export const GroupsList = function GroupsList({
   onSelect,
   onDelete,
 }: GroupListProps): JSX.Element {
-  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<string>()
   const name = (group: GroupSummary): JSX.Element =>
     admin ? (
       <button
@@ -69,7 +69,7 @@ export const GroupsList = function GroupsList({
           size='sm'
           disabled={busy}
           onClick={() => {
-            setDeleteId(null)
+            setDeleteId(undefined)
           }}
         >
           No

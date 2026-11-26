@@ -16,7 +16,7 @@ export const ConnectAgentGuide = function ConnectAgentGuide({
   workspaceSlug: string
   mcpUrl: string | null
 }): JSX.Element {
-  const [message, setMessage] = useState<string | null>(null)
+  const [message, setMessage] = useState<string>()
   const copy = async function copy(): Promise<void> {
     if (Predicate.isNullish(mcpUrl) || String.isEmpty(mcpUrl)) {
       return

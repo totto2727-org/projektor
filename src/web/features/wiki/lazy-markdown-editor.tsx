@@ -46,7 +46,7 @@ const EditorFallback = function EditorFallback({
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function LazyMarkdownEditor(props: MarkdownEditorModule.Props): JSX.Element {
-  const [Editor, setEditor] = useState<ComponentType<MarkdownEditorModule.Props> | null>(null)
+  const [Editor, setEditor] = useState<ComponentType<MarkdownEditorModule.Props>>()
   const [fallbackInteracted, setFallbackInteracted] = useState(false)
 
   useEffect(() => {

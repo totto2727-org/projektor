@@ -109,7 +109,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
   const rotationInFlight = useRef(false)
   const [rotationBusy, setRotationBusy] = useState(false)
   const [rotating, setRotating] = useState(false)
-  const [newToken, setNewToken] = useState<string | null>(null)
+  const [newToken, setNewToken] = useState<string>()
   const [error, setError] = useState<string>()
 
   const toggleActive = async function toggleActive(): Promise<void> {
@@ -174,7 +174,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
         <NewTokenReveal
           token={newToken}
           onDismiss={() => {
-            setNewToken(null)
+            setNewToken(undefined)
           }}
         />
       )}
