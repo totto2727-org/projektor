@@ -48,7 +48,7 @@ const HeatmapRow = function HeatmapRow({
 }): JSX.Element {
   const count =
     mode === 'contention' ? (entry.distinctRejectedIssueCount ?? NO_ISSUES) : (entry.distinctIssueCount ?? NO_ISSUES)
-  const content = (
+  const renderHeatmapRowContent = (): JSX.Element => (
     <>
       <span className='min-w-0 truncate text-[0.82rem] text-text-base' title={entry.path}>
         {entry.segment}
@@ -71,6 +71,7 @@ const HeatmapRow = function HeatmapRow({
       </span>
     </>
   )
+  const content = renderHeatmapRowContent()
   const rowClass = 'grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] items-center gap-3 py-1 px-2 rounded'
   return entry.isLeaf ? (
     <div className={rowClass}>{content}</div>
@@ -84,6 +85,14 @@ const HeatmapRow = function HeatmapRow({
     </a>
   )
 }
+
+const renderClaimVolumeHelp = (): JSX.Element => (
+  <>
+    This view is fed by <code className='text-[0.78rem]'>claim_files</code>. It fills in once agents claim files while
+    working issues on this project.
+  </>
+)
+
 /**
  * Claim/contention and breadcrumb drill-down are shareable server navigations, never mount fetches.
  *
@@ -107,6 +116,73 @@ export const CodeHeatmap = function CodeHeatmap({
     ? Math.max(MIN_SCALE_ISSUE_COUNT, ...data.entries.map((entry) => entry[countField] ?? NO_ISSUES))
     : MIN_SCALE_ISSUE_COUNT
   const segments = isNonEmptyText(data?.prefix) ? data.prefix.split('/') : []
+  const renderHeatmapModeLinks = (): JSX.Element => (
+    <nav className='flex flex-wrap items-center gap-1 mb-3 text-[0.78rem]' aria-label='Heatmap mode'>
+      {(['claims', 'contention'] as const).map((value) => (
+        <a
+          key={value}
+          href={heatmapHref(initialUrl, value, '')}
+          aria-current={mode === value ? 'page' : undefined}
+          className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${mode === value ? 'font-semibold text-text-base' : 'text-accent'}`}
+        >
+          {value === 'claims' ? 'Claim volume' : 'Contention'}
+        </a>
+      ))}
+    </nav>
+  )
+
+  const renderHeatmapBreadcrumbs = (): JSX.Element => (
+    <nav className='flex flex-wrap items-center gap-1 mb-3 text-[0.78rem]' aria-label='Heatmap breadcrumb'>
+      <a
+        href={heatmapHref(initialUrl, mode, '')}
+        className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${Array.isArrayEmpty(segments) ? 'font-semibold text-text-base' : 'text-accent'}`}
+      >
+        All files
+      </a>
+      {segments.map((segment, index) => {
+        const path = segments.slice(FIRST_BREADCRUMB_INDEX, index + BREADCRUMB_INDEX_STEP).join('/')
+        return (
+          <span key={path} className='flex items-center gap-1'>
+            <span className='text-text-muted'>/</span>
+            <a
+              href={heatmapHref(initialUrl, mode, path)}
+              className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${index === segments.length - BREADCRUMB_INDEX_STEP ? 'font-semibold text-text-base' : 'text-accent'}`}
+            >
+              {segment}
+            </a>
+          </span>
+        )
+      })}
+    </nav>
+  )
+
+  const renderHeatmapEmptyState = (): JSX.Element => (
+    <div className='py-8 text-center'>
+      <p className='m-0 text-sm text-text-base'>
+        {mode === 'contention' ? 'No claim conflicts in this window' : 'No file claims in this window yet'}
+      </p>
+      <p className='m-0 mt-1 text-[0.78rem] text-text-muted'>
+        {mode === 'contention'
+          ? "Agents aren't queuing up over the same files. That's a healthy sign for fleet parallelism."
+          : renderClaimVolumeHelp()}
+      </p>
+    </div>
+  )
+
+  const renderHeatmapRows = (response: CodeHeatmapResponse): JSX.Element => (
+    <div className='flex flex-col gap-0.5'>
+      {response.entries.map((entry) => (
+        <HeatmapRow
+          key={entry.path}
+          entry={entry}
+          mode={mode}
+          ratio={(entry[countField] ?? NO_ISSUES) / maxCount}
+          href={heatmapHref(initialUrl, mode, entry.path)}
+        />
+      ))}
+    </div>
+  )
+
   return (
     <div className='mb-8'>
       <SectionHeading
@@ -118,18 +194,7 @@ export const CodeHeatmap = function CodeHeatmap({
         }
       />
       <div className='p-4 bg-surface border border-border rounded-lg'>
-        <nav className='flex flex-wrap items-center gap-1 mb-3 text-[0.78rem]' aria-label='Heatmap mode'>
-          {(['claims', 'contention'] as const).map((value) => (
-            <a
-              key={value}
-              href={heatmapHref(initialUrl, value, '')}
-              aria-current={mode === value ? 'page' : undefined}
-              className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${mode === value ? 'font-semibold text-text-base' : 'text-accent'}`}
-            >
-              {value === 'claims' ? 'Claim volume' : 'Contention'}
-            </a>
-          ))}
-        </nav>
+        {renderHeatmapModeLinks()}
         {error && (
           <p role='alert' className='text-danger-text'>
             {error}
@@ -137,57 +202,8 @@ export const CodeHeatmap = function CodeHeatmap({
         )}
         {data && (
           <>
-            <nav className='flex flex-wrap items-center gap-1 mb-3 text-[0.78rem]' aria-label='Heatmap breadcrumb'>
-              <a
-                href={heatmapHref(initialUrl, mode, '')}
-                className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${Array.isArrayEmpty(segments) ? 'font-semibold text-text-base' : 'text-accent'}`}
-              >
-                All files
-              </a>
-              {segments.map((segment, index) => {
-                const path = segments.slice(FIRST_BREADCRUMB_INDEX, index + BREADCRUMB_INDEX_STEP).join('/')
-                return (
-                  <span key={path} className='flex items-center gap-1'>
-                    <span className='text-text-muted'>/</span>
-                    <a
-                      href={heatmapHref(initialUrl, mode, path)}
-                      className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${index === segments.length - BREADCRUMB_INDEX_STEP ? 'font-semibold text-text-base' : 'text-accent'}`}
-                    >
-                      {segment}
-                    </a>
-                  </span>
-                )
-              })}
-            </nav>
-            {Array.isArrayEmpty(data.entries) ? (
-              <div className='py-8 text-center'>
-                <p className='m-0 text-sm text-text-base'>
-                  {mode === 'contention' ? 'No claim conflicts in this window' : 'No file claims in this window yet'}
-                </p>
-                <p className='m-0 mt-1 text-[0.78rem] text-text-muted'>
-                  {mode === 'contention' ? (
-                    "Agents aren't queuing up over the same files. That's a healthy sign for fleet parallelism."
-                  ) : (
-                    <>
-                      This view is fed by <code className='text-[0.78rem]'>claim_files</code>. It fills in once agents
-                      claim files while working issues on this project.
-                    </>
-                  )}
-                </p>
-              </div>
-            ) : (
-              <div className='flex flex-col gap-0.5'>
-                {data.entries.map((entry) => (
-                  <HeatmapRow
-                    key={entry.path}
-                    entry={entry}
-                    mode={mode}
-                    ratio={(entry[countField] ?? NO_ISSUES) / maxCount}
-                    href={heatmapHref(initialUrl, mode, entry.path)}
-                  />
-                ))}
-              </div>
-            )}
+            {renderHeatmapBreadcrumbs()}
+            {Array.isArrayEmpty(data.entries) ? renderHeatmapEmptyState() : renderHeatmapRows(data)}
           </>
         )}
       </div>

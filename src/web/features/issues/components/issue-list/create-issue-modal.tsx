@@ -135,6 +135,32 @@ const CreateIssueModalFields = function CreateIssueModalFields({
   )
 }
 
+const renderCreateIssueTitle = (
+  createTitle: string,
+  setCreateTitle: CreateIssueModalProps['setCreateTitle'],
+): JSX.Element => (
+  <div className='mb-[0.875rem]'>
+    <label className='block text-[0.78rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+      Title *
+      <input
+        type='text'
+        name='title'
+        maxLength={500}
+        value={createTitle}
+        onInput={(event) => {
+          setCreateTitle((event.target as HTMLInputElement).value)
+        }}
+        placeholder='Issue title'
+        required
+        className={[
+          'w-full px-3 py-2 border border-border rounded bg-bg text-text-base box-border text-[0.9rem]',
+          'font-normal normal-case tracking-normal mt-[0.3rem]',
+        ].join(' ')}
+      />
+    </label>
+  </div>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
   const {
@@ -147,6 +173,54 @@ export function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
     submitCreate,
     setShowCreateModal,
   } = props
+  const renderCreateIssueContent = (): JSX.Element => (
+    <div className='flex-1 min-h-0 overflow-y-auto overscroll-contain px-6'>
+      {createError && (
+        <p role='alert' className='text-danger-text mb-3 text-sm'>
+          {createError}
+        </p>
+      )}
+
+      {renderCreateIssueTitle(createTitle, setCreateTitle)}
+
+      <div className='mb-[0.875rem]'>
+        {/* PROJ-566: a caption sibling, NOT a wrapper. A <label> with no `for` forwards
+         clicks on its non-interactive descendants to its first labelable control —
+         here the editor toolbar's Bold button — so every tap in the editor body ran
+         Bold. The editor names itself via ariaLabel instead. */}
+        {/* Caption for MarkdownEditor, which has no associable control */}
+        <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
+          Description
+        </label>
+        <MarkdownEditor value={createBody} onChange={setCreateBody} minHeight='160px' ariaLabel='Description' />
+      </div>
+
+      <CreateIssueModalFields {...props} />
+    </div>
+  )
+
+  const renderCreateIssueActions = (): JSX.Element => (
+    <div
+      className={[
+        'shrink-0 sticky bottom-0 flex gap-2 border-t border-border bg-bg px-6 pt-4',
+        'pb-[max(1rem,env(safe-area-inset-bottom))]',
+      ].join(' ')}
+    >
+      <Button type='submit' variant='primary' disabled={submittingCreate || !props.createValid}>
+        {submittingCreate ? 'Creating…' : 'Create issue'}
+      </Button>
+      <Button
+        type='button'
+        variant='outline'
+        onClick={() => {
+          setShowCreateModal(false)
+        }}
+      >
+        Cancel
+      </Button>
+    </div>
+  )
+
   return (
     <Dialog
       open
@@ -165,69 +239,10 @@ export function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
         <input type='hidden' name='body' value={props.createBody} />
         {props.createTypeId && <input type='hidden' name='typeId' value={props.createTypeId} />}
         {props.createStatusId && <input type='hidden' name='statusId' value={props.createStatusId} />}
-        <div className='flex-1 min-h-0 overflow-y-auto overscroll-contain px-6'>
-          {createError && (
-            <p role='alert' className='text-danger-text mb-3 text-sm'>
-              {createError}
-            </p>
-          )}
-
-          <div className='mb-[0.875rem]'>
-            <label className='block text-[0.78rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
-              Title *
-              <input
-                type='text'
-                name='title'
-                maxLength={500}
-                value={createTitle}
-                onInput={(event) => {
-                  setCreateTitle((event.target as HTMLInputElement).value)
-                }}
-                placeholder='Issue title'
-                required
-                className={[
-                  'w-full px-3 py-2 border border-border rounded bg-bg text-text-base box-border text-[0.9rem]',
-                  'font-normal normal-case tracking-normal mt-[0.3rem]',
-                ].join(' ')}
-              />
-            </label>
-          </div>
-
-          <div className='mb-[0.875rem]'>
-            {/* PROJ-566: a caption sibling, NOT a wrapper. A <label> with no `for` forwards
-							    clicks on its non-interactive descendants to its first labelable control —
-							    here the editor toolbar's Bold button — so every tap in the editor body ran
-							    Bold. The editor names itself via ariaLabel instead. */}
-            {/* Caption for MarkdownEditor, which has no associable control */}
-            <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
-              Description
-            </label>
-            <MarkdownEditor value={createBody} onChange={setCreateBody} minHeight='160px' ariaLabel='Description' />
-          </div>
-
-          <CreateIssueModalFields {...props} />
-        </div>
+        {renderCreateIssueContent()}
 
         {/* Stays inside the <form> so the submit button still submits it. */}
-        <div
-          className={[
-            'shrink-0 sticky bottom-0 flex gap-2 border-t border-border bg-bg px-6 pt-4',
-            'pb-[max(1rem,env(safe-area-inset-bottom))]',
-          ].join(' ')}
-        >
-          <Button type='submit' variant='primary' disabled={submittingCreate || !props.createValid}>
-            {submittingCreate ? 'Creating…' : 'Create issue'}
-          </Button>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => {
-              setShowCreateModal(false)
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
+        {renderCreateIssueActions()}
       </form>
     </Dialog>
   )

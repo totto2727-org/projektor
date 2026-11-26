@@ -95,6 +95,79 @@ const SPRINT_EDIT_INPUT_CLASS = [
   'font-normal normal-case tracking-normal mt-[0.2rem]',
 ].join(' ')
 
+const renderSprintEditName = (
+  sprintEditName: SprintBannerProps['sprintEditName'],
+  setSprintEditName: SprintBannerProps['setSprintEditName'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    Name *
+    <input
+      type='text'
+      value={sprintEditName}
+      onInput={(event) => {
+        setSprintEditName((event.target as HTMLInputElement).value)
+      }}
+      required
+      maxLength={255}
+      className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
+    />
+  </label>
+)
+
+const renderSprintEditStatus = (
+  sprintEditStatus: SprintBannerProps['sprintEditStatus'],
+  setSprintEditStatus: SprintBannerProps['setSprintEditStatus'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    Status
+    <select
+      value={sprintEditStatus}
+      onChange={(event) => {
+        setSprintEditStatus(event.target.value as 'planned' | 'active' | 'completed')
+      }}
+      className={`cursor-pointer ${SPRINT_EDIT_INPUT_CLASS}`}
+    >
+      <option value='planned'>Planned</option>
+      <option value='active'>Active</option>
+      <option value='completed'>Completed</option>
+    </select>
+  </label>
+)
+
+const renderSprintEditStart = (
+  sprintEditStart: SprintBannerProps['sprintEditStart'],
+  setSprintEditStart: SprintBannerProps['setSprintEditStart'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    Start date
+    <input
+      type='date'
+      value={sprintEditStart}
+      onInput={(event) => {
+        setSprintEditStart((event.target as HTMLInputElement).value)
+      }}
+      className={SPRINT_EDIT_INPUT_CLASS}
+    />
+  </label>
+)
+
+const renderSprintEditEnd = (
+  sprintEditEnd: SprintBannerProps['sprintEditEnd'],
+  setSprintEditEnd: SprintBannerProps['setSprintEditEnd'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    End date
+    <input
+      type='date'
+      value={sprintEditEnd}
+      onInput={(event) => {
+        setSprintEditEnd((event.target as HTMLInputElement).value)
+      }}
+      className={SPRINT_EDIT_INPUT_CLASS}
+    />
+  </label>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintEditFields({
   sprintEditName,
@@ -118,66 +191,56 @@ function SprintEditFields({
 >): JSX.Element {
   return (
     <div className='flex gap-3 flex-wrap items-end'>
-      <div className='flex-1 min-w-[160px]'>
-        <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
-          Name *
-          <input
-            type='text'
-            value={sprintEditName}
-            onInput={(event) => {
-              setSprintEditName((event.target as HTMLInputElement).value)
-            }}
-            required
-            maxLength={255}
-            className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
-          />
-        </label>
-      </div>
-      <div>
-        <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
-          Status
-          <select
-            value={sprintEditStatus}
-            onChange={(event) => {
-              setSprintEditStatus(event.target.value as 'planned' | 'active' | 'completed')
-            }}
-            className={`cursor-pointer ${SPRINT_EDIT_INPUT_CLASS}`}
-          >
-            <option value='planned'>Planned</option>
-            <option value='active'>Active</option>
-            <option value='completed'>Completed</option>
-          </select>
-        </label>
-      </div>
-      <div>
-        <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
-          Start date
-          <input
-            type='date'
-            value={sprintEditStart}
-            onInput={(event) => {
-              setSprintEditStart((event.target as HTMLInputElement).value)
-            }}
-            className={SPRINT_EDIT_INPUT_CLASS}
-          />
-        </label>
-      </div>
-      <div>
-        <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
-          End date
-          <input
-            type='date'
-            value={sprintEditEnd}
-            onInput={(event) => {
-              setSprintEditEnd((event.target as HTMLInputElement).value)
-            }}
-            className={SPRINT_EDIT_INPUT_CLASS}
-          />
-        </label>
-      </div>
+      <div className='flex-1 min-w-[160px]'>{renderSprintEditName(sprintEditName, setSprintEditName)}</div>
+      <div>{renderSprintEditStatus(sprintEditStatus, setSprintEditStatus)}</div>
+      <div>{renderSprintEditStart(sprintEditStart, setSprintEditStart)}</div>
+      <div>{renderSprintEditEnd(sprintEditEnd, setSprintEditEnd)}</div>
     </div>
   )
 }
+
+const renderSprintEditGoal = (
+  sprintEditGoal: string,
+  setSprintEditGoal: SprintBannerProps['setSprintEditGoal'],
+): JSX.Element => (
+  <div>
+    <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+      Goal
+      <input
+        type='text'
+        value={sprintEditGoal}
+        onInput={(event) => {
+          setSprintEditGoal((event.target as HTMLInputElement).value)
+        }}
+        maxLength={2000}
+        placeholder='What do you want to achieve this sprint?'
+        className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
+      />
+    </label>
+  </div>
+)
+
+const renderSprintEditActions = (
+  sprintEditSaving: boolean,
+  sprintEditName: string,
+  setSprintEditing: SprintBannerProps['setSprintEditing'],
+): JSX.Element => (
+  <div className='flex gap-2'>
+    <Button type='submit' variant='primary' size='sm' disabled={sprintEditSaving || !sprintEditName.trim()}>
+      {sprintEditSaving ? 'Saving…' : 'Save'}
+    </Button>
+    <Button
+      type='button'
+      variant='outline'
+      size='sm'
+      onClick={() => {
+        setSprintEditing(false)
+      }}
+    >
+      Cancel
+    </Button>
+  </div>
+)
 
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function SprintEditForm({
@@ -217,36 +280,8 @@ function SprintEditForm({
           sprintEditEnd={sprintEditEnd}
           setSprintEditEnd={setSprintEditEnd}
         />
-        <div>
-          <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
-            Goal
-            <input
-              type='text'
-              value={sprintEditGoal}
-              onInput={(event) => {
-                setSprintEditGoal((event.target as HTMLInputElement).value)
-              }}
-              maxLength={2000}
-              placeholder='What do you want to achieve this sprint?'
-              className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
-            />
-          </label>
-        </div>
-        <div className='flex gap-2'>
-          <Button type='submit' variant='primary' size='sm' disabled={sprintEditSaving || !sprintEditName.trim()}>
-            {sprintEditSaving ? 'Saving…' : 'Save'}
-          </Button>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={() => {
-              setSprintEditing(false)
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
+        {renderSprintEditGoal(sprintEditGoal, setSprintEditGoal)}
+        {renderSprintEditActions(sprintEditSaving, sprintEditName, setSprintEditing)}
       </div>
     </form>
   )
