@@ -644,7 +644,7 @@ const wikiPageDetailColumns = fieldsInOrder([
  * point at the page's current id, so this is a single hop regardless of how many
  * times the page has been renamed since.
  */
-async function resolveWikiPageByRedirect(
+const resolveWikiPageByRedirect = async function resolveWikiPageByRedirect(
   orm: ReturnType<typeof drizzle<typeof schema>>,
   workspaceId: string,
   oldSlug: string,
@@ -793,7 +793,10 @@ const deriveSlugFromTitle = function deriveSlugFromTitle(title: string): string 
  * SQL (wiki_fts/wiki_links) — batch() is D1's native API and only accepts
  * D1PreparedStatement, not drizzle's own query builders.
  */
-function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+const toD1Statement = function toD1Statement(
+  ctx: ServiceCtx,
+  query: Readonly<{ sql: string; params: unknown[] }>,
+): D1PreparedStatement {
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
@@ -1140,7 +1143,7 @@ const FTS_ROWID_OF_PAGE = '(SELECT search_rowid FROM wiki_pages WHERE id = ? AND
  * already know the post-write title/content/tags before any statement runs, since that's
  * what lets these statements sit alongside the content write in one atomic batch.
  */
-function buildFtsInsertStatements(
+const buildFtsInsertStatements = function buildFtsInsertStatements(
   ctx: ServiceCtx,
   id: string,
   title: string,

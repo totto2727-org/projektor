@@ -334,7 +334,7 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
   })
 }
 
-async function insertNotifications(
+const insertNotifications = async function insertNotifications(
   ctx: ServiceCtx,
   orm: Orm,
   entries: Readonly<

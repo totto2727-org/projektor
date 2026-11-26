@@ -512,7 +512,7 @@ const buildFtsInsertStatement = function buildFtsInsertStatement(
     .bind(id, ctx.workspaceId, title, body, id, ctx.workspaceId)
 }
 
-function now(): number {
+const now = function now(): number {
   return currentEpochSeconds()
 }
 
@@ -634,7 +634,7 @@ interface CreatedIssue {
   number: number | undefined
 }
 
-async function createIssueInternal(
+const createIssueInternal = async function createIssueInternal(
   ctx: ServiceCtx,
   raw: unknown,
   feedbackIds?: Readonly<string[]>,
@@ -862,7 +862,7 @@ const isCancelledState = function isCancelledState(
  * waited to be worked, and used to get ready_at = done_at, a 0s lead time that dragged
  * the median to zero. Issues created in an open non-backlog status are ready from creation.
  */
-function isOpenPastBacklog(key: string, category: string | null | undefined): boolean {
+const isOpenPastBacklog = function isOpenPastBacklog(key: string, category: string | null | undefined): boolean {
   if (key === 'backlog' || key === 'cancelled' || category === 'cancelled') {
     return false
   }
