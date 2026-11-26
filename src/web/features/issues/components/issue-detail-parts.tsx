@@ -525,6 +525,18 @@ export const BodySection = function BodySection({
     saveBody,
   } = useBodyEditor(issue, issueId, workspaceSlug, currentUserId)
 
+  const renderEditDescriptionButton = (): JSX.Element => (
+    <button
+      type='button'
+      onClick={() => {
+        startEditBody()
+      }}
+      title='Edit description'
+      className='text-text-muted hover:text-text-base transition-colors rounded p-0.5'
+    >
+      <PencilIcon />
+    </button>
+  )
   return (
     <section className='mb-8'>
       <div className='flex items-center gap-3 mb-4'>
@@ -532,18 +544,7 @@ export const BodySection = function BodySection({
           Description
         </span>
         <div className='flex-1 h-px bg-border' />
-        {!editingBody && (
-          <button
-            type='button'
-            onClick={() => {
-              startEditBody()
-            }}
-            title='Edit description'
-            className='text-text-muted hover:text-text-base transition-colors rounded p-0.5'
-          >
-            <PencilIcon />
-          </button>
-        )}
+        {!editingBody && renderEditDescriptionButton()}
       </div>
 
       {saveBodyError && (
@@ -596,6 +597,46 @@ export const ChildIssuesSection = function ChildIssuesSection({
     return false
   }
 
+  const renderChildIssueRows = (): JSX.Element => (
+    <div className='flex flex-col gap-2'>
+      {childIssues.map((child) => {
+        const childRef = child.project_key ? `${child.project_key}-${child.number}` : `#${child.number}`
+        return (
+          <div
+            key={child.id}
+            className='flex items-center gap-[0.625rem] px-3 py-2 border border-border rounded-md bg-surface flex-wrap'
+          >
+            <span className='font-mono text-[0.8rem] text-text-muted shrink-0'>{childRef}</span>
+            <a
+              href={issueUrl(child.project_key, child.number, child.title, child.id, child.workspaceSlug)}
+              className='text-text-base no-underline text-sm flex-1 min-w-0 truncate hover:underline'
+            >
+              {child.title}
+            </a>
+            {child.status_category && (
+              <span
+                className='px-2 py-[0.125rem] rounded text-xs font-medium border border-border shrink-0'
+                style={{ color: categoryColor(child.status_category) }}
+              >
+                {child.status_name ?? child.status_category.replace('_', ' ')}
+              </span>
+            )}
+            {child.priority && child.priority !== 'none' && (
+              <span
+                className='px-2 py-[0.125rem] rounded text-xs font-medium shrink-0 capitalize'
+                style={{
+                  background: `var(--priority-${child.priority}-bg)`,
+                  color: `var(--priority-${child.priority}-text)`,
+                }}
+              >
+                {child.priority}
+              </span>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
   return (
     <section className='mb-8'>
       <div className='flex items-center gap-3 mb-4'>
@@ -612,44 +653,7 @@ export const ChildIssuesSection = function ChildIssuesSection({
       {Array.isArrayEmpty(childIssues) ? (
         <p className='text-text-muted italic'>No child issues yet.</p>
       ) : (
-        <div className='flex flex-col gap-2'>
-          {childIssues.map((child) => {
-            const childRef = child.project_key ? `${child.project_key}-${child.number}` : `#${child.number}`
-            return (
-              <div
-                key={child.id}
-                className='flex items-center gap-[0.625rem] px-3 py-2 border border-border rounded-md bg-surface flex-wrap'
-              >
-                <span className='font-mono text-[0.8rem] text-text-muted shrink-0'>{childRef}</span>
-                <a
-                  href={issueUrl(child.project_key, child.number, child.title, child.id, child.workspaceSlug)}
-                  className='text-text-base no-underline text-sm flex-1 min-w-0 truncate hover:underline'
-                >
-                  {child.title}
-                </a>
-                {child.status_category && (
-                  <span
-                    className='px-2 py-[0.125rem] rounded text-xs font-medium border border-border shrink-0'
-                    style={{ color: categoryColor(child.status_category) }}
-                  >
-                    {child.status_name ?? child.status_category.replace('_', ' ')}
-                  </span>
-                )}
-                {child.priority && child.priority !== 'none' && (
-                  <span
-                    className='px-2 py-[0.125rem] rounded text-xs font-medium shrink-0 capitalize'
-                    style={{
-                      background: `var(--priority-${child.priority}-bg)`,
-                      color: `var(--priority-${child.priority}-text)`,
-                    }}
-                  >
-                    {child.priority}
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
+        renderChildIssueRows()
       )}
     </section>
   )
@@ -767,6 +771,25 @@ const LinkForm = function LinkForm({
 const IssueLinkTypeSchema = Schema.Literals(['blocks', 'blocked_by', 'relates_to', 'duplicates'])
 const decodeIssueLinkType = Schema.decodeUnknownEffect(IssueLinkTypeSchema)
 
+const renderLinkGroups = function renderLinkGroups(
+  linksByType: { type: IssueLink['type']; label: string; items: IssueLink[] }[],
+  workspaceSlug: string | undefined,
+  removeLink: (id: string) => Promise<void>,
+): JSX.Element[] {
+  return linksByType.map((group) => (
+    <div key={group.type} className='mb-3'>
+      <p className='m-0 mb-[0.375rem] text-xs font-semibold text-text-muted uppercase tracking-[0.04em]'>
+        {group.label}
+      </p>
+      <div className='flex flex-wrap gap-2'>
+        {group.items.map((link) => (
+          <LinkItem key={link.id} link={link} workspaceSlug={workspaceSlug} onRemove={() => removeLink(link.id)} />
+        ))}
+      </div>
+    </div>
+  ))
+}
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const RelationsSection = function RelationsSection({
   issueId,
@@ -841,25 +864,7 @@ export const RelationsSection = function RelationsSection({
       <SectionDivider title={`Relations${Array.isArrayNonEmpty(links) ? ` (${links.length})` : ''}`} />
 
       {Array.isArrayNonEmpty(linksByType) && (
-        <div className='mb-4'>
-          {linksByType.map((group) => (
-            <div key={group.type} className='mb-3'>
-              <p className='m-0 mb-[0.375rem] text-xs font-semibold text-text-muted uppercase tracking-[0.04em]'>
-                {group.label}
-              </p>
-              <div className='flex flex-wrap gap-2'>
-                {group.items.map((link) => (
-                  <LinkItem
-                    key={link.id}
-                    link={link}
-                    workspaceSlug={workspaceSlug}
-                    onRemove={() => removeLink(link.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className='mb-4'>{renderLinkGroups(linksByType, workspaceSlug, removeLink)}</div>
       )}
 
       {linkFormOpen ? (
@@ -1150,6 +1155,25 @@ const WikiPageLinkForm = function WikiPageLinkForm({
     }
   }, [query, workspaceSlug])
 
+  const renderWikiSearchResults = (): JSX.Element => (
+    <ul className='list-none m-0 p-0 flex flex-col gap-1 max-h-56 overflow-y-auto'>
+      {results.map((result) => (
+        <li key={result.id}>
+          <button
+            type='button'
+            disabled={linking}
+            onClick={() => {
+              onLink(result.id)
+            }}
+            className='w-full text-left px-[0.625rem] py-2 border border-border rounded text-sm
+									bg-surface hover:bg-bg transition-colors min-h-[44px]'
+          >
+            {result.title}
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
   return (
     <div className='flex flex-col gap-2 max-w-sm max-sm:max-w-none'>
       <input
@@ -1171,25 +1195,7 @@ const WikiPageLinkForm = function WikiPageLinkForm({
         className='px-[0.625rem] py-[0.5rem] border border-border rounded text-sm bg-bg text-text-base min-h-[44px]'
       />
       {searching && <p className='text-xs text-text-muted m-0'>Searching…</p>}
-      {Array.isArrayNonEmpty(results) && (
-        <ul className='list-none m-0 p-0 flex flex-col gap-1 max-h-56 overflow-y-auto'>
-          {results.map((result) => (
-            <li key={result.id}>
-              <button
-                type='button'
-                disabled={linking}
-                onClick={() => {
-                  onLink(result.id)
-                }}
-                className='w-full text-left px-[0.625rem] py-2 border border-border rounded text-sm
-									bg-surface hover:bg-bg transition-colors min-h-[44px]'
-              >
-                {result.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {Array.isArrayNonEmpty(results) && renderWikiSearchResults()}
       <div className='flex gap-2'>
         <Button
           onClick={onCancel}
@@ -1408,6 +1414,44 @@ export const AttachmentsSection = function AttachmentsSection({
     setCanAddAttachment(true)
   }, [])
 
+  const renderAttachmentOptions = (): JSX.Element => (
+    <fieldset
+      aria-label='Add an attachment'
+      disabled={!canAddAttachment}
+      className='flex min-w-0 flex-wrap gap-x-4 gap-y-2 disabled:opacity-50 max-sm:flex-col max-sm:gap-2'
+    >
+      <button
+        type='button'
+        onClick={() => {
+          setMode('file')
+        }}
+        className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
+      >
+        <span className='text-base leading-none'>+</span>
+        <span>Attach file</span>
+      </button>
+      <button
+        type='button'
+        onClick={() => {
+          setMode('wiki')
+        }}
+        className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
+      >
+        <span className='text-base leading-none'>+</span>
+        <span>Link wiki page</span>
+      </button>
+      <button
+        type='button'
+        onClick={() => {
+          setMode('url')
+        }}
+        className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
+      >
+        <span className='text-base leading-none'>+</span>
+        <span>Add URL</span>
+      </button>
+    </fieldset>
+  )
   return (
     <section className='mb-8'>
       <SectionDivider title={`Attachments${Array.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`} />
@@ -1457,44 +1501,7 @@ export const AttachmentsSection = function AttachmentsSection({
         />
       )}
 
-      {mode === 'none' && (
-        <fieldset
-          aria-label='Add an attachment'
-          disabled={!canAddAttachment}
-          className='flex min-w-0 flex-wrap gap-x-4 gap-y-2 disabled:opacity-50 max-sm:flex-col max-sm:gap-2'
-        >
-          <button
-            type='button'
-            onClick={() => {
-              setMode('file')
-            }}
-            className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
-          >
-            <span className='text-base leading-none'>+</span>
-            <span>Attach file</span>
-          </button>
-          <button
-            type='button'
-            onClick={() => {
-              setMode('wiki')
-            }}
-            className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
-          >
-            <span className='text-base leading-none'>+</span>
-            <span>Link wiki page</span>
-          </button>
-          <button
-            type='button'
-            onClick={() => {
-              setMode('url')
-            }}
-            className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
-          >
-            <span className='text-base leading-none'>+</span>
-            <span>Add URL</span>
-          </button>
-        </fieldset>
-      )}
+      {mode === 'none' && renderAttachmentOptions()}
     </section>
   )
 }
@@ -1525,29 +1532,38 @@ const CommentItem = function CommentItem({
   onSave: () => void
   onDelete: () => void
 }): JSX.Element {
+  const renderCommentActions = (): JSX.Element => (
+    <div className='flex items-center gap-2'>
+      <span className='text-xs text-text-muted' title={formatDate(comment.created_at)}>
+        {relativeTime(comment.created_at)}
+      </span>
+      {canModify && !isEditing && (
+        <>
+          <Button onClick={onStartEdit} variant='outline' size='sm'>
+            Edit
+          </Button>
+          <Button onClick={onDelete} size='sm' className='bg-transparent border border-danger-text text-danger-text'>
+            Delete
+          </Button>
+        </>
+      )}
+    </div>
+  )
+  const renderCommentEditActions = (): JSX.Element => (
+    <div className='flex gap-2'>
+      <Button onClick={onSave} disabled={saving} variant='primary'>
+        {saving ? 'Saving…' : 'Save'}
+      </Button>
+      <Button onClick={onCancelEdit} disabled={saving} variant='outline'>
+        Cancel
+      </Button>
+    </div>
+  )
   return (
     <div className='px-4 py-3 border border-border rounded-lg mb-3 bg-surface shadow-elevation-sm'>
       <div className='flex justify-between mb-[0.375rem]'>
         <span className='font-semibold text-sm text-text-base'>{comment.author_name || comment.author_email}</span>
-        <div className='flex items-center gap-2'>
-          <span className='text-xs text-text-muted' title={formatDate(comment.created_at)}>
-            {relativeTime(comment.created_at)}
-          </span>
-          {canModify && !isEditing && (
-            <>
-              <Button onClick={onStartEdit} variant='outline' size='sm'>
-                Edit
-              </Button>
-              <Button
-                onClick={onDelete}
-                size='sm'
-                className='bg-transparent border border-danger-text text-danger-text'
-              >
-                Delete
-              </Button>
-            </>
-          )}
-        </div>
+        {renderCommentActions()}
       </div>
       {isEditing ? (
         <div>
@@ -1564,14 +1580,7 @@ const CommentItem = function CommentItem({
             rows={4}
             className='w-full px-3 py-2 border border-border rounded text-sm resize-y box-border mb-2 bg-bg text-text-base'
           />
-          <div className='flex gap-2'>
-            <Button onClick={onSave} disabled={saving} variant='primary'>
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-            <Button onClick={onCancelEdit} disabled={saving} variant='outline'>
-              Cancel
-            </Button>
-          </div>
+          {renderCommentEditActions()}
         </div>
       ) : (
         <MarkdownPreview content={comment.body} initial={comment.renderedBody} className='break-words' />
