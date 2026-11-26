@@ -177,7 +177,14 @@ function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
     : null
 }
 
-export async function listIssues(ctx: ServiceCtx, raw: unknown) {
+type IssuePageWithUrls<Page extends { items: unknown[] }> = Omit<Page, 'items'> & {
+  items: (Page['items'][number] & { url: string | null })[]
+}
+
+type ListedIssuesPage = IssuePageWithUrls<Effect.Success<ReturnType<typeof issueQueries.listIssues>>>
+type BatchIssuesPage = IssuePageWithUrls<Effect.Success<ReturnType<typeof issueQueries.getIssuesBatch>>>
+
+export async function listIssues(ctx: ServiceCtx, raw: unknown): Promise<ListedIssuesPage> {
   const result = ListIssuesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -351,7 +358,7 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown): Promise<Record<st
  * items (customFields, no rollup/links) rather than getIssue's full shape, since loading
  * rollup/links per issue here would be an N+1 the batch is meant to avoid.
  */
-export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
+export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown): Promise<BatchIssuesPage> {
   const result = GetIssuesBatchSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -599,7 +606,7 @@ export async function createIssueFromFeedback(
   ctx: ServiceCtx,
   input: Readonly<{ projectId: string; title: string; body: string; priority: 'medium' }>,
   feedbackIds: Readonly<string[]>,
-) {
+): ReturnType<typeof createIssueInternal> {
   if (
     !feedbackIds.length ||
     feedbackIds.length > MAX_BULK_FEEDBACK_COUNT ||
@@ -1846,7 +1853,11 @@ const toPrioritizedIssue = function toPrioritizedIssue(row: PrioritizedRow) {
   }
 }
 
-export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
+type PrioritizedIssues =
+  | { issues: never[]; droppedNotReady?: undefined }
+  | { issues: ReturnType<typeof toPrioritizedIssue>[]; droppedNotReady: number }
+
+export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown): Promise<PrioritizedIssues> {
   const parsed = parsePrioritizedFilters(raw)
   const { limit, includeBacklog, excludeClaimed, includeNotReady } = parsed
   const projectId = parsed.projectId ? await resolveVisibleProjectIdParam(ctx, parsed.projectId) : parsed.projectId

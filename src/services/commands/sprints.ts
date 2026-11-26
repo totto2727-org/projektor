@@ -79,7 +79,10 @@ export const getSprint = async function getSprint(ctx: ServiceCtx, id: string): 
   return sprint
 }
 
-export const createSprint = async function createSprint(ctx: ServiceCtx, raw: unknown) {
+export const createSprint = async function createSprint(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ id: ReturnType<typeof crypto.randomUUID> }> {
   const result = CreateSprintSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))

@@ -215,7 +215,12 @@ const reclaimStaleLeaseOrThrow = async function reclaimStaleLeaseOrThrow(
  * @param {unknown} raw The input containing the issue ID and optional agent session ID.
  * @returns {Promise<typeof schema.issueLeases.$inferSelect>} The newly claimed lease.
  */
-export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknown) {
+type IssueLease = Pick<
+  typeof schema.issueLeases.$inferSelect,
+  'id' | 'workspaceId' | 'issueId' | 'claimedAt' | 'releasedAt' | 'releaseReason' | 'agentSessionId'
+>
+
+export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknown): Promise<IssueLease> {
   const result = ClaimIssueSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -537,6 +542,16 @@ export const isLiveAgentSessionId = async function isLiveAgentSessionId(
   return Predicate.isNotNullish(row)
 }
 
+interface ListedIssueLease {
+  id: string
+  issueId: string
+  issueRef: string
+  agentSessionId: string
+  agentName: string
+  claimedAt: number
+  live: boolean
+}
+
 /**
  * List active leases (released_at IS NULL) in the workspace, optionally scoped
  * to an issue, agent or project. Each row carries a `live` flag (false = the
@@ -550,10 +565,13 @@ export const isLiveAgentSessionId = async function isLiveAgentSessionId(
  *
  * @param {ServiceCtx} ctx The caller and workspace database.
  * @param {unknown} raw The optional issue, agent and project filters and stale-session policy.
- * @returns {Promise<{items: {id: string, issueId: string, issueRef: string, agentSessionId: string, agentName: string, claimedAt: number, live: boolean}[]}>}
+ * @returns {Promise<{items: ListedIssueLease[]}>}
  * The visible lease rows in claim order.
  */
-export const listIssueLeases = async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
+export const listIssueLeases = async function listIssueLeases(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ items: ListedIssueLease[] }> {
   const result = ListIssueLeasesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
