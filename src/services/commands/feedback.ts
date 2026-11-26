@@ -5,14 +5,14 @@ import {
   BulkFeedbackIdsSchema,
   ConvertFeedbackSchema,
   ListFeedbackSchema,
-  SubmitFeedbackSchema,
   UpdateFeedbackSchema,
 } from '#contracts/inputs/feedback.ts'
-import { currentEpochSeconds } from '#contracts/time.ts'
 import * as feedbackQueries from '#services/feedback.ts'
 
 import { canWriteProject, requireProjectAccess, requireProjectInWorkspace } from './access.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { insertFeedbackRow, parseSubmitFeedbackBody } from './feedback-submission.ts'
+import type { FeedbackSubmissionSource } from './feedback-submission.ts'
 import { createIssueFromFeedback } from './issues.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
@@ -22,6 +22,8 @@ const POSITIVE_THUMBS_THRESHOLD = 0
 const CONVERTED_TITLE_MAX_LENGTH = 120
 const NO_RATINGS = 0
 const PERCENT_MULTIPLIER = 100
+const HEXADECIMAL_RADIX = 16
+const HEX_DIGITS_PER_BYTE = 2
 
 const requireProjectWriteAccess = async function requireProjectWriteAccess(
   ctx: ServiceCtx,
@@ -36,13 +38,12 @@ const requireProjectWriteAccess = async function requireProjectWriteAccess(
 
 export const hashFeedbackToken = async function hashFeedbackToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return [...new Uint8Array(buf)]
+    .map((byte) => byte.toString(HEXADECIMAL_RADIX).padStart(HEX_DIGITS_PER_BYTE, '0'))
+    .join('')
 }
 
-interface SubmitSourceRow {
-  id: string
-  workspace_id: string
-  project_id: string
+interface SubmitSourceRow extends FeedbackSubmissionSource {
   is_active: number
   allowed_origins: string | null
   revoked_at: number | null
@@ -72,50 +73,11 @@ const resolveFeedbackSource = async function resolveFeedbackSource(
   return source
 }
 
-const parseSubmitFeedbackBody = function parseSubmitFeedbackBody(rawBody: unknown) {
-  const parsed = SubmitFeedbackSchema.safeParse(rawBody)
-  if (!parsed.success) {
-    throw new ValidationError(flattenError(parsed.error))
-  }
-  return parsed.data
-}
-
-const insertFeedbackRow = async function insertFeedbackRow(
-  db: D1Database,
-  source: SubmitSourceRow,
-  input: ReturnType<typeof parseSubmitFeedbackBody>,
-): Promise<string> {
-  const id = crypto.randomUUID()
-  const now = currentEpochSeconds()
-  await db
-    .prepare(
-      `INSERT INTO feedback
-       (id, source_id, workspace_id, project_id, rating, rating_scale, body, submitter_label,
-        source_url, app_version, status, linked_issue_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', NULL, ?)`,
-    )
-    .bind(
-      id,
-      source.id,
-      source.workspace_id,
-      source.project_id,
-      input.rating ?? null,
-      input.ratingScale ?? null,
-      input.body ?? null,
-      input.submitterLabel ?? null,
-      input.sourceUrl ?? null,
-      input.appVersion ?? null,
-      now,
-    )
-    .run()
-  return id
-}
-
 const resolveCorsAllowOrigin = function resolveCorsAllowOrigin(
   source: SubmitSourceRow,
   requestOrigin: string | null,
 ): string | null {
-  const allowed = source.allowed_origins ? (JSON.parse(source.allowed_origins) as string[]) : null
+  const allowed = source.allowed_origins ? (JSON.parse(source.allowed_origins) as string[]) : undefined
   return allowed &&
     Predicate.isNotNullish(requestOrigin) &&
     String.isNonEmpty(requestOrigin) &&
