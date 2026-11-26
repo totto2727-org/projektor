@@ -1,4 +1,4 @@
-import { Predicate, Schema, Iterable } from 'effect'
+import { Predicate, Schema, Iterable, Function } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { startWork as startWorkDirect } from '#commands/agents.ts'
@@ -405,7 +405,7 @@ describe('agents API', () => {
           { issue: issue1.id, paths: ['src/contended.ts'], name: 'holder' },
         )
 
-        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
         const origPrepare = env.DB.prepare.bind(env.DB)
         vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
           const stmt = origPrepare(sql)

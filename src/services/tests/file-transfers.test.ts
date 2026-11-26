@@ -1,4 +1,4 @@
-import { Iterable } from 'effect'
+import { Iterable, Function } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import {
@@ -265,7 +265,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       "CREATE TRIGGER fail_attachment BEFORE INSERT ON attachments BEGIN SELECT RAISE(ABORT, 'original insert failure'); END",
     )
     testFixture.remove.mockRejectedValueOnce(new Error('cleanup failure'))
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
     try {
       await expect(uploadStoredAttachment(testFixture.ctx, input(testFixture.file))).rejects.toThrow(
         'original insert failure',

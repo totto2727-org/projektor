@@ -1,4 +1,4 @@
-import { Iterable, Predicate, Effect, Schema } from 'effect'
+import { Iterable, Predicate, Effect, Schema, Function } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -153,7 +153,7 @@ describe('shared request rate-limit policy', () => {
 
   test('fails open on rejected or stalled DO calls without switching to D1', async () => {
     const testFixture = fixture()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
     testFixture.increment.mockRejectedValueOnce(new Error('offline'))
     await expect(checkRateLimit(request(), testFixture.env)).resolves.toBeUndefined()
     vi.useFakeTimers()
@@ -169,7 +169,7 @@ describe('shared request rate-limit policy', () => {
     const testFixture = fixture()
     delete testFixture.env.RATE_LIMITER
     testFixture.env.RATE_LIMIT_AUTH_MAX = '1'
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(Function.constVoid)
     vi.spyOn(Date, 'now').mockReturnValue(125_000)
     vi.spyOn(Math, 'random').mockReturnValue(0)
     testFixture.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale',1,-1000)")
@@ -182,7 +182,7 @@ describe('shared request rate-limit policy', () => {
     await expect(checkRateLimit(request(), testFixture.env)).resolves.toBeUndefined()
     expect(testFixture.sqlite.prepare('SELECT count FROM rate_limit').get()).toEqual({ count: 1 })
     vi.spyOn(testFixture.db, 'batch').mockRejectedValueOnce(new Error('D1 unavailable'))
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
     await expect(checkRateLimit(request(), testFixture.env)).resolves.toBeUndefined()
   })
 
@@ -192,7 +192,7 @@ describe('shared request rate-limit policy', () => {
   ])('covers PROJ-361: prunes only stale D1 rows when the Core probability roll is $roll', async ({ roll, pruned }) => {
     const testFixture = fixture()
     delete testFixture.env.RATE_LIMITER
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(Function.constVoid)
     vi.spyOn(Date, 'now').mockReturnValue(125_000)
     vi.spyOn(Math, 'random').mockReturnValue(roll)
     testFixture.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale-client',1,-1000)")
@@ -243,7 +243,7 @@ describe('shared request rate-limit policy', () => {
   test('retains the D1 fallback through the API without giving the adapter a DB binding', async () => {
     const testFixture = fixture()
     delete testFixture.env.RATE_LIMITER
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(Function.constVoid)
     const { DB: _db, ...withoutDatabase } = { ...testFixture.apiEnv, DB: testFixture.db }
     expect(withoutDatabase).not.toHaveProperty('DB')
     await expect(apiBumpRateCounter(withoutDatabase, 'authfail:ip:test', 60)).resolves.toBe(1)
@@ -255,7 +255,7 @@ describe('shared request rate-limit policy', () => {
 
   test('fails open when the native Core transport fails without exposing its diagnostics', async () => {
     const testFixture = fixture()
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
     const env = {
       ...testFixture.apiEnv,
       CORE: {

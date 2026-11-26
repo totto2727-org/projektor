@@ -1,5 +1,5 @@
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
-import { Iterable } from 'effect'
+import { Iterable, Function } from 'effect'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -111,7 +111,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
 
   test('flag off + no header + a resolvable subdomain warns before the 400', async () => {
     const fixture = await seedFixture()
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(Function.constVoid)
     try {
       const headers = {
         Authorization: `Bearer ${fixture.token}`,
