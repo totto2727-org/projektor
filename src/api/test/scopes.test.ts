@@ -225,32 +225,37 @@ describe('covers PROJ-17: MCP scope enforcement', () => {
 // Token creation: scope validation + membership (POST /auth/tokens)
 // ---------------------------------------------------------------------------
 
-describe('covers PROJ-17: POST /auth/tokens', () => {
-  let workspaceId: string
-  let userId: string
-  let prevDevEmail: string | undefined
+interface MintTokenTestContext {
+  restoreDevEmail?: () => void
+  workspaceId: string
+}
 
+describe('covers PROJ-17: POST /auth/tokens', () => {
   // PROJ-903: minting requires a human session — the dev bypass here.
-  afterEach(() => {
-    env.DEV_USER_EMAIL = prevDevEmail as string
+  afterEach<MintTokenTestContext>(({ restoreDevEmail }) => {
+    restoreDevEmail?.()
   })
 
-  beforeEach(async () => {
-    const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
-    workspaceId = ws.id
+  beforeEach<MintTokenTestContext>(async (context) => {
+    const workspace = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
+    const workspaceId = workspace.id
+    context.workspaceId = workspaceId
     const email = `u-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
-    userId = user.id
+    const userId = user.id
     await env.DB.prepare(
       "INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
     )
       .bind(workspaceId, userId, currentEpochSeconds())
       .run()
-    prevDevEmail = env.DEV_USER_EMAIL
+    const previousDevEmail = env.DEV_USER_EMAIL
+    context.restoreDevEmail = () => {
+      env.DEV_USER_EMAIL = previousDevEmail
+    }
     env.DEV_USER_EMAIL = email
   })
 
-  test('a member can mint a token for their workspace', async () => {
+  test<MintTokenTestContext>('a member can mint a token for their workspace', async ({ workspaceId }) => {
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
       body: stringifyOrderedFields([
         ['name', 'mine'],
@@ -278,7 +283,7 @@ describe('covers PROJ-17: POST /auth/tokens', () => {
     expect(res.status).toBe(403)
   })
 
-  test('rejects invalid scope values', async () => {
+  test<MintTokenTestContext>('rejects invalid scope values', async ({ workspaceId }) => {
     const res = await fetchNativeApi('http://localhost/auth/tokens', {
       body: stringifyOrderedFields([
         ['name', 'bad'],
