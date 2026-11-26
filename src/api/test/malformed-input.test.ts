@@ -1,23 +1,23 @@
 // PROJ-877: malformed JSON and missing params are client errors (400 / JSON-RPC
 // -32700/-32600/-32602), never a 500 — and never reach app.onError.
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+import { describe, expect, onTestFinished, test, vi } from 'vite-plus/test'
 
 import { authHeaders, seedIssueFixture, toolError } from './helpers.ts'
 import { fetchNativeApi, stringifyOrderedFields } from './native-fetch.ts'
 import { McpRpcResponse, readNativeJson } from './response-json.ts'
 
-let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
-let unhandled: ReturnType<typeof vi.spyOn>
+type IssueFixture = Awaited<ReturnType<typeof seedIssueFixture>>
 
-beforeEach(async () => {
-  fixture = await seedIssueFixture({ role: 'owner' })
-  unhandled = vi.spyOn(console, 'error')
-})
-afterEach(() => {
-  const escaped = unhandled.mock.calls.filter((args: unknown[]) => args[0] === 'unhandled error')
-  expect(escaped).toStrictEqual([])
-  vi.restoreAllMocks()
-})
+const prepareMalformedInput = async function prepareMalformedInput(): Promise<IssueFixture> {
+  const fixture = await seedIssueFixture({ role: 'owner' })
+  const unhandled = vi.spyOn(console, 'error')
+  onTestFinished(() => {
+    const escaped = unhandled.mock.calls.filter((args: unknown[]) => args[0] === 'unhandled error')
+    expect(escaped).toStrictEqual([])
+    vi.restoreAllMocks()
+  })
+  return fixture
+}
 
 describe('covers REST: invalid JSON bodies → 400', () => {
   test.each([
@@ -39,6 +39,7 @@ describe('covers REST: invalid JSON bodies → 400', () => {
      * malformed-body case lives in workspace-tokens.test.ts.
      */
   ])('%s %s', async (method, path) => {
+    const fixture = await prepareMalformedInput()
     const url = path.replace(':issueId', fixture.issueId).replace(':slug', fixture.slug)
     const res = await fetchNativeApi(`http://localhost${url}`, {
       body: '{bad json',
@@ -55,28 +56,32 @@ const errorCode = async function errorCode(res: Response): Promise<undefined | n
   return rpc.error?.code
 }
 
-describe('covers MCP: parse and envelope errors', () => {
-  const mcp = function mcp(body: string): Promise<Response> {
-    return fetchNativeApi(`http://localhost/mcp/${fixture.workspaceId}`, {
-      body,
-      headers: { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
-      method: 'POST',
-    })
-  }
+const mcp = async function mcp(fixture: IssueFixture, body: string): Promise<Response> {
+  return fetchNativeApi(`http://localhost/mcp/${fixture.workspaceId}`, {
+    body,
+    headers: { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
+    method: 'POST',
+  })
+}
 
+describe('covers MCP: parse and envelope errors', () => {
   test('invalid JSON → -32700', async () => {
-    const res = await mcp('{bad')
+    const fixture = await prepareMalformedInput()
+    const res = await mcp(fixture, '{bad')
     expect(res.status).toBe(400)
     await expect(errorCode(res)).resolves.toBe(-32_700)
   })
 
   test('not a request object → -32600', async () => {
-    const res = await mcp('[1,2,3]')
+    const fixture = await prepareMalformedInput()
+    const res = await mcp(fixture, '[1,2,3]')
     await expect(errorCode(res)).resolves.toBe(-32_600)
   })
 
   test('tools/call with no params → -32602', async () => {
+    const fixture = await prepareMalformedInput()
     const res = await mcp(
+      fixture,
       stringifyOrderedFields([
         ['jsonrpc', '2.0'],
         ['id', 1],
@@ -88,7 +93,9 @@ describe('covers MCP: parse and envelope errors', () => {
   })
 
   test('tools/call get_project with no arguments → validation tool error naming the field', async () => {
+    const fixture = await prepareMalformedInput()
     const res = await mcp(
+      fixture,
       stringifyOrderedFields([
         ['jsonrpc', '2.0'],
         ['id', 2],
