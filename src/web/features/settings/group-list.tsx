@@ -16,6 +16,17 @@ interface GroupListProps {
   onDelete: (id: string) => void
 }
 
+const renderGroupTableHead = (admin: boolean): JSX.Element => (
+  <TableHead>
+    <TableRow>
+      <TableHeaderCell>Name</TableHeaderCell>
+      <TableHeaderCell>Members</TableHeaderCell>
+      <TableHeaderCell>Projects</TableHeaderCell>
+      {admin && <TableHeaderCell />}
+    </TableRow>
+  </TableHead>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const GroupsList = function GroupsList({
   groups,
@@ -76,46 +87,43 @@ export const GroupsList = function GroupsList({
         Delete
       </Button>
     )
+  const renderGroupRow = (group: GroupSummary): JSX.Element => (
+    <TableRow key={group.id}>
+      <TableCell>
+        {name(group)}
+        {group.description && <p className='text-[0.75rem] text-text-muted m-0 mt-1'>{group.description}</p>}
+      </TableCell>
+      <TableCell>{group.memberCount}</TableCell>
+      <TableCell>{group.grantCount}</TableCell>
+      {admin && <TableCell>{remove(group)}</TableCell>}
+    </TableRow>
+  )
+
+  const renderGroupCard = (group: GroupSummary): JSX.Element => (
+    <div key={group.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+      <div className='flex justify-between items-center gap-2 mb-1'>
+        {name(group)}
+        {admin && remove(group)}
+      </div>
+      {group.description && <p className='text-[0.75rem] text-text-muted m-0 mb-1'>{group.description}</p>}
+      <div className='text-[0.75rem] text-text-muted'>
+        {group.memberCount} members · {group.grantCount} projects
+      </div>
+    </div>
+  )
+
+  const renderGroupTableBody = (): JSX.Element => <TableBody>{groups.map((group) => renderGroupRow(group))}</TableBody>
+
   return (
     <>
       <div className='overflow-x-auto max-sm:hidden'>
         <Table className='text-[0.85rem]'>
-          <TableHead>
-            <TableRow>
-              <TableHeaderCell>Name</TableHeaderCell>
-              <TableHeaderCell>Members</TableHeaderCell>
-              <TableHeaderCell>Projects</TableHeaderCell>
-              {admin && <TableHeaderCell />}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {groups.map((group) => (
-              <TableRow key={group.id}>
-                <TableCell>
-                  {name(group)}
-                  {group.description && <p className='text-[0.75rem] text-text-muted m-0 mt-1'>{group.description}</p>}
-                </TableCell>
-                <TableCell>{group.memberCount}</TableCell>
-                <TableCell>{group.grantCount}</TableCell>
-                {admin && <TableCell>{remove(group)}</TableCell>}
-              </TableRow>
-            ))}
-          </TableBody>
+          {renderGroupTableHead(admin)}
+          {renderGroupTableBody()}
         </Table>
       </div>
       <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-        {groups.map((group) => (
-          <div key={group.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-            <div className='flex justify-between items-center gap-2 mb-1'>
-              {name(group)}
-              {admin && remove(group)}
-            </div>
-            {group.description && <p className='text-[0.75rem] text-text-muted m-0 mb-1'>{group.description}</p>}
-            <div className='text-[0.75rem] text-text-muted'>
-              {group.memberCount} members · {group.grantCount} projects
-            </div>
-          </div>
-        ))}
+        {groups.map((group) => renderGroupCard(group))}
       </div>
     </>
   )
