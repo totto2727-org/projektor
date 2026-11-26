@@ -1,8 +1,9 @@
 import { Buffer } from 'node:buffer'
-import { randomUUID } from 'node:crypto'
 import { readdir, writeFile } from 'node:fs/promises'
 
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
+
+import { fixtureUuid } from '../fixture-crypto'
 
 type BrowserAudit = {
   pageErrors: string[]
@@ -138,7 +139,7 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
 }
 
 test('API and Web share private Core persistence without adapter DB bindings', async ({ request, page }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toUpperCase()
   const name = `Shared D1 ${suffix}`
   const write = await request.post('http://127.0.0.1:4392/api/projects', {
     headers: { 'X-Workspace-Slug': 'projektor' },
@@ -175,7 +176,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   request,
   page,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
   expect(session.status()).toBe(200)
@@ -273,7 +274,7 @@ test('issue review targets persist optional selection and four statuses across f
   baseURL,
 }, testInfo) => {
   test.setTimeout(120_000)
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
   expect(session.status()).toBe(200)
@@ -547,7 +548,7 @@ test('workspace review spans projects and unassigned issues with native filtered
   baseURL,
 }, testInfo) => {
   test.setTimeout(120_000)
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toUpperCase()
   const workspaceSlug = `review-${suffix.toLowerCase()}`
   const createdWorkspace = await request.post('http://127.0.0.1:4392/api/workspaces', {
     data: { name: `Cross review workspace ${suffix}`, slug: workspaceSlug },
@@ -735,7 +736,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   request,
   page,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const created = await request.post('http://127.0.0.1:4392/api/projects', {
     headers,
@@ -900,7 +901,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   baseURL,
   request,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toUpperCase()
   const projectName = `Alchemy acceptance ${suffix}`
   const projectKey = `E${suffix}`
   const issueTitle = `Native issue ${suffix}`
@@ -1086,7 +1087,7 @@ test('native create project and issue refresh canonical reads and navigation', a
 
 /** Read-only page fixtures use the actual local API. They do not replace native create tests. */
 async function createReaderFixtures(request: APIRequestContext) {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toLowerCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toLowerCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const sessionResponse = await request.get('http://127.0.0.1:4392/auth/me')
   expect(sessionResponse.status()).toBe(200)
@@ -1417,7 +1418,7 @@ test('two real memberships require native selection and preserve workspace acros
   request,
   page,
 }, testInfo) => {
-  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toLowerCase()
+  const suffix = fixtureUuid().replaceAll('-', '').slice(0, 6).toLowerCase()
   const slug = `second-${suffix}`
   const createdWorkspace = await request.post('http://127.0.0.1:4392/api/workspaces', {
     data: { name: `Second workspace ${suffix}`, slug },

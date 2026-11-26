@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
@@ -7,6 +6,8 @@ import { NodeServices } from '@effect/platform-node'
 import { inlineSqlParams, MigrationError, runMigrations, type SqlExecutor } from 'alchemy/SQL/Migrations/index'
 import { Effect } from 'effect'
 import { expect, it } from 'vite-plus/test'
+
+import { sha256Hex } from './tests/fixture-crypto'
 
 const directory = new URL('./migrations/', import.meta.url)
 const pending = '0068_wiki_draft_heads.sql'
@@ -27,7 +28,7 @@ it.each([
   const hashes = new Map<string, string>()
   for (const name of files) {
     const sql = readFileSync(new URL(name, directory), 'utf8')
-    hashes.set(name, createHash('sha256').update(sql).digest('hex'))
+    hashes.set(name, await sha256Hex(sql))
     if (name === pending) continue
     db.exec(sql)
     insertApplied.run(name, '2026-11-19 00:00:00')

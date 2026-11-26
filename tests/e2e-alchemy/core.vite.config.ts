@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import cloudflare from '@alchemy.run/cloudflare-runtime/vite'
@@ -6,15 +5,17 @@ import { readD1Migrations } from '@cloudflare/vitest-plugin'
 import { defineConfig, type UserConfig } from 'vite-plus'
 
 import { deployment } from '../../worker-graph'
+import { sha256Hex } from '../fixture-crypto'
 import { coreWorkerOptions } from './api-host'
 
 /** Compile official-parser migration records into the acceptance-only Core artifact. */
 export async function makeCoreFixtureConfig(main: string, outDir: string): Promise<UserConfig> {
-  const migrations = (await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))).map(
-    (migration) => ({
+  const migrationRecords = await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))
+  const migrations = await Promise.all(
+    migrationRecords.map(async (migration) => ({
       ...migration,
-      hash: createHash('sha256').update(JSON.stringify(migration.queries)).digest('hex'),
-    }),
+      hash: await sha256Hex(JSON.stringify(migration.queries)),
+    })),
   )
   return {
     root: fileURLToPath(new URL('.', import.meta.url)),

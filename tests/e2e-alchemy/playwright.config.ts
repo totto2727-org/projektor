@@ -1,7 +1,8 @@
-import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import { defineConfig, devices } from '@playwright/test'
+
+import { fixtureUuid } from '../fixture-crypto'
 
 const coreConfig = fileURLToPath(new URL('./core.vite.config.ts', import.meta.url))
 const apiConfig = fileURLToPath(new URL('./api.vite.config.ts', import.meta.url))
@@ -11,7 +12,7 @@ const frontendConfig = fileURLToPath(new URL('./vite.config.ts', import.meta.url
 // Keep historical ignored failure/report evidence intact when Playwright cleans outputs.
 // Worker processes re-evaluate this config, so inherit the runner's ID rather
 // than splitting their screenshots and audits into independent directories.
-const runId = (process.env.PROJEKTOR_E2E_RUN_ID ??= randomUUID())
+const runId = (process.env.PROJEKTOR_E2E_RUN_ID ??= fixtureUuid())
 const runDirectory = new URL(`./.runtime/${runId}/`, import.meta.url)
 const storageDirectory = fileURLToPath(new URL('storage/', runDirectory))
 
