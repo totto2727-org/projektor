@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Iterable } from 'effect'
 import { renderToString } from 'react-dom/server'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, assert, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import pkg from '#package-metadata'
 import { project as fixtureProject } from '@/features/issues/test/fixtures.ts'
@@ -154,14 +154,16 @@ describe('generated Base UI Shell', () => {
       </Shell>,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Account: User' }))
-    const refresh = (await screen.findByRole('menuitem', {
+    const refresh = await screen.findByRole('menuitem', {
       name: 'Refresh session',
-    })) as HTMLButtonElement
-    const logout = screen.getByRole('menuitem', { name: 'Log out' }) as HTMLButtonElement
-    expect(refresh.tagName).toBe('BUTTON')
-    expect(logout.tagName).toBe('BUTTON')
-    const refreshForm = refresh.form!
-    const logoutForm = logout.form!
+    })
+    const logout = screen.getByRole('menuitem', { name: 'Log out' })
+    assert.instanceOf(refresh, HTMLButtonElement)
+    assert.instanceOf(logout, HTMLButtonElement)
+    const refreshForm = refresh.form
+    const logoutForm = logout.form
+    assert.isNotNull(refreshForm)
+    assert.isNotNull(logoutForm)
     expect(refreshForm.closest('[data-slot="dropdown-menu-content"]')).toBeNull()
     expect(logoutForm.getAttribute('method')).toBe('post')
     expect(new FormData(refreshForm).get('redirect_url')).toBe('/settings/groups?workspace=team')
@@ -182,7 +184,7 @@ describe('generated Base UI Shell', () => {
         <h1>Projects</h1>
       </Shell>,
     )
-    fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
+    fireEvent.keyDown(globalThis.window, { key: 'b', ctrlKey: true })
     expect(container.querySelector('[data-slot="sidebar"][data-state="collapsed"]')).not.toBeNull()
     expect(JSON.parse(localStorage.getItem('prefs')!).sidebar).toBe('collapsed')
     expect(Object.keys(JSON.parse(localStorage.getItem('prefs')!)).toSorted()).toStrictEqual([

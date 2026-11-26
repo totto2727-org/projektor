@@ -301,15 +301,15 @@ describe('canonical issues SSR refresh', () => {
       initialProps: { dirty: false },
     })
     const clean = new Event('beforeunload', { cancelable: true })
-    window.dispatchEvent(clean)
+    globalThis.dispatchEvent(clean)
     expect(clean.defaultPrevented).toBe(false)
     hook.rerender({ dirty: true })
     const dirty = new Event('beforeunload', { cancelable: true })
-    window.dispatchEvent(dirty)
+    globalThis.dispatchEvent(dirty)
     expect(dirty.defaultPrevented).toBe(true)
     hook.rerender({ dirty: false })
     const saved = new Event('beforeunload', { cancelable: true })
-    window.dispatchEvent(saved)
+    globalThis.dispatchEvent(saved)
     expect(saved.defaultPrevented).toBe(false)
   })
 

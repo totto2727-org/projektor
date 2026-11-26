@@ -333,7 +333,7 @@ describe('covers pending issue drafts', () => {
     )
     const unloadPrevented = function unloadPrevented(): boolean {
       const event = new Event('beforeunload', { cancelable: true })
-      window.dispatchEvent(event)
+      globalThis.dispatchEvent(event)
       return event.defaultPrevented
     }
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
