@@ -325,6 +325,23 @@ const classifyCfdBand = function classifyCfdBand(issue: FlowIssueRow, sampleAt: 
   return 'backlogTodo'
 }
 
+const appendCfdEvent = function appendCfdEvent(
+  events: CfdEvent[],
+  time: number,
+  { band, delta }: { band: CfdBand; delta: CfdEvent['delta'] },
+): void {
+  if (band === 'excluded') {
+    return
+  }
+  events.push(
+    fieldsInOrder([
+      ['time', time],
+      ['band', band],
+      ['delta', delta],
+    ]),
+  )
+}
+
 /*
  * PROJ-866: precompute each issue's band-transition events instead of re-classifying
  * every issue at every sampled instant. classifyCfdBand is evaluated only at each
@@ -344,31 +361,13 @@ const buildCfdEvents = function buildCfdEvents(issues: Readonly<FlowIssueRow[]>)
         ),
       ),
     ].toSorted((left, right) => left - right)
-    let prevBand: CfdBand = 'excluded'
-    Iterable.forEach(thresholds, (threshold) => {
+    Iterable.reduce<number, CfdBand>(thresholds, 'excluded', (previousBand, threshold) => {
       const band = classifyCfdBand(issue, threshold)
-      if (band === prevBand) {
-        return
+      if (band !== previousBand) {
+        appendCfdEvent(events, threshold, { band: previousBand, delta: REMOVE_FROM_COUNT })
+        appendCfdEvent(events, threshold, { band, delta: ADD_TO_COUNT })
       }
-      if (prevBand !== 'excluded') {
-        events.push(
-          fieldsInOrder([
-            ['time', threshold],
-            ['band', prevBand],
-            ['delta', REMOVE_FROM_COUNT],
-          ]),
-        )
-      }
-      if (band !== 'excluded') {
-        events.push(
-          fieldsInOrder([
-            ['time', threshold],
-            ['band', band],
-            ['delta', ADD_TO_COUNT],
-          ]),
-        )
-      }
-      prevBand = band
+      return band
     })
   })
   events.sort((left, right) => left.time - right.time)
@@ -417,14 +416,21 @@ const buildCfdOverTime = function buildCfdOverTime(
     ['inReview', NO_EVENTS],
     ['done', doneBeforeWindow],
   ])
-  let idx = 0
+  const cursor = { index: FIRST_ARRAY_INDEX }
   return starts.map((bucketStart) => {
     const sampleAt = Math.min(bucketStart + bucketSize - TIMESTAMP_STEP_SECONDS, until, now)
-    while (idx < events.length && events[idx].time <= sampleAt) {
-      counts[events[idx].band] += events[idx].delta
-      idx++
+    while (cursor.index < events.length && events[cursor.index].time <= sampleAt) {
+      const event = events[cursor.index]
+      counts[event.band] += event.delta
+      cursor.index += ARRAY_INDEX_STEP
     }
-    return { bucketStart: dateLabel(bucketStart), ...counts }
+    return fieldsInOrder([
+      ['bucketStart', dateLabel(bucketStart)],
+      ['backlogTodo', counts.backlogTodo],
+      ['inProgress', counts.inProgress],
+      ['inReview', counts.inReview],
+      ['done', counts.done],
+    ])
   })
 }
 
