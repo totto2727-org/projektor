@@ -10,6 +10,8 @@ import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
 
 const EMPTY_SEGMENT_COUNT = 0
+const PATH_SEGMENT_START = 0
+const NO_PATH_SEPARATOR = -1
 
 export interface CodeHeatmapRange {
   projectId: string
@@ -47,32 +49,54 @@ export interface ContentionHeatmapEntry {
 }
 
 /*
- * Resolves the path segment one level below `prefix` that `itemPath` falls under, or null
+ * Resolves the path segment one level below `prefix` that `itemPath` falls under, or undefined
  * if `itemPath` IS `prefix` (nothing left to drill into).
  */
 const resolveNextSegment = function resolveNextSegment(
   itemPath: string,
   prefix: string,
   prefixWithSlash: string,
-): { path: string; isLeaf: boolean } | null {
+): { path: string; isLeaf: boolean } | undefined {
   const rest = itemPath.slice(prefixWithSlash.length)
-  if (!rest) {
-    return null
-  }
   const slashIdx = rest.indexOf('/')
-  const isLeaf = slashIdx === -1
-  const segment = isLeaf ? rest : rest.slice(0, slashIdx)
+  const isLeaf = slashIdx === NO_PATH_SEPARATOR
+  const segment = isLeaf ? rest : rest.slice(PATH_SEGMENT_START, slashIdx)
   const path = prefix ? `${prefix}/${segment}` : segment
-  return fieldsInOrder([
-    ['path', path],
-    ['isLeaf', isLeaf],
-  ])
+  return rest
+    ? fieldsInOrder([
+        ['path', path],
+        ['isLeaf', isLeaf],
+      ])
+    : undefined
 }
 
 interface SegmentGroup {
   ids: Set<string>
   count: number
   isLeaf: boolean
+}
+
+const ensureSegmentGroup = function ensureSegmentGroup(
+  groups: Map<string, SegmentGroup>,
+  path: string,
+  isLeaf: boolean,
+): SegmentGroup {
+  const existing = groups.get(path)
+  if (existing) {
+    return existing
+  }
+  const group = fieldsInOrder([
+    ['ids', new Set<string>()],
+    ['count', EMPTY_SEGMENT_COUNT],
+    ['isLeaf', isLeaf],
+  ])
+  groups.set(path, group)
+  return group
+}
+
+interface HeatmapPrefix {
+  prefix: string
+  prefixWithSlash: string
 }
 
 /*
@@ -84,31 +108,22 @@ interface SegmentGroup {
  */
 const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { path: string }>(
   items: Readonly<T[]>,
-  prefix: string,
-  prefixWithSlash: string,
+  { prefix, prefixWithSlash }: HeatmapPrefix,
   getId: (item: T) => string,
 ): Map<string, SegmentGroup> {
   const groups = new Map<string, SegmentGroup>()
 
   Iterable.forEach(items, (item) => {
-    if (prefix && !item.path.startsWith(prefixWithSlash)) {
-      return
-    }
-    const resolved = resolveNextSegment(item.path, prefix, prefixWithSlash)
+    const resolved =
+      prefix && !item.path.startsWith(prefixWithSlash)
+        ? undefined
+        : resolveNextSegment(item.path, prefix, prefixWithSlash)
     if (!resolved) {
       return
     }
     const { path, isLeaf } = resolved
 
-    let group = groups.get(path)
-    if (!group) {
-      group = fieldsInOrder([
-        ['ids', new Set<string>()],
-        ['count', EMPTY_SEGMENT_COUNT],
-        ['isLeaf', isLeaf],
-      ])
-      groups.set(path, group)
-    }
+    const group = ensureSegmentGroup(groups, path, isLeaf)
     /*
      * A path claimed as both a file and a directory (e.g. `docs` and `docs/x.md`) is a
      * directory: keep it drillable rather than freezing isLeaf on the first item seen.
@@ -128,7 +143,7 @@ const groupClaimsByNextSegment = function groupClaimsByNextSegment(
   prefix: string,
 ): CodeHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
-  const groups = groupItemsByNextSegment(claims, prefix, prefixWithSlash, (claim) => claim.issueId)
+  const groups = groupItemsByNextSegment(claims, { prefix, prefixWithSlash }, (claim) => claim.issueId)
 
   return [...groups.entries()]
     .map(([path, group]) =>
@@ -150,7 +165,7 @@ const groupConflictsByNextSegment = function groupConflictsByNextSegment(
   prefix: string,
 ): ContentionHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
-  const groups = groupItemsByNextSegment(conflicts, prefix, prefixWithSlash, (conflict) => conflict.rejectedIssueId)
+  const groups = groupItemsByNextSegment(conflicts, { prefix, prefixWithSlash }, (conflict) => conflict.rejectedIssueId)
 
   return [...groups.entries()]
     .map(([path, group]) =>
