@@ -148,7 +148,7 @@ interface FlatEntry {
   id: string
   slug: string
   title: string
-  parentId: string | null
+  parentId: string | undefined
 }
 
 interface TocItem {
@@ -193,13 +193,12 @@ const collectTreeTypes = function collectTreeTypes(nodes: Readonly<TreeNode[]>):
   return types
 }
 
-const flattenTree = function flattenTree(
-  nodes: Readonly<TreeNode[]>,
-  parentId: string | null = null,
-): Record<string, FlatEntry> {
+const flattenTree = function flattenTree(nodes: Readonly<TreeNode[]>, parentId?: string): Record<string, FlatEntry> {
   const map: Record<string, FlatEntry> = {}
   Iterable.forEach(nodes, (node) => {
-    map[node.id] = { id: node.id, slug: node.slug, title: node.title, parentId }
+    const mapKey = node.id
+    const { id, slug, title } = node
+    map[mapKey] = { id, parentId, slug, title }
     const childMap = flattenTree(node.children, node.id)
     Iterable.forEach(Object.entries(childMap), ([childId, child]) => {
       map[childId] = child
@@ -246,7 +245,7 @@ function CreatePageForm({
   onSubmit,
   onCancel,
 }: {
-  parentTitle: string | null
+  parentTitle: string | undefined
   title: string
   slug: string
   content: string
@@ -884,7 +883,7 @@ interface PageArticleProps {
   latestRevision: WikiRevision | null
   saveError: string | undefined
   // PROJ-797: set only after a 409 — rebases the user's text onto the current revision.
-  onOverwriteWithMine: (() => void) | null
+  onOverwriteWithMine: (() => void) | undefined
   draftBanner: ServerDraft | undefined
   draftWarning: string | undefined
   onRestoreDraft: () => void
@@ -1127,7 +1126,7 @@ function PageArticle(props: PageArticleProps): JSX.Element {
 }
 
 interface CreateFormProps {
-  parentTitle: string | null
+  parentTitle: string | undefined
   title: string
   slug: string
   content: string
@@ -1150,7 +1149,7 @@ function WikiMainContent(
     createProps: CreateFormProps
     slug: string
     loading: boolean
-    error: string | null
+    error: string | undefined
     page: WikiPageData | null
     articleProps: Omit<PageArticleProps, 'page'>
   }>,
@@ -1294,7 +1293,7 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
     setDeletedPageId(value ? undefined : seed.page?.id)
   }
   const loading = false
-  const error = seed.slug && !seed.page ? '404' : null
+  const error = seed.slug && !seed.page ? '404' : undefined
   const { revisions } = seed
   /*
    * PROJ-507: whether `revisions` reflects a completed fetch for this page. An empty
@@ -1871,7 +1870,7 @@ function useWikiEditing(
     setEditContent,
     saving,
     saveError,
-    overwriteWithMine: conflict ? overwriteWithMine : null,
+    overwriteWithMine: conflict ? overwriteWithMine : undefined,
     draftBanner,
     draftWarning:
       editing && draftStatus === 'failed'
@@ -2424,7 +2423,7 @@ function WikiPageShell(
       createProps: CreateFormProps
       slug: string
       loading: boolean
-      error: string | null
+      error: string | undefined
       page: WikiPageData | null
       articleProps: Omit<PageArticleProps, 'page'>
     }
@@ -2527,7 +2526,7 @@ function deriveWikiPageState(
   const breadcrumbs = pageData.page ? getBreadcrumbs(pageData.page.id, pageMap) : []
   // ToC sidebar (PROJ-113) — only when viewing page, ≥3 headings
   const showToc = !editState.editing && !createForm.creating && toc.length >= MIN_TOC_ENTRIES
-  const createParentTitle = createForm.createParentId ? (pageMap[createForm.createParentId]?.title ?? null) : null
+  const createParentTitle = createForm.createParentId ? pageMap[createForm.createParentId]?.title : undefined
   const moveOptions: SelectOption[] = [
     { label: 'No parent (root)', value: '' },
     ...wikiPages
@@ -2539,7 +2538,7 @@ function deriveWikiPageState(
 
 function buildCreateFormProps(
   create: Readonly<{
-    createParentTitle: string | null
+    createParentTitle: string | undefined
     createTitle: string
     createSlug: string
     createContent: string
@@ -2595,7 +2594,7 @@ function buildArticleProps(
     verifyError: string | undefined
     latestRevision: WikiRevision | null
     saveError: string | undefined
-    overwriteWithMine: (() => void) | null
+    overwriteWithMine: (() => void) | undefined
     draftBanner: ServerDraft | undefined
     draftWarning: string | undefined
     restoreDraft: () => void
