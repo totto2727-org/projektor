@@ -73,6 +73,49 @@ function RevokeControl({ id, state }: { id: string; state: RevokeState }): JSX.E
     </Button>
   )
 }
+const renderGrantTableHeading = (): JSX.Element => (
+  <thead>
+    <tr>
+      <th className={TH}>Application</th>
+      <th className={TH}>Access</th>
+      <th className={TH}>Connected</th>
+      <th className={TH}>Expires</th>
+      <th className={TH} />
+    </tr>
+  </thead>
+)
+
+const renderGrantRow = (grant: ConnectorGrant, state: RevokeState): JSX.Element => (
+  <tr key={grant.id}>
+    <td className={`${TD} text-text-base font-medium`}>{grant.client}</td>
+    <td className={TD_MUTED}>{formatConnectorScopes(grant.scopes)}</td>
+    <td className={TD_MUTED}>{date(grant.grantedAt)}</td>
+    <td className={TD_MUTED}>{date(grant.expiresAt)}</td>
+    <td className={`${TD} whitespace-nowrap`}>
+      <RevokeControl id={grant.id} state={state} />
+    </td>
+  </tr>
+)
+
+const renderGrantCard = (grant: ConnectorGrant, state: RevokeState): JSX.Element => (
+  <div key={grant.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+    <div className='text-[0.9rem] text-text-base font-medium mb-2'>{grant.client}</div>
+    <dl className='grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[0.8rem] text-text-muted mb-3'>
+      <dt className='font-semibold'>Access</dt>
+      <dd className='m-0'>{formatConnectorScopes(grant.scopes)}</dd>
+      <dt className='font-semibold'>Connected</dt>
+      <dd className='m-0'>{date(grant.grantedAt)}</dd>
+      <dt className='font-semibold'>Expires</dt>
+      <dd className='m-0'>{date(grant.expiresAt)}</dd>
+    </dl>
+    <RevokeControl id={grant.id} state={state} />
+  </div>
+)
+
+const renderGrantTableBody = (grants: ConnectorGrant[], state: RevokeState): JSX.Element => (
+  <tbody>{grants.map((grant) => renderGrantRow(grant, state))}</tbody>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function ConnectorManager({
   workspaceSlug,
@@ -124,6 +167,7 @@ export function ConnectorManager({
       </div>
     )
   }
+
   return (
     <div>
       <p className='m-0 mb-5 text-sm text-text-muted'>
@@ -131,45 +175,12 @@ export function ConnectorManager({
       </p>
       <div className='overflow-x-auto max-sm:hidden'>
         <table className='w-full border-collapse text-[0.9rem]'>
-          <thead>
-            <tr>
-              <th className={TH}>Application</th>
-              <th className={TH}>Access</th>
-              <th className={TH}>Connected</th>
-              <th className={TH}>Expires</th>
-              <th className={TH} />
-            </tr>
-          </thead>
-          <tbody>
-            {grants.map((grant) => (
-              <tr key={grant.id}>
-                <td className={`${TD} text-text-base font-medium`}>{grant.client}</td>
-                <td className={TD_MUTED}>{formatConnectorScopes(grant.scopes)}</td>
-                <td className={TD_MUTED}>{date(grant.grantedAt)}</td>
-                <td className={TD_MUTED}>{date(grant.expiresAt)}</td>
-                <td className={`${TD} whitespace-nowrap`}>
-                  <RevokeControl id={grant.id} state={state} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
+          {renderGrantTableHeading()}
+          {renderGrantTableBody(grants, state)}
         </table>
       </div>
       <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-        {grants.map((grant) => (
-          <div key={grant.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-            <div className='text-[0.9rem] text-text-base font-medium mb-2'>{grant.client}</div>
-            <dl className='grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[0.8rem] text-text-muted mb-3'>
-              <dt className='font-semibold'>Access</dt>
-              <dd className='m-0'>{formatConnectorScopes(grant.scopes)}</dd>
-              <dt className='font-semibold'>Connected</dt>
-              <dd className='m-0'>{date(grant.grantedAt)}</dd>
-              <dt className='font-semibold'>Expires</dt>
-              <dd className='m-0'>{date(grant.expiresAt)}</dd>
-            </dl>
-            <RevokeControl id={grant.id} state={state} />
-          </div>
-        ))}
+        {grants.map((grant) => renderGrantCard(grant, state))}
       </div>
     </div>
   )
