@@ -51,7 +51,12 @@ const BODY_CHARS_PROP = {
   ]),
 } as const
 
-/** Splits MCP-only `bodyChars` off the input; asks the service for bodies when it's set. */
+/**
+ * Splits MCP-only `bodyChars` off the input; asks the service for bodies when it's set.
+ *
+ * @param {Record<string, unknown>} rest The arguments remaining after extracting other MCP-only controls.
+ * @returns {ReturnType<typeof splitBodyChars>} The service arguments and the validated body preview length.
+ */
 const splitBodyChars = function splitBodyChars(rest: Record<string, unknown>): {
   rest: Record<string, unknown>
   bodyChars: number

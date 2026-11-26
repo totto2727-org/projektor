@@ -15,7 +15,12 @@ import { PLAIN_WRITE, READ } from './annotations.ts'
 import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
-/** Claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
+/**
+ * Claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both.
+ *
+ * @param {unknown} input The raw agent-session arguments.
+ * @returns {unknown} Arguments with the session identifier under id after checking for conflicts.
+ */
 const withIdAlias = function withIdAlias(input: unknown): unknown {
   const { agentId, ...rest } = (input ?? {}) as { agentId?: unknown; id?: unknown }
   if (Predicate.isNullish(agentId)) {

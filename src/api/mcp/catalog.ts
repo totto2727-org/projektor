@@ -84,7 +84,12 @@ export const TOOL_COUNT = TOOL_DOMAINS.reduce((total, domain) => total + domain.
 /** Valid `?domains=` slugs, in catalog order — the fail-closed validation list. */
 export const TOOL_DOMAIN_SLUGS: string[] = TOOL_DOMAINS.map((domain) => domain.domain)
 
-/** Tool names belonging to the given domain slugs. Unknown slugs are silently ignored — callers validate against `TOOL_DOMAIN_SLUGS` first. */
+/**
+ * Tool names belonging to the given domain slugs. Unknown slugs are silently ignored — callers validate against `TOOL_DOMAIN_SLUGS` first.
+ *
+ * @param {Iterable<string>} slugs The domain slugs requested by the caller.
+ * @returns {Set<string>} A set of tool names in catalog order.
+ */
 export const toolNamesForDomains = function toolNamesForDomains(slugs: Iterable<string>): Set<string> {
   const wanted = new Set(slugs)
   const names = new Set<string>()

@@ -189,7 +189,15 @@ export const selectedWorkspace = function selectedWorkspace(
   return matches[0]
 }
 
-/** Pure selection policy, independent of browser state and framework lifecycle. */
+/**
+ * Pure selection policy, independent of browser state and framework lifecycle.
+ *
+ * @param {AuthSession} session The authenticated user and their workspace memberships.
+ * @param {Readonly<ProjectSummary[]>} projects The project catalog to consider for that session.
+ * @param {URL} url The request URL used to resolve selectors.
+ * @param {ScopeOptions} options Explicit selectors and requirements for the route.
+ * @returns {RequestScope} The resolved global, workspace, or project scope, or a requirement to make a selection.
+ */
 export const resolveScope = function resolveScope(
   session: AuthSession,
   projects: Readonly<ProjectSummary[]>,

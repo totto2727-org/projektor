@@ -21,7 +21,12 @@ const hasMethods = function hasMethods(value: unknown, methods: Readonly<string[
 
 const isMissingBinding = Schema.is(Schema.Undefined)
 
-/** Validate native binding capabilities at the sole untyped runtime boundary. */
+/**
+ * Validate native binding capabilities at the sole untyped runtime boundary.
+ *
+ * @param {unknown} value The raw bindings and configuration available to the Core Worker.
+ * @returns {boolean} Whether the value implements the required Core environment.
+ */
 export const isCoreEnvironment = function isCoreEnvironment(value: unknown): value is CoreEnvironment {
   if (!Predicate.isObjectOrArray(value)) {
     return false

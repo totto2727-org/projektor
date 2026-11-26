@@ -38,7 +38,12 @@ import type { RequestScope } from './scope.ts'
 
 type IssueRead<A> = Effect.Effect<A, ScopeError | ApiError, RequestServices>
 
-/** Keep application policy failures, and redact storage failures before reaching a client. */
+/**
+ * Keep application policy failures, and redact storage failures before reaching a client.
+ *
+ * @param {() => A} read The synchronous read that can throw a scope or storage error.
+ * @returns {Effect.Effect<A, ScopeError | ApiError>} An effect that preserves scope errors and maps storage errors to public failures.
+ */
 export const checked = function checked<A>(read: () => A): Effect.Effect<A, ScopeError | ApiError> {
   return Effect.try({
     catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),

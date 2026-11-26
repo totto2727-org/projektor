@@ -170,7 +170,13 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   })
 }
 
-/** Validate a tool call's `arguments` object against the tool's inputSchema. */
+/**
+ * Validate a tool call's `arguments` object against the tool's inputSchema.
+ *
+ * @param {Schema} inputSchema The tool schema to apply at the MCP boundary.
+ * @param {Record<string, unknown>} args The parsed arguments received from the caller.
+ * @returns {ArgIssue[]} The failed checks with their argument paths. An empty list means the arguments passed.
+ */
 export const validateToolArgs = function validateToolArgs(
   inputSchema: Schema,
   args: Record<string, unknown>,

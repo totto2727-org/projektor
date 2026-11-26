@@ -26,7 +26,12 @@ interface ApiPublicHandlers<R> {
   apiRealtimeSnapshot: (actor: CoreActor, workspaceId: string) => CoreReply<R>
 }
 
-/** Public credentials are resolved here, never treated as preauthenticated adapter IDs. */
+/**
+ * Public credentials are resolved here, never treated as preauthenticated adapter IDs.
+ *
+ * @param {Effect.Effect<CoreEnvironment, never, R>} envSource An effect that resolves the private Core bindings for each call.
+ * @returns {ApiPublicHandlers<R>} The named handlers for consent, feedback, shared issues, and realtime access.
+ */
 export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
 ): ApiPublicHandlers<R> {

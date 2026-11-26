@@ -32,7 +32,12 @@ const policyEnvironment = function policyEnvironment(
   }
 }
 
-/** All request counter storage and budget decisions execute only in Core. */
+/**
+ * All request counter storage and budget decisions execute only in Core.
+ *
+ * @param {Effect.Effect<RequestRateLimitEnv, never, R>} envSource An effect that resolves the private counter bindings for each call.
+ * @returns {ReturnType<typeof makeApiRateLimitHandlers>} The named handlers that check request budgets and increment counters.
+ */
 export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
   envSource: Effect.Effect<RequestRateLimitEnv, never, R>,
 ) {

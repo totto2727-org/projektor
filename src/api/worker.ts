@@ -251,7 +251,13 @@ app.get('*', async (httpContext) => {
   return response
 })
 
-/** The physical cron remains API-owned, with persistent maintenance inside Core. */
+/**
+ * The physical cron remains API-owned, with persistent maintenance inside Core.
+ *
+ * @param {ScheduledController} _controller The trigger metadata supplied by the Worker runtime.
+ * @param {ApiEnv} env The API environment with the private Core binding.
+ * @param {ExecutionContext} ctx The execution context that keeps maintenance alive after the handler returns.
+ */
 export const scheduled = async function scheduled(
   _controller: ScheduledController,
   env: ApiEnv,

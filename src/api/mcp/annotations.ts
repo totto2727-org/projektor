@@ -27,6 +27,9 @@ export const READ: MCPToolAnnotations = fieldsInOrder([
  * - `destructive`: true for the 22-tool destructive set, false otherwise.
  * - `idempotent`: pass only where obviously true (update_*, set_* or claim_*-by-id) or
  *   obviously false (create_*); omit for tools where it is not clear-cut (e.g. patch_*).
+ *
+ * @param {{ destructive: boolean; idempotent?: boolean }} opts The destructive flag and a known idempotency flag, when available.
+ * @returns {MCPToolAnnotations} The mutation annotations exposed to MCP clients.
  */
 export const WRITE = function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCPToolAnnotations {
   return {

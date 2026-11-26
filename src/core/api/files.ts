@@ -9,7 +9,13 @@ import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from '#core/contract.
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
-/** Binary branding and wiki exports use fetch. JSON operations remain named RPC. */
+/**
+ * Binary branding and wiki exports use fetch. JSON operations remain named RPC.
+ *
+ * @param {Request} request The internal fetch request with its actor header and workspace selector.
+ * @param {CoreEnvironment} env The private Core bindings for authorization and file storage.
+ * @returns {Promise<Response | undefined>} The file response or public error. An unrelated path resolves to undefined.
+ */
 export const handleApiBinaryRequest = async function handleApiBinaryRequest(
   request: Request,
   env: CoreEnvironment,

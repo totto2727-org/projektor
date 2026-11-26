@@ -284,6 +284,10 @@ const conflictHint = function conflictHint(message: string, details: Record<stri
  * The tool-result form of a failed tools/call, or null when the failure is not one the
  * model can act on (an unexpected internal error — the caller keeps the JSON-RPC
  * "Internal error (request: …)" for those, which never leaks internals).
+ *
+ * @param {unknown} err The failure reported by the tool or Core.
+ * @param {ToolErrorContext} ctx The tool context used to select a recovery hint.
+ * @returns {ToolErrorResult | null} The tool error and recovery details, or null for an unexpected failure.
  */
 export const toToolError = function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolErrorResult | null {
   if (err instanceof CorePublicError) {

@@ -45,7 +45,12 @@ const requireInteractive = function requireInteractive(ctx: ServiceCtx): void {
   }
 }
 
-/** Closed, named native methods. No caller-supplied operation or capability is accepted. */
+/**
+ * Closed, named native methods. No caller-supplied operation or capability is accepted.
+ *
+ * @param {Effect.Effect<CoreEnvironment, never, R>} envSource An effect that resolves the private Core bindings for each call.
+ * @returns {ReturnType<typeof makeApiDomainHandlers>} Named domain handlers that resolve the actor and enforce each capability.
+ */
 export const makeApiDomainHandlers = function makeApiDomainHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
 ) {

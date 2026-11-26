@@ -13,7 +13,14 @@ import { loadBrowserScope, nativeRequest, publicWebFailure } from './authenticat
 import { decodeBrowserCommand } from './command-contract.ts'
 import type { BrowserCommand } from './command-contract.ts'
 
-/** Proof and selectors cross the binding. Storage capabilities are constructed only in Core. */
+/**
+ * Proof and selectors cross the binding. Storage capabilities are constructed only in Core.
+ *
+ * @param {CoreEnvironment} env The private Core bindings for the request.
+ * @param {BrowserCommand} input The browser request proof and workspace and project selectors.
+ * @param {(ctx: ServiceCtx) => Promise<A>} operation The command that receives the authorized workspace context.
+ * @returns {Effect.Effect<A, unknown>} An effect that applies the request checks and runs the command.
+ */
 export const browserCommand = function browserCommand<A>(
   env: CoreEnvironment,
   input: BrowserCommand,

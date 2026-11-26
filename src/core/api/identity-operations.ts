@@ -51,7 +51,12 @@ const requireInteractive = function requireInteractive(auth: { method: string; k
   }
 }
 
-/** These named methods never accept caller-supplied user IDs or roles. */
+/**
+ * These named methods never accept caller-supplied user IDs or roles.
+ *
+ * @param {Effect.Effect<CoreEnvironment, never, R>} envSource An effect that resolves the private Core bindings for each call.
+ * @returns {ReturnType<typeof makeApiIdentityHandlers>} Named handlers for bootstrap, authentication, workspaces, and personal credentials.
+ */
 export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
 ) {

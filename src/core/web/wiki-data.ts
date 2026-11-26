@@ -59,7 +59,15 @@ const wikiRouteMode = function wikiRouteMode(url: URL): 'create' | 'edit' | 'rea
   return /\/edit\/?$/u.test(url.pathname) ? 'edit' : 'read'
 }
 
-/** The request owns authorization, presentation and rendering. Shared queries own only SQL. */
+/**
+ * The request owns authorization, presentation and rendering. Shared queries own only SQL.
+ *
+ * @param {CoreEnvironment} env The private Core bindings for the request.
+ * @param {RequestScope} scope The request scope used to authorize Wiki reads.
+ * @param {URL} url The Wiki location and its search, filter, and editor parameters.
+ * @param {Readonly<Record<string, string | undefined>>} params The route parameters. A route slug takes precedence over query selectors.
+ * @returns {ReturnType<typeof loadWikiData>} An effect that loads the authorized Wiki page data and controls.
+ */
 export const loadWikiData = function loadWikiData(
   env: CoreEnvironment,
   scope: RequestScope,

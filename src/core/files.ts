@@ -10,7 +10,13 @@ import { CORE_ACTOR_HEADER, coreFailure, CorePublicError } from './contract.ts'
 import { publicDomainFailure } from './domain-errors.ts'
 import type { CoreEnvironment } from './environment.ts'
 
-/** Only file bytes use native fetch. No external request is forwarded to a Hono router. */
+/**
+ * Only file bytes use native fetch. No external request is forwarded to a Hono router.
+ *
+ * @param {Request} request The internal attachment request with its actor header and workspace selector.
+ * @param {CoreEnvironment} env The private Core bindings for attachment metadata and storage.
+ * @returns {Promise<Response>} The upload result, streamed download, metadata, or public error response.
+ */
 export const handleCoreFileRequest = async function handleCoreFileRequest(
   request: Request,
   env: CoreEnvironment,

@@ -17,7 +17,14 @@ interface DevelopmentBootstrap {
   mcpAddCommand: ReturnType<typeof buildMcpAddCommand>
 }
 
-/** Development provisioning stays private and rechecks its secret in Core. */
+/**
+ * Development provisioning stays private and rechecks its secret in Core.
+ *
+ * @param {CoreEnvironment} env The development Core bindings and configured bootstrap secret.
+ * @param {string | undefined} provided The bootstrap secret supplied by the caller.
+ * @param {string} requestUrl The request URL whose origin is used for the MCP address.
+ * @returns {Promise<DevelopmentBootstrap>} The development workspace and user, a new API token, and MCP connection details.
+ */
 export const bootstrapDevelopment = async function bootstrapDevelopment(
   env: CoreEnvironment,
   provided: string | undefined,

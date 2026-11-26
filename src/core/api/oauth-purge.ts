@@ -33,9 +33,14 @@ const continuation = function continuation(value: unknown): Continuation {
   return Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { phase, cursor } : { phase }
 }
 
-/** Sweep one public KV page with the official provider's expiration and revocation logic.
+/**
+ * Sweep one public KV page with the official provider's expiration and revocation logic.
  * The SDK sees a finite page view, while the real namespace cursor is committed only
  * after every item succeeds. Nested grant-token revocation keeps its real pagination.
+ *
+ * @param {OAuthEnvironment & { KV: KVNamespace }} env The OAuth namespace and the maintenance KV namespace that stores its continuation.
+ * @param {PurgeProvider} provider The official OAuth provider that applies expiration and revocation.
+ * @returns {ReturnType<typeof purgeOAuthPage>} The purge counts, phase, completion flag, and number of KV calls.
  */
 export const purgeOAuthPage = async function purgeOAuthPage(
   env: OAuthEnvironment & { KV: KVNamespace },
