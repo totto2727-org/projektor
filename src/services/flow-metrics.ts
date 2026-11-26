@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL, SQLWrapper } from 'drizzle-orm'
-import { Iterable, Array, Option, Predicate } from 'effect'
+import { Iterable, Array, Function, Option, Predicate, Result } from 'effect'
 import type { Effect } from 'effect'
 
 import { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
@@ -79,7 +79,7 @@ const summarize = function summarize(durations: Readonly<number[]>): Distributio
   ])
 }
 
-type FlowIssueRow = {
+interface FlowIssueRow {
   id: string
   createdAt: number
   readyAt: number | null
@@ -203,15 +203,18 @@ const buildWipOverTime = function buildWipOverTime(
   })
 }
 
+const completionTimestamps = function completionTimestamps(issues: Readonly<FlowIssueRow[]>): number[] {
+  return Array.filterMap(issues, ({ doneAt }) =>
+    Predicate.isNotNullish(doneAt) ? Result.succeed(doneAt) : Result.failVoid,
+  )
+}
+
 const buildThroughputOverTime = function buildThroughputOverTime(
   issues: Readonly<FlowIssueRow[]>,
   window: MetricBucketWindow,
 ): { bucketStart: string; count: number }[] {
   const { ranges, starts } = metricBuckets(window)
-  const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
-    Predicate.isNotNullish(issue.doneAt),
-  )
-  const groups = groupBySortedRanges(completed, (issue) => issue.doneAt, ranges)
+  const groups = groupBySortedRanges(completionTimestamps(issues), Function.identity, ranges)
   return starts.map((bucketStart, idx) => ({ bucketStart: dateLabel(bucketStart), count: groups[idx].length }))
 }
 
@@ -227,9 +230,10 @@ const buildBugShareOverTime = function buildBugShareOverTime(
   window: MetricBucketWindow,
 ): { bucketStart: string; total: number; bugCount: number; bugSharePercent: number | null }[] {
   const { ranges, starts } = metricBuckets(window)
-  const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
-    Predicate.isNotNullish(issue.doneAt),
-  )
+  const completed = Array.filterMap(issues, (issue) => {
+    const { doneAt } = issue
+    return Predicate.isNotNullish(doneAt) ? Result.succeed({ doneAt, typeKey: issue.typeKey }) : Result.failVoid
+  })
   const groups = groupBySortedRanges(completed, (issue) => issue.doneAt, ranges)
   return starts.map((bucketStart, idx) => {
     const group = groups[idx]
@@ -252,10 +256,14 @@ const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
   window: MetricBucketWindow,
 ): { bucketStart: string; p50: number | null }[] {
   const { ranges, starts } = metricBuckets(window)
-  const reviewed = issues.filter(
-    (issue): issue is FlowIssueRow & { doneAt: number; inReviewAt: number } =>
-      Predicate.isNotNullish(issue.doneAt) && Predicate.isNotNullish(issue.inReviewAt),
-  )
+  const reviewed = Array.filterMap(issues, (issue) => {
+    const { doneAt } = issue
+    if (Predicate.isNullish(doneAt)) {
+      return Result.failVoid
+    }
+    const { inReviewAt } = issue
+    return Predicate.isNotNullish(inReviewAt) ? Result.succeed({ doneAt, inReviewAt }) : Result.failVoid
+  })
   const groups = groupBySortedRanges(reviewed, (issue) => issue.doneAt, ranges)
   return starts.map((bucketStart, idx) => ({
     bucketStart: dateLabel(bucketStart),
@@ -274,10 +282,7 @@ const buildArrivalVsCompletion = function buildArrivalVsCompletion(
 ): { bucketStart: string; created: number; completed: number; net: number }[] {
   const { ranges, starts } = metricBuckets(window)
   const createdGroups = groupBySortedRanges(issues, (issue) => issue.createdAt, ranges)
-  const completed = issues.filter((issue): issue is FlowIssueRow & { doneAt: number } =>
-    Predicate.isNotNullish(issue.doneAt),
-  )
-  const completedGroups = groupBySortedRanges(completed, (issue) => issue.doneAt, ranges)
+  const completedGroups = groupBySortedRanges(completionTimestamps(issues), Function.identity, ranges)
   return starts.map((bucketStart, idx) => {
     const created = createdGroups[idx].length
     const done = completedGroups[idx].length
@@ -334,7 +339,7 @@ const buildCfdEvents = function buildCfdEvents(issues: Readonly<FlowIssueRow[]>)
   Iterable.forEach(issues, (issue): void => {
     const thresholds = [
       ...new Set(
-        [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((timestamp): timestamp is number =>
+        [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((timestamp) =>
           Predicate.isNotNullish(timestamp),
         ),
       ),
@@ -613,18 +618,23 @@ const buildAgingWip = function buildAgingWip(
   issues: Readonly<FlowIssueRow[]>,
   now: number,
 ): { id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }[] {
-  return issues
-    .filter(
-      (issue): issue is FlowIssueRow & { claimedAt: number } =>
-        Predicate.isNotNullish(issue.claimedAt) && (issue.status === 'in_progress' || issue.status === 'in_review'),
-    )
-    .map((issue) =>
+  return Array.filterMap(issues, (issue) => {
+    const { claimedAt } = issue
+    if (Predicate.isNullish(claimedAt)) {
+      return Result.failVoid
+    }
+    const { status } = issue
+    if (status !== 'in_progress' && status !== 'in_review') {
+      return Result.failVoid
+    }
+    return Result.succeed(
       fieldsInOrder([
         ['id', issue.id],
-        ['status', issue.status as 'in_progress' | 'in_review'],
-        ['ageSeconds', now - issue.claimedAt],
+        ['status', status],
+        ['ageSeconds', now - claimedAt],
       ]),
     )
+  })
 }
 
 /*
