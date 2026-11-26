@@ -711,7 +711,7 @@ Iterable.forEach(expandToFiles(COMMANDS), (path): void => {
   const file = basename(path)
   const exportedFunctions = sourceModule(path)
     .ast.statements.filter(isFunctionStatement)
-    .filter((statement) => statement.modifiers?.some(({ kind }) => kind === ts.SyntaxKind.ExportKeyword))
+    .filter((statement) => statement.modifiers?.some(({ kind }) => kind === ts.SyntaxKind.ExportKeyword) === true)
     .flatMap((statement) => declaredFunctions(statement))
   Iterable.forEach(exportedFunctions, ({ name: fn }): void => {
     serviceFns.push({
@@ -944,7 +944,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
         .filter((serviceFunction) => serviceFunction.onMcp)
         .filter((serviceFunction) => {
           const expected = TOOL_NAME_ALIASES[serviceFunction.key] ?? snakeCase(serviceFunction.fn)
-          return !catalogToolNames.includes(expected) || !toolOperations.get(expected)?.has(serviceFunction.key)
+          return !catalogToolNames.includes(expected) || toolOperations.get(expected)?.has(serviceFunction.key) !== true
         })
         .map(
           (serviceFunction) =>
@@ -967,8 +967,8 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     test('drops entries whose gap has been closed', () => {
       const byKey = new Map(serviceFns.map((serviceFunction) => [serviceFunction.key, serviceFunction]))
       const fixed = [
-        ...Object.keys(MCP_ONLY).filter((key) => byKey.get(key)?.onRest),
-        ...Object.keys(REST_ONLY).filter((key) => byKey.get(key)?.onMcp),
+        ...Object.keys(MCP_ONLY).filter((key) => byKey.get(key)?.onRest === true),
+        ...Object.keys(REST_ONLY).filter((key) => byKey.get(key)?.onMcp === true),
       ]
       expect(fixed).toStrictEqual([])
     })

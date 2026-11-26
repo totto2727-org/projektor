@@ -133,7 +133,7 @@ const collect = function collect(): Map<string, FnInfo> {
         }
         const exported =
           (ts.isFunctionDeclaration(stmt) || ts.isVariableStatement(stmt)) &&
-          !!stmt.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+          stmt.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
         if (ts.isFunctionDeclaration(stmt) && stmt.name) {
           locals.push({
             name: stmt.name.text,
