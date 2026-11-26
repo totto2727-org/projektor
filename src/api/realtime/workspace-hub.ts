@@ -246,10 +246,13 @@ export class WorkspaceHub {
          * Apply the client-requested project filter (already intersected with
          * visibility at subscribe time, but re-checking is cheap and robust).
          */
-        if (filters?.projects && Array.isArrayNonEmpty(filters.projects) && isNonEmptyText(event.projectId)) {
-          if (!filters.projects.includes(event.projectId)) {
-            continue
-          }
+        if (
+          filters?.projects &&
+          Array.isArrayNonEmpty(filters.projects) &&
+          isNonEmptyText(event.projectId) &&
+          !filters.projects.includes(event.projectId)
+        ) {
+          continue
         }
 
         if (filters?.eventTypes && Array.isArrayNonEmpty(filters.eventTypes)) {

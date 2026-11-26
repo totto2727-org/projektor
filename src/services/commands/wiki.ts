@@ -1683,11 +1683,14 @@ export const listStaleWikiPages = async function listStaleWikiPages(
   }
   const { projectId, includeWorkspacePages } = parsed.data
 
-  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && !includeWorkspacePages) {
-    // PROJ-311: same as searchWiki — querying a project the caller can't see returns nothing.
-    if (!(await hasProjectAccess(ctx, projectId))) {
-      return []
-    }
+  // PROJ-311: same as searchWiki — querying a project the caller can't see returns nothing.
+  if (
+    Predicate.isNotNullish(projectId) &&
+    String.isNonEmpty(projectId) &&
+    !includeWorkspacePages &&
+    !(await hasProjectAccess(ctx, projectId))
+  ) {
+    return []
   }
 
   const now = currentEpochSeconds()
@@ -2118,14 +2121,12 @@ export const listWikiTemplates = async function listWikiTemplates(
   }
   const { projectId } = parsed.data
 
-  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
-    /*
-     * PROJ-311: same as searchWiki/listStaleWikiPages — a project the caller can't
-     * see returns nothing.
-     */
-    if (!(await hasProjectAccess(ctx, projectId))) {
-      return []
-    }
+  /*
+   * PROJ-311: same as searchWiki/listStaleWikiPages — a project the caller can't
+   * see returns nothing.
+   */
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && !(await hasProjectAccess(ctx, projectId))) {
+    return []
   }
 
   const rows = await Effect.runPromise(
@@ -2435,10 +2436,10 @@ const requireWikiDelete = async function requireWikiDelete(ctx: ServiceCtx, proj
     if (ctx.role !== 'admin' && ctx.role !== 'owner') {
       throw new ForbiddenError('Insufficient permissions')
     }
-  } else if (!isWorkspaceAdmin(ctx.role)) {
-    if ((await effectiveProjectRole(ctx, projectId)) !== 'admin') {
-      throw new ForbiddenError('Insufficient permissions')
-    }
+    return
+  }
+  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) !== 'admin') {
+    throw new ForbiddenError('Insufficient permissions')
   }
 }
 
@@ -2846,10 +2847,8 @@ export const listWikiTrash = async function listWikiTrash(ctx: ServiceCtx, input
   }
   const { projectId } = parsed.data
 
-  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
-    if (!(await hasProjectAccess(ctx, projectId))) {
-      return []
-    }
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && !(await hasProjectAccess(ctx, projectId))) {
+    return []
   }
 
   const rows = await Effect.runPromise(

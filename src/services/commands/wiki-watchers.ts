@@ -848,10 +848,8 @@ export const listWikiChanges = async function listWikiChanges(
   }
   const { since, limit, projectId, watchedOnly } = parsed.data
 
-  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
-    if (!(await hasProjectAccess(ctx, projectId))) {
-      return { changes: [], nextSince: since }
-    }
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && !(await hasProjectAccess(ctx, projectId))) {
+    return { changes: [], nextSince: since }
   }
 
   const orm = drizzle(ctx.db, { schema })
