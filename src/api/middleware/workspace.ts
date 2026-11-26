@@ -12,7 +12,7 @@ export const subdomainRoutingEnabled = function subdomainRoutingEnabled(value: s
 }
 
 export const mcpWorkspaceIdFromPath = function mcpWorkspaceIdFromPath(path: string): string | undefined {
-  return /^\/mcp\/([^/]+)$/u.exec(path)?.[1]
+  return /^\/mcp\/(?<workspaceId>[^/]+)$/u.exec(path)?.groups?.workspaceId
 }
 
 const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(

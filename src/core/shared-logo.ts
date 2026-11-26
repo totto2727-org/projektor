@@ -16,8 +16,8 @@ export const handleSharedLogoRequest = async function handleSharedLogoRequest(
   request: Request,
   env: CoreEnvironment,
 ): Promise<Response | undefined> {
-  const match = /^\/share-logo\/([^/]+)$/u.exec(new URL(request.url).pathname)
-  if (!match) {
+  const match = /^\/share-logo\/(?<token>[^/]+)$/u.exec(new URL(request.url).pathname)
+  if (!match?.groups) {
     return undefined
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -26,7 +26,7 @@ export const handleSharedLogoRequest = async function handleSharedLogoRequest(
   try {
     let token: string
     try {
-      token = decodeURIComponent(match[1])
+      token = decodeURIComponent(match.groups.token)
     } catch {
       throw coreFailure(HTTP_BAD_REQUEST, 'Invalid logo address.')
     }

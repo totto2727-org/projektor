@@ -1731,7 +1731,7 @@ const ATX_HEADING_RE = /^(?<markers>#{1,6})\s+(?<heading>.+?)\s*#*\s*$/u
  *   - the leading YAML frontmatter block — `# a yaml comment` sits before any real
  *     heading, so "patching" it would rewrite the metadata block itself.
  */
-const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/u
+const FENCE_RE = /^\s{0,3}(?<marker>`{3,}|~{3,})/u
 const FRONTMATTER_DELIM_RE = /^---\s*$/u
 
 const FIRST_MARKDOWN_LINE = 0
@@ -1768,16 +1768,16 @@ const scanHeadingLine = function scanHeadingLine(state: HeadingScan, line: strin
   if (state.inFrontmatter) {
     return index > FIRST_MARKDOWN_LINE && FRONTMATTER_DELIM_RE.test(line) ? { ...state, inFrontmatter: false } : state
   }
-  const fenceMatch = FENCE_RE.exec(line)
+  const marker = FENCE_RE.exec(line)?.groups?.marker
   const { fence } = state
   if (Predicate.isNotNullish(fence)) {
     // A closing fence must use the same character and be at least as long.
-    return fenceMatch && fenceMatch[1].startsWith(fence[0]) && fenceMatch[1].length >= fence.length
+    return Predicate.isNotNullish(marker) && marker.startsWith(fence[0]) && marker.length >= fence.length
       ? { ...state, fence: undefined }
       : state
   }
-  if (fenceMatch) {
-    return { ...state, fence: fenceMatch[1] }
+  if (Predicate.isNotNullish(marker)) {
+    return { ...state, fence: marker }
   }
   recordHeadingStart(state.headings, line, index)
   return state

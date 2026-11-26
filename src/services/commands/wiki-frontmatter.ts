@@ -14,7 +14,7 @@ import { ValidationError, validationIssues } from './errors.ts'
  * convention. CRLF-tolerant since pages can be edited from any client. A page with no
  * leading `---` line has no frontmatter at all (not an error — frontmatter is optional).
  */
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/u
+const FRONTMATTER_RE = /^---\r?\n(?<yaml>[\s\S]*?)\r?\n---\r?\n?/u
 
 export interface WikiFrontmatterMeta {
   type: string | null
@@ -134,11 +134,11 @@ const toFrontmatterMeta = function toFrontmatterMeta(
 
 export const parseWikiFrontmatter = function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
   const match = FRONTMATTER_RE.exec(content)
-  if (!match) {
+  if (!match?.groups) {
     return EMPTY_WIKI_FRONTMATTER
   }
 
-  const raw = requireFrontmatterMapping(parseFrontmatterYaml(match[1]))
+  const raw = requireFrontmatterMapping(parseFrontmatterYaml(match.groups.yaml))
   if (Predicate.isNullish(raw)) {
     return EMPTY_WIKI_FRONTMATTER
   }
@@ -161,12 +161,12 @@ export const parseWikiFrontmatter = function parseWikiFrontmatter(content: strin
  */
 export const stripTemplateFlag = function stripTemplateFlag(content: string): string {
   const match = FRONTMATTER_RE.exec(content)
-  if (!match) {
+  if (!match?.groups) {
     return content
   }
   const rest = content.slice(match[0].length)
 
-  const raw = parseYaml(match[1])
+  const raw = parseYaml(match.groups.yaml)
   if (!Predicate.isObject(raw)) {
     return content
   }
@@ -182,10 +182,10 @@ export const stripTemplateFlag = function stripTemplateFlag(content: string): st
 const editableFrontmatterRecord = function editableFrontmatterRecord(
   match: RegExpExecArray | null,
 ): Record<string, unknown> {
-  if (Predicate.isNullish(match)) {
+  if (Predicate.isNullish(match?.groups)) {
     return {}
   }
-  const parsed: unknown = parseYaml(match[1])
+  const parsed: unknown = parseYaml(match.groups.yaml)
   return Predicate.isObject(parsed) ? { ...parsed } : {}
 }
 

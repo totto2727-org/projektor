@@ -236,11 +236,11 @@ app.get('*', async (httpContext) => {
     return httpContext.notFound()
   }
   const { pathname } = new URL(httpContext.req.url)
-  const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/u.exec(pathname)
+  const wikiSlugMatch = /^\/wiki\/(?<slug>[^/]+)\/?$/u.exec(pathname)
   const fallbackPath = fallbackAssetPath(pathname, wikiSlugMatch)
   const response = await httpContext.env.ASSETS.fetch(new Request(new URL(fallbackPath, httpContext.req.url)))
-  if (wikiSlugMatch) {
-    const slug = safeDecodeURIComponent(wikiSlugMatch[1])
+  if (wikiSlugMatch?.groups) {
+    const slug = safeDecodeURIComponent(wikiSlugMatch.groups.slug)
     const page =
       Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? await resolveWikiPageForSsr(httpContext, slug) : null
     if (page) {

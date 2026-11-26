@@ -99,8 +99,8 @@ const plainTextExcerpt = function plainTextExcerpt(markdown: string, maxLen = 20
   const plain = markdown
     .replaceAll(/```[\s\S]*?```/gu, ' ')
     .replaceAll(/!\[[^\]]*\]\([^)]*\)/gu, ' ')
-    .replaceAll(/\[([^\]]*)\]\([^)]*\)/gu, '$1')
-    .replaceAll(/\[\[([^\]|]*)(\|[^\]]*)?\]\]/gu, '$1')
+    .replaceAll(/\[(?<label>[^\]]*)\]\([^)]*\)/gu, '$<label>')
+    .replaceAll(/\[\[(?<label>[^\]|]*)(?:\|[^\]]*)?\]\]/gu, '$<label>')
     .replaceAll(/[#>*_`~-]/gu, ' ')
     .replaceAll(/\s+/gu, ' ')
     .trim()

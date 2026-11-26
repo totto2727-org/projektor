@@ -16,9 +16,9 @@ const logoResponse = function logoResponse(request: Request) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const { pathname } = new URL(request.url)
-    const publicLogo = /^\/api\/share\/([^/]+)\/logo$/u.exec(pathname)
-    const workspaceLogo = /^\/api\/workspaces\/([^/]+)\/brand\/logo$/u.exec(pathname)
-    const value = publicLogo?.[1] ?? workspaceLogo?.[1]
+    const publicLogo = /^\/api\/share\/(?<token>[^/]+)\/logo$/u.exec(pathname)
+    const workspaceLogo = /^\/api\/workspaces\/(?<workspace>[^/]+)\/brand\/logo$/u.exec(pathname)
+    const value = publicLogo?.groups?.token ?? workspaceLogo?.groups?.workspace
     if (Predicate.isNullish(value) || String.isEmpty(value)) {
       return yield* new ScopeError(HTTP_NOT_FOUND, 'Not found')
     }

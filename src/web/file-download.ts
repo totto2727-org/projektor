@@ -22,8 +22,8 @@ export const downloadFile = function downloadFile(
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const url = new URL(request.url)
-    const match = /^\/api\/files\/([^/]+)$/u.exec(url.pathname)
-    if (!match) {
+    const groups = /^\/api\/files\/(?<id>[^/]+)$/u.exec(url.pathname)?.groups
+    if (!groups) {
       return yield* new ScopeError(HTTP_NOT_FOUND, 'Not found')
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -39,7 +39,7 @@ export const downloadFile = function downloadFile(
     const workspaceHint = workspaceHints[0]
     const id = yield* Effect.try({
       catch: () => new ScopeError(HTTP_BAD_REQUEST, 'Invalid attachment identifier.'),
-      try: () => decodeURIComponent(match[1]),
+      try: () => decodeURIComponent(groups.id),
     })
     // A download target is not a page selector. Archived owners are not in the active catalog.
     const scope = yield* services.scope({ workspaceHint, projectHint: '', requireWorkspace: true })
