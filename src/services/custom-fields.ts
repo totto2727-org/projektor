@@ -46,18 +46,15 @@ export const listCustomFieldDefs = function listCustomFieldDefs(
 ): Effect.Effect<CustomFieldDefinition[], DataQueryError> {
   return queryEffect('listCustomFieldDefs', async () => {
     const orm = drizzle(db, { schema })
-    const conditions = [eq(schema.customFieldDefinitions.workspaceId, workspaceId)]
+    const conditions: (SQL | undefined)[] = [eq(schema.customFieldDefinitions.workspaceId, workspaceId)]
     if (visibility) {
-      conditions.push(or(isNull(schema.customFieldDefinitions.projectId), visibility)!)
+      conditions.push(or(isNull(schema.customFieldDefinitions.projectId), visibility))
     }
     if (projectId !== undefined) {
       conditions.push(
         Predicate.isNullish(projectId)
           ? isNull(schema.customFieldDefinitions.projectId)
-          : or(
-              isNull(schema.customFieldDefinitions.projectId),
-              eq(schema.customFieldDefinitions.projectId, projectId),
-            )!,
+          : or(isNull(schema.customFieldDefinitions.projectId), eq(schema.customFieldDefinitions.projectId, projectId)),
       )
     }
     const rows = await orm

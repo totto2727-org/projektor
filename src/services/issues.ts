@@ -182,8 +182,8 @@ const listConditions = function listConditions(
   workspaceId: string,
   options: IssueListOptions,
   visibility?: SQL,
-): SQL[] {
-  const conditions: SQL[] = [eq(schema.issues.workspaceId, workspaceId)]
+): (SQL | undefined)[] {
+  const conditions: (SQL | undefined)[] = [eq(schema.issues.workspaceId, workspaceId)]
   if (visibility) {
     conditions.push(visibility)
   }
@@ -255,7 +255,7 @@ const listConditions = function listConditions(
       or(
         isNull(schema.issues.typeId),
         sql`${schema.issues.typeId} NOT IN (SELECT value FROM json_each(${JSON.stringify(excluded)}))`,
-      )!,
+      ),
     )
   }
   if (isNonEmptyText(options.sprintId)) {
