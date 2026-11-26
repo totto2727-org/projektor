@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
@@ -35,9 +35,7 @@ describe('activity audit log', () => {
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
-    expect(rows[0].entity_type).toBe('issue')
-    expect(rows[0].action).toBe('created')
-    expect(rows[0].workspace_id).toBe(workspaceId)
+    expect(rows[0]).toMatchObject({ action: 'created', entity_type: 'issue', workspace_id: workspaceId })
     expect(isNonEmptyText(rows[0].actor_id)).toBe(true)
   })
 
@@ -61,9 +59,9 @@ describe('activity audit log', () => {
     expect(rows).toHaveLength(2)
     const updateRow = rows[1]
     expect(updateRow.action).toBe('updated')
-    const diff = JSON.parse(updateRow.diff!)
-    expect(diff.status).toBe('in_progress')
-    expect(diff.priority).toBe('high')
+    const { diff } = updateRow
+    assert.isNotNull(diff)
+    expect(JSON.parse(diff)).toMatchObject({ priority: 'high', status: 'in_progress' })
   })
 
   test('records a created row when a wiki page is created', async () => {
@@ -78,8 +76,7 @@ describe('activity audit log', () => {
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
-    expect(rows[0].entity_type).toBe('wiki_page')
-    expect(rows[0].action).toBe('created')
+    expect(rows[0]).toMatchObject({ action: 'created', entity_type: 'wiki_page' })
   })
 
   test('records a created row when a project is created', async () => {
@@ -99,7 +96,6 @@ describe('activity audit log', () => {
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
-    expect(rows[0].entity_type).toBe('project')
-    expect(rows[0].action).toBe('created')
+    expect(rows[0]).toMatchObject({ action: 'created', entity_type: 'project' })
   })
 })

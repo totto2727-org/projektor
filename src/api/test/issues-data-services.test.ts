@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
-import { Predicate } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { Predicate, Schema } from 'effect'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
 import { listComments } from '#services/comments.ts'
@@ -25,6 +25,8 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
+const isJsonRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown))
+
 describe('shared issue queries over the API D1 pool', () => {
   let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
   beforeEach(async () => {
@@ -35,7 +37,9 @@ describe('shared issue queries over the API D1 pool', () => {
       headers: authHeaders(fixture.token, fixture.slug),
     })
     expect(response.status).toBe(200)
-    return response.json() as Promise<Record<string, unknown>>
+    const body: unknown = await response.json()
+    assert(isJsonRecord(body))
+    return body
   }
 
   test('preserves single row keys, JSON labels, joined nulls and extras without adding assignee_name', async () => {
@@ -84,7 +88,9 @@ describe('shared issue queries over the API D1 pool', () => {
     expect(page.items[0]).not.toHaveProperty('body')
     expect(page.items[0].assignee_name).toBe('Test User')
     expect(page.items[0].rollup).toStrictEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
-    const [createdAt, id] = page.nextCursor!.split(':')
+    const { nextCursor } = page
+    assert.isNotNull(nextCursor)
+    const [createdAt, id] = nextCursor.split(':')
     const next = await runTestEffect(
       queries.listIssues(env.DB, fixture.workspaceId, {
         limit: 2,
