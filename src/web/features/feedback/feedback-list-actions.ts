@@ -16,7 +16,7 @@ export interface FeedbackStatusUpdate {
 interface FeedbackActionInputs {
   addOptimistic: (change: FeedbackStatusUpdate) => void
   projectId: string
-  setError: (error: string | null) => void
+  setError: (error: string) => void
   setSelected: (selected: Set<string>) => void
   startTransition: (action: () => Promise<void>) => void
   workspaceSlug: string | undefined

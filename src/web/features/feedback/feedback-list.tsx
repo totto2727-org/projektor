@@ -207,7 +207,7 @@ const renderFeedbackRows = function renderFeedbackRows({
   )
 }
 
-const renderFeedbackError = function renderFeedbackError(error: string | null): string | null | JSX.Element {
+const renderFeedbackError = function renderFeedbackError(error: string | undefined): string | undefined | JSX.Element {
   if (Predicate.isNullish(error) || String.isEmpty(error)) {
     return error
   }
@@ -227,7 +227,7 @@ export function FeedbackList({
   initialStatus = '',
 }: Props): JSX.Element {
   const status = initialStatus
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string>()
   const [pending, startTransition] = useTransition()
   const [optimisticRows, addOptimistic] = useOptimistic(initialRows, (current, change: FeedbackStatusUpdate) => {
     const ids = new Set(change.ids)

@@ -83,7 +83,7 @@ interface SprintBannerProps {
   sprintEditEnd: string
   setSprintEditEnd: Dispatch<SetStateAction<string>>
   sprintEditSaving: boolean
-  sprintEditError: string | null
+  sprintEditError: string | undefined
   saveSprintEdit: (selectedEvent: FormEvent<HTMLFormElement>) => void
   openSprintEdit: () => void
   setFilterSprintId: Dispatch<SetStateAction<string>>
@@ -397,7 +397,7 @@ export function SprintBannerSection({
   const [sprintEditStart, setSprintEditStart] = sprintForm.field('start')
   const [sprintEditEnd, setSprintEditEnd] = sprintForm.field('end')
   const [sprintEditSaving, setSprintEditSaving] = useState(false)
-  const [sprintEditError, setSprintEditError] = useState<string | null>(null)
+  const [sprintEditError, setSprintEditError] = useState<string>()
 
   const openSprintEdit = function openSprintEdit(): void {
     if (!sprintDetail) {
@@ -408,7 +408,7 @@ export function SprintBannerSection({
     setSprintEditStatus(sprintDetail.status)
     setSprintEditStart(sprintDetail.startDate ? tsToDateInput(sprintDetail.startDate) : '')
     setSprintEditEnd(sprintDetail.endDate ? tsToDateInput(sprintDetail.endDate) : '')
-    setSprintEditError(null)
+    setSprintEditError(undefined)
     setSprintEditing(true)
   }
 
@@ -422,7 +422,7 @@ export function SprintBannerSection({
       return
     }
     setSprintEditSaving(true)
-    setSprintEditError(null)
+    setSprintEditError(undefined)
     try {
       const body = {
         name: sprintEditName.trim(),
