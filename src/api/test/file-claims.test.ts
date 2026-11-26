@@ -399,7 +399,7 @@ describe('file Claims API', () => {
       .bind(workspaceId, 'src/conflict-log.ts')
       .all()
     expect(rows.results).toHaveLength(1)
-    const row = rows.results[0] as Record<string, unknown>
+    const [row] = rows.results
     expect(row.forced).toBe(0)
     expect(row.rejected_issue_id).toBe(issue2.id)
     expect(row.holding_issue_id).toBe(issueId)
@@ -428,7 +428,7 @@ describe('file Claims API', () => {
       .all()
     expect(rows.results).toHaveLength(2)
     const paths = rows.results
-      .map((result) => (result as Record<string, unknown>).path)
+      .map((result) => result.path)
       .toSorted((selectedLeft, selectedRight) => {
         const left = String(selectedLeft)
         const right = String(selectedRight)
@@ -464,7 +464,7 @@ describe('file Claims API', () => {
       .bind(workspaceId, 'src/force-log.ts')
       .all()
     expect(rows.results).toHaveLength(1)
-    const row = rows.results[0] as Record<string, unknown>
+    const [row] = rows.results
     expect(row.forced).toBe(1)
     expect(row.rejected_issue_id).toBe(issue2.id)
     expect(row.holding_issue_id).toBe(issueId)

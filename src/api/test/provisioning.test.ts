@@ -25,7 +25,7 @@ beforeEach(resetProvisioningCacheForTests)
  * Env by spreading the test bindings and overriding the provisioning vars. Unique slugs +
  * emails per test keep the shared D1 from leaking state across cases. */
 const envWith = function envWith(overrides: Partial<Env>): Env {
-  return { ...(env as unknown as Env), ...overrides }
+  return { ...env, ...overrides }
 }
 
 const memberRole = async function memberRole(workspaceId: string, userId: string): Promise<null | string> {

@@ -401,7 +401,7 @@ describe('agents API', () => {
             userId,
             role: 'owner',
             auth: { kind: 'human', method: 'dev' },
-          } as ServiceCtx,
+          },
           { issue: issue1.id, paths: ['src/contended.ts'], name: 'holder' },
         )
 
@@ -424,7 +424,7 @@ describe('agents API', () => {
                 }
                 return origBind(...args)
               },
-            }) as D1PreparedStatement
+            })
           }
           return stmt
         })
@@ -437,7 +437,7 @@ describe('agents API', () => {
           userId,
           role: 'owner',
           auth: { kind: 'human', method: 'dev' },
-        } as ServiceCtx
+        }
 
         await expect(
           startWorkDirect(ctx, {

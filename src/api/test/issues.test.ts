@@ -2105,18 +2105,23 @@ describe('issues role guards', () => {
   })
 })
 
+interface PrioritizedMcpReply {
+  result?: { content: { text: string }[] }
+  error?: { code: number; message: string }
+}
+
 const seedPrioritizedMcpFixture = async function seedPrioritizedMcpFixture(): Promise<
   IssueProjectFixture & {
-    callPrioritized: (
-      args?: Record<string, unknown>,
-    ) => Promise<{ result?: { content: { text: string }[] }; error?: { code: number; message: string } }>
+    callPrioritized: (args?: Record<string, unknown>) => Promise<PrioritizedMcpReply>
   }
 > {
   const { token, slug, workspaceId, userId, projectId }: IssueProjectFixture = await seedProjectFixture({
     role: 'owner',
   })
 
-  const callPrioritized = async function callPrioritized(args: Record<string, unknown> = {}) {
+  const callPrioritized = async function callPrioritized(
+    args: Record<string, unknown> = {},
+  ): Promise<PrioritizedMcpReply> {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
         id: 1,
@@ -2127,10 +2132,7 @@ const seedPrioritizedMcpFixture = async function seedPrioritizedMcpFixture(): Pr
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    return res.json() as Promise<{
-      result?: { content: { text: string }[] }
-      error?: { code: number; message: string }
-    }>
+    return res.json()
   }
   return { callPrioritized, projectId, slug, token, userId, workspaceId }
 }

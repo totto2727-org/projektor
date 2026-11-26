@@ -334,11 +334,17 @@ export function SprintBannerSection({
   issues,
 }: SprintBannerSectionProps): false | JSX.Element {
   const [sprintEditing, setSprintEditing] = useState(false)
-  const sprintForm = useIssueForm(
+  const sprintForm = useIssueForm<{
+    name: string
+    goal: string
+    status: SprintDetail['status']
+    start: string
+    end: string
+  }>(
     {
       name: '',
       goal: '',
-      status: 'planned' as 'planned' | 'active' | 'completed',
+      status: 'planned',
       start: '',
       end: '',
     },

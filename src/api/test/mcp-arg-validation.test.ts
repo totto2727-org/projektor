@@ -78,9 +78,7 @@ const rpc = async function rpc(
     `http://localhost/mcp/${workspaceId}`,
     requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
   )
-  return res.json() as Promise<{
-    result?: { tools: { name: string; inputSchema: Schema }[] }
-  }>
+  return res.json()
 }
 
 describe('covers PROJ-920: MCP tool arguments are type-checked before the handler runs', () => {

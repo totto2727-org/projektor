@@ -1642,12 +1642,13 @@ function useWikiEditing(
 ) {
   const seed = useWikiSeed()
   const [editing, setEditing] = useState(seed.mode === 'edit')
+  const defaultValues: typeof EditFields.Type = {
+    title: seed.page?.title ?? '',
+    content: seed.page?.content ?? '',
+    baseRevisionId: seed.page?.revisionId ?? seed.revisions[0]?.id ?? null,
+  }
   const editForm = useForm({
-    defaultValues: {
-      title: seed.page?.title ?? '',
-      content: seed.page?.content ?? '',
-      baseRevisionId: seed.page?.revisionId ?? seed.revisions[0]?.id ?? null,
-    } as typeof EditFields.Type,
+    defaultValues,
     validators: { onChange: Schema.toStandardSchemaV1(EditFields) },
   })
   const { title: editTitle, content: editContent, baseRevisionId } = useStore(editForm.store, (state) => state.values)

@@ -7,7 +7,6 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { purgeExpiredOAuthData } from '#core/api/maintenance.ts'
 import { runIndexedInOrder } from '#tests/run-effect.ts'
-import type { Env } from '#types'
 
 import { env, resetCoreAuthCaches } from './fixture-api.ts'
 import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers.ts'
@@ -1327,7 +1326,7 @@ describe('the scheduled purge', () => {
     await seedMember(workspace.id, user.id, 'member')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    await purgeExpiredOAuthData(env as unknown as Env)
+    await purgeExpiredOAuthData(env)
 
     await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
   })
@@ -1428,7 +1427,7 @@ describe('hardening the consent screen itself', () => {
      * grants standing access.
      */
     const saved = env.JWT_SECRET
-    env.JWT_SECRET = '' as unknown as string
+    env.JWT_SECRET = ''
     try {
       const res = await consentPage({ email, workspaceId })
       expect(res.status).toBe(500)

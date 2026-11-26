@@ -88,7 +88,7 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
     DB: wrapD1(realEnv.DB),
     R2: wrapCalls(realEnv.R2),
     KV: wrapCalls(realEnv.KV),
-  } as unknown as Env
+  }
   return { env: wrappedEnv, count: () => used }
 }
 

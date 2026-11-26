@@ -67,7 +67,7 @@ describe('covers PROJ-889: auth middleware records method + credential', () => {
       waitUntil: () => {},
       passThroughOnException: () => {},
       props: {},
-    } as unknown as ExecutionContext)
+    })
     expect(res.status).toBe(200)
     return readNativeJson(res, ApiAuthInfo)
   }

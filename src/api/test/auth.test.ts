@@ -1271,7 +1271,7 @@ const requestTool = async function requestTool(
   args: unknown,
 ): Promise<McpErrorReply> {
   const response = await fetchNativeMcpTool(workspaceId, { arguments: args, name }, headers)
-  return response.json() as Promise<McpErrorReply>
+  return response.json()
 }
 
 // A service failure is a successful JSON-RPC response whose result is a tool error.
