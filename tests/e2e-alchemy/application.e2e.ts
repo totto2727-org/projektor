@@ -136,7 +136,7 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
     const topbar = document.querySelector<HTMLElement>('.projektor-topbar')
     return {
       gap:
-        nav && pageContent && !content?.hasAttribute('data-full-bleed')
+        nav && pageContent && !Object.hasOwn(content?.dataset ?? {}, 'fullBleed')
           ? pageContent.getBoundingClientRect().top - nav.getBoundingClientRect().bottom
           : null,
       gutter: content ? Number.parseFloat(getComputedStyle(content).paddingTop) : null,

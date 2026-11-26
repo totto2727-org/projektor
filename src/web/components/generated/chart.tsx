@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from 'cn'
-import { Predicate } from 'effect'
+import { Array, Predicate } from 'effect'
 import * as React from 'react'
 import * as RechartsPrimitive from 'recharts'
 import type { TooltipValueType } from 'recharts'
@@ -195,7 +195,7 @@ export function ChartTooltipContent({
     return <div className={cn('font-medium', labelClassName)}>{value}</div>
   }, [label, labelFormatter, payload, hideLabel, labelClassName, config, labelKey])
 
-  if (!active || !payload?.length) {
+  if (active !== true || Predicate.isNullish(payload) || Array.isReadonlyArrayEmpty(payload)) {
     return null
   }
 
