@@ -178,7 +178,7 @@ describe('flow metrics (PROJ-252)', () => {
     })
     await stampFlowTimestamps(oldIssue.id, {
       claimedAt: now - 2 * DAY,
-      doneAt: now - 1 * DAY,
+      doneAt: now - DAY,
       readyAt: now - 10 * DAY,
     })
 
@@ -888,10 +888,10 @@ describe('factory health tiles (PROJ-334)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Faulty' })
 
     // In window: counts.
-    await seedLease(issue.id, 'expired', now - 1 * DAY)
-    await seedFileClaim(issue.id, 'agent_ended', now - 1 * DAY)
-    await seedGateRejection(issue.id, now - 1 * DAY)
-    await seedWipCapDenial(projectId, issue.id, now - 1 * DAY)
+    await seedLease(issue.id, 'expired', now - DAY)
+    await seedFileClaim(issue.id, 'agent_ended', now - DAY)
+    await seedGateRejection(issue.id, now - DAY)
+    await seedWipCapDenial(projectId, issue.id, now - DAY)
 
     // Out of window: excluded.
     await seedLease(issue.id, 'expired', now - 10 * DAY)
@@ -903,10 +903,10 @@ describe('factory health tiles (PROJ-334)', () => {
      * Right reason but not a fault (deliberate release / reclaim by another agent) —
      * excluded regardless of window.
      */
-    await seedLease(issue.id, 'released', now - 1 * DAY)
-    await seedLease(issue.id, 'agent_ended', now - 1 * DAY)
-    await seedFileClaim(issue.id, 'released', now - 1 * DAY)
-    await seedFileClaim(issue.id, 'overridden', now - 1 * DAY)
+    await seedLease(issue.id, 'released', now - DAY)
+    await seedLease(issue.id, 'agent_ended', now - DAY)
+    await seedFileClaim(issue.id, 'released', now - DAY)
+    await seedFileClaim(issue.id, 'overridden', now - DAY)
 
     const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,

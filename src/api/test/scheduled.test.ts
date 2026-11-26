@@ -190,7 +190,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
 			   (id, workspace_id, user_id, page_id, page_slug, page_title, action, actor_id, summary, created_at)
 			 VALUES (?, ?, ?, 'p2', 'p2', 'P2', 'updated', NULL, 'x', ?)`,
     )
-      .bind(freshNotificationId, workspaceId, userId, now() - 1 * DAY)
+      .bind(freshNotificationId, workspaceId, userId, now() - DAY)
       .run()
 
     /* Table agent_sessions: one ended 91 days ago with NO lease (should be purged), one ended
@@ -226,7 +226,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
       `INSERT INTO activity (id, workspace_id, entity_type, entity_id, actor_id, action, diff, created_at)
 			 VALUES (?, ?, 'issue', ?, ?, 'updated', NULL, ?)`,
     )
-      .bind(freshActivityId, workspaceId, issueId, userId, now() - 1 * DAY)
+      .bind(freshActivityId, workspaceId, issueId, userId, now() - DAY)
       .run()
 
     await purgeExpiredRetentionData(env)
