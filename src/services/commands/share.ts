@@ -1,5 +1,6 @@
 import { String, Predicate } from 'effect'
 
+import { encodeHexBytes } from '#contracts/hex.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
@@ -12,7 +13,7 @@ import type { WorkspaceBrandDto } from './workspaces.ts'
 
 const hashToken = async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return encodeHexBytes(new Uint8Array(buf))
 }
 
 /**
@@ -38,6 +39,7 @@ const assertIssueShareable = async function assertIssueShareable(ctx: ServiceCtx
 }
 
 const SHARE_LINK_LIFETIME_DAYS = 3
+const SHARE_TOKEN_BYTES = 16
 
 export const createShareToken = async function createShareToken(
   ctx: ServiceCtx,
@@ -47,8 +49,8 @@ export const createShareToken = async function createShareToken(
 
   const now = currentEpochSeconds()
 
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  const token = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  const bytes = crypto.getRandomValues(new Uint8Array(SHARE_TOKEN_BYTES))
+  const token = encodeHexBytes(bytes)
   const expiresAt = now + SHARE_LINK_LIFETIME_DAYS * SECONDS_PER_DAY
 
   // Table share_tokens.id stores sha256(token), never the raw token — see PROJ-239

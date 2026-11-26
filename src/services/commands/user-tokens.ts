@@ -1,6 +1,7 @@
 import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
+import { encodeHexBytes } from '#contracts/hex.ts'
 import { CreateUserTokenSchema } from '#contracts/inputs/user-tokens.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
@@ -18,7 +19,7 @@ export interface UserCtx {
 
 const hashToken = async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return encodeHexBytes(new Uint8Array(buf))
 }
 
 export const getUserWorkspaces = async function getUserWorkspaces(ctx: UserCtx): Promise<Record<string, unknown>[]> {

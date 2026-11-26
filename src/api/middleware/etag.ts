@@ -1,6 +1,7 @@
 import { String, Predicate } from 'effect'
 import type { Context, Next } from 'hono'
 
+import { encodeHexBytes } from '#contracts/hex.ts'
 import { HTTP_OK } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
@@ -25,6 +26,8 @@ import type { HonoEnv } from '#types'
  * which is the point; a max-age would risk showing one user a stale or foreign view.
  */
 const CACHE_CONTROL = 'private, no-cache'
+const FIRST_DIGEST_BYTE = 0
+const ETAG_DIGEST_PREFIX_BYTES = 16
 
 const ifNoneMatchMatches = function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
   if (Predicate.isNullish(header) || String.isEmpty(header)) {
@@ -39,7 +42,7 @@ const ifNoneMatchMatches = function ifNoneMatchMatches(header: string | undefine
 
 const sha256Prefix = async function sha256Prefix(input: ArrayBuffer): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', input)
-  return [...new Uint8Array(buf).slice(0, 16)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return encodeHexBytes(new Uint8Array(buf).slice(FIRST_DIGEST_BYTE, ETAG_DIGEST_PREFIX_BYTES))
 }
 
 export const etagMiddleware = async function etagMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<void> {

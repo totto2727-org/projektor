@@ -1,5 +1,6 @@
 import { Predicate } from 'effect'
 
+import { encodeHexBytes } from '#contracts/hex.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { LIMITER_TIMEOUT_MS, parseRateLimitSetting, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
 import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
@@ -32,9 +33,12 @@ const oauthGrantKey = function oauthGrantKey(token: string): string | null {
   return `grant:${parts[0]}:${parts[1]}`
 }
 
+const FIRST_DIGEST_BYTE = 0
+const RATE_LIMIT_DIGEST_PREFIX_BYTES = 8
+
 const sha256Prefix = async function sha256Prefix(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return [...new Uint8Array(buf).slice(0, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return encodeHexBytes(new Uint8Array(buf).slice(FIRST_DIGEST_BYTE, RATE_LIMIT_DIGEST_PREFIX_BYTES))
 }
 
 /*
