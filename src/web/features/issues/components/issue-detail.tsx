@@ -144,11 +144,47 @@ const IssueDetailView = function IssueDetailView(
   }>,
 ): JSX.Element {
   const { issue, issueId, workspaceSlug } = props
+  const renderIssueBadges = (): JSX.Element => (
+    <div className='flex items-center gap-2 mb-3 flex-wrap'>
+      <RefChip issueRef={props.issueRef} copyUrl={props.copyUrl} />
+      <ShareButton issueId={issueId} workspaceSlug={workspaceSlug} />
+      {issue.type_name && (
+        <span
+          className='inline-flex items-center px-2 py-[0.125rem] rounded bg-surface border
+								border-border text-xs font-medium text-text-muted'
+        >
+          {issue.type_name}
+        </span>
+      )}
+      <ParentBadge parentEpic={props.parentEpic} />
+    </div>
+  )
+  const renderIssueMainColumn = (): JSX.Element => (
+    <div className='flex-1 min-w-0 max-sm:w-full'>
+      <BodySection issue={issue} issueId={issueId} workspaceSlug={workspaceSlug} currentUserId={props.currentUserId} />
+
+      <ChildIssuesSection issue={issue} childIssues={props.childIssues} />
+      <RelationsSection issueId={issueId} workspaceSlug={workspaceSlug} links={props.links} />
+      <ReviewTargetsSection
+        attachments={props.attachments}
+        workspaceSlug={workspaceSlug}
+        issueId={issueId}
+        issueHref={props.copyUrl}
+      />
+
+      <AttachmentsSection issueId={issueId} workspaceSlug={workspaceSlug} attachments={props.attachments} />
+      <CommentsSection
+        issueId={issueId}
+        workspaceSlug={workspaceSlug}
+        comments={props.comments}
+        currentUserId={props.currentUserId}
+      />
+    </div>
+  )
   return (
     <article className='max-w-[900px] mx-auto'>
       <IssueBreadcrumb issue={issue} backHref={props.backHref} />
 
-      {/* Blocked-by banner */}
       {Array.isArrayNonEmpty(props.blockedByLinks) && (
         <div
           role='alert'
@@ -163,26 +199,12 @@ const IssueDetailView = function IssueDetailView(
         </div>
       )}
 
-      {/* Issue header */}
       <header className='mb-6'>
-        <div className='flex items-center gap-2 mb-3 flex-wrap'>
-          <RefChip issueRef={props.issueRef} copyUrl={props.copyUrl} />
-          <ShareButton issueId={issueId} workspaceSlug={workspaceSlug} />
-          {issue.type_name && (
-            <span
-              className='inline-flex items-center px-2 py-[0.125rem] rounded bg-surface border
-								border-border text-xs font-medium text-text-muted'
-            >
-              {issue.type_name}
-            </span>
-          )}
-          <ParentBadge parentEpic={props.parentEpic} />
-        </div>
+        {renderIssueBadges()}
 
         <TitleSection issue={issue} issueId={issueId} workspaceSlug={workspaceSlug} />
       </header>
 
-      {/* Two-column body */}
       {props.reviewTargetsFocused ? (
         <ReviewTargetsSection
           attachments={props.attachments}
@@ -193,34 +215,8 @@ const IssueDetailView = function IssueDetailView(
         />
       ) : (
         <div className='flex gap-8 items-start max-sm:flex-col'>
-          {/* ── Main column ── */}
-          <div className='flex-1 min-w-0 max-sm:w-full'>
-            <BodySection
-              issue={issue}
-              issueId={issueId}
-              workspaceSlug={workspaceSlug}
-              currentUserId={props.currentUserId}
-            />
+          {renderIssueMainColumn()}
 
-            <ChildIssuesSection issue={issue} childIssues={props.childIssues} />
-            <RelationsSection issueId={issueId} workspaceSlug={workspaceSlug} links={props.links} />
-            <ReviewTargetsSection
-              attachments={props.attachments}
-              workspaceSlug={workspaceSlug}
-              issueId={issueId}
-              issueHref={props.copyUrl}
-            />
-
-            <AttachmentsSection issueId={issueId} workspaceSlug={workspaceSlug} attachments={props.attachments} />
-            <CommentsSection
-              issueId={issueId}
-              workspaceSlug={workspaceSlug}
-              comments={props.comments}
-              currentUserId={props.currentUserId}
-            />
-          </div>
-
-          {/* ── Sidebar ── */}
           <SidebarPanel
             issue={issue}
             issueId={issueId}
