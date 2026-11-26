@@ -503,7 +503,7 @@ function useDuplicateWikiPage() {
       const copy = unwrapResult(await duplicateWikiPage({ workspaceSlug: seed.workspaceSlug, slug: seed.page.slug }))
       navigateFeature(wikiHref(seed, `/wiki/${encodeURIComponent(copy.slug)}`))
     } catch (error) {
-      window.alert(`Could not duplicate page: ${globalThis.String(error)}`)
+      globalThis.alert(`Could not duplicate page: ${globalThis.String(error)}`)
     }
     setDuplicating(false)
   }
@@ -539,7 +539,7 @@ function PageActionOverflowMenu({
     if (rect) {
       setPos({
         top: rect.bottom + PAGE_MENU_VERTICAL_GAP_PX,
-        right: Math.max(PAGE_MENU_MIN_RIGHT_PX, window.innerWidth - rect.right),
+        right: Math.max(PAGE_MENU_MIN_RIGHT_PX, globalThis.innerWidth - rect.right),
       })
     }
     setOpen(true)
@@ -1495,24 +1495,24 @@ function useUnsavedChangesGuard(
     const onNavigate = (event: NavigateEvent): void => {
       const destination = new URL(event.destination.url)
       if (
-        destination.origin === window.location.origin &&
-        destination.pathname === window.location.pathname &&
-        destination.search === window.location.search
+        destination.origin === globalThis.location.origin &&
+        destination.pathname === globalThis.location.pathname &&
+        destination.search === globalThis.location.search
       ) {
         return
       }
       if (
         event.cancelable &&
-        !window.confirm('Leave this page with unsaved changes? Save your changes first to avoid losing them.')
+        !globalThis.confirm('Leave this page with unsaved changes? Save your changes first to avoid losing them.')
       ) {
         event.preventDefault()
       }
     }
-    const browserWindow: NavigationWindow = window
-    window.addEventListener('beforeunload', onBeforeUnload)
+    const browserWindow: NavigationWindow = globalThis
+    globalThis.addEventListener('beforeunload', onBeforeUnload)
     browserWindow.navigation?.addEventListener('navigate', onNavigate)
     return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload)
+      globalThis.removeEventListener('beforeunload', onBeforeUnload)
       browserWindow.navigation?.removeEventListener('navigate', onNavigate)
     }
   }, [dirty])
@@ -1915,7 +1915,7 @@ function useWikiRestore(
     }
     const when = formatTimestamp(revision.created_at)
     if (
-      !window.confirm(
+      !globalThis.confirm(
         `Restore this page to the version from ${when}? This creates a new revision — no history is lost.`,
       )
     ) {
@@ -2215,7 +2215,7 @@ function createWikiActions(
      * this used to claim the opposite.
      */
     if (
-      !window.confirm(
+      !globalThis.confirm(
         `Delete "${page.title}"? The page (and any children) will move to trash for 30 days. You can undo this right after, or restore it from the trash later.`,
       )
     ) {

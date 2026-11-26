@@ -6,5 +6,5 @@
  * @param {string} path The feature route to load.
  */
 export const navigateFeature = function navigateFeature(path: string): void {
-  window.location.assign(path)
+  globalThis.location.assign(path)
 }

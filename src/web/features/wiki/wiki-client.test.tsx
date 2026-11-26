@@ -537,16 +537,16 @@ describe('wiki server prop adoption', () => {
   test('protects unsaved native navigation while allowing same-URL framework refresh', () => {
     const navigation = new EventTarget()
     vi.stubGlobal('navigation', navigation)
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const confirm = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Page title'), { target: { value: 'Unsaved' } })
     const refreshed = Object.assign(new Event('navigate', { cancelable: true }), {
-      destination: { url: window.location.href },
+      destination: { url: globalThis.location.href },
     })
     navigation.dispatchEvent(refreshed)
     expect(confirm).not.toHaveBeenCalled()
     const leaving = Object.assign(new Event('navigate', { cancelable: true }), {
-      destination: { url: new URL('/wiki/other', window.location.href).href },
+      destination: { url: new URL('/wiki/other', globalThis.location.href).href },
     })
     navigation.dispatchEvent(leaving)
     expect(confirm).toHaveBeenCalledOnce()
