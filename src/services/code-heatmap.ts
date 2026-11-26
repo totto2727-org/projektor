@@ -2,11 +2,14 @@ import { and, eq, gte, lte } from 'drizzle-orm'
 import { Iterable } from 'effect'
 import type { Effect } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
+
+const EMPTY_SEGMENT_COUNT = 0
 
 export interface CodeHeatmapRange {
   projectId: string
@@ -60,7 +63,10 @@ const resolveNextSegment = function resolveNextSegment(
   const isLeaf = slashIdx === -1
   const segment = isLeaf ? rest : rest.slice(0, slashIdx)
   const path = prefix ? `${prefix}/${segment}` : segment
-  return { path, isLeaf }
+  return fieldsInOrder([
+    ['path', path],
+    ['isLeaf', isLeaf],
+  ])
 }
 
 interface SegmentGroup {
@@ -96,7 +102,11 @@ const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { pat
 
     let group = groups.get(path)
     if (!group) {
-      group = { ids: new Set(), count: 0, isLeaf }
+      group = fieldsInOrder([
+        ['ids', new Set<string>()],
+        ['count', EMPTY_SEGMENT_COUNT],
+        ['isLeaf', isLeaf],
+      ])
       groups.set(path, group)
     }
     /*
@@ -121,13 +131,15 @@ const groupClaimsByNextSegment = function groupClaimsByNextSegment(
   const groups = groupItemsByNextSegment(claims, prefix, prefixWithSlash, (claim) => claim.issueId)
 
   return [...groups.entries()]
-    .map(([path, group]) => ({
-      path,
-      segment: path.slice(prefixWithSlash.length),
-      isLeaf: group.isLeaf,
-      distinctIssueCount: group.ids.size,
-      claimCount: group.count,
-    }))
+    .map(([path, group]) =>
+      fieldsInOrder([
+        ['path', path],
+        ['segment', path.slice(prefixWithSlash.length)],
+        ['isLeaf', group.isLeaf],
+        ['distinctIssueCount', group.ids.size],
+        ['claimCount', group.count],
+      ]),
+    )
     .toSorted(
       (left, right) => right.distinctIssueCount - left.distinctIssueCount || left.path.localeCompare(right.path),
     )
@@ -141,13 +153,15 @@ const groupConflictsByNextSegment = function groupConflictsByNextSegment(
   const groups = groupItemsByNextSegment(conflicts, prefix, prefixWithSlash, (conflict) => conflict.rejectedIssueId)
 
   return [...groups.entries()]
-    .map(([path, group]) => ({
-      path,
-      segment: path.slice(prefixWithSlash.length),
-      isLeaf: group.isLeaf,
-      distinctRejectedIssueCount: group.ids.size,
-      conflictCount: group.count,
-    }))
+    .map(([path, group]) =>
+      fieldsInOrder([
+        ['path', path],
+        ['segment', path.slice(prefixWithSlash.length)],
+        ['isLeaf', group.isLeaf],
+        ['distinctRejectedIssueCount', group.ids.size],
+        ['conflictCount', group.count],
+      ]),
+    )
     .toSorted(
       (left, right) =>
         right.distinctRejectedIssueCount - left.distinctRejectedIssueCount || left.path.localeCompare(right.path),
@@ -197,17 +211,17 @@ const readCodeHeatmap = async function readCodeHeatmap(
 
     const entries = groupConflictsByNextSegment(conflicts, prefix ?? '')
 
-    return {
-      prefix: prefix ?? '',
-      mode: resolvedMode,
+    return fieldsInOrder([
+      ['prefix', prefix ?? ''],
+      ['mode', resolvedMode],
       /*
        * Reuses the claims-mode field name so the response shape doesn't fork in two —
        * here it's the distinct count of *rejected* issues, i.e. issues whose claim
        * attempt lost.
        */
-      totalDistinctIssues: new Set(conflicts.map((conflict) => conflict.rejectedIssueId)).size,
-      entries,
-    }
+      ['totalDistinctIssues', new Set(conflicts.map((conflict) => conflict.rejectedIssueId)).size],
+      ['entries', entries],
+    ])
   }
 
   /*
@@ -216,7 +230,12 @@ const readCodeHeatmap = async function readCodeHeatmap(
    * issues to scope by project.
    */
   const claims = await orm
-    .select({ path: schema.issueFileClaims.path, issueId: schema.issueFileClaims.issueId })
+    .select(
+      fieldsInOrder([
+        ['path', schema.issueFileClaims.path],
+        ['issueId', schema.issueFileClaims.issueId],
+      ]),
+    )
     .from(schema.issueFileClaims)
     .innerJoin(schema.issues, eq(schema.issueFileClaims.issueId, schema.issues.id))
     .where(
@@ -230,12 +249,12 @@ const readCodeHeatmap = async function readCodeHeatmap(
 
   const entries = groupClaimsByNextSegment(claims, prefix ?? '')
 
-  return {
-    prefix: prefix ?? '',
-    mode: resolvedMode,
-    totalDistinctIssues: new Set(claims.map((claim) => claim.issueId)).size,
-    entries,
-  }
+  return fieldsInOrder([
+    ['prefix', prefix ?? ''],
+    ['mode', resolvedMode],
+    ['totalDistinctIssues', new Set(claims.map((claim) => claim.issueId)).size],
+    ['entries', entries],
+  ])
 }
 
 export type CodeHeatmap = Awaited<ReturnType<typeof readCodeHeatmap>>
