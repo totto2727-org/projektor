@@ -1,4 +1,4 @@
-import { Predicate, Effect } from 'effect'
+import { Predicate, Effect, String } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -17,6 +17,10 @@ import * as feedbackQueries from '#services/feedback.ts'
 import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
+
+const ACTIVE_SOURCE_FLAG = 1
+const INACTIVE_SOURCE_FLAG = 0
+const TOKEN_PREVIEW_LENGTH = 12
 
 export interface FeedbackSourceView {
   id: string
@@ -149,9 +153,9 @@ export const listFeedbackSources = async function listFeedbackSources(
     id: result.id,
     name: result.name,
     description: result.description,
-    isActive: result.is_active === 1,
+    isActive: result.is_active === ACTIVE_SOURCE_FLAG,
     allowedOrigins: isNonEmptyText(result.allowed_origins) ? (JSON.parse(result.allowed_origins) as string[]) : null,
-    tokenPreview: `${result.token_hash.slice(0, 12)}…`,
+    tokenPreview: `${String.takeLeft(result.token_hash, TOKEN_PREVIEW_LENGTH)}…`,
     createdAt: result.created_at,
     revokedAt: result.revoked_at,
   }))
@@ -184,9 +188,9 @@ export const getFeedbackSource = async function getFeedbackSource(
     projectId: row.project_id,
     name: row.name,
     description: row.description,
-    isActive: row.is_active === 1,
+    isActive: row.is_active === ACTIVE_SOURCE_FLAG,
     allowedOrigins: isNonEmptyText(row.allowed_origins) ? (JSON.parse(row.allowed_origins) as string[]) : null,
-    tokenPreview: `${row.token_hash.slice(0, 12)}…`,
+    tokenPreview: `${String.takeLeft(row.token_hash, TOKEN_PREVIEW_LENGTH)}…`,
     createdAt: row.created_at,
     revokedAt: row.revoked_at,
   }
@@ -222,7 +226,7 @@ export const updateFeedbackSource = async function updateFeedbackSource(
   }
   if (Predicate.isNotNullish(isActive)) {
     sets.push('is_active = ?')
-    binds.push(isActive ? 1 : 0)
+    binds.push(isActive ? ACTIVE_SOURCE_FLAG : INACTIVE_SOURCE_FLAG)
   }
   binds.push(sourceId, ctx.workspaceId)
 

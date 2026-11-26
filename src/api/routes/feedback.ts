@@ -30,6 +30,8 @@ import {
 import { parseRateLimitSetting } from '#contracts/request-rate-limit.ts'
 import type { HonoEnv } from '#types'
 
+const BEARER_PREFIX = 'Bearer '
+
 export const feedbackPublicRouter = new Hono<HonoEnv>()
 
 /*
@@ -125,10 +127,10 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
 
 feedbackPublicRouter.post('/submit', async (httpContext) => {
   const auth = httpContext.req.header('Authorization')
-  if (auth?.startsWith('Bearer ') !== true) {
+  if (auth?.startsWith(BEARER_PREFIX) !== true) {
     return httpContext.json({ error: 'Unauthorized' }, HTTP_UNAUTHORIZED)
   }
-  const token = auth.slice(7)
+  const token = auth.slice(BEARER_PREFIX.length)
   const origin = httpContext.req.header('Origin') ?? null
 
   const rateLimited = await checkFeedbackRateLimit(httpContext, token)

@@ -1,4 +1,4 @@
-import { String, Iterable, Predicate, Effect } from 'effect'
+import { String, Iterable, Predicate, Effect, Number } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -16,6 +16,12 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import { createIssueFromFeedback } from './issues.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
+
+const ACTIVE_SOURCE_FLAG = 1
+const POSITIVE_THUMBS_THRESHOLD = 0
+const CONVERTED_TITLE_MAX_LENGTH = 120
+const NO_RATINGS = 0
+const PERCENT_MULTIPLIER = 100
 
 const requireProjectWriteAccess = async function requireProjectWriteAccess(
   ctx: ServiceCtx,
@@ -59,7 +65,7 @@ const resolveFeedbackSource = async function resolveFeedbackSource(
     throw new NotFoundError('Invalid feedback token')
   }
   // Inactive → the credential is real but the source is paused (kill switch) → 403.
-  if (source.is_active !== 1) {
+  if (source.is_active !== ACTIVE_SOURCE_FLAG) {
     throw new ForbiddenError('Feedback source is inactive')
   }
 
@@ -230,7 +236,7 @@ const ratingLabel = function ratingLabel(rating: number | null, scale: string | 
     return 'Rating'
   }
   if (scale === 'thumbs') {
-    return rating > 0 ? '👍 Positive' : '👎 Negative'
+    return rating > POSITIVE_THUMBS_THRESHOLD ? '👍 Positive' : '👎 Negative'
   }
   return `${rating}★`
 }
@@ -275,7 +281,9 @@ export const convertFeedbackToIssue = async function convertFeedbackToIssue(
     throw new ConflictError('Feedback already converted to an issue')
   }
 
-  const title = fb.body ? fb.body.slice(0, 120) : `${ratingLabel(fb.rating, fb.rating_scale)} feedback`
+  const title = fb.body
+    ? String.takeLeft(fb.body, CONVERTED_TITLE_MAX_LENGTH)
+    : `${ratingLabel(fb.rating, fb.rating_scale)} feedback`
   const footer =
     `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
     (Predicate.isNotNullish(fb.rating) ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
@@ -373,7 +381,9 @@ export const bulkConvertToIssue = async function bulkConvertToIssue(
       const footer =
         `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
         (Predicate.isNotNullish(fb.rating) ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
-      return [`${index + 1}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? '', footer].join('\n')
+      return [`${Number.increment(index)}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? '', footer].join(
+        '\n',
+      )
     })
     .join('\n\n')
 
@@ -430,8 +440,11 @@ export const getFeedbackSummary = async function getFeedbackSummary(
       appVersion: result.app_version,
       totalCount: result.total,
       withCommentCount: result.with_comment_count,
-      thumbsUpPct: result.thumbs_total > 0 ? Math.round((result.thumbs_up / result.thumbs_total) * 100) : null,
-      avgFiveStar: result.five_star_total > 0 ? result.five_star_avg : null,
+      thumbsUpPct:
+        result.thumbs_total > NO_RATINGS
+          ? Math.round((result.thumbs_up / result.thumbs_total) * PERCENT_MULTIPLIER)
+          : null,
+      avgFiveStar: result.five_star_total > NO_RATINGS ? result.five_star_avg : null,
       lastSeenAt: result.last_seen_at,
     })
   })
