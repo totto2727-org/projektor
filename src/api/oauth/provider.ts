@@ -65,7 +65,13 @@ export const createOAuthProvider = function createOAuthProvider(app: ExportedHan
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-/** The provider serves these endpoints before Hono's rate limiter. */
+/**
+ * The provider serves these endpoints before Hono's rate limiter.
+ *
+ * @param {Request} request The OAuth request received by the Worker.
+ * @param {ApiEnv} env The API bindings and settings for the request counter.
+ * @returns {Promise<Response | null>} The rate-limit or counter-unavailable response, or null when processing can continue.
+ */
 export const oauthProviderRateLimited = async function oauthProviderRateLimited(
   request: Request,
   env: ApiEnv,

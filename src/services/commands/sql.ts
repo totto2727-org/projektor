@@ -46,6 +46,10 @@ const CHUNK_SIZE = D1_BOUND_PARAM_LIMIT - 10
  * Run `op` over `items` in chunks small enough that each resulting query stays under D1's
  * bound-parameter cap, concatenating the rows each chunk returns. For mutations that
  * return nothing, have `op` return an empty array.
+ *
+ * @param {Readonly<I[]>} items The ordered inputs to partition for D1.
+ * @param {(chunk: I[]) => Promise<O[]>} op The function that executes one chunk and returns result rows.
+ * @returns {Promise<O[]>} The concatenated result rows in chunk order.
  */
 export const inChunks = async function inChunks<I, O>(
   items: Readonly<I[]>,

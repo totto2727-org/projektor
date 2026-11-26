@@ -17,7 +17,12 @@ import { listTaskStatuses } from '#services/task-statuses.ts'
 import { listTaskTypes } from '#services/task-types.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
-/** Maintained read transport fixture over the real migrated schema, with D1's bind cap. */
+/**
+ * Maintained read transport fixture over the real migrated schema, with D1's bind cap.
+ *
+ * @param {DatabaseSync} sqlite The native SQLite database after the production migrations.
+ * @returns {D1Database} A D1-shaped read fixture that enforces the bind limit.
+ */
 const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
   const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {

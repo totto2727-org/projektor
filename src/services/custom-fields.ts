@@ -20,7 +20,13 @@ type CustomFieldDefinition = Omit<typeof schema.customFieldDefinitions.$inferSel
   options: string[] | null
 }
 
-/** Leave room for workspace and other fixed predicates beneath D1's 100 bind cap. */
+/**
+ * Leave room for workspace and other fixed predicates beneath D1's 100 bind cap.
+ *
+ * @param {Readonly<I[]>} items The ordered inputs to partition for D1.
+ * @param {(chunk: I[]) => Promise<O[]>} op The function that processes one chunk and returns its result rows.
+ * @returns {Promise<O[]>} The result rows in the order returned by each completed chunk.
+ */
 export const inChunks = async function inChunks<I, O>(
   items: Readonly<I[]>,
   op: (chunk: I[]) => Promise<O[]>,

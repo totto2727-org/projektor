@@ -165,7 +165,12 @@ const authorizeUrl = function authorizeUrl(
   return url.toString()
 }
 
-/** The hidden signed field the consent form carries. */
+/**
+ * The hidden signed field the consent form carries.
+ *
+ * @param {string} html The HTML returned by the consent endpoint.
+ * @returns {string} The signed consent token rendered by the form.
+ */
 const consentTokenFrom = function consentTokenFrom(html: string): string {
   const match = /name="consent_token" value="([^"]+)"/u.exec(html)
   expect(match, 'consent screen did not render a consent_token').not.toBeNull()
@@ -229,7 +234,13 @@ type TokenResponse = {
   scope?: string
 }
 
-/** Consent and exchange in one go — the whole flow a connector performs. */
+/**
+ * Consent and exchange in one go — the whole flow a connector performs.
+ *
+ * @param {{ email: string; workspaceId: string; scope?: string; clientId?: string; redirectUris?: string[]; redirectUri?: string }} opts
+ *   The caller identity, target workspace, and optional OAuth client settings.
+ * @returns {Promise<{ tokens: TokenResponse; clientId: string; resource: string }>} The issued tokens, client ID, and selected MCP resource.
+ */
 const connect = async function connect(opts: {
   email: string
   workspaceId: string

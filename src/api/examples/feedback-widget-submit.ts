@@ -26,6 +26,11 @@ export interface FeedbackPayload {
  * create_feedback_source MCP tool or the feedback-sources REST API) — it is
  * meant to be embedded in client-side code, the same trust category as a
  * Sentry DSN or a Stripe publishable key.
+ *
+ * @param {string} endpoint The public feedback submission URL.
+ * @param {string} token The public submit token for that feedback source.
+ * @param {FeedbackPayload} feedback The feedback fields to send as JSON.
+ * @returns {Promise<{ id: string }>} The ID of the stored feedback item.
  */
 export const submitFeedback = async function submitFeedback(
   endpoint: string,

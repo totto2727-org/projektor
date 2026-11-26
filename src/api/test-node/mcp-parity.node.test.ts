@@ -138,7 +138,12 @@ const tsFiles = function tsFiles(dir: string): string[] {
   return readdirSync(dir).filter((file) => file.endsWith('.ts'))
 }
 
-/** A directory expands to its .ts files; a file path is taken as-is. */
+/**
+ * A directory expands to its .ts files; a file path is taken as-is.
+ *
+ * @param {string} path A TypeScript file or its containing directory.
+ * @returns {string[]} The source paths to scan for MCP parity.
+ */
 const expandToFiles = function expandToFiles(path: string): string[] {
   return path.endsWith('.ts') ? [path] : tsFiles(path).map((fileName) => join(path, fileName))
 }
@@ -414,7 +419,15 @@ const pathLiteral = function pathLiteral(node: ts.Node | undefined): string | un
   return undefined
 }
 
-/** Trace named functions, native method bindings and only the selected binary request branch. */
+/**
+ * Trace named functions, native method bindings and only the selected binary request branch.
+ *
+ * @param {SourceModule} module The parsed module that owns the node.
+ * @param {ts.Node} node The function or statement to trace.
+ * @param {BinaryContext} binary The optional context that selects the binary request branch.
+ * @param {Set<string>} visited The trace targets already visited along this path.
+ * @returns {Set<string>} The qualified domain operations reachable from the selected node.
+ */
 const domainOperations = function domainOperations(
   module: SourceModule,
   node: ts.Node,

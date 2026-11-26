@@ -11,6 +11,9 @@ export type EventInput = Omit<RealtimeEvent, 'workspaceId' | 'timestamp'>
  *
  * If WORKSPACE_HUB is not configured (e.g. 1-click or free-tier deployments),
  * this function is a no-op and completes immediately.
+ *
+ * @param {ServiceCtx} ctx The command context with the workspace ID and optional Durable Object binding.
+ * @param {EventInput} event The event before the workspace ID and server time are added.
  */
 export const broadcastWorkspaceEvent = async function broadcastWorkspaceEvent(
   ctx: ServiceCtx,

@@ -52,7 +52,13 @@ const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
   }
 }
 
-/** Routing chooses a target only. Core resolves membership and scope for every operation. */
+/**
+ * Routing chooses a target only. Core resolves membership and scope for every operation.
+ *
+ * @param {Context<HonoEnv>} httpContext The Hono request context from which to read workspace selectors.
+ * @param {Next} next The downstream handler invoked after a workspace is resolved.
+ * @returns {Promise<void | Response>} A workspace error response or the downstream completion.
+ */
 export const workspaceMiddleware = async function workspaceMiddleware(
   httpContext: Context<HonoEnv>,
   next: Next,

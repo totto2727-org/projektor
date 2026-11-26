@@ -59,7 +59,14 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     return readNativeJson(res, McpRpcResponse)
   }
 
-  /** Asserts the failure is a tool result (not a JSON-RPC error) and returns its body. */
+  /**
+   * Asserts the failure is a tool result (not a JSON-RPC error) and returns its body.
+   *
+   * @param {string} name The name of the MCP tool to call.
+   * @param {unknown} args The arguments to send to the tool.
+   * @param {string} token The caller token. The fixture token is used by default.
+   * @returns {Promise<ToolErrorBody>} The structured tool error body after the response assertions pass.
+   */
   const failure = async function failure(name: string, args: unknown, token = fixture.token): Promise<ToolErrorBody> {
     const res = await call(name, args, token)
     expect(res.error, 'must not be a JSON-RPC error').toBeUndefined()

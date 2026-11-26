@@ -27,7 +27,12 @@ const rpc = function rpc(method: string, params?: unknown): string {
   return JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
 }
 
-/** Parse `Bearer k="v", k2="v2"` into a map, so tests assert on values not substrings. */
+/**
+ * Parse `Bearer k="v", k2="v2"` into a map, so tests assert on values not substrings.
+ *
+ * @param {string | null} header The authentication challenge header returned by the MCP endpoint.
+ * @returns {Record<string, string>} The decoded Bearer challenge parameters by name.
+ */
 const parseChallenge = function parseChallenge(header: string | null): Record<string, string> {
   expect(isNonEmptyText(header)).toBe(true)
   const bearer = header as string

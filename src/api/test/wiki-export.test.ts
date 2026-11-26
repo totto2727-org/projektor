@@ -19,6 +19,11 @@ const MAX_EXPORT_PAGES = 500
  * Seeds `count` wiki pages directly via SQL (bypassing the create-page API) so a
  * page-count-cap test stays fast — content bodies are kept empty since the cap must
  * reject the export before any page content is ever fetched.
+ *
+ * @param {string} workspaceId The workspace that owns the seeded pages.
+ * @param {string} userId The user recorded as the pages' author and updater.
+ * @param {number} count The number of empty pages to insert.
+ * @param {string | null} projectId The project that owns the seeded pages, or null for workspace pages.
  */
 const seedManyPages = async function seedManyPages(
   workspaceId: string,

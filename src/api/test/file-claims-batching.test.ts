@@ -26,6 +26,8 @@ import { readNativeJson } from './response-json.ts'
  * however drizzle or hand-written code invokes it) counts once, and each env.DB.batch() call
  * counts once regardless of how many statements it carries — mirroring the fact that D1's
  * batch API sends every statement in the array over the wire in a single request.
+ *
+ * @returns {ReturnType<typeof trackD1RoundTrips>} Functions to inspect the number of round trips and restore the original database methods.
  */
 const trackD1RoundTrips = function trackD1RoundTrips() {
   let count = 0

@@ -8,6 +8,9 @@ import type { HonoEnv } from '#types'
  * on malformed input, which used to surface as a 500; this turns it into the standard
  * 400 validation shape (via serviceErrToResponse, or app.onError for calls outside a
  * route's try).
+ *
+ * @param {Context<HonoEnv>} httpContext The Hono request context from the adapter.
+ * @returns {Promise<any>} The parsed body for service validation. Malformed JSON rejects with a validation error.
  */
 /* Same `any` as c.req.json() so call sites that spread the body keep compiling; every
  * consumer validates it with the service's Zod schema.

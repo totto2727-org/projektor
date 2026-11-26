@@ -82,7 +82,14 @@ export const checkRateLimit = async function checkRateLimit(
   return undefined
 }
 
-/** Auth-failure throttling reuses the same counter backend and window math. */
+/**
+ * Auth-failure throttling reuses the same counter backend and window math.
+ *
+ * @param {RequestRateLimitEnv} env The environment used to select the counter backend.
+ * @param {string} key The counter key for the request subject.
+ * @param {number} windowSecs The length of the active window in seconds.
+ * @returns {Promise<number>} The updated request count in the active window.
+ */
 export const bumpRateCounter = async function bumpRateCounter(
   env: RequestRateLimitEnv,
   key: string,

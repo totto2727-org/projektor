@@ -24,6 +24,10 @@ export class RateLimiter extends DurableObject {
    * Count one hit in the fixed window containing `nowSecs` and return the new count and
    * the window's start. The caller passes its own clock (and window size) so the math is
    * identical to the previous D1 limiter and the test clock override keeps working.
+   *
+   * @param {number} windowSecs The fixed window length in seconds.
+   * @param {number} nowSecs The time in seconds supplied by the caller.
+   * @returns {{ count: number; slot: number }} The updated count and the start time of its window.
    */
   public increment(windowSecs: number, nowSecs: number): { count: number; slot: number } {
     const slot = Math.floor(nowSecs / windowSecs) * windowSecs

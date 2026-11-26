@@ -136,7 +136,12 @@ export const checkDefinitionOfReady = function checkDefinitionOfReady(body: stri
   ])
 }
 
-/** PROJ-859: the stored-column form of checkDefinitionOfReady — [dor_ready, dor_missing]. */
+/**
+ * PROJ-859: the stored-column form of checkDefinitionOfReady — [dor_ready, dor_missing].
+ *
+ * @param {string | null | undefined} body The issue body. A missing body is treated as empty text.
+ * @returns {[number, string]} The SQLite readiness flag and the missing fields encoded as JSON.
+ */
 export const dorColumns = function dorColumns(body: string | null | undefined): [number, string] {
   const { ready, missing } = checkDefinitionOfReady(body ?? '')
   return [ready ? SQLITE_TRUE : SQLITE_FALSE, JSON.stringify(missing)]

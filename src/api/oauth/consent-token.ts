@@ -63,7 +63,14 @@ export const signConsentToken = async function signConsentToken(
   return `${body}.${b64urlEncode(new Uint8Array(sig))}`
 }
 
-/** Returns the payload, or null for anything that is not a live, intact, own-session token. */
+/**
+ * Returns the payload, or null for anything that is not a live, intact, own-session token.
+ *
+ * @param {string} token The signed consent field received from the form.
+ * @param {string} userId The authenticated user who submitted the form.
+ * @param {string} secret The server secret used to verify the signature.
+ * @returns {Promise<ConsentPayload | null>} The verified consent payload, or null if any check fails.
+ */
 export const verifyConsentToken = async function verifyConsentToken(
   token: string,
   userId: string,

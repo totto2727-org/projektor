@@ -5,7 +5,13 @@ import { coreFailure, CorePublicError } from './contract.ts'
 import { publicDomainFailure } from './domain-errors.ts'
 import type { CoreEnvironment } from './environment.ts'
 
-/** Public share tokens are authorized by the domain operation, never by browser claims. */
+/**
+ * Public share tokens are authorized by the domain operation, never by browser claims.
+ *
+ * @param {Request} request The internal fetch request with the share token in its path.
+ * @param {CoreEnvironment} env The Core bindings for the shared issue record and logo storage.
+ * @returns {Promise<Response | undefined>} A logo or public error response. An unrelated path resolves to undefined.
+ */
 export const handleSharedLogoRequest = async function handleSharedLogoRequest(
   request: Request,
   env: CoreEnvironment,
