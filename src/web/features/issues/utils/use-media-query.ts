@@ -1,6 +1,10 @@
 'use client'
 import { Predicate } from 'effect'
 import { useEffect, useState } from 'react'
+
+type MediaQueryResult = Pick<MediaQueryList, 'matches'> &
+  Partial<Pick<MediaQueryList, 'addEventListener' | 'removeEventListener'>>
+
 /**
  * Null preserves both CSS-controlled layouts in SSR and the hydration snapshot.
  *
@@ -14,7 +18,7 @@ export const useMediaQuery = function useMediaQuery(query: string): boolean | nu
       setMatches(false)
       return
     }
-    const mql = window.matchMedia(query)
+    const mql: MediaQueryResult = window.matchMedia(query)
     const onChange = (): void => {
       setMatches(mql.matches)
     }

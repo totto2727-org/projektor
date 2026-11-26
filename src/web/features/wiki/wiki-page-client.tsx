@@ -1501,14 +1501,17 @@ function useHashScroll(
       handledRef.current = ''
       scrollToHash()
     }
+    const browserWindow: NavigationWindow = window
     window.addEventListener('hashchange', onNavigate)
-    window.navigation?.addEventListener('currententrychange', onNavigate)
+    browserWindow.navigation?.addEventListener('currententrychange', onNavigate)
     return () => {
       window.removeEventListener('hashchange', onNavigate)
-      window.navigation?.removeEventListener('currententrychange', onNavigate)
+      browserWindow.navigation?.removeEventListener('currententrychange', onNavigate)
     }
   }, [scrollToHash])
 }
+
+type NavigationWindow = Partial<Pick<Window, 'navigation'>>
 
 function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const seed = useWikiSeed()
@@ -1604,11 +1607,12 @@ function useUnsavedChangesGuard(
         event.preventDefault()
       }
     }
+    const browserWindow: NavigationWindow = window
     window.addEventListener('beforeunload', onBeforeUnload)
-    window.navigation?.addEventListener('navigate', onNavigate)
+    browserWindow.navigation?.addEventListener('navigate', onNavigate)
     return () => {
       window.removeEventListener('beforeunload', onBeforeUnload)
-      window.navigation?.removeEventListener('navigate', onNavigate)
+      browserWindow.navigation?.removeEventListener('navigate', onNavigate)
     }
   }, [dirty])
 }

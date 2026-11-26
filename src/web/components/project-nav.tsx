@@ -96,7 +96,8 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(element)
-    void document.fonts?.ready.then(measure)
+    const { fonts }: Partial<Pick<Document, 'fonts'>> = document
+    void fonts?.ready.then(measure)
     return () => observer.disconnect()
   }, [project])
   useEffect(() => {
