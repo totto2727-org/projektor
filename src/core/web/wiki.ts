@@ -30,7 +30,7 @@ export const makeWikiHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, ne
               Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)
                 ? scope.projects.find((item) => item.id === projectId && item.workspace_id === workspaceId)
                 : undefined
-            const workspace = scope.workspaces.find((item) => item.id === workspaceId)!
+            const { workspace } = scope.selection
             return loadWikiData(
               env,
               project ? { ...scope, selection: { kind: 'project', project, workspace } } : scope,

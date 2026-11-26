@@ -32,11 +32,14 @@ import * as data from './issue-data.ts'
 import { CoreReadServices } from './read-services.ts'
 import type { RequestScope, WebRequest } from './scope.ts'
 
+type WorkspaceReadScope = RequestScope &
+  Readonly<{ selection: Extract<RequestScope['selection'], { kind: 'workspace' }> }>
+
 export const webRead = function webRead<A, E>(
   env: CoreEnvironment,
   request: WebRequest,
   workspaceId: string,
-  operation: (scope: RequestScope) => Effect.Effect<A, E, CoreReadServices>,
+  operation: (scope: WorkspaceReadScope) => Effect.Effect<A, E, CoreReadServices>,
   projectId?: string,
 ): Effect.Effect<A, unknown> {
   return Effect.gen(function* () {
@@ -49,7 +52,7 @@ export const webRead = function webRead<A, E>(
       ]),
     )
     const workspace = yield* Effect.try({ catch: publicWebFailure, try: () => requireDataWorkspace(base, workspaceId) })
-    const scope: RequestScope = { ...base, selection: { kind: 'workspace', workspace } }
+    const scope: WorkspaceReadScope = { ...base, selection: { kind: 'workspace', workspace } }
     return yield* operation(scope).pipe(Effect.provideService(CoreReadServices, { db: env.DB }))
   }).pipe(Effect.mapError(publicWebFailure))
 }
