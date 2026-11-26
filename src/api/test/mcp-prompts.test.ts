@@ -49,10 +49,10 @@ describe('covers MCP prompts', () => {
     }>
     const prompt = json.result.prompts.find((listedPrompt) => listedPrompt.name === 'epic-goal')
     assert.isDefined(prompt)
-    const argNames = prompt.arguments.map((a) => a.name)
+    const argNames = prompt.arguments.map((argument) => argument.name)
     expect(argNames).toStrictEqual(['epicRef', 'variant', 'reviewModel', 'cadence', 'checkpointInterval'])
-    expect(prompt.arguments.find((a) => a.name === 'epicRef')?.required).toBe(true)
-    expect(prompt.arguments.find((a) => a.name === 'variant')?.required).toBe(false)
+    expect(prompt.arguments.find((argument) => argument.name === 'epicRef')?.required).toBe(true)
+    expect(prompt.arguments.find((argument) => argument.name === 'variant')?.required).toBe(false)
   })
 
   test('prompts/get with only epicRef returns the composed directive as a user message', async () => {

@@ -43,7 +43,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
   test('reserves every fixed first segment registered on the wiki router', () => {
     const fixedSegments = new Set(
       wikiRouter.routes
-        .map((r) => r.path.split('/')[1] ?? '')
+        .map((route) => route.path.split('/')[1] ?? '')
         .filter((seg) => String.isNonEmpty(seg) && !seg.startsWith(':') && seg !== '*'),
     )
     expect(fixedSegments.size).toBeGreaterThan(5)

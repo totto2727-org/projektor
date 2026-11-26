@@ -154,7 +154,7 @@ describe('custom Field Definitions API', () => {
       listRes,
       Schema.Array(Schema.Struct({ key: Schema.String, label: Schema.String })).pipe(Schema.mutable),
     )
-    expect(list.find((f) => f.key === 'sp')?.label).toBe('Points')
+    expect(list.find((field) => field.key === 'sp')?.label).toBe('Points')
   })
 
   test('handles PATCH /api/custom-fields/:id updates options for select field', async () => {
@@ -689,14 +689,14 @@ describe('covers PROJ-837: custom field definitions respect project access', () 
     })
     expect(all.status).toBe(200)
     const definitions = await readNativeJson(all, KeyListResponse)
-    const keys = definitions.map((d) => d.key).toSorted()
+    const keys = definitions.map((definition) => definition.key).toSorted()
     expect(keys).toStrictEqual(['open_field', 'ws_field'])
 
     const scoped = await fetchNativeApi(`http://localhost/api/custom-fields?projectId=${restricted.id}`, {
       headers: authHeaders(token, workspace.slug),
     })
     const scopedDefinitions = await readNativeJson(scoped, KeyListResponse)
-    const scopedKeys = scopedDefinitions.map((d) => d.key)
+    const scopedKeys = scopedDefinitions.map((definition) => definition.key)
     expect(scopedKeys).toStrictEqual(['ws_field'])
   })
 })

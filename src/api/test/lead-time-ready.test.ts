@@ -54,9 +54,9 @@ describe('covers PROJ-921: ready_at and lead time', () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
     const id = await create(testFixture, 'backlog')
     await patch(testFixture, id, 'done')
-    const s = await stamps(id)
-    expect(s?.done_at).not.toBeNull()
-    expect(s?.ready_at).toBeNull()
+    const statusStamps = await stamps(id)
+    expect(statusStamps?.done_at).not.toBeNull()
+    expect(statusStamps?.ready_at).toBeNull()
   })
 
   test('backlog -> todo and backlog -> in_progress (fast-tracked, PROJ-252) both stamp it', async () => {
@@ -111,13 +111,13 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
       // Still open
       { id: crypto.randomUUID(), ready: 50, done: null },
     ]
-    let n = 1000
+    let nextIssueNumber = 1000
     for (const row of rows) {
       await env.DB.prepare(
         `INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, created_by_id, created_at, updated_at, ready_at, done_at)
 				 VALUES (?, ?, ?, ?, 't', '', 'todo', ?, 0, 0, ?, ?)`,
       )
-        .bind(row.id, workspaceId, projectId, n++, userId, row.ready, row.done)
+        .bind(row.id, workspaceId, projectId, nextIssueNumber++, userId, row.ready, row.done)
         .run()
     }
     const repair = m0062
@@ -132,6 +132,6 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
         env.DB.prepare('SELECT ready_at FROM issues WHERE id = ?').bind(row.id).first<{ ready_at: number | null }>(),
       ),
     )
-    expect(after.map((a) => a?.ready_at)).toStrictEqual([null, 50, 50])
+    expect(after.map((row) => row?.ready_at)).toStrictEqual([null, 50, 50])
   })
 })

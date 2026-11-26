@@ -88,8 +88,8 @@ describe('covers PROJ-891: serializer (unit)', () => {
         'sprint_id',
         'completed_at',
       ],
-      (k) => {
-        expect(out, k).not.toHaveProperty(k)
+      (field) => {
+        expect(out, field).not.toHaveProperty(field)
       },
     )
     expect(out.status).toBe('todo')
@@ -279,7 +279,7 @@ describe('covers PROJ-891: MCP tools', () => {
     )
     expect(second.items).toHaveLength(1)
     expect(second.next).toBeUndefined()
-    const refs = [...first.items, ...second.items].map((i) => i.ref)
+    const refs = [...first.items, ...second.items].map((issue) => issue.ref)
     expect(new Set(refs).size).toBe(3)
   })
 
@@ -372,10 +372,10 @@ describe('covers PROJ-891: MCP tools', () => {
   })
 
   test<ResponseShapingTestContext>('search_wiki and list_wiki_changes page with next/cursor', async ({ fixture }) => {
-    await runInOrder(['Alpha Guide', 'Alpha Notes', 'Alpha Ideas'], async (t): Promise<void> => {
+    await runInOrder(['Alpha Guide', 'Alpha Notes', 'Alpha Ideas'], async (pageTitle): Promise<void> => {
       await tool(
         fixture,
-        { arguments: { content: 'alpha content', title: t }, name: 'create_wiki_page' },
+        { arguments: { content: 'alpha content', title: pageTitle }, name: 'create_wiki_page' },
         Schema.Unknown,
       )
     })

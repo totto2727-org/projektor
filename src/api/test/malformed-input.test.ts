@@ -6,11 +6,11 @@ import { authHeaders, seedIssueFixture, toolError } from './helpers.ts'
 import { fetchNativeApi, stringifyOrderedFields } from './native-fetch.ts'
 import { McpRpcResponse, readNativeJson } from './response-json.ts'
 
-let f: Awaited<ReturnType<typeof seedIssueFixture>>
+let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
 let unhandled: ReturnType<typeof vi.spyOn>
 
 beforeEach(async () => {
-  f = await seedIssueFixture({ role: 'owner' })
+  fixture = await seedIssueFixture({ role: 'owner' })
   unhandled = vi.spyOn(console, 'error')
 })
 afterEach(() => {
@@ -39,10 +39,10 @@ describe('covers REST: invalid JSON bodies → 400', () => {
      * malformed-body case lives in workspace-tokens.test.ts.
      */
   ])('%s %s', async (method, path) => {
-    const url = path.replace(':issueId', f.issueId).replace(':slug', f.slug)
+    const url = path.replace(':issueId', fixture.issueId).replace(':slug', fixture.slug)
     const res = await fetchNativeApi(`http://localhost${url}`, {
       body: '{bad json',
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(fixture.token, fixture.slug),
       method,
     })
     expect(res.status).toBe(400)
@@ -57,9 +57,9 @@ const errorCode = async function errorCode(res: Response): Promise<undefined | n
 
 describe('covers MCP: parse and envelope errors', () => {
   const mcp = function mcp(body: string): Promise<Response> {
-    return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
+    return fetchNativeApi(`http://localhost/mcp/${fixture.workspaceId}`, {
       body,
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
       method: 'POST',
     })
   }

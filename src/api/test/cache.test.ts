@@ -209,7 +209,7 @@ describe('covers KV caching', () => {
 
       const after = await mcpListProjects()
       expect(after).toHaveLength(before.length + 1)
-      expect(after.some((p) => p.key === 'NEWP')).toBe(true)
+      expect(after.some((project) => project.key === 'NEWP')).toBe(true)
     })
 
     test<CacheTestContext>('creating a task status invalidates the cache — subsequent list reflects it immediately', async ({
@@ -240,7 +240,7 @@ describe('covers KV caching', () => {
         Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
       )
       expect(afterBody).toHaveLength(beforeBody.length + 1)
-      expect(afterBody.some((s) => s.key === 'blocked')).toBe(true)
+      expect(afterBody.some((status) => status.key === 'blocked')).toBe(true)
     })
 
     test<CacheTestContext>('deleting a task type invalidates the cache — subsequent list reflects it immediately', async ({
@@ -256,7 +256,7 @@ describe('covers KV caching', () => {
         before,
         Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
       )
-      expect(beforeBody.some((t) => t.key === 'chore')).toBe(true)
+      expect(beforeBody.some((candidateType) => candidateType.key === 'chore')).toBe(true)
 
       const del = await fetchNativeApi(`${url}/${taskType.id}`, { headers: hdrs, method: 'DELETE' })
       expect(del.status).toBe(200)
@@ -267,7 +267,7 @@ describe('covers KV caching', () => {
         after,
         Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
       )
-      expect(afterBody.some((t) => t.key === 'chore')).toBe(false)
+      expect(afterBody.some((candidateType) => candidateType.key === 'chore')).toBe(false)
     })
   })
 

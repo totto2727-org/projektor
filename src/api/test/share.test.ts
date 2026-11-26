@@ -458,7 +458,7 @@ describe('share tokens', () => {
     const sharedIssue = async function sharedIssue(workspaceRole: string, grant: 'none' | 'member') {
       const { workspace, user, token: fixtureToken } = await seedFixture({ role: workspaceRole })
       const project = await seedProject(workspace.id)
-      const g = grant === 'member' ? await seedGroupGrant(workspace.id, user.id, project.id, 'member') : null
+      const groupGrant = grant === 'member' ? await seedGroupGrant(workspace.id, user.id, project.id, 'member') : null
       const issue = await seedIssue(workspace.id, project.id, user.id, { title: 'Shared' })
       const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/share`, {
         headers: authHeaders(fixtureToken, workspace.slug),
@@ -472,7 +472,7 @@ describe('share tokens', () => {
         userId: user.id,
         projectId: project.id,
         issueId: issue.id,
-        groupId: g?.groupId ?? null,
+        groupId: groupGrant?.groupId ?? null,
       }
     }
 

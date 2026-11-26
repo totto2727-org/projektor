@@ -117,7 +117,7 @@ describe('files API', () => {
       ).pipe(Schema.mutable),
     )
     expect(list).toHaveLength(2)
-    expect(list.map((f) => f.filename).toSorted()).toStrictEqual(['a.txt', 'b.txt'])
+    expect(list.map((attachment) => attachment.filename).toSorted()).toStrictEqual(['a.txt', 'b.txt'])
     expect(list[0]).toMatchObject({ contentType: 'text/plain' })
   })
 

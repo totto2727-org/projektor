@@ -122,7 +122,7 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     const afterCreate = await brokenLinks(token, workspace.slug)
     expect(afterCreate.some((brokenLink) => brokenLink.sourcePageId === linker.id)).toBe(false)
     const back = await backlinks(token, workspace.slug, target.slug)
-    expect(back.some((b) => b.pageId === linker.id)).toBe(true)
+    expect(back.some((backlink) => backlink.pageId === linker.id)).toBe(true)
   })
 
   test('rename: a link to the old title/slug unresolves, and a rename onto the raw text resolves it', async () => {
@@ -210,9 +210,9 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     // Oldest page wins a duplicate title.
     await expect(targetsOf(linker.id)).resolves.toStrictEqual([first.id, lone.id].toSorted())
 
-    await runInOrder([first, lone], async (p): Promise<void> => {
-      await deletePage(token, workspace.slug, p.slug)
-      await env.DB.prepare('UPDATE wiki_pages SET deleted_at = 1 WHERE id = ?').bind(p.id).run()
+    await runInOrder([first, lone], async (page): Promise<void> => {
+      await deletePage(token, workspace.slug, page.slug)
+      await env.DB.prepare('UPDATE wiki_pages SET deleted_at = 1 WHERE id = ?').bind(page.id).run()
     })
     const ctx: ServiceCtx = {
       db: env.DB,

@@ -982,15 +982,15 @@ describe('covers PROJ-390: cross-project feedback source mutation is rejected', 
 
 describe('covers PROJ-390: mutating a revoked feedback source', () => {
   const seedRevokedSource = async function seedRevokedSource(
-    f: Readonly<{ projectId: string; token: string; slug: string }>,
+    fixture: Readonly<{ projectId: string; token: string; slug: string }>,
   ): Promise<string> {
     const created = await fetchNativeApi(
-      `http://localhost/api/projects/${f.projectId}/feedback-sources`,
-      requestOptionsWithBody('POST', authHeaders(f.token, f.slug), JSON.stringify({ name: 'Doomed' })),
+      `http://localhost/api/projects/${fixture.projectId}/feedback-sources`,
+      requestOptionsWithBody('POST', authHeaders(fixture.token, fixture.slug), JSON.stringify({ name: 'Doomed' })),
     )
     const { id } = await readNativeJson(created, IdResponse)
-    await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
-      headers: authHeaders(f.token, f.slug),
+    await fetchNativeApi(`http://localhost/api/projects/${fixture.projectId}/feedback-sources/${id}`, {
+      headers: authHeaders(fixture.token, fixture.slug),
       method: 'DELETE',
     })
     return id

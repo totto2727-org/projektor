@@ -58,9 +58,9 @@ const credentialIdOf = async function credentialIdOf(bearer: string): Promise<st
 }
 
 const register = async function register(workspaceId: string, bearer: string, name = 'agent'): Promise<string> {
-  const r = await call({ bearer, workspaceId }, 'register_agent', { name })
-  expect(r.ok).toBe(true)
-  const { id } = r.value
+  const rpcResult = await call({ bearer, workspaceId }, 'register_agent', { name })
+  expect(rpcResult.ok).toBe(true)
+  const { id } = rpcResult.value
   assert(Predicate.isString(id))
   return id
 }
@@ -117,7 +117,7 @@ describe('covers PROJ-894: stateless agent identity', () => {
   test<AgentIdentityTestContext>('two sessions on a shared token: an omitted id is rejected with a hint, an explicit id works', async ({
     projectFixture: { projectId, token, userId, workspaceId },
   }) => {
-    const a = await register(workspaceId, token, 'agent-a')
+    const firstAgent = await register(workspaceId, token, 'agent-a')
     await register(workspaceId, token, 'agent-b')
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contended' })
 
@@ -126,14 +126,14 @@ describe('covers PROJ-894: stateless agent identity', () => {
       ['heartbeat_agent', {}],
       ['end_agent', {}],
     ] as const) {
-      const r = await call({ bearer: token, workspaceId }, tool, { ...args })
-      expect(r.ok, tool).toBe(false)
-      expect(r.message, tool).toContain('pass agentId from register_agent')
+      const rpcResult = await call({ bearer: token, workspaceId }, tool, { ...args })
+      expect(rpcResult.ok, tool).toBe(false)
+      expect(rpcResult.message, tool).toContain('pass agentId from register_agent')
     }
 
-    const claim = await call({ bearer: token, workspaceId }, 'claim_issue', { issueId: issue.id, agentId: a })
+    const claim = await call({ bearer: token, workspaceId }, 'claim_issue', { issueId: issue.id, agentId: firstAgent })
     expect(claim.ok).toBe(true)
-    expect(claim.value.agentSessionId).toBe(a)
+    expect(claim.value.agentSessionId).toBe(firstAgent)
   })
 
   test<AgentIdentityTestContext>('no session on the credential: an omitted id is rejected, even if another credential has one', async ({
@@ -143,9 +143,9 @@ describe('covers PROJ-894: stateless agent identity', () => {
     const other = await seedToken(workspaceId, userId)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Not yours' })
 
-    const r = await call({ bearer: other, workspaceId }, 'claim_issue', { issueId: issue.id })
-    expect(r.ok).toBe(false)
-    expect(r.message).toContain('pass agentId from register_agent')
+    const rpcResult = await call({ bearer: other, workspaceId }, 'claim_issue', { issueId: issue.id })
+    expect(rpcResult.ok).toBe(false)
+    expect(rpcResult.message).toContain('pass agentId from register_agent')
 
     // A different credential's session is never picked up by mistake.
     const beat = await call({ bearer: other, workspaceId }, 'heartbeat_agent', {})

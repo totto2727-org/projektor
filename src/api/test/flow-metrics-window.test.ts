@@ -401,6 +401,6 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
     expect(metrics.arrivalVsCompletionOverTime.every((bucket) => bucket.created === 0 && bucket.completed === 0)).toBe(
       true,
     )
-    expect(metrics.cfdOverTime.every((b) => b.done === 1 && b.inProgress === 0)).toBe(true)
+    expect(metrics.cfdOverTime.every((bucket) => bucket.done === 1 && bucket.inProgress === 0)).toBe(true)
   })
 })

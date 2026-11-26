@@ -147,13 +147,15 @@ describe('durable Wiki draft lifecycle preconditions', () => {
 
   test('rejects late A after B and rejects stale deletes without changing B', async () => {
     const { ctx, state } = fixture()
-    const a = await saveWikiDraft(ctx, 'guide', snapshot('A', JSON_NULL))
-    const b = await saveWikiDraft(ctx, 'guide', snapshot('B', a.revision))
-    await expect(saveWikiDraft(ctx, 'guide', snapshot('Late A', a.revision))).rejects.toBeInstanceOf(ConflictError)
-    await expect(discardWikiDraft(ctx, 'guide', { expectedDraftRevision: a.revision })).rejects.toBeInstanceOf(
+    const firstSave = await saveWikiDraft(ctx, 'guide', snapshot('A', JSON_NULL))
+    const secondSave = await saveWikiDraft(ctx, 'guide', snapshot('B', firstSave.revision))
+    await expect(saveWikiDraft(ctx, 'guide', snapshot('Late A', firstSave.revision))).rejects.toBeInstanceOf(
       ConflictError,
     )
-    await expect(state()).resolves.toMatchObject({ draft: { content: 'B' }, revision: b.revision })
+    await expect(discardWikiDraft(ctx, 'guide', { expectedDraftRevision: firstSave.revision })).rejects.toBeInstanceOf(
+      ConflictError,
+    )
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'B' }, revision: secondSave.revision })
   })
 
   test('retains a tombstone after discard so old requests cannot resurrect the draft', async () => {
@@ -188,12 +190,12 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     const { ctx, state } = fixture()
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('A', JSON_NULL))
     const publication = await beginWikiDraftPublish(ctx, 'guide', snapshot('A', saved.revision))
-    const b = await saveWikiDraft(ctx, 'guide', snapshot('B', publication.revision))
+    const newerSave = await saveWikiDraft(ctx, 'guide', snapshot('B', publication.revision))
     await expect(finishWikiDraftPublish(ctx, 'page', publication.revision)).resolves.toStrictEqual({
       draftRevision: JSON_NULL,
       ok: true,
     })
-    await expect(state()).resolves.toMatchObject({ draft: { content: 'B' }, revision: b.revision })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'B' }, revision: newerSave.revision })
   })
 
   test('retains a new head after successful publish cleanup and rejects pre-publication requests', async () => {

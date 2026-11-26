@@ -133,7 +133,9 @@ describe("covers PROJ-818: link reads don't reveal pages in hidden projects", ()
     )
 
     const asMember = await broken(member.token, workspace.slug)
-    const fromIndex = asMember.filter((backlink) => backlink.sourceSlug === 'public-index').map((b) => b.targetTitle)
+    const fromIndex = asMember
+      .filter((backlink) => backlink.sourceSlug === 'public-index')
+      .map((backlink) => backlink.targetTitle)
     expect(fromIndex.toSorted()).toStrictEqual(['Secret Plan', secretBySlug.slug].toSorted())
     expect(fromIndex).not.toContain('Other Secret Title')
 

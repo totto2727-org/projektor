@@ -186,8 +186,8 @@ describe('file Claims API', () => {
     const body = await readNativeJson(res, bodyShape)
     expect(body.created).toHaveLength(2)
     expect(body.overridden).toHaveLength(0)
-    expect(body.created.every((c) => Predicate.isNullish(c.releasedAt))).toBe(true)
-    const returnedPaths = body.created.map((c) => c.path)
+    expect(body.created.every((claim) => Predicate.isNullish(claim.releasedAt))).toBe(true)
+    const returnedPaths = body.created.map((claim) => claim.path)
     expect(returnedPaths).toContain('src/foo.ts')
     expect(returnedPaths).toContain('src/bar.ts')
 

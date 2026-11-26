@@ -47,12 +47,12 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
         }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
-            wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
+            wrapStmt((value as (...parameters: unknown[]) => D1PreparedStatement).apply(target, args))
         }
         if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
             count += 1
-            return (value as (...a: unknown[]) => unknown).apply(target, args)
+            return (value as (...parameters: unknown[]) => unknown).apply(target, args)
           }
         }
         return value.bind(target)
@@ -82,10 +82,10 @@ const ownerCtx = function ownerCtx(fixture: Fixture): ServiceCtx {
 }
 
 // ValidationError's message is generic; the human-readable reason is in issues.formErrors.
-const formErrorOf = async function formErrorOf(p: Promise<unknown>): Promise<string[]> {
-  const err = (await p.then(
+const formErrorOf = async function formErrorOf(pending: Promise<unknown>): Promise<string[]> {
+  const err = (await pending.then(
     () => null,
-    (e: unknown) => e,
+    (error: unknown) => error,
   )) as { issues?: { formErrors: string[] } } | null
   expect(err, 'expected the call to be rejected').not.toBeNull()
   return err?.issues?.formErrors ?? []
