@@ -2,6 +2,7 @@ import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -26,6 +27,10 @@ interface FileClaimTestContext {
 type FileClaimRestAuth = Pick<FileClaimTestContext['issueFixture'], 'slug' | 'token'>
 type FileClaimMcpAuth = Pick<FileClaimTestContext['issueFixture'], 'slug' | 'token' | 'workspaceId'>
 type FileClaimSessionFixture = Pick<FileClaimTestContext['issueFixture'], 'token' | 'workspaceId'>
+
+const ClaimPathsResponse = Schema.Struct({
+  items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+})
 
 const claimFiles = async function claimFiles(
   body: Record<string, unknown>,
@@ -81,6 +86,15 @@ const listMessagesForScope = async function listMessagesForScope(
   })
   expect(res.status).toBe(200)
   return readNativeJson(res, MessageBodiesResponse)
+}
+
+const expectClaimNotice = function expectClaimNotice(
+  { items }: typeof MessageBodiesResponse.Type,
+  fragments: Readonly<string[]>,
+): void {
+  expect(items).toHaveLength(1)
+  const [{ body }] = items
+  expect(fragments.filter((fragment) => !body.includes(fragment))).toStrictEqual([])
 }
 
 const seedSession = async function seedSession(
@@ -184,30 +198,23 @@ describe('file Claims API', () => {
       overridden: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
     })
     const body = await readNativeJson(res, bodyShape)
-    expect(body.created).toHaveLength(2)
-    expect(body.overridden).toHaveLength(0)
-    expect(body.created.every((claim) => Predicate.isNullish(claim.releasedAt))).toBe(true)
-    const returnedPaths = body.created.map((claim) => claim.path)
-    expect(returnedPaths).toContain('src/foo.ts')
-    expect(returnedPaths).toContain('src/bar.ts')
+    expect({
+      allActive: body.created.every((claim) => Predicate.isNullish(claim.releasedAt)),
+      overridden: body.overridden,
+      paths: body.created.map((claim) => claim.path).toSorted(),
+    }).toStrictEqual({ allActive: true, overridden: [], paths: ['src/bar.ts', 'src/foo.ts'] })
 
     const listRes = await listFileClaims({ issueId }, { slug, token })
     expect(listRes.status).toBe(200)
-    const listBodyShape = Schema.Struct({
-      items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
-    })
-    const listBody = await readNativeJson(listRes, listBodyShape)
-    expect(listBody.items.some((item) => item.path === 'src/foo.ts')).toBe(true)
-    expect(listBody.items.some((item) => item.path === 'src/bar.ts')).toBe(true)
+    const listBody = await readNativeJson(listRes, ClaimPathsResponse)
+    const listedPaths = new Set(listBody.items.map((item) => item.path))
+    expect(paths.filter((path) => !listedPaths.has(path))).toStrictEqual([])
 
     // Verify via MCP — workspaceMiddleware requires X-Workspace-Slug
     const mcpRes = await mcpCall({ arguments: { issueId }, name: 'list_file_claims' }, { slug, token, workspaceId })
     expect(mcpRes.status).toBe(200)
     const mcpBody = await readNativeJson(mcpRes, RpcTextResponse)
-    const mcpData = parseNativeMcpText(
-      mcpBody.result.content[0].text,
-      Schema.Struct({ items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable) }),
-    )
+    const mcpData = parseNativeMcpText(mcpBody.result.content[0].text, ClaimPathsResponse)
     expect(mcpData.items.some((item) => item.path === 'src/foo.ts')).toBe(true)
   })
 
@@ -230,10 +237,7 @@ describe('file Claims API', () => {
 
     // Assert "src/other.ts" was NOT claimed (batch all-or-nothing)
     const listRes = await listFileClaims({ path: 'src/other.ts' }, { slug, token })
-    const listBodyShape = Schema.Struct({
-      items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
-    })
-    const listBody = await readNativeJson(listRes, listBodyShape)
+    const listBody = await readNativeJson(listRes, ClaimPathsResponse)
     expect(listBody.items).toHaveLength(0)
 
     // Verify via MCP — should also return a conflict tool error with holder info
@@ -244,8 +248,11 @@ describe('file Claims API', () => {
     expect(mcpRes.status).toBe(200)
     const mcpBody = await readNativeJson(mcpRes, Schema.Struct({ error: Schema.optional(Schema.Unknown) }))
     expect(mcpBody.error).toBeUndefined()
-    expect(toolError(mcpBody)?.code).toBe('conflict')
-    expect(toolError(mcpBody)?.message).toContain(issueId)
+    const conflict = toolError(mcpBody)
+    expect({ code: conflict?.code, namesHolder: conflict?.message.includes(issueId) }).toStrictEqual({
+      code: 'conflict',
+      namesHolder: true,
+    })
   })
 
   // B3: force:true steals — prior released, new active, overridden list non-empty
@@ -268,11 +275,8 @@ describe('file Claims API', () => {
     )
     expect(forceRes.status).toBe(201)
     const forceBody = await readNativeJson(forceRes, ApiResults.apiClaimFiles)
-    expect(forceBody.created).toHaveLength(1)
-    expect(forceBody.created[0].issueId).toBe(issue2.id)
-    expect(forceBody.created[0].releasedAt).toBeNull()
-    expect(forceBody.overridden).toHaveLength(1)
-    expect(forceBody.overridden[0].issueId).toBe(issueId)
+    expect(forceBody.created).toMatchObject([{ issueId: issue2.id, releasedAt: JSON_NULL }])
+    expect(forceBody.overridden).toMatchObject([{ issueId }])
     expect(forceBody.overridden[0].releasedAt).toBeGreaterThan(0)
 
     // Verify new holder via list
@@ -281,8 +285,7 @@ describe('file Claims API', () => {
       items: Schema.Array(Schema.Struct({ issueId: Schema.String })).pipe(Schema.mutable),
     })
     const listBody = await readNativeJson(listRes, listBodyShape)
-    expect(listBody.items).toHaveLength(1)
-    expect(listBody.items[0].issueId).toBe(issue2.id)
+    expect(listBody.items.map((item) => item.issueId)).toStrictEqual([issue2.id])
   })
 
   // B4a: release_files sets released_at; path becomes re-claimable
@@ -425,21 +428,8 @@ describe('file Claims API', () => {
       'SELECT path FROM claim_conflicts WHERE workspace_id = ? AND rejected_issue_id = ? AND forced = 0',
     )
       .bind(workspaceId, issue2.id)
-      .all()
-    expect(rows.results).toHaveLength(2)
-    const paths = rows.results
-      .map((result) => result.path)
-      .toSorted((selectedLeft, selectedRight) => {
-        const left = String(selectedLeft)
-        const right = String(selectedRight)
-        if (left < right) {
-          return -1
-        }
-        if (left > right) {
-          return 1
-        }
-        return 0
-      })
+      .all<{ path: string }>()
+    const paths = rows.results.map((result) => result.path).toSorted()
     expect(paths).toStrictEqual(['src/multi-a.ts', 'src/multi-b.ts'])
   })
 
@@ -522,14 +512,10 @@ describe('file Claims API', () => {
     expect(forceRes.status).toBe(201)
 
     const messages = await listMessagesForScope(`issue:${issue2.id}`, { slug, token })
-    expect(messages.items).toHaveLength(1)
-    expect(messages.items[0].body).toContain('src/message-on-force.ts')
-    expect(messages.items[0].body).toContain(issueId)
+    expectClaimNotice(messages, ['src/message-on-force.ts', issueId])
 
     const priorHolderMessages = await listMessagesForScope(`issue:${issueId}`, { slug, token })
-    expect(priorHolderMessages.items).toHaveLength(1)
-    expect(priorHolderMessages.items[0].body).toContain('src/message-on-force.ts')
-    expect(priorHolderMessages.items[0].body).toContain(issue2.id)
+    expectClaimNotice(priorHolderMessages, ['src/message-on-force.ts', issue2.id])
   })
 
   test<FileClaimTestContext>('covers PROJ-635: force:true override on multiple paths held by the same issue posts one message per side, not one per path', async ({
@@ -555,16 +541,11 @@ describe('file Claims API', () => {
     expect(forceRes.status).toBe(201)
 
     const messages = await listMessagesForScope(`issue:${issue2.id}`, { slug, token })
-    expect(messages.items).toHaveLength(1)
-    expect(messages.items[0].body).toContain('src/multi-a.ts')
-    expect(messages.items[0].body).toContain('src/multi-b.ts')
-    expect(messages.items[0].body).toContain('src/multi-c.ts')
+    const paths = ['src/multi-a.ts', 'src/multi-b.ts', 'src/multi-c.ts']
+    expectClaimNotice(messages, paths)
 
     const priorHolderMessages2 = await listMessagesForScope(`issue:${issueId}`, { slug, token })
-    expect(priorHolderMessages2.items).toHaveLength(1)
-    expect(priorHolderMessages2.items[0].body).toContain('src/multi-a.ts')
-    expect(priorHolderMessages2.items[0].body).toContain('src/multi-b.ts')
-    expect(priorHolderMessages2.items[0].body).toContain('src/multi-c.ts')
+    expectClaimNotice(priorHolderMessages2, paths)
   })
 
   /*
