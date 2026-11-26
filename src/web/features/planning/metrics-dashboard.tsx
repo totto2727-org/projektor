@@ -118,6 +118,12 @@ const ChartSection = function ChartSection({
 }
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }): JSX.Element {
+  const renderCumulativeFlowChart = (): JSX.Element => (
+    <div className='p-4 bg-surface border border-border rounded-lg overflow-x-auto mb-3'>
+      <CfdChart data={metrics.cfdOverTime} />
+    </div>
+  )
+
   return (
     <SectionBand title='Flow'>
       <DistributionTiles metricId='lead-time' dist={metrics.leadTime} />
@@ -145,9 +151,7 @@ const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }): JSX.E
           metricId='cumulative-flow'
           caption='Issue counts per status category over time. A widening band is where the factory is choking'
         />
-        <div className='p-4 bg-surface border border-border rounded-lg overflow-x-auto mb-3'>
-          <CfdChart data={metrics.cfdOverTime} />
-        </div>
+        {renderCumulativeFlowChart()}
         <DistributionTiles
           metricId='time-in-progress'
           caption='Review latency has its own breakdown in Efficiency & collaboration, below'
@@ -165,6 +169,12 @@ const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }): JSX.E
 }
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetrics }): JSX.Element {
+  const renderReviewLatencyChart = (): JSX.Element => (
+    <div className='p-4 bg-surface border border-border rounded-lg overflow-x-auto mb-3'>
+      <ReviewLatencyChart data={metrics.reviewLatencyOverTime} />
+    </div>
+  )
+
   return (
     <SectionBand title='Efficiency & collaboration'>
       <DistributionTiles
@@ -176,9 +186,7 @@ const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetri
       <DistributionTiles metricId='autonomy-ratio' dist={metrics.autonomyRatio} format={formatPercent} />
       <div className='mb-8'>
         <SectionHeading metricId='review-latency' />
-        <div className='p-4 bg-surface border border-border rounded-lg overflow-x-auto mb-3'>
-          <ReviewLatencyChart data={metrics.reviewLatencyOverTime} />
-        </div>
+        {renderReviewLatencyChart()}
         <DistributionTiles metricId='review-latency' dist={metrics.reviewLatency} showHeading={false} />
       </div>
       <DistributionTiles
@@ -196,6 +204,15 @@ const FactoryHealthBand = function FactoryHealthBand({
 }: {
   health: FlowMetrics['factoryHealth']
 }): JSX.Element {
+  const renderFactoryHealthTiles = (): JSX.Element => (
+    <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+      <HealthTile metricId='lease-expiries' value={health.leaseExpiries} />
+      <HealthTile metricId='abandoned-claims' value={health.abandonedClaims} />
+      <HealthTile metricId='gate-rejections' value={health.gateRejections} />
+      <HealthTile metricId='wip-cap-pressure' value={health.wipCapPressure} />
+    </div>
+  )
+
   return (
     <SectionBand title='Factory health'>
       <div className='mb-8'>
@@ -203,12 +220,7 @@ const FactoryHealthBand = function FactoryHealthBand({
           Fault signals for the factory itself, for the selected window. A low background rate is normal. Watch the
           trend, not any single nonzero tile.
         </p>
-        <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-          <HealthTile metricId='lease-expiries' value={health.leaseExpiries} />
-          <HealthTile metricId='abandoned-claims' value={health.abandonedClaims} />
-          <HealthTile metricId='gate-rejections' value={health.gateRejections} />
-          <HealthTile metricId='wip-cap-pressure' value={health.wipCapPressure} />
-        </div>
+        {renderFactoryHealthTiles()}
       </div>
     </SectionBand>
   )
@@ -253,6 +265,102 @@ export const MetricsDashboard = function MetricsDashboard({
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
     onSubmit: () => element.current?.submit(),
   })
+  const renderRangeStart = (range: typeof defaults): JSX.Element => (
+    <label className='text-[0.7rem] text-text-muted' htmlFor='metrics-since'>
+      From
+      <form.Field name='since'>
+        {(field) => (
+          <input
+            id='metrics-since'
+            type='date'
+            name='since'
+            aria-label='From date'
+            value={field.state.value}
+            max={range.until}
+            required
+            onBlur={field.handleBlur}
+            onChange={(event) => {
+              field.handleChange(event.currentTarget.value)
+            }}
+            className='block px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
+          />
+        )}
+      </form.Field>
+    </label>
+  )
+
+  const renderRangeEnd = (range: typeof defaults): JSX.Element => (
+    <label className='text-[0.7rem] text-text-muted' htmlFor='metrics-until'>
+      To
+      <form.Field name='until'>
+        {(field) => (
+          <input
+            id='metrics-until'
+            type='date'
+            name='until'
+            aria-label='To date'
+            value={field.state.value}
+            min={range.since}
+            required
+            onBlur={field.handleBlur}
+            onChange={(event) => {
+              field.handleChange(event.currentTarget.value)
+            }}
+            className='block px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
+          />
+        )}
+      </form.Field>
+    </label>
+  )
+
+  const renderGranularityField = (): JSX.Element => {
+    const { Field } = form
+    return (
+      <Field name='granularity'>
+        {(field) => (
+          <Select
+            value={field.state.value}
+            options={[
+              { label: 'Weekly', value: 'week' },
+              { label: 'Daily', value: 'day' },
+            ]}
+            ariaLabel='Chart granularity'
+            onChange={(value) => {
+              field.handleChange(value as 'day' | 'week')
+            }}
+          />
+        )}
+      </Field>
+    )
+  }
+
+  interface RangeControlState {
+    range: typeof defaults
+    canSubmit: boolean
+    errors: typeof form.state.errors
+    showErrors: boolean
+  }
+
+  const renderRangeControls = ({ range, canSubmit, errors, showErrors }: RangeControlState): JSX.Element => (
+    <>
+      <input type='hidden' name='projectId' value={projectId} />
+      <input type='hidden' name='workspace' value={workspaceSlug} />
+      <input type='hidden' name='granularity' value={range.granularity} />
+      <input type='hidden' name='heatmapMode' value={heatmapMode} />
+      <input type='hidden' name='prefix' value={range.prefix} />
+      {renderRangeStart(range)}
+      {renderRangeEnd(range)}
+      <div className='text-[0.7rem] text-text-muted'>
+        Granularity
+        <div className='mt-[0.2rem]'>{renderGranularityField()}</div>
+      </div>
+      <Button type='submit' variant='outline' size='sm' disabled={!canSubmit}>
+        Apply
+      </Button>
+      {showErrors && <FormErrors errors={errors} />}
+    </>
+  )
+
   return (
     <div>
       <h1 className='m-0 mb-5 text-2xl font-bold text-text-base'>Metrics</h1>
@@ -267,7 +375,7 @@ export const MetricsDashboard = function MetricsDashboard({
         }}
         className='flex flex-wrap items-end gap-4 mb-6'
       >
-        <form.Subscribe
+        <form.Subscribe<RangeControlState>
           selector={(state) => ({
             range: state.values,
             canSubmit: state.canSubmit,
@@ -275,81 +383,7 @@ export const MetricsDashboard = function MetricsDashboard({
             showErrors: state.isDirty || state.submissionAttempts > 0,
           })}
         >
-          {({ range, canSubmit, errors, showErrors }) => (
-            <>
-              <input type='hidden' name='projectId' value={projectId} />
-              <input type='hidden' name='workspace' value={workspaceSlug} />
-              <input type='hidden' name='granularity' value={range.granularity} />
-              <input type='hidden' name='heatmapMode' value={heatmapMode} />
-              <input type='hidden' name='prefix' value={range.prefix} />
-              <label className='text-[0.7rem] text-text-muted' htmlFor='metrics-since'>
-                From
-                <form.Field name='since'>
-                  {(field) => (
-                    <input
-                      id='metrics-since'
-                      type='date'
-                      name='since'
-                      aria-label='From date'
-                      value={field.state.value}
-                      max={range.until}
-                      required
-                      onBlur={field.handleBlur}
-                      onChange={(event) => {
-                        field.handleChange(event.currentTarget.value)
-                      }}
-                      className='block px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
-                    />
-                  )}
-                </form.Field>
-              </label>
-              <label className='text-[0.7rem] text-text-muted' htmlFor='metrics-until'>
-                To
-                <form.Field name='until'>
-                  {(field) => (
-                    <input
-                      id='metrics-until'
-                      type='date'
-                      name='until'
-                      aria-label='To date'
-                      value={field.state.value}
-                      min={range.since}
-                      required
-                      onBlur={field.handleBlur}
-                      onChange={(event) => {
-                        field.handleChange(event.currentTarget.value)
-                      }}
-                      className='block px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
-                    />
-                  )}
-                </form.Field>
-              </label>
-              <div className='text-[0.7rem] text-text-muted'>
-                Granularity
-                <div className='mt-[0.2rem]'>
-                  <form.Field name='granularity'>
-                    {(field) => (
-                      <Select
-                        value={field.state.value}
-                        options={[
-                          { label: 'Weekly', value: 'week' },
-                          { label: 'Daily', value: 'day' },
-                        ]}
-                        ariaLabel='Chart granularity'
-                        onChange={(value) => {
-                          field.handleChange(value as 'day' | 'week')
-                        }}
-                      />
-                    )}
-                  </form.Field>
-                </div>
-              </div>
-              <Button type='submit' variant='outline' size='sm' disabled={!canSubmit}>
-                Apply
-              </Button>
-              {showErrors && <FormErrors errors={errors} />}
-            </>
-          )}
+          {renderRangeControls}
         </form.Subscribe>
       </form>
       <FlowBand metrics={metrics} />
