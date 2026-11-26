@@ -67,7 +67,7 @@ const analyze = function analyze(sources: Readonly<Record<string, string>>): Map
           const hasValue =
             !clause ||
             (clause.phaseModifier !== ts.SyntaxKind.TypeKeyword &&
-              (!!clause.name ||
+              (Boolean(clause.name) ||
                 !named ||
                 ts.isNamespaceImport(named) ||
                 named.elements.length === 0 ||

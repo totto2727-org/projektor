@@ -1578,7 +1578,7 @@ function useUnsavedChangesGuard(
   editTitle: string,
   editContent: string,
 ): void {
-  const dirty = editing && !!page && differsFromPublished(page, editTitle, editContent)
+  const dirty = editing && Predicate.isNotNullish(page) && differsFromPublished(page, editTitle, editContent)
   useEffect(() => {
     if (!dirty) {
       return
@@ -1770,7 +1770,7 @@ function useWikiEditing(
        * A draft identical to the published page is still a row we may delete if
        * the user types and then reverts.
        */
-      serverHasDraftRef.current = !!draft
+      serverHasDraftRef.current = Boolean(draft)
       setDraftStatus('ready')
     } catch {
       if (sessionRef.current !== session) {
@@ -2124,7 +2124,7 @@ function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | n
 
 function useCreatePageForm(workspaceSlug: string | undefined, projectId: string) {
   const seed = useWikiSeed()
-  const [creating, setCreating] = useState(seed.mode === 'create' || !!seed.createTitle)
+  const [creating, setCreating] = useState(seed.mode === 'create' || Boolean(seed.createTitle))
   const createForm = useForm({
     defaultValues: {
       title: seed.createTitle,

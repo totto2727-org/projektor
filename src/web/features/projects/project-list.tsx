@@ -75,7 +75,7 @@ export const ProjectList = function ProjectList({
   const isPublicViewer = runtime.scope?.user.email === 'public-viewer@projektor.local'
   const selectedWorkspace = runtime.scope?.selection.kind === 'workspace' ? runtime.scope.selection.workspace : null
   const accessPending =
-    !!selectedWorkspace &&
+    Predicate.isNotNullish(selectedWorkspace) &&
     (selectedWorkspace.role === 'member' || selectedWorkspace.role === 'viewer') &&
     !initialProjects.some((project) => project.workspace_slug === selectedWorkspace.slug)
   const writable = isPublicViewer

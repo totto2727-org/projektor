@@ -39,7 +39,7 @@ const isRemovalTombstoned = async function isRemovalTombstoned(
       and(eq(schema.provisioningRemovals.workspaceId, workspaceId), eq(schema.provisioningRemovals.userId, userId)),
     )
     .get()
-  return !!row
+  return Boolean(row)
 }
 
 const VALID_ROLES = ['owner', 'admin', 'member', 'viewer'] as const

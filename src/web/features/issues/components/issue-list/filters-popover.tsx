@@ -363,7 +363,7 @@ export function FiltersPopover({
     }
   }, [showFiltersPopover, reposition])
 
-  const dateFilterActive = !!(filterDateField && (filterDateFrom || filterDateTo))
+  const dateFilterActive = Boolean(filterDateField && (filterDateFrom || filterDateTo))
   const activeFilterCount =
     filterStatuses.length + filterPriorities.length + (dateFilterActive ? ACTIVE_DATE_FILTER_COUNT : NO_ACTIVE_FILTERS)
 

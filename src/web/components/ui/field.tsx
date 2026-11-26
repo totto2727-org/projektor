@@ -28,7 +28,7 @@ export const Field = function Field({
 }: FieldProps): JSX.Element {
   return (
     <PrimitiveField
-      data-invalid={!!error || undefined}
+      data-invalid={Boolean(error) || undefined}
       className={['mb-3', legacyClass, className].filter(Boolean).join(' ')}
     >
       <FieldLabel htmlFor={htmlFor}>

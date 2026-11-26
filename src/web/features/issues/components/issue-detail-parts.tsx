@@ -420,7 +420,7 @@ const useBodyEditor = function useBodyEditor(
     bodyRevision.current += 1
     setEditBody(value)
     saveDraft(key, value)
-    setHasDraft(!!value.trim())
+    setHasDraft(Boolean(value.trim()))
   }
 
   const cancelEditBody = function cancelEditBody(): void {
