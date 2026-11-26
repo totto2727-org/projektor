@@ -8,41 +8,26 @@ import { SQL_NULL } from '#db/sql-null.ts'
 import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
 
-let proof: BrowserCommand
-let issueId: string
-let attachmentId: string
-let workspaceId: string
-let projectId: string
-let groupId: string
-
-const update = function update(status: unknown, command = proof, owner = issueId) {
-  return runTestEffect(
-    decodeCoreReply(
-      CommandOkSchema,
-      makeCoreClient(Reflect.get(env, 'CORE')).webSetAttachmentReviewStatus(command, {
-        issueId: owner,
-        attachmentId,
-        status,
-      }),
-    ),
-  )
-}
-
-const persistedStatus = async function persistedStatus(): Promise<Record<string, unknown> | null> {
-  return env.DB.prepare('SELECT review_status FROM attachments WHERE id = ? AND workspace_id = ?')
-    .bind(attachmentId, workspaceId)
-    .first()
+interface ReviewTargetTestContext {
+  reviewFixture: {
+    groupId: string
+    persistedStatus: () => Promise<Record<string, unknown> | null>
+    projectId: string
+    proof: BrowserCommand
+    update: (status: unknown, command?: BrowserCommand, owner?: string) => Promise<typeof CommandOkSchema.Type>
+    workspaceId: string
+  }
 }
 
 describe('native named review target browser command', () => {
-  beforeEach(async () => {
+  beforeEach<ReviewTargetTestContext>(async (context) => {
     const suffix = crypto.randomUUID()
     const userId = `review-user-${suffix}`
-    workspaceId = `review-workspace-${suffix}`
-    projectId = `review-project-${suffix}`
-    groupId = `review-group-${suffix}`
-    issueId = `review-issue-${suffix}`
-    attachmentId = `review-attachment-${suffix}`
+    const workspaceId = `review-workspace-${suffix}`
+    const projectId = `review-project-${suffix}`
+    const groupId = `review-group-${suffix}`
+    const issueId = `review-issue-${suffix}`
+    const attachmentId = `review-attachment-${suffix}`
     const email = `review-${suffix}@example.test`
     const slug = `review-${suffix}`
     await configureCore({ DEV_USER_EMAIL: email, DEFAULT_WORKSPACE_SLUG: slug, RATE_LIMIT_AUTH_MAX: '100' })
@@ -79,7 +64,7 @@ describe('native named review target browser command', () => {
         "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'url','','Design','',0,'https://example.test','issue',?,?,1)",
       ).bind(attachmentId, workspaceId, issueId, userId),
     ])
-    proof = {
+    const proof: BrowserCommand = {
       workspaceSlug: slug,
       request: {
         url: 'https://front.test/_effront/query',
@@ -87,9 +72,34 @@ describe('native named review target browser command', () => {
         headers: [['origin', 'https://front.test']],
       },
     }
+    context.reviewFixture = {
+      groupId,
+      async persistedStatus() {
+        return env.DB.prepare('SELECT review_status FROM attachments WHERE id = ? AND workspace_id = ?')
+          .bind(attachmentId, workspaceId)
+          .first()
+      },
+      projectId,
+      proof,
+      update(status, command = proof, owner = issueId) {
+        return runTestEffect(
+          decodeCoreReply(
+            CommandOkSchema,
+            makeCoreClient(Reflect.get(env, 'CORE')).webSetAttachmentReviewStatus(command, {
+              issueId: owner,
+              attachmentId,
+              status,
+            }),
+          ),
+        )
+      },
+      workspaceId,
+    }
   })
 
-  test('persists nullable review transitions across the actual Core service binding', async () => {
+  test<ReviewTargetTestContext>('persists nullable review transitions across the actual Core service binding', async ({
+    reviewFixture: { persistedStatus, update },
+  }) => {
     expect.hasAssertions()
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
     await runInOrder(['fixing', 'in_review', 'changes_requested', 'done', JSON_NULL], async (status): Promise<void> => {
@@ -98,20 +108,26 @@ describe('native named review target browser command', () => {
     })
   })
 
-  test('rejects cross-origin native commands without writing', async () => {
+  test<ReviewTargetTestContext>('rejects cross-origin native commands without writing', async ({
+    reviewFixture: { persistedStatus, proof, update },
+  }) => {
     await expect(
       update('fixing', { ...proof, request: { ...proof.request, headers: [['origin', 'https://evil.test']] } }),
     ).rejects.toMatchObject({ status: 403 })
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
-  test('rejects malformed statuses and issue ownership mismatches safely', async () => {
+  test<ReviewTargetTestContext>('rejects malformed statuses and issue ownership mismatches safely', async ({
+    reviewFixture: { persistedStatus, proof, update },
+  }) => {
     await expect(update('invalid')).rejects.toMatchObject({ status: 400 })
     await expect(update('fixing', proof, 'missing-issue')).rejects.toMatchObject({ status: 404 })
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
-  test('rechecks viewer and revoked project grants in the native Core invocation', async () => {
+  test<ReviewTargetTestContext>('rechecks viewer and revoked project grants in the native Core invocation', async ({
+    reviewFixture: { groupId, persistedStatus, update },
+  }) => {
     await env.DB.prepare("UPDATE group_project_grants SET role = 'viewer' WHERE group_id = ?").bind(groupId).run()
     await expect(update('fixing')).rejects.toMatchObject({ status: 403 })
     await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id = ?').bind(groupId).run()
@@ -119,14 +135,18 @@ describe('native named review target browser command', () => {
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
   })
 
-  test('rejects archived projects while preserving the selected status', async () => {
+  test<ReviewTargetTestContext>('rejects archived projects while preserving the selected status', async ({
+    reviewFixture: { persistedStatus, projectId, update },
+  }) => {
     await update('fixing')
     await env.DB.prepare('UPDATE projects SET archived_at = 2 WHERE id = ?').bind(projectId).run()
     await expect(update('done')).rejects.toMatchObject({ status: 404 })
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: 'fixing' })
   })
 
-  test('requires current workspace membership on every native command', async () => {
+  test<ReviewTargetTestContext>('requires current workspace membership on every native command', async ({
+    reviewFixture: { persistedStatus, update, workspaceId },
+  }) => {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ?').bind(workspaceId).run()
     await expect(update('fixing')).rejects.toMatchObject({ status: 403 })
     await expect(persistedStatus()).resolves.toStrictEqual({ review_status: SQL_NULL })
