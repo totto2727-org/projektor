@@ -379,7 +379,7 @@ export function SidebarGroup({ className, ...props }: React.ComponentProps<'div'
   )
 }
 
-export function SidebarGroupLabel({
+export const SidebarGroupLabel = function SidebarGroupLabel({
   className,
   render,
   ...props
@@ -403,7 +403,7 @@ export function SidebarGroupLabel({
   })
 }
 
-export function SidebarGroupAction({
+export const SidebarGroupAction = function SidebarGroupAction({
   className,
   render,
   ...props
@@ -539,7 +539,7 @@ export function SidebarMenuButton({
   )
 }
 
-export function SidebarMenuAction({
+export const SidebarMenuAction = function SidebarMenuAction({
   className,
   render,
   showOnHover = false,
@@ -649,7 +649,7 @@ export function SidebarMenuSubItem({ className, ...props }: React.ComponentProps
   )
 }
 
-export function SidebarMenuSubButton({
+export const SidebarMenuSubButton = function SidebarMenuSubButton({
   render,
   size = 'md',
   isActive = false,
