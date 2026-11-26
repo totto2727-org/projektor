@@ -75,6 +75,53 @@ export function IssueBulkProvider({
     }
     setBusy(false)
   }
+  const renderBulkSelectionActions = (): JSX.Element => (
+    <>
+      <span>{selected.size} selected</span>
+      <Select
+        value=''
+        options={[
+          { label: 'Change status', value: '' },
+          ...statuses.map(({ id, name }) => ({ label: name, value: id })),
+        ]}
+        onChange={(value) => {
+          if (value) {
+            void change({ statusId: value })
+          }
+        }}
+        disabled={busy}
+        ariaLabel='Bulk status'
+      />
+      <Select
+        value=''
+        options={[
+          { label: 'Change priority', value: '' },
+          ...['urgent', 'high', 'medium', 'low', 'none'].map((value) => ({
+            value,
+            label: value,
+          })),
+        ]}
+        onChange={(value) => {
+          if (value) {
+            void change({ priority: value })
+          }
+        }}
+        disabled={busy}
+        ariaLabel='Bulk priority'
+      />
+      <Button
+        variant='outline'
+        size='sm'
+        onClick={() => {
+          setSelected(new Set())
+        }}
+        disabled={busy}
+      >
+        Clear selection
+      </Button>
+    </>
+  )
+
   return (
     <Selection.Provider value={{ selected, toggle }}>
       <div className='flex items-center gap-2 flex-wrap text-sm mb-3' role='toolbar' aria-label='Bulk issue actions'>
@@ -88,52 +135,7 @@ export function IssueBulkProvider({
         >
           Select all loaded
         </Button>
-        {selected.size > 0 && (
-          <>
-            <span>{selected.size} selected</span>
-            <Select
-              value=''
-              options={[
-                { label: 'Change status', value: '' },
-                ...statuses.map(({ id, name }) => ({ label: name, value: id })),
-              ]}
-              onChange={(value) => {
-                if (value) {
-                  void change({ statusId: value })
-                }
-              }}
-              disabled={busy}
-              ariaLabel='Bulk status'
-            />
-            <Select
-              value=''
-              options={[
-                { label: 'Change priority', value: '' },
-                ...['urgent', 'high', 'medium', 'low', 'none'].map((value) => ({
-                  value,
-                  label: value,
-                })),
-              ]}
-              onChange={(value) => {
-                if (value) {
-                  void change({ priority: value })
-                }
-              }}
-              disabled={busy}
-              ariaLabel='Bulk priority'
-            />
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => {
-                setSelected(new Set())
-              }}
-              disabled={busy}
-            >
-              Clear selection
-            </Button>
-          </>
-        )}
+        {selected.size > 0 && renderBulkSelectionActions()}
         {error && (
           <p role='alert' className='text-danger-text'>
             {error}

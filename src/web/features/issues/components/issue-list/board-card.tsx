@@ -11,6 +11,26 @@ import { IssueSelectionControl } from './bulk-actions.tsx'
 import { getStoryPoints, priorityBadge, spBadge } from './issue-render-helpers.tsx'
 import { StatusSelect } from './status-select.tsx'
 
+const renderBoardCardDetails = (issue: Issue, pts: ReturnType<typeof getStoryPoints>): JSX.Element => (
+  <div className='flex justify-between items-center gap-2'>
+    <div className='flex items-center gap-1.5'>
+      {priorityBadge(issue)}
+      {pts && spBadge(pts)}
+    </div>
+    {issue.assignee_name && (
+      <span
+        title={issue.assignee_name}
+        className={[
+          'w-6 h-6 rounded-full bg-accent text-white text-[0.68rem] font-bold flex items-center',
+          'justify-center shrink-0 uppercase',
+        ].join(' ')}
+      >
+        {assigneeInitials(issue.assignee_name)}
+      </span>
+    )}
+  </div>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const BoardCard = function BoardCard({
   issue,
@@ -56,23 +76,7 @@ export const BoardCard = function BoardCard({
           {isNonEmptyText(issue.project_key) ? `${issue.project_key}-${issue.number}` : `#${issue.number}`}
         </div>
         <div className='text-sm font-medium text-text-base leading-[1.35] mb-2'>{issue.title}</div>
-        <div className='flex justify-between items-center gap-2'>
-          <div className='flex items-center gap-1.5'>
-            {priorityBadge(issue)}
-            {pts && spBadge(pts)}
-          </div>
-          {issue.assignee_name && (
-            <span
-              title={issue.assignee_name}
-              className={[
-                'w-6 h-6 rounded-full bg-accent text-white text-[0.68rem] font-bold flex items-center',
-                'justify-center shrink-0 uppercase',
-              ].join(' ')}
-            >
-              {assigneeInitials(issue.assignee_name)}
-            </span>
-          )}
-        </div>
+        {renderBoardCardDetails(issue, pts)}
       </a>
       <ReviewTargetsSummary issue={issue} />
       {/* Mobile-only: native HTML5 drag-and-drop (used above 640px) doesn't

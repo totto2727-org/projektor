@@ -152,12 +152,61 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
     isNonEmptyText(project.slug) ? `/projects/view/${encodeURIComponent(project.slug)}` : '/projects/view',
     scope,
   )
+  const renderProjectOverviewLink = (): JSX.Element => (
+    <a href={overviewHref} className='no-underline'>
+      <h2 className='m-0 text-[0.9375rem] max-sm:text-[0.8125rem] font-semibold text-text-base'>{project.name}</h2>
+    </a>
+  )
+
+  const renderProjectOverflowMenu = (): JSX.Element => (
+    <div ref={moreRef} className='relative inline-flex items-center shrink-0'>
+      <button
+        ref={moreTrigger}
+        type='button'
+        className={tabClass(activeOverflow || moreOpen)}
+        aria-haspopup='menu'
+        aria-expanded={moreOpen}
+        aria-controls={moreOpen ? menuId : undefined}
+        aria-current={activeOverflow ? 'true' : undefined}
+        onClick={() => {
+          setMoreOpen((open) => !open)
+        }}
+      >
+        More <span aria-hidden='true'>▾</span>
+      </button>
+      {moreOpen && (
+        <div
+          id={menuId}
+          role='menu'
+          aria-label='More project sections'
+          className='absolute right-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col rounded-md border border-border bg-bg py-1 shadow-md'
+        >
+          {overflow.map((tab) => {
+            const active = isTabActive(tab.path, pathname)
+            return (
+              <a
+                key={tab.path}
+                role='menuitem'
+                href={tab.href}
+                className='flex min-h-11 items-center gap-1.5 px-3 text-sm font-medium text-text-base no-underline hover:bg-surface'
+                aria-current={active ? 'page' : undefined}
+                onClick={() => {
+                  setMoreOpen(false)
+                }}
+              >
+                {tab.label}
+              </a>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div className='projektor-project-nav border-b border-border bg-nav-bg'>
       <div className='flex items-center gap-2 px-6 pt-3 pb-[0.375rem] max-sm:px-3 max-sm:pt-1.5 max-sm:pb-1'>
-        <a href={overviewHref} className='no-underline'>
-          <h2 className='m-0 text-[0.9375rem] max-sm:text-[0.8125rem] font-semibold text-text-base'>{project.name}</h2>
-        </a>
+        {renderProjectOverviewLink()}
         <span className={KEY_BADGE_CLASS}>{project.key}</span>
       </div>
       <nav
@@ -186,50 +235,7 @@ export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): 
             </a>
           )
         })}
-        {Array.isArrayNonEmpty(overflow) && (
-          <div ref={moreRef} className='relative inline-flex items-center shrink-0'>
-            <button
-              ref={moreTrigger}
-              type='button'
-              className={tabClass(activeOverflow || moreOpen)}
-              aria-haspopup='menu'
-              aria-expanded={moreOpen}
-              aria-controls={moreOpen ? menuId : undefined}
-              aria-current={activeOverflow ? 'true' : undefined}
-              onClick={() => {
-                setMoreOpen((open) => !open)
-              }}
-            >
-              More <span aria-hidden='true'>▾</span>
-            </button>
-            {moreOpen && (
-              <div
-                id={menuId}
-                role='menu'
-                aria-label='More project sections'
-                className='absolute right-0 top-full z-10 mt-1 flex min-w-[10rem] flex-col rounded-md border border-border bg-bg py-1 shadow-md'
-              >
-                {overflow.map((tab) => {
-                  const active = isTabActive(tab.path, pathname)
-                  return (
-                    <a
-                      key={tab.path}
-                      role='menuitem'
-                      href={tab.href}
-                      className='flex min-h-11 items-center gap-1.5 px-3 text-sm font-medium text-text-base no-underline hover:bg-surface'
-                      aria-current={active ? 'page' : undefined}
-                      onClick={() => {
-                        setMoreOpen(false)
-                      }}
-                    >
-                      {tab.label}
-                    </a>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
+        {Array.isArrayNonEmpty(overflow) && renderProjectOverflowMenu()}
       </nav>
     </div>
   )

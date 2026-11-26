@@ -81,38 +81,40 @@ export function BacklogView({
     setBacklogDragOverId(undefined)
   }
 
+  const renderBacklogTable = (): JSX.Element => (
+    <table className='w-full border-collapse text-[0.9rem]'>
+      <BacklogTableHead sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+      <tbody
+        onDragLeave={(event: DragEvent<HTMLElement>) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+            setBacklogDragOverId(undefined)
+          }
+        }}
+      >
+        {orderedIssues.map((issue) => (
+          <BacklogRow
+            key={issue.id}
+            issue={issue}
+            statuses={statuses}
+            updatingId={updatingId}
+            updatingPriorityId={updatingPriorityId}
+            changeStatus={changeStatus}
+            changePriority={changePriority}
+            isDragging={backlogDragId === issue.id}
+            isOver={backlogDragOverId === issue.id && backlogDragId !== issue.id}
+            onDragStart={onBacklogDragStart}
+            onDragOver={onBacklogDragOver}
+            onDrop={onBacklogDrop}
+            onDragEnd={onBacklogDragEnd}
+          />
+        ))}
+      </tbody>
+    </table>
+  )
+
   return (
     <>
-      <div className='overflow-x-auto max-sm:hidden'>
-        <table className='w-full border-collapse text-[0.9rem]'>
-          <BacklogTableHead sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
-          <tbody
-            onDragLeave={(event: DragEvent<HTMLElement>) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                setBacklogDragOverId(undefined)
-              }
-            }}
-          >
-            {orderedIssues.map((issue) => (
-              <BacklogRow
-                key={issue.id}
-                issue={issue}
-                statuses={statuses}
-                updatingId={updatingId}
-                updatingPriorityId={updatingPriorityId}
-                changeStatus={changeStatus}
-                changePriority={changePriority}
-                isDragging={backlogDragId === issue.id}
-                isOver={backlogDragOverId === issue.id && backlogDragId !== issue.id}
-                onDragStart={onBacklogDragStart}
-                onDragOver={onBacklogDragOver}
-                onDrop={onBacklogDrop}
-                onDragEnd={onBacklogDragEnd}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <div className='overflow-x-auto max-sm:hidden'>{renderBacklogTable()}</div>
 
       <MobileCards issues={orderedIssues} updatingPriorityId={updatingPriorityId} changePriority={changePriority} />
     </>

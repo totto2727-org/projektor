@@ -14,6 +14,22 @@ import type { Issue, TaskStatus } from '@/features/issues/components/board-utils
 
 import { BoardCard } from './board-card.tsx'
 
+const renderBoardColumnHeader = (col: (typeof BOARD_COLUMNS)[number], colIssues: Issue[]): JSX.Element => (
+  <div className='px-3 py-2 bg-surface rounded-t-md border border-b-0 border-border flex justify-between items-center'>
+    <span className='font-semibold text-sm' style={{ color: categoryColor(col.category) }}>
+      {col.label}
+    </span>
+    <span
+      className={[
+        'text-[0.7rem] text-text-muted bg-bg rounded-full px-[0.45rem] py-[0.1rem]',
+        'font-semibold border border-border',
+      ].join(' ')}
+    >
+      {colIssues.length}
+    </span>
+  </div>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function BoardView({
   issues,
@@ -26,6 +42,34 @@ export function BoardView({
 }): JSX.Element {
   const [dragIssueId, setDragIssueId] = useState<string>()
   const [dragOverColumn, setDragOverColumn] = useState<string>()
+
+  const renderBoardColumnContent = (colIssues: Issue[], isOver: boolean): JSX.Element => (
+    <div
+      className={[
+        'rounded-b-md min-h-24 max-h-[62vh] overflow-y-auto p-2 flex flex-col gap-2',
+        'transition-[border-color,background] duration-100',
+      ].join(' ')}
+      style={{
+        border: `1px solid ${isOver ? 'var(--accent)' : 'var(--border)'}`,
+        background: isOver ? 'var(--dropzone-bg)' : 'var(--bg)',
+      }}
+    >
+      {Array.isArrayEmpty(colIssues) ? (
+        <p className='text-[0.8rem] text-text-muted text-center py-4 m-0'>No issues</p>
+      ) : (
+        colIssues.map((issue) => (
+          <BoardCard
+            key={issue.id}
+            issue={issue}
+            statuses={statuses}
+            dragIssueId={dragIssueId}
+            setDragIssueId={setDragIssueId}
+            changeStatus={changeStatus}
+          />
+        ))
+      )}
+    </div>
+  )
 
   return (
     <div className='flex gap-4 overflow-x-auto items-start max-sm:flex-col'>
@@ -62,45 +106,9 @@ export function BoardView({
               setDragOverColumn(undefined)
             }}
           >
-            <div className='px-3 py-2 bg-surface rounded-t-md border border-b-0 border-border flex justify-between items-center'>
-              <span className='font-semibold text-sm' style={{ color: categoryColor(col.category) }}>
-                {col.label}
-              </span>
-              <span
-                className={[
-                  'text-[0.7rem] text-text-muted bg-bg rounded-full px-[0.45rem] py-[0.1rem]',
-                  'font-semibold border border-border',
-                ].join(' ')}
-              >
-                {colIssues.length}
-              </span>
-            </div>
+            {renderBoardColumnHeader(col, colIssues)}
 
-            <div
-              className={[
-                'rounded-b-md min-h-24 max-h-[62vh] overflow-y-auto p-2 flex flex-col gap-2',
-                'transition-[border-color,background] duration-100',
-              ].join(' ')}
-              style={{
-                border: `1px solid ${isOver ? 'var(--accent)' : 'var(--border)'}`,
-                background: isOver ? 'var(--dropzone-bg)' : 'var(--bg)',
-              }}
-            >
-              {Array.isArrayEmpty(colIssues) ? (
-                <p className='text-[0.8rem] text-text-muted text-center py-4 m-0'>No issues</p>
-              ) : (
-                colIssues.map((issue) => (
-                  <BoardCard
-                    key={issue.id}
-                    issue={issue}
-                    statuses={statuses}
-                    dragIssueId={dragIssueId}
-                    setDragIssueId={setDragIssueId}
-                    changeStatus={changeStatus}
-                  />
-                ))
-              )}
-            </div>
+            {renderBoardColumnContent(colIssues, isOver)}
           </section>
         )
       })}
