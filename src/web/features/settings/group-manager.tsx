@@ -22,11 +22,11 @@ import {
   removeGroupMember,
   renameGroup,
 } from './actions.ts'
-import { GrantRoleForm } from './group-grant-role-form.tsx'
+import { renderGroupGrantRows, renderGroupMemberRows } from './group-editor-rows.tsx'
 import { GroupsList } from './group-list.tsx'
 import { MembersOverview } from './group-members-overview.tsx'
 import { adminRole, ROLES } from './group-roles.ts'
-import { CARD, CHIP, H2, INPUT } from './group-styles.ts'
+import { CARD, H2, INPUT } from './group-styles.ts'
 import { nextTabId } from './group-tab-navigation.ts'
 import type { Tab } from './group-tab-navigation.ts'
 import {
@@ -243,27 +243,7 @@ const GroupDetailEditor = function GroupDetailEditor({
         </div>
       )}
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Members</h3>
-      <div className='mb-2'>
-        {Array.isArrayEmpty(detail.members) && (
-          <div className='text-[0.8rem] text-text-muted mb-2'>No members yet.</div>
-        )}
-        {detail.members.map((member) => (
-          <div key={member.userId} className='flex items-center gap-2 mb-1'>
-            <span className={CHIP} style={{ margin: 0 }}>
-              {member.name || member.email}
-            </span>
-            <Button
-              variant='danger'
-              size='sm'
-              disabled={busy}
-              aria-label={`Remove ${member.name || member.email}`}
-              onClick={() => removeMember(member.userId)}
-            >
-              Remove
-            </Button>
-          </div>
-        ))}
-      </div>
+      {renderGroupMemberRows({ busy, members: detail.members, onRemove: removeMember })}
       <form className='flex items-center gap-2 mb-4' action={memberAction}>
         <input type='hidden' name='workspaceSlug' value={slug} />
         <input type='hidden' name='groupId' value={detail.id} />
@@ -312,35 +292,15 @@ const GroupDetailEditor = function GroupDetailEditor({
         )}
       </form>
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Project grants</h3>
-      <div className='mb-2'>
-        {Array.isArrayEmpty(detail.grants) && (
-          <div className='text-[0.8rem] text-text-muted mb-2'>No grants. This group opens no projects.</div>
-        )}
-        {detail.grants.map((grant) => (
-          <div key={grant.projectId} className='flex flex-wrap items-center gap-2 mb-1'>
-            <span className='text-[0.82rem] text-text-base min-w-[9rem]'>
-              {grant.projectName} <span className='text-text-muted'>({grant.projectKey})</span>
-            </span>
-            <GrantRoleForm
-              grant={grant}
-              workspaceSlug={slug}
-              groupId={detail.id}
-              busy={busy}
-              onBusy={setBusy}
-              onError={setError}
-            />
-            <Button
-              variant='danger'
-              size='sm'
-              disabled={busy}
-              aria-label={`Remove grant for ${grant.projectName}`}
-              onClick={() => removeGrant(grant.projectId)}
-            >
-              Remove
-            </Button>
-          </div>
-        ))}
-      </div>
+      {renderGroupGrantRows({
+        busy,
+        grants: detail.grants,
+        groupId: detail.id,
+        onBusy: setBusy,
+        onError: setError,
+        onRemove: removeGrant,
+        workspaceSlug: slug,
+      })}
       <form className='flex flex-wrap items-center gap-2' action={grantAction}>
         <input type='hidden' name='workspaceSlug' value={slug} />
         <input type='hidden' name='groupId' value={detail.id} />
