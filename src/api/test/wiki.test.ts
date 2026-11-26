@@ -6709,6 +6709,33 @@ const seedAdminWikiTrashFixture = async function seedAdminWikiTrashFixture(): Pr
   return { backdateTrash, createPage, req, slug, token, trashPage, workspaceId }
 }
 
+const expectPurgedWikiDependents = async function expectPurgedWikiDependents(
+  pageId: string,
+  attachmentId: string,
+  r2Key: string | undefined,
+): Promise<void> {
+  await expect(env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(pageId).first()).resolves.toBeNull()
+  await expect(env.DB.prepare('SELECT id FROM attachments WHERE id = ?').bind(attachmentId).first()).resolves.toBeNull()
+  if (Predicate.isNotNullish(r2Key) && String.isNonEmpty(r2Key)) {
+    await expect(env.R2.get(r2Key)).resolves.toBeNull()
+  }
+  await expect(
+    env.DB.prepare('SELECT page_id FROM wiki_fts WHERE page_id = ?').bind(pageId).first(),
+  ).resolves.toBeNull()
+  await expect(
+    env.DB.prepare('SELECT id FROM wiki_links WHERE source_page_id = ?').bind(pageId).first(),
+  ).resolves.toBeNull()
+  await expect(
+    env.DB.prepare('SELECT page_id FROM wiki_watchers WHERE page_id = ?').bind(pageId).first(),
+  ).resolves.toBeNull()
+  await expect(
+    env.DB.prepare('SELECT page_id FROM wiki_drafts WHERE page_id = ?').bind(pageId).first(),
+  ).resolves.toBeNull()
+  await expect(
+    env.DB.prepare('SELECT id FROM wiki_redirects WHERE page_id = ?').bind(pageId).first(),
+  ).resolves.toBeNull()
+}
+
 describe('wiki trash (PROJ-496)', () => {
   test('a trashed page disappears from the list, tree, search, stale-pages, and templates endpoints', async () => {
     const { createPage, req, slug, token, trashPage } = await seedAdminWikiTrashFixture()
@@ -6987,28 +7014,7 @@ describe('wiki trash (PROJ-496)', () => {
     expect(purged.purgedCount).toBe(1)
     expect(purged.purgedIds).toStrictEqual([oldPage.id])
 
-    await expect(env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(oldPage.id).first()).resolves.toBeNull()
-    await expect(
-      env.DB.prepare('SELECT id FROM attachments WHERE id = ?').bind(oldAttachmentId).first(),
-    ).resolves.toBeNull()
-    if (Predicate.isNotNullish(oldR2Key) && String.isNonEmpty(oldR2Key)) {
-      await expect(env.R2.get(oldR2Key)).resolves.toBeNull()
-    }
-    await expect(
-      env.DB.prepare('SELECT page_id FROM wiki_fts WHERE page_id = ?').bind(oldPage.id).first(),
-    ).resolves.toBeNull()
-    await expect(
-      env.DB.prepare('SELECT id FROM wiki_links WHERE source_page_id = ?').bind(oldPage.id).first(),
-    ).resolves.toBeNull()
-    await expect(
-      env.DB.prepare('SELECT page_id FROM wiki_watchers WHERE page_id = ?').bind(oldPage.id).first(),
-    ).resolves.toBeNull()
-    await expect(
-      env.DB.prepare('SELECT page_id FROM wiki_drafts WHERE page_id = ?').bind(oldPage.id).first(),
-    ).resolves.toBeNull()
-    await expect(
-      env.DB.prepare('SELECT id FROM wiki_redirects WHERE page_id = ?').bind(oldPage.id).first(),
-    ).resolves.toBeNull()
+    await expectPurgedWikiDependents(oldPage.id, oldAttachmentId, oldR2Key)
 
     // The recently-trashed page (not yet 30 days old) survives the purge untouched.
     await expect(
