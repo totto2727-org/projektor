@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Function, String, Predicate, Effect } from 'effect'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, assert, describe, expect, test, vi } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 // @vitest-environment jsdom
@@ -367,8 +367,10 @@ describe('wiki server prop adoption', () => {
     }))
     const { container } = render(<WikiPageClient initial={seed()} />)
     const trigger = screen.getByRole('button', { name: 'Pages' })
-    const sidebar = container.querySelector<HTMLElement>('#wiki-page-tree')!
-    const backdrop = container.querySelector<HTMLElement>('.wiki-drawer-overlay')!
+    const sidebar = container.querySelector<HTMLElement>('#wiki-page-tree')
+    const backdrop = container.querySelector<HTMLElement>('.wiki-drawer-overlay')
+    assert.isNotNull(sidebar)
+    assert.isNotNull(backdrop)
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(trigger)
     expect(trigger.getAttribute('aria-expanded')).toBe('true')

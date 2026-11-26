@@ -79,7 +79,9 @@ describe('generated Base UI Shell', () => {
     const links = element.querySelectorAll('[data-slot="sidebar-menu-button"]')
     expect(links).toHaveLength(5)
     Iterable.forEach(links, (link) => {
-      expect(new URL(link.getAttribute('href')!, 'https://app.test').searchParams.get('workspace')).toBe('team')
+      const href = link.getAttribute('href')
+      assert.isNotNull(href)
+      expect(new URL(href, 'https://app.test').searchParams.get('workspace')).toBe('team')
     })
     expect(element.querySelector('a[aria-current="page"]')?.textContent).toBe('Groups')
     expect(element.textContent).toContain(`v${pkg.version}`)
@@ -91,7 +93,8 @@ describe('generated Base UI Shell', () => {
         <h1>Help</h1>
       </Shell>,
     )
-    const form = screen.getByRole<HTMLButtonElement>('button', { name: 'Log in' }).form!
+    const { form } = screen.getByRole<HTMLButtonElement>('button', { name: 'Log in' })
+    assert.isNotNull(form)
     expect(form.getAttribute('method')).toBe('post')
     expect(form.getAttribute('action')).toBe('/auth/session')
     expect(new FormData(form).get('action')).toBe('login')
@@ -186,12 +189,10 @@ describe('generated Base UI Shell', () => {
     )
     fireEvent.keyDown(globalThis.window, { key: 'b', ctrlKey: true })
     expect(container.querySelector('[data-slot="sidebar"][data-state="collapsed"]')).not.toBeNull()
-    expect(JSON.parse(localStorage.getItem('prefs')!).sidebar).toBe('collapsed')
-    expect(Object.keys(JSON.parse(localStorage.getItem('prefs')!)).toSorted()).toStrictEqual([
-      'density',
-      'sidebar',
-      'theme',
-    ])
+    const preferences = localStorage.getItem('prefs')
+    assert.isNotNull(preferences)
+    expect(JSON.parse(preferences).sidebar).toBe('collapsed')
+    expect(Object.keys(JSON.parse(preferences)).toSorted()).toStrictEqual(['density', 'sidebar', 'theme'])
   })
 
   test('opens and dismisses the generated mobile Sheet, not a manual drawer', async () => {
