@@ -230,6 +230,12 @@ function useWikiTemplates(_workspaceSlug: string | undefined): TemplateOption[] 
   return useWikiSeed().templates
 }
 
+const renderCreatePageTitleLabel = (): JSX.Element => (
+  <label htmlFor='create-title' className='block font-medium text-sm text-text-base mb-1'>
+    Title <span className='text-danger-text'>*</span>
+  </label>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function CreatePageForm({
   parentTitle,
@@ -268,6 +274,14 @@ function CreatePageForm({
   ]
   const selectedTemplate = templates.find((template) => template.slug === templateSlug) ?? null
 
+  const renderCreatePageEditor = (): JSX.Element => (
+    <>
+      {/* Caption for MarkdownEditor, which has no associable control */}
+      <label className='block font-medium text-sm text-text-base mb-1'>Content (Markdown)</label>
+      <MarkdownEditor value={content} onChange={onContentChange} minHeight='280px' />
+    </>
+  )
+
   return (
     <div>
       <h2 className='mb-6 text-2xl font-bold text-text-base'>
@@ -281,9 +295,7 @@ function CreatePageForm({
         </p>
       )}
       <div className='mb-4'>
-        <label htmlFor='create-title' className='block font-medium text-sm text-text-base mb-1'>
-          Title <span className='text-danger-text'>*</span>
-        </label>
+        {renderCreatePageTitleLabel()}
         <input
           id='create-title'
           type='text'
@@ -327,11 +339,7 @@ function CreatePageForm({
             Content will be seeded from the "{selectedTemplate.title}" template on create.
           </p>
         ) : (
-          <>
-            {/* Caption for MarkdownEditor, which has no associable control */}
-            <label className='block font-medium text-sm text-text-base mb-1'>Content (Markdown)</label>
-            <MarkdownEditor value={content} onChange={onContentChange} minHeight='280px' />
-          </>
+          renderCreatePageEditor()
         )}
       </div>
       <div className='flex gap-2'>
@@ -421,6 +429,12 @@ function MovePageForm({
   onSubmit: () => void
   onCancel: () => void
 }): JSX.Element {
+  const renderMoveParentSelect = (): JSX.Element => (
+    <div className='min-w-[220px]'>
+      <Select value={value} options={options} ariaLabel='New parent page' onChange={onChange} />
+    </div>
+  )
+
   return (
     <div className='mb-4 p-3 border border-border rounded bg-surface'>
       <p className='m-0 mb-2 text-sm font-medium text-text-base'>Move to a new parent page</p>
@@ -430,9 +444,7 @@ function MovePageForm({
         </p>
       )}
       <div className='flex flex-wrap gap-2 items-center'>
-        <div className='min-w-[220px]'>
-          <Select value={value} options={options} ariaLabel='New parent page' onChange={onChange} />
-        </div>
+        {renderMoveParentSelect()}
         <Button variant='primary' size='sm' onClick={onSubmit} disabled={saving}>
           {saving ? 'Moving…' : 'Move'}
         </Button>
@@ -720,6 +732,57 @@ function PageHeader({
 }): JSX.Element {
   const isMobile = useIsMobileViewport()
   const { duplicate, duplicating } = useDuplicateWikiPage()
+  const renderEditingPageActions = (): JSX.Element => (
+    <>
+      <Button variant='primary' onClick={onSave} disabled={saving}>
+        {saving ? 'Saving…' : 'Save'}
+      </Button>
+      <Button variant='outline' onClick={onCancelEdit} disabled={saving}>
+        Cancel
+      </Button>
+    </>
+  )
+
+  const renderMobilePageActions = (): JSX.Element => (
+    <>
+      <Button variant='outline' onClick={onStartEdit}>
+        Edit
+      </Button>
+      <PageActionOverflowMenu
+        pageId={pageId}
+        onStartCreateChild={onStartCreateChild}
+        onStartMove={onStartMove}
+        onDelete={onDelete}
+      />
+    </>
+  )
+
+  const renderDesktopPageActions = (): JSX.Element => (
+    <>
+      <Button
+        variant='outline'
+        size='sm'
+        onClick={() => {
+          onStartCreateChild(pageId)
+        }}
+      >
+        + Child page
+      </Button>
+      <Button variant='outline' size='sm' onClick={onStartMove}>
+        Move
+      </Button>
+      <Button variant='outline' onClick={onStartEdit}>
+        Edit
+      </Button>
+      <Button variant='outline' size='sm' disabled={duplicating} onClick={() => void duplicate()}>
+        Duplicate
+      </Button>
+      <Button variant='danger' onClick={onDelete}>
+        Delete
+      </Button>
+    </>
+  )
+
   return (
     <header className='wiki-page-header flex items-start justify-between gap-4 mb-1'>
       {editing ? (
@@ -739,52 +802,7 @@ function PageHeader({
 
       {!isPublicViewer && (
         <div className='flex gap-2 shrink-0 max-sm:shrink'>
-          {editing ? (
-            <>
-              <Button variant='primary' onClick={onSave} disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
-              </Button>
-              <Button variant='outline' onClick={onCancelEdit} disabled={saving}>
-                Cancel
-              </Button>
-            </>
-          ) : isMobile ? (
-            <>
-              <Button variant='outline' onClick={onStartEdit}>
-                Edit
-              </Button>
-              <PageActionOverflowMenu
-                pageId={pageId}
-                onStartCreateChild={onStartCreateChild}
-                onStartMove={onStartMove}
-                onDelete={onDelete}
-              />
-            </>
-          ) : (
-            <>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={() => {
-                  onStartCreateChild(pageId)
-                }}
-              >
-                + Child page
-              </Button>
-              <Button variant='outline' size='sm' onClick={onStartMove}>
-                Move
-              </Button>
-              <Button variant='outline' onClick={onStartEdit}>
-                Edit
-              </Button>
-              <Button variant='outline' size='sm' disabled={duplicating} onClick={() => void duplicate()}>
-                Duplicate
-              </Button>
-              <Button variant='danger' onClick={onDelete}>
-                Delete
-              </Button>
-            </>
-          )}
+          {editing ? renderEditingPageActions() : isMobile ? renderMobilePageActions() : renderDesktopPageActions()}
         </div>
       )}
     </header>
@@ -897,6 +915,15 @@ interface PageArticleProps {
   onUploadInlineImage: (file: File) => Promise<string | null>
 }
 
+const renderOverwriteActions = (onOverwriteWithMine: () => void): JSX.Element => (
+  <div className='mt-2 flex gap-2 flex-wrap items-center'>
+    <Button variant='primary' size='sm' onClick={onOverwriteWithMine}>
+      Overwrite with mine
+    </Button>
+    <span className='text-text-muted text-[0.8rem]'>or copy your text from the editor before reloading.</span>
+  </div>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function PageArticleMeta(
   props: Pick<
@@ -939,6 +966,12 @@ function PageArticleMeta(
   >,
 ): JSX.Element {
   const isPublicViewer = usePublicViewer(props.workspaceSlug)
+  const renderMobileToc = (): JSX.Element => (
+    <div className='pt-2'>
+      <TocList toc={props.toc} activeHeadingId={props.activeHeadingId} />
+    </div>
+  )
+
   return (
     <>
       <PageBreadcrumbs breadcrumbs={props.breadcrumbs} onNavigate={props.onNavigate} />
@@ -948,9 +981,7 @@ function PageArticleMeta(
           <summary className='cursor-pointer text-[0.8rem] text-text-muted select-none'>
             Contents ({props.toc.length})
           </summary>
-          <div className='pt-2'>
-            <TocList toc={props.toc} activeHeadingId={props.activeHeadingId} />
-          </div>
+          {renderMobileToc()}
         </details>
       )}
 
@@ -1002,14 +1033,7 @@ function PageArticleMeta(
       {props.saveError && (
         <div role='alert' className='text-danger-text mb-3'>
           <p className='m-0'>{props.saveError}</p>
-          {props.onOverwriteWithMine && (
-            <div className='mt-2 flex gap-2 flex-wrap items-center'>
-              <Button variant='primary' size='sm' onClick={props.onOverwriteWithMine}>
-                Overwrite with mine
-              </Button>
-              <span className='text-text-muted text-[0.8rem]'>or copy your text from the editor before reloading.</span>
-            </div>
-          )}
+          {props.onOverwriteWithMine && renderOverwriteActions(props.onOverwriteWithMine)}
         </div>
       )}
 
@@ -1048,23 +1072,23 @@ function PageArticle(props: PageArticleProps): JSX.Element {
     ),
     [renderedHtml, setContentRef],
   )
+  const renderWikiEditor = (): JSX.Element => (
+    <div className='mb-3'>
+      <MarkdownEditor
+        value={props.editContent}
+        onChange={props.onEditContentChange}
+        minHeight='320px'
+        onImageFile={props.onUploadInlineImage}
+      />
+    </div>
+  )
+
   return (
     <div className='flex gap-8 items-start'>
       <article className='flex-1 min-w-0'>
         <PageArticleMeta {...props} />
 
-        {props.editing ? (
-          <div className='mb-3'>
-            <MarkdownEditor
-              value={props.editContent}
-              onChange={props.onEditContentChange}
-              minHeight='320px'
-              onImageFile={props.onUploadInlineImage}
-            />
-          </div>
-        ) : (
-          articleContent
-        )}
+        {props.editing ? renderWikiEditor() : articleContent}
 
         <RevisionsHistory
           revisions={props.revisions}
@@ -2484,6 +2508,24 @@ const WIKI_PAGE_STYLES = `
 	.page-action-menu-item-danger { color: var(--danger-text); }
 `
 
+const renderPageTreeIcon = (): JSX.Element => (
+  <svg
+    width='16'
+    height='16'
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    aria-hidden='true'
+  >
+    <line x1='3' y1='6' x2='21' y2='6' />
+    <line x1='3' y1='12' x2='21' y2='12' />
+    <line x1='3' y1='18' x2='21' y2='18' />
+  </svg>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function WikiPageShell(
   props: Readonly<{
@@ -2544,21 +2586,7 @@ function WikiPageShell(
             setOpen((currentlyOpen) => !currentlyOpen)
           }}
         >
-          <svg
-            width='16'
-            height='16'
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='2'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            aria-hidden='true'
-          >
-            <line x1='3' y1='6' x2='21' y2='6' />
-            <line x1='3' y1='12' x2='21' y2='12' />
-            <line x1='3' y1='18' x2='21' y2='18' />
-          </svg>
+          {renderPageTreeIcon()}
           Pages
         </button>
       )}
