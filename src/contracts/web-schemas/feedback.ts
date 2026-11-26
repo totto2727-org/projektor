@@ -5,10 +5,19 @@ import {
   MAX_SOURCE_DESCRIPTION_LENGTH,
   MAX_ALLOWED_ORIGIN_LENGTH,
   MAX_ALLOWED_ORIGIN_COUNT,
+  MAX_BULK_FEEDBACK_COUNT,
 } from '#contracts/feedback-limits.ts'
 import { structInOrder } from '#contracts/ordered-schema.ts'
 
 const MIN_SOURCE_NAME_LENGTH = 1
+const MIN_IDENTIFIER_LENGTH = 1
+const MIN_BULK_FEEDBACK_COUNT = 1
+
+export const FeedbackIdentifier = Schema.String.check(Schema.isMinLength(MIN_IDENTIFIER_LENGTH))
+export const BulkFeedbackIds = Schema.mutable(Schema.Array(FeedbackIdentifier)).check(
+  Schema.isMinLength(MIN_BULK_FEEDBACK_COUNT),
+  Schema.isMaxLength(MAX_BULK_FEEDBACK_COUNT),
+)
 
 const nullable = Schema.NullOr(Schema.String)
 

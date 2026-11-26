@@ -2,6 +2,7 @@
 
 import { Effect, Schema } from 'effect'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { EFFRONT } from '@/effront.ts'
 import { actionFailure } from '@/function-result.ts'
 import { RequestServices } from '@/request.ts'
@@ -10,23 +11,26 @@ import { FunctionSelectorSchema, resolveFunctionContext } from '@/server/functio
 import { checkSameOriginMutation } from '@/server/mutation.ts'
 
 import { feedbackCommands, sourceCommands } from './data.ts'
-import { SourceFields } from './schemas.ts'
+import { BulkFeedbackIds, FeedbackIdentifier, SourceFields } from './schemas.ts'
 
-const identifier = Schema.String.check(Schema.isMinLength(1))
 const SourceReference = Schema.Struct({
   ...FunctionSelectorSchema.fields,
-  projectId: identifier,
-  sourceId: identifier,
+  projectId: FeedbackIdentifier,
+  sourceId: FeedbackIdentifier,
 })
 const FeedbackReference = Schema.Struct({
   ...FunctionSelectorSchema.fields,
-  projectId: identifier,
-  feedbackId: identifier,
+  ...fieldsInOrder([
+    ['projectId', FeedbackIdentifier],
+    ['feedbackId', FeedbackIdentifier],
+  ]),
 })
 const Bulk = Schema.Struct({
   ...FunctionSelectorSchema.fields,
-  projectId: identifier,
-  feedbackIds: Schema.mutable(Schema.Array(identifier)).check(Schema.isMinLength(1), Schema.isMaxLength(500)),
+  ...fieldsInOrder([
+    ['projectId', FeedbackIdentifier],
+    ['feedbackIds', BulkFeedbackIds],
+  ]),
 })
 
 export const createFeedbackSource = EFFRONT.ServerFn.make({
@@ -42,8 +46,10 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
           .filter(Boolean)
         const value = yield* runCommand(ctx, (command) =>
           sourceCommands.createFeedbackSource(command, {
-            projectId: ctx.projectId,
-            name: input.name.trim(),
+            ...fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['name', input.name.trim()],
+            ]),
             ...(input.description.trim() ? { description: input.description.trim() } : {}),
             ...(origins.length ? { allowedOrigins: origins } : {}),
           }),
@@ -63,7 +69,7 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
     Schema.fromFormData(
       Schema.Struct({
         ...FunctionSelectorSchema.fields,
-        projectId: identifier,
+        projectId: FeedbackIdentifier,
         ...SourceFields.fields,
       }),
     ),
@@ -78,11 +84,14 @@ export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          sourceCommands.updateFeedbackSource(command, {
-            projectId: ctx.projectId,
-            sourceId: input.sourceId,
-            isActive: input.active,
-          }),
+          sourceCommands.updateFeedbackSource(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['sourceId', input.sourceId],
+              ['isActive', input.active],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -148,11 +157,14 @@ export const markFeedbackReviewed = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.updateFeedbackStatus(command, {
-            projectId: ctx.projectId,
-            feedbackId: input.feedbackId,
-            status: 'reviewed',
-          }),
+          feedbackCommands.updateFeedbackStatus(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackId', input.feedbackId],
+              ['status', 'reviewed'],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -174,7 +186,13 @@ export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.convertFeedbackToIssue(command, { projectId: ctx.projectId, feedbackId: input.feedbackId }),
+          feedbackCommands.convertFeedbackToIssue(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackId', input.feedbackId],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -196,7 +214,13 @@ export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.bulkMarkReviewed(command, { projectId: ctx.projectId, feedbackIds: input.feedbackIds }),
+          feedbackCommands.bulkMarkReviewed(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackIds', input.feedbackIds],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
@@ -218,7 +242,13 @@ export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.bulkConvertToIssue(command, { projectId: ctx.projectId, feedbackIds: input.feedbackIds }),
+          feedbackCommands.bulkConvertToIssue(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackIds', input.feedbackIds],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
