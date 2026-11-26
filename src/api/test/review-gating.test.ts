@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -84,19 +85,30 @@ const seedFlaggedAndCleanDoneIssues = async function seedFlaggedAndCleanDoneIssu
   const { agentSessionId: flaggedAgent } = await seedAgentLease({ token, workspaceId }, flagged.id)
   const { agentSessionId: cleanAgent } = await seedAgentLease({ token, workspaceId }, clean.id)
 
-  await patch({ slug, token }, flagged.id, {
-    status: 'done',
-    agentSessionId: flaggedAgent,
-    completionReport: report,
-  })
-  await patch({ slug, token }, clean.id, {
-    status: 'done',
-    agentSessionId: cleanAgent,
-    completionReport: {
-      summary: 'Did the thing',
-      verification: 'https://github.com/TAJD/projektor/pull/93',
-    },
-  })
+  await patch(
+    { slug, token },
+    flagged.id,
+    fieldsInOrder([
+      ['status', 'done'],
+      ['agentSessionId', flaggedAgent],
+      ['completionReport', report],
+    ]),
+  )
+  await patch(
+    { slug, token },
+    clean.id,
+    fieldsInOrder([
+      ['status', 'done'],
+      ['agentSessionId', cleanAgent],
+      [
+        'completionReport',
+        {
+          summary: 'Did the thing',
+          verification: 'https://github.com/TAJD/projektor/pull/93',
+        },
+      ],
+    ]),
+  )
 
   return { flagged, clean }
 }
@@ -140,7 +152,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'With report' })
     await seedAgentLease({ token, workspaceId }, issue.id)
 
-    const res = await patch({ slug, token }, issue.id, { status: 'in_review', completionReport: report })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'in_review'],
+        ['completionReport', report],
+      ]),
+    )
     expect(res.status).toBe(200)
     await expect(completionReportAtOf(issue.id)).resolves.toStrictEqual(expect.any(Number))
     const result = await commentBodies({ slug, token }, issue.id)
@@ -153,10 +172,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Placeholder prLink' })
     await seedAgentLease({ token, workspaceId }, issue.id)
 
-    const res = await patch({ slug, token }, issue.id, {
-      status: 'in_review',
-      completionReport: { ...report, prLink: 'pending combined PR...' },
-    })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'in_review'],
+        ['completionReport', { ...report, prLink: 'pending combined PR...' }],
+      ]),
+    )
     expect(res.status).toBe(200)
     const bodies = await commentBodies({ slug, token }, issue.id)
     expect(bodies.some((body) => body.includes('Did the thing'))).toBe(true)
@@ -170,10 +193,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     await seedAgentLease({ token, workspaceId }, issue.id)
 
     const prLink = 'https://github.com/TAJD/projektor/pull/99'
-    const res = await patch({ slug, token }, issue.id, {
-      status: 'in_review',
-      completionReport: { ...report, prLink },
-    })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'in_review'],
+        ['completionReport', { ...report, prLink }],
+      ]),
+    )
     expect(res.status).toBe(200)
     const result = await commentBodies({ slug, token }, issue.id)
     expect(result.some((body) => body.includes(prLink))).toBe(true)
@@ -187,10 +214,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     })
     await seedAgentLease({ token, workspaceId }, issue.id)
 
-    const res = await patch({ slug, token }, issue.id, {
-      status: 'in_review',
-      completionReport: { ...report, prLink: 'github.com/TAJD/projektor/pull/99' },
-    })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'in_review'],
+        ['completionReport', { ...report, prLink: 'github.com/TAJD/projektor/pull/99' }],
+      ]),
+    )
     expect(res.status).toBe(200)
     const result = await commentBodies({ slug, token }, issue.id)
     expect(result.some((body) => body.includes('**PR:**'))).toBe(false)
@@ -204,7 +235,15 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent closes' })
     const { agentSessionId } = await seedAgentLease({ token, workspaceId }, issue.id)
 
-    const res = await patch({ slug, token }, issue.id, { status: 'done', agentSessionId, completionReport: report })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'done'],
+        ['agentSessionId', agentSessionId],
+        ['completionReport', report],
+      ]),
+    )
     expect(res.status).toBe(200)
   })
 
@@ -214,7 +253,15 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Freeform close' })
     const { agentSessionId } = await seedAgentLease({ token, workspaceId }, issue.id)
 
-    await patch({ slug, token }, issue.id, { status: 'done', agentSessionId, completionReport: report })
+    await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'done'],
+        ['agentSessionId', agentSessionId],
+        ['completionReport', report],
+      ]),
+    )
     await expect(needsAuditOf(issue.id)).resolves.toBe(true)
   })
 
@@ -224,14 +271,21 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Verifiable close' })
     const { agentSessionId } = await seedAgentLease({ token, workspaceId }, issue.id)
 
-    await patch({ slug, token }, issue.id, {
-      status: 'done',
-      agentSessionId,
-      completionReport: {
-        summary: 'Did the thing',
-        verification: 'https://github.com/TAJD/projektor/pull/93 — CI green',
-      },
-    })
+    await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'done'],
+        ['agentSessionId', agentSessionId],
+        [
+          'completionReport',
+          {
+            summary: 'Did the thing',
+            verification: 'https://github.com/TAJD/projektor/pull/93 — CI green',
+          },
+        ],
+      ]),
+    )
     await expect(needsAuditOf(issue.id)).resolves.toBe(false)
   })
 
@@ -241,7 +295,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Human closes' })
     await seedAgentLease({ token, workspaceId }, issue.id, { live: false })
 
-    await patch({ slug, token }, issue.id, { status: 'done', completionReport: report })
+    await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'done'],
+        ['completionReport', report],
+      ]),
+    )
     await expect(needsAuditOf(issue.id)).resolves.toBe(false)
   })
 
@@ -251,12 +312,16 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale session close' })
     await seedAgentLease({ token, workspaceId }, issue.id, { live: false })
 
-    await patch({ slug, token }, issue.id, {
-      status: 'done',
-      // Never existed — can't resolve to a live session
-      agentSessionId: crypto.randomUUID(),
-      completionReport: report,
-    })
+    await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'done'],
+        // Never existed — can't resolve to a live session
+        ['agentSessionId', crypto.randomUUID()],
+        ['completionReport', report],
+      ]),
+    )
     await expect(needsAuditOf(issue.id)).resolves.toBe(false)
   })
 
@@ -274,7 +339,15 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
       method: 'POST',
     })
 
-    const res = await patch({ slug, token }, issue.id, { status: 'done', agentSessionId, completionReport: report })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'done'],
+        ['agentSessionId', agentSessionId],
+        ['completionReport', report],
+      ]),
+    )
     expect(res.status).toBe(200)
     await expect(needsAuditOf(issue.id)).resolves.toBe(true)
   })
@@ -298,7 +371,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const result = await patch({ slug, token }, issue.id, { status: 'done' })
     expect(result.status).toBe(400)
-    const resolvedValue = await patch({ slug, token }, issue.id, { status: 'done', completionReport: report })
+    const resolvedValue = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['status', 'done'],
+        ['completionReport', report],
+      ]),
+    )
     expect(resolvedValue.status).toBe(200)
   })
 
@@ -318,7 +398,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const response = await patch({ slug, token }, issue.id, { statusId: custom.id })
     expect(response.status).toBe(400)
-    const apiResponse = await patch({ slug, token }, issue.id, { statusId: custom.id, completionReport: report })
+    const apiResponse = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['statusId', custom.id],
+        ['completionReport', report],
+      ]),
+    )
     expect(apiResponse.status).toBe(200)
   })
 
@@ -395,7 +482,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
   }) => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Pre-stamp attempt' })
 
-    const res = await patch({ slug, token }, issue.id, { title: 'Renamed', completionReport: report })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['title', 'Renamed'],
+        ['completionReport', report],
+      ]),
+    )
     expect(res.status).toBe(200)
     await expect(completionReportAtOf(issue.id)).resolves.toBeNull()
     const result = await commentBodies({ slug, token }, issue.id)
@@ -412,7 +506,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const backdated = currentEpochSeconds() - 10
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(backdated, live).run()
 
-    const res = await patch({ slug, token }, issue.id, { title: 'Renamed by agent', agentSessionId: live })
+    const res = await patch(
+      { slug, token },
+      issue.id,
+      fieldsInOrder([
+        ['title', 'Renamed by agent'],
+        ['agentSessionId', live],
+      ]),
+    )
     expect(res.status).toBe(200)
     await expect(heartbeatOf(live)).resolves.toBeGreaterThan(backdated)
 
@@ -420,7 +521,14 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const { agentSessionId: dead } = await seedAgentLease({ token, workspaceId }, issue2.id, { live: false })
     const deadBefore = await heartbeatOf(dead)
 
-    const res2 = await patch({ slug, token }, issue2.id, { title: 'Renamed anyway', agentSessionId: dead })
+    const res2 = await patch(
+      { slug, token },
+      issue2.id,
+      fieldsInOrder([
+        ['title', 'Renamed anyway'],
+        ['agentSessionId', dead],
+      ]),
+    )
     expect(res2.status).toBe(200)
     await expect(heartbeatOf(dead)).resolves.toBe(deadBefore)
   })

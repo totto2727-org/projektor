@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import { createIssue, updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
@@ -130,15 +131,18 @@ describe('covers PROJ-870: issue write batching', () => {
     await seedCustomFieldDef(fixture.workspaceId, { key: 'team' })
 
     const tracker = trackD1RoundTrips()
-    const created = await createIssue(ctx, {
-      projectId: fixture.projectId,
-      title: 'Batched create',
-      body: 'hello body',
-      parentId: chain[3],
-      statusId: status.id,
-      typeId: type.id,
-      customFields: { points: 3, team: 'core' },
-    })
+    const created = await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Batched create'],
+        ['body', 'hello body'],
+        ['parentId', chain[3]],
+        ['statusId', status.id],
+        ['typeId', type.id],
+        ['customFields', { points: 3, team: 'core' }],
+      ]),
+    )
     const roundTrips = tracker.count()
     vi.restoreAllMocks()
 
@@ -186,13 +190,17 @@ describe('covers PROJ-870: issue write batching', () => {
     await seedCustomFieldDef(fixture.workspaceId, { key: 'points', type: 'number' })
 
     const tracker = trackD1RoundTrips()
-    await updateIssue(ctx, issue.id, {
-      title: 'After',
-      body: 'new body',
-      statusId: done.id,
-      parentId: chain[3],
-      customFields: { points: 8 },
-    })
+    await updateIssue(
+      ctx,
+      issue.id,
+      fieldsInOrder([
+        ['title', 'After'],
+        ['body', 'new body'],
+        ['statusId', done.id],
+        ['parentId', chain[3]],
+        ['customFields', { points: 8 }],
+      ]),
+    )
     const roundTrips = tracker.count()
     vi.restoreAllMocks()
 
@@ -220,11 +228,14 @@ describe('covers PROJ-870: issue write batching', () => {
   test<IssueWriteTestContext>('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async ({
     ownerFixture: { ctx, fixture },
   }) => {
-    const created = await createIssue(ctx, {
-      projectId: fixture.projectId,
-      title: 'Original',
-      body: 'kept body',
-    })
+    const created = await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Original'],
+        ['body', 'kept body'],
+      ]),
+    )
     await updateIssue(ctx, created.id, { title: 'Renamed' })
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(created.id).all()
     expect(fts.results).toStrictEqual([{ body: 'kept body', title: 'Renamed' }])
@@ -240,10 +251,14 @@ describe('covers PROJ-870: issue write batching', () => {
     await seedAgentLease(fixture.workspaceId, issue.id)
 
     const tracker = trackD1RoundTrips()
-    await updateIssue(ctx, issue.id, {
-      status: 'in_review',
-      completionReport: { summary: 'Did it', verification: 'pnpm test' },
-    })
+    await updateIssue(
+      ctx,
+      issue.id,
+      fieldsInOrder([
+        ['status', 'in_review'],
+        ['completionReport', { summary: 'Did it', verification: 'pnpm test' }],
+      ]),
+    )
     const toReview = tracker.count()
     vi.restoreAllMocks()
     // 7 before PROJ-870 (comment + its visibility re-check were separate round trips),
@@ -310,12 +325,26 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
     const deep = await seedChain(fixture, 5)
 
     let tracker = trackD1RoundTrips()
-    await createIssue(ctx, { projectId: fixture.projectId, title: 'shallow', parentId: shallow[1] })
+    await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'shallow'],
+        ['parentId', shallow[1]],
+      ]),
+    )
     const shallowTrips = tracker.count()
     vi.restoreAllMocks()
 
     tracker = trackD1RoundTrips()
-    await createIssue(ctx, { projectId: fixture.projectId, title: 'deep', parentId: deep[4] })
+    await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'deep'],
+        ['parentId', deep[4]],
+      ]),
+    )
     const deepTrips = tracker.count()
     vi.restoreAllMocks()
 
@@ -365,9 +394,16 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
   }) => {
     const other = await seedProjectFixture({ role: 'owner' })
     const foreign = await seedIssue(other.workspaceId, other.projectId, other.userId)
-    await expect(createIssue(ctx, { projectId: fixture.projectId, title: 'x', parentId: foreign.id })).rejects.toThrow(
-      'Parent issue not found',
-    )
+    await expect(
+      createIssue(
+        ctx,
+        fieldsInOrder([
+          ['projectId', fixture.projectId],
+          ['title', 'x'],
+          ['parentId', foreign.id],
+        ]),
+      ),
+    ).rejects.toThrow('Parent issue not found')
   })
 
   test<IssueWriteTestContext>('stops the walk at an ancestor link that leaves the workspace', async ({
@@ -385,7 +421,14 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
     await env.DB.prepare('UPDATE issues SET parent_id = ? WHERE id = ?').bind(foreignChain[5], issue.id).run()
 
     await expect(
-      createIssue(ctx, { projectId: fixture.projectId, title: 'child of P', parentId: issue.id }),
+      createIssue(
+        ctx,
+        fieldsInOrder([
+          ['projectId', fixture.projectId],
+          ['title', 'child of P'],
+          ['parentId', issue.id],
+        ]),
+      ),
     ).resolves.toMatchObject({ number: expect.any(Number) })
   })
 })

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 import m0061 from '#migrations/0061_task_status_review_step.sql?raw'
 
@@ -82,10 +83,14 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
 
     await expect(patch({ slug, token }, issue.id, { statusId: peer.id })).resolves.toHaveProperty('status', 400)
     await expect(
-      patch({ slug, token }, issue.id, {
-        statusId: peer.id,
-        completionReport: { summary: 's', verification: 'v' },
-      }),
+      patch(
+        { slug, token },
+        issue.id,
+        fieldsInOrder([
+          ['statusId', peer.id],
+          ['completionReport', { summary: 's', verification: 'v' }],
+        ]),
+      ),
     ).resolves.toHaveProperty('status', 200)
     await expect(patch({ slug, token }, issue.id, { status: 'in_progress' })).resolves.toHaveProperty('status', 200)
 

@@ -7,6 +7,7 @@ import { Predicate } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { env } from './fixture-api.ts'
 import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './helpers.ts'
@@ -45,7 +46,15 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     args: unknown,
     token = fixture.token,
   ): Promise<typeof McpRpcResponse.Type> {
-    const res = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, token)
+    const res = await post(
+      fieldsInOrder([
+        ['jsonrpc', '2.0'],
+        ['id', 1],
+        ['method', 'tools/call'],
+        ['params', { name, arguments: args }],
+      ]),
+      token,
+    )
     expect(res.status).toBe(200)
     return readNativeJson(res, McpRpcResponse)
   }
@@ -81,7 +90,13 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   })
 
   test('validation: the offending fields are named in `fields` and in the hint', async () => {
-    const toolFailure = await failure('create_wiki_page', { title: '', content: 'x' })
+    const toolFailure = await failure(
+      'create_wiki_page',
+      fieldsInOrder([
+        ['title', ''],
+        ['content', 'x'],
+      ]),
+    )
     expect(toolFailure.code).toBe('validation')
     expect(Object.keys(toolFailure.fields ?? {})).toContain('title')
     expect(toolFailure.hint).toContain('title')
@@ -125,22 +140,46 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
 
   test('conflict on a stale wiki save: re-read, then patch_wiki_page — and the current revision is in details', async () => {
     const created = parseNativeMcpText(
-      (await call('create_wiki_page', { title: 'Locked Doc', content: 'v1' })).result?.content?.[0].text ?? '{}',
+      (
+        await call(
+          'create_wiki_page',
+          fieldsInOrder([
+            ['title', 'Locked Doc'],
+            ['content', 'v1'],
+          ]),
+        )
+      ).result?.content?.[0].text ?? '{}',
       SlugResponse,
     )
-    await call('update_wiki_page', { slug: created.slug, content: 'v2' })
+    await call(
+      'update_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['content', 'v2'],
+      ]),
+    )
     const revisions = parseNativeMcpText(
       (await call('list_wiki_revisions', { slug: created.slug })).result?.content?.[0].text ?? '[]',
       IdListResponse,
     )
     const stale = revisions[0].id
-    await call('update_wiki_page', { slug: created.slug, content: 'v3', baseRevisionId: stale })
+    await call(
+      'update_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['content', 'v3'],
+        ['baseRevisionId', stale],
+      ]),
+    )
 
-    const toolFailure = await failure('update_wiki_page', {
-      slug: created.slug,
-      content: 'v4',
-      baseRevisionId: stale,
-    })
+    const toolFailure = await failure(
+      'update_wiki_page',
+      fieldsInOrder([
+        ['slug', created.slug],
+        ['content', 'v4'],
+        ['baseRevisionId', stale],
+      ]),
+    )
     expect(toolFailure.code).toBe('conflict')
     expect(toolFailure.hint).toContain('get_wiki_page')
     expect(toolFailure.hint).toContain('patch_wiki_page')
@@ -161,7 +200,13 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     })
 
     test('an unknown method is -32601', async () => {
-      const resResponse = await post({ jsonrpc: '2.0', id: 1, method: 'nope/nope' })
+      const resResponse = await post(
+        fieldsInOrder([
+          ['jsonrpc', '2.0'],
+          ['id', 1],
+          ['method', 'nope/nope'],
+        ]),
+      )
       const res = await readNativeJson(resResponse, McpRpcResponse)
       expect(res.error?.code).toBe(-32_601)
     })
@@ -181,7 +226,14 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     })
 
     test('a tools/call with no tool name is a -32602 invalid-params protocol error', async () => {
-      const resResponse = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {} })
+      const resResponse = await post(
+        fieldsInOrder([
+          ['jsonrpc', '2.0'],
+          ['id', 1],
+          ['method', 'tools/call'],
+          ['params', {}],
+        ]),
+      )
       const res = await readNativeJson(resResponse, McpRpcResponse)
       expect(res.error?.code).toBe(-32_602)
     })
@@ -190,12 +242,12 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   test('a scope denial stays an HTTP 403 with a WWW-Authenticate challenge', async () => {
     const readOnly = await seedToken(fixture.workspaceId, fixture.userId, { scopes: ['read'] })
     const res = await post(
-      {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'create_issue', arguments: { projectId: fixture.projectId, title: 'x' } },
-      },
+      fieldsInOrder([
+        ['jsonrpc', '2.0'],
+        ['id', 1],
+        ['method', 'tools/call'],
+        ['params', { name: 'create_issue', arguments: { projectId: fixture.projectId, title: 'x' } }],
+      ]),
       readOnly,
     )
     expect(res.status).toBe(403)

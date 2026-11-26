@@ -4875,12 +4875,27 @@ describe('wiki write atomicity (PROJ-511)', () => {
 // PROJ-489 (R7): verification stamps + computed staleness surfacing.
 describe('computeFreshness (PROJ-489)', () => {
   test('returns null when the page has neither verify_interval nor status', () => {
-    expect(computeFreshness({ verifiedAt: SQL_NULL, verifyInterval: SQL_NULL, status: SQL_NULL })).toBeNull()
+    expect(
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', SQL_NULL],
+          ['verifyInterval', SQL_NULL],
+          ['status', SQL_NULL],
+        ]),
+      ),
+    ).toBeNull()
   })
 
   test("returns 'unverified' when verify_interval is set but verified_at is null", () => {
     expect(
-      computeFreshness({ verifiedAt: SQL_NULL, verifyInterval: 30, status: SQL_NULL, now: 1_000_000 }),
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', SQL_NULL],
+          ['verifyInterval', 30],
+          ['status', SQL_NULL],
+          ['now', 1_000_000],
+        ]),
+      ),
     ).toStrictEqual({
       staleSince: JSON_NULL,
       state: 'unverified',
@@ -4891,7 +4906,16 @@ describe('computeFreshness (PROJ-489)', () => {
     const now = 1_000_000
     // 10 days ago
     const verifiedAt = now - 10 * 86_400
-    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: SQL_NULL, now })).toStrictEqual({
+    expect(
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', verifiedAt],
+          ['verifyInterval', 30],
+          ['status', SQL_NULL],
+          ['now', now],
+        ]),
+      ),
+    ).toStrictEqual({
       staleSince: JSON_NULL,
       state: 'fresh',
     })
@@ -4902,7 +4926,16 @@ describe('computeFreshness (PROJ-489)', () => {
     // 40 days ago
     const verifiedAt = now - 40 * 86_400
     const dueAt = verifiedAt + 30 * 86_400
-    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: SQL_NULL, now })).toStrictEqual({
+    expect(
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', verifiedAt],
+          ['verifyInterval', 30],
+          ['status', SQL_NULL],
+          ['now', now],
+        ]),
+      ),
+    ).toStrictEqual({
       staleSince: dueAt,
       state: 'stale',
     })
@@ -4910,7 +4943,14 @@ describe('computeFreshness (PROJ-489)', () => {
 
   test('treats an explicit status: stale as stale regardless of verify_interval', () => {
     expect(
-      computeFreshness({ verifiedAt: SQL_NULL, verifyInterval: SQL_NULL, status: 'stale', now: 1_000_000 }),
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', SQL_NULL],
+          ['verifyInterval', SQL_NULL],
+          ['status', 'stale'],
+          ['now', 1_000_000],
+        ]),
+      ),
     ).toStrictEqual({
       staleSince: JSON_NULL,
       state: 'stale',
@@ -4921,7 +4961,16 @@ describe('computeFreshness (PROJ-489)', () => {
     const now = 1_000_000
     // Verified yesterday
     const verifiedAt = now - 1 * 86_400
-    expect(computeFreshness({ verifiedAt, verifyInterval: 365, status: 'deprecated', now })).toStrictEqual({
+    expect(
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', verifiedAt],
+          ['verifyInterval', 365],
+          ['status', 'deprecated'],
+          ['now', now],
+        ]),
+      ),
+    ).toStrictEqual({
       staleSince: JSON_NULL,
       state: 'stale',
     })
@@ -4929,12 +4978,14 @@ describe('computeFreshness (PROJ-489)', () => {
 
   test('treats status: current with no verify_interval as fresh', () => {
     expect(
-      computeFreshness({
-        verifiedAt: SQL_NULL,
-        verifyInterval: SQL_NULL,
-        status: 'current',
-        now: 1_000_000,
-      }),
+      computeFreshness(
+        fieldsInOrder([
+          ['verifiedAt', SQL_NULL],
+          ['verifyInterval', SQL_NULL],
+          ['status', 'current'],
+          ['now', 1_000_000],
+        ]),
+      ),
     ).toStrictEqual({ staleSince: JSON_NULL, state: 'fresh' })
   })
 })
@@ -6086,8 +6137,18 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const wrappedDb = wrapD1CapturingReads(env.DB, captured)
 
     await listWikiChanges(
-      { db: wrappedDb, kv: env.KV, r2: env.R2, workspaceId, userId, role: 'admin' },
-      { since: t0, limit: 50 },
+      fieldsInOrder([
+        ['db', wrappedDb],
+        ['kv', env.KV],
+        ['r2', env.R2],
+        ['workspaceId', workspaceId],
+        ['userId', userId],
+        ['role', 'admin'],
+      ]),
+      fieldsInOrder([
+        ['since', t0],
+        ['limit', 50],
+      ]),
     )
 
     const capturedText = JSON.stringify(captured)
@@ -7298,9 +7359,19 @@ const seedAdminWikiSlugFixture = async function seedAdminWikiSlugFixture(): Prom
 describe('wiki slug/id collisions (PROJ-812)', () => {
   test('rejects an explicit slug shaped like a dashed or undashed page id', async () => {
     const { create } = await seedAdminWikiSlugFixture()
-    const dashed = await create({ title: 'A', slug: crypto.randomUUID() })
+    const dashed = await create(
+      fieldsInOrder([
+        ['title', 'A'],
+        ['slug', crypto.randomUUID()],
+      ]),
+    )
     expect(dashed.status).toBe(400)
-    const hex = await create({ title: 'B', slug: crypto.randomUUID().replaceAll('-', '') })
+    const hex = await create(
+      fieldsInOrder([
+        ['title', 'B'],
+        ['slug', crypto.randomUUID().replaceAll('-', '')],
+      ]),
+    )
     expect(hex.status).toBe(400)
   })
 
