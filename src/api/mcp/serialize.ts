@@ -369,6 +369,8 @@ const largestResumableCount = function largestResumableCount(
   return Option.getOrElse(Iterable.findFirst(counts, canCutAt), () => MIN_CAPPED_ITEMS)
 }
 
+type TruncatedPage<P> = P & { truncated: true; hint?: string }
+
 /**
  * Keeps a `{items, ...}` result under `max` serialized chars by dropping trailing items,
  * so the JSON is never cut mid-document. `truncated:true` marks that it happened.
@@ -396,7 +398,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
     return page
   }
 
-  const build = (keptCount: number) => {
+  const build = (keptCount: number): TruncatedPage<P> => {
     const { next: _drop, ...rest } = page
     const cursor = opts.cursorOf?.(Number.decrement(keptCount))
     return {
@@ -405,7 +407,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
       truncated: true as const,
       ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { next: cursor } : {}),
       ...(opts.cursorOf ? {} : { hint: `Result capped at ${max} chars; lower limit or narrow the filters.` }),
-    } as P & { truncated: true; hint?: string }
+    } as TruncatedPage<P>
   }
 
   // Largest k (≥1) whose serialized form fits; one oversized item is still returned whole.

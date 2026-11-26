@@ -247,7 +247,10 @@ const consentingUser = function consentingUser(httpContext: Context<HonoEnv>): A
   return user
 }
 
-const consentWorkspace = async function consentWorkspace(httpContext: Context<HonoEnv>, workspaceId: string) {
+const consentWorkspace = async function consentWorkspace(
+  httpContext: Context<HonoEnv>,
+  workspaceId: string,
+): Promise<typeof ApiConsentWorkspace.Type> {
   return apiReply(
     ApiConsentWorkspace,
     makeCoreClient(httpContext.env.CORE).apiConsentWorkspace(httpContext.get('coreActor'), workspaceId),

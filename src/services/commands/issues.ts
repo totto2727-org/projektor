@@ -568,7 +568,18 @@ const buildActivityInsertStatement = function buildActivityInsertStatement(
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-const resolveCreateIssueDeps = async function resolveCreateIssueDeps(ctx: ServiceCtx, data: CreateIssueData) {
+interface IssueCreationDependencies {
+  resolvedTypeId: string | null
+  resolvedStatusId: string | null
+  resolvedStatusKey: string
+  resolvedStatusCategory: string | null
+  cfWrites: Awaited<ReturnType<typeof validateCustomFields>>
+}
+
+const resolveCreateIssueDeps = async function resolveCreateIssueDeps(
+  ctx: ServiceCtx,
+  data: CreateIssueData,
+): Promise<IssueCreationDependencies> {
   if (data.parentId) {
     await validateParent(ctx, data.parentId, null)
   }

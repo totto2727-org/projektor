@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { Context } from 'hono'
+import type { Context, TypedResponse } from 'hono'
 
 import { OAUTH_SCOPES_SUPPORTED } from '#api/auth/scopes.ts'
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
@@ -158,7 +158,10 @@ oauthMetadataRouter.get('/oauth-authorization-server', (httpContext) => {
  * has an ASSETS binding — there, the catch-all already 404s. The regression test
  * asserts the *content type* rather than the status for exactly that reason.
  */
-const discoveryNotFound = (httpContext: Context<HonoEnv>) => httpContext.json({ error: 'Not Found' }, HTTP_NOT_FOUND)
+const discoveryNotFound = (
+  httpContext: Context<HonoEnv>,
+): Response & TypedResponse<{ error: string }, typeof HTTP_NOT_FOUND, 'json'> =>
+  httpContext.json({ error: 'Not Found' }, HTTP_NOT_FOUND)
 
 oauthMetadataRouter.all('/oauth-protected-resource', discoveryNotFound)
 oauthMetadataRouter.all('/oauth-protected-resource/*', discoveryNotFound)

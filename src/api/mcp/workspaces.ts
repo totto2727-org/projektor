@@ -20,7 +20,7 @@ import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './anno
 import { fieldsInOrder, objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool, PluginContext } from './types.ts'
 
-const currentWorkspace = async function currentWorkspace(ctx: PluginContext) {
+const currentWorkspace = async function currentWorkspace(ctx: PluginContext): Promise<typeof ApiWorkspace.Type> {
   return apiReply(ApiWorkspace, ctx.core.apiResolveWorkspace(ctx.actor, { kind: 'id', value: ctx.workspaceId }))
 }
 
