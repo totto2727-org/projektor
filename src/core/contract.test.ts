@@ -34,30 +34,26 @@ describe('core native RPC public boundary', () => {
     expect(result.message).toBe('Forbidden')
   })
 
-  test.each(['checked', 'defect', 'outbound codec'] as const)(
-    'logs %s diagnostics only at the origin',
-    async (kind) => {
-      const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
-      try {
-        const secret = 'private-sql-credential'
-        const effect =
-          kind === 'checked'
-            ? Effect.fail(new Error(secret))
-            : kind === 'defect'
-              ? Effect.die(new Error(secret))
-              : Effect.succeed({ id: 42 } as unknown as { id: string })
-        const wire = await runTestEffect(coreReply('load', Success, effect))
-        expect(wire).not.toContain(secret)
-        const problem = JSON.parse(wire).failure
-        expect(problem.status).toBe(500)
-        expect(problem.message).toBe('An unexpected error occurred.')
-        expect(problem.occurrenceId).toMatch(/^urn:uuid:/u)
-        expect(log).toHaveBeenCalledOnce()
-      } finally {
-        log.mockRestore()
-      }
-    },
-  )
+  test.each([
+    ['checked', (secret: string) => Effect.fail(new Error(secret))],
+    ['defect', (secret: string) => Effect.die(new Error(secret))],
+    ['outbound codec', () => Effect.succeed({ id: 42 } as unknown as { id: string })],
+  ] as const)('logs %s diagnostics only at the origin', async (_kind, makeEffect) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
+    try {
+      const secret = 'private-sql-credential'
+      const effect = makeEffect(secret)
+      const wire = await runTestEffect(coreReply('load', Success, effect))
+      expect(wire).not.toContain(secret)
+      const problem = JSON.parse(wire).failure
+      expect(problem.status).toBe(500)
+      expect(problem.message).toBe('An unexpected error occurred.')
+      expect(problem.occurrenceId).toMatch(/^urn:uuid:/u)
+      expect(log).toHaveBeenCalledOnce()
+    } finally {
+      log.mockRestore()
+    }
+  })
 
   test('discards secret-bearing malformed peer responses', async () => {
     const secret = 'private-malformed-wire'
@@ -128,33 +124,36 @@ describe('core native RPC public boundary', () => {
     expect(result.message).toBe('The Core service is temporarily unavailable.')
   })
 
-  test.each(['transport', 'reply'] as const)(
-    'records safe %s correlation without copying private diagnostics',
-    async (stage) => {
-      const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
-      try {
-        const invocation =
-          stage === 'transport' ? Effect.fail(new Error('private detail')) : Effect.succeed('invalid wire')
-        const problem = await runTestEffect(Effect.flip(decodeCoreReply(Success, invocation)))
-        expect(problem).toMatchObject({ status: 502 })
-        expect(JSON.stringify(problem)).not.toContain('private detail')
-        expect(JSON.stringify(problem)).not.toContain('invalid wire')
-        expect(log).toHaveBeenCalledWith('[core-client]', { stage, occurrenceId: problem.occurrenceId })
-        expect(JSON.stringify(log.mock.calls)).not.toContain('private detail')
-        expect(JSON.stringify(log.mock.calls)).not.toContain('invalid wire')
-      } finally {
-        log.mockRestore()
-      }
-    },
-  )
+  test.each([
+    ['transport', () => Effect.fail(new Error('private detail'))],
+    ['reply', () => Effect.succeed('invalid wire')],
+  ] as const)('records safe %s correlation without copying private diagnostics', async (stage, makeInvocation) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(Function.constVoid)
+    try {
+      const invocation = makeInvocation()
+      const problem = await runTestEffect(Effect.flip(decodeCoreReply(Success, invocation)))
+      expect(problem).toMatchObject({ status: 502 })
+      expect(JSON.stringify(problem)).not.toContain('private detail')
+      expect(JSON.stringify(problem)).not.toContain('invalid wire')
+      expect(log).toHaveBeenCalledWith('[core-client]', { stage, occurrenceId: problem.occurrenceId })
+      expect(JSON.stringify(log.mock.calls)).not.toContain('private detail')
+      expect(JSON.stringify(log.mock.calls)).not.toContain('invalid wire')
+    } finally {
+      log.mockRestore()
+    }
+  })
 
   test('preserves interruption rather than returning an application failure', async () => {
+    const isOnlyInterruption = Exit.match({
+      onFailure: Cause.hasInterruptsOnly,
+      onSuccess: Function.constFalse,
+    })
     const replyEffect = coreReply('load', Success, Effect.interrupt)
     const reply = await runTestEffect(Effect.exit(replyEffect))
-    expect(Exit.isFailure(reply) && Cause.hasInterruptsOnly(reply.cause)).toBe(true)
+    expect(isOnlyInterruption(reply)).toBe(true)
     const decodeEffect = decodeCoreReply(Success, Effect.interrupt)
     const decoded = await runTestEffect(Effect.exit(decodeEffect))
-    expect(Exit.isFailure(decoded) && Cause.hasInterruptsOnly(decoded.cause)).toBe(true)
+    expect(isOnlyInterruption(decoded)).toBe(true)
   })
 
   test('resolves distinct invocation bindings after a single client construction', async () => {

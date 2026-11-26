@@ -126,20 +126,18 @@ describe('native D1 domain invariants', () => {
     },
   )
 
-  test.each(['type', 'status'] as const)(
+  test.each([
+    ['type', { seed: seedTaskType, table: 'task_types', update: updateTaskType }],
+    ['status', { seed: seedTaskStatus, table: 'task_statuses', update: updateTaskStatus }],
+  ] as const)(
     'does not clear the default %s when the requested target is missing',
-    async (kind) => {
+    async (_kind, { seed, table, update }) => {
       const testFixture = await fixture()
       testFixture.ctx.role = 'owner'
-      const target =
-        kind === 'type'
-          ? await seedTaskType(testFixture.workspace.id, { isDefault: true })
-          : await seedTaskStatus(testFixture.workspace.id, { isDefault: true })
-      const update = kind === 'type' ? updateTaskType : updateTaskStatus
+      const target = await seed(testFixture.workspace.id, { isDefault: true })
       await expect(update(testFixture.ctx, crypto.randomUUID(), { isDefault: true })).rejects.toMatchObject({
         kind: 'not_found',
       })
-      const table = kind === 'type' ? 'task_types' : 'task_statuses'
       await expect(
         env.DB.prepare(`SELECT id FROM ${table} WHERE workspace_id = ? AND is_default = 1`)
           .bind(testFixture.workspace.id)
