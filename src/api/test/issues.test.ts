@@ -213,7 +213,9 @@ describe('issues API', () => {
       })
     })
     const { page } = await listIssues()
-    const numbers = (page.items as { number: number }[]).map((i) => i.number).toSorted((left, right) => left - right)
+    const numbers = (page.items as { number: number }[])
+      .map((issue) => issue.number)
+      .toSorted((left, right) => left - right)
     expect(numbers).toStrictEqual([1, 2, 3])
   })
 
@@ -990,10 +992,10 @@ describe('issues API', () => {
     // A → B → C; try to set A.parentId = C (cycle: A is ancestor of C)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { parentId: issue.id, title: 'B' })
-    const c = await seedIssue(workspaceId, projectId, userId, { parentId: currentIssue.id, title: 'C' })
+    const childIssue = await seedIssue(workspaceId, projectId, userId, { parentId: currentIssue.id, title: 'C' })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
-      body: JSON.stringify({ parentId: c.id }),
+      body: JSON.stringify({ parentId: childIssue.id }),
       headers: authHeaders(token, slug),
       method: 'PATCH',
     })
@@ -1045,7 +1047,7 @@ describe('issues API', () => {
 
     const { page } = await listIssues(`http://localhost/api/issues?parentId=${parent.id}`)
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as { title: string }[]).map((i) => i.title)
+    const titles = (page.items as { title: string }[]).map((issue) => issue.title)
     expect(titles).toContain('Child 1')
     expect(titles).toContain('Child 2')
   })
@@ -1105,7 +1107,7 @@ describe('issues API', () => {
 
     const { page } = await listIssues(`http://localhost/api/issues?statusIds=${s1.id},${s2.id}`)
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as { title: string }[]).map((i) => i.title).toSorted()
+    const titles = (page.items as { title: string }[]).map((issue) => issue.title).toSorted()
     expect(titles).toStrictEqual(['Done item', 'Todo item'])
   })
 
@@ -1129,7 +1131,7 @@ describe('issues API', () => {
 
     const { page } = await listIssues('http://localhost/api/issues?priorities=urgent,high')
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as { title: string }[]).map((i) => i.title).toSorted()
+    const titles = (page.items as { title: string }[]).map((issue) => issue.title).toSorted()
     expect(titles).toStrictEqual(['High issue', 'Urgent issue'])
   })
 
@@ -1180,7 +1182,7 @@ describe('issues API', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'A plain issue' })
 
     const { page } = await listIssues(`http://localhost/api/issues?excludeTypeIds=${epic.id}`)
-    const titles = (page.items as { title: string }[]).map((i) => i.title).toSorted()
+    const titles = (page.items as { title: string }[]).map((issue) => issue.title).toSorted()
     // The epic is excluded; the untyped (NULL type_id) issue must NOT be dropped.
     expect(titles).toStrictEqual(['A plain issue'])
   })
@@ -1230,10 +1232,10 @@ describe('issues API', () => {
     const cutoff = now - 86_400
 
     const before = await listIssues(`http://localhost/api/issues?completedBefore=${cutoff}`)
-    expect((before.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Completed long ago'])
+    expect((before.page.items as { title: string }[]).map((issue) => issue.title)).toStrictEqual(['Completed long ago'])
 
     const after = await listIssues(`http://localhost/api/issues?completedAfter=${cutoff}`)
-    expect((after.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Completed just now'])
+    expect((after.page.items as { title: string }[]).map((issue) => issue.title)).toStrictEqual(['Completed just now'])
   })
 
   test('filters by updatedAfter / updatedBefore (PROJ-212)', async () => {
@@ -1249,10 +1251,10 @@ describe('issues API', () => {
     const cutoff = now - 86_400
 
     const before = await listIssues(`http://localhost/api/issues?updatedBefore=${cutoff}`)
-    expect((before.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Edited long ago'])
+    expect((before.page.items as { title: string }[]).map((issue) => issue.title)).toStrictEqual(['Edited long ago'])
 
     const after = await listIssues(`http://localhost/api/issues?updatedAfter=${cutoff}`)
-    expect((after.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Edited just now'])
+    expect((after.page.items as { title: string }[]).map((issue) => issue.title)).toStrictEqual(['Edited just now'])
   })
 
   // ─── PROJ-252: flow timestamps (ready_at/claimed_at/done_at) ──────────────
@@ -2466,9 +2468,9 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
   test('create_issue_link rejects an unknown param instead of ignoring it', async () => {
     const { mcpCall, projectId } = await seedIssueInputValidationFixture()
     const rpcResponse = await mcpCall({ arguments: { projectId, title: 'A' }, name: 'create_issue' })
-    const b = await mcpCall({ arguments: { projectId, title: 'B' }, name: 'create_issue' })
+    const secondCreation = await mcpCall({ arguments: { projectId, title: 'B' }, name: 'create_issue' })
     const { id: aId } = parseNativeMcpText(readNativeMcpResultText(rpcResponse.result), IdResponse)
-    const { id: bId } = parseNativeMcpText(readNativeMcpResultText(b.result), IdResponse)
+    const { id: bId } = parseNativeMcpText(readNativeMcpResultText(secondCreation.result), IdResponse)
 
     const res = await mcpCall({
       arguments: { extra: 'x', sourceIssueId: aId, targetIssueId: bId, type: 'blocks' },
@@ -3108,7 +3110,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       role: 'owner',
     })
     Iterable.forEach(['get_issue', 'list_issues', 'get_issues'], (name) => {
-      const tool = issuesTools.find((t) => t.name === name)
+      const tool = issuesTools.find((candidate) => candidate.name === name)
       expect(tool?.description).toContain('Omitted keys are null/empty/false; pass verbose:true for the raw shape.')
     })
   })
@@ -3245,8 +3247,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       arguments: { ids: [issue.id], includeBody: true },
       name: 'get_issues',
     })
-    const b = parseNativeMcpText(readNativeMcpResultText(withBody.result), RecordItemsResponse)
-    expect(b.items[0].body).toBe('hello')
+    const withBodyPayload = parseNativeMcpText(readNativeMcpResultText(withBody.result), RecordItemsResponse)
+    expect(withBodyPayload.items[0].body).toBe('hello')
   })
 
   test('fields keeps false as false and rejects unknown field names', async () => {

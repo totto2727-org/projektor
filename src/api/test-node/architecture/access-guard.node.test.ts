@@ -133,7 +133,7 @@ const collect = function collect(): Map<string, FnInfo> {
         }
         const exported =
           (ts.isFunctionDeclaration(stmt) || ts.isVariableStatement(stmt)) &&
-          !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+          !!stmt.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
         if (ts.isFunctionDeclaration(stmt) && stmt.name) {
           locals.push({
             name: stmt.name.text,
@@ -142,17 +142,17 @@ const collect = function collect(): Map<string, FnInfo> {
             params: stmt.parameters.map(paramName),
           })
         } else if (ts.isVariableStatement(stmt)) {
-          Iterable.forEach(stmt.declarationList.declarations, (d) => {
+          Iterable.forEach(stmt.declarationList.declarations, (declaration) => {
             if (
-              ts.isIdentifier(d.name) &&
-              d.initializer &&
-              (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer))
+              ts.isIdentifier(declaration.name) &&
+              declaration.initializer &&
+              (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer))
             ) {
               locals.push({
-                name: d.name.text,
-                node: d.initializer,
+                name: declaration.name.text,
+                node: declaration.initializer,
                 exported,
-                params: d.initializer.parameters.map(paramName),
+                params: declaration.initializer.parameters.map(paramName),
               })
             }
           })
@@ -162,10 +162,10 @@ const collect = function collect(): Map<string, FnInfo> {
       const localNames = new Set(locals.map((local) => local.name))
       Iterable.forEach(locals, (local) => {
         const calls: string[] = []
-        const visit = (n: ts.Node): void => {
+        const visit = (node: ts.Node): void => {
           // Any reference counts (call, or passed as a callback / predicate).
-          if (ts.isIdentifier(n) && n !== (local.node as ts.FunctionDeclaration).name) {
-            const id = n.text
+          if (ts.isIdentifier(node) && node !== (local.node as ts.FunctionDeclaration).name) {
+            const id = node.text
             if (file === 'access' && GUARDS.has(id)) {
               calls.push(`guard:${id}`)
             } else if (localNames.has(id)) {
@@ -174,7 +174,7 @@ const collect = function collect(): Map<string, FnInfo> {
               calls.push(imports.get(id) as string)
             }
           }
-          n.forEachChild(visit)
+          node.forEachChild(visit)
         }
         local.node.forEachChild(visit)
         fns.set(`${file}:${local.name}`, {
@@ -194,8 +194,8 @@ const collect = function collect(): Map<string, FnInfo> {
 
 const guardedSet = function guardedSet(fns: Map<string, FnInfo>): Set<string> {
   const guarded = new Set<string>()
-  Iterable.forEach(GUARDS, (g) => {
-    guarded.add(`access:${g}`)
+  Iterable.forEach(GUARDS, (guard) => {
+    guarded.add(`access:${guard}`)
   })
   let changed = true
   while (changed) {
@@ -204,7 +204,7 @@ const guardedSet = function guardedSet(fns: Map<string, FnInfo>): Set<string> {
       if (guarded.has(key)) {
         return
       }
-      if (fn.calls.some((c) => c.startsWith('guard:') || guarded.has(c))) {
+      if (fn.calls.some((call) => call.startsWith('guard:') || guarded.has(call))) {
         guarded.add(key)
         changed = true
       }
@@ -234,7 +234,7 @@ describe('covers PROJ-837: project-scoped service operations reach the access gu
 
   test("finds the operations it is meant to police (the heuristic isn't silently empty)", () => {
     expect(targets.length).toBeGreaterThan(20)
-    expect(targets.map(([k]) => k)).toContain('share:createShareToken')
+    expect(targets.map(([targetKey]) => targetKey)).toContain('share:createShareToken')
   })
 
   test('every target calls the guard, directly or through a helper', () => {

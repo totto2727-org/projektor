@@ -80,10 +80,10 @@ describe('groups REST', () => {
         Schema.mutable,
       ),
     )
-    const g = groups.find((group) => group.name === 'Engineering')
-    assert.isDefined(g)
-    expect(g.memberCount).toBe(0)
-    expect(g.grantCount).toBe(0)
+    const engineeringGroup = groups.find((group) => group.name === 'Engineering')
+    assert.isDefined(engineeringGroup)
+    expect(engineeringGroup.memberCount).toBe(0)
+    expect(engineeringGroup.grantCount).toBe(0)
   })
 
   test('member cannot create a group (403)', async () => {
@@ -109,15 +109,15 @@ describe('groups REST', () => {
 
   test('rename group and reject clashing rename', async () => {
     const { createGroup, ownerHeaders, slug } = await seedGroupFixture()
-    const a = await createGroup('Alpha')
+    const alphaGroup = await createGroup('Alpha')
     await createGroup('Beta')
-    const ok = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
+    const ok = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${alphaGroup}`, {
       body: JSON.stringify({ name: 'Alpha2' }),
       headers: ownerHeaders,
       method: 'PATCH',
     })
     expect(ok.status).toBe(200)
-    const clash = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
+    const clash = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${alphaGroup}`, {
       body: JSON.stringify({ name: 'Beta' }),
       headers: ownerHeaders,
       method: 'PATCH',
@@ -215,13 +215,13 @@ describe('groups REST', () => {
       headers: memberHeaders,
     })
     const memberList = await readNativeJson(memberListResponse, ApiResults.apiListGroups)
-    expect(memberList.map((g) => g.name)).toStrictEqual(['Mine'])
+    expect(memberList.map((group) => group.name)).toStrictEqual(['Mine'])
 
     const ownerListResponse = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       headers: ownerHeaders,
     })
     const ownerList = await readNativeJson(ownerListResponse, ApiResults.apiListGroups)
-    expect(ownerList.map((g) => g.name).toSorted()).toStrictEqual(['Mine', 'Theirs'])
+    expect(ownerList.map((group) => group.name).toSorted()).toStrictEqual(['Mine', 'Theirs'])
   })
 
   test('member-groups lists every member with a pending (empty) entry', async () => {
@@ -302,11 +302,11 @@ describe('groups MCP parity', () => {
 
     const memberList = await callMcpTool(workspaceId, { arguments: {}, name: 'list_groups' }, memberHeaders)
     const memberGroups = mcpData(memberList, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
-    expect(memberGroups.map((g) => g.name)).toStrictEqual(['G1'])
+    expect(memberGroups.map((group) => group.name)).toStrictEqual(['G1'])
 
     const ownerList = await callMcpTool(workspaceId, { arguments: {}, name: 'list_groups' }, ownerHeaders)
     const ownerGroups = mcpData(ownerList, Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable))
-    expect(ownerGroups.map((g) => g.name).toSorted()).toStrictEqual(['G1', 'G2'])
+    expect(ownerGroups.map((group) => group.name).toSorted()).toStrictEqual(['G1', 'G2'])
   })
 
   test('full admin loop over MCP: group -> grant -> member', async () => {

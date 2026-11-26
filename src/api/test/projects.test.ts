@@ -261,7 +261,7 @@ describe('projects REST', () => {
       Schema.Struct({ archived_at: Schema.Union([Schema.Number, Schema.Null]), key: Schema.String }),
     ).pipe(Schema.mutable)
     const withArchived = await readNativeJson(includeArchivedRes, withArchivedShape)
-    const archived = withArchived.find((p) => p.key === 'ARCH1')
+    const archived = withArchived.find((project) => project.key === 'ARCH1')
     assert.isDefined(archived)
     expect(archived.archived_at).not.toBeNull()
 
@@ -277,7 +277,7 @@ describe('projects REST', () => {
       headers: ownerHeaders,
     })
     const visibleProjects = await readNativeJson(afterUnarchive, KeyListResponse)
-    const afterKeys = visibleProjects.map((p) => p.key)
+    const afterKeys = visibleProjects.map((project) => project.key)
     expect(afterKeys).toContain('ARCH1')
   })
 
@@ -484,7 +484,7 @@ describe('projects MCP', () => {
     const mcpRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
     const mcpProjects = parseNativeMcpText(mcpRes.result.content[0].text, KeyListResponse)
 
-    expect(restProjects.map((p) => p.key)).toStrictEqual(mcpProjects.map((p) => p.key))
+    expect(restProjects.map((project) => project.key)).toStrictEqual(mcpProjects.map((project) => project.key))
   })
 
   test('update_project archives a project and list_projects excludes it by default', async () => {
@@ -505,7 +505,7 @@ describe('projects MCP', () => {
     expect(toolError(updateRes)).toBeUndefined()
 
     const listRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
-    const keys = parseNativeMcpText(listRes.result.content[0].text, KeyListResponse).map((p) => p.key)
+    const keys = parseNativeMcpText(listRes.result.content[0].text, KeyListResponse).map((project) => project.key)
     expect(keys).not.toContain('MARCH')
 
     const includeArchivedRes = await callMcpTool(
@@ -514,7 +514,7 @@ describe('projects MCP', () => {
       ownerHeaders,
     )
     const includeArchivedKeys = parseNativeMcpText(includeArchivedRes.result.content[0].text, KeyListResponse).map(
-      (p) => p.key,
+      (project) => project.key,
     )
     expect(includeArchivedKeys).toContain('MARCH')
   })

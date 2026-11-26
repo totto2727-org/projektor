@@ -140,7 +140,7 @@ const tsFiles = function tsFiles(dir: string): string[] {
 
 /** A directory expands to its .ts files; a file path is taken as-is. */
 const expandToFiles = function expandToFiles(path: string): string[] {
-  return path.endsWith('.ts') ? [path] : tsFiles(path).map((f) => join(path, f))
+  return path.endsWith('.ts') ? [path] : tsFiles(path).map((fileName) => join(path, fileName))
 }
 
 const snakeCase = function snakeCase(name: string): string {
@@ -704,7 +704,7 @@ Iterable.forEach(expandToFiles(COMMANDS), (path): void => {
   })
 })
 
-const catalogToolNames = TOOL_DOMAINS.flatMap((d) => d.tools.map((tool) => tool.name))
+const catalogToolNames = TOOL_DOMAINS.flatMap((domain) => domain.tools.map((tool) => tool.name))
 const runtimeToolNames = coreMCPTools.map((tool) => tool.name)
 
 // ---------------------------------------------------------------------------
@@ -872,7 +872,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       Iterable.forEach(runtimeToolNames, (name): void => {
         counts.set(name, (counts.get(name) ?? 0) + 1)
       })
-      const dupes = [...counts].filter(([, n]) => n > 1).map(([name]) => name)
+      const dupes = [...counts].filter(([, count]) => count > 1).map(([name]) => name)
       expect(dupes).toStrictEqual([])
     })
 
@@ -884,7 +884,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
           byTool.set(tool.name, [...(byTool.get(tool.name) ?? []), domain.group])
         })
       })
-      const unclassified = runtimeToolNames.filter((n) => (byTool.get(n) ?? []).length !== 1)
+      const unclassified = runtimeToolNames.filter((toolName) => (byTool.get(toolName) ?? []).length !== 1)
       expect(unclassified).toStrictEqual([])
       Iterable.forEach(byTool.values(), (groups): void => {
         expect(['Coordination', 'Project data']).toContain(groups[0])
@@ -940,7 +940,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
 
     test('names only service functions that still exist', () => {
       const stale = [...Object.keys(MCP_ONLY), ...Object.keys(REST_ONLY), ...Object.keys(TOOL_NAME_ALIASES)].filter(
-        (k) => !keys.has(k),
+        (aliasKey) => !keys.has(aliasKey),
       )
       expect(stale).toStrictEqual([])
     })
@@ -957,14 +957,14 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     test('states a reason for every entry', () => {
       const empty = [...Object.entries(MCP_ONLY), ...Object.entries(REST_ONLY)]
         .filter(([, reason]) => reason.trim().length < 10)
-        .map(([k]) => k)
+        .map(([routeKey]) => routeKey)
       expect(empty).toStrictEqual([])
     })
 
     test('aliases only names that differ from the derived one', () => {
       const redundant = Object.entries(TOOL_NAME_ALIASES)
         .filter(([key, alias]) => snakeCase(key.split(':')[1]) === alias)
-        .map(([k]) => k)
+        .map(([routeKey]) => routeKey)
       expect(redundant).toStrictEqual([])
     })
   })
