@@ -58,7 +58,12 @@ const StatusBadge = function StatusBadge({ status }: { status: Sprint['status'] 
   )
 }
 
-/** Data stays prop-owned. A same-URL server refresh changes the list, not an open draft. */
+/**
+ * Data stays prop-owned. A same-URL server refresh changes the list, not an open draft.
+ *
+ * @param {{ projectId: string; workspaceSlug: string; initialSprints: Sprint[]; initialIssues?: SprintIssue[]; allSprints?: Sprint[]; mode?: SprintListMode; project?: ProjectIdentity }} props The project scope and server-supplied sprint list, canonical sprints, and issues.
+ * @returns {JSX.Element} The sprint list and its creation, editing, and issue controls.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SprintManager = function SprintManager({
   projectId,

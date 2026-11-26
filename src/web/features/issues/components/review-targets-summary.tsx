@@ -21,7 +21,12 @@ const STATUS_LABELS = {
 }
 const VISIBLE_TARGET_COUNT = 1
 
-/** One native link keeps review context visible in every issue layout, including empty selection. */
+/**
+ * One native link keeps review context visible in every issue layout, including empty selection.
+ *
+ * @param {{ issue: ReviewableIssue }} props The issue identity, authorized workspace, and review targets.
+ * @returns {JSX.Element} A link with the current review target summary and status.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ReviewTargetsSummary = function ReviewTargetsSummary({ issue }: { issue: ReviewableIssue }): JSX.Element {
   const targets = issue.reviewTargets.filter((entry) => entry.status !== 'done')

@@ -39,7 +39,11 @@ afterEach(() => {
   })
 })
 
-/** Shared page/action fixtures execute every read against the fully migrated real schema. */
+/**
+ * Shared page/action fixtures execute every read against the fully migrated real schema.
+ *
+ * @returns {ReturnType<typeof featureDatabase>} The migrated test database seeded with planning entities and registered for teardown.
+ */
 export const featureDatabase = function featureDatabase() {
   const database = createTestDatabase()
   databases.push(database)
@@ -123,7 +127,12 @@ export const actionFixture = function actionFixture(
   return { invoke, transport, invalidated, env, kv, r2, oauthKV, ...database }
 }
 
-/** Native action test boundary uses the browser's actual submitted fields. */
+/**
+ * Native action test boundary uses the browser's actual submitted fields.
+ *
+ * @param {Record<string, string | number>} values The named form field values a browser would submit.
+ * @returns {FormData} The form with numeric values converted to strings.
+ */
 export const formData = function formData(values: Record<string, string | number>): FormData {
   const data = new FormData()
   Iterable.forEach(Object.entries(values), ([name, value]) => {

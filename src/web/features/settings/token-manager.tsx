@@ -20,7 +20,12 @@ import type { NewTokenResult, Token } from './types.ts'
 
 export { formatTokenScopes } from './token-scope-label.ts'
 
-/** The one-time secret is client-only mutation state. The token list always comes from SSR. */
+/**
+ * The one-time secret is client-only mutation state. The token list always comes from SSR.
+ *
+ * @param {{ workspaceSlug: string; initialTokens: Token[]; mcpUrl: string | null; mcpCommandTemplate?: string | null }} props The workspace, server-supplied token list, and optional MCP command template.
+ * @returns {JSX.Element} The token list and controls for creating and revoking tokens.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TokenManager = function TokenManager({
   workspaceSlug,

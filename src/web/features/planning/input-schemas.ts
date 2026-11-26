@@ -125,7 +125,12 @@ export const MetricsWindowSchema = Schema.Struct({
   ),
 )
 
-/** Calendar input offset is semantic data, preserving original local-midnight timestamps. */
+/**
+ * Calendar input offset is semantic data, preserving original local-midnight timestamps.
+ *
+ * @param {string} value The calendar date string from the form input.
+ * @returns {number} The local timezone offset at that date's midnight, in minutes.
+ */
 export const calendarOffset = function calendarOffset(value: string): number {
   if (!value) {
     return EMPTY_DATE_OFFSET_MINUTES

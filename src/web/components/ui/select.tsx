@@ -30,7 +30,12 @@ export interface SelectProps {
   className?: string
 }
 
-/** Translate legacy options into Base UI selection. No app-owned dropdown state. */
+/**
+ * Translate legacy options into Base UI selection. No app-owned dropdown state.
+ *
+ * @param {SelectProps} props The choices, selected value, change handler, and optional appearance and accessibility settings.
+ * @returns {JSX.Element} The controlled Base UI select for the supplied choices.
+ */
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function Select({
   options,

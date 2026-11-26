@@ -16,7 +16,12 @@ const messages = function messages(value: unknown): string[] {
   }
   return []
 }
-/** Display Standard Schema issues without inventing a second validation layer. */
+/**
+ * Display Standard Schema issues without inventing a second validation layer.
+ *
+ * @param {{ errors: Readonly<unknown[]>; children?: ReactNode }} props The validation issues and optional content to display alongside them.
+ * @returns {null | JSX.Element} An alert with distinct error messages, or null when no messages are present.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FormErrors = function FormErrors({
   errors,

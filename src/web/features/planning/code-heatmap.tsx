@@ -84,7 +84,12 @@ const HeatmapRow = function HeatmapRow({
     </a>
   )
 }
-/** Claim/contention and breadcrumb drill-down are shareable server navigations, never mount fetches. */
+/**
+ * Claim/contention and breadcrumb drill-down are shareable server navigations, never mount fetches.
+ *
+ * @param {{ data: CodeHeatmapResponse | null; mode: HeatmapMode; initialUrl: string; error?: string | null }} props The heatmap response, active count mode, current URL, and optional error.
+ * @returns {JSX.Element} The selected code heatmap with path navigation and its empty or error state.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CodeHeatmap = function CodeHeatmap({
   data,

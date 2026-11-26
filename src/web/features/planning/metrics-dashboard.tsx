@@ -213,7 +213,12 @@ const FactoryHealthBand = function FactoryHealthBand({
     </SectionBand>
   )
 }
-/** All primary charts and heatmap arrive in SSR props. Applying a range is a normal GET. */
+/**
+ * All primary charts and heatmap arrive in SSR props. Applying a range is a normal GET.
+ *
+ * @param {{ projectId: string; workspaceSlug: string; initialMetrics: FlowMetrics; initialUrl: string; initialRange?: RangeState; initialHeatmap?: CodeHeatmapResponse | null; heatmapMode?: HeatmapMode; heatmapError?: string | null }} props The project scope, server-rendered metrics, range, and optional heatmap result.
+ * @returns {JSX.Element} The project metrics view with its URL-backed range controls.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MetricsDashboard = function MetricsDashboard({
   projectId,

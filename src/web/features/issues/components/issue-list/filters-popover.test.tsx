@@ -6,7 +6,15 @@ import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFiltersPopoverPosition } from './filters-popover.tsx'
 
-/** The jsdom environment has no layout: every rect is 0×0 unless stubbed. */
+/**
+ * The jsdom environment has no layout: every rect is 0×0 unless stubbed.
+ *
+ * @param {number} top The bounding rectangle's top edge in pixels.
+ * @param {number} left The bounding rectangle's left edge in pixels.
+ * @param {number} height The desired height in pixels.
+ * @param {number} width The desired width in pixels.
+ * @returns {DOMRect} The fixture dimensions and derived bottom and right edges.
+ */
 const rectAt = function rectAt(top: number, left = 10, height = 24, width = 100): DOMRect {
   return {
     top,

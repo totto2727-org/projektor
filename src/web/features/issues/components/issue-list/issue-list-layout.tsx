@@ -30,7 +30,12 @@ interface IssueListLayoutProps {
   createModal: ReturnType<typeof useCreateIssueModal>
 }
 
-/** Banners + toolbar + count/view-toggle row — everything above the main content area. */
+/**
+ * Banners + toolbar + count/view-toggle row — everything above the main content area.
+ *
+ * @param {IssueListLayoutProps} props The issue-list state for filters, search, saved views, and creation.
+ * @returns {JSX.Element} The controls for the current issue view and its result summary.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const IssueListTop = function IssueListTop({
   workspaceSlug,
@@ -126,7 +131,12 @@ const IssueListTop = function IssueListTop({
   )
 }
 
-/** Main content area (search/board/backlog/list) + the create-issue modal. */
+/**
+ * Main content area (search/board/backlog/list) + the create-issue modal.
+ *
+ * @param {IssueListLayoutProps} props The filtered issues and their list, search, and creation state.
+ * @returns {JSX.Element} The selected issue content and any open creation form.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const IssueListMain = function IssueListMain({
   view,
@@ -185,7 +195,12 @@ const IssueListMain = function IssueListMain({
   )
 }
 
-/** Assembles the toolbar, header, main content, and modals from the parent list's hook state. */
+/**
+ * Assembles the toolbar, header, main content, and modals from the parent list's hook state.
+ *
+ * @param {IssueListLayoutProps} props The parent list's state and action callbacks.
+ * @returns {JSX.Element} The issue view with bulk actions scoped to its filtered issues.
+ */
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function IssueListLayout(props: IssueListLayoutProps): JSX.Element {
   return (
