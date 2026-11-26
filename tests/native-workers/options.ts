@@ -26,6 +26,30 @@ const prepareCoreArtifact = function prepareCoreArtifact(): Promise<void> {
   return building
 }
 
+const nativeCoreModuleType = function nativeCoreModuleType(
+  extension: string,
+): 'ESModule' | 'CommonJS' | 'CompiledWasm' | 'Text' | undefined {
+  switch (extension) {
+    case '.js':
+    case '.mjs': {
+      return 'ESModule'
+    }
+    case '.cjs': {
+      return 'CommonJS'
+    }
+    case '.wasm': {
+      return 'CompiledWasm'
+    }
+    case '.json':
+    case '.txt': {
+      return 'Text'
+    }
+    default: {
+      return undefined
+    }
+  }
+}
+
 /** Compile the same official native Core bridge used by production and browser acceptance. */
 export const nativeCoreWorker = async function nativeCoreWorker(runnerName: string) {
   if (!runnerName) {
@@ -39,16 +63,7 @@ export const nativeCoreWorker = async function nativeCoreWorker(runnerName: stri
       .map(async (entry) => {
         const path = join(entry.parentPath, entry.name)
         const extension = extname(path)
-        const type =
-          extension === '.js' || extension === '.mjs'
-            ? ('ESModule' as const)
-            : extension === '.cjs'
-              ? ('CommonJS' as const)
-              : extension === '.wasm'
-                ? ('CompiledWasm' as const)
-                : extension === '.json' || extension === '.txt'
-                  ? ('Text' as const)
-                  : undefined
+        const type = nativeCoreModuleType(extension)
         if (!type) {
           throw new Error(`Unsupported native Core build artifact: ${path}`)
         }

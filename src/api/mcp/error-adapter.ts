@@ -41,6 +41,13 @@ const truncate = function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text
 }
 
+const renderDetailValue = function renderDetailValue(value: unknown): string {
+  if (globalThis.Array.isArray(value)) {
+    return value.join(', ')
+  }
+  return Predicate.isString(value) ? value : JSON.stringify(value)
+}
+
 /*
  * Not every MCP host surfaces the JSON-RPC 2.0 `error.data` member to the calling
  * model — many render only `code`/`message`. `data` stays the primary, complete
@@ -51,11 +58,7 @@ const truncate = function truncate(text: string, max: number): string {
 const summarizeDetails = function summarizeDetails(details: Record<string, unknown>): string {
   const summary = Object.entries(details)
     .map(([key, value]) => {
-      const rendered = globalThis.Array.isArray(value)
-        ? value.join(', ')
-        : Predicate.isString(value)
-          ? value
-          : JSON.stringify(value)
+      const rendered = renderDetailValue(value)
       return `${key}: ${truncate(rendered, MAX_DETAIL_VALUE_CHARS)}`
     })
     .join('; ')
