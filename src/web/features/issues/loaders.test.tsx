@@ -62,6 +62,14 @@ const selected: RequestScope = { ...scope, selection: { kind: 'project', workspa
 const listUrl = new URL('https://front.test/issues?workspace=workspace')
 const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=workspace')
 
+const expectRenderedText = function expectRenderedText(html: string, fragments: Readonly<string[]>): void {
+  expect(fragments.filter((fragment) => !html.includes(fragment))).toStrictEqual([])
+}
+
+const expectHiddenText = function expectHiddenText(html: string, fragments: Readonly<string[]>): void {
+  expect(fragments.filter((fragment) => html.includes(fragment))).toStrictEqual([])
+}
+
 describe('complete direct D1 issues SSR loaders', () => {
   afterEach(() => {
     Iterable.forEach(databases.splice(0), (data) => {
@@ -145,9 +153,11 @@ describe('complete direct D1 issues SSR loaders', () => {
     const mine = await data.run(loadMyIssues(scope, new URL('https://front.test/my-issues')))
     expect(mine.issues.find((entry) => entry.id === 'issue-a')?.reviewTargets).toStrictEqual(targets)
     const focused = await data.run(loadIssue(scope, new URL(`${detailUrl}&tab=review-targets`)))
-    expect(focused?.initialData.reviewTargetsFocused).toBe(true)
-    expect(focused?.initialData.issue.reviewTargets).toStrictEqual(targets)
-    expect(focused?.initialData.attachments.find((entry) => entry.id === 'file-a')?.reviewStatus).toBe('fixing')
+    expect([
+      focused?.initialData.reviewTargetsFocused,
+      focused?.initialData.issue.reviewTargets,
+      focused?.initialData.attachments.find((entry) => entry.id === 'file-a')?.reviewStatus,
+    ]).toStrictEqual([true, targets, 'fixing'])
     const html = renderToString(await data.run(renderIssues(scope, listUrl)))
     expect(html).toContain('Review targets: Review first +1 (レビュー中)')
     expect(html).not.toContain('Hidden target')
@@ -184,8 +194,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(refreshed?.initialData.page.total).toBe(1)
     const html = renderToString(await data.run(renderIssues(scope, searchUrl)))
     expect(html).toContain('Original issue')
-    expect(html).not.toContain('Second project issue')
-    expect(html).not.toContain('Secret review')
+    expectHiddenText(html, ['Second project issue', 'Secret review'])
   })
 
   test.each(['done', 'all', '', 'invalid'])(
@@ -217,23 +226,19 @@ describe('complete direct D1 issues SSR loaders', () => {
       taskTypes,
       project,
     )
-    expect(qs.get('project')).toBe(project.id)
-    expect(qs.has('projectId')).toBe(false)
-    expect(qs.get('statusIds')).toBe('todo,done')
-    expect(qs.get('priorities')).toBe('high')
-    expect(qs.get('excludeTypeIds')).toBe('epic-type')
-    expect(qs.has('completedAfter')).toBe(true)
-    expect(qs.has('completedBefore')).toBe(true)
+    expect([qs.get('project'), qs.has('projectId')]).toStrictEqual([project.id, false])
+    expect([qs.get('statusIds'), qs.get('priorities'), qs.get('excludeTypeIds')]).toStrictEqual([
+      'todo,done',
+      'high',
+      'epic-type',
+    ])
+    expect([qs.has('completedAfter'), qs.has('completedBefore')]).toStrictEqual([true, true])
   })
 
   test('covers SSR-renders original rows, selectors, story points, and modal trigger before effects', async () => {
     const data = fixture()
     const html = renderToString(await data.run(renderIssues(scope, listUrl)))
-    expect(html).toContain('Original issue')
-    expect(html).toContain('3')
-    expect(html).toContain('New issue')
-    expect(html).toContain('Filter by project')
-    expect(html).toContain('workspace=workspace')
+    expectRenderedText(html, ['Original issue', '3', 'New issue', 'Filter by project', 'workspace=workspace'])
     expect(html).not.toContain('Loading issues')
   })
 
@@ -249,9 +254,11 @@ describe('complete direct D1 issues SSR loaders', () => {
       ),
     )
     expect(result?.scope.selection).toStrictEqual({ kind: 'project', project, workspace })
-    expect(result?.initialData.currentUserId).toBe(scope.user.id)
-    expect(result?.initialData.comments[0].author_id).toBe(scope.user.id)
-    expect(result?.initialData.attachments[0].kind).toBe('url')
+    expect([
+      result?.initialData.currentUserId,
+      result?.initialData.comments[0].author_id,
+      result?.initialData.attachments[0].kind,
+    ]).toStrictEqual([scope.user.id, scope.user.id, 'url'])
   })
 
   test('renders the actual detail projection without the list-only assignee_name alias', async () => {
@@ -265,8 +272,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(list.items[0].assignee_name).toBe('user')
     expect(list.items[0].body).toBeNull()
     const html = renderToString(await data.run(renderIssue(selected, url, params)))
-    expect(html).toContain('Original issue')
-    expect(html).toContain('<strong>Original description</strong>')
+    expectRenderedText(html, ['Original issue', '<strong>Original description</strong>'])
   })
 
   test('preserves an explicit archived project filter without granting hidden archived projects', async () => {
@@ -305,11 +311,13 @@ describe('complete direct D1 issues SSR loaders', () => {
         }),
       ),
     )
-    expect(html).toContain('Original issue')
-    expect(html).toContain('<strong>Original description</strong>')
-    expect(html).toContain('Existing comment')
-    expect(html).toContain('Reference')
-    expect(html).toContain('Edit story points')
+    expectRenderedText(html, [
+      'Original issue',
+      '<strong>Original description</strong>',
+      'Existing comment',
+      'Reference',
+      'Edit story points',
+    ])
     expect(html).not.toContain('No issue ID')
   })
 
@@ -407,11 +415,13 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html.match(/<table/gu)).toHaveLength(1)
     expect(html).toContain('105 issues')
     expect(html.indexOf('Old review first')).toBeLessThan(html.indexOf('New todo'))
-    expect(html).not.toContain('Closed work excluded')
-    expect(html).not.toContain('Second project issue')
-    expect(html).not.toContain('Hidden secret')
-    expect(html).not.toContain('Other membership issue')
-    expect(html).not.toContain('Include done')
+    expectHiddenText(html, [
+      'Closed work excluded',
+      'Second project issue',
+      'Hidden secret',
+      'Other membership issue',
+      'Include done',
+    ])
   })
 
   test('loads complete board sets and performs project-scoped real FTS search', async () => {
