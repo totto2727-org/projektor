@@ -10,9 +10,11 @@ import {
   RegisterAgentSchema,
   StartWorkSchema,
 } from '#contracts/inputs/agents.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
 import { agentSessionCredential, assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
@@ -81,20 +83,20 @@ export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: 
   await orm.insert(schema.agentSessions).values({
     id,
     workspaceId: ctx.workspaceId,
-    issueId: issueId ?? null,
+    issueId: issueId ?? SQL_NULL,
     /*
      * PROJ-894: the credential is recorded so an omitted agentId can later resolve to
      * this session. token_id keeps its FK meaning (api_tokens.id), so it is only set
      * for pk/pat credentials; an OAuth grant id lives in credential_id alone.
      */
-    tokenId: ctx.auth?.credentialId && isApiTokenMethod(ctx.auth.method) ? ctx.auth.credentialId : null,
-    authMethod: ctx.auth?.method ?? null,
-    credentialId: agentSessionCredential(ctx) ?? null,
+    tokenId: ctx.auth?.credentialId && isApiTokenMethod(ctx.auth.method) ? ctx.auth.credentialId : SQL_NULL,
+    authMethod: ctx.auth?.method ?? SQL_NULL,
+    credentialId: agentSessionCredential(ctx) ?? SQL_NULL,
     name,
     status: 'active',
     startedAt: now,
     lastHeartbeatAt: now,
-    endedAt: null,
+    endedAt: SQL_NULL,
   })
 
   const row = await orm
@@ -365,7 +367,7 @@ export const listActiveAgents = async function listActiveAgents(
     issueRef:
       session.issueId && Predicate.isNotNullish(projectKey) && String.isNonEmpty(projectKey)
         ? `${projectKey}-${issueNumber}`
-        : null,
+        : JSON_NULL,
     live: session.lastHeartbeatAt > cutoff,
   }))
 

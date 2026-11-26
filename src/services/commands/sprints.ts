@@ -12,6 +12,7 @@ import {
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 import * as sprintQueries from '#services/sprints.ts'
 import type { Sprint } from '#services/sprints.ts'
 
@@ -109,10 +110,10 @@ export const createSprint = async function createSprint(
       ['workspaceId', ctx.workspaceId],
       ['projectId', projectId],
       ['name', name],
-      ['goal', goal ?? null],
+      ['goal', goal ?? SQL_NULL],
       ['status', 'planned'],
-      ['startDate', startDate ?? null],
-      ['endDate', endDate ?? null],
+      ['startDate', startDate ?? SQL_NULL],
+      ['endDate', endDate ?? SQL_NULL],
       ['createdAt', now],
       ['updatedAt', now],
     ]),
@@ -139,16 +140,16 @@ const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, n
     setData.name = data.name
   }
   if ('goal' in data) {
-    setData.goal = data.goal ?? null
+    setData.goal = data.goal ?? SQL_NULL
   }
   if (Predicate.isNotNullish(data.status)) {
     setData.status = data.status
   }
   if ('startDate' in data) {
-    setData.startDate = data.startDate ?? null
+    setData.startDate = data.startDate ?? SQL_NULL
   }
   if ('endDate' in data) {
-    setData.endDate = data.endDate ?? null
+    setData.endDate = data.endDate ?? SQL_NULL
   }
 
   return setData
@@ -244,7 +245,7 @@ export const deleteSprint = async function deleteSprint(ctx: ServiceCtx, id: str
    */
   await orm
     .update(schema.issues)
-    .set({ sprintId: null })
+    .set({ sprintId: SQL_NULL })
     .where(and(eq(schema.issues.sprintId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
   await orm
     .delete(schema.sprints)

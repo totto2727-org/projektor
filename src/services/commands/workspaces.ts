@@ -12,10 +12,12 @@ import {
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
 } from '#contracts/inputs/workspaces.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import type { WorkspaceBrand } from '#db'
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 import * as data from '#services'
 import { buildMcpAddCommand } from '#types'
 
@@ -264,7 +266,7 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
 
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
-  const expiresAt = expiresInDays ? now + expiresInDays * SECONDS_PER_DAY : null
+  const expiresAt = expiresInDays ? now + expiresInDays * SECONDS_PER_DAY : SQL_NULL
 
   const orm = drizzle(ctx.db, { schema })
   await orm.insert(schema.apiTokens).values(
@@ -471,12 +473,12 @@ const writeBrand = async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBr
 
 const toBrandDto = function toBrandDto(brand: WorkspaceBrand, workspaceSlug: string): WorkspaceBrandDto {
   return fieldsInOrder([
-    ['displayName', brand.displayName ?? null],
-    ['accent', brand.accent ?? null],
-    ['onAccent', brand.onAccent ?? null],
-    ['fontFamily', brand.fontFamily ?? null],
-    ['fontUrl', brand.fontUrl ?? null],
-    ['logoUrl', brand.logoR2Key ? `/api/workspaces/${workspaceSlug}/brand/logo` : null],
+    ['displayName', brand.displayName ?? JSON_NULL],
+    ['accent', brand.accent ?? JSON_NULL],
+    ['onAccent', brand.onAccent ?? JSON_NULL],
+    ['fontFamily', brand.fontFamily ?? JSON_NULL],
+    ['fontUrl', brand.fontUrl ?? JSON_NULL],
+    ['logoUrl', brand.logoR2Key ? `/api/workspaces/${workspaceSlug}/brand/logo` : JSON_NULL],
   ])
 }
 
