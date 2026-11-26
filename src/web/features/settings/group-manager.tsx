@@ -2,10 +2,9 @@
 
 import { useForm } from '@tanstack/react-form'
 import { Array, Schema } from 'effect'
-import { useActionState, useEffect, useRef, useState } from 'react'
-import type { JSX, KeyboardEvent } from 'react'
+import { useActionState, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 
-import { hasMultipleItems } from '#contracts/item-count.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { EmptyState } from '@/components/ui/empty-state.tsx'
@@ -26,9 +25,8 @@ import { renderGroupGrantRows, renderGroupMemberRows } from './group-editor-rows
 import { GroupsList } from './group-list.tsx'
 import { MembersOverview } from './group-members-overview.tsx'
 import { adminRole, ROLES } from './group-roles.ts'
+import { GroupSettingsTabs } from './group-settings-tabs.tsx'
 import { CARD, H2, INPUT } from './group-styles.ts'
-import { nextTabId } from './group-tab-navigation.ts'
-import type { Tab } from './group-tab-navigation.ts'
 import {
   CreateGroupInputSchema,
   GroupDescriptionInputSchema,
@@ -389,9 +387,7 @@ export const GroupManager = function GroupManager({
   const [operationBusy, setBusy] = useState(false)
   const [createResult, createAction, createPending] = useActionState(createGroup, null)
   const busy = operationBusy || createPending
-  const tabRefs = useRef<Partial<Record<Tab, HTMLAnchorElement | null>>>({})
   const admin = adminRole(data.role)
-  const tabs: Tab[] = admin ? ['members', 'groups'] : ['groups']
   const activeTab = admin ? view : 'groups'
   const detail = data.details.find((item) => item.id === selected)
   const [defaults] = useState(() => ({ workspaceSlug, name: '' }))
@@ -422,13 +418,6 @@ export const GroupManager = function GroupManager({
       return
     }
     setBusy(false)
-  }
-  const onTabKeyDown = function onTabKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    const next = nextTabId(tabs, activeTab, event.key)
-    if (next) {
-      event.preventDefault()
-      tabRefs.current[next]?.focus()
-    }
   }
   const groups = (
     <>
@@ -522,32 +511,7 @@ export const GroupManager = function GroupManager({
           {error}
         </p>
       )}
-      {hasMultipleItems(tabs) && (
-        <div
-          role='tablist'
-          aria-label='Groups'
-          className='flex gap-1 border-b border-border mb-4'
-          onKeyDown={onTabKeyDown}
-        >
-          {tabs.map((id) => (
-            <a
-              key={id}
-              ref={(element) => {
-                tabRefs.current[id] = element
-              }}
-              href={`/settings/groups?${new URLSearchParams({ workspace: workspaceSlug, view: id })}`}
-              role='tab'
-              id={`group-tab-${id}`}
-              aria-selected={activeTab === id}
-              aria-controls={`group-tabpanel-${id}`}
-              tabIndex={activeTab === id ? 0 : -1}
-              className={`px-4 py-2 text-[0.85rem] font-semibold border-b-2 -mb-px bg-transparent cursor-pointer ${activeTab === id ? 'border-accent text-text-base' : 'border-transparent text-text-muted hover:text-text-base'}`}
-            >
-              {id === 'members' ? 'Members' : 'Groups'}
-            </a>
-          ))}
-        </div>
-      )}
+      {admin && <GroupSettingsTabs activeTab={activeTab} workspaceSlug={workspaceSlug} />}
       {admin && activeTab === 'members' && (
         <div role='tabpanel' id='group-tabpanel-members' aria-labelledby='group-tab-members'>
           <MembersOverview members={data.members} memberGroups={data.memberGroups} />
