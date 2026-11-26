@@ -39,7 +39,7 @@ import { bumpRateCounter } from '#api/middleware/rate-limit.ts'
  */
 export const isOAuthAccessToken = function isOAuthAccessToken(request: Request): boolean {
   const header = request.headers.get('Authorization')
-  if (!header?.startsWith('Bearer ')) {
+  if (header?.startsWith('Bearer ') !== true) {
     return false
   }
   return header.slice(7).split(':').length === 3

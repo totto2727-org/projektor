@@ -125,7 +125,7 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
 
 feedbackPublicRouter.post('/submit', async (httpContext) => {
   const auth = httpContext.req.header('Authorization')
-  if (!auth?.startsWith('Bearer ')) {
+  if (auth?.startsWith('Bearer ') !== true) {
     return httpContext.json({ error: 'Unauthorized' }, HTTP_UNAUTHORIZED)
   }
   const token = auth.slice(7)

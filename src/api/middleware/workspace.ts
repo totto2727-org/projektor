@@ -66,7 +66,7 @@ export const workspaceMiddleware = async function workspaceMiddleware(
   const slug =
     httpContext.req.header('X-Workspace-Slug') ??
     (routingEnabled ? httpContext.req.header('host')?.split('.')[0] : undefined) ??
-    (httpContext.get('allowQueryWorkspaceFallback') ? httpContext.req.query('workspace') : undefined)
+    (httpContext.get('allowQueryWorkspaceFallback') === true ? httpContext.req.query('workspace') : undefined)
   const workspaceId =
     Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? undefined : mcpWorkspaceIdFromPath(httpContext.req.path)
   if (

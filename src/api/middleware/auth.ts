@@ -45,7 +45,7 @@ const decodeVerifiedOauthGrant = Schema.decodeUnknownOption(VerifiedApiOauthGran
 
 const requestActor = function requestActor(httpContext: Context<HonoEnv>): CoreActor {
   const authorization = httpContext.req.header('Authorization')
-  const bearer = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
+  const bearer = authorization?.startsWith('Bearer ') === true ? authorization.slice(7) : undefined
   const accessJwt =
     httpContext.req.header('Cf-Access-Jwt-Assertion') ?? accessCookie(httpContext.req.header('cookie') ?? '')
   const props: unknown = httpContext.executionCtx.props
