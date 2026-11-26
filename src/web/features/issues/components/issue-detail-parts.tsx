@@ -162,13 +162,13 @@ export const ShareButton = function ShareButton({
   issueId: string
   workspaceSlug?: string
 }): JSX.Element {
-  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [shareUrl, setShareUrl] = useState<string>()
   const [sharingLoading, setSharingLoading] = useState(false)
   const [copiedShare, setCopiedShare] = useState(false)
 
   const createShareLink = async function createShareLink(): Promise<void> {
     if (Predicate.isNotNullish(shareUrl) && String.isNonEmpty(shareUrl)) {
-      setShareUrl(null)
+      setShareUrl(undefined)
       return
     }
     setSharingLoading(true)
@@ -1838,7 +1838,7 @@ const TypeField = function TypeField({
   issue: IssueData
   taskTypes: TaskType[]
   updatingType: boolean
-  typeChangeError: string | null
+  typeChangeError: string | null | undefined
   changeType: (typeId: string) => void
 }): JSX.Element {
   if (Array.isArrayNonEmpty(taskTypes)) {
@@ -1983,7 +1983,7 @@ export const SidebarPanel = function SidebarPanel({
   updatingPriority: boolean
   updatingAssignee: boolean
   updatingType: boolean
-  typeChangeError: string | null
+  typeChangeError: string | null | undefined
   changeStatus: (statusId: string) => void
   changePriority: (priority: string) => void
   changeAssignee: (assigneeId: string) => void

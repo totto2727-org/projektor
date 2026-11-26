@@ -29,12 +29,12 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
   const [updatingPriority, setUpdatingPriority] = useState(false)
   const [updatingAssignee, setUpdatingAssignee] = useState(false)
   const [updatingType, setUpdatingType] = useState(false)
-  const [typeChangeError, setTypeChangeError] = useState<string | null>(null)
-  const [mutationError, setMutationError] = useState<string | null>(null)
+  const [typeChangeError, setTypeChangeError] = useState<string>()
+  const [mutationError, setMutationError] = useState<string>()
 
   const changeStatus = async function changeStatus(statusId: string): Promise<void> {
     setUpdatingStatus(true)
-    setMutationError(null)
+    setMutationError(undefined)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { statusId } }))
     } catch (error) {
@@ -44,7 +44,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
   }
   const changePriority = async function changePriority(priority: string): Promise<void> {
     setUpdatingPriority(true)
-    setMutationError(null)
+    setMutationError(undefined)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { priority } }))
     } catch (error) {
@@ -54,7 +54,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
   }
   const changeType = async function changeType(typeId: string): Promise<void> {
     setUpdatingType(true)
-    setTypeChangeError(null)
+    setTypeChangeError(undefined)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { typeId: typeId || null } }))
     } catch (error) {
@@ -64,7 +64,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
   }
   const changeAssignee = async function changeAssignee(assigneeId: string): Promise<void> {
     setUpdatingAssignee(true)
-    setMutationError(null)
+    setMutationError(undefined)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { assigneeId: assigneeId || null } }))
     } catch (error) {
@@ -136,7 +136,7 @@ const IssueDetailView = function IssueDetailView(
     updatingPriority: boolean
     updatingAssignee: boolean
     updatingType: boolean
-    typeChangeError: string | null
+    typeChangeError: string | undefined
     changeStatus: (statusId: string) => void
     changePriority: (priority: string) => void
     changeAssignee: (assigneeId: string) => void
