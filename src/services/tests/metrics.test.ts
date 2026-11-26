@@ -1,7 +1,7 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, onTestFinished, test, vi } from 'vite-plus/test'
 
 import { SQL_NULL } from '#db/sql-null.ts'
 import { migratedDb } from '#db/test/helpers.ts'
@@ -21,16 +21,16 @@ const now = 3 * DAY
  * @param {() => void} onQuery - The function to call before each read.
  * @returns {D1Database} The D1 read methods that use this database.
  */
-const readDatabase = function readDatabase(sqlite: DatabaseSync, onQuery: () => void = () => {}): D1Database {
+const readDatabase = function readDatabase(sqlite: DatabaseSync, onQuery?: () => void): D1Database {
   const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       all: async () => {
-        onQuery()
+        onQuery?.()
         return { results: sqlite.prepare(sql).all(...bindings) }
       },
       bind: (...values: SQLInputValue[]) => prepare(sql, values),
       raw: async () => {
-        onQuery()
+        onQuery?.()
         return sqlite
           .prepare(sql)
           .all(...bindings)
@@ -48,58 +48,33 @@ const distribution = (value: number): { count: number; avg: number; p50: number;
   p90: value,
 })
 
-describe('shared metrics migrated SQLite reads', () => {
-  let sqlite: DatabaseSync
-  let db: D1Database
-
-  beforeEach(() => {
-    sqlite = migratedDb()
-    db = readDatabase(sqlite)
-    sqlite.exec(`
-			INSERT INTO workspaces (id,name,slug,created_at) VALUES ('wa','A','a',1),('wb','B','b',1);
-			INSERT INTO users (id,email,name,created_at) VALUES ('u','user@example.com','U',1);
-			INSERT INTO projects (id,workspace_id,name,key,created_at,updated_at) VALUES
-			 ('pa','wa','A','A',1,1),('pb','wb','B','B',1,1),('other','wa','Other','OTHER',1,1);
-			INSERT INTO task_types (id,workspace_id,key,name) VALUES ('bug','wa','bug','Bug');
-			INSERT INTO agent_sessions (id,workspace_id,name,started_at,last_heartbeat_at) VALUES ('agent','wa','Agent',1,1);
-		`)
-    const insert = sqlite.prepare(`INSERT INTO issues
+const seedMetricIssues = function seedMetricIssues(sqlite: DatabaseSync): void {
+  const insert = sqlite.prepare(`INSERT INTO issues
 			(id,workspace_id,project_id,number,title,status,created_by_id,created_at,updated_at,ready_at,claimed_at,in_review_at,done_at,review_bounce_count,type_id)
 			VALUES (?,?,?,?, 'Issue',?, 'u',?,?, ?,?,?,?, ?,?)`)
-    insert.run('done', 'wa', 'pa', 1, 'done', DAY + 10, DAY + 70, DAY + 20, DAY + 30, DAY + 50, DAY + 70, 2, 'bug')
-    insert.run('old', 'wa', 'pa', 2, 'done', 1, DAY - 1, SQL_NULL, SQL_NULL, SQL_NULL, DAY - 1, 0, SQL_NULL)
-    insert.run('future-open', 'wa', 'pa', 3, 'in_progress', now, now, SQL_NULL, now, SQL_NULL, SQL_NULL, 0, SQL_NULL)
-    insert.run(
-      'foreign',
-      'wb',
-      'pb',
-      1,
-      'done',
-      DAY + 10,
-      DAY + 70,
-      DAY + 20,
-      DAY + 30,
-      DAY + 50,
-      DAY + 70,
-      10,
-      SQL_NULL,
-    )
-    insert.run(
-      'other-project',
-      'wa',
-      'other',
-      1,
-      'done',
-      DAY + 10,
-      DAY + 70,
-      DAY + 20,
-      DAY + 30,
-      DAY + 50,
-      DAY + 70,
-      10,
-      SQL_NULL,
-    )
-    sqlite.exec(`
+  insert.run('done', 'wa', 'pa', 1, 'done', DAY + 10, DAY + 70, DAY + 20, DAY + 30, DAY + 50, DAY + 70, 2, 'bug')
+  insert.run('old', 'wa', 'pa', 2, 'done', 1, DAY - 1, SQL_NULL, SQL_NULL, SQL_NULL, DAY - 1, 0, SQL_NULL)
+  insert.run('future-open', 'wa', 'pa', 3, 'in_progress', now, now, SQL_NULL, now, SQL_NULL, SQL_NULL, 0, SQL_NULL)
+  insert.run('foreign', 'wb', 'pb', 1, 'done', DAY + 10, DAY + 70, DAY + 20, DAY + 30, DAY + 50, DAY + 70, 10, SQL_NULL)
+  insert.run(
+    'other-project',
+    'wa',
+    'other',
+    1,
+    'done',
+    DAY + 10,
+    DAY + 70,
+    DAY + 20,
+    DAY + 30,
+    DAY + 50,
+    DAY + 70,
+    10,
+    SQL_NULL,
+  )
+}
+
+const seedMetricActivity = function seedMetricActivity(sqlite: DatabaseSync): void {
+  sqlite.exec(`
 			INSERT INTO issue_comments (id,issue_id,author_id,body,created_at,updated_at,author_kind) VALUES
 			 ('human','done','u','Human',1,1,'human'),('agent-comment','done','u','Agent',1,1,'agent'),('legacy','done','u','Legacy',1,1,NULL);
 			INSERT INTO issue_leases (id,workspace_id,issue_id,agent_session_id,claimed_at,released_at,release_reason) VALUES
@@ -109,11 +84,30 @@ describe('shared metrics migrated SQLite reads', () => {
 			INSERT INTO issue_gate_rejections (id,workspace_id,issue_id,occurred_at) VALUES ('gate','wa','done',${DAY + 50});
 			INSERT INTO wip_cap_denials (id,workspace_id,project_id,issue_id,occurred_at) VALUES ('cap','wa','pa','done',${DAY + 50});
 		`)
+}
+
+const metricFixture = function metricFixture(): { db: D1Database; sqlite: DatabaseSync } {
+  const sqlite = migratedDb()
+  onTestFinished(() => {
+    sqlite.close()
   })
+  const db = readDatabase(sqlite)
+  sqlite.exec(`
+			INSERT INTO workspaces (id,name,slug,created_at) VALUES ('wa','A','a',1),('wb','B','b',1);
+			INSERT INTO users (id,email,name,created_at) VALUES ('u','user@example.com','U',1);
+			INSERT INTO projects (id,workspace_id,name,key,created_at,updated_at) VALUES
+			 ('pa','wa','A','A',1,1),('pb','wb','B','B',1,1),('other','wa','Other','OTHER',1,1);
+			INSERT INTO task_types (id,workspace_id,key,name) VALUES ('bug','wa','bug','Bug');
+			INSERT INTO agent_sessions (id,workspace_id,name,started_at,last_heartbeat_at) VALUES ('agent','wa','Agent',1,1);
+		`)
+  seedMetricIssues(sqlite)
+  seedMetricActivity(sqlite)
+  return { db, sqlite }
+}
 
-  afterEach(() => sqlite.close())
-
+describe('shared metrics migrated SQLite reads', () => {
   test('preserves the complete windowed output, historical CFD baseline, human attribution and present aging snapshot', async () => {
+    const { db } = metricFixture()
     const result = await runTestEffect(
       getFlowMetrics(db, 'wa', { granularity: 'day', projectId: 'pa', since: DAY, until: now - 1 }, now),
     )
@@ -157,6 +151,7 @@ describe('shared metrics migrated SQLite reads', () => {
   })
 
   test('retains unbounded default distributions and deterministic default day/ISO-week buckets', async () => {
+    const { db } = metricFixture()
     const result = await runTestEffect(getFlowMetrics(db, 'wa', { granularity: 'week', projectId: 'pa' }, now))
     expect(result.leadTime).toStrictEqual(distribution(50))
     expect(result.leadTimeExcluded).toBe(1)
@@ -167,6 +162,7 @@ describe('shared metrics migrated SQLite reads', () => {
   })
 
   test('clamps partial weekly edges and returns empty data without cross-workspace leakage', async () => {
+    const { db } = metricFixture()
     const partial = await runTestEffect(
       getFlowMetrics(db, 'wa', { granularity: 'week', projectId: 'pa', since: DAY + 60, until: DAY + 70 }, now),
     )
@@ -190,6 +186,7 @@ describe('shared metrics migrated SQLite reads', () => {
   })
 
   test('retains claims drill-down, stable count ordering, inclusive bounds and unfiltered total distinct issues', async () => {
+    const { db, sqlite } = metricFixture()
     const insert = sqlite.prepare(
       'INSERT INTO issue_file_claims (id,workspace_id,issue_id,path,claimed_at,released_at) VALUES (?,?,?,?,?,?)',
     )
@@ -232,6 +229,7 @@ describe('shared metrics migrated SQLite reads', () => {
   })
 
   test('retains contention DTO names and tenant/project/default-window filters', async () => {
+    const { db, sqlite } = metricFixture()
     const insert = sqlite.prepare(
       'INSERT INTO claim_conflicts (id,workspace_id,path,rejected_issue_id,holding_issue_id,occurred_at) VALUES (?,?,?,?,?,?)',
     )
@@ -266,16 +264,15 @@ describe('shared metrics migrated SQLite reads', () => {
   })
 
   test('defers SQL execution and reports query failures with the package DataQueryError', async () => {
-    let queries = 0
-    const tracked = readDatabase(sqlite, () => {
-      queries++
-    })
+    const { sqlite } = metricFixture()
+    const recordQuery = vi.fn<() => void>()
+    const tracked = readDatabase(sqlite, recordQuery)
     const flow = getFlowMetrics(tracked, 'wa', { granularity: 'day', projectId: 'pa', since: DAY, until: now }, now)
     const heatmap = getCodeHeatmap(tracked, 'wa', { projectId: 'pa' }, now)
-    expect(queries).toBe(0)
+    expect(recordQuery).not.toHaveBeenCalled()
     await runTestEffect(flow)
     await runTestEffect(heatmap)
-    expect(queries).toBeGreaterThan(0)
+    expect(recordQuery).toHaveBeenCalledWith()
     const failed = {
       prepare: () => {
         throw new Error('database unavailable')
