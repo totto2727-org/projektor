@@ -1,7 +1,6 @@
 import { String, Predicate, Schema } from 'effect'
 import type { Context, Next } from 'hono'
-import { makeCoreClient } from 'projektor/core-client'
-import { CorePublicError } from 'projektor/core-client'
+import { makeCoreClient, CorePublicError } from 'projektor/core-client'
 
 import { unauthorizedChallenge } from '#api/auth/challenge.ts'
 import { apiReply } from '#api/services/reply.ts'
