@@ -14,7 +14,12 @@ export interface AttachmentUploadProps {
   onSubmit?: FormEventHandler<HTMLFormElement>
 }
 
-/** Effront form action owns upload decoding, request limits and canonical SSR refresh. */
+/**
+ * Effront form action owns upload decoding, request limits and canonical SSR refresh.
+ *
+ * @param {AttachmentUploadProps} props The attachment target, workspace, and optional form content and submit handler.
+ * @returns {JSX.Element} The upload form with pending and error feedback.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AttachmentUpload = function AttachmentUpload({
   workspaceSlug,

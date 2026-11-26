@@ -5,7 +5,12 @@ import type { JSX, CSSProperties, ReactNode, Ref } from 'react'
 
 import { Popover as PrimitivePopover } from '@/components/generated/popover.tsx'
 
-/** Compatibility entry point backed by the framework portal, not app portal logic. */
+/**
+ * Compatibility entry point backed by the framework portal, not app portal logic.
+ *
+ * @param {{ into: HTMLElement; vnode: ReactNode }} props The destination element and the content to render there.
+ * @returns {JSX.Element} An open Base UI popover portal for the supplied content.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Portal = function Portal({ into, vnode }: { into: HTMLElement; vnode: ReactNode }): JSX.Element {
   return (
@@ -27,10 +32,14 @@ export interface PopoverProps {
   children: ReactNode
 }
 
-/** Existing callers control visibility and supply coordinates, so no trigger is invented.
+/**
+ * Existing callers control visibility and supply coordinates, so no trigger is invented.
  * Base UI owns the popup and portal. The generated root shares the same context.
  * Generated PopoverContent cannot forward positioner anchors, so use its Base UI popup
  * directly for this compatibility-only coordinate surface, without modifying generation.
+ *
+ * @param {PopoverProps} props The popup content, accessibility metadata, and positioning strategy.
+ * @returns {JSX.Element} The popover positioned according to the chosen strategy.
  */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Popover = function Popover({

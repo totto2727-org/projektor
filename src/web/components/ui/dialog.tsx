@@ -14,7 +14,12 @@ export interface DialogProps {
   children: ReactNode
 }
 
-/** Base UI owns portals, modal focus, dismissal, and scroll locking. */
+/**
+ * Base UI owns portals, modal focus, dismissal, and scroll locking.
+ *
+ * @param {DialogProps} props Controlled visibility, close handling, labels, styles, and dialog content.
+ * @returns {JSX.Element} The Base UI dialog with the caller's body and accessible title.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Dialog = function Dialog({
   open,

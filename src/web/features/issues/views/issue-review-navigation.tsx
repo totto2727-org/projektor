@@ -15,7 +15,12 @@ const REVIEW_LINKS = [
   { review: 'active', label: '未完了の対象' },
 ] satisfies { review: ReviewFilter | null; label: string }[]
 
-/** Native links keep review scope canonical on the server, including without JavaScript. */
+/**
+ * Native links keep review scope canonical on the server, including without JavaScript.
+ *
+ * @param {{ route: IssuesRoute; workspaceSlug: string; project: ProjectSummary | null }} props The issue route, its workspace, and the selected project if any.
+ * @returns {JSX.Element} Native navigation links for the issue review filters.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const IssueReviewNavigation = function IssueReviewNavigation({
   route,

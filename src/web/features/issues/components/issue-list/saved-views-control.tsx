@@ -110,7 +110,12 @@ const SaveViewControl = function SaveViewControl({ saved }: { saved: Saved }): J
   )
 }
 
-/** Views dropdown (apply/delete saved views) + the "Save view" button/input. */
+/**
+ * Views dropdown (apply/delete saved views) + the "Save view" button/input.
+ *
+ * @param {{ saved: Saved }} props The saved view state and its actions for the issue list.
+ * @returns {JSX.Element} The saved views menu and the save control.
+ */
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SavedViewsControl({ saved }: { saved: Saved }): JSX.Element {
   return (

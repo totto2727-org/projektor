@@ -11,7 +11,15 @@ import './markdown.css'
 
 const empty: RenderedMarkdown = { html: '', toc: [] }
 
-/** Local rendering only, no API dispatcher. Debounce and ignore superseded async work. */
+/**
+ * Local rendering only, no API dispatcher. Debounce and ignore superseded async work.
+ *
+ * @param {string} content The Markdown to preview.
+ * @param {MarkdownOptions} options Rendering and Wiki link resolution settings for the document.
+ * @param {RenderedMarkdown} initial Canonical rendered content supplied by the server, when available.
+ * @param {number} delay The debounce interval in milliseconds for local rendering.
+ * @returns {RenderedMarkdown} The canonical preview or the most recent local rendering state.
+ */
 export const useMarkdownPreview = function useMarkdownPreview(
   content: string,
   options: MarkdownOptions = {},

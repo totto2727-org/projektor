@@ -19,7 +19,11 @@ const sections = [
   ],
 ] as const
 
-/** The original help route is intentionally static, so it is fully meaningful in SSR HTML. */
+/**
+ * The original help route is intentionally static, so it is fully meaningful in SSR HTML.
+ *
+ * @returns {ReturnType<typeof HelpPage>} The static getting-started glossary and its introductory text.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const HelpPage = function HelpPage() {
   return (

@@ -9,7 +9,12 @@ export type IssuePagination = Readonly<{
   nextCursor: string | number | null
 }>
 
-/** Native GET controls keep pagination shareable and owned by Effront's public navigation. */
+/**
+ * Native GET controls keep pagination shareable and owned by Effront's public navigation.
+ *
+ * @param {IssuePagination} props The current issues URL and the next cursor, when available.
+ * @returns {false | JSX.Element} The available pagination controls, or false when there is no page to navigate to.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PageNavigation = function PageNavigation({ route, nextCursor }: IssuePagination): false | JSX.Element {
   const params = new URLSearchParams(route.search)

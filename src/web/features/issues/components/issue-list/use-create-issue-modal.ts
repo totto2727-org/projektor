@@ -14,7 +14,12 @@ interface Params {
   projects: ProjectMeta[]
 }
 
-/** Owns the "New issue" modal's form state and submit flow, isolated from the parent list. */
+/**
+ * Owns the "New issue" modal's form state and submit flow, isolated from the parent list.
+ *
+ * @param {Params} params The active workspace, project filter, and projects to offer when creating an issue.
+ * @returns {ReturnType<typeof useCreateIssueModal>} The modal state, field controls, and issue creation submission state.
+ */
 export const useCreateIssueModal = function useCreateIssueModal({ workspaceSlug, filterProject, projects }: Params) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const createForm = useIssueForm(

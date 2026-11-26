@@ -10,7 +10,12 @@ export interface BadgeProps {
   style?: CSSProperties
   children: ReactNode
 }
-/** Priority and status colour remain caller-supplied through style. */
+/**
+ * Priority and status colour remain caller-supplied through style.
+ *
+ * @param {BadgeProps} props The badge content, classes, and optional inline color.
+ * @returns {JSX.Element} The outlined Base UI badge.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Badge = function Badge({ class: legacyClass, className, style, children }: BadgeProps): JSX.Element {
   return (
