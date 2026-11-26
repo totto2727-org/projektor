@@ -1,12 +1,9 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
+import { flattenError } from 'zod'
 
-import type { WorkspaceBrand } from '#db'
-import { drizzle, schema } from '#db'
-import * as data from '#services'
-import { buildMcpAddCommand } from '#types'
-
-import { IdSchema } from '../../contracts/inputs/common'
+import { BYTES_PER_MEBIBYTE } from '#contracts/file-limits.ts'
+import { IdSchema } from '#contracts/inputs/common.ts'
 import {
   CreateTokenSchema,
   CreateWorkspaceSchema,
@@ -14,8 +11,17 @@ import {
   UpdateRoleSchema,
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
-} from '../../contracts/inputs/workspaces'
-import { buildDefaultCustomFieldStatements } from './custom-fields'
+} from '#contracts/inputs/workspaces.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
+import type { WorkspaceBrand } from '#db'
+import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
+import * as data from '#services'
+import { buildMcpAddCommand } from '#types'
+
+import { buildDefaultCustomFieldStatements } from './custom-fields.ts'
 import {
   ConflictError,
   ForbiddenError,
@@ -23,27 +29,51 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from './errors'
-import { prepareQuery } from './sql'
-import { buildDefaultTaskStatusStatements } from './task-statuses'
-import { buildDefaultTaskTypeStatements } from './task-types'
-import type { ServiceCtx } from './types'
-import { buildDefaultWikiTemplateStatements } from './wiki'
+  validationIssues,
+} from './errors.ts'
+import { deleteR2Keys } from './r2-delete.ts'
+import { prepareQuery } from './sql.ts'
+import { buildDefaultTaskStatusStatements } from './task-statuses.ts'
+import { buildDefaultTaskTypeStatements } from './task-types.ts'
+import type { ServiceCtx } from './types.ts'
+import { buildDefaultWikiTemplateStatements } from './wiki.ts'
 
-async function sha256hex(s: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
+const sha256hex = async function sha256hex(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-export async function listWorkspaces(db: D1Database, userId: string) {
+export const listWorkspaces = async function listWorkspaces(
+  db: D1Database,
+  userId: string,
+): Promise<data.WorkspaceMembership[]> {
   return Effect.runPromise(data.listWorkspaces(db, userId))
 }
 
-export async function createWorkspace(db: D1Database, userId: string, input: unknown) {
+interface WorkspaceIdentity {
+  id: string
+  name: string
+  slug: string
+}
+
+interface CreatedWorkspace extends WorkspaceIdentity {
+  id: ReturnType<typeof crypto.randomUUID>
+}
+
+interface WorkspaceWithMembers extends WorkspaceIdentity {
+  members: data.WorkspaceMember[]
+  currentUserRole: ServiceCtx['role']
+}
+
+export const createWorkspace = async function createWorkspace(
+  db: D1Database,
+  userId: string,
+  input: unknown,
+): Promise<CreatedWorkspace> {
   const parsed = CreateWorkspaceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { name, slug } = parsed.data
 
   const orm = drizzle(db, { schema })
@@ -52,15 +82,17 @@ export async function createWorkspace(db: D1Database, userId: string, input: unk
     .from(schema.workspaces)
     .where(eq(schema.workspaces.slug, slug))
     .get()
-  if (existing) throw new ConflictError('Slug already taken')
+  if (existing) {
+    throw new ConflictError('Slug already taken')
+  }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await db.batch([
-    prepareQuery(db, orm.insert(schema.workspaces).values({ id, name, slug, createdAt: now }).toSQL()),
+    prepareQuery(db, orm.insert(schema.workspaces).values({ createdAt: now, id, name, slug }).toSQL()),
     prepareQuery(
       db,
-      orm.insert(schema.workspaceMembers).values({ workspaceId: id, userId, role: 'owner', joinedAt: now }).toSQL(),
+      orm.insert(schema.workspaceMembers).values({ joinedAt: now, role: 'owner', userId, workspaceId: id }).toSQL(),
     ),
     ...buildDefaultTaskTypeStatements(db, id),
     ...buildDefaultTaskStatusStatements(db, id),
@@ -71,29 +103,46 @@ export async function createWorkspace(db: D1Database, userId: string, input: unk
   return { id, name, slug }
 }
 
-export async function getWorkspaceWithMembers(
+export const getWorkspaceWithMembers = async function getWorkspaceWithMembers(
   ctx: ServiceCtx,
-  workspace: Readonly<{ id: string; name: string; slug: string }>,
-) {
+  workspace: Readonly<WorkspaceIdentity>,
+): Promise<WorkspaceWithMembers> {
   const members = await Effect.runPromise(data.listWorkspaceMembers(ctx.db, ctx.workspaceId))
-  return { ...workspace, members, currentUserRole: ctx.role }
+  return {
+    ...workspace,
+    ...fieldsInOrder([
+      ['members', members],
+      ['currentUserRole', ctx.role],
+    ]),
+  }
 }
 
-export async function updateWorkspace(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+export const updateWorkspace = async function updateWorkspace(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: boolean }> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const parsed = UpdateWorkspaceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const orm = drizzle(ctx.db, { schema })
   await orm.update(schema.workspaces).set({ name: parsed.data.name }).where(eq(schema.workspaces.id, ctx.workspaceId))
   return { ok: true }
 }
 
-export async function inviteMember(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+export const inviteMember = async function inviteMember(ctx: ServiceCtx, input: unknown): Promise<{ ok: boolean }> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const parsed = InviteMemberSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { email, role: newRole } = parsed.data
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   const orm = drizzle(ctx.db, { schema })
   let user = await orm.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email)).get()
@@ -108,13 +157,17 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
     .from(schema.workspaceMembers)
     .where(and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), eq(schema.workspaceMembers.userId, user.id)))
     .get()
-  if (existing) throw new ConflictError('Already a member')
+  if (existing) {
+    throw new ConflictError('Already a member')
+  }
 
   await orm
     .insert(schema.workspaceMembers)
     .values({ workspaceId: ctx.workspaceId, userId: user.id, role: newRole, joinedAt: now })
-  // PROJ-436: re-inviting a previously-removed user clears their removal tombstone, so
-  // provisioning can re-add them again if config (ADMIN_EMAILS etc) says it should.
+  /*
+   * PROJ-436: re-inviting a previously-removed user clears their removal tombstone, so
+   * provisioning can re-add them again if config (ADMIN_EMAILS etc) says it should.
+   */
   await orm
     .delete(schema.provisioningRemovals)
     .where(
@@ -126,12 +179,19 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
   return { ok: true }
 }
 
-export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
+export const removeMember = async function removeMember(
+  ctx: ServiceCtx,
+  targetUserId: string,
+): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(targetUserId)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role !== 'owner') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError(validationIssues(flattenError(idCheck.error).formErrors, {}))
+  }
+  if (ctx.role !== 'owner') {
+    throw new ForbiddenError()
+  }
   if (ctx.userId === targetUserId) {
-    throw new ValidationError({ formErrors: ['Cannot remove yourself as owner'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Cannot remove yourself as owner'], {}))
   }
   const orm = drizzle(ctx.db, { schema })
   await orm
@@ -139,27 +199,39 @@ export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
     .where(
       and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), eq(schema.workspaceMembers.userId, targetUserId)),
     )
-  // PROJ-436: tombstone the removal so ensureUserProvisioned (ADMIN_EMAILS / AUTO_JOIN_ROLE /
-  // WORKSPACE_DOMAIN_MAP) doesn't silently re-add this user once their provisioning cache
-  // expires. Cleared by inviteMember above.
+  /*
+   * PROJ-436: tombstone the removal so ensureUserProvisioned (ADMIN_EMAILS / AUTO_JOIN_ROLE /
+   * WORKSPACE_DOMAIN_MAP) doesn't silently re-add this user once their provisioning cache
+   * expires. Cleared by inviteMember above.
+   */
   await orm
     .insert(schema.provisioningRemovals)
-    .values({
-      workspaceId: ctx.workspaceId,
-      userId: targetUserId,
-      removedAt: Math.floor(Date.now() / 1000),
-    })
+    .values(
+      fieldsInOrder([
+        ['workspaceId', ctx.workspaceId],
+        ['userId', targetUserId],
+        ['removedAt', currentEpochSeconds()],
+      ]),
+    )
     .onConflictDoUpdate({
       target: [schema.provisioningRemovals.workspaceId, schema.provisioningRemovals.userId],
-      set: { removedAt: Math.floor(Date.now() / 1000) },
+      set: { removedAt: currentEpochSeconds() },
     })
   return { ok: true }
 }
 
-export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, input: unknown) {
-  if (ctx.role !== 'owner') throw new ForbiddenError()
+export const updateMemberRole = async function updateMemberRole(
+  ctx: ServiceCtx,
+  targetUserId: string,
+  input: unknown,
+): Promise<{ ok: boolean }> {
+  if (ctx.role !== 'owner') {
+    throw new ForbiddenError()
+  }
   const parsed = UpdateRoleSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const orm = drizzle(ctx.db, { schema })
   await orm
     .update(schema.workspaceMembers)
@@ -170,48 +242,70 @@ export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, in
   return { ok: true }
 }
 
-export async function createToken(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+interface CreatedWorkspaceToken {
+  id: ReturnType<typeof crypto.randomUUID>
+  token: string
+  name: string
+  scopes: ReturnType<typeof CreateTokenSchema.parse>['scopes']
+  expiresAt: number | null
+}
+
+export const createToken = async function createToken(ctx: ServiceCtx, input: unknown): Promise<CreatedWorkspaceToken> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const parsed = CreateTokenSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { name, scopes, expiresInDays } = parsed.data
 
   const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
-  const token =
-    'pk_' +
-    Array.from(tokenBytes)
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
+  const token = 'pk_' + [...tokenBytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
   const hash = await sha256hex(token)
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
-  const expiresAt = expiresInDays ? now + expiresInDays * 86400 : null
+  const now = currentEpochSeconds()
+  const expiresAt = expiresInDays ? now + expiresInDays * SECONDS_PER_DAY : SQL_NULL
 
   const orm = drizzle(ctx.db, { schema })
-  await orm.insert(schema.apiTokens).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    userId: ctx.userId,
-    name,
-    tokenHash: hash,
-    scopes,
-    expiresAt,
-    createdAt: now,
-  })
+  await orm.insert(schema.apiTokens).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['userId', ctx.userId],
+      ['name', name],
+      ['tokenHash', hash],
+      ['scopes', scopes],
+      ['expiresAt', expiresAt],
+      ['createdAt', now],
+    ]),
+  )
 
-  return { id, token, name, scopes, expiresAt }
+  return fieldsInOrder([
+    ['id', id],
+    ['token', token],
+    ['name', name],
+    ['scopes', scopes],
+    ['expiresAt', expiresAt],
+  ])
 }
 
-export async function listTokens(ctx: ServiceCtx) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+export const listTokens = async function listTokens(ctx: ServiceCtx): Promise<data.WorkspaceTokenMetadata[]> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   return Effect.runPromise(data.listWorkspaceTokenMetadata(ctx.db, ctx.workspaceId))
 }
 
-export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
-  // PROJ-923: agent_sessions.token_id is ON DELETE SET NULL, which D1 doesn't
-  // guarantee (PROJ-407) — null it explicitly in the same batch.
+export const revokeToken = async function revokeToken(ctx: ServiceCtx, tokenId: string): Promise<{ ok: boolean }> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
+  /*
+   * PROJ-923: agent_sessions.token_id is ON DELETE SET NULL, which D1 doesn't
+   * guarantee (PROJ-407) — null it explicitly in the same batch.
+   */
   await ctx.db.batch([
     ctx.db
       .prepare(
@@ -227,7 +321,7 @@ export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
 // PROJ-923: ?1 = workspace id. Children before parents.
 const WS_PAGES = 'SELECT id FROM wiki_pages WHERE workspace_id = ?1'
 const WS_GROUPS = 'SELECT id FROM user_groups WHERE workspace_id = ?1'
-const WORKSPACE_CLEANUP_SQL: readonly string[] = [
+const WORKSPACE_CLEANUP_SQL: Readonly<string[]> = [
   'DELETE FROM wiki_fts WHERE workspace_id = ?1',
   'DELETE FROM issues_fts WHERE workspace_id = ?1',
   'DELETE FROM share_tokens WHERE workspace_id = ?1',
@@ -266,7 +360,11 @@ const WORKSPACE_CLEANUP_SQL: readonly string[] = [
   'DELETE FROM workspaces WHERE id = ?1',
 ]
 
-export async function deleteWorkspace(
+const readBrand = async function readBrand(ctx: ServiceCtx): Promise<WorkspaceBrand> {
+  return Effect.runPromise(data.readWorkspaceBrand(ctx.db, ctx.workspaceId))
+}
+
+export const deleteWorkspace = async function deleteWorkspace(
   ctx: ServiceCtx,
   pathSlug: string,
   defaultWorkspaceSlug: string,
@@ -282,20 +380,21 @@ export async function deleteWorkspace(
     .where(eq(schema.workspaces.id, ctx.workspaceId))
     .get()
 
-  if (!ws) throw new NotFoundError('Workspace not found')
+  if (!ws) {
+    throw new NotFoundError('Workspace not found')
+  }
 
-  // PROJ-437: ctx.workspaceId is resolved from the X-Workspace-Slug header (or Host
-  // subdomain), not the URL's :slug — without this check a caller whose header names
-  // workspace A but whose URL names workspace B would silently delete A instead of B.
+  /*
+   * PROJ-437: ctx.workspaceId is resolved from the X-Workspace-Slug header (or Host
+   * subdomain), not the URL's :slug — without this check a caller whose header names
+   * workspace A but whose URL names workspace B would silently delete A instead of B.
+   */
   if (ws.slug !== pathSlug) {
     throw new NotFoundError('Workspace not found')
   }
 
   if (ws.slug === defaultWorkspaceSlug) {
-    throw new ValidationError({
-      formErrors: ['Cannot delete the default workspace'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Cannot delete the default workspace'], {}))
   }
 
   const projectCount = await orm.$count(schema.projects, eq(schema.projects.workspaceId, ctx.workspaceId))
@@ -305,24 +404,21 @@ export async function deleteWorkspace(
   }
 
   const brand = await readBrand(ctx)
-  // PROJ-923: every table hanging off the workspace is cleaned up explicitly — D1
-  // doesn't guarantee the FK cascades (PROJ-407), and FTS mirrors / R2 objects have no
-  // FK at all. Projects are already gone (checked above), so this is workspace-level
-  // data only. Set-based, constant statement count, one atomic batch; R2 after commit.
-  const r2Keys = (
-    await ctx.db
-      .prepare("SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL")
-      .bind(ctx.workspaceId)
-      .all<{ k: string }>()
-  ).results.map((r) => r.k)
+  /*
+   * PROJ-923: every table hanging off the workspace is cleaned up explicitly — D1
+   * doesn't guarantee the FK cascades (PROJ-407), and FTS mirrors / R2 objects have no
+   * FK at all. Projects are already gone (checked above), so this is workspace-level
+   * data only. Set-based, constant statement count, one atomic batch; R2 after commit.
+   */
+  const queryResult = await ctx.db
+    .prepare("SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL")
+    .bind(ctx.workspaceId)
+    .all<{ k: string }>()
+  const r2Keys = queryResult.results.map((result) => result.k)
   await ctx.db.batch(WORKSPACE_CLEANUP_SQL.map((sql) => ctx.db.prepare(sql).bind(ctx.workspaceId)))
-  for (let i = 0; i < r2Keys.length; i += 1000) {
-    try {
-      await ctx.r2.delete(r2Keys.slice(i, i + 1000))
-    } catch (err) {
-      console.error('deleteWorkspace: R2 cleanup failed', { err: String(err) })
-    }
-  }
+  await deleteR2Keys(ctx.r2, r2Keys, (error) => {
+    console.error('deleteWorkspace: R2 cleanup failed', { err: String(error) })
+  })
   if (brand.logoR2Key) {
     try {
       await ctx.r2.delete(brand.logoR2Key)
@@ -331,7 +427,7 @@ export async function deleteWorkspace(
   return { ok: true }
 }
 
-export async function getWorkspaceMcpInfo(
+export const getWorkspaceMcpInfo = async function getWorkspaceMcpInfo(
   _ctx: ServiceCtx,
   workspace: Readonly<{ id: string; slug: string }>,
   origin: string,
@@ -347,12 +443,12 @@ export async function getWorkspaceMcpInfo(
     mcpUrl,
     token: '{{TOKEN}}',
   })
-  return {
-    mcpUrl,
-    workspaceId: workspace.id,
-    workspaceSlug: workspace.slug,
-    mcpAddCommandTemplate,
-  }
+  return fieldsInOrder([
+    ['mcpUrl', mcpUrl],
+    ['workspaceId', workspace.id],
+    ['workspaceSlug', workspace.slug],
+    ['mcpAddCommandTemplate', mcpAddCommandTemplate],
+  ])
 }
 
 export interface WorkspaceBrandDto {
@@ -364,35 +460,36 @@ export interface WorkspaceBrandDto {
   logoUrl: string | null
 }
 
-function requireBrandWrite(ctx: ServiceCtx): void {
-  if (ctx.role !== 'owner' && ctx.role !== 'admin') throw new ForbiddenError()
+const requireBrandWrite = function requireBrandWrite(ctx: ServiceCtx): void {
+  if (ctx.role !== 'owner' && ctx.role !== 'admin') {
+    throw new ForbiddenError()
+  }
 }
 
-async function readBrand(ctx: ServiceCtx): Promise<WorkspaceBrand> {
-  return Effect.runPromise(data.readWorkspaceBrand(ctx.db, ctx.workspaceId))
-}
-
-async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBrand): Promise<void> {
+const writeBrand = async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBrand): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   await orm.update(schema.workspaces).set({ brand }).where(eq(schema.workspaces.id, ctx.workspaceId))
 }
 
-function toBrandDto(brand: WorkspaceBrand, workspaceSlug: string): WorkspaceBrandDto {
-  return {
-    displayName: brand.displayName ?? null,
-    accent: brand.accent ?? null,
-    onAccent: brand.onAccent ?? null,
-    fontFamily: brand.fontFamily ?? null,
-    fontUrl: brand.fontUrl ?? null,
-    logoUrl: brand.logoR2Key ? `/api/workspaces/${workspaceSlug}/brand/logo` : null,
-  }
+const toBrandDto = function toBrandDto(brand: WorkspaceBrand, workspaceSlug: string): WorkspaceBrandDto {
+  return fieldsInOrder([
+    ['displayName', brand.displayName ?? JSON_NULL],
+    ['accent', brand.accent ?? JSON_NULL],
+    ['onAccent', brand.onAccent ?? JSON_NULL],
+    ['fontFamily', brand.fontFamily ?? JSON_NULL],
+    ['fontUrl', brand.fontUrl ?? JSON_NULL],
+    ['logoUrl', brand.logoR2Key ? `/api/workspaces/${workspaceSlug}/brand/logo` : JSON_NULL],
+  ])
 }
 
-export async function getWorkspaceBrand(ctx: ServiceCtx, workspaceSlug: string): Promise<WorkspaceBrandDto> {
+export const getWorkspaceBrand = async function getWorkspaceBrand(
+  ctx: ServiceCtx,
+  workspaceSlug: string,
+): Promise<WorkspaceBrandDto> {
   return toBrandDto(await readBrand(ctx), workspaceSlug)
 }
 
-export async function getWorkspaceBrandForShare(
+export const getWorkspaceBrandForShare = async function getWorkspaceBrandForShare(
   db: D1Database,
   workspaceId: string,
   workspaceSlug: string,
@@ -400,43 +497,57 @@ export async function getWorkspaceBrandForShare(
   return toBrandDto(await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId)), workspaceSlug)
 }
 
-export async function getWorkspaceBrandLogoR2Key(db: D1Database, workspaceId: string): Promise<string | null> {
-  return (await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId))).logoR2Key ?? null
+export const getWorkspaceBrandLogoR2Key = async function getWorkspaceBrandLogoR2Key(
+  db: D1Database,
+  workspaceId: string,
+): Promise<string | null> {
+  const workspaceBrand = await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId))
+  return workspaceBrand.logoR2Key ?? null
 }
 
 const BRAND_FIELDS = ['displayName', 'accent', 'onAccent', 'fontFamily', 'fontUrl'] as const
 
-export async function updateWorkspaceBrand(
+export const updateWorkspaceBrand = async function updateWorkspaceBrand(
   ctx: ServiceCtx,
   workspaceSlug: string,
   input: unknown,
 ): Promise<WorkspaceBrandDto> {
   requireBrandWrite(ctx)
   const parsed = UpdateWorkspaceBrandSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
 
   const current = await readBrand(ctx)
   const next: WorkspaceBrand = { ...current }
-  for (const key of BRAND_FIELDS) {
-    if (!(key in parsed.data)) continue
+  Iterable.forEach(BRAND_FIELDS, (key) => {
+    if (!(key in parsed.data)) {
+      return
+    }
     const value = parsed.data[key]
-    if (value === null || value === undefined) delete next[key]
-    else next[key] = value
-  }
+    if (Predicate.isNullish(value)) {
+      delete next[key]
+    } else {
+      next[key] = value
+    }
+  })
 
   await writeBrand(ctx, next)
   return toBrandDto(next, workspaceSlug)
 }
 
-const MAX_LOGO_SIZE = 2 * 1024 * 1024
+const MAX_LOGO_MEBIBYTES = 2
+const MAX_LOGO_SIZE = MAX_LOGO_MEBIBYTES * BYTES_PER_MEBIBYTE
 const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
-export async function uploadWorkspaceLogo(
+export const uploadWorkspaceLogo = async function uploadWorkspaceLogo(
   ctx: ServiceCtx,
   file: Readonly<{ size: number; type: string; arrayBuffer: () => Promise<ArrayBuffer> }>,
 ): Promise<{ ok: true }> {
   requireBrandWrite(ctx)
-  if (file.size > MAX_LOGO_SIZE) throw new PayloadTooLargeError('Logo too large (max 2 MB)')
+  if (file.size > MAX_LOGO_SIZE) {
+    throw new PayloadTooLargeError('Logo too large (max 2 MB)')
+  }
   const contentType = file.type || ''
   if (!ALLOWED_LOGO_TYPES.has(contentType)) {
     throw new UnsupportedMediaTypeError('Logo must be PNG, JPEG or WebP')
@@ -448,9 +559,9 @@ export async function uploadWorkspaceLogo(
 
   try {
     await writeBrand(ctx, { ...current, logoR2Key: r2Key })
-  } catch (e) {
+  } catch (caughtError) {
     await ctx.r2.delete(r2Key)
-    throw e
+    throw caughtError
   }
   if (current.logoR2Key) {
     try {
@@ -461,7 +572,7 @@ export async function uploadWorkspaceLogo(
   return { ok: true }
 }
 
-export async function deleteWorkspaceLogo(ctx: ServiceCtx): Promise<{ ok: true }> {
+export const deleteWorkspaceLogo = async function deleteWorkspaceLogo(ctx: ServiceCtx): Promise<{ ok: true }> {
   requireBrandWrite(ctx)
   const current = await readBrand(ctx)
   if (current.logoR2Key) {
@@ -473,12 +584,16 @@ export async function deleteWorkspaceLogo(ctx: ServiceCtx): Promise<{ ok: true }
   return { ok: true }
 }
 
-function ownsLogoKey(workspaceId: string, r2Key: string): boolean {
+const ownsLogoKey = function ownsLogoKey(workspaceId: string, r2Key: string): boolean {
   return r2Key.startsWith(`${workspaceId}/brand-logo/`)
 }
 
-export async function getWorkspaceLogoObject(ctx: ServiceCtx): Promise<R2ObjectBody | null> {
+export const getWorkspaceLogoObject = async function getWorkspaceLogoObject(
+  ctx: ServiceCtx,
+): Promise<R2ObjectBody | null> {
   const current = await readBrand(ctx)
-  if (!current.logoR2Key || !ownsLogoKey(ctx.workspaceId, current.logoR2Key)) return null
+  if (!current.logoR2Key || !ownsLogoKey(ctx.workspaceId, current.logoR2Key)) {
+    return null
+  }
   return ctx.r2.get(current.logoR2Key)
 }

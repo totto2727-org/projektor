@@ -1,22 +1,24 @@
 import type { Context } from 'hono'
 
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 import type { HonoEnv } from '#types'
-
-import { ValidationError } from '../../contracts/errors'
 
 /**
  * PROJ-877: the one way routes read a JSON body. `c.req.json()` throws a SyntaxError
  * on malformed input, which used to surface as a 500; this turns it into the standard
  * 400 validation shape (via serviceErrToResponse, or app.onError for calls outside a
  * route's try).
+ *
+ * @param {Context<HonoEnv>} httpContext The Hono request context from the adapter.
+ * @returns {Promise<any>} The parsed body for service validation. Malformed JSON rejects with a validation error.
  */
-// Same `any` as c.req.json() so call sites that spread the body keep compiling; every
-// consumer validates it with the service's Zod schema.
-// biome-ignore lint/suspicious/noExplicitAny: mirrors c.req.json(); validated downstream
-export async function jsonBody(c: Context<HonoEnv>): Promise<any> {
+/* Same `any` as c.req.json() so call sites that spread the body keep compiling; every
+ * consumer validates it with the service's Zod schema.
+ * Mirrors c.req.json(); validated downstream */
+export const jsonBody = async function jsonBody(httpContext: Context<HonoEnv>): Promise<any> {
   try {
-    return await c.req.json()
+    return await httpContext.req.json()
   } catch {
-    throw new ValidationError({ formErrors: ['Request body must be valid JSON'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Request body must be valid JSON'], {}))
   }
 }

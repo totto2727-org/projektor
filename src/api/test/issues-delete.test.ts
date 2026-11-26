@@ -1,14 +1,18 @@
-// PROJ-922: deleteIssue must explicitly remove/null every row that references the
-// deleted issue via an FK with ON DELETE CASCADE/SET NULL, since D1 does not guarantee
-// FK enforcement (PROJ-407). Note: `PRAGMA foreign_keys = OFF` is a no-op on
-// D1/Miniflare (it still reads 1), so FK-backed rows are also removed by the database's
-// cascade here — those assertions are end-state checks. The non-FK references (share
-// tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
+import { assert, describe, expect, test } from 'vite-plus/test'
 
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+/*
+ * PROJ-922: deleteIssue must explicitly remove/null every row that references the
+ * deleted issue via an FK with ON DELETE CASCADE/SET NULL, since D1 does not guarantee
+ * FK enforcement (PROJ-407). Note: `PRAGMA foreign_keys = OFF` is a no-op on
+ * D1/Miniflare (it still reads 1), so FK-backed rows are also removed by the database's
+ * cascade here — those assertions are end-state checks. The non-FK references (share
+ * tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
+ */
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedAgentLease,
@@ -18,33 +22,50 @@ import {
   seedFixture,
   seedIssue,
   seedProject,
-} from './helpers'
+} from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
-async function tableCount(sql: string, ...params: unknown[]): Promise<number> {
+const tableCount = async function tableCount(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
     .bind(...params)
     .first<{ n: number }>()
   return row?.n ?? 0
 }
 
-describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
+const NO_ROWS = 0
+const ONE_ROW = 1
+const TWO_ROWS = 2
+type TableCountCheck = Readonly<[sql: string, expected: number, ...params: unknown[]]>
 
-  beforeEach(async () => {
-    const fixture = await seedFixture({ role: 'owner' })
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    userId = fixture.user.id
-    const project = await seedProject(workspaceId)
-    projectId = project.id
+const expectTableCounts = async function expectTableCounts(checks: Readonly<TableCountCheck[]>): Promise<void> {
+  await runInOrder(checks, async ([sql, expected, ...params]): Promise<void> => {
+    await expect(tableCount(sql, ...params)).resolves.toBe(expected)
   })
+}
 
-  it('removes or nulls every row referencing the deleted issue, and its R2 attachments', async () => {
+type TestData = Readonly<{
+  projectId: string
+  slug: string
+  token: string
+  userId: string
+  workspaceId: string
+}>
+
+const seedTestData = async function seedTestData(): Promise<TestData> {
+  const fixture = await seedFixture({ role: 'owner' })
+  const { token } = fixture
+  const { slug } = fixture.workspace
+  const workspaceId = fixture.workspace.id
+  const userId = fixture.user.id
+  const project = await seedProject(workspaceId)
+  const projectId = project.id
+  return { projectId, slug, token, userId, workspaceId }
+}
+
+describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
+  test('removes or nulls every row referencing the deleted issue, and its R2 attachments', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedTestData()
     const { id: issueId } = await seedIssue(workspaceId, projectId, userId)
     const { id: otherIssueId } = await seedIssue(workspaceId, projectId, userId, {
       title: 'Other issue',
@@ -54,166 +75,165 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       title: 'Child issue',
     })
 
-    // issue_comments (CASCADE)
+    // Table issue_comments (CASCADE)
     await seedComment(issueId, userId)
 
-    // issue_links (CASCADE), both directions
+    // Table issue_links (CASCADE), both directions
     await env.DB.prepare(
       `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
 			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, otherIssueId, userId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, issueId, otherIssueId, userId, currentEpochSeconds())
       .run()
     await env.DB.prepare(
       `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
 			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, otherIssueId, issueId, userId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, otherIssueId, issueId, userId, currentEpochSeconds())
       .run()
 
-    // custom_field_values (CASCADE)
+    // Table custom_field_values (CASCADE)
     const field = await seedCustomFieldDef(workspaceId, { key: 'severity' })
     await seedCustomFieldValue(issueId, field.id, 'high')
 
-    // issue_file_claims (CASCADE)
+    // Table issue_file_claims (CASCADE)
     await env.DB.prepare(
       `INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)
 			 VALUES (?, ?, ?, NULL, ?, ?, NULL)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, 'src/foo.ts', Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, issueId, 'src/foo.ts', currentEpochSeconds())
       .run()
 
-    // issue_leases (CASCADE) + agent_sessions.issue_id (SET NULL)
+    // Table issue_leases (CASCADE) + agent_sessions.issue_id (SET NULL)
     const { agentSessionId } = await seedAgentLease(workspaceId, issueId)
 
-    // claim_conflicts (CASCADE on both rejected_issue_id and holding_issue_id)
+    // Table claim_conflicts (CASCADE on both rejected_issue_id and holding_issue_id)
     await env.DB.prepare(
       `INSERT INTO claim_conflicts (id, workspace_id, path, rejected_issue_id, holding_issue_id, forced, occurred_at)
 			 VALUES (?, ?, ?, ?, ?, 0, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, 'src/bar.ts', issueId, otherIssueId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, 'src/bar.ts', issueId, otherIssueId, currentEpochSeconds())
       .run()
 
-    // wip_cap_denials (CASCADE)
+    // Table wip_cap_denials (CASCADE)
     await env.DB.prepare(
       `INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, occurred_at)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, projectId, issueId, agentSessionId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, projectId, issueId, agentSessionId, currentEpochSeconds())
       .run()
 
-    // share_tokens (no FK at all)
+    // Table share_tokens (no FK at all)
     await env.DB.prepare(
       `INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
     )
-      .bind(crypto.randomUUID(), issueId, workspaceId, 'someone', 9999999999, 0)
+      .bind(crypto.randomUUID(), issueId, workspaceId, 'someone', 9_999_999_999, 0)
       .run()
 
-    // issue_gate_rejections (CASCADE)
+    // Table issue_gate_rejections (CASCADE)
     await env.DB.prepare(
       `INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at)
 			 VALUES (?, ?, ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, issueId, currentEpochSeconds())
       .run()
 
-    // feedback.linked_issue_id (SET NULL) — needs a feedback_sources row first
+    // Feedback.linked_issue_id (SET NULL) — needs a feedback_sources row first
     const sourceId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO feedback_sources (id, token_hash, workspace_id, project_id, name, is_active, created_by, created_at)
 			 VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
     )
-      .bind(sourceId, 'hash', workspaceId, projectId, 'Test source', userId, Math.floor(Date.now() / 1000))
+      .bind(sourceId, 'hash', workspaceId, projectId, 'Test source', userId, currentEpochSeconds())
       .run()
     const feedbackId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO feedback (id, source_id, workspace_id, project_id, status, linked_issue_id, created_at)
 			 VALUES (?, ?, ?, ?, 'actioned', ?, ?)`,
     )
-      .bind(feedbackId, sourceId, workspaceId, projectId, issueId, Math.floor(Date.now() / 1000))
+      .bind(feedbackId, sourceId, workspaceId, projectId, issueId, currentEpochSeconds())
       .run()
 
-    // attachments (no physical FK, entity_type/entity_id polymorphic) — a real R2 object
+    // Attachments (no physical FK, entity_type/entity_id polymorphic) — a real R2 object
     const form = new FormData()
     form.append('file', new File(['hello'], 'hello.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', issueId)
-    const uploadRes = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const uploadRes = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(uploadRes.status).toBe(201)
-    const { id: attachmentId } = (await uploadRes.json()) as { id: string }
-    const r2Key = (
-      await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(attachmentId).first<{ r2_key: string }>()
-    )?.r2_key
-    expect(r2Key).toBeTruthy()
-    expect(await env.R2.get(r2Key!)).not.toBeNull()
+    const { id: attachmentId } = await readNativeJson(uploadRes, IdResponse)
+    const result = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?')
+      .bind(attachmentId)
+      .first<{ r2_key: string }>()
+    const r2Key = result?.r2_key
+    assert(isNonEmptyText(r2Key), 'Expected the attachment to have an R2 key')
+    await expect(env.R2.get(r2Key)).resolves.not.toBeNull()
 
     // Sanity: every dependent row exists before delete.
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issueId)).toBe(1)
-    expect(
-      await tableCount(
+    await expectTableCounts([
+      ['SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', ONE_ROW, issueId],
+      [
         'SELECT COUNT(*) AS n FROM issue_links WHERE source_issue_id = ? OR target_issue_id = ?',
+        TWO_ROWS,
         issueId,
         issueId,
-      ),
-    ).toBe(2)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issueId)).toBe(1)
-    expect(
-      await tableCount(
+      ],
+      ['SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', ONE_ROW, issueId],
+      ['SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', ONE_ROW, issueId],
+      ['SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', ONE_ROW, issueId],
+      [
         'SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? OR holding_issue_id = ?',
+        ONE_ROW,
         issueId,
         issueId,
-      ),
-    ).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM agent_sessions WHERE issue_id = ?', issueId)).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id = ?', issueId)).toBe(1)
-    expect(
-      await tableCount("SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", issueId),
-    ).toBe(1)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issues WHERE parent_id = ?', issueId)).toBe(1)
+      ],
+      ['SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', ONE_ROW, issueId],
+      ['SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', ONE_ROW, issueId],
+      ['SELECT COUNT(*) AS n FROM agent_sessions WHERE issue_id = ?', ONE_ROW, issueId],
+      ['SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id = ?', ONE_ROW, issueId],
+      ["SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", ONE_ROW, issueId],
+      ['SELECT COUNT(*) AS n FROM issues WHERE parent_id = ?', ONE_ROW, issueId],
+    ])
 
     // --- act ---
-    const deleteRes = await SELF.fetch(`http://localhost/api/issues/${issueId}`, {
-      method: 'DELETE',
+    const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
 
     // --- assert: nothing references the deleted issue any more ---
-    expect(await env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(issueId).first()).toBeNull()
-    expect(await env.DB.prepare('SELECT issue_id FROM issues_fts WHERE issue_id = ?').bind(issueId).first()).toBeNull()
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?', issueId)).toBe(0)
-    expect(
-      await tableCount(
+    await expect(env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(issueId).first()).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT issue_id FROM issues_fts WHERE issue_id = ?').bind(issueId).first(),
+    ).resolves.toBeNull()
+    await expectTableCounts([
+      ['SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', NO_ROWS, issueId],
+      ['SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?', NO_ROWS, issueId],
+      [
         'SELECT COUNT(*) AS n FROM issue_links WHERE source_issue_id = ? OR target_issue_id = ?',
+        NO_ROWS,
         issueId,
         issueId,
-      ),
-    ).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issueId)).toBe(0)
-    expect(
-      await tableCount(
+      ],
+      ['SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', NO_ROWS, issueId],
+      ['SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?', NO_ROWS, issueId],
+      ['SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', NO_ROWS, issueId],
+      [
         'SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? OR holding_issue_id = ?',
+        NO_ROWS,
         issueId,
         issueId,
-      ),
-    ).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', issueId)).toBe(0)
-    expect(await tableCount('SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', issueId)).toBe(0)
-    expect(
-      await tableCount("SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", issueId),
-    ).toBe(0)
+      ],
+      ['SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?', NO_ROWS, issueId],
+      ['SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?', NO_ROWS, issueId],
+      ["SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?", NO_ROWS, issueId],
+    ])
 
     // SET NULL rows: the row survives, the reference is cleared.
     const session = await env.DB.prepare('SELECT issue_id FROM agent_sessions WHERE id = ?')
@@ -235,27 +255,41 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
     expect(child?.parent_id).toBeNull()
 
     // R2 object for the attachment is gone too.
-    expect(await env.R2.get(r2Key!)).toBeNull()
+    await expect(env.R2.get(r2Key)).resolves.toBeNull()
 
     // The unrelated issue and its own row are untouched.
-    expect(await env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(otherIssueId).first()).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM issues WHERE id = ?').bind(otherIssueId).first(),
+    ).resolves.not.toBeNull()
   })
 })
 
-// PROJ-922 review: the dependent-row deletes key on the issue id, so deleting an id
-// from ANOTHER workspace must be a 404 that touches nothing — not a silent wipe of that
-// workspace's comments/links/attachments by an admin of this one.
-describe("PROJ-922: deleteIssue refuses another workspace's issue", () => {
-  it("404s and leaves the other workspace's rows intact", async () => {
-    const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers')
-    const a = await seedProjectFixture({ role: 'owner' })
-    const b = await seedProjectFixture({ role: 'owner' })
-    const bIssue = await seedIssue(b.workspaceId, b.projectId, b.userId, { title: "B's" })
-    await seedComment(bIssue.id, b.userId, 'keep me')
+/*
+ * PROJ-922 review: the dependent-row deletes key on the issue id, so deleting an id
+ * from ANOTHER workspace must be a 404 that touches nothing — not a silent wipe of that
+ * workspace's comments/links/attachments by an admin of this one.
+ */
+describe("covers PROJ-922: deleteIssue refuses another workspace's issue", () => {
+  test("404s and leaves the other workspace's rows intact", async () => {
+    const {
+      seedComment: seedForeignComment,
+      seedIssue: seedForeignIssue,
+      seedProjectFixture,
+      authHeaders: buildRequesterHeaders,
+    } = await import('./helpers.ts')
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const currentTestFixture = await seedProjectFixture({ role: 'owner' })
+    const bIssue = await seedForeignIssue(
+      currentTestFixture.workspaceId,
+      currentTestFixture.projectId,
+      currentTestFixture.userId,
+      { title: "B's" },
+    )
+    await seedForeignComment(bIssue.id, currentTestFixture.userId, 'keep me')
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${bIssue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${bIssue.id}`, {
+      headers: buildRequesterHeaders(testFixture.token, testFixture.slug),
       method: 'DELETE',
-      headers: authHeaders(a.token, a.slug),
     })
     expect(res.status).toBe(404)
     const kept = await env.DB.prepare('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?')

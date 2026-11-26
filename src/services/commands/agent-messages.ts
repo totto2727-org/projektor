@@ -1,33 +1,44 @@
 import { and, asc, eq, gt, sql } from 'drizzle-orm'
+import { String, Array, Predicate, Number } from 'effect'
+import { flattenError } from 'zod'
 
-import { drizzle, schema } from '#db'
+import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL, drizzle, schema } from '#db'
 
-import { ListMessagesSchema, PostMessageSchema } from '../../contracts/inputs/agent-messages'
-import { assertIssueAccess } from './access'
-import { assertAgentSessionAccess } from './agent-identity'
-import { ForbiddenError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { assertIssueAccess } from './access.ts'
+import { assertAgentSessionAccess } from './agent-identity.ts'
+import { ForbiddenError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
-// PROJ-929: mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
-// services/issue-leases.ts / file-claims.ts). Kept local rather than imported for the
-// same circular-import reason as those: agents.ts already imports from sibling service
-// files, so importing back from here would cycle.
+/*
+ * PROJ-929: mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
+ * services/issue-leases.ts / file-claims.ts). Kept local rather than imported for the
+ * same circular-import reason as those: agents.ts already imports from sibling service
+ * files, so importing back from here would cycle.
+ */
 const SESSION_TTL_SECONDS = 120
+const MESSAGE_CURSOR_SEPARATOR = ':'
+const CURSOR_TIMESTAMP_START = 0
+const CURSOR_TIMESTAMP_RADIX = 10
+const LAST_ITEM_OFFSET = -1
 
-// PROJ-929: a post_message call that carries an already-live agentId implicitly
-// refreshes that session's heartbeat, same as claim_issue/claim_files. Gated on the
-// session being live ALREADY (status='active' AND heartbeat > cutoff) — see
-// touchAgentHeartbeatIfLive in file-claims.ts for why an unconditional touch would
-// defeat PROJ-636 stale-holder reclaim.
-async function touchAgentHeartbeatIfLive(
+/*
+ * PROJ-929: a post_message call that carries an already-live agentId implicitly
+ * refreshes that session's heartbeat, same as claim_issue/claim_files. Gated on the
+ * session being live ALREADY (status='active' AND heartbeat > cutoff) — see
+ * touchAgentHeartbeatIfLive in file-claims.ts for why an unconditional touch would
+ * defeat PROJ-636 stale-holder reclaim.
+ */
+const touchAgentHeartbeatIfLive = async function touchAgentHeartbeatIfLive(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
   agentId: string,
 ): Promise<void> {
-  const cutoff = Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
+  const cutoff = currentEpochSeconds() - SESSION_TTL_SECONDS
   await orm
     .update(schema.agentSessions)
-    .set({ lastHeartbeatAt: Math.floor(Date.now() / 1000) })
+    .set({ lastHeartbeatAt: currentEpochSeconds() })
     .where(
       and(
         eq(schema.agentSessions.id, agentId),
@@ -38,47 +49,69 @@ async function touchAgentHeartbeatIfLive(
     )
 }
 
-function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+const toD1Statement = function toD1Statement(
+  ctx: ServiceCtx,
+  query: Readonly<{ sql: string; params: unknown[] }>,
+): D1PreparedStatement {
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-// Multi-row insert chunk size for agent_messages (6 columns/row), calibrated for D1's
-// 100-bound-param cap with headroom — unlike services/sql.ts#inChunks, which is calibrated
-// for single-param IN-list queries, not multi-column inserts.
+/*
+ * Multi-row insert chunk size for agent_messages (6 columns/row), calibrated for D1's
+ * 100-bound-param cap with headroom — unlike services/sql.ts#inChunks, which is calibrated
+ * for single-param IN-list queries, not multi-column inserts.
+ */
 const MESSAGE_INSERT_CHUNK_SIZE = 10
 
-// PROJ-864: batched variant of postMessage for callers that fold several coordination
-// messages into their own db.batch() (e.g. file-claims' force-override notifications).
-// Unlike postMessage, this does NOT re-validate scope/agentId against the workspace and
-// does not read the inserted rows back — every field here is server-generated from data
-// the caller already resolved and validated for its own use (the issueId(s) the scopes
-// name), so there's nothing untrusted to check and nothing DB-generated to read back.
-export function buildPostMessageStatements(
+/*
+ * PROJ-864: batched variant of postMessage for callers that fold several coordination
+ * messages into their own db.batch() (e.g. file-claims' force-override notifications).
+ * Unlike postMessage, this does NOT re-validate scope/agentId against the workspace and
+ * does not read the inserted rows back — every field here is server-generated from data
+ * the caller already resolved and validated for its own use (the issueId(s) the scopes
+ * name), so there's nothing untrusted to check and nothing DB-generated to read back.
+ */
+export const buildPostMessageStatements = function buildPostMessageStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
-  messages: readonly Readonly<{ scope: string; agentId?: string; body: string }>[],
+  messages: Readonly<Readonly<{ scope: string; agentId?: string; body: string }>[]>,
 ): D1PreparedStatement[] {
-  if (messages.length === 0) return []
-  const now = Date.now()
-  const rows = messages.map((m) => ({
+  if (Array.isReadonlyArrayEmpty(messages)) {
+    return []
+  }
+  const now = currentEpochMilliseconds()
+  const rows = messages.map((message) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
-    scope: m.scope,
-    agentId: m.agentId ?? null,
-    body: m.body,
+    scope: message.scope,
+    agentId: message.agentId ?? SQL_NULL,
+    body: message.body,
     createdAt: now,
   }))
-  const statements: D1PreparedStatement[] = []
-  for (let i = 0; i < rows.length; i += MESSAGE_INSERT_CHUNK_SIZE) {
-    const chunk = rows.slice(i, i + MESSAGE_INSERT_CHUNK_SIZE)
-    statements.push(toD1Statement(ctx, orm.insert(schema.agentMessages).values(chunk).toSQL()))
-  }
-  return statements
+  const batchCount = Math.ceil(rows.length / MESSAGE_INSERT_CHUNK_SIZE)
+  return Array.makeBy(batchCount, (batchIndex): D1PreparedStatement => {
+    const offset = batchIndex * MESSAGE_INSERT_CHUNK_SIZE
+    const chunk = rows.slice(offset, offset + MESSAGE_INSERT_CHUNK_SIZE)
+    const query = orm.insert(schema.agentMessages).values(chunk).toSQL()
+    return toD1Statement(ctx, query)
+  })
 }
 
-export async function postMessage(ctx: ServiceCtx, raw: unknown) {
+type AgentMessage = Pick<
+  typeof schema.agentMessages.$inferSelect,
+  'id' | 'createdAt' | 'workspaceId' | 'scope' | 'agentId' | 'body'
+>
+
+interface MessagePage {
+  items: AgentMessage[]
+  nextCursor: string | null
+}
+
+export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unknown): Promise<AgentMessage> {
   const result = PostMessageSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const { scope, agentId, body } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -90,7 +123,7 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
   }
 
   // If agentId given, verify the agent session belongs to this workspace
-  if (agentId) {
+  if (Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId)) {
     await assertAgentSessionAccess(ctx, agentId)
 
     // PROJ-929: refresh the poster's heartbeat, live sessions only.
@@ -98,40 +131,48 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
   }
 
   const id = crypto.randomUUID()
-  // Millisecond precision: ensures unique ordering for messages posted in rapid
-  // succession (e.g., multiple SELF.fetch calls in tests within the same second).
-  const now = Date.now()
+  /*
+   * Millisecond precision: ensures unique ordering for messages posted in rapid
+   * succession (e.g., multiple SELF.fetch calls in tests within the same second).
+   */
+  const now = currentEpochMilliseconds()
 
   await orm.insert(schema.agentMessages).values({
     id,
     workspaceId: ctx.workspaceId,
     scope,
-    agentId: agentId ?? null,
+    agentId: agentId ?? SQL_NULL,
     body,
     createdAt: now,
   })
 
   const row = await orm.select().from(schema.agentMessages).where(eq(schema.agentMessages.id, id)).get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just inserted; SELECT immediately after guarantees it exists
+  // Row was just inserted; SELECT immediately after guarantees it exists
   return row!
 }
 
-export async function listMessages(ctx: ServiceCtx, raw: unknown) {
+export const listMessages = async function listMessages(ctx: ServiceCtx, raw: unknown): Promise<MessagePage> {
   const result = ListMessagesSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const { scope, cursor, limit } = result.data
-  if (scope.startsWith('issue:')) await assertIssueAccess(ctx, scope.slice('issue:'.length), 'read')
+  if (scope.startsWith('issue:')) {
+    await assertIssueAccess(ctx, scope.slice('issue:'.length), 'read')
+  }
 
   const orm = drizzle(ctx.db, { schema })
 
-  // Composite cursor: "createdAt:id" — stable even when multiple messages share
-  // the same second-precision timestamp.
+  /*
+   * Composite cursor: "createdAt:id" — stable even when multiple messages share
+   * the same second-precision timestamp.
+   */
   let cursorFilter: ReturnType<typeof and> | undefined
-  if (cursor !== undefined) {
-    const sep = cursor.lastIndexOf(':')
-    const cursorTime = parseInt(cursor.slice(0, sep), 10)
-    const cursorId = cursor.slice(sep + 1)
+  if (Predicate.isNotNullish(cursor)) {
+    const sep = cursor.lastIndexOf(MESSAGE_CURSOR_SEPARATOR)
+    const cursorTime = parseInt(cursor.slice(CURSOR_TIMESTAMP_START, sep), CURSOR_TIMESTAMP_RADIX)
+    const cursorId = cursor.slice(sep + MESSAGE_CURSOR_SEPARATOR.length)
     cursorFilter = and(
       eq(schema.agentMessages.workspaceId, ctx.workspaceId),
       eq(schema.agentMessages.scope, scope),
@@ -149,11 +190,11 @@ export async function listMessages(ctx: ServiceCtx, raw: unknown) {
       cursorFilter ?? and(eq(schema.agentMessages.workspaceId, ctx.workspaceId), eq(schema.agentMessages.scope, scope)),
     )
     .orderBy(asc(schema.agentMessages.createdAt), asc(schema.agentMessages.id))
-    .limit(limit + 1)
+    .limit(Number.increment(limit))
 
   const hasMore = rows.length > limit
-  const items = hasMore ? rows.slice(0, limit) : rows
-  const lastItem = items[items.length - 1] as { createdAt: number; id: string } | undefined
+  const items = hasMore ? Array.take(rows, limit) : rows
+  const lastItem = items.at(LAST_ITEM_OFFSET)
   const nextCursor = hasMore && lastItem ? `${lastItem.createdAt}:${lastItem.id}` : null
 
   return { items, nextCursor }

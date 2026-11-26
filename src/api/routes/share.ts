@@ -1,57 +1,53 @@
 import { Hono } from 'hono'
 import { makeCoreClient } from 'projektor/core-client'
 
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { apiReply } from '#api/services/reply.ts'
+import { createShareToken, revokeShareToken } from '#api/services/share.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { ApiSharedIssue } from '#contracts/api-public.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-import { ApiSharedIssue } from '../../contracts/api-public'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { apiReply } from '../services/reply'
-import { createShareToken, revokeShareToken } from '../services/share'
-import { ctxFromHono } from '../services/types'
-
 // Authenticated router — POST/DELETE /api/issues/:id/share
-const authedRouter = new Hono<HonoEnv>()
+export const shareIssuesRouter = new Hono<HonoEnv>()
 
-authedRouter.post('/:id/share', async (c) => {
-  const ctx = ctxFromHono(c)
-  const issueId = c.req.param('id')
+shareIssuesRouter.post('/:id/share', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const issueId = httpContext.req.param('id')
   try {
     const result = await createShareToken(ctx, issueId)
-    return c.json(result, 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(result, HTTP_CREATED)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-authedRouter.delete('/:id/share', async (c) => {
-  const ctx = ctxFromHono(c)
-  const issueId = c.req.param('id')
+shareIssuesRouter.delete('/:id/share', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const issueId = httpContext.req.param('id')
   try {
     await revokeShareToken(ctx, issueId)
-    return c.json({ ok: true })
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json({ ok: true })
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { authedRouter as shareIssuesRouter }
 
 // Unauthenticated router — GET /api/share/:token
-const publicRouter = new Hono<HonoEnv>()
+export const sharePublicRouter = new Hono<HonoEnv>()
 
-publicRouter.get('/:token', async (c) => {
-  const token = c.req.param('token')
+sharePublicRouter.get('/:token', async (httpContext) => {
+  const token = httpContext.req.param('token')
   try {
-    const issue = await apiReply(ApiSharedIssue, makeCoreClient(c.env.CORE).apiGetSharedIssue(token))
-    return c.json(issue)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    const issue = await apiReply(ApiSharedIssue, makeCoreClient(httpContext.env.CORE).apiGetSharedIssue(token))
+    return httpContext.json(issue)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-publicRouter.get('/:token/logo', async (c) => {
-  const token = c.req.param('token')
-  return c.env.CORE.fetch(new Request(`https://core.internal/share-logo/${encodeURIComponent(token)}`))
+sharePublicRouter.get('/:token/logo', async (httpContext) => {
+  const token = httpContext.req.param('token')
+  return httpContext.env.CORE.fetch(new Request(`https://core.internal/share-logo/${encodeURIComponent(token)}`))
 })
-
-export { publicRouter as sharePublicRouter }

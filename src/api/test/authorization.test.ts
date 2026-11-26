@@ -1,3 +1,6 @@
+import { Schema } from 'effect'
+import { assert, describe, expect, test } from 'vite-plus/test'
+
 /**
  * PROJ-78 — Authorization test coverage
  *
@@ -12,15 +15,12 @@
  * Issues do NOT enforce a viewer role — any member can write — so they are
  * intentionally excluded from the viewer-403 matrix below.
  */
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
-
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedCustomFieldDef,
   seedFixture,
   seedGroupGrant,
@@ -34,222 +34,245 @@ import {
   seedWorkspace,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function mcpCall(
+const mcpCall = async function mcpCall(
   workspaceId: string,
   name: string,
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/call',
-      params: { name, arguments: args },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
-  return 'error' in r
+const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc is JsonRpcError {
+  return 'error' in rpc
 }
 
 // ---------------------------------------------------------------------------
 // PROJ-78a: Permission matrix – same-workspace viewer gets 403
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () => {
-  let slug: string
-  let workspaceId: string
-  let ownerHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
-  let ownerId: string
-  let viewerId: string
+describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes', () => {
+  type TestData = Readonly<{
+    ownerHeaders: Record<string, string>
+    ownerId: string
+    slug: string
+    viewerHeaders: Record<string, string>
+    viewerId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    slug = roles.workspace.slug
-    workspaceId = roles.workspace.id
-    ownerHeaders = authHeaders(roles.owner.token, slug)
-    viewerHeaders = authHeaders(roles.viewer.token, slug)
-    ownerId = roles.owner.user.id
-    viewerId = roles.viewer.user.id
-  })
+    const { slug } = roles.workspace
+    const workspaceId = roles.workspace.id
+    const ownerHeaders = authHeaders(roles.owner.token, slug)
+    const viewerHeaders = authHeaders(roles.viewer.token, slug)
+    const ownerId = roles.owner.user.id
+    const viewerId = roles.viewer.user.id
+    return { ownerHeaders, ownerId, slug, viewerHeaders, viewerId, workspaceId }
+  }
 
   // -- Projects --
 
-  it('viewer cannot POST /api/projects', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Proj', key: 'PRJ' }),
-    })
+  test('viewer cannot POST /api/projects', async () => {
+    const { viewerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ key: 'PRJ', name: 'Proj' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/projects', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Proj', key: 'PRJ' }),
-    })
+  test('owner CAN POST /api/projects', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PRJ', name: 'Proj' })),
+    )
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/projects/:id', async () => {
+  test('viewer cannot PATCH /api/projects/:id', async () => {
+    const { ownerHeaders, viewerHeaders } = await seedTestData()
     // Owner creates, viewer tries to update
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Owner Proj', key: 'OP1' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'OP1', name: 'Owner Proj' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Renamed' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Renamed' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/projects/:id', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Del Proj', key: 'DP1' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+  test('viewer cannot DELETE /api/projects/:id', async () => {
+    const { ownerHeaders, viewerHeaders } = await seedTestData()
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DP1', name: 'Del Proj' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'DELETE',
+    const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
 
   // -- Task types --
 
-  it('viewer cannot POST /api/task-types', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'epic', name: 'Epic' }),
-    })
+  test('viewer cannot POST /api/task-types', async () => {
+    const { viewerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-types',
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ key: 'epic', name: 'Epic' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/task-types', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-types', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'epic', name: 'Epic' }),
-    })
+  test('owner CAN POST /api/task-types', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-types',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'epic', name: 'Epic' })),
+    )
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/task-types/:id', async () => {
+  test('viewer cannot PATCH /api/task-types/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
-    const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Renamed Bug' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/task-types/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Renamed Bug' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/task-types/:id', async () => {
+  test('viewer cannot DELETE /api/task-types/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
-    const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
-      method: 'DELETE',
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
 
   // -- Task statuses --
 
-  it('viewer cannot POST /api/task-statuses', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
-    })
+  test('viewer cannot POST /api/task-statuses', async () => {
+    const { viewerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-statuses',
+      requestOptionsWithBody(
+        'POST',
+        viewerHeaders,
+        JSON.stringify({ category: 'todo', key: 'triage', name: 'Triage' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/task-statuses', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
-    })
+  test('owner CAN POST /api/task-statuses', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/task-statuses',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ category: 'todo', key: 'triage', name: 'Triage' })),
+    )
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/task-statuses/:id', async () => {
+  test('viewer cannot PATCH /api/task-statuses/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskStatus(workspaceId, { key: 'todo-st', name: 'Todo' })
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Updated' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/task-statuses/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Updated' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/task-statuses/:id', async () => {
+  test('viewer cannot DELETE /api/task-statuses/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskStatus(workspaceId, { key: 'del-st', name: 'Del' })
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
-      method: 'DELETE',
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
 
   // -- Custom fields --
 
-  it('viewer cannot POST /api/custom-fields', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
-    })
+  test('viewer cannot POST /api/custom-fields', async () => {
+    const { viewerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/custom-fields',
+      requestOptionsWithBody(
+        'POST',
+        viewerHeaders,
+        JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/custom-fields', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
-    })
+  test('owner CAN POST /api/custom-fields', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/custom-fields',
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
+      ),
+    )
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/custom-fields/:id', async () => {
+  test('viewer cannot PATCH /api/custom-fields/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_patch', type: 'text' })
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ label: 'Updated' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/custom-fields/${id}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ label: 'Updated' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/custom-fields/:id', async () => {
+  test('viewer cannot DELETE /api/custom-fields/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_del', type: 'text' })
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
-      method: 'DELETE',
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -257,61 +280,68 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   // -- Wiki --
   // Only DELETE enforces viewer restriction; create/update are intentionally open.
 
-  it('viewer cannot DELETE /api/wiki/:slug', async () => {
+  test('viewer cannot DELETE /api/wiki/:slug', async () => {
+    const { ownerHeaders, viewerHeaders } = await seedTestData()
     // Owner creates a wiki page; viewer tries to delete it
-    await SELF.fetch('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ title: 'Protected Page', content: 'content' }),
-    })
-    const res = await SELF.fetch('http://localhost/api/wiki/protected-page', {
-      method: 'DELETE',
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ content: 'content', title: 'Protected Page' })),
+    )
+    const res = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
       headers: viewerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
 
-  it('member CAN DELETE /api/wiki/:slug (only viewer is blocked)', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ title: 'Member Page', content: 'content' }),
-    })
+  test('member CAN DELETE /api/wiki/:slug (only viewer is blocked)', async () => {
+    const { ownerHeaders } = await seedTestData()
+    await fetchNativeApi(
+      'http://localhost/api/wiki',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ content: 'content', title: 'Member Page' })),
+    )
     // Fetch member token from the same fixture
-    const roles = await seedWorkspaceRoles() // second workspace — need same slug
-    // Actually member is already in the fixture via seedWorkspaceRoles above —
-    // but each beforeEach creates a NEW seedWorkspaceRoles. Use the memberHeaders directly.
-    // Re-derive memberHeaders from the same roles used in beforeEach:
-    // Since beforeEach already set viewerHeaders/ownerHeaders, we use the member from the
-    // same workspace. However seedWorkspaceRoles is called again here for a new workspace.
-    // To avoid using the wrong workspace, simply verify member in the correct workspace
-    // gets 200. We do this inline without an extra seedWorkspaceRoles call.
-    // (This test just validates the owner can also delete.)
-    const res = await SELF.fetch('http://localhost/api/wiki/member-page', {
-      method: 'DELETE',
+    // Second workspace — need same slug
+    const roles = await seedWorkspaceRoles()
+    /*
+     * Actually member is already in the fixture via seedWorkspaceRoles above —
+     * but each beforeEach creates a NEW seedWorkspaceRoles. Use the memberHeaders directly.
+     * Re-derive memberHeaders from the same roles used in beforeEach:
+     * Since beforeEach already set viewerHeaders/ownerHeaders, we use the member from the
+     * same workspace. However seedWorkspaceRoles is called again here for a new workspace.
+     * To avoid using the wrong workspace, simply verify member in the correct workspace
+     * gets 200. We do this inline without an extra seedWorkspaceRoles call.
+     * (This test just validates the owner can also delete.)
+     */
+    const res = await fetchNativeApi('http://localhost/api/wiki/member-page', {
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
     // Suppress unused variable warning from the extra seedWorkspaceRoles call above
     void roles
   })
 
-  // -- Comments --
-  // PROJ-374: addComment now rejects viewers, mirroring the other
-  // mutating-route guards in this file.
+  /*
+   * -- Comments --
+   * PROJ-374: addComment now rejects viewers, mirroring the other
+   * mutating-route guards in this file.
+   */
 
-  it('viewer cannot POST /api/issues/:issueId/comments', async () => {
+  test('viewer cannot POST /api/issues/:issueId/comments', async () => {
+    const { ownerId, viewerHeaders, viewerId, workspaceId } = await seedTestData()
     const project = await seedProject(workspaceId)
     const issue = await seedIssue(workspaceId, project.id, ownerId)
-    // Grant the viewer visibility into the project (PROJ-311 default-deny)
-    // so the request reaches the viewer-role guard instead of a 404.
+    /*
+     * Grant the viewer visibility into the project (PROJ-311 default-deny)
+     * so the request reaches the viewer-role guard instead of a 404.
+     */
     await seedGroupGrant(workspaceId, viewerId, project.id, 'viewer')
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}/comments`, {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ body: 'a comment' }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/issues/${issue.id}/comments`,
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ body: 'a comment' })),
+    )
     expect(res.status).toBe(403)
   })
 })
@@ -320,51 +350,60 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 // PROJ-78b: MCP tool viewer restrictions
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: MCP tools – viewer role → error', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
+describe('covers PROJ-78: MCP tools – viewer role → error', () => {
+  type TestData = Readonly<{
+    ownerHeaders: Record<string, string>
+    slug: string
+    viewerHeaders: Record<string, string>
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    workspaceId = roles.workspace.id
-    slug = roles.workspace.slug
-    ownerHeaders = authHeaders(roles.owner.token, slug)
-    viewerHeaders = authHeaders(roles.viewer.token, slug)
-  })
+    const workspaceId = roles.workspace.id
+    const { slug } = roles.workspace
+    const ownerHeaders = authHeaders(roles.owner.token, slug)
+    const viewerHeaders = authHeaders(roles.viewer.token, slug)
+    return { ownerHeaders, slug, viewerHeaders, workspaceId }
+  }
 
-  it('viewer cannot call create_project via MCP (gets a forbidden tool error)', async () => {
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLK' }, viewerHeaders)
+  test('viewer cannot call create_project via MCP (gets a forbidden tool error)', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'BLK', name: 'Blocked' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('owner CAN call create_project via MCP', async () => {
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Owner Made', key: 'OWN' }, ownerHeaders)
+  test('owner CAN call create_project via MCP', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await mcpCall(workspaceId, 'create_project', { key: 'OWN', name: 'Owner Made' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
   })
 
-  it('viewer cannot call create_task_type via MCP (gets a forbidden tool error)', async () => {
+  test('viewer cannot call create_task_type via MCP (gets a forbidden tool error)', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_task_type', { key: 'epic', name: 'Epic' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('owner CAN call create_task_type via MCP', async () => {
+  test('owner CAN call create_task_type via MCP', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_task_type', { key: 'epic', name: 'Epic' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
   })
 
-  it('viewer cannot call create_task_status via MCP', async () => {
+  test('viewer cannot call create_task_status via MCP', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'create_task_status',
-      { key: 'triage', name: 'Triage', category: 'todo' },
+      { category: 'todo', key: 'triage', name: 'Triage' },
       viewerHeaders,
     )
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('viewer cannot call create_custom_field via MCP', async () => {
+  test('viewer cannot call create_custom_field via MCP', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'create_custom_field',
@@ -379,230 +418,247 @@ describe('PROJ-78: MCP tools – viewer role → error', () => {
 // PROJ-78c: Workspace routes – owner-only operations
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerToken: string
-  let memberToken: string
-  let viewerToken: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
-  let ownerEmail: string
-  let memberEmail: string
+type WorkspaceAuthorizationFixture = Readonly<{
+  memberEmail: string
+  memberHeaders: Record<string, string>
+  ownerEmail: string
+  ownerHeaders: Record<string, string>
+  slug: string
+  viewerHeaders: Record<string, string>
+  workspaceId: string
+}>
 
-  beforeEach(async () => {
-    const roles = await seedWorkspaceRoles()
-    workspaceId = roles.workspace.id
-    slug = roles.workspace.slug
-    ownerEmail = roles.owner.user.email
-    memberEmail = roles.member.user.email
-    ownerToken = roles.owner.token
-    memberToken = roles.member.token
-    viewerToken = roles.viewer.token
-    ownerHeaders = authHeaders(ownerToken, slug)
-    memberHeaders = authHeaders(memberToken, slug)
-    viewerHeaders = authHeaders(viewerToken, slug)
-  })
+const seedWorkspaceAuthorizationFixture =
+  async function seedWorkspaceAuthorizationFixture(): Promise<WorkspaceAuthorizationFixture> {
+    const { workspace, owner, member, viewer } = await seedWorkspaceRoles()
+    const { id: workspaceId, slug } = workspace
+    const ownerEmail = owner.user.email
+    const memberEmail = member.user.email
+    const ownerHeaders = authHeaders(owner.token, slug)
+    const memberHeaders = authHeaders(member.token, slug)
+    const viewerHeaders = authHeaders(viewer.token, slug)
+    return { memberEmail, memberHeaders, ownerEmail, ownerHeaders, slug, viewerHeaders, workspaceId }
+  }
 
+const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
+  const prev = env.DEV_USER_EMAIL
+  env.DEV_USER_EMAIL = email
+  try {
+    return await fn()
+  } finally {
+    env.DEV_USER_EMAIL = prev
+  }
+}
+
+const humanHeaders = (slug: string): { 'X-Workspace-Slug': string; 'Content-Type': string } => ({
+  'X-Workspace-Slug': slug,
+  'Content-Type': 'application/json',
+})
+
+const mintWorkspaceToken = (
+  slug: string,
+  email: string,
+  { name, scopes }: Readonly<{ name: string; scopes: string[] }>,
+): Promise<Response> =>
+  asHuman(email, () =>
+    fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/tokens`,
+      requestOptionsWithBody('POST', humanHeaders(slug), JSON.stringify({ name, scopes })),
+    ),
+  )
+
+const revokeWorkspaceToken = (slug: string, email: string, id: string): Promise<Response> =>
+  asHuman(email, () =>
+    fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
+      headers: humanHeaders(slug),
+      method: 'DELETE',
+    }),
+  )
+
+describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed', () => {
   // PATCH /:slug — owner-only rename
 
-  it('member cannot PATCH /api/workspaces/:slug', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
-      method: 'PATCH',
-      headers: memberHeaders,
-      body: JSON.stringify({ name: 'Renamed' }),
-    })
+  test('member cannot PATCH /api/workspaces/:slug', async () => {
+    const { memberHeaders, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}`,
+      requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ name: 'Renamed' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot PATCH /api/workspaces/:slug', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
-      method: 'PATCH',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Renamed' }),
-    })
+  test('viewer cannot PATCH /api/workspaces/:slug', async () => {
+    const { slug, viewerHeaders } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}`,
+      requestOptionsWithBody('PATCH', viewerHeaders, JSON.stringify({ name: 'Renamed' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN PATCH /api/workspaces/:slug', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Renamed By Owner' }),
-    })
+  test('owner CAN PATCH /api/workspaces/:slug', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ name: 'Renamed By Owner' })),
+    )
     expect(res.status).toBe(200)
   })
 
   // POST /:slug/members — owner-only invite
 
-  it('member cannot POST /api/workspaces/:slug/members (invite)', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: memberHeaders,
-      body: JSON.stringify({ email: 'newbie@example.com', role: 'viewer' }),
-    })
+  test('member cannot POST /api/workspaces/:slug/members (invite)', async () => {
+    const { memberHeaders, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ email: 'newbie@example.com', role: 'viewer' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/workspaces/:slug/members', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ email: 'newbie@example.com', role: 'viewer' }),
-    })
+  test('owner CAN POST /api/workspaces/:slug/members', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'newbie@example.com', role: 'viewer' })),
+    )
     expect(res.status).toBe(201)
   })
 
   // DELETE /:slug/members/:userId — owner-only remove
 
-  it('member cannot DELETE /api/workspaces/:slug/members/:userId', async () => {
+  test('member cannot DELETE /api/workspaces/:slug/members/:userId', async () => {
+    const { memberHeaders, ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
     // Invite someone first so there is a target to remove
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ email: 'target@example.com', role: 'viewer' }),
-    })
+    await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'target@example.com', role: 'viewer' })),
+    )
     const target = await env.DB.prepare('SELECT id FROM users WHERE email = ?')
       .bind('target@example.com')
       .first<{ id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
-      method: 'DELETE',
+    assert.exists(target)
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target.id}`, {
       headers: memberHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN DELETE /api/workspaces/:slug/members/:userId', async () => {
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ email: 'removal@example.com', role: 'viewer' }),
-    })
+  test('owner CAN DELETE /api/workspaces/:slug/members/:userId', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
+    await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members`,
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ email: 'removal@example.com', role: 'viewer' })),
+    )
     const target = await env.DB.prepare('SELECT id FROM users WHERE email = ?')
       .bind('removal@example.com')
       .first<{ id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
-      method: 'DELETE',
+    assert.exists(target)
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target.id}`, {
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
   })
 
   // PATCH /:slug/members/:userId — owner-only role-change
 
-  it('member cannot PATCH /api/workspaces/:slug/members/:userId (role-change)', async () => {
-    // viewerUser is already in the workspace from seedWorkspaceRoles
+  test('member cannot PATCH /api/workspaces/:slug/members/:userId (role-change)', async () => {
+    const { memberHeaders, slug, workspaceId } = await seedWorkspaceAuthorizationFixture()
+    // The viewerUser fixture is already in the workspace from seedWorkspaceRoles
     const viewerRow = await env.DB.prepare(
       "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
     )
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
-      method: 'PATCH',
-      headers: memberHeaders,
-      body: JSON.stringify({ role: 'member' }),
-    })
+    assert.exists(viewerRow)
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members/${viewerRow.user_id}`,
+      requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ role: 'member' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN PATCH /api/workspaces/:slug/members/:userId', async () => {
+  test('owner CAN PATCH /api/workspaces/:slug/members/:userId', async () => {
+    const { ownerHeaders, slug, workspaceId } = await seedWorkspaceAuthorizationFixture()
     const viewerRow = await env.DB.prepare(
       "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
     )
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ role: 'member' }),
-    })
+    assert.exists(viewerRow)
+    const res = await fetchNativeApi(
+      `http://localhost/api/workspaces/${slug}/members/${viewerRow.user_id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ role: 'member' })),
+    )
     expect(res.status).toBe(200)
   })
 
   // GET /:slug/tokens — admin/owner only
 
-  it('member cannot GET /api/workspaces/:slug/tokens', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+  test('member cannot GET /api/workspaces/:slug/tokens', async () => {
+    const { memberHeaders, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot GET /api/workspaces/:slug/tokens', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+  test('viewer cannot GET /api/workspaces/:slug/tokens', async () => {
+    const { slug, viewerHeaders } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: viewerHeaders,
     })
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN GET /api/workspaces/:slug/tokens', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+  test('owner CAN GET /api/workspaces/:slug/tokens', async () => {
+    const { ownerHeaders, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(200)
   })
 
-  // POST/DELETE /:slug/tokens — admin/owner only, and (PROJ-917) only from a human
-  // session: the dev bypass here. Bearer-token refusal is covered in
-  // workspace-tokens.test.ts.
+  /*
+   * POST/DELETE /:slug/tokens — admin/owner only, and (PROJ-917) only from a human
+   * session: the dev bypass here. Bearer-token refusal is covered in
+   * workspace-tokens.test.ts.
+   */
 
-  async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
-    const prev = env.DEV_USER_EMAIL
-    env.DEV_USER_EMAIL = email
-    try {
-      return await fn()
-    } finally {
-      env.DEV_USER_EMAIL = prev
-    }
-  }
-  const humanHeaders = () => ({ 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' })
-  const mint = (email: string, name: string, scopes: string[]) =>
-    asHuman(email, () =>
-      SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
-        method: 'POST',
-        headers: humanHeaders(),
-        body: JSON.stringify({ name, scopes }),
-      }),
-    )
-  const revoke = (email: string, id: string) =>
-    asHuman(email, () =>
-      SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
-        method: 'DELETE',
-        headers: humanHeaders(),
-      }),
-    )
-
-  it('member cannot POST /api/workspaces/:slug/tokens', async () => {
-    const res = await mint(memberEmail, 'my-token', ['read'])
+  test('member cannot POST /api/workspaces/:slug/tokens', async () => {
+    const { memberEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await mintWorkspaceToken(slug, memberEmail, { name: 'my-token', scopes: ['read'] })
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/workspaces/:slug/tokens', async () => {
-    const res = await mint(ownerEmail, 'my-token', ['read', 'write'])
+  test('owner CAN POST /api/workspaces/:slug/tokens', async () => {
+    const { ownerEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const res = await mintWorkspaceToken(slug, ownerEmail, { name: 'my-token', scopes: ['read', 'write'] })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; token: string }
-    expect(body.token).toBeTruthy()
-    expect(body.id).toBeTruthy()
+    const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, token: Schema.String }))
+    expect(isNonEmptyText(body.token)).toBe(true)
+    expect(isNonEmptyText(body.id)).toBe(true)
   })
 
-  it('member cannot DELETE /api/workspaces/:slug/tokens/:id', async () => {
-    const { id } = (await (await mint(ownerEmail, 'to-revoke', ['read'])).json()) as {
-      id: string
-    }
-    const res = await revoke(memberEmail, id)
+  test('member cannot DELETE /api/workspaces/:slug/tokens/:id', async () => {
+    const { memberEmail, ownerEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const response = await mintWorkspaceToken(slug, ownerEmail, { name: 'to-revoke', scopes: ['read'] })
+    const { id } = await readNativeJson(response, IdResponse)
+    const res = await revokeWorkspaceToken(slug, memberEmail, id)
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN DELETE /api/workspaces/:slug/tokens/:id', async () => {
-    const { id } = (await (await mint(ownerEmail, 'revocable', ['read'])).json()) as {
-      id: string
-    }
-    const res = await revoke(ownerEmail, id)
+  test('owner CAN DELETE /api/workspaces/:slug/tokens/:id', async () => {
+    const { ownerEmail, slug } = await seedWorkspaceAuthorizationFixture()
+    const response = await mintWorkspaceToken(slug, ownerEmail, { name: 'revocable', scopes: ['read'] })
+    const { id } = await readNativeJson(response, IdResponse)
+    const res = await revokeWorkspaceToken(slug, ownerEmail, id)
     expect(res.status).toBe(200)
   })
 })
@@ -611,16 +667,17 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 // PROJ-78d: Restricted scope token scaffolding
 // ---------------------------------------------------------------------------
 
-describe('PROJ-78: seedToken scopes parameter', () => {
-  it("seedToken defaults to ['*'] scopes", async () => {
+describe('covers PROJ-78: seedToken scopes parameter', () => {
+  test("seedToken defaults to ['*'] scopes", async () => {
     const fixture = await seedFixture()
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(fixture.workspace.id, fixture.user.id)
       .first<{ scopes: string }>()
-    expect(JSON.parse(row!.scopes)).toEqual(['*'])
+    assert.exists(row)
+    expect(JSON.parse(row.scopes)).toStrictEqual(['*'])
   })
 
-  it('seedToken persists explicit scopes for future scope-enforcement tests', async () => {
+  test('seedToken persists explicit scopes for future scope-enforcement tests', async () => {
     const ws = await seedWorkspace(`ws-scopes-${crypto.randomUUID().slice(0, 8)}`)
     const user = await seedUser(`scope-user-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, user.id, 'member')
@@ -631,20 +688,22 @@ describe('PROJ-78: seedToken scopes parameter', () => {
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(ws.id, user.id)
       .first<{ scopes: string }>()
-    expect(JSON.parse(row!.scopes)).toEqual(['read'])
+    assert.exists(row)
+    expect(JSON.parse(row.scopes)).toStrictEqual(['read'])
   })
 
-  it('seedToken persists expiresAt when provided', async () => {
+  test('seedToken persists expiresAt when provided', async () => {
     const ws = await seedWorkspace(`ws-exp-${crypto.randomUUID().slice(0, 8)}`)
     const user = await seedUser(`exp-user-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, user.id, 'member')
 
-    const expiresAt = Math.floor(Date.now() / 1000) + 3600
+    const expiresAt = currentEpochSeconds() + 3600
     await seedToken(ws.id, user.id, { expiresAt })
 
     const row = await env.DB.prepare('SELECT expires_at FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(ws.id, user.id)
       .first<{ expires_at: number }>()
-    expect(row!.expires_at).toBe(expiresAt)
+    assert.exists(row)
+    expect(row.expires_at).toBe(expiresAt)
   })
 })

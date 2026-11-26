@@ -1,17 +1,24 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
-import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Predicate, Effect } from 'effect'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { migratedDb } from '#db/test/helpers'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { migratedDb } from '#db/test/helpers.ts'
+import { DataQueryError } from '#services/errors.ts'
+import { findAttachment, listAttachments } from '#services/files.ts'
+import { findGroup, listGroupGrants, listGroupMembers, listGroups, listMemberGroups } from '#services/groups.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
-import { DataQueryError } from '../errors'
-import { findAttachment, listAttachments } from '../files'
-import { findGroup, listGroupGrants, listGroupMembers, listGroups, listMemberGroups } from '../groups'
-
-/** Executes the actual Drizzle/raw SQL over the complete migrated SQLite schema. */
-function readDatabase(sqlite: DatabaseSync): D1Database {
-  function prepare(sql: string, bindings: SQLInputValue[] = []) {
+/**
+ * Executes the actual Drizzle/raw SQL over the complete migrated SQLite schema.
+ *
+ * @param {DatabaseSync} sqlite - The SQLite database with migrations applied.
+ * @returns {D1Database} The D1 read methods that use this database.
+ */
+const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
+  const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => prepare(sql, values),
       all: async () => ({ results: sqlite.prepare(sql).all(...bindings) }),
@@ -55,83 +62,87 @@ describe('groups and attachment pure retrieval', () => {
   })
   afterEach(() => sqlite.close())
 
-  it('lists exact group summaries/counts and app-selected membership subset', async () => {
-    expect(await Effect.runPromise(listGroups(db, 'wa'))).toEqual([
+  test('lists exact group summaries/counts and app-selected membership subset', async () => {
+    await expect(runTestEffect(listGroups(db, 'wa'))).resolves.toStrictEqual([
       {
-        id: 'g2',
-        name: 'Alpha',
-        description: 'Description',
         createdAt: 4,
-        memberCount: 0,
+        description: 'Description',
         grantCount: 0,
+        id: 'g2',
+        memberCount: 0,
+        name: 'Alpha',
       },
-      { id: 'g1', name: 'Zeta', description: null, createdAt: 3, memberCount: 2, grantCount: 1 },
+      { createdAt: 3, description: SQL_NULL, grantCount: 1, id: 'g1', memberCount: 2, name: 'Zeta' },
     ])
-    expect((await Effect.runPromise(listGroups(db, 'wa', { memberUserId: 'u1' }))).map((g) => g.id)).toEqual(['g1'])
-    expect(await Effect.runPromise(listGroups(db, 'wa', { memberUserId: 'missing' }))).toEqual([])
+    const result = await runTestEffect(listGroups(db, 'wa', { memberUserId: 'u1' }))
+    expect(result.map((group) => group.id)).toStrictEqual(['g1'])
+    await expect(runTestEffect(listGroups(db, 'wa', { memberUserId: 'missing' }))).resolves.toStrictEqual([])
   })
-  it('retrieves domain group/member/grant rows with explicit tenant boundaries', async () => {
-    expect(await Effect.runPromise(findGroup(db, 'wa', 'g1'))).toEqual({
-      id: 'g1',
-      workspaceId: 'wa',
-      name: 'Zeta',
-      description: null,
+
+  test('retrieves domain group/member/grant rows with explicit tenant boundaries', async () => {
+    await expect(runTestEffect(findGroup(db, 'wa', 'g1'))).resolves.toStrictEqual({
       createdAt: 3,
+      description: SQL_NULL,
+      id: 'g1',
+      name: 'Zeta',
+      workspaceId: 'wa',
     })
-    expect(await Effect.runPromise(findGroup(db, 'wa', 'g3'))).toBeUndefined()
-    expect(await Effect.runPromise(listGroupMembers(db, 'wa', 'g1'))).toEqual([
-      { userId: 'u2', email: 'two@example.com', name: 'Two', addedAt: 10, addedBy: 'u1' },
-      { userId: 'u1', email: 'one@example.com', name: 'One', addedAt: 20, addedBy: 'u2' },
+    await expect(runTestEffect(findGroup(db, 'wa', 'g3'))).resolves.toBeUndefined()
+    await expect(runTestEffect(listGroupMembers(db, 'wa', 'g1'))).resolves.toStrictEqual([
+      { addedAt: 10, addedBy: 'u1', email: 'two@example.com', name: 'Two', userId: 'u2' },
+      { addedAt: 20, addedBy: 'u2', email: 'one@example.com', name: 'One', userId: 'u1' },
     ])
-    expect(await Effect.runPromise(listGroupGrants(db, 'wa', 'g1'))).toEqual([
-      { projectId: 'p1', projectName: 'Project', projectKey: 'ONE', role: 'member' },
+    await expect(runTestEffect(listGroupGrants(db, 'wa', 'g1'))).resolves.toStrictEqual([
+      { projectId: 'p1', projectKey: 'ONE', projectName: 'Project', role: 'member' },
     ])
-    expect(await Effect.runPromise(listGroupMembers(db, 'wa', 'g3'))).toEqual([])
-    expect(await Effect.runPromise(listGroupGrants(db, 'wa', 'g3'))).toEqual([])
+    await expect(runTestEffect(listGroupMembers(db, 'wa', 'g3'))).resolves.toStrictEqual([])
+    await expect(runTestEffect(listGroupGrants(db, 'wa', 'g3'))).resolves.toStrictEqual([])
   })
-  it('includes zero-group workspace members without leaking memberships from another tenant', async () => {
+
+  test('includes zero-group workspace members without leaking memberships from another tenant', async () => {
     sqlite.exec("DELETE FROM user_group_members WHERE group_id = 'g1' AND user_id = 'u2'")
-    expect(await Effect.runPromise(listMemberGroups(db, 'wa'))).toEqual([
-      { userId: 'u1', groups: [{ id: 'g1', name: 'Zeta' }] },
-      { userId: 'u2', groups: [] },
+    await expect(runTestEffect(listMemberGroups(db, 'wa'))).resolves.toStrictEqual([
+      { groups: [{ id: 'g1', name: 'Zeta' }], userId: 'u1' },
+      { groups: [], userId: 'u2' },
     ])
   })
-  it('maps file/link/wiki metadata, orders by creation and filters entity type/id/workspace', async () => {
-    const rows = await Effect.runPromise(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'same' }))
-    expect(rows.map((a) => a.id)).toEqual(['a2', 'a3', 'a6', 'a1'])
-    expect(rows[0]).toEqual({
+
+  test('maps file/link/wiki metadata, orders by creation and filters entity type/id/workspace', async () => {
+    const rows = await runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'same' }))
+    expect(rows.map((row) => row.id)).toStrictEqual(['a2', 'a3', 'a6', 'a1'])
+    expect(rows[0]).toStrictEqual({
+      contentType: '',
+      createdAt: 10,
+      filename: '',
       id: 'a2',
       kind: 'wiki_ref',
-      filename: '',
-      contentType: '',
+      reviewStatus: SQL_NULL,
       size: 0,
-      url: null,
-      createdAt: 10,
-      reviewStatus: null,
-      wikiPage: { id: 'w1', title: 'Hello', slug: 'hello world', projectId: 'p1' },
+      url: SQL_NULL,
+      wikiPage: { id: 'w1', projectId: 'p1', slug: 'hello world', title: 'Hello' },
     })
     expect(rows[1].wikiPage).toBeNull()
     expect(rows[2].wikiPage).toBeNull()
-    expect(rows[3]).toEqual({
+    expect(rows[3]).toStrictEqual({
+      contentType: 'image/png',
+      createdAt: 30,
+      filename: 'photo.png',
       id: 'a1',
       kind: 'file',
-      filename: 'photo.png',
-      contentType: 'image/png',
+      reviewStatus: SQL_NULL,
       size: 123,
-      url: null,
-      createdAt: 30,
-      reviewStatus: null,
-      wikiPage: null,
+      url: SQL_NULL,
+      wikiPage: JSON_NULL,
     })
-    expect(await Effect.runPromise(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'missing' }))).toEqual([])
-    expect(
-      (await Effect.runPromise(listAttachments(db, 'wa', { entityType: 'wiki_page', entityId: 'same' }))).map(
-        (a) => a.id,
-      ),
-    ).toEqual(['a4'])
+    await expect(
+      runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'missing' })),
+    ).resolves.toStrictEqual([])
+    const result = await runTestEffect(listAttachments(db, 'wa', { entityType: 'wiki_page', entityId: 'same' }))
+    expect(result.map((attachment) => attachment.id)).toStrictEqual(['a4'])
   })
-  it('applies app-owned owner and linked-page predicates without losing unavailable refs', async () => {
-    const rows = await Effect.runPromise(
+
+  test('applies app-owned owner and linked-page predicates without losing unavailable refs', async () => {
+    const rows = await runTestEffect(
       listAttachments(db, 'wa', {
         entityType: 'issue',
         entityId: 'same',
@@ -139,18 +150,17 @@ describe('groups and attachment pure retrieval', () => {
         linkedWikiVisibility: { sql: 'w.project_id = ?', params: ['hidden'] },
       }),
     )
-    expect(rows.map((a) => a.id)).toEqual(['a2', 'a3', 'a6'])
-    expect(rows.every((a) => a.wikiPage === null)).toBe(true)
-    expect(
-      await Effect.runPromise(
-        findAttachment(db, 'wa', 'a1', { ownerVisibility: { sql: 'a.id != ?', params: ['a1'] } }),
-      ),
-    ).toBeNull()
+    expect(rows.map((row) => row.id)).toStrictEqual(['a2', 'a3', 'a6'])
+    expect(rows.every((row) => Predicate.isNullish(row.wikiPage))).toBe(true)
+    await expect(
+      runTestEffect(findAttachment(db, 'wa', 'a1', { ownerVisibility: { sql: 'a.id != ?', params: ['a1'] } })),
+    ).resolves.toBeNull()
   })
-  it('finds scoped metadata, missing rows remain null and internal storage keys stay absent', async () => {
-    expect(await Effect.runPromise(findAttachment(db, 'wa', 'a5'))).toBeNull()
-    expect(await Effect.runPromise(findAttachment(db, 'wa', 'missing'))).toBeNull()
-    const row = await Effect.runPromise(findAttachment(db, 'wa', 'a4'))
+
+  test('finds scoped metadata, missing rows remain null and internal storage keys stay absent', async () => {
+    await expect(runTestEffect(findAttachment(db, 'wa', 'a5'))).resolves.toBeNull()
+    await expect(runTestEffect(findAttachment(db, 'wa', 'missing'))).resolves.toBeNull()
+    const row = await runTestEffect(findAttachment(db, 'wa', 'a4'))
     expect(row).toMatchObject({
       id: 'a4',
       kind: 'url',
@@ -159,14 +169,15 @@ describe('groups and attachment pure retrieval', () => {
     })
     expect(row).not.toHaveProperty('r2Key')
   })
-  it('defers actual DB access until Effect execution and tags SQL failures', async () => {
+
+  test('defers actual DB access until Effect execution and tags SQL failures', async () => {
     const query = listGroups(db, 'wa')
     sqlite.exec('DROP TABLE group_project_grants')
-    const error = await Effect.runPromise(Effect.flip(query))
+    const error = await runTestEffect(Effect.flip(query))
     expect(error).toBeInstanceOf(DataQueryError)
     expect(error.operation).toBe('listGroups')
-    expect(
-      await Effect.runPromise(
+    await expect(
+      runTestEffect(
         Effect.flip(
           listAttachments(db, 'wa', {
             entityType: 'issue',
@@ -175,6 +186,6 @@ describe('groups and attachment pure retrieval', () => {
           }),
         ),
       ),
-    ).toMatchObject({ _tag: 'DataQueryError', operation: 'listAttachments' })
+    ).resolves.toMatchObject({ _tag: 'DataQueryError', operation: 'listAttachments' })
   })
 })

@@ -1,96 +1,111 @@
-import { ValidationError } from '../../contracts/errors'
-import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '../services/task-statuses'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { String, Predicate } from 'effect'
+
+import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '#api/services/task-statuses.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import type { MCPTool } from './types.ts'
 
 export const taskStatusesTools: MCPTool[] = [
   {
-    name: 'list_task_statuses',
-    description: 'List all task statuses configured for the workspace',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-    },
     annotations: READ,
-    handler(_input, ctx) {
+    description: 'List all task statuses configured for the workspace',
+    async handler(_input, ctx) {
       return listTaskStatuses(ctx)
     },
+    inputSchema: objectInputSchema({}),
+    name: 'list_task_statuses',
   },
   {
-    name: 'create_task_status',
-    description: 'Create a new task status for the workspace (owner/admin only)',
-    inputSchema: {
-      type: 'object',
-      required: ['key', 'name', 'category'],
-      properties: {
-        key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
-        name: { type: 'string', description: 'Display name' },
-        category: {
-          type: 'string',
-          enum: ['todo', 'in_progress', 'done', 'cancelled'],
-          description: 'Workflow bucket',
-        },
-        color: { type: 'string', description: 'Optional color (hex or named)' },
-        position: { type: 'number', description: 'Sort order position' },
-        isDefault: { type: 'boolean', description: 'Set as the default status for new issues' },
-        isReviewStep: {
-          type: 'boolean',
-          description:
-            'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
-        },
-      },
-    },
     annotations: CREATE,
-    handler(input, ctx) {
+    description: 'Create a new task status for the workspace (owner/admin only)',
+    async handler(input, ctx) {
       return createTaskStatus(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['key', 'name', 'category'],
+      fieldsInOrder([
+        ['key', describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)')],
+        ['name', describedInputProperty('string', 'Display name')],
+        [
+          'category',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['todo', 'in_progress', 'done', 'cancelled']],
+            ['description', 'Workflow bucket'],
+          ]),
+        ],
+        ['color', describedInputProperty('string', 'Optional color (hex or named)')],
+        ['position', describedInputProperty('number', 'Sort order position')],
+        ['isDefault', describedInputProperty('boolean', 'Set as the default status for new issues')],
+        [
+          'isReviewStep',
+          describedInputProperty(
+            'boolean',
+            'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
+          ),
+        ],
+      ]),
+    ),
+    name: 'create_task_status',
   },
   {
-    name: 'update_task_status',
-    description: 'Update a task status (owner/admin only)',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string' },
-        name: { type: 'string' },
-        category: { type: 'string', enum: ['todo', 'in_progress', 'done', 'cancelled'] },
-        color: { type: 'string', nullable: true },
-        position: { type: 'number' },
-        isDefault: { type: 'boolean', description: 'Set as the default status for new issues' },
-        isReviewStep: {
-          type: 'boolean',
-          description:
-            'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
-        },
-      },
-    },
     annotations: IDEMPOTENT_WRITE,
-    handler(input, ctx) {
+    description: 'Update a task status (owner/admin only)',
+    async handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!id || typeof id !== 'string') {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return updateTaskStatus(ctx, id, fields)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['id'],
+      fieldsInOrder([
+        ['id', { type: 'string' }],
+        ['name', { type: 'string' }],
+        [
+          'category',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['todo', 'in_progress', 'done', 'cancelled']],
+          ]),
+        ],
+        [
+          'color',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+          ]),
+        ],
+        ['position', { type: 'number' }],
+        ['isDefault', describedInputProperty('boolean', 'Set as the default status for new issues')],
+        [
+          'isReviewStep',
+          describedInputProperty(
+            'boolean',
+            'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
+          ),
+        ],
+      ]),
+    ),
+    name: 'update_task_status',
   },
   {
-    name: 'delete_task_status',
-    description: 'Delete a task status (owner/admin only). Fails if the status is in use or is the default.',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string' },
-      },
-    },
     annotations: DESTRUCTIVE,
-    handler(input, ctx) {
+    description: 'Delete a task status (owner/admin only). Fails if the status is in use or is the default.',
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteTaskStatus(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: { type: 'string' },
+    }),
+    name: 'delete_task_status',
   },
 ]

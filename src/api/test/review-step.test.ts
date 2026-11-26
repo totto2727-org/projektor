@@ -1,32 +1,40 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import m0061 from '../../../migrations/0061_task_status_review_step.sql?raw'
-import { env } from './fixture-api'
-import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import m0061 from '#migrations/0061_task_status_review_step.sql?raw'
+
+import { env } from './fixture-api.ts'
+import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers.ts'
+import { stringifyOrderedFields, fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
+
+interface ReviewStepTestContext {
+  projectFixture: Awaited<ReturnType<typeof seedProjectFixture>>
+}
+
+type ReviewRequestAuth = Pick<ReviewStepTestContext['projectFixture'], 'slug' | 'token'>
+
+const patch = function patch(
+  { slug, token }: ReviewRequestAuth,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  return fetchNativeApi(`http://localhost/api/issues/${id}`, {
+    body: JSON.stringify(body),
+    headers: authHeaders(token, slug),
+    method: 'PATCH',
+  })
+}
 
 // PROJ-749: a status is a review step because the workspace flagged it
 // (task_statuses.is_review_step), not because its key contains "review".
-describe('PROJ-749: review steps are explicit, not inferred from the status key', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
+describe('covers PROJ-749: review steps are explicit, not inferred from the status key', () => {
+  beforeEach<ReviewStepTestContext>(async (context) => {
+    context.projectFixture = await seedProjectFixture({ role: 'owner' })
   })
 
-  function patch(id: string, body: Record<string, unknown>) {
-    return SELF.fetch(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
-      body: JSON.stringify(body),
-    })
-  }
-
-  async function reviewState(id: string) {
+  const reviewState = async function reviewState(id: string) {
     const row = await env.DB.prepare('SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?')
       .bind(id)
       .first<{ in_review_at: number | null; review_bounce_count: number }>()
@@ -36,47 +44,55 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     return { ...row, gateRejections: rejections?.n ?? 0 }
   }
 
-  it('a "Contract Review" status that is not a review step is not gated and not counted', async () => {
+  test<ReviewStepTestContext>('a "Contract Review" status that is not a review step is not gated and not counted', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contract' })
     await seedAgentLease(workspaceId, issue.id)
     const contract = await seedTaskStatus(workspaceId, {
+      category: 'in_progress',
       key: 'contract_review',
       name: 'Contract Review',
-      category: 'in_progress',
     })
 
     // No completion report needed: it isn't a review step.
-    expect((await patch(issue.id, { statusId: contract.id })).status).toBe(200)
+    const result = await patch({ slug, token }, issue.id, { statusId: contract.id })
+    expect(result.status).toBe(200)
     // Leaving it for in_progress is not a review bounce / gate rejection.
-    expect((await patch(issue.id, { status: 'in_progress' })).status).toBe(200)
+    const resolvedValue = await patch({ slug, token }, issue.id, { status: 'in_progress' })
+    expect(resolvedValue.status).toBe(200)
 
-    expect(await reviewState(issue.id)).toEqual({
-      in_review_at: null,
-      review_bounce_count: 0,
+    await expect(reviewState(issue.id)).resolves.toStrictEqual({
       gateRejections: 0,
+      in_review_at: SQL_NULL,
+      review_bounce_count: 0,
     })
   })
 
-  it('a custom status flagged as a review step is gated, stamped and counted', async () => {
+  test<ReviewStepTestContext>('a custom status flagged as a review step is gated, stamped and counted', async ({
+    projectFixture: { projectId, slug, token, userId, workspaceId },
+  }) => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Peer' })
     await seedAgentLease(workspaceId, issue.id)
     const peer = await seedTaskStatus(workspaceId, {
-      key: 'peer_review',
-      name: 'Peer Review',
       category: 'in_progress',
       isReviewStep: true,
+      key: 'peer_review',
+      name: 'Peer Review',
     })
 
-    expect((await patch(issue.id, { statusId: peer.id })).status).toBe(400)
-    expect(
-      (
-        await patch(issue.id, {
-          statusId: peer.id,
-          completionReport: { summary: 's', verification: 'v' },
-        })
-      ).status,
-    ).toBe(200)
-    expect((await patch(issue.id, { status: 'in_progress' })).status).toBe(200)
+    await expect(patch({ slug, token }, issue.id, { statusId: peer.id })).resolves.toHaveProperty('status', 400)
+    await expect(
+      patch(
+        { slug, token },
+        issue.id,
+        fieldsInOrder([
+          ['statusId', peer.id],
+          ['completionReport', { summary: 's', verification: 'v' }],
+        ]),
+      ),
+    ).resolves.toHaveProperty('status', 200)
+    await expect(patch({ slug, token }, issue.id, { status: 'in_progress' })).resolves.toHaveProperty('status', 200)
 
     const state = await reviewState(issue.id)
     expect(state.in_review_at).not.toBeNull()
@@ -84,39 +100,41 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     expect(state.gateRejections).toBe(1)
   })
 
-  it('create/update_task_status set and clear the flag (REST)', async () => {
-    const created = await SELF.fetch('http://localhost/api/task-statuses', {
-      method: 'POST',
+  test<ReviewStepTestContext>('create/update_task_status set and clear the flag (REST)', async ({
+    projectFixture: { slug, token },
+  }) => {
+    const created = await fetchNativeApi('http://localhost/api/task-statuses', {
+      body: stringifyOrderedFields([
+        ['key', 'design_review'],
+        ['name', 'Design Review'],
+        ['category', 'in_progress'],
+        ['isReviewStep', true],
+      ]),
       headers: authHeaders(token, slug),
-      body: JSON.stringify({
-        key: 'design_review',
-        name: 'Design Review',
-        category: 'in_progress',
-        isReviewStep: true,
-      }),
+      method: 'POST',
     })
     expect(created.status).toBe(201)
-    const { id } = (await created.json()) as { id: string }
-    const flag = async () =>
+    const { id } = await readNativeJson(created, IdResponse)
+    const flag = async (): Promise<undefined | number> =>
       (
         await env.DB.prepare('SELECT is_review_step AS f FROM task_statuses WHERE id = ?')
           .bind(id)
           .first<{ f: number }>()
       )?.f
-    expect(await flag()).toBe(1)
+    await expect(flag()).resolves.toBe(1)
 
-    const updated = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
-      method: 'PATCH',
-      headers: authHeaders(token, slug),
+    const updated = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       body: JSON.stringify({ isReviewStep: false }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(updated.status).toBe(200)
-    expect(await flag()).toBe(0)
+    await expect(flag()).resolves.toBe(0)
   })
 })
 
-describe("PROJ-749: migration 0061 backfill preserves today's behaviour", () => {
-  it("flags every existing status whose key contains 'review', and nothing else", async () => {
+describe("covers PROJ-749: migration 0061 backfill preserves today's behaviour", () => {
+  test("flags every existing status whose key contains 'review', and nothing else", async () => {
     const ws = `ws-${crypto.randomUUID().slice(0, 8)}`
     await env.DB.prepare('INSERT INTO workspaces (id, slug, name, created_at) VALUES (?, ?, ?, 0)')
       .bind(ws, ws, ws)
@@ -130,10 +148,10 @@ describe("PROJ-749: migration 0061 backfill preserves today's behaviour", () => 
         .run()
     }
     const backfill = m0061
-      .replace(/--[^\n]*/g, '')
+      .replaceAll(/--[^\n]*/gu, '')
       .split(';')
-      .map((s) => s.trim())
-      .find((s) => s.startsWith('UPDATE'))
+      .map((statement) => statement.trim())
+      .find((statement) => statement.startsWith('UPDATE'))
     expect(backfill).toBeDefined()
     await env.DB.prepare(backfill as string).run()
 
@@ -142,7 +160,7 @@ describe("PROJ-749: migration 0061 backfill preserves today's behaviour", () => 
     )
       .bind(ws)
       .all<{ key: string; f: number }>()
-    expect(Object.fromEntries(rows.results.map((r) => [r.key, r.f]))).toEqual({
+    expect(Object.fromEntries(rows.results.map((result) => [result.key, result.f]))).toStrictEqual({
       code_review: 1,
       contract_review: 1,
       done: 0,

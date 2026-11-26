@@ -1,24 +1,27 @@
-// PROJ-870: issue create/update fold their independent writes (issue INSERT/UPDATE incl.
-// status_category, FTS delete+insert, custom-field upserts, activity, completion-report
-// comment, gate rejection) into one db.batch(), drop the post-write re-SELECTs and the
-// duplicate status lookup, and walk the parent's ancestors with one recursive CTE.
-//
-// The services are called directly with a ServiceCtx so the counts exclude auth/rate-limit
-// middleware (the AC's "excluding auth"). A D1 round trip is counted the way D1 bills it:
-// each statement executed on its own counts once, and a whole db.batch() counts once
-// however many statements it carries (same counter as file-claims-batching.test.ts).
-//
-// Measured with this counter (before -> after this ticket): create 15 -> 6, update 15 -> 6,
-// review transition with completion report 7 -> 4, and the parent walk no longer grows
-// with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
+/*
+ * PROJ-870: issue create/update fold their independent writes (issue INSERT/UPDATE incl.
+ * status_category, FTS delete+insert, custom-field upserts, activity, completion-report
+ * comment, gate rejection) into one db.batch(), drop the post-write re-SELECTs and the
+ * duplicate status lookup, and walk the parent's ancestors with one recursive CTE.
+ *
+ * The services are called directly with a ServiceCtx so the counts exclude auth/rate-limit
+ * middleware (the AC's "excluding auth"). A D1 round trip is counted the way D1 bills it:
+ * each statement executed on its own counts once, and a whole db.batch() counts once
+ * however many statements it carries (same counter as file-claims-batching.test.ts).
+ *
+ * Measured with this counter (before -> after this ticket): create 15 -> 6, update 15 -> 6,
+ * review transition with completion report 7 -> 4, and the parent walk no longer grows
+ * with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
+ */
+import { Predicate } from 'effect'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { createIssue, updateIssue } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
-import { createIssue, updateIssue } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
-
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedAgentLease,
@@ -27,9 +30,10 @@ import {
   seedProjectFixture,
   seedTaskStatus,
   seedTaskType,
-} from './helpers'
+} from './helpers.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
-function trackD1RoundTrips() {
+const trackD1RoundTrips = function trackD1RoundTrips() {
   let count = 0
   const origPrepare = env.DB.prepare.bind(env.DB)
   const origBatch = env.DB.batch.bind(env.DB)
@@ -39,24 +43,26 @@ function trackD1RoundTrips() {
     new Proxy(stmt, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver)
-        if (typeof value !== 'function') return value
+        if (!Predicate.isFunction(value)) {
+          return value
+        }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
-            wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
+            wrapStmt((value as (...parameters: unknown[]) => D1PreparedStatement).apply(target, args))
         }
-        if (typeof prop === 'string' && EXEC_METHODS.has(prop)) {
+        if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
-            count++
-            return (value as (...a: unknown[]) => unknown).apply(target, args)
+            count += 1
+            return (value as (...parameters: unknown[]) => unknown).apply(target, args)
           }
         }
         return value.bind(target)
       },
     })
 
-  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement)
+  vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => wrapStmt(origPrepare(sql)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
-    count++
+    count += 1
     return origBatch(stmts)
   })
 
@@ -65,33 +71,33 @@ function trackD1RoundTrips() {
 
 type Fixture = Awaited<ReturnType<typeof seedProjectFixture>>
 
-function ownerCtx(f: Fixture): ServiceCtx {
+const ownerCtx = function ownerCtx(fixture: Fixture): ServiceCtx {
   return {
     db: env.DB,
     kv: env.KV,
     r2: env.R2,
-    workspaceId: f.workspaceId,
-    userId: f.userId,
+    workspaceId: fixture.workspaceId,
+    userId: fixture.userId,
     role: 'owner',
   }
 }
 
 // ValidationError's message is generic; the human-readable reason is in issues.formErrors.
-async function formErrorOf(p: Promise<unknown>): Promise<string[]> {
-  const err = (await p.then(
+const formErrorOf = async function formErrorOf(pending: Promise<unknown>): Promise<string[]> {
+  const err = (await pending.then(
     () => null,
-    (e: unknown) => e,
+    (error: unknown) => error,
   )) as { issues?: { formErrors: string[] } } | null
   expect(err, 'expected the call to be rejected').not.toBeNull()
   return err?.issues?.formErrors ?? []
 }
 
-async function seedChain(f: Fixture, length: number): Promise<string[]> {
+const seedChain = async function seedChain(fixture: Fixture, length: number): Promise<string[]> {
   const ids: string[] = []
   let parentId: string | undefined
-  for (let i = 0; i < length; i++) {
-    const { id } = await seedIssue(f.workspaceId, f.projectId, f.userId, {
-      title: `L${i}`,
+  for (let index = 0; index < length; index += 1) {
+    const { id } = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
+      title: `L${index}`,
       parentId,
     })
     ids.push(id)
@@ -100,33 +106,43 @@ async function seedChain(f: Fixture, length: number): Promise<string[]> {
   return ids
 }
 
-describe('PROJ-870: issue write batching', () => {
-  let f: Fixture
-  let ctx: ServiceCtx
+interface IssueWriteTestContext {
+  ownerFixture: { ctx: ServiceCtx; fixture: Fixture }
+}
 
-  beforeEach(async () => {
-    f = await seedProjectFixture({ role: 'owner' })
-    ctx = ownerCtx(f)
-  })
+const seedOwnerFixture = async function seedOwnerFixture(context: IssueWriteTestContext): Promise<void> {
+  const fixture = await seedProjectFixture({ role: 'owner' })
+  const ctx = ownerCtx(fixture)
+  context.ownerFixture = { ctx, fixture }
+}
+
+describe('covers PROJ-870: issue write batching', () => {
+  beforeEach<IssueWriteTestContext>(seedOwnerFixture)
   afterEach(() => vi.restoreAllMocks())
 
-  it('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async () => {
-    const chain = await seedChain(f, 4) // parent has 3 ancestors → the ancestor walk runs
-    const status = await seedTaskStatus(f.workspaceId, { key: 'doing', category: 'in_progress' })
-    const type = await seedTaskType(f.workspaceId, { key: 'task' })
-    await seedCustomFieldDef(f.workspaceId, { key: 'points', type: 'number' })
-    await seedCustomFieldDef(f.workspaceId, { key: 'team' })
+  test<IssueWriteTestContext>('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    // Parent has 3 ancestors → the ancestor walk runs
+    const chain = await seedChain(fixture, 4)
+    const status = await seedTaskStatus(fixture.workspaceId, { category: 'in_progress', key: 'doing' })
+    const type = await seedTaskType(fixture.workspaceId, { key: 'task' })
+    await seedCustomFieldDef(fixture.workspaceId, { key: 'points', type: 'number' })
+    await seedCustomFieldDef(fixture.workspaceId, { key: 'team' })
 
     const tracker = trackD1RoundTrips()
-    const created = await createIssue(ctx, {
-      projectId: f.projectId,
-      title: 'Batched create',
-      body: 'hello body',
-      parentId: chain[3],
-      statusId: status.id,
-      typeId: type.id,
-      customFields: { points: 3, team: 'core' },
-    })
+    const created = await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Batched create'],
+        ['body', 'hello body'],
+        ['parentId', chain[3]],
+        ['statusId', status.id],
+        ['typeId', type.id],
+        ['customFields', { points: 3, team: 'core' }],
+      ]),
+    )
     const roundTrips = tracker.count()
     vi.restoreAllMocks()
 
@@ -139,7 +155,7 @@ describe('PROJ-870: issue write batching', () => {
     )
       .bind(created.id)
       .first()
-    expect(row).toEqual({
+    expect(row).toStrictEqual({
       number: 5,
       status: 'doing',
       status_id: status.id,
@@ -148,37 +164,43 @@ describe('PROJ-870: issue write batching', () => {
       type_id: type.id,
     })
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(created.id).first()
-    expect(fts).toEqual({ title: 'Batched create', body: 'hello body' })
+    expect(fts).toStrictEqual({ body: 'hello body', title: 'Batched create' })
     const cf = await env.DB.prepare(
       `SELECT d.key, v.value FROM custom_field_values v
 			 JOIN custom_field_definitions d ON d.id = v.field_id WHERE v.issue_id = ? ORDER BY d.key`,
     )
       .bind(created.id)
       .all()
-    expect(cf.results).toEqual([
+    expect(cf.results).toStrictEqual([
       { key: 'points', value: '3' },
       { key: 'team', value: 'core' },
     ])
     const activity = await env.DB.prepare("SELECT action FROM activity WHERE entity_id = ? AND entity_type = 'issue'")
       .bind(created.id)
       .all()
-    expect(activity.results).toEqual([{ action: 'created' }])
+    expect(activity.results).toStrictEqual([{ action: 'created' }])
   })
 
-  it('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async () => {
-    const chain = await seedChain(f, 4)
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Before' })
-    const done = await seedTaskStatus(f.workspaceId, { key: 'shipped', category: 'done' })
-    await seedCustomFieldDef(f.workspaceId, { key: 'points', type: 'number' })
+  test<IssueWriteTestContext>('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const chain = await seedChain(fixture, 4)
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Before' })
+    const done = await seedTaskStatus(fixture.workspaceId, { category: 'done', key: 'shipped' })
+    await seedCustomFieldDef(fixture.workspaceId, { key: 'points', type: 'number' })
 
     const tracker = trackD1RoundTrips()
-    await updateIssue(ctx, issue.id, {
-      title: 'After',
-      body: 'new body',
-      statusId: done.id,
-      parentId: chain[3],
-      customFields: { points: 8 },
-    })
+    await updateIssue(
+      ctx,
+      issue.id,
+      fieldsInOrder([
+        ['title', 'After'],
+        ['body', 'new body'],
+        ['statusId', done.id],
+        ['parentId', chain[3]],
+        ['customFields', { points: 8 }],
+      ]),
+    )
     const roundTrips = tracker.count()
     vi.restoreAllMocks()
 
@@ -188,7 +210,7 @@ describe('PROJ-870: issue write batching', () => {
       'SELECT title, status, status_category, parent_id, completed_at, done_at FROM issues WHERE id = ?',
     )
       .bind(issue.id)
-      .first<Record<string, unknown>>()
+      .first()
     expect(row).toMatchObject({
       title: 'After',
       status: 'shipped',
@@ -198,34 +220,45 @@ describe('PROJ-870: issue write batching', () => {
     expect(row?.completed_at).not.toBeNull()
     expect(row?.done_at).not.toBeNull()
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(issue.id).all()
-    expect(fts.results).toEqual([{ title: 'After', body: 'new body' }])
+    expect(fts.results).toStrictEqual([{ body: 'new body', title: 'After' }])
     const cf = await env.DB.prepare('SELECT value FROM custom_field_values WHERE issue_id = ?').bind(issue.id).first()
-    expect(cf).toEqual({ value: '8' })
+    expect(cf).toStrictEqual({ value: '8' })
   })
 
-  it('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async () => {
-    const created = await createIssue(ctx, {
-      projectId: f.projectId,
-      title: 'Original',
-      body: 'kept body',
-    })
+  test<IssueWriteTestContext>('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const created = await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Original'],
+        ['body', 'kept body'],
+      ]),
+    )
     await updateIssue(ctx, created.id, { title: 'Renamed' })
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(created.id).all()
-    expect(fts.results).toEqual([{ title: 'Renamed', body: 'kept body' }])
+    expect(fts.results).toStrictEqual([{ body: 'kept body', title: 'Renamed' }])
   })
 
-  it('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
-      title: 'Agent work',
+  test<IssueWriteTestContext>('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       status: 'in_progress',
+      title: 'Agent work',
     })
-    await seedAgentLease(f.workspaceId, issue.id)
+    await seedAgentLease(fixture.workspaceId, issue.id)
 
     const tracker = trackD1RoundTrips()
-    await updateIssue(ctx, issue.id, {
-      status: 'in_review',
-      completionReport: { summary: 'Did it', verification: 'pnpm test' },
-    })
+    await updateIssue(
+      ctx,
+      issue.id,
+      fieldsInOrder([
+        ['status', 'in_review'],
+        ['completionReport', { summary: 'Did it', verification: 'pnpm test' }],
+      ]),
+    )
     const toReview = tracker.count()
     vi.restoreAllMocks()
     // 7 before PROJ-870 (comment + its visibility re-check were separate round trips),
@@ -246,30 +279,32 @@ describe('PROJ-870: issue write batching', () => {
   })
 })
 
-describe('PROJ-870 review: completion report comment limit', () => {
-  it('400s a completion report whose formatted comment exceeds the comment limit, writing nothing', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
-      title: 'Long report',
+describe('covers PROJ-870 review: completion report comment limit', () => {
+  test('400s a completion report whose formatted comment exceeds the comment limit, writing nothing', async () => {
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const issue = await seedIssue(testFixture.workspaceId, testFixture.projectId, testFixture.userId, {
       status: 'in_progress',
+      title: 'Long report',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({
-        status: 'in_review',
-        completionReport: { summary: 's'.repeat(6000), verification: 'v'.repeat(4000) },
-      }),
-    })
+    const requestUrl = `http://localhost/api/issues/${issue.id}`
+    const requestOptions = requestOptionsWithBody(
+      'PATCH',
+      authHeaders(testFixture.token, testFixture.slug),
+      stringifyOrderedFields([
+        ['status', 'in_review'],
+        ['completionReport', { summary: 's'.repeat(6000), verification: 'v'.repeat(4000) }],
+      ]),
+    )
+    const res = await fetchNativeApi(requestUrl, requestOptions)
     expect(res.status).toBe(400)
-    expect(JSON.stringify(await res.json())).toMatch(/Completion report is too long/)
+    expect(JSON.stringify(await res.json())).toMatch(/Completion report is too long/u)
 
     // The batch never ran: no status change, no comment.
     const row = await env.DB.prepare('SELECT status, completion_report_at FROM issues WHERE id = ?')
       .bind(issue.id)
       .first()
-    expect(row).toEqual({ status: 'in_progress', completion_report_at: null })
+    expect(row).toStrictEqual({ completion_report_at: SQL_NULL, status: 'in_progress' })
     const comments = await env.DB.prepare('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?')
       .bind(issue.id)
       .first<{ n: number }>()
@@ -277,27 +312,39 @@ describe('PROJ-870 review: completion report comment limit', () => {
   })
 })
 
-describe('PROJ-870: recursive-CTE ancestor walk', () => {
-  let f: Fixture
-  let ctx: ServiceCtx
-
-  beforeEach(async () => {
-    f = await seedProjectFixture({ role: 'owner' })
-    ctx = ownerCtx(f)
-  })
+describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
+  beforeEach<IssueWriteTestContext>(seedOwnerFixture)
   afterEach(() => vi.restoreAllMocks())
 
-  it('walks a 4-ancestor chain in one query regardless of depth', async () => {
-    const shallow = await seedChain(f, 2) // parent has 1 ancestor
-    const deep = await seedChain(f, 5) // parent has 4 ancestors (the deepest allowed)
+  test<IssueWriteTestContext>('walks a 4-ancestor chain in one query regardless of depth', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    // Parent has 1 ancestor
+    const shallow = await seedChain(fixture, 2)
+    // Parent has 4 ancestors (the deepest allowed)
+    const deep = await seedChain(fixture, 5)
 
     let tracker = trackD1RoundTrips()
-    await createIssue(ctx, { projectId: f.projectId, title: 'shallow', parentId: shallow[1] })
+    await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'shallow'],
+        ['parentId', shallow[1]],
+      ]),
+    )
     const shallowTrips = tracker.count()
     vi.restoreAllMocks()
 
     tracker = trackD1RoundTrips()
-    await createIssue(ctx, { projectId: f.projectId, title: 'deep', parentId: deep[4] })
+    await createIssue(
+      ctx,
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'deep'],
+        ['parentId', deep[4]],
+      ]),
+    )
     const deepTrips = tracker.count()
     vi.restoreAllMocks()
 
@@ -305,55 +352,83 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
     expect(deepTrips).toBe(shallowTrips)
   })
 
-  it('rejects a parent that already has 5 ancestors, allows 4', async () => {
-    const chain = await seedChain(f, 6)
-    expect(
-      await formErrorOf(createIssue(ctx, { projectId: f.projectId, title: 'too deep', parentId: chain[5] })),
-    ).toEqual(['Maximum nesting depth (5) exceeded'])
-    await expect(createIssue(ctx, { projectId: f.projectId, title: 'ok', parentId: chain[4] })).resolves.toMatchObject({
+  test<IssueWriteTestContext>('rejects a parent that already has 5 ancestors, allows 4', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const chain = await seedChain(fixture, 6)
+    await expect(
+      formErrorOf(createIssue(ctx, { projectId: fixture.projectId, title: 'too deep', parentId: chain[5] })),
+    ).resolves.toStrictEqual(['Maximum nesting depth (5) exceeded'])
+    await expect(
+      createIssue(ctx, { projectId: fixture.projectId, title: 'ok', parentId: chain[4] }),
+    ).resolves.toMatchObject({
       number: expect.any(Number),
     })
   })
 
-  it("reports a cycle (not the depth cap) when the issue is the parent's 5th ancestor", async () => {
-    // chain[0] is the 5th ancestor of chain[5] — the same step at which the cap fires.
-    // The original loop checked the cycle before the cap on each step; so must the CTE.
-    const chain = await seedChain(f, 6)
-    expect(await formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).toEqual([
+  test<IssueWriteTestContext>("reports a cycle (not the depth cap) when the issue is the parent's 5th ancestor", async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    /* The chain[0] entry is the 5th ancestor of chain[5] — the same step at which the cap fires.
+     * The original loop checked the cycle before the cap on each step; so must the CTE. */
+    const chain = await seedChain(fixture, 6)
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).resolves.toStrictEqual([
       'Setting this parent would create a cycle',
     ])
   })
 
-  it('reports a cycle on a nearer ancestor, and rejects self-parenting', async () => {
-    const chain = await seedChain(f, 3)
-    expect(await formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).toEqual([
+  test<IssueWriteTestContext>('reports a cycle on a nearer ancestor, and rejects self-parenting', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    const chain = await seedChain(fixture, 3)
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).resolves.toStrictEqual([
       'Setting this parent would create a cycle',
     ])
-    expect(await formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[0] }))).toEqual([
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[0] }))).resolves.toStrictEqual([
       'An issue cannot be its own parent',
     ])
   })
 
-  it("does not walk into another workspace's issues", async () => {
+  test<IssueWriteTestContext>("does not walk into another workspace's issues", async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
     const other = await seedProjectFixture({ role: 'owner' })
     const foreign = await seedIssue(other.workspaceId, other.projectId, other.userId)
-    await expect(createIssue(ctx, { projectId: f.projectId, title: 'x', parentId: foreign.id })).rejects.toThrow(
-      'Parent issue not found',
-    )
+    await expect(
+      createIssue(
+        ctx,
+        fieldsInOrder([
+          ['projectId', fixture.projectId],
+          ['title', 'x'],
+          ['parentId', foreign.id],
+        ]),
+      ),
+    ).rejects.toThrow('Parent issue not found')
   })
 
-  it('stops the walk at an ancestor link that leaves the workspace', async () => {
-    // P (this workspace) has parent_id pointing at X in another workspace, and X sits
-    // under 5 more foreign ancestors. Only in-workspace rows may be walked, so P has no
-    // visible ancestors and a child under it is fine — counting the foreign chain would
-    // wrongly hit the depth cap.
+  test<IssueWriteTestContext>('stops the walk at an ancestor link that leaves the workspace', async ({
+    ownerFixture: { ctx, fixture },
+  }) => {
+    /*
+     * P (this workspace) has parent_id pointing at X in another workspace, and X sits
+     * under 5 more foreign ancestors. Only in-workspace rows may be walked, so P has no
+     * visible ancestors and a child under it is fine — counting the foreign chain would
+     * wrongly hit the depth cap.
+     */
     const other = await seedProjectFixture({ role: 'owner' })
     const foreignChain = await seedChain(other, 6)
-    const p = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'P' })
-    await env.DB.prepare('UPDATE issues SET parent_id = ? WHERE id = ?').bind(foreignChain[5], p.id).run()
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'P' })
+    await env.DB.prepare('UPDATE issues SET parent_id = ? WHERE id = ?').bind(foreignChain[5], issue.id).run()
 
     await expect(
-      createIssue(ctx, { projectId: f.projectId, title: 'child of P', parentId: p.id }),
+      createIssue(
+        ctx,
+        fieldsInOrder([
+          ['projectId', fixture.projectId],
+          ['title', 'child of P'],
+          ['parentId', issue.id],
+        ]),
+      ),
     ).resolves.toMatchObject({ number: expect.any(Number) })
   })
 })

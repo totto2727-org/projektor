@@ -1,19 +1,24 @@
-import * as React from 'react'
+import { useEffect, useState } from 'react'
 
 const MOBILE_BREAKPOINT = 768
+const CSS_PIXEL = 1
+const MOBILE_QUERY = `(max-width: ${MOBILE_BREAKPOINT - CSS_PIXEL}px)`
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+export const useIsMobile = function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState<boolean>()
 
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+  useEffect(() => {
+    const media = globalThis.matchMedia(MOBILE_QUERY)
+    const onChange = function onChange(): void {
+      setIsMobile(globalThis.innerWidth < MOBILE_BREAKPOINT)
     }
-    mql.addEventListener('change', onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener('change', onChange)
+    media.addEventListener('change', onChange)
+    // oxlint-disable-next-line react/set-state-in-effect -- The generated hook asserts the initial viewport after hydration and keeps its first-render value false.
+    setIsMobile(globalThis.innerWidth < MOBILE_BREAKPOINT)
+    return (): void => {
+      media.removeEventListener('change', onChange)
+    }
   }, [])
 
-  return !!isMobile
+  return isMobile === true
 }

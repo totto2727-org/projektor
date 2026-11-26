@@ -1,17 +1,23 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { migratedDb } from '#db/test/helpers'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { migratedDb } from '#db/test/helpers.ts'
+import { DataQueryError } from '#services/errors.ts'
+import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '#services/feedback.ts'
+import { findSprintById, listSprints } from '#services/sprints.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
-import { DataQueryError } from '../errors'
-import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '../feedback'
-import { findSprintById, listSprints } from '../sprints'
-
-/** Read-only transport over the real migrated schema. */
-function readDatabase(sqlite: DatabaseSync): D1Database {
-  function prepare(sql: string, bindings: SQLInputValue[] = []) {
+/**
+ * Read-only transport over the real migrated schema.
+ *
+ * @param {DatabaseSync} sqlite - The SQLite database with migrations applied.
+ * @returns {D1Database} The D1 read methods that use this database.
+ */
+const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
+  const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => prepare(sql, values),
       first: async () => sqlite.prepare(sql).get(...bindings) ?? null,
@@ -55,131 +61,130 @@ describe('sprint and feedback database read models', () => {
   })
   afterEach(() => sqlite.close())
 
-  it('retains sprint model columns, creation ordering and explicit workspace/project scope', async () => {
-    const rows = await Effect.runPromise(listSprints(db, 'wa', { projectId: 'pa' }))
-    expect(rows.map((row) => row.id)).toEqual(['s1', 's2'])
-    expect(rows[0]).toEqual({
-      id: 's1',
-      workspaceId: 'wa',
-      projectId: 'pa',
-      name: 'Earlier',
-      goal: null,
-      status: 'planned',
-      startDate: null,
-      endDate: null,
+  test('retains sprint model columns, creation ordering and explicit workspace/project scope', async () => {
+    const rows = await runTestEffect(listSprints(db, 'wa', { projectId: 'pa' }))
+    expect(rows.map((row) => row.id)).toStrictEqual(['s1', 's2'])
+    expect(rows[0]).toStrictEqual({
       createdAt: 10,
+      endDate: SQL_NULL,
+      goal: SQL_NULL,
+      id: 's1',
+      name: 'Earlier',
+      projectId: 'pa',
+      startDate: SQL_NULL,
+      status: 'planned',
       updatedAt: 11,
+      workspaceId: 'wa',
     })
-    expect(await Effect.runPromise(listSprints(db, 'wa', { projectId: 'pb' }))).toEqual([])
-    expect(await Effect.runPromise(findSprintById(db, 'wa', 'sb'))).toBeUndefined()
-    expect(await Effect.runPromise(findSprintById(db, 'wa', 'missing'))).toBeUndefined()
-    expect(await Effect.runPromise(findSprintById(db, 'wa', 's2'))).toEqual(rows[1])
+    await expect(runTestEffect(listSprints(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
+    await expect(runTestEffect(findSprintById(db, 'wa', 'sb'))).resolves.toBeUndefined()
+    await expect(runTestEffect(findSprintById(db, 'wa', 'missing'))).resolves.toBeUndefined()
+    await expect(runTestEffect(findSprintById(db, 'wa', 's2'))).resolves.toStrictEqual(rows[1])
   })
 
-  it('retains raw feedback list rows, descending order and combined filters', async () => {
-    const rows = await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pa' }))
-    expect(rows.map((row) => row.id)).toEqual(['f5', 'f4', 'f3', 'f2', 'f1'])
-    expect(rows[4]).toEqual({
+  test('retains raw feedback list rows, descending order and combined filters', async () => {
+    const rows = await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa' }))
+    expect(rows.map((row) => row.id)).toStrictEqual(['f5', 'f4', 'f3', 'f2', 'f1'])
+    expect({ ...rows[4] }).toStrictEqual({
+      app_version: '1',
+      body: 'Comment',
+      created_at: 10,
       id: 'f1',
-      source_id: 'sa',
-      source_name: 'A source',
+      linked_issue_id: SQL_NULL,
       rating: 1,
       rating_scale: 'thumbs',
-      body: 'Comment',
-      submitter_label: null,
-      source_url: null,
-      app_version: '1',
+      source_id: 'sa',
+      source_name: 'A source',
+      source_url: SQL_NULL,
       status: 'new',
-      linked_issue_id: null,
-      created_at: 10,
+      submitter_label: SQL_NULL,
     })
-    expect(
-      (await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))).map(
-        (row) => row.id,
-      ),
-    ).toEqual(['f4', 'f1'])
-    expect(await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pb' }))).toEqual([])
+    const result = await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))
+    expect(result.map((row) => row.id)).toStrictEqual(['f4', 'f1'])
+    await expect(runTestEffect(listFeedback(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
   })
 
-  it('retains source/version aggregate counts, null groups and SQL average semantics', async () => {
-    const rows = await Effect.runPromise(readFeedbackSummary(db, 'wa', { projectId: 'pa' }))
-    expect(rows).toEqual([
+  test('retains source/version aggregate counts, null groups and SQL average semantics', async () => {
+    const rows = await runTestEffect(readFeedbackSummary(db, 'wa', { projectId: 'pa' }))
+    const columnValues = rows.map((row) => Object.fromEntries(Object.entries(row)))
+    expect(columnValues).toStrictEqual([
       {
-        source_id: 'sa2',
-        source_name: 'Second source',
         app_version: '2',
-        total: 1,
-        thumbs_up: 0,
-        thumbs_total: 0,
         five_star_avg: 3,
         five_star_total: 1,
-        with_comment_count: 1,
         last_seen_at: 50,
-      },
-      {
-        source_id: 'sa',
-        source_name: 'A source',
-        app_version: null,
-        total: 1,
-        thumbs_up: 0,
+        source_id: 'sa2',
+        source_name: 'Second source',
         thumbs_total: 0,
-        five_star_avg: null,
-        five_star_total: 0,
+        thumbs_up: 0,
+        total: 1,
         with_comment_count: 1,
-        last_seen_at: 40,
       },
       {
+        app_version: SQL_NULL,
+        five_star_avg: SQL_NULL,
+        five_star_total: 0,
+        last_seen_at: 40,
         source_id: 'sa',
         source_name: 'A source',
+        thumbs_total: 0,
+        thumbs_up: 0,
+        total: 1,
+        with_comment_count: 1,
+      },
+      {
         app_version: '1',
-        total: 3,
-        thumbs_up: 1,
-        thumbs_total: 2,
         five_star_avg: 5,
         five_star_total: 1,
-        with_comment_count: 1,
         last_seen_at: 30,
+        source_id: 'sa',
+        source_name: 'A source',
+        thumbs_total: 2,
+        thumbs_up: 1,
+        total: 3,
+        with_comment_count: 1,
       },
     ])
-    expect(await Effect.runPromise(readFeedbackSummary(db, 'wa', { projectId: 'pb' }))).toEqual([])
+    await expect(runTestEffect(readFeedbackSummary(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
   })
 
-  it('retains raw source metadata and revoked rows without producing API previews', async () => {
-    const rows = await Effect.runPromise(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
-    expect(rows.map((row) => row.id)).toEqual(['sa2', 'sa'])
-    expect(rows[0]).toEqual({
-      id: 'sa2',
-      token_hash: 'hash-a2',
-      name: 'Second source',
-      description: null,
-      is_active: 1,
-      allowed_origins: null,
+  test('retains raw source metadata and revoked rows without producing API previews', async () => {
+    const rows = await runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
+    expect(rows.map((row) => row.id)).toStrictEqual(['sa2', 'sa'])
+    expect({ ...rows[0] }).toStrictEqual({
+      allowed_origins: SQL_NULL,
       created_at: 20,
+      description: SQL_NULL,
+      id: 'sa2',
+      is_active: 1,
+      name: 'Second source',
       revoked_at: 25,
+      token_hash: 'hash-a2',
     })
-    expect(await Effect.runPromise(findFeedbackSourceById(db, 'wa', 'sa'))).toEqual({
+    const source = await runTestEffect(findFeedbackSourceById(db, 'wa', 'sa'))
+    expect({ ...source }).toStrictEqual({
       ...rows[1],
       project_id: 'pa',
     })
-    expect(await Effect.runPromise(findFeedbackSourceById(db, 'wa', 'sb'))).toBeNull()
-    expect(await Effect.runPromise(findFeedbackSourceById(db, 'wa', 'missing'))).toBeNull()
-    expect(await Effect.runPromise(listFeedbackSources(db, 'wa', { projectId: 'pb' }))).toEqual([])
+    await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'sb'))).resolves.toBeNull()
+    await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'missing'))).resolves.toBeNull()
+    await expect(runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
   })
 
-  it('defers I/O and reports tagged query errors without app semantics', async () => {
+  test('defers I/O and reports tagged query errors without app semantics', async () => {
     let calls = 0
     const cause = new Error('database unavailable')
     const broken = {
       prepare: () => {
-        calls++
+        calls += 1
         throw cause
       },
     } as unknown as D1Database
     const effect = listFeedback(broken, 'wa', { projectId: 'pa' })
     expect(calls).toBe(0)
-    const result = await Effect.runPromise(Effect.flip(effect))
+    const result = await runTestEffect(Effect.flip(effect))
     expect(calls).toBe(1)
     expect(result).toBeInstanceOf(DataQueryError)
-    expect(result).toMatchObject({ _tag: 'DataQueryError', operation: 'listFeedback', cause })
+    expect(result).toMatchObject({ _tag: 'DataQueryError', cause, operation: 'listFeedback' })
   })
 })

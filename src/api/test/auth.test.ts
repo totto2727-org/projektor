@@ -1,3 +1,10 @@
+import { Predicate, Schema } from 'effect'
+import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { assert, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
+
+import { ApiPrincipal } from '#contracts/api-auth.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { verifyJwtPayload } from '#services/authentication.ts'
 /**
  * PROJ-79 — Auth-middleware & MCP error-mapping tests
  *
@@ -7,15 +14,8 @@
  *  3. /auth endpoints — GET /auth/me, POST /auth/tokens, DELETE /auth/tokens/:id
  *  4. MCP error contract — serviceErr → JSON-RPC error codes, malformed bodies, unknown workspace
  */
+import { runTestEffect } from '#tests/run-effect.ts'
 
-import { SELF } from 'cloudflare:test'
-import { Effect } from 'effect'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
-
-import { verifyJwtPayload } from '#services/authentication'
-
-import { ApiPrincipal } from '../../contracts/api-auth'
 import {
   configureCore,
   createCoreFixtureSession,
@@ -23,7 +23,7 @@ import {
   getCoreObservations,
   resetCoreAuthCaches,
   resetCoreObservations,
-} from './fixture-api'
+} from './fixture-api.ts'
 import {
   authHeaders,
   hashToken,
@@ -34,25 +34,33 @@ import {
   seedWorkspace,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
+} from './helpers.ts'
+import { stringifyOrderedFields, fetchNativeApi, fetchNativeMcpTool, requestOptionsWithBody } from './native-fetch.ts'
+import { ErrorMessageResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
 // JWT generation utilities (used only by CF Access JWT tests)
 // ---------------------------------------------------------------------------
 
-function b64urlEncode(bytes: Uint8Array): string {
+const b64urlEncode = function b64urlEncode(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
 }
 
-function encodeJwtPart(obj: unknown): string {
-  return b64urlEncode(new TextEncoder().encode(JSON.stringify(obj)))
+const encodeJwtPart = function encodeJwtPart(fields: Parameters<typeof stringifyOrderedFields>[0]): string {
+  return b64urlEncode(new TextEncoder().encode(stringifyOrderedFields(fields)))
 }
 
-async function signTestJwt(privateKey: CryptoKey, payload: Record<string, unknown>): Promise<string> {
-  const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
+const signTestJwt = async function signTestJwt(
+  privateKey: CryptoKey,
+  payload: Parameters<typeof stringifyOrderedFields>[0],
+): Promise<string> {
+  const header = encodeJwtPart([
+    ['alg', 'RS256'],
+    ['typ', 'JWT'],
+  ])
   const body = encodeJwtPart(payload)
   const input = new TextEncoder().encode(`${header}.${body}`)
   const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privateKey, input)
@@ -63,38 +71,40 @@ async function signTestJwt(privateKey: CryptoKey, payload: Record<string, unknow
 // PROJ-79 §1: Token expiry
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: token expiry', () => {
-  it('expired api_token (expires_at < now) returns 401', async () => {
+describe('covers PROJ-79: token expiry', () => {
+  test('expired api_token (expires_at < now) returns 401', async () => {
     const fixture = await seedFixture()
     // Seed a second token for the same user/workspace that is already expired
     const expiredToken = await seedToken(fixture.workspace.id, fixture.user.id, {
-      expiresAt: Math.floor(Date.now() / 1000) - 60, // 1 minute ago
+      // 1 minute ago
+      expiresAt: currentEpochSeconds() - 60,
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(expiredToken, fixture.workspace.slug),
     })
     expect(res.status).toBe(401)
-    const body = (await res.json()) as { error: string }
-    expect(body.error).toMatch(/expired/i)
+    const body = await readNativeJson(res, ErrorMessageResponse)
+    expect(body.error).toMatch(/expired/iu)
   })
 
-  it('non-expired api_token is accepted', async () => {
+  test('non-expired api_token is accepted', async () => {
     const fixture = await seedFixture()
     // Token that expires in the future
     const futureToken = await seedToken(fixture.workspace.id, fixture.user.id, {
-      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      expiresAt: currentEpochSeconds() + 3600,
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(futureToken, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
   })
 
-  it('api_token with no expires_at never expires', async () => {
-    const fixture = await seedFixture() // seedFixture uses seedToken without expiresAt
-    const res = await SELF.fetch('http://localhost/api/issues', {
+  test('api_token with no expires_at never expires', async () => {
+    // The seedFixture helper uses seedToken without expiresAt
+    const fixture = await seedFixture()
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
@@ -105,7 +115,7 @@ describe('PROJ-79: token expiry', () => {
 // PROJ-79 §2: CF Access JWT — verifyJwtPayload (injectable keys, no network)
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', () => {
+describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', () => {
   // Generate RSA key pair once for the whole describe block
   let privateKey: CryptoKey
   let publicJwk: JsonWebKey
@@ -114,7 +124,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
   const TEST_EMAIL = 'cf-user@example.com'
 
   beforeAll(async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -123,72 +133,73 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    privateKey = keyPair.privateKey
-    publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    ;({ privateKey } = keyPair)
+    publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
   })
 
-  it('valid signed JWT with correct audience and issuer is accepted', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const jwt = await signTestJwt(privateKey, {
-      exp: now + 3600,
-      aud: TEST_AUDIENCE,
-      iss: TEST_ISSUER,
-      email: TEST_EMAIL,
-    })
+  test('valid signed JWT with correct audience and issuer is accepted', async () => {
+    const now = currentEpochSeconds()
+    const jwt = await signTestJwt(privateKey, [
+      ['exp', now + 3600],
+      ['aud', TEST_AUDIENCE],
+      ['iss', TEST_ISSUER],
+      ['email', TEST_EMAIL],
+    ])
 
     const result = await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)
     expect(result).not.toBeNull()
     expect(result?.email).toBe(TEST_EMAIL)
   })
 
-  it('expired JWT (exp < now) is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const jwt = await signTestJwt(privateKey, {
-      exp: now - 10, // already expired
-      aud: TEST_AUDIENCE,
-      iss: TEST_ISSUER,
-      email: TEST_EMAIL,
-    })
+  test('expired JWT (exp < now) is rejected', async () => {
+    const now = currentEpochSeconds()
+    const jwt = await signTestJwt(privateKey, [
+      // Already expired
+      ['exp', now - 10],
+      ['aud', TEST_AUDIENCE],
+      ['iss', TEST_ISSUER],
+      ['email', TEST_EMAIL],
+    ])
 
     const result = await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)
     expect(result).toBeNull()
   })
 
-  it('JWT with wrong audience is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const jwt = await signTestJwt(privateKey, {
-      exp: now + 3600,
-      aud: 'wrong-audience',
-      iss: TEST_ISSUER,
-      email: TEST_EMAIL,
-    })
+  test('covers JWT with wrong audience is rejected', async () => {
+    const now = currentEpochSeconds()
+    const jwt = await signTestJwt(privateKey, [
+      ['exp', now + 3600],
+      ['aud', 'wrong-audience'],
+      ['iss', TEST_ISSUER],
+      ['email', TEST_EMAIL],
+    ])
 
     const result = await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)
     expect(result).toBeNull()
   })
 
-  it('JWT with wrong issuer is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const jwt = await signTestJwt(privateKey, {
-      exp: now + 3600,
-      aud: TEST_AUDIENCE,
-      iss: 'https://evil.com',
-      email: TEST_EMAIL,
-    })
+  test('covers JWT with wrong issuer is rejected', async () => {
+    const now = currentEpochSeconds()
+    const jwt = await signTestJwt(privateKey, [
+      ['exp', now + 3600],
+      ['aud', TEST_AUDIENCE],
+      ['iss', 'https://evil.com'],
+      ['email', TEST_EMAIL],
+    ])
 
     const result = await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)
     expect(result).toBeNull()
   })
 
-  it('JWT with wrong signature (corrupt last segment) is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const validJwt = await signTestJwt(privateKey, {
-      exp: now + 3600,
-      aud: TEST_AUDIENCE,
-      iss: TEST_ISSUER,
-      email: TEST_EMAIL,
-    })
+  test('covers JWT with wrong signature (corrupt last segment) is rejected', async () => {
+    const now = currentEpochSeconds()
+    const validJwt = await signTestJwt(privateKey, [
+      ['exp', now + 3600],
+      ['aud', TEST_AUDIENCE],
+      ['iss', TEST_ISSUER],
+      ['email', TEST_EMAIL],
+    ])
     const parts = validJwt.split('.')
     // Corrupt the signature by appending a char
     const corruptJwt = `${parts[0]}.${parts[1]}.${parts[2]}X`
@@ -197,35 +208,38 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  it('JWT with no matching key in the keyset is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const jwt = await signTestJwt(privateKey, {
-      exp: now + 3600,
-      aud: TEST_AUDIENCE,
-      iss: TEST_ISSUER,
-      email: TEST_EMAIL,
-    })
+  test('covers JWT with no matching key in the keyset is rejected', async () => {
+    const now = currentEpochSeconds()
+    const jwt = await signTestJwt(privateKey, [
+      ['exp', now + 3600],
+      ['aud', TEST_AUDIENCE],
+      ['iss', TEST_ISSUER],
+      ['email', TEST_EMAIL],
+    ])
 
     // Pass an empty keyset — no keys to verify against
     const result = await verifyJwtPayload(jwt, [], TEST_AUDIENCE, TEST_ISSUER)
     expect(result).toBeNull()
   })
 
-  it('malformed JWT (wrong number of segments) is rejected', async () => {
+  test('malformed JWT (wrong number of segments) is rejected', async () => {
     const result = await verifyJwtPayload('only.two', [publicJwk], TEST_AUDIENCE, TEST_ISSUER)
     expect(result).toBeNull()
   })
 
-  it('JWT with non-RS256 algorithm header is rejected', async () => {
+  test('covers JWT with non-RS256 algorithm header is rejected', async () => {
     // Manually craft a JWT with alg: HS256 to bypass the alg check
-    const now = Math.floor(Date.now() / 1000)
-    const header = encodeJwtPart({ alg: 'HS256', typ: 'JWT' })
-    const body = encodeJwtPart({
-      exp: now + 3600,
-      aud: TEST_AUDIENCE,
-      iss: TEST_ISSUER,
-      email: TEST_EMAIL,
-    })
+    const now = currentEpochSeconds()
+    const header = encodeJwtPart([
+      ['alg', 'HS256'],
+      ['typ', 'JWT'],
+    ])
+    const body = encodeJwtPart([
+      ['exp', now + 3600],
+      ['aud', TEST_AUDIENCE],
+      ['iss', TEST_ISSUER],
+      ['email', TEST_EMAIL],
+    ])
     // Sign with RS256 anyway — the alg check fires before signature verification
     const input = new TextEncoder().encode(`${header}.${body}`)
     const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privateKey, input)
@@ -236,69 +250,71 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
   })
 
   // PROJ-879: the payload is schema-validated, not cast.
-  describe('PROJ-879: payload validation', () => {
-    const now = () => Math.floor(Date.now() / 1000)
+  describe('covers PROJ-879: payload validation', () => {
+    const now = (): number => currentEpochSeconds()
 
-    it('missing exp is rejected (previously never expired)', async () => {
-      const jwt = await signTestJwt(privateKey, {
-        aud: TEST_AUDIENCE,
-        iss: TEST_ISSUER,
-        email: TEST_EMAIL,
-      })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+    test('missing exp is rejected (previously never expired)', async () => {
+      const jwt = await signTestJwt(privateKey, [
+        ['aud', TEST_AUDIENCE],
+        ['iss', TEST_ISSUER],
+        ['email', TEST_EMAIL],
+      ])
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
-    it('missing email (Access service-token JWT) is rejected, not a crash', async () => {
-      const jwt = await signTestJwt(privateKey, {
-        exp: now() + 3600,
-        aud: TEST_AUDIENCE,
-        iss: TEST_ISSUER,
-        common_name: 'svc-token.access',
-      })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+    test('missing email (Access service-token JWT) is rejected, not a crash', async () => {
+      const jwt = await signTestJwt(privateKey, [
+        ['exp', now() + 3600],
+        ['aud', TEST_AUDIENCE],
+        ['iss', TEST_ISSUER],
+        ['common_name', 'svc-token.access'],
+      ])
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
-    it('expired is rejected', async () => {
-      const jwt = await signTestJwt(privateKey, {
-        exp: now() - 5,
-        aud: TEST_AUDIENCE,
-        iss: TEST_ISSUER,
-        email: TEST_EMAIL,
-      })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+    test('expired is rejected', async () => {
+      const jwt = await signTestJwt(privateKey, [
+        ['exp', now() - 5],
+        ['aud', TEST_AUDIENCE],
+        ['iss', TEST_ISSUER],
+        ['email', TEST_EMAIL],
+      ])
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
-    it('wrong aud is rejected', async () => {
-      const jwt = await signTestJwt(privateKey, {
-        exp: now() + 3600,
-        aud: ['someone-else'],
-        iss: TEST_ISSUER,
-        email: TEST_EMAIL,
-      })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+    test('wrong aud is rejected', async () => {
+      const jwt = await signTestJwt(privateKey, [
+        ['exp', now() + 3600],
+        ['aud', ['someone-else']],
+        ['iss', TEST_ISSUER],
+        ['email', TEST_EMAIL],
+      ])
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
 
-    it('exp of the wrong type is rejected', async () => {
-      const jwt = await signTestJwt(privateKey, {
-        exp: '9999999999',
-        aud: TEST_AUDIENCE,
-        iss: TEST_ISSUER,
-        email: TEST_EMAIL,
-      })
-      expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
+    test('exp of the wrong type is rejected', async () => {
+      const jwt = await signTestJwt(privateKey, [
+        ['exp', '9999999999'],
+        ['aud', TEST_AUDIENCE],
+        ['iss', TEST_ISSUER],
+        ['email', TEST_EMAIL],
+      ])
+      await expect(verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).resolves.toBeNull()
     })
   })
 })
 
-// ---------------------------------------------------------------------------
-// PROJ-79 §2b: CF Access JWT — HTTP-level rejection paths
-// These tests go through SELF.fetch to verify the middleware rejects early
-// without requiring the JWKS fetch path (network or KV).
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * PROJ-79 §2b: CF Access JWT — HTTP-level rejection paths
+ * These tests go through fetchNativeApi to verify the middleware rejects early
+ * without requiring the JWKS fetch path (network or KV).
+ * ---------------------------------------------------------------------------
+ */
 
-describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
-  it('malformed Cf-Access-Jwt-Assertion header returns 401', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
+  test('malformed Cf-Access-Jwt-Assertion header returns 401', async () => {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': 'not-a-valid-jwt',
         'X-Workspace-Slug': 'any-slug',
@@ -307,8 +323,8 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('JWT with only two segments returns 401', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+  test('covers JWT with only two segments returns 401', async () => {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': 'eyJhbGciOiJSUzI1NiJ9.eyJlbWFpbCI6InRlc3QifQ',
         'X-Workspace-Slug': 'any-slug',
@@ -317,19 +333,24 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('JWT with non-RS256 alg header returns 401', async () => {
-    // header: {"alg":"HS256"}, payload: {"exp": far-future, "email":"x"}, bogus sig
+  test('covers JWT with non-RS256 alg header returns 401', async () => {
+    // Header: {"alg":"HS256"}, payload: {"exp": far-future, "email":"x"}, bogus sig
     const header = btoa(JSON.stringify({ alg: 'HS256' }))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '')
-    const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, email: 'x@x.com' }))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '')
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replaceAll('=', '')
+    const payload = btoa(
+      stringifyOrderedFields([
+        ['exp', currentEpochSeconds() + 3600],
+        ['email', 'x@x.com'],
+      ]),
+    )
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replaceAll('=', '')
     const jwt = `${header}.${payload}.fakesig`
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': jwt,
         'X-Workspace-Slug': 'any-slug',
@@ -338,15 +359,19 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('expired CF Access JWT (exp < now) returns 401 before any key fetch', async () => {
-    const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
-    const payload = encodeJwtPart({
-      exp: Math.floor(Date.now() / 1000) - 60, // already expired
-      email: 'old@example.com',
-    })
+  test('expired CF Access JWT (exp < now) returns 401 before any key fetch', async () => {
+    const header = encodeJwtPart([
+      ['alg', 'RS256'],
+      ['typ', 'JWT'],
+    ])
+    const payload = encodeJwtPart([
+      // Already expired
+      ['exp', currentEpochSeconds() - 60],
+      ['email', 'old@example.com'],
+    ])
     const jwt = `${header}.${payload}.fakesig`
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': jwt,
         'X-Workspace-Slug': 'any-slug',
@@ -355,20 +380,23 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('PROJ-879: a JWT without email returns 401, not 500', async () => {
+  test('covers PROJ-879: a JWT without email returns 401, not 500', async () => {
     const aud = 'http-879-aud'
     const domain = 'http-879.cloudflareaccess.com'
     const prev = { a: env.CF_ACCESS_AUDIENCE, d: env.CF_ACCESS_TEAM_DOMAIN }
     env.CF_ACCESS_AUDIENCE = aud
     env.CF_ACCESS_TEAM_DOMAIN = domain
     try {
-      const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
-      const payload = encodeJwtPart({
-        exp: Math.floor(Date.now() / 1000) + 3600,
-        aud,
-        iss: `https://${domain}`,
-      })
-      const res = await SELF.fetch('http://localhost/api/issues', {
+      const header = encodeJwtPart([
+        ['alg', 'RS256'],
+        ['typ', 'JWT'],
+      ])
+      const payload = encodeJwtPart([
+        ['exp', currentEpochSeconds() + 3600],
+        ['aud', aud],
+        ['iss', `https://${domain}`],
+      ])
+      const res = await fetchNativeApi('http://localhost/api/issues', {
         headers: {
           'Cf-Access-Jwt-Assertion': `${header}.${payload}.fakesig`,
           'X-Workspace-Slug': 'x',
@@ -382,16 +410,18 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// PROJ-354: isolate-local auth caches survive KV backing-store loss
-// (getCfAccessKeys / upsertUserByEmail are memoized per-isolate so most
-// requests never touch KV at all — this proves the local cache, not just KV,
-// is what's serving the second request).
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * PROJ-354: isolate-local auth caches survive KV backing-store loss
+ * (getCfAccessKeys / upsertUserByEmail are memoized per-isolate so most
+ * requests never touch KV at all — this proves the local cache, not just KV,
+ * is what's serving the second request).
+ * ---------------------------------------------------------------------------
+ */
 
-describe('PROJ-354: CF Access auth caches are isolate-local', () => {
-  it('second CF Access login succeeds after both KV cache entries are deleted', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
+  test('second CF Access login succeeds after both KV cache entries are deleted', async () => {
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -400,8 +430,8 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = 'test-cf-access.example.com'
     const audience = 'proj-354-audience'
@@ -416,36 +446,45 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
     // Pre-seed Core's KV. Any network fetch in this case is a fixture failure.
     await env.KV.put('cf-access-certs', JSON.stringify([publicJwk]))
 
-    const jwt = await signTestJwt(keyPair.privateKey, {
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      aud: audience,
-      iss: `https://${domain}`,
-      email,
-    })
+    const jwt = await signTestJwt(keyPair.privateKey, [
+      ['exp', currentEpochSeconds() + 3600],
+      ['aud', audience],
+      ['iss', `https://${domain}`],
+      ['email', email],
+    ])
 
-    const first = await SELF.fetch('http://localhost/auth/me', {
+    const first = await fetchNativeApi('http://localhost/auth/me', {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(first.status).toBe(200)
-    const firstBody = (await first.json()) as { user: { id: string; email: string } }
+    const firstBody = await readNativeJson(
+      first,
+      Schema.Struct({ user: Schema.Struct({ email: Schema.String, id: Schema.String }) }),
+    )
     expect(firstBody.user.email).toBe(email)
 
-    // Delete both KV entries the first request would have populated. If the
-    // second request only relied on KV, it would now have to re-fetch the
-    // JWKS over the network (which fails in this test env) and re-run the
-    // D1 upsert path from scratch — it should instead be served entirely
-    // from the isolate-local caches.
+    /*
+     * Delete both KV entries the first request would have populated. If the
+     * second request only relied on KV, it would now have to re-fetch the
+     * JWKS over the network (which fails in this test env) and re-run the
+     * D1 upsert path from scratch — it should instead be served entirely
+     * from the isolate-local caches.
+     */
     await env.KV.delete('cf-access-certs')
     await env.KV.delete(`user-by-email:${email}`)
 
-    const second = await SELF.fetch('http://localhost/auth/me', {
+    const second = await fetchNativeApi('http://localhost/auth/me', {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(second.status).toBe(200)
-    const secondBody = (await second.json()) as { user: { id: string; email: string } }
+    const secondBody = await readNativeJson(
+      second,
+      Schema.Struct({ user: Schema.Struct({ email: Schema.String, id: Schema.String }) }),
+    )
     expect(secondBody.user.email).toBe(email)
     expect(secondBody.user.id).toBe(firstBody.user.id)
-    expect((await getCoreObservations()).jwksFetches).toHaveLength(0)
+    const result = await getCoreObservations()
+    expect(result.jwksFetches).toHaveLength(0)
     await configureCore()
   })
 })
@@ -453,7 +492,7 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
 // Concurrent native requests retain their own test-only network policy.
 
 describe('native Core authentication invocation isolation', () => {
-  it('concurrent signed Access sessions fetch only their own configured JWKS endpoint', async () => {
+  test('concurrent signed Access sessions fetch only their own configured JWKS endpoint', async () => {
     const sessions = await Promise.all(
       ['first', 'second'].map(async (name) => {
         const pair = await crypto.subtle.generateKey(
@@ -471,12 +510,12 @@ describe('native Core authentication invocation isolation', () => {
         const email = `${name}-${epoch}@example.com`
         const audience = `${name}-${epoch}`
         const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
-        const jwt = await signTestJwt(pair.privateKey, {
-          exp: Math.floor(Date.now() / 1000) + 3600,
-          aud: audience,
-          iss: `https://${domain}`,
-          email,
-        })
+        const jwt = await signTestJwt(pair.privateKey, [
+          ['exp', currentEpochSeconds() + 3600],
+          ['aud', audience],
+          ['iss', `https://${domain}`],
+          ['email', email],
+        ])
         const binding = await createCoreFixtureSession({
           RATE_LIMIT_TEST_EPOCH: epoch,
           CF_ACCESS_TEAM_DOMAIN: domain,
@@ -491,7 +530,7 @@ describe('native Core authentication invocation isolation', () => {
     await resetCoreAuthCaches()
     const principals = await Promise.all(
       sessions.map(({ binding, jwt }) =>
-        Effect.runPromise(
+        runTestEffect(
           decodeCoreReply(
             ApiPrincipal,
             makeCoreClient(binding).apiAuthenticate({
@@ -504,11 +543,11 @@ describe('native Core authentication invocation isolation', () => {
       ),
     )
 
-    expect(principals.map((principal) => principal.user.email)).toEqual(sessions.map(({ email }) => email))
+    expect(principals.map((principal) => principal.user.email)).toStrictEqual(sessions.map(({ email }) => email))
     for (const { epoch, domain } of sessions) {
       const observation = await getCoreObservations(epoch)
       expect(observation.authenticateCalls).toBe(1)
-      expect(observation.jwksFetches).toEqual([`https://${domain}/cdn-cgi/access/certs`])
+      expect(observation.jwksFetches).toStrictEqual([`https://${domain}/cdn-cgi/access/certs`])
       expect(observation.authCacheGets).toContain('cf-access-certs')
     }
     await resetCoreAuthCaches()
@@ -516,9 +555,9 @@ describe('native Core authentication invocation isolation', () => {
 })
 
 // A stale signing key forces one refresh, with a cooldown for invalid signatures.
-describe('PROJ-358: JWKS force-refresh on signature verification failure', () => {
-  it("uncached-key token authenticates via forced refresh; bad sig within cooldown doesn't refetch again", async () => {
-    const genKeyPair = () =>
+describe('covers PROJ-358: JWKS force-refresh on signature verification failure', () => {
+  test("uncached-key token authenticates via forced refresh; bad sig within cooldown doesn't refetch again", async () => {
+    const genKeyPair = (): Promise<CryptoKeyPair> =>
       crypto.subtle.generateKey(
         {
           name: 'RSASSA-PKCS1-v1_5',
@@ -528,68 +567,78 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
         },
         true,
         ['sign', 'verify'],
-      ) as Promise<CryptoKeyPair>
+      )
 
-    // `otherKeyPair` is never returned by the Core network fixture, so a token signed
-    // with it never matches whatever the cache holds — used for the
-    // cooldown assertion without needing a second real refresh.
+    /*
+     * `otherKeyPair` is never returned by the Core network fixture, so a token signed
+     * with it never matches whatever the cache holds — used for the
+     * cooldown assertion without needing a second real refresh.
+     */
     const currentKeyPair = await genKeyPair()
     const otherKeyPair = await genKeyPair()
-    const currentPublicJwk = (await crypto.subtle.exportKey('jwk', currentKeyPair.publicKey)) as JsonWebKey
+    const currentPublicJwk = await crypto.subtle.exportKey('jwk', currentKeyPair.publicKey)
 
     const domain = `proj-358-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-358-audience'
     const email = `proj-358-${crypto.randomUUID().slice(0, 8)}@example.com`
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
 
     await resetCoreAuthCaches()
     await resetCoreObservations()
-    // A real but stale signing key makes the initial verification fail, so
-    // success requires the production force-refresh path rather than a cold fetch.
+    /*
+     * A real but stale signing key makes the initial verification fail, so
+     * success requires the production force-refresh path rather than a cold fetch.
+     */
     await env.KV.put('cf-access-certs', JSON.stringify([await crypto.subtle.exportKey('jwk', otherKeyPair.publicKey)]))
     await configureCore({ FIXTURE_JWKS_BODY: JSON.stringify({ keys: [currentPublicJwk] }) })
 
     try {
-      // The pre-seeded stale key cannot verify this token. Core must fetch the
-      // current keys and retry the real signature verification.
-      const currentJwt = await signTestJwt(currentKeyPair.privateKey, {
-        exp: now + 3600,
-        aud: audience,
-        iss: `https://${domain}`,
-        email,
-      })
-      const rotated = await SELF.fetch('http://localhost/auth/me', {
+      /*
+       * The pre-seeded stale key cannot verify this token. Core must fetch the
+       * current keys and retry the real signature verification.
+       */
+      const currentJwt = await signTestJwt(currentKeyPair.privateKey, [
+        ['exp', now + 3600],
+        ['aud', audience],
+        ['iss', `https://${domain}`],
+        ['email', email],
+      ])
+      const rotated = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': currentJwt },
       })
       expect(rotated.status).toBe(200)
-      expect((await getCoreObservations()).jwksFetches).toHaveLength(1)
+      const resolvedValue = await getCoreObservations()
+      expect(resolvedValue.jwksFetches).toHaveLength(1)
 
-      // The cache now holds only currentPublicJwk, so a token signed by an
-      // unrelated key still doesn't verify — but the forced refresh above
-      // happened moments ago, so the cooldown should block a second fetch.
-      const badJwt = await signTestJwt(otherKeyPair.privateKey, {
-        exp: now + 3600,
-        aud: audience,
-        iss: `https://${domain}`,
-        email,
-      })
-      const stillBad = await SELF.fetch('http://localhost/auth/me', {
+      /*
+       * The cache now holds only currentPublicJwk, so a token signed by an
+       * unrelated key still doesn't verify — but the forced refresh above
+       * happened moments ago, so the cooldown should block a second fetch.
+       */
+      const badJwt = await signTestJwt(otherKeyPair.privateKey, [
+        ['exp', now + 3600],
+        ['aud', audience],
+        ['iss', `https://${domain}`],
+        ['email', email],
+      ])
+      const stillBad = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': badJwt },
       })
       expect(stillBad.status).toBe(401)
-      expect((await getCoreObservations()).jwksFetches).toHaveLength(1)
+      const jwksObservations = await getCoreObservations()
+      expect(jwksObservations.jwksFetches).toHaveLength(1)
     } finally {
       await configureCore()
     }
   })
 })
 
-describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
-  it('a successful JWKS fetch still authenticates when caching it in KV fails', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+describe("covers PROJ-730: JWKS cache write failure doesn't fail auth", () => {
+  test('a successful JWKS fetch still authenticates when caching it in KV fails', async () => {
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -598,8 +647,8 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-730-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-730-audience'
@@ -616,29 +665,30 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
     })
 
     try {
-      const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
-        aud: audience,
-        iss: `https://${domain}`,
-        email: `proj-730-${crypto.randomUUID().slice(0, 8)}@example.com`,
-      })
+      const jwt = await signTestJwt(keyPair.privateKey, [
+        ['exp', currentEpochSeconds() + 3600],
+        ['aud', audience],
+        ['iss', `https://${domain}`],
+        ['email', `proj-730-${crypto.randomUUID().slice(0, 8)}@example.com`],
+      ])
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
       expect(res.status).toBe(200)
-      expect((await getCoreObservations()).authCachePuts).toContain('cf-access-certs')
-      expect(await env.KV.get('cf-access-certs')).toBeNull()
+      const authObservations = await getCoreObservations()
+      expect(authObservations.authCachePuts).toContain('cf-access-certs')
+      await expect(env.KV.get('cf-access-certs')).resolves.toBeNull()
     } finally {
       await configureCore()
     }
   })
 })
 
-describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => {
-  it("a KV read error doesn't fail auth — falls through to fetching fresh certs", async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+describe('covers PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => {
+  test("a KV read error doesn't fail auth — falls through to fetching fresh certs", async () => {
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -647,8 +697,8 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-735-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-735-audience'
@@ -664,14 +714,14 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
     })
 
     try {
-      const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
-        aud: audience,
-        iss: `https://${domain}`,
-        email: `proj-735-${crypto.randomUUID().slice(0, 8)}@example.com`,
-      })
+      const jwt = await signTestJwt(keyPair.privateKey, [
+        ['exp', currentEpochSeconds() + 3600],
+        ['aud', audience],
+        ['iss', `https://${domain}`],
+        ['email', `proj-735-${crypto.randomUUID().slice(0, 8)}@example.com`],
+      ])
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
@@ -685,9 +735,9 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
   })
 })
 
-describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert', () => {
-  it("a KV read error on the user cache doesn't fail auth — falls through to the DB", async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+describe('covers PROJ-746: user-by-email cache read failure falls back to the DB upsert', () => {
+  test("a KV read error on the user cache doesn't fail auth — falls through to the DB", async () => {
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -696,8 +746,8 @@ describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-746-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-746-audience'
@@ -714,39 +764,41 @@ describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert
 
     try {
       const email = `proj-746-${crypto.randomUUID().slice(0, 8)}@example.com`
-      const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
-        aud: audience,
-        iss: `https://${domain}`,
-        email,
-      })
+      const jwt = await signTestJwt(keyPair.privateKey, [
+        ['exp', currentEpochSeconds() + 3600],
+        ['aud', audience],
+        ['iss', `https://${domain}`],
+        ['email', email],
+      ])
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
       expect(res.status).toBe(200)
       const row = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
       expect(row).not.toBeNull()
-      expect((await getCoreObservations()).authCacheGets).toContain(`user-by-email:${email}`)
+      const authObservations = await getCoreObservations()
+      expect(authObservations.authCacheGets).toContain(`user-by-email:${email}`)
     } finally {
       await configureCore()
     }
   })
 })
 
-describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
-  it('a request within the throttle window does not rewrite a recent last_used_at', async () => {
+describe('covers PROJ-360: api_tokens.last_used_at write throttling', () => {
+  test('a request within the throttle window does not rewrite a recent last_used_at', async () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
-    const now = Math.floor(Date.now() / 1000)
-    const recentTimestamp = now - 30 // inside the 60s throttle window
+    const now = currentEpochSeconds()
+    // Inside the 60s throttle window
+    const recentTimestamp = now - 30
 
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?')
       .bind(recentTimestamp, hash)
       .run()
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(200)
@@ -757,15 +809,16 @@ describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
     expect(row?.last_used_at).toBe(recentTimestamp)
   })
 
-  it('a request outside the throttle window (or with no prior value) updates last_used_at', async () => {
+  test('a request outside the throttle window (or with no prior value) updates last_used_at', async () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
-    const now = Math.floor(Date.now() / 1000)
-    const staleTimestamp = now - 120 // outside the 60s throttle window
+    const now = currentEpochSeconds()
+    // Outside the 60s throttle window
+    const staleTimestamp = now - 120
 
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?').bind(staleTimestamp, hash).run()
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(200)
@@ -782,70 +835,81 @@ describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
 // PROJ-274 (C1): no cached auth path can bypass scope enforcement
 // ---------------------------------------------------------------------------
 
-describe('PROJ-274: read-scoped token is denied write on every request', () => {
-  it('read-only token gets 403 on POST /api/projects, never a cached bypass', async () => {
+describe('covers PROJ-274: read-scoped token is denied write on every request', () => {
+  test('read-only token gets 403 on POST /api/projects, never a cached bypass', async () => {
     const fixture = await seedFixture()
     const readOnlyToken = await seedToken(fixture.workspace.id, fixture.user.id, {
       scopes: ['read'],
     })
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: {
-        ...authHeaders(readOnlyToken, fixture.workspace.slug),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name: 'Blocked', key: 'BLK' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody(
+        'POST',
+        {
+          ...authHeaders(readOnlyToken, fixture.workspace.slug),
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ key: 'BLK', name: 'Blocked' }),
+      ),
+    )
     expect(res.status).toBe(403)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toMatch(/scope/i)
   })
 
-  it('read-only token gets a JSON-RPC scope error calling a write MCP tool, never a cached bypass', async () => {
+  test('read-only token gets a JSON-RPC scope error calling a write MCP tool, never a cached bypass', async () => {
     const fixture = await seedFixture()
     const readOnlyToken = await seedToken(fixture.workspace.id, fixture.user.id, {
       scopes: ['read'],
     })
 
-    const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers: authHeaders(readOnlyToken, fixture.workspace.slug),
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'create_project', arguments: { name: 'Blocked', key: 'BLK' } },
-      }),
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(readOnlyToken, fixture.workspace.slug),
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: { name: 'Blocked', key: 'BLK' }, name: 'create_project' },
+        }),
+      ),
+    )
+    const bodyShape = Schema.Struct({
+      error: Schema.optional(Schema.Struct({ code: Schema.Number, message: Schema.String })),
     })
-    const body = (await res.json()) as { error?: { code: number; message: string } }
+    const body = await readNativeJson(res, bodyShape)
     expect(body.error).toBeDefined()
-    expect(body.error?.code).toBe(-32003)
+    expect(body.error?.code).toBe(-32_003)
     expect(body.error?.message).toMatch(/scope/i)
   })
 
-  it('workspace-scoped token used against a different member workspace returns 403 (PROJ-16 confinement)', async () => {
+  test('workspace-scoped token used against a different member workspace returns 403 (PROJ-16 confinement)', async () => {
     const fixture = await seedFixture()
     const otherWs = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(otherWs.id, fixture.user.id, 'member')
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, otherWs.slug),
     })
     expect(res.status).toBe(403)
   })
 
-  // PROJ-432 folded the workspace lookup and the membership lookup into one LEFT JOIN.
-  // The two failure modes it has to keep apart: no row at all is a workspace that doesn't
-  // exist (404, covered above), a row with no membership is a non-member (403 — this).
-  // Collapsing them would leak workspace existence, or hide it from legitimate members.
-  it('an existing workspace the caller is not a member of returns 403, not 404', async () => {
+  /*
+   * PROJ-432 folded the workspace lookup and the membership lookup into one LEFT JOIN.
+   * The two failure modes it has to keep apart: no row at all is a workspace that doesn't
+   * exist (404, covered above), a row with no membership is a non-member (403 — this).
+   * Collapsing them would leak workspace existence, or hide it from legitimate members.
+   */
+  test('an existing workspace the caller is not a member of returns 403, not 404', async () => {
     const fixture = await seedFixture()
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(fixture.workspace.id, fixture.user.id)
       .run()
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(403)
@@ -856,34 +920,36 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
 // PROJ-660: the dev bypass must not cover the MCP endpoint
 // ---------------------------------------------------------------------------
 
-describe('PROJ-660: dev bypass and /mcp/', () => {
+describe('covers PROJ-660: dev bypass and /mcp/', () => {
   afterEach(() => {
     env.DEV_USER_EMAIL = ''
   })
 
-  // A remote MCP client only learns it needs a credential from the 401 and the
-  // challenge on it. If the bypass answered here the server would be claiming it
-  // wants no credential at all, and no connector flow could ever start.
-  it('still 401s with the RFC 9728 challenge when DEV_USER_EMAIL is set', async () => {
+  /*
+   * A remote MCP client only learns it needs a credential from the 401 and the
+   * challenge on it. If the bypass answered here the server would be claiming it
+   * wants no credential at all, and no connector flow could ever start.
+   */
+  test('still 401s with the RFC 9728 challenge when DEV_USER_EMAIL is set', async () => {
     const ws = await seedWorkspace()
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
-    const res = await SELF.fetch(`http://localhost/mcp/${ws.id}`, {
-      method: 'POST',
+    const res = await fetchNativeApi(`http://localhost/mcp/${ws.id}`, {
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list' }),
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      method: 'POST',
     })
 
     expect(res.status).toBe(401)
     expect(res.headers.get('WWW-Authenticate')).toContain('resource_metadata=')
   })
 
-  it('still logs a browser request in, which is what the bypass is for', async () => {
+  test('still logs a browser request in, which is what the bypass is for', async () => {
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
-    const res = await SELF.fetch('http://localhost/auth/me')
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { user: { email: string } }
+    const body = await readNativeJson(res, Schema.Struct({ user: Schema.Struct({ email: Schema.String }) }))
     expect(body.user.email).toBe('dev@projektor.dev')
   })
 })
@@ -892,40 +958,43 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
 // PROJ-373: opt-in anonymous public-viewer fallback
 // ---------------------------------------------------------------------------
 
-describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
-  // Every test in this block flips PUBLIC_READ_ONLY/DEFAULT_WORKSPACE_SLUG on the shared
-  // worker env — reset them so later describe blocks (which assume the defaults) don't
-  // see an anonymous viewer where they expect a 401.
+describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
+  /*
+   * Every test in this block flips PUBLIC_READ_ONLY/DEFAULT_WORKSPACE_SLUG on the shared
+   * worker env — reset them so later describe blocks (which assume the defaults) don't
+   * see an anonymous viewer where they expect a 401.
+   */
   afterEach(() => {
     env.PUBLIC_READ_ONLY = undefined
     env.DEFAULT_WORKSPACE_SLUG = 'projektor'
   })
 
-  it('anonymous request still 401s when PUBLIC_READ_ONLY is unset (default)', async () => {
+  test('anonymous request still 401s when PUBLIC_READ_ONLY is unset (default)', async () => {
     env.PUBLIC_READ_ONLY = undefined
-    const res = await SELF.fetch('http://localhost/auth/me')
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(401)
   })
 
-  it('anonymous request is provisioned as viewer of the default workspace when PUBLIC_READ_ONLY is on', async () => {
+  test('anonymous request is provisioned as viewer of the default workspace when PUBLIC_READ_ONLY is on', async () => {
     const slug = `proj-373-${crypto.randomUUID().slice(0, 8)}`
     await seedWorkspace(slug)
     env.DEFAULT_WORKSPACE_SLUG = slug
     env.PUBLIC_READ_ONLY = 'true'
 
-    const res = await SELF.fetch('http://localhost/auth/me')
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      user: { email: string }
-      workspaces: Array<{ slug: string; role: string }>
-    }
+    const bodyShape = Schema.Struct({
+      user: Schema.Struct({ email: Schema.String }),
+      workspaces: Schema.Array(Schema.Struct({ role: Schema.String, slug: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.user.email).toBe('public-viewer@projektor.local')
-    const membership = body.workspaces.find((w) => w.slug === slug)
+    const membership = body.workspaces.find((workspace) => workspace.slug === slug)
     expect(membership?.role).toBe('viewer')
   })
 
-  it('a real CF Access session is not demoted to anonymous viewer when PUBLIC_READ_ONLY is also on', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+  test('a real CF Access session is not demoted to anonymous viewer when PUBLIC_READ_ONLY is also on', async () => {
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -934,8 +1003,8 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
+    )
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
 
     const domain = `proj-373-cf.example.com`
     const audience = 'proj-373-audience'
@@ -948,31 +1017,31 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     await resetCoreAuthCaches()
     await env.KV.put('cf-access-certs', JSON.stringify([publicJwk]))
 
-    const jwt = await signTestJwt(keyPair.privateKey, {
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      aud: audience,
-      iss: `https://${domain}`,
-      email,
-    })
+    const jwt = await signTestJwt(keyPair.privateKey, [
+      ['exp', currentEpochSeconds() + 3600],
+      ['aud', audience],
+      ['iss', `https://${domain}`],
+      ['email', email],
+    ])
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { user: { email: string } }
+    const body = await readNativeJson(res, Schema.Struct({ user: Schema.Struct({ email: Schema.String }) }))
     expect(body.user.email).toBe(email)
   })
 
-  it('anonymous viewer is blocked from writes (403), same as any viewer-role member', async () => {
+  test('anonymous viewer is blocked from writes (403), same as any viewer-role member', async () => {
     const slug = `proj-373-write-${crypto.randomUUID().slice(0, 8)}`
     await seedWorkspace(slug)
     env.DEFAULT_WORKSPACE_SLUG = slug
     env.PUBLIC_READ_ONLY = 'true'
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
+    const res = await fetchNativeApi('http://localhost/api/projects', {
+      body: JSON.stringify({ key: 'BLK', name: 'Blocked' }),
       headers: { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Blocked', key: 'BLK' }),
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -982,29 +1051,30 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
 // PROJ-79 §3: /auth endpoints
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: GET /auth/me', () => {
-  it('returns 401 without any authentication', async () => {
-    const res = await SELF.fetch('http://localhost/auth/me')
+describe('covers PROJ-79: GET /auth/me', () => {
+  test('returns 401 without any authentication', async () => {
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(401)
   })
 
-  it('returns 401 with a wrong bearer token', async () => {
-    const res = await SELF.fetch('http://localhost/auth/me', {
+  test('returns 401 with a wrong bearer token', async () => {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: 'Bearer tok_totally_fake_token' },
     })
     expect(res.status).toBe(401)
   })
 
-  it('returns user info and workspaces with a valid token', async () => {
+  test('returns user info and workspaces with a valid token', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      user: { id: string; email: string }
-      workspaces: Array<{ id: string; role: string }>
-    }
+    const bodyShape = Schema.Struct({
+      user: Schema.Struct({ email: Schema.String, id: Schema.String }),
+      workspaces: Schema.Array(Schema.Struct({ id: Schema.String, role: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.user.id).toBe(fixture.user.id)
     expect(body.user.email).toBe(fixture.user.email)
     expect(Array.isArray(body.workspaces)).toBe(true)
@@ -1012,17 +1082,20 @@ describe('PROJ-79: GET /auth/me', () => {
     expect(body.workspaces[0].id).toBe(fixture.workspace.id)
   })
 
-  it('returns all workspaces the user belongs to', async () => {
+  test('returns all workspaces the user belongs to', async () => {
     const fixture = await seedFixture()
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(ws2.id, fixture.user.id, 'viewer')
     const token = await seedUserToken(fixture.user.id)
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     })
-    const body = (await res.json()) as { workspaces: Array<{ id: string }> }
-    const ids = body.workspaces.map((w) => w.id)
+    const bodyShape = Schema.Struct({
+      workspaces: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
+    const ids = body.workspaces.map((workspace) => workspace.id)
     expect(ids).toContain(fixture.workspace.id)
     expect(ids).toContain(ws2.id)
   })
@@ -1030,73 +1103,85 @@ describe('PROJ-79: GET /auth/me', () => {
 
 // PROJ-903: PATs are minted/revoked from a human session only. The dev bypass
 // (ENVIRONMENT=development + DEV_USER_EMAIL, no Authorization header) is that session here.
-async function humanFetch(email: string, url: string, init: RequestInit): Promise<Response> {
+const humanFetch = async function humanFetch(email: string, url: string, init: RequestInit): Promise<Response> {
   const prev = env.DEV_USER_EMAIL
   env.DEV_USER_EMAIL = email
   try {
-    return await SELF.fetch(url, init)
+    return await fetchNativeApi(url, init)
   } finally {
     env.DEV_USER_EMAIL = prev
   }
 }
 
-describe('PROJ-79: POST /auth/tokens', () => {
-  it('creates a personal token and returns it', async () => {
+describe('covers PROJ-79: POST /auth/tokens', () => {
+  test('creates a personal token and returns it', async () => {
     const fixture = await seedFixture()
     const res = await humanFetch(fixture.user.email, 'http://localhost/auth/tokens', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: 'ci-token',
-        workspaceId: fixture.workspace.id,
-        scopes: ['read', 'write'],
-      }),
+      body: stringifyOrderedFields([
+        ['name', 'ci-token'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', ['read', 'write']],
+      ]),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { token: string }
-    expect(typeof body.token).toBe('string')
+    const body = await readNativeJson(res, TokenResponse)
+    expect(body.token).toSatisfy(Predicate.isString)
     expect(body.token.length).toBeGreaterThan(0)
   })
 
-  it('returns 400 when workspaceId is not a UUID', async () => {
+  test('returns 400 when workspaceId is not a UUID', async () => {
     const fixture = await seedFixture()
     const res = await humanFetch(fixture.user.email, 'http://localhost/auth/tokens', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name: 't', workspaceId: 'not-a-uuid', scopes: ['read'] }),
+      body: stringifyOrderedFields([
+        ['name', 't'],
+        ['workspaceId', 'not-a-uuid'],
+        ['scopes', ['read']],
+      ]),
     })
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 when scopes array is empty', async () => {
+  test('returns 400 when scopes array is empty', async () => {
     const fixture = await seedFixture()
     const res = await humanFetch(fixture.user.email, 'http://localhost/auth/tokens', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name: 't', workspaceId: fixture.workspace.id, scopes: [] }),
+      body: stringifyOrderedFields([
+        ['name', 't'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', []],
+      ]),
     })
     expect(res.status).toBe(400)
   })
 
-  it('returns 401 without authentication', async () => {
+  test('returns 401 without authentication', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
-      method: 'POST',
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
+      body: stringifyOrderedFields([
+        ['name', 't'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', ['read']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 't', workspaceId: fixture.workspace.id, scopes: ['read'] }),
+      method: 'POST',
     })
     expect(res.status).toBe(401)
   })
 })
 
-describe('PROJ-79: DELETE /auth/tokens/:id', () => {
-  it('deletes a token the user owns and returns ok', async () => {
+describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
+  test('deletes a token the user owns and returns ok', async () => {
     const fixture = await seedFixture()
 
     // Create a second token to delete (cannot delete the fixture token we're using for auth)
@@ -1105,11 +1190,11 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: 'to-delete',
-        workspaceId: fixture.workspace.id,
-        scopes: ['read'],
-      }),
+      body: stringifyOrderedFields([
+        ['name', 'to-delete'],
+        ['workspaceId', fixture.workspace.id],
+        ['scopes', ['read']],
+      ]),
     })
     expect(createRes.status).toBe(201)
 
@@ -1117,19 +1202,21 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
     const tokenRow = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ? AND workspace_id = ?')
       .bind('to-delete', fixture.workspace.id)
       .first<{ id: string }>()
-    expect(tokenRow).not.toBeNull()
+    assert.isNotNull(tokenRow)
 
-    const deleteRes = await humanFetch(fixture.user.email, `http://localhost/auth/tokens/${tokenRow!.id}`, {
+    const deleteRes = await humanFetch(fixture.user.email, `http://localhost/auth/tokens/${tokenRow.id}`, {
       method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
-    const body = (await deleteRes.json()) as { ok: boolean }
+    const body = await readNativeJson(deleteRes, Schema.Struct({ ok: Schema.Boolean }))
     expect(body.ok).toBe(true)
   })
 
-  it("cannot delete another user's token (silently no-ops, returns ok)", async () => {
-    // The DELETE handler scopes by user_id, so deleting another user's token
-    // silently succeeds (no row deleted). This is the current behaviour — confirmed here.
+  test("cannot delete another user's token (silently no-ops, returns ok)", async () => {
+    /*
+     * The DELETE handler scopes by user_id, so deleting another user's token
+     * silently succeeds (no row deleted). This is the current behaviour — confirmed here.
+     */
     const alice = await seedFixture()
     const bob = await seedFixture()
 
@@ -1139,7 +1226,8 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
       .first<{ id: string }>()
 
     // Alice tries to delete Bob's token — the WHERE user_id = alice.user.id clause filters it out
-    const res = await humanFetch(alice.user.email, `http://localhost/auth/tokens/${bobTokenRow!.id}`, {
+    assert.exists(bobTokenRow)
+    const res = await humanFetch(alice.user.email, `http://localhost/auth/tokens/${bobTokenRow.id}`, {
       method: 'DELETE',
     })
     // The endpoint returns 200 ok (no error — just no rows deleted)
@@ -1147,13 +1235,13 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
 
     // Bob's token must still exist in the DB
     const stillThere = await env.DB.prepare('SELECT id FROM api_tokens WHERE id = ?')
-      .bind(bobTokenRow!.id)
+      .bind(bobTokenRow.id)
       .first<{ id: string }>()
     expect(stillThere).not.toBeNull()
   })
 
-  it('returns 401 without authentication', async () => {
-    const res = await SELF.fetch(`http://localhost/auth/tokens/${crypto.randomUUID()}`, {
+  test('returns 401 without authentication', async () => {
+    const res = await fetchNativeApi(`http://localhost/auth/tokens/${crypto.randomUUID()}`, {
       method: 'DELETE',
     })
     expect(res.status).toBe(401)
@@ -1164,162 +1252,203 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
 // PROJ-79 §4: MCP error contract
 // ---------------------------------------------------------------------------
 
-describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
+type McpRequestAuth = Readonly<{ headers: Record<string, string>; workspaceId: string }>
 
-  beforeEach(async () => {
+interface McpErrorTestContext {
+  requestAuth: McpRequestAuth
+}
+
+interface McpErrorReply {
+  error?: { code: number; message: string }
+  id: unknown
+  jsonrpc: string
+  result?: { isError?: boolean }
+}
+
+const requestTool = async function requestTool(
+  { headers, workspaceId }: McpRequestAuth,
+  name: string,
+  args: unknown,
+): Promise<McpErrorReply> {
+  const response = await fetchNativeMcpTool(workspaceId, { arguments: args, name }, headers)
+  return response.json()
+}
+
+// A service failure is a successful JSON-RPC response whose result is a tool error.
+const expectToolError = function expectToolError(resp: McpErrorReply, code: string): ReturnType<typeof toolError> {
+  expect('error' in resp).toBe(false)
+  expect(resp.result?.isError).toBe(true)
+  const err = toolError(resp)
+  expect(err?.code).toBe(code)
+  return err
+}
+
+describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes', () => {
+  beforeEach<McpErrorTestContext>(async (context) => {
     const fixture = await seedFixture({ role: 'owner' })
-    workspaceId = fixture.workspace.id
-    slug = fixture.workspace.slug
-    ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), slug)
+    const { id: workspaceId, slug } = fixture.workspace
+    const headers = authHeaders(await seedUserToken(fixture.user.id), slug)
+    context.requestAuth = { headers, workspaceId }
   })
 
-  async function mcp(name: string, args: unknown, headers = ownerHeaders, wsId = workspaceId) {
-    const res = await SELF.fetch(`http://localhost/mcp/${wsId}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name, arguments: args },
-      }),
-    })
-    return res.json() as Promise<{
-      jsonrpc: string
-      id: unknown
-      result?: { isError?: boolean }
-      error?: { code: number; message: string }
-    }>
-  }
-
-  // A service failure is a successful JSON-RPC response whose result is a tool error.
-  function expectToolError(resp: Awaited<ReturnType<typeof mcp>>, code: string) {
-    expect('error' in resp).toBe(false)
-    expect(resp.result?.isError).toBe(true)
-    const err = toolError(resp)
-    expect(err?.code).toBe(code)
-    return err
-  }
-
-  it('ValidationError (e.g. empty wiki title) maps to a validation tool error', async () => {
-    const resp = await mcp('create_wiki_page', { title: '', content: 'body' })
+  test<McpErrorTestContext>('covers ValidationError (e.g. empty wiki title) maps to a validation tool error', async ({
+    requestAuth,
+  }) => {
+    const resp = await requestTool(requestAuth, 'create_wiki_page', { title: '', content: 'body' })
     expectToolError(resp, 'validation')
   })
 
-  it('NotFoundError (unknown issue id) maps to a not_found tool error', async () => {
-    const resp = await mcp('get_issue', { id: crypto.randomUUID() })
+  test<McpErrorTestContext>('covers NotFoundError (unknown issue id) maps to a not_found tool error', async ({
+    requestAuth,
+  }) => {
+    const resp = await requestTool(requestAuth, 'get_issue', { id: crypto.randomUUID() })
     const err = expectToolError(resp, 'not_found')
-    expect(err?.message).toMatch(/not found/i)
+    expect(err?.message).toMatch(/not found/iu)
   })
 
   // ForbiddenError (triggered by viewer calling a restricted tool)
-  it('ForbiddenError maps to a forbidden tool error', async () => {
+  test('covers ForbiddenError maps to a forbidden tool error', async () => {
     const roles = await seedWorkspaceRoles()
     const viewerHeaders = authHeaders(roles.viewer.token, roles.workspace.slug)
-    const resp = await mcp('create_task_type', { key: 'epic', name: 'Epic' }, viewerHeaders, roles.workspace.id)
+    const resp = await requestTool({ headers: viewerHeaders, workspaceId: roles.workspace.id }, 'create_task_type', {
+      key: 'epic',
+      name: 'Epic',
+    })
     expectToolError(resp, 'forbidden')
   })
 
   // ConflictError (duplicate workspace slug)
-  it('ConflictError (duplicate workspace slug) maps to a conflict tool error', async () => {
+  test<McpErrorTestContext>('covers ConflictError (duplicate workspace slug) maps to a conflict tool error', async ({
+    requestAuth,
+  }) => {
     // Create workspace with a slug
-    await mcp('create_workspace', { slug: 'conflict-slug', name: 'First' })
+    await requestTool(requestAuth, 'create_workspace', { slug: 'conflict-slug', name: 'First' })
     // Create again with same slug → ConflictError
-    const resp = await mcp('create_workspace', { slug: 'conflict-slug', name: 'Second' })
+    const resp = await requestTool(requestAuth, 'create_workspace', { slug: 'conflict-slug', name: 'Second' })
     const err = expectToolError(resp, 'conflict')
     expect(err?.message).toMatch(/slug already taken/i)
   })
 })
 
-describe('PROJ-79: MCP protocol validation', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
+describe('covers PROJ-79: MCP protocol validation', () => {
+  type TestData = Readonly<{
+    ownerHeaders: Record<string, string>
+    slug: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
-    workspaceId = fixture.workspace.id
-    slug = fixture.workspace.slug
-    ownerHeaders = authHeaders(fixture.token, slug)
-  })
+    const workspaceId = fixture.workspace.id
+    const { slug } = fixture.workspace
+    const ownerHeaders = authHeaders(fixture.token, slug)
+    return { ownerHeaders, slug, workspaceId }
+  }
 
-  it('wrong jsonrpc version returns HTTP 400 with error code -32600', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({
-        jsonrpc: '1.0', // wrong version
-        id: 1,
-        method: 'tools/list',
-        params: {},
-      }),
-    })
+  test('wrong jsonrpc version returns HTTP 400 with error code -32600', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        stringifyOrderedFields([
+          // Wrong version
+          ['jsonrpc', '1.0'],
+          ['id', 1],
+          ['method', 'tools/list'],
+          ['params', {}],
+        ]),
+      ),
+    )
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: { code: number } }
-    expect(body.error.code).toBe(-32600)
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.Struct({ code: Schema.Number }) }))
+    expect(body.error.code).toBe(-32_600)
   })
 
-  it('unknown method returns JSON-RPC error -32601', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'foo/bar', params: {} }),
-    })
-    const body = (await res.json()) as { error: { code: number } }
-    expect(body.error.code).toBe(-32601)
+  test('unknown method returns JSON-RPC error -32601', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        stringifyOrderedFields([
+          ['jsonrpc', '2.0'],
+          ['id', 2],
+          ['method', 'foo/bar'],
+          ['params', {}],
+        ]),
+      ),
+    )
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.Struct({ code: Schema.Number }) }))
+    expect(body.error.code).toBe(-32_601)
   })
 
-  it('unknown tool name returns JSON-RPC error -32601 with tool name in message', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 3,
-        method: 'tools/call',
-        params: { name: 'no_such_tool', arguments: {} },
-      }),
-    })
-    const body = (await res.json()) as { error: { code: number; message: string } }
-    expect(body.error.code).toBe(-32601)
+  test('unknown tool name returns JSON-RPC error -32601 with tool name in message', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({
+          id: 3,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: {}, name: 'no_such_tool' },
+        }),
+      ),
+    )
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ error: Schema.Struct({ code: Schema.Number, message: Schema.String }) }),
+    )
+    expect(body.error.code).toBe(-32_601)
     expect(body.error.message).toContain('no_such_tool')
   })
 
-  it('unknown workspace slug returns 404 from workspaceMiddleware', async () => {
+  test('unknown workspace slug returns 404 from workspaceMiddleware', async () => {
+    await seedTestData()
     const fixture = await seedFixture()
-    const res = await SELF.fetch(`http://localhost/mcp/${crypto.randomUUID()}`, {
-      method: 'POST',
-      headers: {
-        // Valid token but X-Workspace-Slug points to a non-existent workspace
-        Authorization: `Bearer ${fixture.token}`,
-        'X-Workspace-Slug': `nonexistent-${crypto.randomUUID().slice(0, 8)}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${crypto.randomUUID()}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          // Valid token but X-Workspace-Slug points to a non-existent workspace
+          Authorization: `Bearer ${fixture.token}`,
+          'X-Workspace-Slug': `nonexistent-${crypto.randomUUID().slice(0, 8)}`,
+          'Content-Type': 'application/json',
+        },
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    )
     expect(res.status).toBe(404)
   })
 
-  it('non-object params on tools/call is handled without crashing', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 4,
-        method: 'tools/call',
-        params: 'not-an-object',
-      }),
-    })
+  test('non-object params on tools/call is handled without crashing', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        ownerHeaders,
+        JSON.stringify({
+          id: 4,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: 'not-an-object',
+        }),
+      ),
+    )
     // Any 2xx or 4xx is acceptable — the server must not crash (500)
     expect(res.status).not.toBe(500)
   })
 
-  it('missing id field is handled (server echoes null/undefined id without crashing)', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  test('missing id field is handled (server echoes null/undefined id without crashing)', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
       // No "id" field in the request body
@@ -1327,22 +1456,24 @@ describe('PROJ-79: MCP protocol validation', () => {
     })
     // Server must respond with a valid JSON-RPC structure and not crash
     expect(res.status).not.toBe(500)
-    const body = (await res.json()) as { jsonrpc: string }
+    const body = await readNativeJson(res, Schema.Struct({ jsonrpc: Schema.String }))
     expect(body.jsonrpc).toBe('2.0')
   })
 })
 
-// ---------------------------------------------------------------------------
-// PROJ-430: an auth *infrastructure* failure (the JWKS endpoint unreachable)
-// must not masquerade as a session problem. The frontend reloads the page to
-// re-authenticate on a 401 (PROJ-427), so answering a certs-fetch failure with
-// a 401 sends the client off to re-login for something re-login cannot fix.
-// It must also not be a bare, unlogged 500.
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * PROJ-430: an auth *infrastructure* failure (the JWKS endpoint unreachable)
+ * must not masquerade as a session problem. The frontend reloads the page to
+ * re-authenticate on a 401 (PROJ-427), so answering a certs-fetch failure with
+ * a 401 sends the client off to re-login for something re-login cannot fix.
+ * It must also not be a bare, unlogged 500.
+ * ---------------------------------------------------------------------------
+ */
 
-describe('PROJ-430: CF Access certs fetch failure', () => {
-  it('returns 503, not 401 or 500, when the JWKS endpoint is unreachable', async () => {
-    const keyPair = (await crypto.subtle.generateKey(
+describe('covers PROJ-430: CF Access certs fetch failure', () => {
+  test('returns 503, not 401 or 500, when the JWKS endpoint is unreachable', async () => {
+    const keyPair = await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -1351,7 +1482,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
       },
       true,
       ['sign', 'verify'],
-    )) as CryptoKeyPair
+    )
 
     const domain = 'proj-430-unreachable.example.com'
     const audience = 'proj-430-audience'
@@ -1368,20 +1499,22 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
 
     try {
       // Claims are entirely valid — only the certs fetch is broken.
-      const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
-        aud: audience,
-        iss: `https://${domain}`,
-        email: `proj-430-${crypto.randomUUID().slice(0, 8)}@example.com`,
-      })
+      const jwt = await signTestJwt(keyPair.privateKey, [
+        ['exp', currentEpochSeconds() + 3600],
+        ['aud', audience],
+        ['iss', `https://${domain}`],
+        ['email', `proj-430-${crypto.randomUUID().slice(0, 8)}@example.com`],
+      ])
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
       expect(res.status).toBe(503)
-      expect((await getCoreObservations()).jwksFetches).toEqual([`https://${domain}/cdn-cgi/access/certs`])
-      expect((await res.json()) as { error: string }).toEqual({
+      const jwksObservations = await getCoreObservations()
+      expect(jwksObservations.jwksFetches).toStrictEqual([`https://${domain}/cdn-cgi/access/certs`])
+      const body = await readNativeJson(res, ErrorMessageResponse)
+      expect(body).toStrictEqual({
         error: 'Authentication temporarily unavailable',
       })
     } finally {
@@ -1389,41 +1522,41 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
     }
   })
 
-  describe('GET /auth/login', () => {
-    it('redirects to default root / with 302 when redirect_url query is omitted', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login', {
+  describe('handles GET /auth/login', () => {
+    test('redirects to default root / with 302 when redirect_url query is omitted', async () => {
+      const res = await fetchNativeApi('http://localhost/auth/login', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
       expect(res.headers.get('location')).toBe('/')
     })
 
-    it('redirects to specified redirect_url with 302', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login?redirect_url=/projects/view/proj-1', {
+    test('redirects to specified redirect_url with 302', async () => {
+      const res = await fetchNativeApi('http://localhost/auth/login?redirect_url=/projects/view/proj-1', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
       expect(res.headers.get('location')).toBe('/projects/view/proj-1')
     })
 
-    it('falls back to / for an absolute-URL redirect_url', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login?redirect_url=https://evil.example.com', {
+    test('falls back to / for an absolute-URL redirect_url', async () => {
+      const res = await fetchNativeApi('http://localhost/auth/login?redirect_url=https://evil.example.com', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
       expect(res.headers.get('location')).toBe('/')
     })
 
-    it('falls back to / for a protocol-relative redirect_url', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login?redirect_url=//evil.example.com', {
+    test('falls back to / for a protocol-relative redirect_url', async () => {
+      const res = await fetchNativeApi('http://localhost/auth/login?redirect_url=//evil.example.com', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
       expect(res.headers.get('location')).toBe('/')
     })
 
-    it('falls back to / for a javascript: redirect_url', async () => {
-      const res = await SELF.fetch(
+    test('falls back to / for a javascript: redirect_url', async () => {
+      const res = await fetchNativeApi(
         `http://localhost/auth/login?redirect_url=${encodeURIComponent('javascript:alert(1)')}`,
         { redirect: 'manual' },
       )

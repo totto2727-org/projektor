@@ -1,16 +1,26 @@
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect, Schema } from 'effect'
 
-import { CORE_ACTOR_HEADER } from '../core/contract'
-import { RequestServices } from './request'
-import { ApiError } from './server/errors'
+import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
+
+import { RequestServices } from './request.ts'
+import { ApiError } from './server/errors.ts'
 
 const BinaryFailure = Schema.Struct({ error: Schema.String })
 
-/** Same-binding binary transport, with request-local proof and no buffering of file bytes. */
-export function transferCoreBinary(
+const decodeBinaryFailure = Schema.decodeUnknownEffect(BinaryFailure)
+
+/**
+ * Same-binding binary transport, with request-local proof and no buffering of file bytes.
+ *
+ * @param {string} path The internal path on Core's binary fetch surface.
+ * @param {Readonly<{ method?: string; body?: BodyInit; headers?: HeadersInit }>} options The request method, headers, and optional upload body.
+ * @returns {Effect.Effect<Response, ApiError, RequestServices>} An effect with the original successful response or a public failure.
+ */
+export const transferCoreBinary = function transferCoreBinary(
   path: string,
-  options: { readonly method?: string; readonly body?: BodyInit; readonly headers?: HeadersInit } = {},
-) {
+  options: Readonly<{ method?: string; body?: BodyInit; headers?: HeadersInit }> = {},
+): Effect.Effect<Response, ApiError, RequestServices> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const headers = new Headers(options.headers)
@@ -27,7 +37,7 @@ export function transferCoreBinary(
       JSON.stringify({
         requestUrl: services.request.url,
         method: services.request.method,
-        ...(accessJwt !== undefined && accessJwt !== null ? { accessJwt } : {}),
+        ...(Predicate.isNotNullish(accessJwt) && Predicate.isNotNullish(accessJwt) ? { accessJwt } : {}),
       }),
     )
     const response = yield* Effect.tryPromise({
@@ -40,11 +50,11 @@ export function transferCoreBinary(
             signal: AbortSignal.any([services.request.signal, signal]),
           }),
         ),
-      catch: () => new ApiError('request', 502, 'The operation could not be completed.'),
+      catch: () => new ApiError('request', HTTP_BAD_GATEWAY, 'The operation could not be completed.'),
     })
     if (!response.ok) {
       const problem = yield* Effect.tryPromise(() => response.json()).pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(BinaryFailure)),
+        Effect.flatMap(decodeBinaryFailure),
         Effect.catch(() => Effect.succeed({ error: 'The operation could not be completed.' })),
       )
       return yield* new ApiError('request', response.status, problem.error)

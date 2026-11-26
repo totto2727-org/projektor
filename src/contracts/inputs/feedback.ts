@@ -1,90 +1,123 @@
+import { Predicate } from 'effect'
 import { z } from 'zod'
+
+import {
+  MAX_BULK_FEEDBACK_COUNT,
+  MAX_SOURCE_NAME_LENGTH,
+  MAX_SOURCE_DESCRIPTION_LENGTH,
+  MAX_ALLOWED_ORIGIN_LENGTH,
+  MAX_ALLOWED_ORIGIN_COUNT,
+} from '#contracts/feedback-limits.ts'
+
+import { objectInOrder } from './common.ts'
+
+const MAX_BODY_LENGTH = 10_000
+const MAX_SUBMITTER_LABEL_LENGTH = 200
+const MAX_SOURCE_URL_LENGTH = 2000
+const MAX_APP_VERSION_LENGTH = 100
+
+const THUMBS_DOWN = -1
+const THUMBS_UP = 1
+const MIN_STAR_RATING = 1
+const MAX_STAR_RATING = 5
 
 const RatingScaleEnum = z.enum(['thumbs', 'five_star'])
 const FeedbackStatusEnum = z.enum(['new', 'reviewed', 'actioned'])
 
-export const SubmitFeedbackSchema = z
-  .object({
-    rating: z.number().int().optional(),
-    ratingScale: RatingScaleEnum.optional(),
-    body: z.string().min(1).max(10000).optional(),
-    submitterLabel: z.string().max(200).optional(),
-    sourceUrl: z.string().max(2000).optional(),
-    appVersion: z.string().max(100).optional(),
-  })
-  .refine((d) => d.rating !== undefined || d.body !== undefined, {
+export const SubmitFeedbackSchema = objectInOrder([
+  ['rating', z.number().int().optional()],
+  ['ratingScale', RatingScaleEnum.optional()],
+  ['body', z.string().nonempty().max(MAX_BODY_LENGTH).optional()],
+  ['submitterLabel', z.string().max(MAX_SUBMITTER_LABEL_LENGTH).optional()],
+  ['sourceUrl', z.string().max(MAX_SOURCE_URL_LENGTH).optional()],
+  ['appVersion', z.string().max(MAX_APP_VERSION_LENGTH).optional()],
+])
+  .refine((input) => Predicate.isNotNullish(input.rating) || Predicate.isNotNullish(input.body), {
     message: 'At least one of rating or body must be provided',
   })
-  .refine((d) => (d.rating === undefined) === (d.ratingScale === undefined), {
+  .refine((input) => Predicate.isNullish(input.rating) === Predicate.isNullish(input.ratingScale), {
     message: 'ratingScale is required when rating is present, and forbidden otherwise',
   })
   .refine(
-    (d) => {
-      if (d.rating === undefined || d.ratingScale === undefined) return true
-      if (d.ratingScale === 'thumbs') return d.rating === -1 || d.rating === 1
-      return d.rating >= 1 && d.rating <= 5
+    (input) => {
+      if (Predicate.isNullish(input.rating) || Predicate.isNullish(input.ratingScale)) {
+        return true
+      }
+      if (input.ratingScale === 'thumbs') {
+        return input.rating === THUMBS_DOWN || input.rating === THUMBS_UP
+      }
+      return input.rating >= MIN_STAR_RATING && input.rating <= MAX_STAR_RATING
     },
     { message: 'rating must be -1 or 1 for thumbs, or an integer 1-5 for five_star' },
   )
 
-export const CreateFeedbackSourceSchema = z.object({
-  projectId: z.string().min(1, 'projectId is required'),
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  allowedOrigins: z.array(z.string().max(2000)).max(50).optional(),
-})
+export const CreateFeedbackSourceSchema = objectInOrder([
+  ['projectId', z.string().nonempty('projectId is required')],
+  ['name', z.string().nonempty().max(MAX_SOURCE_NAME_LENGTH)],
+  ['description', z.string().max(MAX_SOURCE_DESCRIPTION_LENGTH).optional()],
+  ['allowedOrigins', z.array(z.string().max(MAX_ALLOWED_ORIGIN_LENGTH)).max(MAX_ALLOWED_ORIGIN_COUNT).optional()],
+])
 
 export const ListFeedbackSourcesSchema = z.object({
-  projectId: z.string().min(1, 'projectId is required'),
+  projectId: z.string().nonempty('projectId is required'),
 })
 
 export const GetFeedbackSourceSchema = z.object({
-  sourceId: z.string().min(1, 'sourceId is required'),
+  sourceId: z.string().nonempty('sourceId is required'),
 })
 
-export const UpdateFeedbackSourceSchema = z
-  .object({
-    sourceId: z.string(),
-    // Optional: REST routes always pass the URL path's projectId (scoping the
-    // lookup to that project); MCP tools omit it and stay workspace-scoped.
-    projectId: z.string().min(1).optional(),
-    name: z.string().min(1).max(100).optional(),
-    description: z.string().max(500).nullable().optional(),
-    isActive: z.boolean().optional(),
-  })
-  .refine((d) => d.name !== undefined || d.description !== undefined || d.isActive !== undefined, {
+export const UpdateFeedbackSourceSchema = objectInOrder([
+  ['sourceId', z.string()],
+  /*
+   * Optional: REST routes always pass the URL path's projectId (scoping the
+   * lookup to that project); MCP tools omit it and stay workspace-scoped.
+   */
+  ['projectId', z.string().nonempty().optional()],
+  ['name', z.string().nonempty().max(MAX_SOURCE_NAME_LENGTH).optional()],
+  ['description', z.string().max(MAX_SOURCE_DESCRIPTION_LENGTH).nullable().optional()],
+  ['isActive', z.boolean().optional()],
+]).refine(
+  (input) =>
+    Predicate.isNotNullish(input.name) || input.description !== undefined || Predicate.isNotNullish(input.isActive),
+  {
     message: 'At least one of name, description, or isActive must be provided',
-  })
+  },
+)
 
-export const RotateFeedbackSourceSchema = z.object({
-  sourceId: z.string(),
-  projectId: z.string().min(1).optional(),
-})
-export const RevokeFeedbackSourceSchema = z.object({
-  sourceId: z.string(),
-  projectId: z.string().min(1).optional(),
-})
+export const RotateFeedbackSourceSchema = objectInOrder([
+  ['sourceId', z.string()],
+  ['projectId', z.string().nonempty().optional()],
+])
+export const RevokeFeedbackSourceSchema = objectInOrder([
+  ['sourceId', z.string()],
+  ['projectId', z.string().nonempty().optional()],
+])
 
-export const ListFeedbackSchema = z.object({
-  projectId: z.string().min(1, 'projectId is required'),
-  status: FeedbackStatusEnum.optional(),
-  sourceId: z.string().optional(),
-})
+export const ListFeedbackSchema = objectInOrder([
+  ['projectId', z.string().nonempty('projectId is required')],
+  ['status', FeedbackStatusEnum.optional()],
+  ['sourceId', z.string().optional()],
+])
 
-export const UpdateFeedbackSchema = z.object({
-  // Optional: REST routes always pass the URL path's projectId (scoping the
-  // lookup to that project); MCP tools omit it and resolve it from the feedback row.
-  projectId: z.string().min(1).optional(),
-  feedbackId: z.string(),
-  status: FeedbackStatusEnum,
-})
+export const UpdateFeedbackSchema = objectInOrder([
+  /*
+   * Optional: REST routes always pass the URL path's projectId (scoping the
+   * lookup to that project); MCP tools omit it and resolve it from the feedback row.
+   */
+  ['projectId', z.string().nonempty().optional()],
+  ['feedbackId', z.string()],
+  ['status', FeedbackStatusEnum],
+])
 
-export const ConvertFeedbackSchema = z.object({
-  projectId: z.string().min(1).optional(),
-  feedbackId: z.string(),
-})
+export const ConvertFeedbackSchema = objectInOrder([
+  ['projectId', z.string().nonempty().optional()],
+  ['feedbackId', z.string()],
+])
 
-export const BulkFeedbackIdsSchema = z.object({
-  projectId: z.string().min(1, 'projectId is required'),
-  feedbackIds: z.array(z.string().min(1)).min(1, 'At least one feedbackId is required').max(500),
-})
+export const BulkFeedbackIdsSchema = objectInOrder([
+  ['projectId', z.string().nonempty('projectId is required')],
+  [
+    'feedbackIds',
+    z.array(z.string().nonempty()).nonempty('At least one feedbackId is required').max(MAX_BULK_FEEDBACK_COUNT),
+  ],
+])

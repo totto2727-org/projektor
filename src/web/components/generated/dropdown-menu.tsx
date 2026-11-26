@@ -8,29 +8,42 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenu = function DropdownMenu({ ...props }: MenuPrimitive.Root.Props): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve controlled state, lifecycle callbacks and children on the Base UI Root.
   return <MenuPrimitive.Root data-slot='dropdown-menu' {...props} />
 }
 
-function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuPortal = function DropdownMenuPortal({
+  ...props
+}: MenuPrimitive.Portal.Props): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the Base UI Portal container option and children.
   return <MenuPrimitive.Portal data-slot='dropdown-menu-portal' {...props} />
 }
 
-function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuTrigger = function DropdownMenuTrigger({
+  ...props
+}: MenuPrimitive.Trigger.Props): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's render, event and accessibility props on the Base UI Trigger.
   return <MenuPrimitive.Trigger data-slot='dropdown-menu-trigger' {...props} />
 }
 
-function DropdownMenuContent({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuContent = function DropdownMenuContent({
   align = 'start',
   alignOffset = 0,
   side = 'bottom',
   sideOffset = 4,
   className,
   ...props
-}: MenuPrimitive.Popup.Props & Pick<MenuPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>) {
+}: MenuPrimitive.Popup.Props &
+  Pick<MenuPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>): React.JSX.Element {
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
+        // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu Positioner applies these classes to its own rendered element.
         className='isolate z-50 outline-none'
         align={align}
         alignOffset={alignOffset}
@@ -39,10 +52,12 @@ function DropdownMenuContent({
       >
         <MenuPrimitive.Popup
           data-slot='dropdown-menu-content'
+          // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu Popup applies these classes to its own rendered element.
           className={cn(
             'z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95',
             className,
           )}
+          // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's focus, event and accessibility props on the Base UI Popup.
           {...props}
         />
       </MenuPrimitive.Positioner>
@@ -50,28 +65,36 @@ function DropdownMenuContent({
   )
 }
 
-function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuGroup = function DropdownMenuGroup({
+  ...props
+}: MenuPrimitive.Group.Props): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Group.
   return <MenuPrimitive.Group data-slot='dropdown-menu-group' {...props} />
 }
 
-function DropdownMenuLabel({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuLabel = function DropdownMenuLabel({
   className,
   inset,
   ...props
 }: MenuPrimitive.GroupLabel.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.GroupLabel
       data-slot='dropdown-menu-label'
       data-inset={inset}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu GroupLabel applies these classes to its own rendered element.
       className={cn('px-1.5 py-1 text-xs font-medium text-muted-foreground data-inset:pl-7', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI GroupLabel.
       {...props}
     />
   )
 }
 
-function DropdownMenuItem({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuItem = function DropdownMenuItem({
   className,
   inset,
   variant = 'default',
@@ -79,41 +102,50 @@ function DropdownMenuItem({
 }: MenuPrimitive.Item.Props & {
   inset?: boolean
   variant?: 'default' | 'destructive'
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.Item
       data-slot='dropdown-menu-item'
       data-inset={inset}
       data-variant={variant}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu Item applies these classes to its own rendered element.
       className={cn(
         "group/dropdown-menu-item relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Item.
       {...props}
     />
   )
 }
 
-function DropdownMenuSub({ ...props }: MenuPrimitive.SubmenuRoot.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuSub = function DropdownMenuSub({
+  ...props
+}: MenuPrimitive.SubmenuRoot.Props): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve controlled state, lifecycle callbacks and children on the Base UI SubmenuRoot.
   return <MenuPrimitive.SubmenuRoot data-slot='dropdown-menu-sub' {...props} />
 }
 
-function DropdownMenuSubTrigger({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuSubTrigger = function DropdownMenuSubTrigger({
   className,
   inset,
   children,
   ...props
 }: MenuPrimitive.SubmenuTrigger.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.SubmenuTrigger
       data-slot='dropdown-menu-sub-trigger'
       data-inset={inset}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu SubmenuTrigger applies these classes to its own rendered element.
       className={cn(
         "flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-popup-open:bg-accent data-popup-open:text-accent-foreground data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's render, event and accessibility props on the Base UI SubmenuTrigger.
       {...props}
     >
       {children}
@@ -122,14 +154,15 @@ function DropdownMenuSubTrigger({
   )
 }
 
-function DropdownMenuSubContent({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuSubContent = function DropdownMenuSubContent({
   align = 'start',
   alignOffset = -3,
   side = 'right',
   sideOffset = 0,
   className,
   ...props
-}: React.ComponentProps<typeof DropdownMenuContent>) {
+}: React.ComponentProps<typeof DropdownMenuContent>): React.JSX.Element {
   return (
     <DropdownMenuContent
       data-slot='dropdown-menu-sub-content'
@@ -141,12 +174,24 @@ function DropdownMenuSubContent({
       alignOffset={alignOffset}
       side={side}
       sideOffset={sideOffset}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native DropdownMenuContent attributes and events.
       {...props}
     />
   )
 }
 
-function DropdownMenuCheckboxItem({
+const renderDropdownCheckboxIndicator = (): React.JSX.Element => (
+  <span
+    className='pointer-events-none absolute right-2 flex items-center justify-center'
+    data-slot='dropdown-menu-checkbox-item-indicator'
+  >
+    <MenuPrimitive.CheckboxItemIndicator>
+      <CheckIcon />
+    </MenuPrimitive.CheckboxItemIndicator>
+  </span>
+)
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuCheckboxItem = function DropdownMenuCheckboxItem({
   className,
   children,
   checked,
@@ -154,77 +199,93 @@ function DropdownMenuCheckboxItem({
   ...props
 }: MenuPrimitive.CheckboxItem.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.CheckboxItem
       data-slot='dropdown-menu-checkbox-item'
       data-inset={inset}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu CheckboxItem applies these classes to its own rendered element.
       className={cn(
         "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       checked={checked}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI CheckboxItem.
       {...props}
     >
-      <span
-        className='pointer-events-none absolute right-2 flex items-center justify-center'
-        data-slot='dropdown-menu-checkbox-item-indicator'
-      >
-        <MenuPrimitive.CheckboxItemIndicator>
-          <CheckIcon />
-        </MenuPrimitive.CheckboxItemIndicator>
-      </span>
+      {renderDropdownCheckboxIndicator()}
       {children}
     </MenuPrimitive.CheckboxItem>
   )
 }
 
-function DropdownMenuRadioGroup({ ...props }: MenuPrimitive.RadioGroup.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuRadioGroup = function DropdownMenuRadioGroup({
+  ...props
+}: MenuPrimitive.RadioGroup.Props): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI RadioGroup.
   return <MenuPrimitive.RadioGroup data-slot='dropdown-menu-radio-group' {...props} />
 }
 
-function DropdownMenuRadioItem({
+const renderDropdownRadioIndicator = (): React.JSX.Element => (
+  <span
+    className='pointer-events-none absolute right-2 flex items-center justify-center'
+    data-slot='dropdown-menu-radio-item-indicator'
+  >
+    <MenuPrimitive.RadioItemIndicator>
+      <CheckIcon />
+    </MenuPrimitive.RadioItemIndicator>
+  </span>
+)
+
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuRadioItem = function DropdownMenuRadioItem({
   className,
   children,
   inset,
   ...props
 }: MenuPrimitive.RadioItem.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.RadioItem
       data-slot='dropdown-menu-radio-item'
       data-inset={inset}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu RadioItem applies these classes to its own rendered element.
       className={cn(
         "relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI RadioItem.
       {...props}
     >
-      <span
-        className='pointer-events-none absolute right-2 flex items-center justify-center'
-        data-slot='dropdown-menu-radio-item-indicator'
-      >
-        <MenuPrimitive.RadioItemIndicator>
-          <CheckIcon />
-        </MenuPrimitive.RadioItemIndicator>
-      </span>
+      {renderDropdownRadioIndicator()}
       {children}
     </MenuPrimitive.RadioItem>
   )
 }
 
-function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuSeparator = function DropdownMenuSeparator({
+  className,
+  ...props
+}: MenuPrimitive.Separator.Props): React.JSX.Element {
   return (
     <MenuPrimitive.Separator
       data-slot='dropdown-menu-separator'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Menu Separator applies these classes to its own rendered element.
       className={cn('-mx-1 my-1 h-px bg-border', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Separator.
       {...props}
     />
   )
 }
 
-function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'span'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const DropdownMenuShortcut = function DropdownMenuShortcut({
+  className,
+  ...props
+}: React.ComponentProps<'span'>): React.JSX.Element {
   return (
     <span
       data-slot='dropdown-menu-shortcut'
@@ -232,25 +293,8 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'spa
         'ml-auto text-xs tracking-widest text-muted-foreground group-focus/dropdown-menu-item:text-accent-foreground',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native span attributes and events.
       {...props}
     />
   )
-}
-
-export {
-  DropdownMenu,
-  DropdownMenuPortal,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuItem,
-  DropdownMenuCheckboxItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 }

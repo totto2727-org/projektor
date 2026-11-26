@@ -1,22 +1,28 @@
-// @vitest-environment jsdom
 import { act } from '@testing-library/react'
-import { hydrateRoot, type Root } from 'react-dom/client'
+import { Fragment, createElement } from 'react'
+import { hydrateRoot } from 'react-dom/client'
+import type { Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { formatTimestamp, formatTimestampDate } from './timestamp'
-import { WikiPageClient, type WikiSeed } from './wiki/WikiPageClient'
+import { JSON_NULL } from '#tests/json-null.ts'
+// @vitest-environment jsdom
+import type * as AttachmentActions from '@/attachment-actions.ts'
 
-vi.mock('./wiki/actions', () => ({}))
+import { formatTimestamp, formatTimestampDate } from './timestamp.ts'
+import { WikiPageClient } from './wiki/wiki-page-client.tsx'
+import type { WikiSeed } from './wiki/wiki-page-client.tsx'
+
+vi.mock(import('./wiki/actions.ts'), () => ({}))
 vi.mock('../attachment-actions', () => ({
-  uploadAttachment: vi.fn(),
-  uploadInlineImage: vi.fn(),
+  uploadAttachment: vi.fn<typeof AttachmentActions.uploadAttachment>(),
+  uploadInlineImage: vi.fn<typeof AttachmentActions.uploadInlineImage>(),
 }))
-vi.mock('@effront/core/query', () => ({ query: vi.fn() }))
-vi.mock('./wiki/LazyMarkdownEditor', () => ({ default: () => null }))
+vi.mock(import('@effront/core/query'), () => ({ query: vi.fn() }))
+vi.mock(import('./wiki/lazy-markdown-editor.tsx'), () => ({ LazyMarkdownEditor: () => createElement(Fragment) }))
 
 const timestamp = Date.parse('2026-10-04T08:48:46Z') / 1000
-function seed(): WikiSeed {
+const seed = function seed(): WikiSeed {
   return {
     workspaceSlug: 'team',
     projectId: '',
@@ -29,7 +35,7 @@ function seed(): WikiSeed {
     filterStatus: '',
     filterTags: '',
     searchQuery: '',
-    draft: null,
+    draft: JSON_NULL,
     draftStatus: 'ready',
     tree: [],
     revisions: [],
@@ -44,18 +50,18 @@ function seed(): WikiSeed {
       slug: 'guide',
       title: 'Guide',
       content: 'Published',
-      project_id: null,
-      parent_id: null,
+      project_id: JSON_NULL,
+      parent_id: JSON_NULL,
       revisionId: 'rev',
       updated_at: timestamp,
-      type: null,
-      status: null,
+      type: JSON_NULL,
+      status: JSON_NULL,
       tags: [],
       owners: [],
       verified_at: timestamp,
       verified_by: 'Alice',
-      verify_interval: null,
-      freshness: null,
+      verify_interval: JSON_NULL,
+      freshness: JSON_NULL,
     },
   }
 }
@@ -64,7 +70,7 @@ function seed(): WikiSeed {
 const localeString = Date.prototype.toLocaleString
 // oxlint-disable-next-line typescript/unbound-method -- Each mock calls this original on its own Date instance.
 const localeDateString = Date.prototype.toLocaleDateString
-function environment(locale: string, timeZone: string) {
+const environment = function environment(locale: string, timeZone: string): void {
   vi.spyOn(Date.prototype, 'toLocaleString').mockImplementation(function (this: Date, locales, options) {
     return localeString.call(this, locales ?? locale, { timeZone, ...options })
   })
@@ -73,13 +79,13 @@ function environment(locale: string, timeZone: string) {
   })
 }
 
-afterEach(() => {
-  vi.restoreAllMocks()
-  document.body.innerHTML = ''
-})
+describe('covers SSR timestamp hydration', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.body.innerHTML = ''
+  })
 
-describe('SSR timestamp hydration', () => {
-  it.each([
+  test.each([
     [0, '1970-01-01', '00:00:00'],
     [timestamp, '2026-10-04', '08:48:46'],
     [Date.parse('2026-12-31T23:59:59Z') / 1000, '2026-12-31', '23:59:59'],
@@ -87,11 +93,13 @@ describe('SSR timestamp hydration', () => {
     expect(formatTimestamp(seconds)).toBe(`${date} ${time} UTC`)
     expect(formatTimestampDate(seconds)).toBe(`${date} UTC`)
   })
-  it('preserves invalid-date display without throwing during SSR', () => {
+
+  test('preserves invalid-date display without throwing during SSR', () => {
     expect(formatTimestamp(Number.NaN)).toBe('Invalid Date')
     expect(formatTimestampDate(Number.POSITIVE_INFINITY)).toBe('Invalid Date')
   })
-  it.each([
+
+  test.each([
     ['en-US', 'Asia/Tokyo'],
     ['ja-JP', 'Asia/Tokyo'],
     ['en-US', 'America/Los_Angeles'],
@@ -109,10 +117,12 @@ describe('SSR timestamp hydration', () => {
     try {
       await act(async () => {
         root = hydrateRoot(container, element, {
-          onRecoverableError: (error) => errors.push(error),
+          onRecoverableError: (error) => {
+            errors.push(error)
+          },
         })
       })
-      expect(errors).toEqual([])
+      expect(errors).toStrictEqual([])
       expect(container.textContent).toBe(serverText)
       expect(container.querySelector('footer')?.textContent).toBe('Last updated: 2026-10-04 08:48:46 UTC')
       expect(container.textContent).toContain('Verified 2026-10-04 UTC')

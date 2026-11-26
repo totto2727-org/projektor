@@ -3,13 +3,15 @@ import { fileURLToPath } from 'node:url'
 import cloudflare from '@alchemy.run/cloudflare-runtime/vite'
 import { defineConfig } from 'vite-plus'
 
-import { deployment } from '../../worker-graph'
-import { apiWorkerOptions } from './api-host'
+import { deployment } from '#worker-graph'
 
-// Build the unchanged API adapter with the official host. Preview is owned by
-// the single frontend runtime, whose public extension adds the API service.
+import { apiWorkerOptions } from './api-host.ts'
+
+/* Build the unchanged API adapter with the official host. Preview is owned by
+ * the single frontend runtime, whose public extension adds the API service. */
+// oxlint-disable-next-line import/no-default-export -- Vite loads the API build configuration from the default export.
 export default defineConfig((environment) => {
-  if (environment.isPreview) {
+  if (environment.isPreview === true) {
     throw new Error('The API artifact must run inside the single E2E frontend preview, not a second SQLite host.')
   }
   return {

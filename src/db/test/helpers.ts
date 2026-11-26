@@ -3,38 +3,50 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
+import { String, Iterable } from 'effect'
+
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../migrations')
 
-// Mirrors src/api/test/migrations.ts's statement splitting: DatabaseSync.exec()
-// runs one statement at a time, and comments/semicolons in Drizzle's SQL output would
-// otherwise produce spurious empty fragments.
-function splitStatements(sql: string): string[] {
+/*
+ * Mirrors src/api/test/migrations.ts's statement splitting: DatabaseSync.exec()
+ * runs one statement at a time, and comments/semicolons in Drizzle's SQL output would
+ * otherwise produce spurious empty fragments.
+ */
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
-    .replace(/--[^\n]*/g, '')
+    .replaceAll(/--[^\n]*/gu, '')
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+    .map((statement) => statement.trim())
+    .filter((statement) => String.isNonEmpty(statement))
 }
 
-export function loadMigrations(): string[] {
+export const loadMigrations = function loadMigrations(): string[] {
   return readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-    .map((f) => readFileSync(join(MIGRATIONS_DIR, f), 'utf8'))
+    .filter((file) => file.endsWith('.sql'))
+    .toSorted()
+    .map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8'))
 }
 
-/** A fresh in-memory SQLite DB with every migration applied in order, FK enforcement on. */
-export function migratedDb(): DatabaseSync {
+/**
+ * A fresh in-memory SQLite DB with every migration applied in order, FK enforcement on.
+ *
+ * @returns {DatabaseSync} The open SQLite database. The caller closes it.
+ */
+export const migratedDb = function migratedDb(): DatabaseSync {
   const db = new DatabaseSync(':memory:')
   db.exec('PRAGMA foreign_keys = ON;')
-  for (const sql of loadMigrations()) {
-    for (const stmt of splitStatements(sql)) {
-      // node:sqlite's bundled build doesn't consistently ship the fts5 module
-      // across Node patch versions; production D1/Cloudflare sqlite does.
-      // Skip fts5-dependent statements here rather than gate tests on it.
-      if (/\bfts5\b/i.test(stmt) || /\b(issues|wiki)_fts\b/i.test(stmt)) continue
+  Iterable.forEach(loadMigrations(), (sql): void => {
+    Iterable.forEach(splitStatements(sql), (stmt) => {
+      /*
+       * Node:sqlite's bundled build doesn't consistently ship the fts5 module
+       * across Node patch versions; production D1/Cloudflare sqlite does.
+       * Skip fts5-dependent statements here rather than gate tests on it.
+       */
+      if (/\bfts5\b/i.test(stmt) || /\b(?:issues|wiki)_fts\b/i.test(stmt)) {
+        return
+      }
       db.exec(stmt)
-    }
-  }
+    })
+  })
   return db
 }

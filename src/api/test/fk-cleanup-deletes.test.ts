@@ -1,51 +1,53 @@
-// PROJ-923: delete paths for FK parents clean up their children explicitly, since D1
-// Note: `PRAGMA foreign_keys = OFF` is a no-op on D1/Miniflare (verified: it still
-// reads 1), so FK-backed children are also removed by the database's own cascade here —
-// for those, these are end-state checks. What they prove is the cleanup the database
-// can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
-// fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
+/*
+ * PROJ-923: delete paths for FK parents clean up their children explicitly, since D1
+ * Note: `PRAGMA foreign_keys = OFF` is a no-op on D1/Miniflare (verified: it still
+ * reads 1), so FK-backed children are also removed by the database's own cascade here —
+ * for those, these are end-state checks. What they prove is the cleanup the database
+ * can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
+ * fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
+ */
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { deleteGroup } from '#commands/groups'
-import type { ServiceCtx } from '#commands/types'
-import { createWikiPage } from '#commands/wiki'
-import { deleteWorkspace, revokeToken } from '#commands/workspaces'
+import { deleteGroup } from '#commands/groups.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { createWikiPage } from '#commands/wiki.ts'
+import { deleteWorkspace, revokeToken } from '#commands/workspaces.ts'
 
-import { env } from './fixture-api'
-import { seedFixture, seedGroupGrant, seedProject, seedTaskStatus } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedFixture, seedGroupGrant, seedProject, seedTaskStatus } from './helpers.ts'
 
-async function count(sql: string, ...params: unknown[]): Promise<number> {
+const count = async function count(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
     .bind(...params)
     .first<{ n: number }>()
   return row?.n ?? 0
 }
 
-async function ownerCtx() {
-  const f = await seedFixture({ role: 'owner' })
+const ownerCtx = async function ownerCtx() {
+  const testFixture = await seedFixture({ role: 'owner' })
   const ctx: ServiceCtx = {
     db: env.DB,
     kv: env.KV,
     r2: env.R2,
-    workspaceId: f.workspace.id,
-    userId: f.user.id,
+    workspaceId: testFixture.workspace.id,
+    userId: testFixture.user.id,
     role: 'owner',
   }
-  return { ...f, ctx }
+  return { ...testFixture, ctx }
 }
 
-describe('PROJ-923: explicit cleanup on delete', () => {
-  it("deleteGroup removes the group's members and grants", async () => {
+describe('covers PROJ-923: explicit cleanup on delete', () => {
+  test("deleteGroup removes the group's members and grants", async () => {
     const { ctx, workspace, user } = await ownerCtx()
     const project = await seedProject(workspace.id, 'GRP')
     const { groupId } = await seedGroupGrant(workspace.id, user.id, project.id)
     await deleteGroup(ctx, groupId)
-    expect(await count('SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ?', groupId)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?', groupId)).toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ?', groupId)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?', groupId)).resolves.toBe(0)
   })
 
-  it('revokeToken nulls agent_sessions.token_id', async () => {
+  test('revokeToken nulls agent_sessions.token_id', async () => {
     const { ctx, workspace } = await ownerCtx()
     const tokenRow = await env.DB.prepare('SELECT id FROM api_tokens WHERE workspace_id = ? LIMIT 1')
       .bind(workspace.id)
@@ -63,7 +65,7 @@ describe('PROJ-923: explicit cleanup on delete', () => {
     expect(row?.t).toBeNull()
   })
 
-  it('deleteWorkspace leaves no row referencing the workspace', async () => {
+  test('deleteWorkspace leaves no row referencing the workspace', async () => {
     const { ctx, workspace, user } = await ownerCtx()
     await seedTaskStatus(workspace.id, { key: 'doing' })
     const project = await seedProject(workspace.id, 'TMP')
@@ -84,12 +86,12 @@ describe('PROJ-923: explicit cleanup on delete', () => {
       'wiki_fts',
       'activity',
     ]
-    for (const t of tables) {
-      expect(`${t}: ${await count(`SELECT COUNT(*) AS n FROM ${t} WHERE workspace_id = ?`, workspace.id)}`).toBe(
-        `${t}: 0`,
-      )
+    for (const table of tables) {
+      expect(
+        `${table}: ${await count(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`, workspace.id)}`,
+      ).toBe(`${table}: 0`)
     }
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM workspaces WHERE id = ?', workspace.id)).toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).resolves.toBe(0)
+    await expect(count('SELECT COUNT(*) AS n FROM workspaces WHERE id = ?', workspace.id)).resolves.toBe(0)
   })
 })

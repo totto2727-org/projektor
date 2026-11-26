@@ -1,9 +1,24 @@
-import { Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { z } from 'zod'
 
-import { ensureUserProvisioned } from '#commands/provisioning'
+import { ensureUserProvisioned } from '#commands/provisioning.ts'
+import { HTTP_MULTIPLE_CHOICES, HTTP_OK, HTTP_SERVICE_UNAVAILABLE, HTTP_UNAUTHORIZED } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import {
+  MILLISECONDS_PER_SECOND,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  currentEpochMilliseconds,
+  currentEpochSeconds,
+} from '#contracts/time.ts'
 import type { AuthInfo, Env } from '#types'
+
+const JWT_SEGMENT_COUNT = 3
+const MIN_JWT_EMAIL_LENGTH = 1
+const BASE64_QUANTUM_WIDTH = 4
+const BASE64_PADDING_START = 0
+const DECODED_BYTE_INDEX = 0
 
 /** Only browser verification/provisioning capabilities, never OAuth signing secrets. */
 export type BrowserAuthEnvironment = Pick<
@@ -30,47 +45,67 @@ export interface BrowserPrincipal {
   auth: AuthInfo
 }
 export class BrowserAuthenticationError extends Error {
-  readonly status: 401 | 503
-  readonly _tag = 'BrowserAuthenticationError'
-  constructor(status: 401 | 503, message: string) {
+  public readonly status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE
+  public readonly _tag = 'BrowserAuthenticationError'
+  public constructor(status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE, message: string) {
     super(message)
     this.status = status
     this.name = 'BrowserAuthenticationError'
   }
 }
 
-/** A present but invalid Access credential never falls back to a development identity. */
-export async function authenticateBrowser(request: Request, env: BrowserAuthEnvironment): Promise<BrowserPrincipal> {
+/**
+ * A present but invalid Access credential never falls back to a development identity.
+ *
+ * @param {Request} request Request carrying the Access header or authorization cookie.
+ * @param {BrowserAuthEnvironment} env Browser authentication configuration and provisioning bindings.
+ * @returns {Promise<BrowserPrincipal>} The verified Access principal or the configured development principal.
+ */
+export const authenticateBrowser = async function authenticateBrowser(
+  request: Request,
+  env: BrowserAuthEnvironment,
+): Promise<BrowserPrincipal> {
   const jwt =
     request.headers.get('Cf-Access-Jwt-Assertion') ??
     parseCookie(request.headers.get('cookie') ?? '', 'CF_Authorization')
-  if (jwt) return authenticateAccessJwt(jwt, env)
+  if (Predicate.isNotNullish(jwt) && String.isNonEmpty(jwt)) {
+    return authenticateAccessJwt(jwt, env)
+  }
   const principal = await authenticateDevelopment(env)
-  if (principal) return principal
-  throw new BrowserAuthenticationError(401, 'Unauthorized')
+  if (principal) {
+    return principal
+  }
+  throw new BrowserAuthenticationError(HTTP_UNAUTHORIZED, 'Unauthorized')
 }
 
 export async function authenticateAccessJwt(jwt: string, env: BrowserAuthEnvironment): Promise<BrowserPrincipal> {
   const parts = jwt.split('.')
-  const decoded = parts.length === 3 ? decodeJwtFields(parts) : null
+  const decoded = parts.length === JWT_SEGMENT_COUNT ? decodeJwtFields(parts) : null
   const issuer = `https://${env.CF_ACCESS_TEAM_DOMAIN}`
-  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, env.CF_ACCESS_AUDIENCE, issuer))
-    throw new BrowserAuthenticationError(401, 'Invalid Access token')
+  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, env.CF_ACCESS_AUDIENCE, issuer)) {
+    throw new BrowserAuthenticationError(HTTP_UNAUTHORIZED, 'Invalid Access token')
+  }
   const keys = await getCfAccessKeysOrUnavailable(env)
   let result = await verifyJwtPayload(jwt, keys, env.CF_ACCESS_AUDIENCE, issuer)
   if (!result) {
     // Preserve the single rate-limited refresh on signing-key rotation.
     const freshKeys = await getCfAccessKeysOrUnavailable(env, { forceRefresh: true })
-    if (freshKeys !== keys) result = await verifyJwtPayload(jwt, freshKeys, env.CF_ACCESS_AUDIENCE, issuer)
+    if (freshKeys !== keys) {
+      result = await verifyJwtPayload(jwt, freshKeys, env.CF_ACCESS_AUDIENCE, issuer)
+    }
   }
-  if (!result) throw new BrowserAuthenticationError(401, 'Invalid Access token')
+  if (!result) {
+    throw new BrowserAuthenticationError(HTTP_UNAUTHORIZED, 'Invalid Access token')
+  }
   const user = await upsertUserByEmail(result.email, env.DB, env.KV)
   await ensureUserProvisioned(env, user)
   return { user, auth: { kind: 'human', method: 'access' } }
 }
 
 export async function authenticateDevelopment(env: BrowserAuthEnvironment): Promise<BrowserPrincipal | null> {
-  if (env.ENVIRONMENT !== 'development' || !env.DEV_USER_EMAIL) return null
+  if (env.ENVIRONMENT !== 'development' || !isNonEmptyText(env.DEV_USER_EMAIL)) {
+    return null
+  }
   const user = await upsertUserByEmail(env.DEV_USER_EMAIL, env.DB)
   await ensureUserProvisioned(env, user)
   return { user, auth: { kind: 'human', method: 'dev' } }
@@ -82,11 +117,17 @@ const JwtPayloadSchema = z.object({
   iat: z.number().optional(),
   aud: z.union([z.string(), z.array(z.string())]),
   iss: z.string(),
-  email: z.string().min(1).optional(),
+  email: z.string().min(MIN_JWT_EMAIL_LENGTH).optional(),
 })
 type JwtHeader = z.infer<typeof JwtHeaderSchema>
 type JwtPayload = z.infer<typeof JwtPayloadSchema>
-function decodeJwtFields(parts: readonly string[]): { header: JwtHeader; payload: JwtPayload } | null {
+function base64urlDecode(value: string): string {
+  const standardBase64 = value.replaceAll('-', '+').replaceAll('_', '/')
+  const paddingLength = (BASE64_QUANTUM_WIDTH - (value.length % BASE64_QUANTUM_WIDTH)) % BASE64_QUANTUM_WIDTH
+  const padded = standardBase64 + '=='.slice(BASE64_PADDING_START, paddingLength)
+  return atob(padded)
+}
+function decodeJwtFields(parts: Readonly<string[]>): { header: JwtHeader; payload: JwtPayload } | null {
   try {
     const header = JwtHeaderSchema.safeParse(JSON.parse(base64urlDecode(parts[0])))
     const payload = JwtPayloadSchema.safeParse(JSON.parse(base64urlDecode(parts[1])))
@@ -101,11 +142,21 @@ function jwtClaimsValid(
   audience: string,
   issuer: string,
 ): payload is JwtPayload & { email: string } {
-  if (header.alg !== 'RS256' || payload.exp < Math.floor(Date.now() / 1000)) return false
+  if (header.alg !== 'RS256' || payload.exp < currentEpochSeconds()) {
+    return false
+  }
   const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
-  return audiences.includes(audience) && payload.iss === issuer && typeof payload.email === 'string'
+  return audiences.includes(audience) && payload.iss === issuer && Predicate.isString(payload.email)
 }
-/** Injectable keys preserve the API's native regression verifier contract. */
+/**
+ * Injectable keys preserve the API's native regression verifier contract.
+ *
+ * @param {string} jwt Compact JWT received from Access.
+ * @param {JsonWebKey[]} keys Candidate public signing keys.
+ * @param {string} audience Expected Access application audience.
+ * @param {string} issuer Expected Access team issuer URL.
+ * @returns {Promise<{ email: string } | null>} The verified email, or null if claims or signature verification fail.
+ */
 export async function verifyJwtPayload(
   jwt: string,
   keys: JsonWebKey[],
@@ -113,12 +164,16 @@ export async function verifyJwtPayload(
   issuer: string,
 ): Promise<{ email: string } | null> {
   const parts = jwt.split('.')
-  if (parts.length !== 3) return null
+  if (parts.length !== JWT_SEGMENT_COUNT) {
+    return null
+  }
   const decoded = decodeJwtFields(parts)
-  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, audience, issuer)) return null
+  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, audience, issuer)) {
+    return null
+  }
   let sig: Uint8Array<ArrayBuffer>
   try {
-    sig = Uint8Array.from(base64urlDecode(parts[2]), (c) => c.charCodeAt(0))
+    sig = Uint8Array.from(base64urlDecode(parts[2]), (character) => character.charCodeAt(DECODED_BYTE_INDEX))
   } catch {
     return null
   }
@@ -128,7 +183,9 @@ export async function verifyJwtPayload(
       const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [
         'verify',
       ])
-      if (await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, input)) return { email: decoded.payload.email }
+      if (await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, input)) {
+        return { email: decoded.payload.email }
+      }
     } catch {}
   }
   return null
@@ -149,17 +206,21 @@ const JwksSchema = Schema.Struct({
     }),
   ),
 })
+const decodeJwksResponse = HttpClientResponse.schemaBodyJson(JwksSchema)
+
 let inMemoryCertsCache: { keys: JsonWebKey[]; expiresAt: number } | null = null
 let lastForcedRefreshAt = 0
-const CERTS_LOCAL_TTL_MS = 3600 * 1000
-const FORCE_REFRESH_COOLDOWN_MS = 60 * 1000
-async function fetchAndCacheCfAccessKeys(env: BrowserAuthEnvironment): Promise<JsonWebKey[]> {
+const CERTS_LOCAL_TTL_MS = SECONDS_PER_HOUR * MILLISECONDS_PER_SECOND
+const FORCE_REFRESH_COOLDOWN_MS = SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
+const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
+  env: BrowserAuthEnvironment,
+): Promise<JsonWebKey[]> {
   const request = HttpClientRequest.get(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`)
   const body = await Effect.runPromise(
     HttpClient.execute(request).pipe(
       Effect.flatMap((response) =>
-        response.status >= 200 && response.status < 300
-          ? HttpClientResponse.schemaBodyJson(JwksSchema)(response)
+        response.status >= HTTP_OK && response.status < HTTP_MULTIPLE_CHOICES
+          ? decodeJwksResponse(response)
           : Effect.fail(new Error('Failed to fetch CF Access certs')),
       ),
       Effect.scoped,
@@ -173,11 +234,32 @@ async function fetchAndCacheCfAccessKeys(env: BrowserAuthEnvironment): Promise<J
   }))
   try {
     await env.KV.put('cf-access-certs', JSON.stringify(keys), { expirationTtl: 3600 })
-  } catch (err) {
-    console.error('[auth] failed to cache cf-access-certs in KV, continuing without it:', err)
+  } catch (error) {
+    console.error('[auth] failed to cache cf-access-certs in KV, continuing without it:', error)
   }
-  inMemoryCertsCache = { keys, expiresAt: Date.now() + CERTS_LOCAL_TTL_MS }
+  inMemoryCertsCache = { keys, expiresAt: currentEpochMilliseconds() + CERTS_LOCAL_TTL_MS }
   return keys
+}
+async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefresh?: boolean }): Promise<JsonWebKey[]> {
+  if (opts?.forceRefresh === true && currentEpochMilliseconds() - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
+    lastForcedRefreshAt = currentEpochMilliseconds()
+    return fetchAndCacheCfAccessKeys(env)
+  }
+  if (inMemoryCertsCache && inMemoryCertsCache.expiresAt > currentEpochMilliseconds()) {
+    return inMemoryCertsCache.keys
+  }
+  let cached: unknown
+  try {
+    cached = await env.KV.get('cf-access-certs', 'json')
+  } catch (error) {
+    console.error('[auth] failed to read cf-access-certs from KV, fetching fresh:', error)
+  }
+  if (cached) {
+    const keys = cached as JsonWebKey[]
+    inMemoryCertsCache = { keys, expiresAt: currentEpochMilliseconds() + CERTS_LOCAL_TTL_MS }
+    return keys
+  }
+  return fetchAndCacheCfAccessKeys(env)
 }
 async function getCfAccessKeysOrUnavailable(
   env: BrowserAuthEnvironment,
@@ -186,76 +268,66 @@ async function getCfAccessKeysOrUnavailable(
   try {
     return await getCfAccessKeys(env, opts)
   } catch {
-    throw new BrowserAuthenticationError(503, 'Authentication temporarily unavailable')
+    throw new BrowserAuthenticationError(HTTP_SERVICE_UNAVAILABLE, 'Authentication temporarily unavailable')
   }
-}
-async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefresh?: boolean }): Promise<JsonWebKey[]> {
-  if (opts?.forceRefresh && Date.now() - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
-    lastForcedRefreshAt = Date.now()
-    return fetchAndCacheCfAccessKeys(env)
-  }
-  if (inMemoryCertsCache && inMemoryCertsCache.expiresAt > Date.now()) return inMemoryCertsCache.keys
-  let cached: unknown
-  try {
-    cached = await env.KV.get('cf-access-certs', 'json')
-  } catch (err) {
-    console.error('[auth] failed to read cf-access-certs from KV, fetching fresh:', err)
-  }
-  if (cached) {
-    const keys = cached as JsonWebKey[]
-    inMemoryCertsCache = { keys, expiresAt: Date.now() + CERTS_LOCAL_TTL_MS }
-    return keys
-  }
-  return fetchAndCacheCfAccessKeys(env)
 }
 const inMemoryUserCache = new Map<string, { user: AuthUser; expiresAt: number }>()
-const USER_LOCAL_TTL_MS = 300 * 1000
-export function resetAuthCachesForTests(): void {
+const USER_LOCAL_TTL_MS = 300_000
+export const resetAuthCachesForTests = function resetAuthCachesForTests(): void {
   inMemoryCertsCache = null
   inMemoryUserCache.clear()
 }
-/** Shared by Access/dev and the API-only opt-in public identity strategy. */
+/**
+ * Shared by Access/dev and the API-only opt-in public identity strategy.
+ *
+ * @param {string} email Email from the authenticated identity strategy.
+ * @param {D1Database} db Database that stores user records.
+ * @param {KVNamespace} [kv] Optional cache shared across Worker instances.
+ * @returns {Promise<AuthUser>} The user record associated with the email.
+ */
 export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNamespace): Promise<AuthUser> {
   const local = inMemoryUserCache.get(email)
-  if (local && local.expiresAt > Date.now()) return local.user
+  if (local && local.expiresAt > currentEpochMilliseconds()) {
+    return local.user
+  }
   if (kv) {
     let cached: unknown
     try {
       cached = await kv.get(`user-by-email:${email}`, 'json')
-    } catch (err) {
-      console.error(`[auth] failed to read user-by-email:${email} from KV, continuing:`, err)
+    } catch (error) {
+      console.error(`[auth] failed to read user-by-email:${email} from KV, continuing:`, error)
     }
     if (cached) {
       const user = cached as AuthUser
-      inMemoryUserCache.set(email, { user, expiresAt: Date.now() + USER_LOCAL_TTL_MS })
+      inMemoryUserCache.set(email, { user, expiresAt: currentEpochMilliseconds() + USER_LOCAL_TTL_MS })
       return user
     }
   }
   await db
     .prepare(`INSERT INTO users (id,email,name,created_at) VALUES (?,?,?,?)
     ON CONFLICT(email) DO UPDATE SET name = excluded.name`)
-    .bind(crypto.randomUUID(), email, email.split('@')[0], Math.floor(Date.now() / 1000))
+    .bind(crypto.randomUUID(), email, email.split('@')[0], currentEpochSeconds())
     .run()
   const user = await db.prepare('SELECT id, email, name FROM users WHERE email = ?').bind(email).first<AuthUser>()
-  if (!user) throw new Error('Failed to upsert user')
+  if (!user) {
+    throw new Error('Failed to upsert user')
+  }
   if (kv) {
     try {
       await kv.put(`user-by-email:${email}`, JSON.stringify(user), { expirationTtl: 300 })
-    } catch (err) {
-      console.error(`[auth] failed to cache user-by-email:${email} in KV, continuing without it:`, err)
+    } catch (error) {
+      console.error(`[auth] failed to cache user-by-email:${email} in KV, continuing without it:`, error)
     }
   }
-  inMemoryUserCache.set(email, { user, expiresAt: Date.now() + USER_LOCAL_TTL_MS })
+  inMemoryUserCache.set(email, { user, expiresAt: currentEpochMilliseconds() + USER_LOCAL_TTL_MS })
   return user
 }
 export function parseCookie(cookieHeader: string, name: string): string | undefined {
   for (const part of cookieHeader.split(';')) {
     const [key, ...rest] = part.trim().split('=')
-    if (key.trim() === name) return rest.join('=').trim()
+    if (key.trim() === name) {
+      return rest.join('=').trim()
+    }
   }
   return undefined
-}
-function base64urlDecode(value: string): string {
-  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
-  return atob(padded)
 }

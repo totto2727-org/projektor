@@ -1,9 +1,7 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import {
   completeSprint,
   createSprint,
@@ -12,74 +10,74 @@ import {
   listSprints,
   moveIssuesToSprint,
   updateSprint,
-} from '../services/sprints'
-import { ctxFromHono } from '../services/types'
+} from '#api/services/sprints.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
+import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const sprintsRouter = new Hono<HonoEnv>()
 
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
-  const { projectId } = c.req.query()
+sprintsRouter.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const { projectId } = httpContext.req.query()
   try {
-    return c.json(await listSprints(ctx, { projectId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listSprints(ctx, { projectId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/', async (c) => {
-  const ctx = ctxFromHono(c)
+sprintsRouter.post('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await createSprint(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await createSprint(ctx, await jsonBody(httpContext)), HTTP_CREATED)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.get('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+sprintsRouter.get('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await getSprint(ctx, c.req.param('id')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await getSprint(ctx, httpContext.req.param('id')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+sprintsRouter.patch('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await updateSprint(ctx, c.req.param('id'), await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateSprint(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:id/complete', async (c) => {
-  const ctx = ctxFromHono(c)
+sprintsRouter.post('/:id/complete', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await completeSprint(ctx, c.req.param('id')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await completeSprint(ctx, httpContext.req.param('id')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+sprintsRouter.delete('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await deleteSprint(ctx, c.req.param('id')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await deleteSprint(ctx, httpContext.req.param('id')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:id/move-issues', async (c) => {
-  const ctx = ctxFromHono(c)
-  const body = (await jsonBody(c)) as Record<string, unknown>
+sprintsRouter.post('/:id/move-issues', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const body = (await jsonBody(httpContext)) as Record<string, unknown>
   try {
-    return c.json(await moveIssuesToSprint(ctx, { ...body, sprintId: c.req.param('id') }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await moveIssuesToSprint(ctx, { ...body, sprintId: httpContext.req.param('id') }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as sprintsRouter }

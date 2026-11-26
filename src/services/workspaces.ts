@@ -1,26 +1,31 @@
 import { and, asc, desc, eq } from 'drizzle-orm'
 import type { Effect } from 'effect'
 
-import { drizzle, schema, type WorkspaceBrand } from '#db'
+import { drizzle, schema } from '#db'
+import type { WorkspaceBrand } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 import type {
   Workspace,
   WorkspaceMember,
   WorkspaceMemberRelation,
   WorkspaceMembership,
   WorkspaceTokenMetadata,
-} from './types'
+} from './types.ts'
 export type {
   Workspace,
   WorkspaceMember,
   WorkspaceMemberRelation,
   WorkspaceMembership,
   WorkspaceTokenMetadata,
-} from './types'
+} from './types.ts'
 export type { WorkspaceBrand } from '#db'
 
-export function listWorkspaces(db: D1Database, userId: string): Effect.Effect<WorkspaceMembership[], DataQueryError> {
+export const listWorkspaces = function listWorkspaces(
+  db: D1Database,
+  userId: string,
+): Effect.Effect<WorkspaceMembership[], DataQueryError> {
   return queryEffect('listWorkspaces', () =>
     drizzle(db, { schema })
       .select({
@@ -37,7 +42,7 @@ export function listWorkspaces(db: D1Database, userId: string): Effect.Effect<Wo
   )
 }
 
-export function findWorkspaceBySlug(
+export const findWorkspaceBySlug = function findWorkspaceBySlug(
   db: D1Database,
   slug: string,
 ): Effect.Effect<Workspace | undefined, DataQueryError> {
@@ -46,8 +51,15 @@ export function findWorkspaceBySlug(
   )
 }
 
-/** Return the membership relation. The app decides what its role permits. */
-export function findWorkspaceMembership(
+/**
+ * Return the membership relation. The app decides what its role permits.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @param {string} userId The user whose membership is being checked.
+ * @returns {Effect.Effect<WorkspaceMemberRelation | undefined, DataQueryError>} An effect that reads the relation when it exists.
+ */
+export const findWorkspaceMembership = function findWorkspaceMembership(
   db: D1Database,
   workspaceId: string,
   userId: string,
@@ -61,7 +73,7 @@ export function findWorkspaceMembership(
   )
 }
 
-export function listWorkspaceMembers(
+export const listWorkspaceMembers = function listWorkspaceMembers(
   db: D1Database,
   workspaceId: string,
 ): Effect.Effect<WorkspaceMember[], DataQueryError> {
@@ -82,7 +94,10 @@ export function listWorkspaceMembers(
   )
 }
 
-export function readWorkspaceBrand(db: D1Database, workspaceId: string): Effect.Effect<WorkspaceBrand, DataQueryError> {
+export const readWorkspaceBrand = function readWorkspaceBrand(
+  db: D1Database,
+  workspaceId: string,
+): Effect.Effect<WorkspaceBrand, DataQueryError> {
   return queryEffect('readWorkspaceBrand', async () => {
     const row = await drizzle(db, { schema })
       .select({ brand: schema.workspaces.brand })
@@ -93,8 +108,14 @@ export function readWorkspaceBrand(db: D1Database, workspaceId: string): Effect.
   })
 }
 
-/** Secret token hashes/values are deliberately absent from this projection. */
-export function listWorkspaceTokenMetadata(
+/**
+ * Secret token hashes/values are deliberately absent from this projection.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @returns {Effect.Effect<WorkspaceTokenMetadata[], DataQueryError>} An effect that reads the workspace token metadata.
+ */
+export const listWorkspaceTokenMetadata = function listWorkspaceTokenMetadata(
   db: D1Database,
   workspaceId: string,
 ): Effect.Effect<WorkspaceTokenMetadata[], DataQueryError> {

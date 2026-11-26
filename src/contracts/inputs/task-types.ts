@@ -1,27 +1,36 @@
+import { Array } from 'effect'
 import { z } from 'zod'
 
-export const CreateTaskTypeSchema = z.object({
-  key: z
-    .string()
-    .min(1)
-    .max(50)
-    .regex(
-      /^[a-z][a-z0-9_]*$/,
-      'Key must start with a letter and contain only lowercase letters, digits, or underscores',
-    ),
-  name: z.string().min(1).max(100),
-  color: z.string().max(50).optional(),
-  icon: z.string().max(50).optional(),
-  position: z.number().int().min(0).optional(),
-  isDefault: z.boolean().optional(),
-})
+import { objectInOrder } from './common.ts'
 
-export const UpdateTaskTypeSchema = z
-  .object({
-    name: z.string().min(1).max(100).optional(),
-    color: z.string().max(50).nullable().optional(),
-    icon: z.string().max(50).nullable().optional(),
-    position: z.number().int().min(0).optional(),
-    isDefault: z.boolean().optional(),
-  })
-  .refine((obj) => Object.keys(obj).length > 0, { message: 'Nothing to update' })
+const MAX_KEY_LENGTH = 50
+const MAX_NAME_LENGTH = 100
+const MAX_COLOR_LENGTH = 50
+const MAX_ICON_LENGTH = 50
+
+export const CreateTaskTypeSchema = objectInOrder([
+  [
+    'key',
+    z
+      .string()
+      .nonempty()
+      .max(MAX_KEY_LENGTH)
+      .regex(
+        /^[a-z][a-z0-9_]*$/u,
+        'Key must start with a letter and contain only lowercase letters, digits, or underscores',
+      ),
+  ],
+  ['name', z.string().nonempty().max(MAX_NAME_LENGTH)],
+  ['color', z.string().max(MAX_COLOR_LENGTH).optional()],
+  ['icon', z.string().max(MAX_ICON_LENGTH).optional()],
+  ['position', z.number().int().nonnegative().optional()],
+  ['isDefault', z.boolean().optional()],
+])
+
+export const UpdateTaskTypeSchema = objectInOrder([
+  ['name', z.string().nonempty().max(MAX_NAME_LENGTH).optional()],
+  ['color', z.string().max(MAX_COLOR_LENGTH).nullable().optional()],
+  ['icon', z.string().max(MAX_ICON_LENGTH).nullable().optional()],
+  ['position', z.number().int().nonnegative().optional()],
+  ['isDefault', z.boolean().optional()],
+]).refine((obj) => Array.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })

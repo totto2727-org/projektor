@@ -1,8 +1,12 @@
 import { Effect, Schema } from 'effect'
 
-import { RequestServices } from '../request'
-import { type ApiError, ScopeError } from './errors'
-import type { RequestScope } from './request-context'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { RequestServices } from '@/request.ts'
+
+import { ScopeError } from './errors.ts'
+import type { ApiError } from './errors.ts'
+import type { RequestScope } from './request-context.ts'
 
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1))
 
@@ -13,65 +17,91 @@ export const FunctionSelectorSchema = Schema.Struct({
 })
 export type FunctionSelector = typeof FunctionSelectorSchema.Type
 
-export interface FunctionContext {
-  readonly scope: RequestScope
-  readonly workspaceSlug?: string
-  readonly projectId?: string
-}
+export type FunctionContext = Readonly<{
+  scope: RequestScope
+  workspaceSlug?: string
+  projectId?: string
+}>
 
-export interface FunctionOptions {
-  readonly requireWorkspace?: boolean
-  readonly requireProject?: boolean
-}
+export type FunctionOptions = Readonly<{
+  requireWorkspace?: boolean
+  requireProject?: boolean
+}>
 
-/** Resolve only authentication and selection, including independently callable queries. */
-export function resolveFunctionContext(
+const decodeFunctionSelector = Schema.decodeUnknownEffect(FunctionSelectorSchema)
+
+/**
+ * Resolve only authentication and selection, including independently callable queries.
+ *
+ * @param {FunctionSelector} selector The workspace and project selectors supplied to the server function.
+ * @param {FunctionOptions} options The workspace and project requirements of the function.
+ * @returns {Effect.Effect<FunctionContext, ApiError | ScopeError, RequestServices>} An effect yielding the verified scope and its canonical selectors.
+ */
+export const resolveFunctionContext = function resolveFunctionContext(
   selector: FunctionSelector,
   options: FunctionOptions = {},
 ): Effect.Effect<FunctionContext, ApiError | ScopeError, RequestServices> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
-    const input = yield* Schema.decodeUnknownEffect(FunctionSelectorSchema)(selector).pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid workspace or project selection.')),
+    const input = yield* decodeFunctionSelector(selector).pipe(
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid workspace or project selection.')),
     )
     const scope = yield* services.scope({
-      // Empty hints explicitly suppress page-URL inference. /_effront/query
-      // and a function invoked from an unrelated page resolve identically.
+      /*
+       * Empty hints explicitly suppress page-URL inference. /_effront/query
+       * and a function invoked from an unrelated page resolve identically.
+       */
       workspaceHint: input.workspaceSlug ?? '',
       projectHint: input.projectId ?? '',
       requireWorkspace: options.requireWorkspace,
       requireProject: options.requireProject,
     })
-    if (options.requireProject && !input.projectId) {
-      return yield* new ScopeError(400, 'Select a project for this operation.')
+    if (options.requireProject === true && !isNonEmptyText(input.projectId)) {
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select a project for this operation.')
     }
-    if (options.requireWorkspace && !input.workspaceSlug && !input.projectId) {
-      return yield* new ScopeError(400, 'Select a workspace for this operation.')
+    if (options.requireWorkspace === true && !isNonEmptyText(input.workspaceSlug) && !isNonEmptyText(input.projectId)) {
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select a workspace for this operation.')
     }
-    const selection = scope.selection
+    const { selection } = scope
     if (selection.kind === 'selection-required') {
-      return yield* new ScopeError(400, 'Select an accessible workspace or project.')
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select an accessible workspace or project.')
     }
-    if (input.projectId && (selection.kind !== 'project' || selection.project.id !== input.projectId)) {
-      return yield* new ScopeError(404, 'Selected project is not accessible.')
+    if (isNonEmptyText(input.projectId) && (selection.kind !== 'project' || selection.project.id !== input.projectId)) {
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
     }
     const workspace = selection.kind === 'project' || selection.kind === 'workspace' ? selection.workspace : undefined
-    if (input.workspaceSlug && workspace?.slug !== input.workspaceSlug) {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+    if (isNonEmptyText(input.workspaceSlug) && workspace?.slug !== input.workspaceSlug) {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
     if (workspace && !scope.workspaces.some((member) => member.id === workspace.id && member.slug === workspace.slug)) {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
-    if (options.requireWorkspace && !workspace) {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+    if (options.requireWorkspace === true && !workspace) {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
-    if (options.requireProject && selection.kind !== 'project') {
-      return yield* new ScopeError(404, 'Selected project is not accessible.')
+    if (options.requireProject === true && selection.kind !== 'project') {
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
     }
     return {
       scope,
       ...(workspace ? { workspaceSlug: workspace.slug } : {}),
       ...(selection.kind === 'project' ? { projectId: selection.project.id } : {}),
     }
+  })
+}
+
+const SelectedWorkspace = Schema.Struct({ workspaceSlug: NonEmptyString })
+const hasWorkspaceSlug = Schema.is(SelectedWorkspace)
+type WorkspaceFunctionContext = FunctionContext & typeof SelectedWorkspace.Type
+
+export const resolveWorkspaceFunctionContext = function resolveWorkspaceFunctionContext(
+  selector: FunctionSelector,
+): Effect.Effect<WorkspaceFunctionContext, ApiError | ScopeError, RequestServices> {
+  return Effect.gen(function* () {
+    const context = yield* resolveFunctionContext(selector, { requireWorkspace: true })
+    if (!hasWorkspaceSlug(context)) {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Select an accessible workspace.')
+    }
+    return context
   })
 }

@@ -1,8 +1,10 @@
-// Canonical agent workflow spec, consumed at runtime by getWorkflow()
-// (services/workflow.ts) for the get_workflow MCP tool and GET /api/workflow.
-//
-// Kept as a plain TS constant (not a `?raw` markdown import) so it loads identically
-// under the test runner and the Worker bundle without a custom markdown loader.
+/*
+ * Canonical agent workflow spec, consumed at runtime by getWorkflow()
+ * (services/workflow.ts) for the get_workflow MCP tool and GET /api/workflow.
+ *
+ * Kept as a plain TS constant (not a `?raw` markdown import) so it loads identically
+ * under the test runner and the Worker bundle without a custom markdown loader.
+ */
 export const WORKFLOW_SPEC = {
   title: 'Workflow spec',
   description: 'The canonical agent workflow rules: definition of ready, state machine, human gates, WIP limits.',

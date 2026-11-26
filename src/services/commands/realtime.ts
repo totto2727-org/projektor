@@ -1,6 +1,8 @@
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { RealtimeEvent } from '#types'
 
-import type { ServiceCtx } from './types'
+import type { ServiceCtx } from './types.ts'
 
 export type EventInput = Omit<RealtimeEvent, 'workspaceId' | 'timestamp'>
 
@@ -9,24 +11,35 @@ export type EventInput = Omit<RealtimeEvent, 'workspaceId' | 'timestamp'>
  *
  * If WORKSPACE_HUB is not configured (e.g. 1-click or free-tier deployments),
  * this function is a no-op and completes immediately.
+ *
+ * @param {ServiceCtx} ctx The command context with the workspace ID and optional Durable Object binding.
+ * @param {EventInput} event The event before the workspace ID and server time are added.
  */
-export async function broadcastWorkspaceEvent(ctx: ServiceCtx, event: EventInput): Promise<void> {
-  if (!ctx.workspaceHub) return
+export const broadcastWorkspaceEvent = async function broadcastWorkspaceEvent(
+  ctx: ServiceCtx,
+  event: EventInput,
+): Promise<void> {
+  if (!ctx.workspaceHub) {
+    return
+  }
 
   const fullEvent: RealtimeEvent = {
     ...event,
     workspaceId: ctx.workspaceId,
-    timestamp: Math.floor(Date.now() / 1000),
+    timestamp: currentEpochSeconds(),
   }
 
   try {
     const stub = ctx.workspaceHub.get(ctx.workspaceHub.idFromName(ctx.workspaceId))
     const sendPromise = stub
-      .fetch('http://do/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fullEvent),
-      })
+      .fetch(
+        'http://do/broadcast',
+        fieldsInOrder([
+          ['method', 'POST'],
+          ['headers', { 'Content-Type': 'application/json' }],
+          ['body', JSON.stringify(fullEvent)],
+        ]),
+      )
       .catch(() => {
         // Prevent broadcast errors from affecting the calling service
       })

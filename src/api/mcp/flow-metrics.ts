@@ -1,10 +1,13 @@
-import { getFlowMetrics } from '../services/flow-metrics'
-import { READ } from './annotations'
-import type { MCPTool } from './types'
+import { getFlowMetrics } from '#api/services/flow-metrics.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
+import { READ } from './annotations.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import type { MCPTool } from './types.ts'
 
 export const flowMetricsTools: MCPTool[] = [
   {
-    name: 'get_flow_metrics',
+    annotations: READ,
     description:
       'Time-in-state (leadTime, cycleTime, timeInProgress, reviewLatency, agingWip), ' +
       'collaboration-shape (humanInterventions, autonomyRatio, flowEfficiency — human ' +
@@ -17,29 +20,25 @@ export const flowMetricsTools: MCPTool[] = [
       "bugTypeTracked:false (no 'bug' task type in the workspace) is distinct from a genuine " +
       '0% bug share. Bucketing defaults to weekly (current ISO week plus the preceding 5 ' +
       "weeks); pass granularity: 'day' for daily buckets.",
-    inputSchema: {
-      type: 'object',
-      required: ['projectId'],
-      properties: {
-        projectId: { type: 'string', description: 'Project UUID' },
-        since: {
-          type: 'number',
-          description: 'Only issues completed/active at/after this epoch-seconds time',
-        },
-        until: {
-          type: 'number',
-          description: 'Only issues completed/active at/before this epoch-seconds time',
-        },
-        granularity: {
-          type: 'string',
-          enum: ['day', 'week'],
-          description: "Throughput bucket granularity, 'day' or 'week' (default 'week')",
-        },
-      },
-    },
-    annotations: READ,
-    handler(input, ctx) {
+    async handler(input, ctx) {
       return getFlowMetrics(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['projectId'],
+      fieldsInOrder([
+        ['projectId', describedInputProperty('string', 'Project UUID')],
+        ['since', describedInputProperty('number', 'Only issues completed/active at/after this epoch-seconds time')],
+        ['until', describedInputProperty('number', 'Only issues completed/active at/before this epoch-seconds time')],
+        [
+          'granularity',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['day', 'week']],
+            ['description', "Throughput bucket granularity, 'day' or 'week' (default 'week')"],
+          ]),
+        ],
+      ]),
+    ),
+    name: 'get_flow_metrics',
   },
 ]

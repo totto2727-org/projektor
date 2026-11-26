@@ -1,13 +1,13 @@
-import { isNull, or, sql, type SQL } from 'drizzle-orm'
+import { isNull, or, sql } from 'drizzle-orm'
+import type { QueryWithTypings, SQL } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema, String } from 'effect'
 
-import { readWikiDraftState } from '#commands/wiki-drafts'
-import { schema } from '#db'
-import { listAttachments } from '#services/files'
-import * as wikiData from '#services/wiki'
-
-import { ApiError, ScopeError } from '../../contracts/errors'
+import { readWikiDraftState } from '#commands/wiki-drafts.ts'
+import { ApiError, ScopeError } from '#contracts/errors.ts'
+import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import {
   Attachment,
   DraftState,
@@ -18,21 +18,57 @@ import {
   StalePage,
   Template,
   Tree,
-} from '../../contracts/web-schemas/wiki'
-import type { WikiSeed } from '../../web/features/wiki/WikiPageClient'
-import type { CoreEnvironment } from '../environment'
+} from '#contracts/web-schemas/wiki.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { schema } from '#db'
+import { listAttachments } from '#services/files.ts'
+import * as wikiData from '#services/wiki.ts'
+import type { WikiSeed } from '@/features/wiki/wiki-page-client.tsx'
+
 import {
   dataError,
   requireDataDatabase,
   requireDataProject,
   requireDataWorkspace,
   visibleProjectPredicate,
-} from './data-context'
-import type { RequestScope } from './scope'
-import { pageFreshness as freshness, readAuthorizedWikiPage } from './wiki-policy'
+} from './data-context.ts'
+import type { RequestScope } from './scope.ts'
+import { pageFreshness as freshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
-/** The request owns authorization, presentation and rendering. Shared queries own only SQL. */
-export function loadWikiData(
+const wikiFilterFields = fieldsInOrder([
+  ['type', Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(50)))],
+  ['status', Schema.optional(Schema.Literals(['draft', 'current', 'stale', 'deprecated']))],
+  ['tags', Schema.optional(Schema.mutable(Schema.Array(Schema.String).check(Schema.isMaxLength(50))))],
+])
+
+const decodeWikiFilters = Schema.decodeUnknownEffect(Schema.Struct(wikiFilterFields))
+const decodeWikiPage = Schema.decodeUnknownEffect(Page)
+const decodeWikiTree = Schema.decodeUnknownEffect(Tree)
+const decodeWikiTemplates = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Template)))
+const decodeStaleWikiPages = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(StalePage)))
+const decodeWikiListItems = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(ListItem)))
+const decodeWikiSearchResults = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(SearchResult)))
+const decodeWikiRevisions = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Revision)))
+const decodeWikiAttachments = Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Attachment)))
+const decodeWikiDraftState = Schema.decodeUnknownEffect(DraftState)
+
+const wikiRouteMode = function wikiRouteMode(url: URL): 'create' | 'edit' | 'read' {
+  if (/\/wiki\/new\/?$/u.test(url.pathname) || String.isNonEmpty(url.searchParams.get('createTitle') ?? '')) {
+    return 'create'
+  }
+  return /\/edit\/?$/u.test(url.pathname) ? 'edit' : 'read'
+}
+
+/**
+ * The request owns authorization, presentation and rendering. Shared queries own only SQL.
+ *
+ * @param {CoreEnvironment} env The private Core bindings for the request.
+ * @param {RequestScope} scope The request scope used to authorize Wiki reads.
+ * @param {URL} url The Wiki location and its search, filter, and editor parameters.
+ * @param {Readonly<Record<string, string | undefined>>} params The route parameters. A route slug takes precedence over query selectors.
+ * @returns {ReturnType<typeof loadWikiData>} An effect that loads the authorized Wiki page data and controls.
+ */
+export const loadWikiData = function loadWikiData(
   env: CoreEnvironment,
   scope: RequestScope,
   url: URL,
@@ -40,47 +76,40 @@ export function loadWikiData(
 ) {
   return Effect.gen(function* () {
     const selected = scope.selection
-    if (selected.kind !== 'project' && selected.kind !== 'workspace')
-      return yield* new ScopeError(403, 'Select a workspace before opening the wiki.')
+    if (selected.kind !== 'project' && selected.kind !== 'workspace') {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Select a workspace before opening the wiki.')
+    }
     const workspace = yield* Effect.try({
-      try: () => requireDataWorkspace(scope, selected.workspace.id),
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
+      try: () => requireDataWorkspace(scope, selected.workspace.id),
     })
-    const db = yield* Effect.try({ try: () => requireDataDatabase(env.DB), catch: dataError })
+    const db = yield* Effect.try({ catch: dataError, try: () => requireDataDatabase(env.DB) })
     const workspaceSlug = workspace.slug
     const ref = params.slug ?? url.searchParams.get('slug') ?? url.searchParams.get('id') ?? ''
     const projectId =
       selected.kind === 'project' && url.searchParams.get('scope') !== 'workspace' ? selected.project.id : ''
     const visibility = yield* Effect.try({
+      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       try: () => {
-        if (projectId) requireDataProject(scope, projectId, workspace.id)
+        if (projectId) {
+          requireDataProject(scope, projectId, workspace.id)
+        }
         const predicate = visibleProjectPredicate(scope, workspace.id, schema.wikiPages.projectId)
         return predicate ? or(isNull(schema.wikiPages.projectId), predicate) : undefined
       },
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
-    const mode =
-      /\/wiki\/new\/?$/.test(url.pathname) || url.searchParams.get('createTitle')
-        ? 'create'
-        : /\/edit\/?$/.test(url.pathname)
-          ? 'edit'
-          : 'read'
+    const mode = wikiRouteMode(url)
     const filterType = url.searchParams.get('type') ?? ''
     const filterStatus = url.searchParams.get('status') ?? ''
     const filterTags = url.searchParams.get('tags') ?? ''
     const searchQuery = url.searchParams.get('q') ?? ''
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const options = {
       ...(projectId ? { projectId, includeWorkspacePages: true } : {}),
       visibility,
     }
-    const filters = yield* Schema.decodeUnknownEffect(
-      Schema.Struct({
-        type: Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(50))),
-        status: Schema.optional(Schema.Literals(['draft', 'current', 'stale', 'deprecated'])),
-        tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String).check(Schema.isMaxLength(50)))),
-      }),
-    )({
+
+    const filters = yield* decodeWikiFilters({
       ...(filterType ? { type: filterType } : {}),
       ...(filterStatus ? { status: filterStatus } : {}),
       ...(filterTags
@@ -91,10 +120,10 @@ export function loadWikiData(
               .filter(Boolean),
           }
         : {}),
-    }).pipe(Effect.mapError(() => new ApiError('http', 400, 'Invalid wiki filters.')))
+    }).pipe(Effect.mapError(() => new ApiError('http', HTTP_BAD_REQUEST, 'Invalid wiki filters.')))
     const row = ref ? (yield* readAuthorizedWikiPage(db, scope, ref)).page : undefined
     const page = row
-      ? yield* Schema.decodeUnknownEffect(Page)({
+      ? yield* decodeWikiPage({
           ...row,
           revisionId: yield* wikiData
             .getLatestWikiRevisionId(db, workspace.id, row.id)
@@ -104,7 +133,7 @@ export function loadWikiData(
       : null
     const treeRows = yield* wikiData.listWikiTreeRows(db, workspace.id, options).pipe(Effect.mapError(dataError))
     const nodes = new Map<string, WikiSeed['tree'][number]>()
-    for (const item of treeRows)
+    Iterable.forEach(treeRows, (item) => {
       nodes.set(item.id, {
         id: item.id,
         slug: item.slug,
@@ -112,52 +141,53 @@ export function loadWikiData(
         type: item.type,
         children: [],
       })
+    })
     const roots: WikiSeed['tree'] = []
-    for (const item of treeRows) {
+    Iterable.forEach(treeRows, (item) => {
       const node = nodes.get(item.id)!
       const parent = item.parentId ? nodes.get(item.parentId) : undefined
-      if (parent) parent.children.push(node)
-      else roots.push(node)
-    }
+      if (parent) {
+        parent.children.push(node)
+      } else {
+        roots.push(node)
+      }
+    })
     const ftsQuery = searchQuery
       .trim()
-      .split(/\s+/)
-      .filter((token) => Boolean(token) && /\w/.test(token))
-      .map((token) => `"${token.replace(/"/g, '""')}"`)
+      .split(/\s+/u)
+      .filter((token) => Boolean(token) && /\w/u.test(token))
+      .map((token) => `"${token.replaceAll('"', '""')}"`)
       .join(' ')
     // Serialize the same app-authored visibility predicate for the shared raw FTS query.
     const rawVisibility = yield* Effect.try({
+      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       try: () => {
-        const fragment = (column: SQL) => {
+        const fragment = (column: SQL): QueryWithTypings | undefined => {
           const predicate = visibleProjectPredicate(scope, workspace.id, column)
           return predicate ? new SQLiteSyncDialect().sqlToQuery(sql`${column} IS NULL OR ${predicate}`) : undefined
         }
-        return { search: fragment(sql`p.project_id`), linkedWiki: fragment(sql`w.project_id`) }
+        return fieldsInOrder([
+          ['search', fragment(sql`p.project_id`)],
+          ['linkedWiki', fragment(sql`w.project_id`)],
+        ])
       },
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
     const data = yield* Effect.all(
       {
-        tree: Schema.decodeUnknownEffect(Tree)(roots).pipe(Effect.mapError(dataError)),
+        tree: decodeWikiTree(roots).pipe(Effect.mapError(dataError)),
         templates: wikiData
           .listWikiTemplates(db, workspace.id, { visibility })
-          .pipe(
-            Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Template)))),
-            Effect.mapError(dataError),
-          ),
+          .pipe(Effect.flatMap(decodeWikiTemplates), Effect.mapError(dataError)),
         stalePages: wikiData.listStaleWikiPages(db, workspace.id, { ...options, now, limit: 50, offset: 0 }).pipe(
           Effect.map((rows) => rows.map((item) => ({ ...item, freshness: freshness(item, now) }))),
-          Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(StalePage)))),
+          Effect.flatMap(decodeStaleWikiPages),
           Effect.mapError(dataError),
         ),
         filteredPages:
           filterType || filterStatus || filterTags
             ? wikiData
                 .listWikiPages(db, workspace.id, { ...options, ...filters })
-                .pipe(
-                  Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(ListItem)))),
-                  Effect.mapError(dataError),
-                )
+                .pipe(Effect.flatMap(decodeWikiListItems), Effect.mapError(dataError))
             : Effect.succeed([]),
         searchResults: searchQuery
           ? wikiData
@@ -176,17 +206,14 @@ export function loadWikiData(
                     freshness: freshness(item, now),
                   })),
                 ),
-                Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(SearchResult)))),
+                Effect.flatMap(decodeWikiSearchResults),
                 Effect.mapError(dataError),
               )
           : Effect.succeed([]),
         revisions: page
           ? wikiData
               .listWikiRevisions(db, workspace.id, page.id)
-              .pipe(
-                Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Revision)))),
-                Effect.mapError(dataError),
-              )
+              .pipe(Effect.flatMap(decodeWikiRevisions), Effect.mapError(dataError))
           : Effect.succeed([]),
         attachments: page
           ? listAttachments(db, workspace.id, {
@@ -194,18 +221,23 @@ export function loadWikiData(
               entityId: page.id,
               // The owner page was authorized above. A wiki_ref target is checked separately.
               linkedWikiVisibility: rawVisibility.linkedWiki,
-            }).pipe(
-              Effect.flatMap(Schema.decodeUnknownEffect(Schema.mutable(Schema.Array(Attachment)))),
-              Effect.mapError(dataError),
-            )
+            }).pipe(Effect.flatMap(decodeWikiAttachments), Effect.mapError(dataError))
           : Effect.succeed([]),
         draftResult:
           page && scope.user.email !== 'public-viewer@projektor.local'
             ? Effect.tryPromise({
-                try: () => readWikiDraftState(db, workspace.id, page.id, scope.user.id),
                 catch: dataError,
+                try: async () =>
+                  readWikiDraftState(
+                    db,
+                    fieldsInOrder([
+                      ['workspaceId', workspace.id],
+                      ['pageId', page.id],
+                      ['userId', scope.user.id],
+                    ]),
+                  ),
               }).pipe(
-                Effect.flatMap(Schema.decodeUnknownEffect(DraftState)),
+                Effect.flatMap(decodeWikiDraftState),
                 Effect.mapError(dataError),
                 Effect.map((state) => ({ ...state, status: 'ready' as const })),
                 Effect.catch(() => Effect.succeed({ draft: null, revision: null, status: 'failed' as const })),

@@ -1,0 +1,421 @@
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+// @vitest-environment jsdom
+import { Iterable } from 'effect'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, afterEach, expect, test, vi } from 'vite-plus/test'
+
+import { JSON_NULL } from '#tests/json-null.ts'
+import type * as Actions from '@/features/issues/actions.ts'
+import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
+import type { Attachment } from '@/features/issues/types.ts'
+import type { IssueDetailInitialData } from '@/features/issues/views/issue-detail-page.tsx'
+
+import { IssueDetail } from './issue-detail.tsx'
+import { ReviewTargetsSection } from './review-targets-section.tsx'
+
+type ReviewStatus = NonNullable<Attachment['reviewStatus']>
+
+vi.mock('../actions', () => ({
+  setAttachmentReviewStatus: vi.fn<typeof Actions.setAttachmentReviewStatus>(),
+  updateIssue: vi.fn<typeof Actions.updateIssue>(),
+}))
+vi.mock('./issue-detail-parts.tsx', () => ({
+  AttachmentsSection: () => <p>Full attachments</p>,
+  BodySection: () => <p>Full description</p>,
+  ChildIssuesSection: () => JSON_NULL,
+  CommentsSection: () => <p>Full comments</p>,
+  ParentBadge: () => JSON_NULL,
+  RefChip: ({ issueRef }: { issueRef: string }) => <span>{issueRef}</span>,
+  RelationsSection: () => JSON_NULL,
+  ShareButton: () => JSON_NULL,
+  SidebarPanel: () => <p>Full sidebar</p>,
+  TitleSection: ({ issue }: { issue: { title: string } }) => <h1>{issue.title}</h1>,
+}))
+
+const attachment = function attachment(
+  id: string,
+  status: ReviewStatus | null = JSON_NULL,
+  kind: Attachment['kind'] = 'file',
+): Attachment {
+  return {
+    contentType: 'application/pdf',
+    createdAt: 1,
+    filename: `${id}.pdf`,
+    id,
+    kind,
+    reviewStatus: status,
+    size: 10,
+    url: kind === 'url' ? `https://example.com/${id}` : JSON_NULL,
+    wikiPage: JSON_NULL,
+  }
+}
+
+const props = { issueHref: '/issues/PROJ-1?workspace=workspace', issueId: 'issue', workspaceSlug: 'workspace' }
+const success = { ok: true, value: { ok: true } } satisfies Awaited<ReturnType<typeof setAttachmentReviewStatus>>
+
+describe('covers issue review target controls', () => {
+  afterEach(() => {
+    cleanup()
+    vi.resetAllMocks()
+  })
+
+  test.each(['file', 'url'] as const)('selects one %s attachment independently, starting at fixing', async (kind) => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<typeof setAttachmentReviewStatus>>>()
+    vi.mocked(setAttachmentReviewStatus).mockReturnValue(pending.promise)
+    const first = attachment('first', JSON_NULL, kind)
+    const second = attachment('second')
+    const wiki = attachment('wiki', JSON_NULL, 'wiki_ref')
+    const attachments = [first, second, wiki]
+    const { rerender } = render(<ReviewTargetsSection {...props} attachments={attachments} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' }))
+    expect(setAttachmentReviewStatus).toHaveBeenCalledExactlyOnceWith({
+      attachmentId: 'first',
+      issueId: 'issue',
+      status: 'fixing',
+      workspaceSlug: 'workspace',
+    })
+    expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('checked', false)
+    expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('checkbox', { name: 'second.pdfをレビュー対象にする' })).toHaveProperty('disabled', false)
+    expect(screen.queryByRole('checkbox', { name: 'wiki.pdfをレビュー対象にする' })).toBeNull()
+    await act(async () => {
+      pending.resolve(success)
+    })
+    expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('disabled', true)
+    rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: 'fixing' }, second, wiki]} />)
+    expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('checked', true)
+    expect(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).toHaveProperty('value', 'fixing')
+    expect(screen.getByRole('checkbox', { name: 'second.pdfをレビュー対象にする' })).toHaveProperty('checked', false)
+  })
+
+  test.each(['file', 'url'] as const)(
+    'unselects one %s target without removing the attachment or other targets',
+    async (kind) => {
+      vi.mocked(setAttachmentReviewStatus).mockResolvedValue(success)
+      const first = attachment('first', 'fixing', kind)
+      const second = attachment('second', 'in_review')
+      const { rerender } = render(<ReviewTargetsSection {...props} attachments={[first, second]} />)
+      fireEvent.click(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' }))
+      await act(async () => {})
+      expect(setAttachmentReviewStatus).toHaveBeenCalledExactlyOnceWith({
+        attachmentId: 'first',
+        issueId: 'issue',
+        status: JSON_NULL,
+        workspaceSlug: 'workspace',
+      })
+      rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: JSON_NULL }, second]} />)
+      expect(screen.getByText('first.pdf')).toBeInstanceOf(Element)
+      expect(screen.queryByRole('link', { name: 'first.pdf' })).toBeNull()
+      expect(screen.getByRole('checkbox', { name: 'first.pdfをレビュー対象にする' })).toHaveProperty('checked', false)
+      expect(screen.getByRole('checkbox', { name: 'second.pdfをレビュー対象にする' })).toHaveProperty('checked', true)
+    },
+  )
+
+  test.each([
+    ['fixing', 'in_review', 'レビュー中'],
+    ['in_review', 'changes_requested', '要修正'],
+    ['changes_requested', 'done', '完了'],
+    ['in_review', 'fixing', '修正中'],
+  ] satisfies [ReviewStatus, ReviewStatus, string][])(
+    'changes %s to %s only after canonical props acknowledge it',
+    async (from, to, label) => {
+      vi.mocked(setAttachmentReviewStatus).mockResolvedValue(success)
+      const first = attachment('first', from)
+      const { rerender } = render(<ReviewTargetsSection {...props} attachments={[first]} />)
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: to } })
+      await act(async () => {})
+      expect(setAttachmentReviewStatus).toHaveBeenCalledExactlyOnceWith({
+        workspaceSlug: 'workspace',
+        issueId: 'issue',
+        attachmentId: 'first',
+        status: to,
+      })
+      expect(screen.getByRole('combobox')).toHaveProperty('value', from)
+      expect(screen.getByRole('combobox')).toHaveProperty('disabled', true)
+      rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: to }]} />)
+      if (to === 'done') {
+        expect(screen.queryByRole('combobox')).toBeNull()
+        expect(screen.queryByRole('checkbox')).toBeNull()
+        expect(screen.queryByText('first.pdf')).toBeNull()
+        expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeInstanceOf(Element)
+        expect(screen.getByText('表示するレビュー対象はありません。')).toBeInstanceOf(Element)
+      } else {
+        expect(screen.getByRole('combobox')).toHaveProperty('value', to)
+        expect(screen.getByRole('combobox')).toHaveProperty('disabled', false)
+        expect(screen.getAllByText(label)).toHaveLength(2)
+      }
+    },
+  )
+
+  test.each([
+    ['changes_requested', 'before'],
+    ['fixing', 'before'],
+    ['changes_requested', 'after'],
+    ['fixing', 'after'],
+  ] satisfies [ReviewStatus, 'before' | 'after'][])(
+    'unlocks for canonical %s delivered %s save completion even when submitted in_review was superseded',
+    async (canonicalStatus, refreshTiming) => {
+      const pending = Promise.withResolvers<Awaited<ReturnType<typeof setAttachmentReviewStatus>>>()
+      vi.mocked(setAttachmentReviewStatus).mockReturnValueOnce(pending.promise).mockResolvedValueOnce(success)
+      const first = attachment('first', 'fixing')
+      const { rerender } = render(<ReviewTargetsSection {...props} attachments={[first]} />)
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'in_review' } })
+      const refresh = (): void =>
+        rerender(<ReviewTargetsSection {...props} attachments={[{ ...first, reviewStatus: canonicalStatus }]} />)
+      if (refreshTiming === 'before') {
+        refresh()
+        expect(screen.getByRole('combobox')).toHaveProperty('value', canonicalStatus)
+        expect(screen.getByRole('combobox')).toHaveProperty('disabled', true)
+        fireEvent.change(screen.getByRole('combobox'), { target: { value: 'done' } })
+        expect(setAttachmentReviewStatus).toHaveBeenCalledOnce()
+      }
+      await act(async () => {
+        pending.resolve(success)
+      })
+      if (refreshTiming === 'after') {
+        expect(screen.getByRole('combobox')).toHaveProperty('disabled', true)
+        refresh()
+      }
+      expect(screen.getByRole('combobox')).toHaveProperty('value', canonicalStatus)
+      expect(screen.getByRole('combobox')).toHaveProperty('disabled', false)
+      expect(screen.queryByRole('status')).toBeNull()
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'in_review' } })
+      await act(async () => {})
+      expect(setAttachmentReviewStatus).toHaveBeenCalledTimes(2)
+      expect(setAttachmentReviewStatus).toHaveBeenLastCalledWith({
+        attachmentId: 'first',
+        issueId: 'issue',
+        status: 'in_review',
+        workspaceSlug: 'workspace',
+      })
+    },
+  )
+
+  test('preserves canonical selection on delayed failure, while a separate target remains editable', async () => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<typeof setAttachmentReviewStatus>>>()
+    vi.mocked(setAttachmentReviewStatus).mockReturnValueOnce(pending.promise).mockResolvedValueOnce(success)
+    const first = attachment('first', 'in_review')
+    const second = attachment('second', 'fixing')
+    const { rerender } = render(<ReviewTargetsSection {...props} attachments={[first, second]} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' }), {
+      target: { value: 'done' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'second.pdfのレビューステータス' }), {
+      target: { value: 'in_review' },
+    })
+    await act(async () => {})
+    rerender(<ReviewTargetsSection {...props} attachments={[first, { ...second, reviewStatus: 'in_review' }]} />)
+    await act(async () => {
+      pending.resolve({ message: 'Target changed. Refresh and try again.', ok: false, status: 409 })
+    })
+    expect(screen.getByRole('alert').textContent).toBe('Target changed. Refresh and try again.')
+    expect(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).toHaveProperty('value', 'in_review')
+    expect(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).toHaveProperty('disabled', false)
+    expect(screen.getByRole('combobox', { name: 'second.pdfのレビューステータス' })).toHaveProperty(
+      'value',
+      'in_review',
+    )
+    expect(setAttachmentReviewStatus).toHaveBeenCalledTimes(2)
+  })
+
+  test('handles a transport failure without exposing diagnostics or changing canonical selection', async () => {
+    vi.mocked(setAttachmentReviewStatus).mockRejectedValue(new Error('Private database diagnostics'))
+    render(<ReviewTargetsSection {...props} attachments={[attachment('first')]} />)
+    fireEvent.click(screen.getByRole('checkbox'))
+    await act(async () => {})
+    expect(screen.getByRole('alert').textContent).toBe(
+      'レビューステータスを更新できませんでした。もう一度お試しください。',
+    )
+    expect(screen.getByRole('checkbox')).toHaveProperty('checked', false)
+    expect(screen.getByRole('checkbox')).toHaveProperty('disabled', false)
+  })
+
+  test('puts in-review targets first with deterministic ties and gives access links in the focused view', () => {
+    render(
+      <ReviewTargetsSection
+        {...props}
+        focused
+        attachments={[
+          attachment('z', 'fixing'),
+          attachment('b', 'in_review', 'url'),
+          attachment('a', 'in_review'),
+          attachment('unused'),
+        ]}
+      />,
+    )
+    const list = screen.getByRole('list', { name: '選択済みのレビュー対象' })
+    expect(
+      within(list)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toStrictEqual(['a.pdf', 'b.pdf', 'z.pdf'])
+    expect(screen.getByRole('link', { name: 'a.pdf' }).getAttribute('href')).toBe('/api/files/a?workspace=workspace')
+    expect(screen.getByRole('link', { name: 'b.pdf' }).getAttribute('href')).toBe('https://example.com/b')
+    expect(screen.getByRole('link', { name: '課題全体に戻る' }).getAttribute('href')).toBe(props.issueHref)
+    expect(screen.getByText('レビュー待ち: 2件')).toBeInstanceOf(Element)
+    expect(screen.getByText('レビュー対象を選択 (1)').closest('details')).toHaveProperty('open', false)
+  })
+
+  test('renders a textual and colored no-review-needed indicator for mixed fixing and changes-requested targets', () => {
+    expect.hasAssertions()
+    render(
+      <ReviewTargetsSection
+        {...props}
+        attachments={[attachment('first', 'changes_requested'), attachment('second', 'fixing')]}
+      />,
+    )
+    expect(screen.getByText('現在レビューが必要な対象はありません').className).toContain('bg-success-bg')
+    expect(
+      within(screen.getByRole('combobox', { name: 'first.pdfのレビューステータス' })).getByRole('option', {
+        name: '要修正',
+      }),
+    ).toBeInstanceOf(Element)
+    expect(screen.getByRole('combobox', { name: 'second.pdfのレビューステータス' })).toHaveProperty('value', 'fixing')
+    Iterable.forEach(
+      within(screen.getByRole('list', { name: '選択済みのレビュー対象' })).getAllByRole('listitem'),
+      (row) => {
+        expect(within(row).getByText('レビュー不要')).toBeInstanceOf(Element)
+        expect(row.className).toContain('text-text-muted')
+        expect(row.className).not.toContain('border-accent')
+      },
+    )
+    expect(screen.getByRole('link', { name: 'レビュー対象に集中' }).getAttribute('href')).toBe(
+      '/issues/PROJ-1?workspace=workspace&tab=review-targets',
+    )
+  })
+
+  test.each([false, true])(
+    'hides done names, controls and counts, and never offers them as candidates (focused=%s)',
+    (focused) => {
+      render(
+        <ReviewTargetsSection
+          {...props}
+          focused={focused}
+          attachments={[
+            attachment('finished-file', 'done'),
+            attachment('finished-url', 'done', 'url'),
+            attachment('active', 'fixing'),
+            attachment('candidate'),
+          ]}
+        />,
+      )
+      expect(screen.getByRole('heading', { name: 'レビュー対象 (1)' })).toBeInstanceOf(Element)
+      expect(screen.queryByText('finished-file.pdf')).toBeNull()
+      expect(screen.queryByText('finished-url.pdf')).toBeNull()
+      expect(screen.queryByRole('checkbox', { name: 'finished-file.pdfをレビュー対象にする' })).toBeNull()
+      expect(screen.queryByRole('checkbox', { name: 'finished-url.pdfをレビュー対象にする' })).toBeNull()
+      expect(screen.getByText('レビュー対象を選択 (1)')).toBeInstanceOf(Element)
+      expect(screen.queryAllByRole('checkbox', { hidden: true })).toHaveLength(2)
+    },
+  )
+
+  test('retains React standard protection for executable URLs in browser and server rendering', () => {
+    const target = { ...attachment('unsafe', 'in_review', 'url'), url: 'javascript:alert(1)' }
+    render(<ReviewTargetsSection {...props} attachments={[target]} />)
+    const link = screen.getByRole('link', { name: 'unsafe.pdf' })
+    expect(link.getAttribute('href')).not.toContain('alert(1)')
+    expect(link.getAttribute('href')).toContain('React has blocked')
+    expect(renderToStaticMarkup(<ReviewTargetsSection {...props} attachments={[target]} />)).not.toContain('alert(1)')
+  })
+
+  test('shows active-empty guidance when every selected target is completed', () => {
+    render(<ReviewTargetsSection {...props} focused attachments={[attachment('finished', 'done')]} />)
+    expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeInstanceOf(Element)
+    expect(screen.getByText('表示するレビュー対象はありません。')).toBeInstanceOf(Element)
+    expect(screen.queryByText('finished.pdf')).toBeNull()
+    expect(screen.queryByText(/レビュー対象を選択/u)).toBeNull()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+  })
+
+  test.each(['file', 'url'] as const)(
+    'shows an unselected %s candidate as text with selection controls but no access link',
+    (kind) => {
+      render(<ReviewTargetsSection {...props} attachments={[attachment('candidate', JSON_NULL, kind)]} />)
+      const candidates = screen.getByRole('list', { name: '選択できる添付ファイルとURL' })
+      expect(within(candidates).getByText('candidate.pdf').tagName).toBe('SPAN')
+      expect(within(candidates).queryByRole('link')).toBeNull()
+      expect(within(candidates).getByRole('checkbox', { name: 'candidate.pdfをレビュー対象にする' })).toHaveProperty(
+        'checked',
+        false,
+      )
+    },
+  )
+
+  test('distinguishes reviewing rows from fixing and changes-requested rows in the same target list', () => {
+    expect.hasAssertions()
+    render(
+      <ReviewTargetsSection
+        {...props}
+        attachments={[
+          attachment('fixing', 'fixing'),
+          attachment('review', 'in_review'),
+          attachment('changes', 'changes_requested'),
+        ]}
+      />,
+    )
+    const rows = within(screen.getByRole('list', { name: '選択済みのレビュー対象' })).getAllByRole('listitem')
+    Iterable.forEach(rows, (row) => {
+      if (within(row).queryByRole('link', { name: 'review.pdf' })) {
+        expect(row.className).toContain('border-accent')
+        expect(row.className).toContain('bg-accent')
+        expect(within(row).queryByText('レビュー不要')).toBeNull()
+      } else {
+        expect(row.className).toContain('text-text-muted')
+        expect(row.className).not.toContain('border-accent')
+        expect(within(row).getByText('レビュー不要')).toBeInstanceOf(Element)
+      }
+    })
+    expect(screen.getByText('レビュー待ち: 1件')).toBeInstanceOf(Element)
+  })
+
+  test('renders focused issue context, status, access links, and back navigation on the server without full issue sections', () => {
+    const initialData: IssueDetailInitialData = {
+      attachments: [attachment('spec', 'in_review')],
+      children: [],
+      comments: [],
+      currentUserId: 'user',
+      issue: {
+        assignee_id: JSON_NULL,
+        assignee_name: JSON_NULL,
+        body: 'Full body',
+        created_at: 1,
+        customFields: [],
+        id: 'issue',
+        number: 1,
+        parent_id: JSON_NULL,
+        priority: 'medium',
+        project_id: 'project',
+        project_key: 'PROJ',
+        project_name: 'Project',
+        reviewTargets: [],
+        sprint_id: JSON_NULL,
+        status_category: JSON_NULL,
+        status_id: JSON_NULL,
+        status_key: JSON_NULL,
+        status_name: JSON_NULL,
+        title: 'Review this issue',
+        type_id: JSON_NULL,
+        type_key: JSON_NULL,
+        type_name: JSON_NULL,
+        updated_at: 1,
+      },
+      links: [],
+      members: [],
+      parent: JSON_NULL,
+      reviewTargetsFocused: true,
+      statuses: [],
+      taskTypes: [],
+    }
+    const html = renderToStaticMarkup(<IssueDetail workspaceSlug='workspace' initialData={initialData} />)
+    const parsed = new DOMParser().parseFromString(html, 'text/html')
+    expect(parsed.querySelector('h1')?.textContent).toBe('Review this issue')
+    expect(parsed.querySelector('select')?.textContent).toBe('修正中レビュー中要修正完了')
+    expect(parsed.querySelector('option[selected]')?.getAttribute('value')).toBe('in_review')
+    expect(parsed.querySelector('a[href="/api/files/spec?workspace=workspace"]')?.textContent).toBe('spec.pdf')
+    expect(parsed.body.textContent).toContain('課題全体に戻る')
+    expect(parsed.body.textContent).not.toContain('Full description')
+    expect(parsed.body.textContent).not.toContain('Full comments')
+    expect(parsed.body.textContent).not.toContain('Full sidebar')
+    expect(parsed.querySelector('noscript')?.textContent).toContain('JavaScript')
+  })
+})

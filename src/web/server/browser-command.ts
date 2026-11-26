@@ -1,38 +1,50 @@
 import { Effect } from 'effect'
 
-import type { CoreRpcShape } from '../../core/contract'
-import type { BrowserCommand } from '../../core/web/command-contract'
-import { browserRequest } from '../core'
-import { RequestServices } from '../request'
-import { requireDataWorkspace } from './data-context'
-import { ApiError, ScopeError } from './errors'
-import type { FunctionContext } from './function-context'
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import type { CoreRpcShape } from '#core/contract.ts'
+import type { BrowserCommand } from '#core/web/command-contract.ts'
+import { browserRequest } from '@/core.ts'
+import { RequestServices } from '@/request.ts'
 
-export interface BrowserCommandClient {
-  readonly proof: BrowserCommand
-  readonly core: CoreRpcShape
-}
+import { requireDataWorkspace } from './data-context.ts'
+import { ApiError, ScopeError } from './errors.ts'
+import type { FunctionContext } from './function-context.ts'
 
-/** Local composition only. Neither a callback nor a capability crosses the native binding. */
-export function runBrowserCommand<A, E, R>(
+export type BrowserCommandClient = Readonly<{
+  proof: BrowserCommand
+  core: CoreRpcShape
+}>
+
+/**
+ * Local composition only. Neither a callback nor a capability crosses the native binding.
+ *
+ * @param {FunctionContext} context The browser function context resolved from the request.
+ * @param {(client: BrowserCommandClient) => Effect.Effect<A, E, R>} operation The local effect that calls the selected named Core operation.
+ * @returns {Effect.Effect<A, ApiError | ScopeError | E, RequestServices | R>} An effect that verifies the interactive browser session and runs the command.
+ */
+export const runBrowserCommand = function runBrowserCommand<A, E, R>(
   context: FunctionContext,
   operation: (client: BrowserCommandClient) => Effect.Effect<A, E, R>,
-) {
+): Effect.Effect<A, ApiError | ScopeError | E, RequestServices | R> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
-    const auth = context.scope.auth
-    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev'))
-      return yield* new ScopeError(403, 'An interactive browser session is required.')
+    const { auth } = context.scope
+    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'An interactive browser session is required.')
+    }
     const workspace = yield* Effect.try({
-      try: () => requireDataWorkspace(context.scope),
       catch: (cause) =>
-        cause instanceof ScopeError ? cause : new ApiError('request', 403, 'Selected workspace is not accessible.'),
+        cause instanceof ScopeError
+          ? cause
+          : new ApiError('request', HTTP_FORBIDDEN, 'Selected workspace is not accessible.'),
+      try: () => requireDataWorkspace(context.scope),
     })
     return yield* operation({
       proof: {
         request: browserRequest(services.request),
         workspaceSlug: context.workspaceSlug ?? workspace.slug,
-        ...(context.projectId ? { projectId: context.projectId } : {}),
+        ...(isNonEmptyText(context.projectId) ? { projectId: context.projectId } : {}),
       },
       core: services.core,
     })

@@ -1,52 +1,54 @@
-// PROJ-581: project visibility is default-deny (PROJ-311) for every non-admin member,
-// including a bare `viewer` and the anonymous PUBLIC_READ_ONLY viewer — the
-// cross-workspace list (GET /api/projects) and the single-workspace list (list_projects)
-// agree. The public viewer is placed in a "Public viewers" group, so publishing a
-// project to anonymous visitors is one explicit grant to that group.
+/*
+ * PROJ-581: project visibility is default-deny (PROJ-311) for every non-admin member,
+ * including a bare `viewer` and the anonymous PUBLIC_READ_ONLY viewer — the
+ * cross-workspace list (GET /api/projects) and the single-workspace list (list_projects)
+ * agree. The public viewer is placed in a "Public viewers" group, so publishing a
+ * project to anonymous visitors is one explicit grant to that group.
+ */
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { updateIssue } from '#commands/issues'
-import { listProjects, listProjectsAcrossWorkspaces } from '#commands/projects'
-import { PUBLIC_VIEWERS_GROUP_NAME, provisionPublicViewer } from '#commands/provisioning'
-import type { ServiceCtx } from '#commands/types'
+import { updateIssue } from '#commands/issues.ts'
+import { listProjects, listProjectsAcrossWorkspaces } from '#commands/projects.ts'
+import { PUBLIC_VIEWERS_GROUP_NAME, provisionPublicViewer } from '#commands/provisioning.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 import type { Env } from '#types'
 
-import { env } from './fixture-api'
-import { seedGroupGrant, seedIssue, seedMember, seedProject, seedUser, seedWorkspace } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedGroupGrant, seedIssue, seedMember, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
-function viewerCtx(workspaceId: string, userId: string): ServiceCtx {
+const viewerCtx = function viewerCtx(workspaceId: string, userId: string): ServiceCtx {
   return { db: env.DB, kv: env.KV, r2: env.R2, workspaceId, userId, role: 'viewer' }
 }
 
-async function ids(p: Promise<unknown>): Promise<string[]> {
-  return ((await p) as Array<{ id: string }>).map((r) => r.id).sort()
+const ids = async function ids(pending: Promise<unknown>): Promise<string[]> {
+  return ((await pending) as { id: string }[]).map((project) => project.id).toSorted()
 }
 
-describe('PROJ-581: viewers see projects only through grants, consistently on both lists', () => {
-  it('a bare viewer sees no projects in either list; a granted one sees exactly the granted project', async () => {
+describe('covers PROJ-581: viewers see projects only through grants, consistently on both lists', () => {
+  test('a bare viewer sees no projects in either list; a granted one sees exactly the granted project', async () => {
     const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
     const viewer = await seedUser(`v-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, viewer.id, 'viewer')
-    const a = await seedProject(ws.id, 'AAA')
+    const project = await seedProject(ws.id, 'AAA')
     await seedProject(ws.id, 'BBB')
     const ctx = viewerCtx(ws.id, viewer.id)
 
-    expect(await ids(listProjects(ctx))).toEqual([])
-    expect(await ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).toEqual([])
+    await expect(ids(listProjects(ctx))).resolves.toStrictEqual([])
+    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toStrictEqual([])
 
-    await seedGroupGrant(ws.id, viewer.id, a.id, 'viewer')
-    expect(await ids(listProjects(ctx))).toEqual([a.id])
-    expect(await ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).toEqual([a.id])
+    await seedGroupGrant(ws.id, viewer.id, project.id, 'viewer')
+    await expect(ids(listProjects(ctx))).resolves.toStrictEqual([project.id])
+    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toStrictEqual([project.id])
   })
 
-  it("the public viewer is put in the 'Public viewers' group; granting that group publishes a project", async () => {
+  test("the public viewer is put in the 'Public viewers' group; granting that group publishes a project", async () => {
     const slug = `pub-${crypto.randomUUID().slice(0, 8)}`
     const ws = await seedWorkspace(slug)
     const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`)
     const published = await seedProject(ws.id, 'PUB')
     await seedProject(ws.id, 'PRV')
-    await provisionPublicViewer({ ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env, pub)
+    await provisionPublicViewer({ ...env, DEFAULT_WORKSPACE_SLUG: slug }, pub)
 
     const group = await env.DB.prepare(
       'SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND g.name = ? AND m.user_id = ?',
@@ -55,15 +57,15 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
       .first<{ id: string }>()
     expect(group).not.toBeNull()
 
-    expect(await ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).toEqual([])
+    await expect(ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).resolves.toStrictEqual([])
     await env.DB.prepare("INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'viewer')")
       .bind(group?.id, published.id)
       .run()
-    expect(await ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).toEqual([published.id])
-    expect(await ids(listProjects(viewerCtx(ws.id, pub.id)))).toEqual([published.id])
+    await expect(ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).resolves.toStrictEqual([published.id])
+    await expect(ids(listProjects(viewerCtx(ws.id, pub.id)))).resolves.toStrictEqual([published.id])
   })
 
-  it("the public viewer can't write even when its group is granted `member`", async () => {
+  test("the public viewer can't write even when its group is granted `member`", async () => {
     const ws = await seedWorkspace(`pw-${crypto.randomUUID().slice(0, 8)}`)
     const owner = await seedUser(`o-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`)
@@ -75,16 +77,16 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
       ...viewerCtx(ws.id, pub.id),
       auth: { kind: 'human', method: 'public' },
     }
-    await expect(updateIssue(ctx, issue.id, { title: 'defaced' })).rejects.toThrow(/Insufficient permissions/)
+    await expect(updateIssue(ctx, issue.id, { title: 'defaced' })).rejects.toThrow(/Insufficient permissions/u)
     // A signed-in viewer with a member grant can still write (PROJ-311's documented model).
     await expect(
       updateIssue({ ...viewerCtx(ws.id, pub.id), auth: { kind: 'human', method: 'access' } }, issue.id, {
         title: 'edited by a granted viewer',
       }),
-    ).resolves.toBeTruthy()
+    ).resolves.toStrictEqual({ ok: true })
   })
 
-  it("adopts an existing 'Public viewers' group and stays idempotent across runs", async () => {
+  test("adopts an existing 'Public viewers' group and stays idempotent across runs", async () => {
     const slug = `pa-${crypto.randomUUID().slice(0, 8)}`
     const ws = await seedWorkspace(slug)
     const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`)
@@ -92,15 +94,16 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
     await env.DB.prepare('INSERT INTO user_groups (id, workspace_id, name, created_at) VALUES (?, ?, ?, 0)')
       .bind(existing, ws.id, PUBLIC_VIEWERS_GROUP_NAME)
       .run()
-    const e = { ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env
-    await provisionPublicViewer(e, pub)
-    await env.KV.delete(`provisioned:${pub.id}:public-v2`) // force a second real run
-    await provisionPublicViewer(e, pub)
+    const scopedEnv = { ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env
+    await provisionPublicViewer(scopedEnv, pub)
+    // Force a second real run
+    await env.KV.delete(`provisioned:${pub.id}:public-v2`)
+    await provisionPublicViewer(scopedEnv, pub)
     const rows = await env.DB.prepare(
       'SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND m.user_id = ?',
     )
       .bind(ws.id, pub.id)
       .all<{ id: string }>()
-    expect(rows.results.map((r) => r.id)).toEqual([existing])
+    expect(rows.results.map((result) => result.id)).toStrictEqual([existing])
   })
 })

@@ -1,63 +1,82 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { Array, Iterable, Predicate, Number } from 'effect'
 import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
+import { flattenError } from 'zod'
 
+import { BYTES_PER_MEBIBYTE } from '#contracts/file-limits.ts'
+import { ExportWikiInputSchema } from '#contracts/inputs/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 
-import { ExportWikiInputSchema } from '../../contracts/inputs/wiki'
-import { assertProjectAccess } from './access'
-import { NotFoundError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+import { assertProjectAccess } from './access.ts'
+import { NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
-type ExportedPage = {
+interface ExportedPage {
   id: string
   slug: string
   title: string
   content: string
 }
 
-// A Worker isolate has a 128 MB memory ceiling and uploads allow up to 50 MB per file
-// (MAX_UPLOAD_SIZE in services/files.ts). These caps bound export size before any R2
-// fetch or zip work starts, so an oversized export fails fast with a typed error
-// instead of buffering its way into an OOM/500. The streaming zip build below (buildZip)
-// is the primary defense against memory blowup — these are a belt-and-braces backstop
-// against pathological page counts / attachment totals.
+/*
+ * A Worker isolate has a 128 MB memory ceiling and uploads allow up to 50 MB per file
+ * (MAX_UPLOAD_SIZE in services/files.ts). These caps bound export size before any R2
+ * fetch or zip work starts, so an oversized export fails fast with a typed error
+ * instead of buffering its way into an OOM/500. The streaming zip build below (buildZip)
+ * is the primary defense against memory blowup — these are a belt-and-braces backstop
+ * against pathological page counts / attachment totals.
+ */
 const MAX_EXPORT_PAGES = 500
-const MAX_EXPORT_ATTACHMENT_BYTES = 100 * 1024 * 1024 // 100 MB total per export
+const EMPTY_EXPORT_BYTES = 0
+const MAX_EXPORT_ATTACHMENT_MEBIBYTES = 100
+const MAX_EXPORT_ATTACHMENT_BYTES = MAX_EXPORT_ATTACHMENT_MEBIBYTES * BYTES_PER_MEBIBYTE
 
-function assertPageCountAllowed(pageCount: number): void {
+const assertPageCountAllowed = function assertPageCountAllowed(pageCount: number): void {
   if (pageCount > MAX_EXPORT_PAGES) {
-    throw new ValidationError({
-      formErrors: [`Export exceeds the ${MAX_EXPORT_PAGES}-page limit (${pageCount} pages)`],
-      fieldErrors: {},
-    })
+    throw new ValidationError(
+      validationIssues([`Export exceeds the ${MAX_EXPORT_PAGES}-page limit (${pageCount} pages)`], {}),
+    )
   }
 }
 
-function assertExportSizeAllowed(pageCount: number, totalAttachmentBytes: number): void {
+const assertExportSizeAllowed = function assertExportSizeAllowed(
+  pageCount: number,
+  totalAttachmentBytes: number,
+): void {
   assertPageCountAllowed(pageCount)
   if (totalAttachmentBytes > MAX_EXPORT_ATTACHMENT_BYTES) {
-    throw new ValidationError({
-      formErrors: [
-        `Export attachments exceed the ${MAX_EXPORT_ATTACHMENT_BYTES}-byte limit (${totalAttachmentBytes} bytes)`,
-      ],
-      fieldErrors: {},
-    })
+    throw new ValidationError(
+      validationIssues(
+        [`Export attachments exceed the ${MAX_EXPORT_ATTACHMENT_BYTES}-byte limit (${totalAttachmentBytes} bytes)`],
+        {},
+      ),
+    )
   }
 }
 
-// PROJ-311: same visibility rule as wiki.ts's assertWikiPageVisible — a workspace-level
-// page (projectId null) is visible to every member; a project-scoped page needs an
-// admin bypass or a group grant on that project.
-async function requireSpaceVisible(ctx: ServiceCtx, projectId: string | null): Promise<void> {
-  if (projectId === null) return
+/*
+ * PROJ-311: same visibility rule as wiki.ts's assertWikiPageVisible — a workspace-level
+ * page (projectId null) is visible to every member; a project-scoped page needs an
+ * admin bypass or a group grant on that project.
+ */
+const requireSpaceVisible = async function requireSpaceVisible(
+  ctx: ServiceCtx,
+  projectId: string | null,
+): Promise<void> {
+  if (Predicate.isNullish(projectId)) {
+    return
+  }
   await assertProjectAccess(ctx, projectId, 'read', { notFoundMessage: 'Project not found' })
 }
 
-// Mirrors wiki.ts's resolvePageByIdOrSlug direct-match branch (no redirect chasing —
-// this is an export utility, not a citation path that needs stale-link tolerance).
-async function resolveExportRoot(
+/*
+ * Mirrors wiki.ts's resolvePageByIdOrSlug direct-match branch (no redirect chasing —
+ * this is an export utility, not a citation path that needs stale-link tolerance).
+ */
+const resolveExportRoot = async function resolveExportRoot(
   ctx: ServiceCtx,
   idOrSlug: string,
 ): Promise<{ id: string; slug: string; title: string; content: string; projectId: string | null }> {
@@ -79,7 +98,9 @@ async function resolveExportRoot(
       ),
     )
     .get()
-  if (row) return row
+  if (row) {
+    return row
+  }
   const bySlug = await orm
     .select({
       id: schema.wikiPages.id,
@@ -97,24 +118,32 @@ async function resolveExportRoot(
       ),
     )
     .get()
-  if (!bySlug) throw new NotFoundError('Wiki page not found')
+  if (!bySlug) {
+    throw new NotFoundError('Wiki page not found')
+  }
   return bySlug
 }
 
-// Mirrors wiki.ts's collectDescendantIds BFS over parent_id, chunked to stay under
-// D1's bound-parameter cap regardless of subtree size (see AGENTS.md's D1 limit note).
-//
-// wiki.ts's validateNewPageParent/validateExistingPageParent enforce "a page's parent
-// must belong to the same project" on every write, so a descendant should never carry
-// a different projectId than the subtree root — but that invariant lives in a file
-// this domain doesn't own, so it's re-asserted here defensively rather than trusted
-// blindly: any row whose projectId doesn't match the root's is dropped rather than
-// exported, so a future regression of that invariant fails closed, not open.
-async function collectDescendantIds(ctx: ServiceCtx, rootId: string, rootProjectId: string | null): Promise<string[]> {
+/*
+ * Mirrors wiki.ts's collectDescendantIds BFS over parent_id, chunked to stay under
+ * D1's bound-parameter cap regardless of subtree size (see AGENTS.md's D1 limit note).
+ *
+ * wiki.ts's validateNewPageParent/validateExistingPageParent enforce "a page's parent
+ * must belong to the same project" on every write, so a descendant should never carry
+ * a different projectId than the subtree root — but that invariant lives in a file
+ * this domain doesn't own, so it's re-asserted here defensively rather than trusted
+ * blindly: any row whose projectId doesn't match the root's is dropped rather than
+ * exported, so a future regression of that invariant fails closed, not open.
+ */
+const collectDescendantIds = async function collectDescendantIds(
+  ctx: ServiceCtx,
+  rootId: string,
+  rootProjectId: string | null,
+): Promise<string[]> {
   const orm = drizzle(ctx.db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
-  while (frontier.length > 0) {
+  while (Array.isArrayNonEmpty(frontier)) {
     const children = await inChunks(frontier, (chunk) =>
       orm
         .select({ id: schema.wikiPages.id, projectId: schema.wikiPages.projectId })
@@ -127,27 +156,31 @@ async function collectDescendantIds(ctx: ServiceCtx, rootId: string, rootProject
           ),
         ),
     )
-    const inScope = children.filter((c) => (c.projectId ?? null) === rootProjectId)
-    frontier = inScope.map((c) => c.id)
+    const inScope = children.filter((child) => (child.projectId ?? null) === rootProjectId)
+    frontier = inScope.map((child) => child.id)
     descendants.push(...frontier)
-    // Bail out as soon as the walk itself proves the subtree is oversized, rather than
-    // continuing to accumulate ids and only rejecting after pagesByIds fetches every body.
-    // +1 accounts for the root page, which isn't in `descendants`.
-    assertPageCountAllowed(descendants.length + 1)
+    /*
+     * Bail out as soon as the walk itself proves the subtree is oversized, rather than
+     * continuing to accumulate ids and only rejecting after pagesByIds fetches every body.
+     * +1 accounts for the root page, which isn't in `descendants`.
+     */
+    assertPageCountAllowed(Number.increment(descendants.length))
   }
   return descendants
 }
 
-async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[]> {
+const pagesByIds = async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[]> {
   const orm = drizzle(ctx.db, { schema })
   return inChunks(ids, (chunk) =>
     orm
-      .select({
-        id: schema.wikiPages.id,
-        slug: schema.wikiPages.slug,
-        title: schema.wikiPages.title,
-        content: schema.wikiPages.content,
-      })
+      .select(
+        fieldsInOrder([
+          ['id', schema.wikiPages.id],
+          ['slug', schema.wikiPages.slug],
+          ['title', schema.wikiPages.title],
+          ['content', schema.wikiPages.content],
+        ]),
+      )
       .from(schema.wikiPages)
       .where(
         and(
@@ -159,27 +192,37 @@ async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[
   )
 }
 
-// PROJ-488: a page's frontmatter (if any) already lives inline in `content` — that's
-// the canonical source, and it round-trips through create/update/revisions untouched.
-// A page with no leading `---` block gets a minimal one synthesized here (title only)
-// so every exported file carries frontmatter, per the R15 spec.
-function ensureFrontmatter(page: ExportedPage): string {
-  if (/^---\r?\n/.test(page.content)) return page.content
+/*
+ * PROJ-488: a page's frontmatter (if any) already lives inline in `content` — that's
+ * the canonical source, and it round-trips through create/update/revisions untouched.
+ * A page with no leading `---` block gets a minimal one synthesized here (title only)
+ * so every exported file carries frontmatter, per the R15 spec.
+ */
+const ensureFrontmatter = function ensureFrontmatter(page: ExportedPage): string {
+  if (/^---\r?\n/u.test(page.content)) {
+    return page.content
+  }
   const yamlText = stringifyYaml({ title: page.title }).trimEnd()
   return `---\n${yamlText}\n---\n${page.content}`
 }
 
-// PROJ-426-style: only `kind: "file"` attachments carry a real R2 object (wiki_ref
-// pointer attachments have an empty r2_key and nothing to zip).
-async function collectAttachments(
+/*
+ * PROJ-426-style: only `kind: "file"` attachments carry a real R2 object (wiki_ref
+ * pointer attachments have an empty r2_key and nothing to zip).
+ */
+const collectAttachments = async function collectAttachments(
   ctx: ServiceCtx,
-  pages: readonly ExportedPage[],
-): Promise<Array<{ pageSlug: string; filename: string; r2Key: string; size: number }>> {
-  if (pages.length === 0) return []
+  pages: Readonly<ExportedPage[]>,
+): Promise<{ pageSlug: string; filename: string; r2Key: string; size: number }[]> {
+  if (Array.isReadonlyArrayEmpty(pages)) {
+    return []
+  }
   const orm = drizzle(ctx.db, { schema })
   const bySlug = new Map<string, string>()
-  for (const p of pages) bySlug.set(p.id, p.slug)
-  const pageIds = pages.map((p) => p.id)
+  Iterable.forEach(pages, (page) => {
+    bySlug.set(page.id, page.slug)
+  })
+  const pageIds = pages.map((page) => page.id)
 
   const rows = await inChunks(pageIds, (chunk) =>
     orm
@@ -201,55 +244,65 @@ async function collectAttachments(
   )
 
   return rows
-    .filter((r) => r.r2Key)
-    .map((r) => ({
-      pageSlug: bySlug.get(r.entityId) ?? r.entityId,
-      filename: r.filename,
-      r2Key: r.r2Key,
-      size: r.size,
+    .filter((row) => row.r2Key)
+    .map((row) => ({
+      pageSlug: bySlug.get(row.entityId) ?? row.entityId,
+      filename: row.filename,
+      r2Key: row.r2Key,
+      size: row.size,
     }))
 }
 
-function safeZipPathSegment(value: string): string {
+const safeZipPathSegment = function safeZipPathSegment(value: string): string {
   // oxlint-disable-next-line no-control-regex -- Intentionally strip control characters from ZIP entry names.
-  const stripped = value.replace(/[\\/]/g, '_').replace(/[\x00-\x1f]/g, '')
-  return /^\.+$/.test(stripped) ? '_' : stripped
+  const stripped = value.replaceAll(/[\\/]/gu, '_').replaceAll(/[\x00-\x1F]/gu, '')
+  return /^\.+$/u.test(stripped) ? '_' : stripped
 }
 
-// Keeps incrementing the collision suffix until it lands on a name nobody has used yet
-// (including previously-renamed names) — a plain "rename once" scheme can produce a
-// second collision (e.g. two "notes.txt" plus a real "1-notes.txt") that silently
-// clobbers a file, since the zip entries are looked up by name.
-function reserveUniqueName(usedNames: Set<string>, candidate: string, altFor: (n: number) => string): string {
+/*
+ * Keeps incrementing the collision suffix until it lands on a name nobody has used yet
+ * (including previously-renamed names) — a plain "rename once" scheme can produce a
+ * second collision (e.g. two "notes.txt" plus a real "1-notes.txt") that silently
+ * clobbers a file, since the zip entries are looked up by name.
+ */
+const reserveUniqueName = function reserveUniqueName(
+  usedNames: Set<string>,
+  candidate: string,
+  altFor: (suffix: number) => string,
+): string {
   if (!usedNames.has(candidate)) {
     usedNames.add(candidate)
     return candidate
   }
-  let n = 1
-  let alt = altFor(n)
+  let suffix = 1
+  let alt = altFor(suffix)
   while (usedNames.has(alt)) {
-    n += 1
-    alt = altFor(n)
+    suffix = Number.increment(suffix)
+    alt = altFor(suffix)
   }
   usedNames.add(alt)
   return alt
 }
 
-// Streams the archive rather than building it fully in memory: fflate's streaming Zip
-// writer emits compressed chunks as each entry is pushed, so the response body never
-// requires holding the complete zip (or every page/attachment at once) in memory. Only
-// one attachment's bytes are held at a time, and the total attachment budget is checked
-// up front (assertExportSizeAllowed) before any R2 fetch happens.
-async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<ReadableStream<Uint8Array>> {
+/*
+ * Streams the archive rather than building it fully in memory: fflate's streaming Zip
+ * writer emits compressed chunks as each entry is pushed, so the response body never
+ * requires holding the complete zip (or every page/attachment at once) in memory. Only
+ * one attachment's bytes are held at a time, and the total attachment budget is checked
+ * up front (assertExportSizeAllowed) before any R2 fetch happens.
+ */
+const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<ReadableStream<Uint8Array>> {
   const attachments = await collectAttachments(ctx, pages)
-  const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.size, 0)
+  const totalAttachmentBytes = attachments.reduce((sum, attachment) => sum + attachment.size, EMPTY_EXPORT_BYTES)
   assertExportSizeAllowed(pages.length, totalAttachmentBytes)
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       let streamErrored = false
-      const failStream = (err: unknown) => {
-        if (streamErrored) return
+      const failStream = (err: unknown): void => {
+        if (streamErrored) {
+          return
+        }
         streamErrored = true
         controller.error(err)
       }
@@ -259,30 +312,37 @@ async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<Readabl
           failStream(err)
           return
         }
-        if (chunk && chunk.length > 0) controller.enqueue(chunk)
-        if (final) controller.close()
+        if (chunk && chunk.length > EMPTY_EXPORT_BYTES) {
+          controller.enqueue(chunk)
+        }
+        if (final) {
+          controller.close()
+        }
       })
 
       try {
         const usedNames = new Set<string>()
 
-        for (const page of pages) {
+        Iterable.forEach(pages, (page) => {
           const base = safeZipPathSegment(page.slug || page.id)
-          const name = reserveUniqueName(usedNames, `pages/${base}.md`, (n) => `pages/${base}-${n}.md`)
+          const name = reserveUniqueName(usedNames, `pages/${base}.md`, (suffix) => `pages/${base}-${suffix}.md`)
           const entry = new ZipDeflate(name)
           zip.add(entry)
           entry.push(new TextEncoder().encode(ensureFrontmatter(page)), true)
-        }
+        })
 
         for (const att of attachments) {
           const obj = await ctx.r2.get(att.r2Key)
-          if (!obj) continue // orphaned row (object missing from storage) — skip, don't fail the export
+          if (!obj) {
+            // Orphaned row (object missing from storage) — skip, don't fail the export
+            continue
+          }
           const dir = safeZipPathSegment(att.pageSlug)
           const filename = safeZipPathSegment(att.filename)
           const name = reserveUniqueName(
             usedNames,
             `attachments/${dir}/${filename}`,
-            (n) => `attachments/${dir}/${n}-${filename}`,
+            (suffix) => `attachments/${dir}/${suffix}-${filename}`,
           )
           const entry = new ZipDeflate(name)
           zip.add(entry)
@@ -291,20 +351,22 @@ async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<Readabl
         }
 
         zip.end()
-      } catch (err) {
-        failStream(err)
+      } catch (error) {
+        failStream(error)
       }
     },
   })
 }
 
-export async function exportWiki(
+export const exportWiki = async function exportWiki(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ filename: string; stream: ReadableStream<Uint8Array> }> {
   const parsed = ExportWikiInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
-  const data = parsed.data
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
+  const { data } = parsed
 
   if (data.scope === 'space') {
     await requireSpaceVisible(ctx, data.projectId ?? null)
@@ -326,9 +388,11 @@ export async function exportWiki(
           data.projectId ? eq(schema.wikiPages.projectId, data.projectId) : isNull(schema.wikiPages.projectId),
         ),
       )
-      // Fetch one row past the cap so an oversized space can be rejected here, before
-      // content bodies for the full (potentially huge) page set are ever loaded.
-      .limit(MAX_EXPORT_PAGES + 1)
+      /*
+       * Fetch one row past the cap so an oversized space can be rejected here, before
+       * content bodies for the full (potentially huge) page set are ever loaded.
+       */
+      .limit(Number.increment(MAX_EXPORT_PAGES))
     assertPageCountAllowed(pages.length)
 
     const stream = await buildZip(ctx, pages)

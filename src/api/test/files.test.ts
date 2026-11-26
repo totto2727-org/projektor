@@ -1,11 +1,15 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Schema } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { ApiResults } from '#contracts/api-results.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedFixture,
   seedGroupGrant,
   seedIssue,
@@ -15,132 +19,149 @@ import {
   seedUser,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
+import { ErrorMessageResponse, IdAndSlugResponse, IdResponse, readNativeJson } from './response-json.ts'
 
 const ENTITY_ID = crypto.randomUUID()
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   method: string,
   params: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
   return res.json()
 }
 
-async function mcpToolResult<T>(
+const mcpToolResult = async function mcpToolResult<T>(
   workspaceId: string,
   name: string,
   toolArgs: unknown,
   headers: Record<string, string>,
 ): Promise<T> {
-  const res = await mcpCall<{ content: Array<{ text: string }>; isError?: boolean }>(
+  const res = await mcpCall<{ content: { text: string }[]; isError?: boolean }>(
     workspaceId,
     'tools/call',
-    { name, arguments: toolArgs },
+    fieldsInOrder([
+      ['name', name],
+      ['arguments', toolArgs],
+    ]),
     headers,
   )
-  if ('error' in res) throw new Error(`${name} failed: ${JSON.stringify(res.error)}`)
+  if ('error' in res) {
+    throw new Error(`${name} failed: ${JSON.stringify(res.error)}`)
+  }
   expect(res.result.isError, `${name}: ${JSON.stringify(res.result.content)}`).not.toBe(true)
   expect(res.result.content).toHaveLength(1)
   return JSON.parse(res.result.content[0].text) as T
 }
 
-function makeUploadRequest(token: string, slug: string, content = 'hello world', filename = 'test.txt') {
+const makeUploadRequest = function makeUploadRequest(
+  token: string,
+  slug: string,
+  content = 'hello world',
+  filename = 'test.txt',
+): Promise<Response> {
   const form = new FormData()
   form.append('file', new File([content], filename, { type: 'text/plain' }))
   form.append('entityType', 'issue')
   form.append('entityId', ENTITY_ID)
-  return SELF.fetch('http://localhost/api/files', {
-    method: 'POST',
+  return fetchNativeApi('http://localhost/api/files', {
+    body: form,
     headers: {
       Authorization: `Bearer ${token}`,
       'X-Workspace-Slug': slug,
     },
-    body: form,
+    method: 'POST',
   })
 }
 
-describe('Files API', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let userId: string
+const seedFilesApiFixture = async function seedFilesApiFixture(): Promise<{
+  slug: string
+  token: string
+  userId: string
+  workspaceId: string
+}> {
+  const { token, workspace, user } = await seedFixture()
+  return { slug: workspace.slug, token, userId: user.id, workspaceId: workspace.id }
+}
 
-  beforeEach(async () => {
-    const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    userId = fixture.user.id
-  })
-
-  it('GET /api/files lists attachments for an entity', async () => {
+describe('files API', () => {
+  test('handles GET /api/files lists attachments for an entity', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     // Upload two files for the same entity
     await makeUploadRequest(token, slug, 'content a', 'a.txt')
     await makeUploadRequest(token, slug, 'content b', 'b.txt')
 
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as Array<{
-      id: string
-      filename: string
-      contentType: string
-      size: number
-      createdAt: number
-    }>
+    const list = await readNativeJson(
+      res,
+      Schema.Array(
+        Schema.Struct({
+          contentType: Schema.String,
+          createdAt: Schema.Number,
+          filename: Schema.String,
+          id: Schema.String,
+          size: Schema.Number,
+        }),
+      ).pipe(Schema.mutable),
+    )
     expect(list).toHaveLength(2)
-    expect(list.map((f) => f.filename).sort()).toEqual(['a.txt', 'b.txt'])
+    expect(list.map((attachment) => attachment.filename).toSorted()).toStrictEqual(['a.txt', 'b.txt'])
     expect(list[0]).toMatchObject({ contentType: 'text/plain' })
   })
 
-  it('GET /api/files returns 400 for missing entityId', async () => {
-    const res = await SELF.fetch('http://localhost/api/files?entityType=issue', {
+  test('handles GET /api/files returns 400 for missing entityId', async () => {
+    const { slug, token } = await seedFilesApiFixture()
+    const res = await fetchNativeApi('http://localhost/api/files?entityType=issue', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
-  it('GET /api/files returns empty array when no attachments exist', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${crypto.randomUUID()}`, {
+  test('handles GET /api/files returns empty array when no attachments exist', async () => {
+    const { slug, token } = await seedFilesApiFixture()
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual([])
+    await expect(res.json()).resolves.toStrictEqual([])
   })
 
-  it('POST /api/files uploads and returns file metadata', async () => {
+  test('handles POST /api/files uploads and returns file metadata', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const res = await makeUploadRequest(token, slug)
     expect(res.status).toBe(201)
-    const body = (await res.json()) as {
-      id: string
-      filename: string
-      contentType: string
-      size: number
-    }
-    expect(body.id).toBeTruthy()
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ contentType: Schema.String, filename: Schema.String, id: Schema.String, size: Schema.Number }),
+    )
+    expect(isNonEmptyText(body.id)).toBe(true)
     expect(body.filename).toBe('test.txt')
     expect(body.contentType).toBe('text/plain')
     expect(body.size).toBe('hello world'.length)
   })
 
-  it('GET /api/files/:id returns the uploaded content', async () => {
+  test('handles GET /api/files/:id returns the uploaded content', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const uploadRes = await makeUploadRequest(token, slug, 'round-trip content', 'data.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
-    // text/plain is not in the inline allowlist — served as octet-stream to prevent XSS
+    // The text/plain media type is not in the inline allowlist — served as octet-stream to prevent XSS
     expect(getRes.headers.get('Content-Type')).toBe('application/octet-stream')
     expect(getRes.headers.get('Content-Disposition')).toContain('attachment')
     expect(getRes.headers.get('X-Content-Type-Options')).toBe('nosniff')
@@ -148,25 +169,25 @@ describe('Files API', () => {
     expect(text).toBe('round-trip content')
   })
 
-  it('GET /api/files/:id serves images inline with their original content type', async () => {
+  test('handles GET /api/files/:id serves images inline with their original content type', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const form = new FormData()
     // 1x1 transparent GIF
     const gifBytes = new Uint8Array([
-      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00,
-      0x21, 0xf9, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x02,
-      0x02, 0x44, 0x01, 0x00, 0x3b,
+      71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 128, 0, 0, 255, 255, 255, 0, 0, 0, 33, 249, 4, 0, 0, 0, 0, 0, 44, 0, 0, 0, 0,
+      1, 0, 1, 0, 0, 2, 2, 68, 1, 0, 59,
     ])
     form.append('file', new File([gifBytes], 'img.gif', { type: 'image/gif' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const uploadRes = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const uploadRes = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
@@ -174,205 +195,229 @@ describe('Files API', () => {
     expect(getRes.headers.get('Content-Disposition')).toContain('inline')
   })
 
-  it('GET /api/files/:id/metadata returns the attachment metadata', async () => {
+  test('handles GET /api/files/:id/metadata returns the attachment metadata', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const uploadRes = await makeUploadRequest(token, slug, 'meta content', 'meta.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
-    const res = await SELF.fetch(`http://localhost/api/files/${id}/metadata`, {
+    const res = await fetchNativeApi(`http://localhost/api/files/${id}/metadata`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { id: string; filename: string; contentType: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ contentType: Schema.String, filename: Schema.String, id: Schema.String }),
+    )
     expect(body.id).toBe(id)
     expect(body.filename).toBe('meta.txt')
     expect(body.contentType).toBe('text/plain')
   })
 
-  it('GET /api/files/:id/metadata returns 404 for an unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${crypto.randomUUID()}/metadata`, {
+  test('handles GET /api/files/:id/metadata returns 404 for an unknown id', async () => {
+    const { slug, token } = await seedFilesApiFixture()
+    const res = await fetchNativeApi(`http://localhost/api/files/${crypto.randomUUID()}/metadata`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('DELETE /api/files/:id removes the file', async () => {
+  test('handles DELETE /api/files/:id removes the file', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const uploadRes = await makeUploadRequest(token, slug)
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
-    const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
-      method: 'DELETE',
+    const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(204)
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(404)
   })
 
-  // PROJ-494: an inline <img> tag rendering an attachment in wiki content can't set a
-  // custom X-Workspace-Slug header, so GET falls back to a `?workspace=` query param.
-  it('GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
+  /*
+   * PROJ-494: an inline <img> tag rendering an attachment in wiki content can't set a
+   * custom X-Workspace-Slug header, so GET falls back to a `?workspace=` query param.
+   */
+  test('handles GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const uploadRes = await makeUploadRequest(token, slug, 'query-param content', 'q.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}?workspace=${slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}?workspace=${slug}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(getRes.status).toBe(200)
-    expect(await getRes.text()).toBe('query-param content')
+    await expect(getRes.text()).resolves.toBe('query-param content')
   })
 
-  it('GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
+  test('handles GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const uploadRes = await makeUploadRequest(token, slug, 'content', 'q2.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const other = await seedFixture()
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}?workspace=${other.workspace.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}?workspace=${other.workspace.slug}`, {
       headers: { Authorization: `Bearer ${other.token}` },
     })
     expect(getRes.status).toBe(404)
   })
 
-  it('POST /api/files does not honor ?workspace= — the header is still required', async () => {
+  test('handles POST /api/files does not honor ?workspace= — the header is still required', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch(`http://localhost/api/files?workspace=${slug}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await fetchNativeApi(`http://localhost/api/files?workspace=${slug}`, {
       body: form,
+      headers: { Authorization: `Bearer ${token}` },
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
-  it('GET /api/files/:id returns 404 for a different workspace', async () => {
+  test('handles GET /api/files/:id returns 404 for a different workspace', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const uploadRes = await makeUploadRequest(token, slug)
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     // Second workspace — different member
     const other = await seedFixture()
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     expect(getRes.status).toBe(404)
   })
 
-  it('DELETE /api/files/:id returns 404 when accessed from a different workspace', async () => {
+  test('handles DELETE /api/files/:id returns 404 when accessed from a different workspace', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const uploadRes = await makeUploadRequest(token, slug)
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const other = await seedFixture()
 
-    const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
-      method: 'DELETE',
+    const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(other.token, other.workspace.slug),
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(404)
   })
 
-  it('POST /api/files rejects unauthenticated requests', async () => {
+  test('handles POST /api/files rejects unauthenticated requests', async () => {
+    await seedFilesApiFixture()
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', { method: 'POST', body: form })
+    const res = await fetchNativeApi('http://localhost/api/files', { body: form, method: 'POST' })
     expect(res.status).toBe(401)
   })
 
-  it('POST /api/files rejects invalid entityType', async () => {
+  test('handles POST /api/files rejects invalid entityType', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'project')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
+    const res = await fetchNativeApi('http://localhost/api/files', {
+      body: form,
       headers: {
         Authorization: `Bearer ${token}`,
         'X-Workspace-Slug': slug,
       },
-      body: form,
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/files rejects disallowed content type (text/html) → 415', async () => {
+  test('handles POST /api/files rejects disallowed content type (text/html) → 415', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const form = new FormData()
     form.append('file', new File(['<html>evil</html>'], 'evil.html', { type: 'text/html' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(415)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('File type not allowed')
   })
 
-  it('POST /api/files rejects empty content type → 415', async () => {
+  test('handles POST /api/files rejects empty content type → 415', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const form = new FormData()
     form.append('file', new File(['data'], 'noext', { type: '' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(415)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('File type not allowed')
   })
 
-  it('POST /api/files rejects a file over 50 MB → 413', async () => {
+  test('handles POST /api/files rejects a file over 50 MB → 413', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const big = new Uint8Array(50 * 1024 * 1024 + 1)
     const form = new FormData()
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(413)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('File too large (max 50 MB)')
   })
 
-  it('POST /api/files accepts wiki_page entityType', async () => {
+  test('handles POST /api/files accepts wiki_page entityType', async () => {
+    const { slug, token } = await seedFilesApiFixture()
     const wikiPageId = crypto.randomUUID()
     const form = new FormData()
     form.append('file', new File(['wiki content'], 'wiki.txt', { type: 'text/plain' }))
     form.append('entityType', 'wiki_page')
     form.append('entityId', wikiPageId)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; filename: string }
+    const body = await readNativeJson(res, Schema.Struct({ filename: Schema.String, id: Schema.String }))
     expect(body.filename).toBe('wiki.txt')
 
     // Can list the attachment back
-    const listRes = await SELF.fetch(`http://localhost/api/files?entityType=wiki_page&entityId=${wikiPageId}`, {
+    const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${wikiPageId}`, {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
-    const list = (await listRes.json()) as Array<{ filename: string }>
+    const list = await readNativeJson(
+      listRes,
+      Schema.Array(Schema.Struct({ filename: Schema.String })).pipe(Schema.mutable),
+    )
     expect(list).toHaveLength(1)
     expect(list[0].filename).toBe('wiki.txt')
   })
 
-  it('POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
-    const QUOTA = 1024 * 1024 * 1024 // 1 GB
-    const now = Math.floor(Date.now() / 1000)
+  test('handles POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
+    const { slug, token, userId, workspaceId } = await seedFilesApiFixture()
+    // 1 GB
+    const QUOTA = 1024 * 1024 * 1024
+    const now = currentEpochSeconds()
     // Insert a fake attachment that consumes all but 1 byte of the quota
     await env.DB.prepare(
       `INSERT INTO attachments (id, workspace_id, r2_key, filename, content_type, size, entity_type,
@@ -398,268 +443,323 @@ describe('Files API', () => {
     form.append('file', new File(['xy'], 'tiny.png', { type: 'image/png' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(413)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('Workspace storage quota exceeded (1024 MB)')
   })
 
-  describe('POST /api/files/links (wiki_ref and url attachment kinds)', () => {
-    async function createWikiPage(headers: Record<string, string>) {
-      const res = await SELF.fetch('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Linked page', content: 'hello' }),
-      })
-      const body = (await res.json()) as { id: string }
+  describe('handles POST /api/files/links (wiki_ref and url attachment kinds)', () => {
+    const createWikiPage = async function createWikiPage(headers: Record<string, string>): Promise<string> {
+      const res = await fetchNativeApi(
+        'http://localhost/api/wiki',
+        requestOptionsWithBody(
+          'POST',
+          { ...headers, 'Content-Type': 'application/json' },
+          JSON.stringify({ content: 'hello', title: 'Linked page' }),
+        ),
+      )
+      const body = await readNativeJson(res, IdResponse)
       return body.id
     }
 
-    it('attaches a wiki page reference and lists it with title/url', async () => {
+    test('attaches a wiki page reference and lists it with title/url', async () => {
+      const { slug, token } = await seedFilesApiFixture()
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
       const wikiPageId = await createWikiPage(headers)
 
-      const res = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          wikiPageId,
-        }),
-      })
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          headers,
+          JSON.stringify({
+            entityId: ENTITY_ID,
+            entityType: 'issue',
+            kind: 'wiki_ref',
+            wikiPageId,
+          }),
+        ),
+      )
       expect(res.status).toBe(201)
-      expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'wiki_ref' })
+      await expect(res.json()).resolves.toMatchObject({ id: expect.any(String), kind: 'wiki_ref' })
 
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as Array<{
-        kind: string
-        wikiPage: { id: string; title: string; url: string } | null
-      }>
-      const entry = list.find((l) => l.kind === 'wiki_ref')
+      const listShape = Schema.Array(
+        Schema.Struct({
+          kind: Schema.String,
+          wikiPage: Schema.Union([
+            Schema.Struct({ id: Schema.String, title: Schema.String, url: Schema.String }),
+            Schema.Null,
+          ]),
+        }),
+      ).pipe(Schema.mutable)
+      const list = await readNativeJson(listRes, listShape)
+      const entry = list.find((link) => link.kind === 'wiki_ref')
       expect(entry?.wikiPage?.title).toBe('Linked page')
       expect(entry?.wikiPage?.id).toBe(wikiPageId)
     })
 
-    it('rejects a wiki_ref for a non-existent wiki page → 404', async () => {
-      const res = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          wikiPageId: crypto.randomUUID(),
-        }),
-      })
+    test('rejects a wiki_ref for a non-existent wiki page → 404', async () => {
+      const { slug, token } = await seedFilesApiFixture()
+      const requestOptions = requestOptionsWithBody(
+        'POST',
+        { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+        stringifyOrderedFields([
+          ['kind', 'wiki_ref'],
+          ['entityType', 'issue'],
+          ['entityId', ENTITY_ID],
+          ['wikiPageId', crypto.randomUUID()],
+        ]),
+      )
+      const res = await fetchNativeApi('http://localhost/api/files/links', requestOptions)
       expect(res.status).toBe(404)
     })
 
-    it('attaches a URL with a label and lists it', async () => {
-      const res = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          url: 'https://example.com/doc',
-          label: 'Design doc',
-        }),
-      })
+    test('attaches a URL with a label and lists it', async () => {
+      const { slug, token } = await seedFilesApiFixture()
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+          stringifyOrderedFields([
+            ['kind', 'url'],
+            ['entityType', 'issue'],
+            ['entityId', ENTITY_ID],
+            ['url', 'https://example.com/doc'],
+            ['label', 'Design doc'],
+          ]),
+        ),
+      )
       expect(res.status).toBe(201)
-      expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'url' })
+      await expect(res.json()).resolves.toMatchObject({ id: expect.any(String), kind: 'url' })
 
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as Array<{
-        kind: string
-        filename: string
-        url: string | null
-      }>
-      const entry = list.find((l) => l.kind === 'url')
+      const listShape = Schema.Array(
+        Schema.Struct({
+          filename: Schema.String,
+          kind: Schema.String,
+          url: Schema.Union([Schema.String, Schema.Null]),
+        }),
+      ).pipe(Schema.mutable)
+      const list = await readNativeJson(listRes, listShape)
+      const entry = list.find((link) => link.kind === 'url')
       expect(entry?.filename).toBe('Design doc')
       expect(entry?.url).toBe('https://example.com/doc')
     })
 
-    it.each(['not-a-url', 'https://[broken', '/relative/path'])('rejects a malformed URL → 400: %s', async (url) => {
-      const res = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          url,
-        }),
-      })
+    test.each(['not-a-url', 'https://[broken', '/relative/path'])('rejects a malformed URL → 400: %s', async (url) => {
+      const { slug, token } = await seedFilesApiFixture()
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+          JSON.stringify({
+            entityId: ENTITY_ID,
+            entityType: 'issue',
+            kind: 'url',
+            url,
+          }),
+        ),
+      )
       expect(res.status).toBe(400)
     })
 
-    it.each(['http://example.com/doc', 'mailto:review@example.com'])(
+    test.each(['http://example.com/doc', 'mailto:review@example.com'])(
       'accepts URLs supported by the standard validator: %s',
       async (url) => {
-        const res = await SELF.fetch('http://localhost/api/files/links', {
-          method: 'POST',
-          headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            kind: 'url',
-            entityType: 'issue',
-            entityId: ENTITY_ID,
-            url,
-          }),
-        })
+        const { slug, token } = await seedFilesApiFixture()
+        const res = await fetchNativeApi(
+          'http://localhost/api/files/links',
+          requestOptionsWithBody(
+            'POST',
+            { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+            JSON.stringify({
+              entityId: ENTITY_ID,
+              entityType: 'issue',
+              kind: 'url',
+              url,
+            }),
+          ),
+        )
         expect(res.status).toBe(201)
       },
     )
 
-    it('DELETE removes a link attachment without touching R2', async () => {
+    test('handles DELETE removes a link attachment without touching R2', async () => {
+      const { slug, token } = await seedFilesApiFixture()
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
-      const createRes = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          url: 'https://example.com',
-        }),
-      })
-      const { id } = (await createRes.json()) as { id: string }
+      const createRes = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          headers,
+          stringifyOrderedFields([
+            ['kind', 'url'],
+            ['entityType', 'issue'],
+            ['entityId', ENTITY_ID],
+            ['url', 'https://example.com'],
+          ]),
+        ),
+      )
+      const { id } = await readNativeJson(createRes, IdResponse)
 
-      const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
-        method: 'DELETE',
+      const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
         headers: authHeaders(token, slug),
+        method: 'DELETE',
       })
       expect(delRes.status).toBe(204)
     })
 
-    it('rejects attaching a project-scoped wiki page the caller cannot see → 404', async () => {
-      // The default fixture user is a plain member with no group grant, so a
-      // freshly created project-scoped page is invisible to them (PROJ-311
-      // default-deny). Bootstrap an admin in the same workspace to create it.
+    test('rejects attaching a project-scoped wiki page the caller cannot see → 404', async () => {
+      const { slug, token, workspaceId } = await seedFilesApiFixture()
+      /*
+       * The default fixture user is a plain member with no group grant, so a
+       * freshly created project-scoped page is invisible to them (PROJ-311
+       * default-deny). Bootstrap an admin in the same workspace to create it.
+       */
       const adminUser = await seedUser(`admin-${crypto.randomUUID()}@example.com`)
       await seedMember(workspaceId, adminUser.id, 'admin')
       const adminToken = await seedToken(workspaceId, adminUser.id)
 
       const project = await seedProject(workspaceId)
-      const pageRes = await SELF.fetch('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: authHeaders(adminToken, slug),
+      const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
-          title: 'Restricted page',
           content: 'secret',
           projectId: project.id,
+          title: 'Restricted page',
         }),
-      })
-      const { id: restrictedPageId } = (await pageRes.json()) as { id: string }
-
-      const res = await SELF.fetch('http://localhost/api/files/links', {
+        headers: authHeaders(adminToken, slug),
         method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          wikiPageId: restrictedPageId,
-        }),
       })
+      const { id: restrictedPageId } = await readNativeJson(pageRes, IdResponse)
+
+      const res = await fetchNativeApi(
+        'http://localhost/api/files/links',
+        requestOptionsWithBody(
+          'POST',
+          { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+          JSON.stringify({
+            entityId: ENTITY_ID,
+            entityType: 'issue',
+            kind: 'wiki_ref',
+            wikiPageId: restrictedPageId,
+          }),
+        ),
+      )
       expect(res.status).toBe(404)
     })
 
-    it("does not leak a project-scoped wiki page's title to a caller without project access", async () => {
+    test("does not leak a project-scoped wiki page's title to a caller without project access", async () => {
+      const { slug, token, workspaceId } = await seedFilesApiFixture()
       const adminUser = await seedUser(`admin-${crypto.randomUUID()}@example.com`)
       await seedMember(workspaceId, adminUser.id, 'admin')
       const adminToken = await seedToken(workspaceId, adminUser.id)
       const adminHeaders = { ...authHeaders(adminToken, slug), 'Content-Type': 'application/json' }
 
       const project = await seedProject(workspaceId)
-      const pageRes = await SELF.fetch('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: adminHeaders,
+      const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         body: JSON.stringify({
-          title: 'Secret project page',
           content: 'secret',
           projectId: project.id,
+          title: 'Secret project page',
         }),
-      })
-      const { id: restrictedPageId } = (await pageRes.json()) as { id: string }
-
-      // Admin attaches it to an entity — the attachment itself is workspace-visible,
-      // only the joined wiki page details should be gated.
-      const entityId = crypto.randomUUID()
-      const linkRes = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
         headers: adminHeaders,
+        method: 'POST',
+      })
+      const { id: restrictedPageId } = await readNativeJson(pageRes, IdResponse)
+
+      /*
+       * Admin attaches it to an entity — the attachment itself is workspace-visible,
+       * only the joined wiki page details should be gated.
+       */
+      const entityId = crypto.randomUUID()
+      const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
         body: JSON.stringify({
-          kind: 'wiki_ref',
-          entityType: 'issue',
           entityId,
+          entityType: 'issue',
+          kind: 'wiki_ref',
           wikiPageId: restrictedPageId,
         }),
+        headers: adminHeaders,
+        method: 'POST',
       })
       expect(linkRes.status).toBe(201)
 
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as Array<{ kind: string; wikiPage: unknown }>
-      const entry = list.find((l) => l.kind === 'wiki_ref')
+      const list = await readNativeJson(
+        listRes,
+        Schema.Array(Schema.Struct({ kind: Schema.String, wikiPage: Schema.Unknown })).pipe(Schema.mutable),
+      )
+      const entry = list.find((link) => link.kind === 'wiki_ref')
       expect(entry?.wikiPage).toBeNull()
     })
 
-    it('trashing the linked wiki page leaves the wiki_ref attachment in place until purge (PROJ-496)', async () => {
-      // Deleting a workspace-level page requires admin/owner, so create+delete
-      // through a dedicated admin rather than the default member fixture.
+    test('trashing the linked wiki page leaves the wiki_ref attachment in place until purge (PROJ-496)', async () => {
+      const { slug, workspaceId } = await seedFilesApiFixture()
+      /*
+       * Deleting a workspace-level page requires admin/owner, so create+delete
+       * through a dedicated admin rather than the default member fixture.
+       */
       const adminUser = await seedUser(`admin-${crypto.randomUUID()}@example.com`)
       await seedMember(workspaceId, adminUser.id, 'admin')
       const adminToken = await seedToken(workspaceId, adminUser.id)
       const adminHeaders = { ...authHeaders(adminToken, slug), 'Content-Type': 'application/json' }
 
-      const pageRes = await SELF.fetch('http://localhost/api/wiki', {
-        method: 'POST',
+      const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
+        body: JSON.stringify({ content: 'will be deleted', title: 'Doomed page' }),
         headers: adminHeaders,
-        body: JSON.stringify({ title: 'Doomed page', content: 'will be deleted' }),
+        method: 'POST',
       })
-      const { id: wikiPageId, slug: wikiPageSlug } = (await pageRes.json()) as {
-        id: string
-        slug: string
-      }
+      const { id: wikiPageId, slug: wikiPageSlug } = await readNativeJson(pageRes, IdAndSlugResponse)
 
       const entityId = crypto.randomUUID()
-      const linkRes = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
+      const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
+        body: JSON.stringify({ entityId, entityType: 'issue', kind: 'wiki_ref', wikiPageId }),
         headers: adminHeaders,
-        body: JSON.stringify({ kind: 'wiki_ref', entityType: 'issue', entityId, wikiPageId }),
+        method: 'POST',
       })
       expect(linkRes.status).toBe(201)
 
-      const delRes = await SELF.fetch(`http://localhost/api/wiki/${wikiPageSlug}`, {
-        method: 'DELETE',
+      const delRes = await fetchNativeApi(`http://localhost/api/wiki/${wikiPageSlug}`, {
         headers: adminHeaders,
+        method: 'DELETE',
       })
       expect(delRes.status).toBe(200)
 
-      // PROJ-496: wiki attachment/wiki_ref cleanup (deleteWikiPageAttachments) moved
-      // from delete time to purge time — the pointer attachment must still exist right
-      // after the page is trashed.
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
+      /*
+       * PROJ-496: wiki attachment/wiki_ref cleanup (deleteWikiPageAttachments) moved
+       * from delete time to purge time — the pointer attachment must still exist right
+       * after the page is trashed.
+       */
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
-      const list = (await listRes.json()) as Array<{ kind: string; id: string; wikiPage: unknown }>
-      const trashedEntry = list.find((l) => l.kind === 'wiki_ref')
+      const list = await readNativeJson(
+        listRes,
+        Schema.Array(Schema.Struct({ id: Schema.String, kind: Schema.String, wikiPage: Schema.Unknown })).pipe(
+          Schema.mutable,
+        ),
+      )
+      const trashedEntry = list.find((link) => link.kind === 'wiki_ref')
       expect(trashedEntry).toBeDefined()
-      // The page still exists (not yet purged) but is trashed — it must behave like the
-      // existing "unavailable ref" case (a non-visible/deleted page), not resolve full
-      // title/url details for a page the user can no longer see live.
+      /*
+       * The page still exists (not yet purged) but is trashed — it must behave like the
+       * existing "unavailable ref" case (a non-visible/deleted page), not resolve full
+       * title/url details for a page the user can no longer see live.
+       */
       expect(trashedEntry?.wikiPage).toBeNull()
 
       await resetRateLimits()
@@ -672,95 +772,108 @@ describe('Files API', () => {
       expect(metadata.wikiPage).toBeNull()
 
       await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE id = ?')
-        .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, wikiPageId)
+        .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, wikiPageId)
         .run()
       await resetRateLimits()
-      const purgeRes = await SELF.fetch('http://localhost/api/wiki/purge-trash', {
-        method: 'POST',
+      const purgeRes = await fetchNativeApi('http://localhost/api/wiki/purge-trash', {
         headers: adminHeaders,
+        method: 'POST',
       })
       expect(purgeRes.status).toBe(200)
 
       await resetRateLimits()
-      const listAfterPurge = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
+      const listAfterPurge = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
-      const listAfter = (await listAfterPurge.json()) as Array<{ kind: string }>
-      expect(listAfter.find((l) => l.kind === 'wiki_ref')).toBeUndefined()
+      const listAfter = await readNativeJson(
+        listAfterPurge,
+        Schema.Array(Schema.Struct({ kind: Schema.String })).pipe(Schema.mutable),
+      )
+      expect(listAfter.find((link) => link.kind === 'wiki_ref')).toBeUndefined()
     })
   })
 
-  describe('PROJ-425: viewer role is denied write access', () => {
-    it('POST /api/files rejects a viewer upload → 403', async () => {
+  describe('covers PROJ-425: viewer role is denied write access', () => {
+    test('handles POST /api/files rejects a viewer upload → 403', async () => {
+      await seedFilesApiFixture()
       const { workspace, viewer } = await seedWorkspaceRoles()
       const form = new FormData()
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
       form.append('entityType', 'issue')
       form.append('entityId', crypto.randomUUID())
-      const res = await SELF.fetch('http://localhost/api/files', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${viewer.token}`, 'X-Workspace-Slug': workspace.slug },
+      const res = await fetchNativeApi('http://localhost/api/files', {
         body: form,
+        headers: { Authorization: `Bearer ${viewer.token}`, 'X-Workspace-Slug': workspace.slug },
+        method: 'POST',
       })
       expect(res.status).toBe(403)
     })
 
-    it('POST /api/files/links rejects a viewer → 403', async () => {
+    test('handles POST /api/files/links rejects a viewer → 403', async () => {
+      await seedFilesApiFixture()
       const { workspace, viewer } = await seedWorkspaceRoles()
-      const res = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: {
+      const viewerRequestOptions = requestOptionsWithBody(
+        'POST',
+        {
           ...authHeaders(viewer.token, workspace.slug),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: crypto.randomUUID(),
-          url: 'https://example.com',
-        }),
-      })
+        stringifyOrderedFields([
+          ['kind', 'url'],
+          ['entityType', 'issue'],
+          ['entityId', crypto.randomUUID()],
+          ['url', 'https://example.com'],
+        ]),
+      )
+      const res = await fetchNativeApi('http://localhost/api/files/links', viewerRequestOptions)
       expect(res.status).toBe(403)
     })
 
-    it('DELETE /api/files/:id rejects a viewer → 403', async () => {
+    test('handles DELETE /api/files/:id rejects a viewer → 403', async () => {
+      await seedFilesApiFixture()
       const { workspace, owner, viewer } = await seedWorkspaceRoles()
       const form = new FormData()
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
       form.append('entityType', 'issue')
       form.append('entityId', crypto.randomUUID())
-      const uploadRes = await SELF.fetch('http://localhost/api/files', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${owner.token}`, 'X-Workspace-Slug': workspace.slug },
+      const uploadRes = await fetchNativeApi('http://localhost/api/files', {
         body: form,
+        headers: { Authorization: `Bearer ${owner.token}`, 'X-Workspace-Slug': workspace.slug },
+        method: 'POST',
       })
-      const { id } = (await uploadRes.json()) as { id: string }
+      const { id } = await readNativeJson(uploadRes, IdResponse)
 
-      const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
-        method: 'DELETE',
+      const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
         headers: authHeaders(viewer.token, workspace.slug),
+        method: 'DELETE',
       })
       expect(delRes.status).toBe(403)
     })
   })
 })
 
-// PROJ-234: attachments previously had no MCP surface at all. list/get/create-link/delete
-// are metadata-only (no binary), so they get full MCP parity; upload/download remain
-// REST-only (AGENTS.md exception).
-describe('Files MCP tools', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+/*
+ * PROJ-234: attachments previously had no MCP surface at all. list/get/create-link/delete
+ * are metadata-only (no binary), so they get full MCP parity; upload/download remain
+ * REST-only (AGENTS.md exception).
+ */
+describe('files MCP tools', () => {
+  type TestData = Readonly<{
+    slug: string
+    token: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-  })
+    const { token } = fixture
+    const { slug } = fixture.workspace
+    const workspaceId = fixture.workspace.id
+    return { slug, token, workspaceId }
+  }
 
-  it('create_link_attachment + list_attachments + get_attachment + delete_attachment round-trip', async () => {
+  test('create_link_attachment + list_attachments + get_attachment + delete_attachment round-trip', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const headers = authHeaders(token, slug)
     const entityId = crypto.randomUUID()
 
@@ -772,10 +885,13 @@ describe('Files MCP tools', () => {
     )
     expect(created.kind).toBe('url')
 
-    const list = await mcpToolResult<Array<{ id: string; filename: string; url: string | null }>>(
+    const list = await mcpToolResult<{ id: string; filename: string; url: string | null }[]>(
       workspaceId,
       'list_attachments',
-      { entityType: 'issue', entityId },
+      fieldsInOrder([
+        ['entityType', 'issue'],
+        ['entityId', entityId],
+      ]),
       headers,
     )
     expect(list).toHaveLength(1)
@@ -795,94 +911,115 @@ describe('Files MCP tools', () => {
     const afterDelete = await mcpToolResult<unknown[]>(
       workspaceId,
       'list_attachments',
-      { entityType: 'issue', entityId },
+      fieldsInOrder([
+        ['entityType', 'issue'],
+        ['entityId', entityId],
+      ]),
       headers,
     )
     expect(afterDelete).toHaveLength(0)
   })
 
-  it('get_attachment returns a not_found tool error for an unknown id', async () => {
+  test('get_attachment returns a not_found tool error for an unknown id', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_attachment', arguments: { id: crypto.randomUUID() } },
+      fieldsInOrder([
+        ['name', 'get_attachment'],
+        ['arguments', { id: crypto.randomUUID() }],
+      ]),
       authHeaders(token, slug),
     )
     expect('error' in (res as object)).toBe(false)
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  it('create_link_attachment rejects a wiki_ref for a non-existent page', async () => {
+  test('create_link_attachment rejects a wiki_ref for a non-existent page', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'create_link_attachment',
-        arguments: {
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: crypto.randomUUID(),
-          wikiPageId: crypto.randomUUID(),
-        },
-      },
+      fieldsInOrder([
+        ['name', 'create_link_attachment'],
+        [
+          'arguments',
+          {
+            kind: 'wiki_ref',
+            entityType: 'issue',
+            entityId: crypto.randomUUID(),
+            wikiPageId: crypto.randomUUID(),
+          },
+        ],
+      ]),
       authHeaders(token, slug),
     )
     expect('error' in (res as object)).toBe(false)
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  it('delete_attachment via MCP also removes the underlying R2 object for uploaded files', async () => {
+  test('delete_attachment via MCP also removes the underlying R2 object for uploaded files', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const form = new FormData()
     form.append('file', new File(['mcp delete test'], 'mcp.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', crypto.randomUUID())
-    const uploadRes = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    const uploadRes = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const row = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(id).first<{ r2_key: string }>()
-    expect(await env.R2.get(row?.r2_key ?? '')).not.toBeNull()
+    await expect(env.R2.get(row?.r2_key ?? '')).resolves.not.toBeNull()
 
     await mcpToolResult<{ ok: true }>(workspaceId, 'delete_attachment', { id }, authHeaders(token, slug))
 
-    expect(await env.R2.get(row?.r2_key ?? '')).toBeNull()
+    await expect(env.R2.get(row?.r2_key ?? '')).resolves.toBeNull()
   })
 
-  it('list_attachments scopes by workspace — another workspace sees no rows for the same entityId', async () => {
+  test('list_attachments scopes by workspace — another workspace sees no rows for the same entityId', async () => {
+    await seedTestData()
     const other = await seedFixture()
     const result = await mcpToolResult<unknown[]>(
       other.workspace.id,
       'list_attachments',
-      { entityType: 'issue', entityId: ENTITY_ID },
+      fieldsInOrder([
+        ['entityType', 'issue'],
+        ['entityId', ENTITY_ID],
+      ]),
       authHeaders(other.token, other.workspace.slug),
     )
-    expect(result).toEqual([])
+    expect(result).toStrictEqual([])
   })
 
-  it('create_link_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+  test('create_link_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+    await seedTestData()
     const { workspace, viewer } = await seedWorkspaceRoles()
     const res = await mcpCall(
       workspace.id,
       'tools/call',
-      {
-        name: 'create_link_attachment',
-        arguments: {
-          kind: 'url',
-          entityType: 'issue',
-          entityId: crypto.randomUUID(),
-          url: 'https://example.com',
-        },
-      },
+      fieldsInOrder([
+        ['name', 'create_link_attachment'],
+        [
+          'arguments',
+          {
+            kind: 'url',
+            entityType: 'issue',
+            entityId: crypto.randomUUID(),
+            url: 'https://example.com',
+          },
+        ],
+      ]),
       authHeaders(viewer.token, workspace.slug),
     )
     expect('error' in (res as object)).toBe(false)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('delete_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+  test('delete_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+    await seedTestData()
     const { workspace, owner, viewer } = await seedWorkspaceRoles()
     const created = await mcpToolResult<{ id: string }>(
       workspace.id,
@@ -899,7 +1036,10 @@ describe('Files MCP tools', () => {
     const res = await mcpCall(
       workspace.id,
       'tools/call',
-      { name: 'delete_attachment', arguments: { id: created.id } },
+      fieldsInOrder([
+        ['name', 'delete_attachment'],
+        ['arguments', { id: created.id }],
+      ]),
       authHeaders(viewer.token, workspace.slug),
     )
     expect('error' in (res as object)).toBe(false)
@@ -907,102 +1047,140 @@ describe('Files MCP tools', () => {
   })
 })
 
-// PROJ-639: an attachment hangs off an issue or a wiki page, and those live in projects
-// that are default-deny. Nothing resolved that chain, so workspace membership alone got
-// you the filename, size and bytes of every attachment in the workspace.
-describe('Attachment project visibility', () => {
-  let slug: string
-  let workspaceId: string
-  let memberToken: string
-  let memberId: string
-  let adminToken: string
-  // A project the member holds no grant on, with an issue and an attachment on it.
-  let hiddenIssueId: string
-  let hiddenAttachmentId: string
-  let hiddenR2Key: string
-  // A project the member can write.
-  let grantedProjectId: string
+type AttachmentVisibilityFixture = Readonly<{
+  adminToken: string
+  grantedProjectId: string
+  hiddenAttachmentId: string
+  hiddenIssueId: string
+  hiddenR2Key: string
+  memberId: string
+  memberToken: string
+  slug: string
+  workspaceId: string
+}>
 
-  async function seedAttachment(entityType: string, entityId: string, filename: string) {
-    const id = crypto.randomUUID()
-    const r2Key = `${workspaceId}/${crypto.randomUUID()}`
-    await env.R2.put(r2Key, 'secret bytes')
-    await env.DB.prepare(
-      `INSERT INTO attachments (id, workspace_id, kind, r2_key, filename, content_type, size,
+const seedAttachment = async function seedAttachment(
+  { workspaceId, memberId }: Pick<AttachmentVisibilityFixture, 'memberId' | 'workspaceId'>,
+  { entityType, entityId, filename }: Readonly<{ entityType: string; entityId: string; filename: string }>,
+): Promise<{ id: string; r2Key: string }> {
+  const id = crypto.randomUUID()
+  const r2Key = `${workspaceId}/${crypto.randomUUID()}`
+  await env.R2.put(r2Key, 'secret bytes')
+  await env.DB.prepare(
+    `INSERT INTO attachments (id, workspace_id, kind, r2_key, filename, content_type, size,
 	       entity_type, entity_id, created_by_id, created_at)
 	     VALUES (?, ?, 'file', ?, ?, 'text/plain', 12, ?, ?, ?, ?)`,
-    )
-      .bind(id, workspaceId, r2Key, filename, entityType, entityId, memberId, Math.floor(Date.now() / 1000))
-      .run()
-    return { id, r2Key }
-  }
+  )
+    .bind(id, workspaceId, r2Key, filename, entityType, entityId, memberId, currentEpochSeconds())
+    .run()
+  return { id, r2Key }
+}
 
-  beforeEach(async () => {
-    const fixture = await seedFixture()
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    memberToken = fixture.token
-    memberId = fixture.user.id
+const seedAttachmentVisibilityFixture =
+  async function seedAttachmentVisibilityFixture(): Promise<AttachmentVisibilityFixture> {
+    const { workspace, token: memberToken, user } = await seedFixture()
+    const { slug, id: workspaceId } = workspace
+    const memberId = user.id
 
     const admin = await seedUser(`admin-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, admin.id, 'admin')
-    adminToken = await seedToken(workspaceId, admin.id)
+    const adminToken = await seedToken(workspaceId, admin.id)
 
     const granted = await seedProject(workspaceId, 'OPEN')
-    grantedProjectId = granted.id
     await seedGroupGrant(workspaceId, memberId, granted.id, 'member')
 
     const hidden = await seedProject(workspaceId, 'SECRET')
     const issue = await seedIssue(workspaceId, hidden.id, admin.id, { title: 'Hidden issue' })
-    hiddenIssueId = issue.id
-    const att = await seedAttachment('issue', issue.id, 'confidential.txt')
-    hiddenAttachmentId = att.id
-    hiddenR2Key = att.r2Key
-  })
+    const attachment = await seedAttachment(
+      { memberId, workspaceId },
+      { entityId: issue.id, entityType: 'issue', filename: 'confidential.txt' },
+    )
+    return {
+      adminToken,
+      grantedProjectId: granted.id,
+      hiddenAttachmentId: attachment.id,
+      hiddenIssueId: issue.id,
+      hiddenR2Key: attachment.r2Key,
+      memberId,
+      memberToken,
+      slug,
+      workspaceId,
+    }
+  }
 
-  const asMember = () => authHeaders(memberToken, slug)
+const asMember = ({
+  memberToken,
+  slug,
+}: Pick<AttachmentVisibilityFixture, 'memberToken' | 'slug'>): {
+  Authorization: string
+  'X-Workspace-Slug': string
+  'Content-Type': string
+} => authHeaders(memberToken, slug)
 
-  it('hides attachments on an issue in a project the member has no grant on', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
-      headers: asMember(),
+/*
+ * PROJ-639: an attachment hangs off an issue or a wiki page, and those live in projects
+ * that are default-deny. Nothing resolved that chain, so workspace membership alone got
+ * you the filename, size and bytes of every attachment in the workspace.
+ */
+describe('attachment project visibility', () => {
+  // A project the member holds no grant on, with an issue and an attachment on it.
+  // A project the member can write.
+
+  test('hides attachments on an issue in a project the member has no grant on', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    const { hiddenIssueId } = visibilityFixture
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
+      headers: asMember(visibilityFixture),
     })
     expect(res.status).toBe(200)
-    // The filename alone is the leak this closes — "acquisition-terms.pdf" on a ticket
-    // you cannot see tells you plenty without the bytes.
-    expect(await res.json()).toEqual([])
+    /*
+     * The filename alone is the leak this closes — "acquisition-terms.pdf" on a ticket
+     * you cannot see tells you plenty without the bytes.
+     */
+    await expect(res.json()).resolves.toStrictEqual([])
   })
 
-  it('404s the metadata read for an attachment on an invisible issue', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
-      headers: asMember(),
+  test('404s the metadata read for an attachment on an invisible issue', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    const { hiddenAttachmentId } = visibilityFixture
+    const res = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
+      headers: asMember(visibilityFixture),
     })
     expect(res.status).toBe(404)
   })
 
-  it('404s the download rather than streaming the bytes', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}`, {
-      headers: asMember(),
+  test('404s the download rather than streaming the bytes', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    const { hiddenAttachmentId } = visibilityFixture
+    const res = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}`, {
+      headers: asMember(visibilityFixture),
     })
     expect(res.status).toBe(404)
-    // Assert on the body too: the route 404s separately when the R2 object is missing,
-    // so a status check alone would pass even if authz were bypassed and the object
-    // simply absent. This proves the row was never handed over.
-    expect(await res.text()).not.toContain('secret bytes')
+    /*
+     * Assert on the body too: the route 404s separately when the R2 object is missing,
+     * so a status check alone would pass even if authz were bypassed and the object
+     * simply absent. This proves the row was never handed over.
+     */
+    await expect(res.text()).resolves.not.toContain('secret bytes')
   })
 
-  it('404s the delete and leaves the R2 object intact', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}`, {
+  test('404s the delete and leaves the R2 object intact', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    const { hiddenAttachmentId, hiddenR2Key } = visibilityFixture
+    const res = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}`, {
+      headers: asMember(visibilityFixture),
       method: 'DELETE',
-      headers: asMember(),
     })
     expect(res.status).toBe(404)
-    expect(await env.R2.get(hiddenR2Key)).not.toBeNull()
+    await expect(env.R2.get(hiddenR2Key)).resolves.not.toBeNull()
     const row = await env.DB.prepare('SELECT id FROM attachments WHERE id = ?').bind(hiddenAttachmentId).first()
     expect(row).not.toBeNull()
   })
 
-  it('hides attachments on a wiki page in an invisible project, but not workspace-level ones', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('hides attachments on a wiki page in an invisible project, but not workspace-level ones', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    const { memberId, workspaceId } = visibilityFixture
+    const now = currentEpochSeconds()
     const hiddenProject = await env.DB.prepare("SELECT id FROM projects WHERE workspace_id = ? AND key = 'SECRET'")
       .bind(workspaceId)
       .first<{ id: string }>()
@@ -1020,7 +1198,7 @@ describe('Attachment project visibility', () => {
         .bind(
           id,
           workspaceId,
-          name === 'scoped' ? hiddenProject?.id : null,
+          name === 'scoped' ? hiddenProject?.id : SQL_NULL,
           `page-${name}-${id.slice(0, 8)}`,
           name,
           memberId,
@@ -1029,50 +1207,60 @@ describe('Attachment project visibility', () => {
           now,
         )
         .run()
-      await seedAttachment('wiki_page', id, `${name}.txt`)
+      await seedAttachment(visibilityFixture, { entityId: id, entityType: 'wiki_page', filename: `${name}.txt` })
     }
 
-    const scoped = await SELF.fetch(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.scoped}`, {
-      headers: asMember(),
+    const scoped = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.scoped}`, {
+      headers: asMember(visibilityFixture),
     })
-    expect(await scoped.json()).toEqual([])
+    await expect(scoped.json()).resolves.toStrictEqual([])
 
-    // A null project_id is a workspace-level page. Filtering these out too would be a
-    // silent regression that the invisible-project assertions above cannot catch.
-    const global = await SELF.fetch(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`, {
-      headers: asMember(),
+    /*
+     * A null project_id is a workspace-level page. Filtering these out too would be a
+     * silent regression that the invisible-project assertions above cannot catch.
+     */
+    const global = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`, {
+      headers: asMember(visibilityFixture),
     })
-    expect(((await global.json()) as unknown[]).length).toBe(1)
+    const visibleAttachments = await readNativeJson(global, ApiResults.apiListAttachments)
+    expect(visibleAttachments).toHaveLength(1)
   })
 
-  it('still shows the attachment to a workspace admin', async () => {
-    // The filter must be scoped to grant-less members; an admin losing access would be
-    // this fix overshooting into a denial of service.
-    const list = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
+  test('still shows the attachment to a workspace admin', async () => {
+    const { adminToken, hiddenAttachmentId, hiddenIssueId, slug } = await seedAttachmentVisibilityFixture()
+    /*
+     * The filter must be scoped to grant-less members; an admin losing access would be
+     * this fix overshooting into a denial of service.
+     */
+    const list = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
       headers: authHeaders(adminToken, slug),
     })
-    expect(((await list.json()) as unknown[]).length).toBe(1)
+    const attachments = await readNativeJson(list, ApiResults.apiListAttachments)
+    expect(attachments).toHaveLength(1)
 
-    const meta = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
+    const meta = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
       headers: authHeaders(adminToken, slug),
     })
     expect(meta.status).toBe(200)
   })
 
-  it('still lists an attachment whose entity_id resolves to nothing', async () => {
-    // entity_id is not a foreign key, so free-floating attachments are legal and have no
-    // project to authorise against. Requiring a *visible* owner rather than the absence
-    // of an invisible one would make these vanish from their own uploader's view.
+  test('still lists an attachment whose entity_id resolves to nothing', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    /* The entity_id column is not a foreign key, so free-floating attachments are legal and have no
+     * project to authorise against. Requiring a *visible* owner rather than the absence
+     * of an invisible one would make these vanish from their own uploader's view. */
     const orphanId = crypto.randomUUID()
-    await seedAttachment('issue', orphanId, 'orphan.txt')
+    await seedAttachment(visibilityFixture, { entityId: orphanId, entityType: 'issue', filename: 'orphan.txt' })
 
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${orphanId}`, {
-      headers: asMember(),
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${orphanId}`, {
+      headers: asMember(visibilityFixture),
     })
-    expect(((await res.json()) as Array<{ filename: string }>).map((a) => a.filename)).toEqual(['orphan.txt'])
+    const attachments = await readNativeJson(res, ApiResults.apiListAttachments)
+    expect(attachments.map((attachment) => attachment.filename)).toStrictEqual(['orphan.txt'])
   })
 
-  it('rejects uploading onto an issue in an invisible project without orphaning the R2 object', async () => {
+  test('rejects uploading onto an issue in an invisible project without orphaning the R2 object', async () => {
+    const { hiddenIssueId, hiddenR2Key, memberToken, slug, workspaceId } = await seedAttachmentVisibilityFixture()
     const before = await env.DB.prepare('SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?')
       .bind(workspaceId)
       .first<{ n: number }>()
@@ -1081,13 +1269,15 @@ describe('Attachment project visibility', () => {
     form.append('file', new File(['planted'], 'planted.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', hiddenIssueId)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
-    // 404, not 403: an invisible project 404s so its existence never leaks (see
-    // requireProjectAccess).
+    /*
+     * 404, not 403: an invisible project 404s so its existence never leaks (see
+     * requireProjectAccess).
+     */
     expect(res.status).toBe(404)
 
     const after = await env.DB.prepare('SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?')
@@ -1095,27 +1285,35 @@ describe('Attachment project visibility', () => {
       .first<{ n: number }>()
     expect(after?.n).toBe(before?.n)
 
-    // The route puts bytes in R2 before recordUpload can reject, so it must clean up or
-    // every rejected upload leaves a billable orphan.
+    /*
+     * The route puts bytes in R2 before recordUpload can reject, so it must clean up or
+     * every rejected upload leaves a billable orphan.
+     */
     const keys = await env.R2.list({ prefix: `${workspaceId}/` })
-    expect(keys.objects.map((o) => o.key)).toEqual([hiddenR2Key])
+    expect(keys.objects.map((object) => object.key)).toStrictEqual([hiddenR2Key])
   })
 
-  it('rejects a link attachment onto an issue in an invisible project', async () => {
-    const res = await SELF.fetch('http://localhost/api/files/links', {
-      method: 'POST',
-      headers: asMember(),
-      body: JSON.stringify({
-        kind: 'url',
-        entityType: 'issue',
-        entityId: hiddenIssueId,
-        url: 'https://example.com',
-      }),
-    })
+  test('rejects a link attachment onto an issue in an invisible project', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    const { hiddenIssueId } = visibilityFixture
+    const res = await fetchNativeApi(
+      'http://localhost/api/files/links',
+      requestOptionsWithBody(
+        'POST',
+        asMember(visibilityFixture),
+        stringifyOrderedFields([
+          ['kind', 'url'],
+          ['entityType', 'issue'],
+          ['entityId', hiddenIssueId],
+          ['url', 'https://example.com'],
+        ]),
+      ),
+    )
     expect(res.status).toBe(404)
   })
 
-  it("rejects an upload onto a project where the member's grant is viewer-only", async () => {
+  test("rejects an upload onto a project where the member's grant is viewer-only", async () => {
+    const { grantedProjectId, memberId, slug, workspaceId } = await seedAttachmentVisibilityFixture()
     const viewerUser = await seedUser(`viewer-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, viewerUser.id, 'member')
     await seedGroupGrant(workspaceId, viewerUser.id, grantedProjectId, 'viewer')
@@ -1126,37 +1324,45 @@ describe('Attachment project visibility', () => {
     form.append('file', new File(['nope'], 'nope.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', issue.id)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${viewerToken}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${viewerToken}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
-    // 403, not 404: the project is visible to them, the write is what's refused. Their
-    // workspace role is `member`, so the flat requireAttachmentWrite guard passes and only
-    // the per-project grant can reject this.
+    /*
+     * 403, not 404: the project is visible to them, the write is what's refused. Their
+     * workspace role is `member`, so the flat requireAttachmentWrite guard passes and only
+     * the per-project grant can reject this.
+     */
     expect(res.status).toBe(403)
   })
 
-  it('still allows an upload onto an issue in a project the member can write', async () => {
+  test('still allows an upload onto an issue in a project the member can write', async () => {
+    const { grantedProjectId, memberId, memberToken, slug, workspaceId } = await seedAttachmentVisibilityFixture()
     const issue = await seedIssue(workspaceId, grantedProjectId, memberId, { title: 'Open issue' })
     const form = new FormData()
     form.append('file', new File(['fine'], 'fine.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', issue.id)
-    const res = await SELF.fetch('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
+    const res = await fetchNativeApi('http://localhost/api/files', {
       body: form,
+      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(201)
   })
 
-  it('hides the attachment from the MCP surface too', async () => {
+  test('hides the attachment from the MCP surface too', async () => {
+    const visibilityFixture = await seedAttachmentVisibilityFixture()
+    const { hiddenAttachmentId, workspaceId } = visibilityFixture
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_attachment', arguments: { id: hiddenAttachmentId } },
-      asMember(),
+      fieldsInOrder([
+        ['name', 'get_attachment'],
+        ['arguments', { id: hiddenAttachmentId }],
+      ]),
+      asMember(visibilityFixture),
     )
     expect('error' in (res as object)).toBe(false)
     expect(toolError(res)?.code).toBe('not_found')

@@ -1,25 +1,31 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { String, Predicate } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { Env } from '#types'
-
+import { currentEpochSeconds } from '#contracts/time.ts'
 import {
   purgeAllWorkspacesExpiredWikiPages,
   purgeExpiredRetentionData,
   runFtsDedupeOnce,
-} from '../../core/api/maintenance'
-import { env } from './fixture-api'
-import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+} from '#core/api/maintenance.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
+import type { Env } from '#types'
 
-// PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
-// one) and every R2/KV call made through a wrapped `env`, so a test can assert on the
-// actual number of subrequests a call made — independent of (and a check on) the
-// production code's own internal budget accounting in index.ts.
-function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
+import { env } from './fixture-api.ts'
+import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
+import { IdAndSlugResponse, readNativeJson } from './response-json.ts'
+
+/*
+ * PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
+ * one) and every R2/KV call made through a wrapped `env`, so a test can assert on the
+ * actual number of subrequests a call made — independent of (and a check on) the
+ * production code's own internal budget accounting in worker.ts.
+ */
+const countSubrequests = function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
   let used = 0
-  const bump = () => {
-    used++
+  const bump = (): void => {
+    used += 1
   }
   const wrapD1 = (db: D1Database): D1Database =>
     new Proxy(db, {
@@ -35,19 +41,19 @@ function countSubrequests(realEnv: typeof env): { env: Env; count: () => number 
                     return new Proxy(bound, {
                       get(boundTarget, boundProp, boundReceiver) {
                         const orig = Reflect.get(boundTarget, boundProp, boundReceiver)
-                        if (typeof boundProp === 'string' && ['all', 'first', 'raw', 'run'].includes(boundProp)) {
-                          return async (...a: unknown[]) => {
+                        if (Predicate.isString(boundProp) && ['all', 'first', 'raw', 'run'].includes(boundProp)) {
+                          return async (...parameters: unknown[]) => {
                             bump()
-                            return await orig.apply(boundTarget, a)
+                            return await orig.apply(boundTarget, parameters)
                           }
                         }
-                        return typeof orig === 'function' ? orig.bind(boundTarget) : orig
+                        return Predicate.isFunction(orig) ? orig.bind(boundTarget) : orig
                       },
                     })
                   }
                 }
                 const orig = Reflect.get(stmtTarget, stmtProp, stmtReceiver)
-                return typeof orig === 'function' ? orig.bind(stmtTarget) : orig
+                return Predicate.isFunction(orig) ? orig.bind(stmtTarget) : orig
               },
             })
           }
@@ -55,21 +61,24 @@ function countSubrequests(realEnv: typeof env): { env: Env; count: () => number 
         if (dbProp === 'batch') {
           return async (statements: D1PreparedStatement[]) => {
             bump()
-            return await Reflect.get(dbTarget, 'batch', dbReceiver).call(dbTarget, statements)
+            const result = await Reflect.get(dbTarget, 'batch', dbReceiver).call(dbTarget, statements)
+            return result
           }
         }
         const orig = Reflect.get(dbTarget, dbProp, dbReceiver)
-        return typeof orig === 'function' ? orig.bind(dbTarget) : orig
+        return Predicate.isFunction(orig) ? orig.bind(dbTarget) : orig
       },
     })
   const wrapCalls = <T extends object>(target: T): T =>
     new Proxy(target, {
-      get(t, prop, receiver) {
-        const orig = Reflect.get(t, prop, receiver)
-        if (typeof orig !== 'function') return orig
+      get(proxyTarget, prop, receiver) {
+        const orig = Reflect.get(proxyTarget, prop, receiver)
+        if (!Predicate.isFunction(orig)) {
+          return orig
+        }
         return (...args: unknown[]) => {
           bump()
-          return orig.apply(t, args)
+          return orig.apply(proxyTarget, args)
         }
       },
     })
@@ -79,53 +88,59 @@ function countSubrequests(realEnv: typeof env): { env: Env; count: () => number 
     DB: wrapD1(realEnv.DB),
     R2: wrapCalls(realEnv.R2),
     KV: wrapCalls(realEnv.KV),
-  } as unknown as Env
+  }
   return { env: wrappedEnv, count: () => used }
 }
 
-// PROJ-496: the Workers Cron Trigger itself can't be exercised locally (no local cron
-// firing in dev/test), so this calls the exported `purgeAllWorkspacesExpiredWikiPages`
-// helper directly — the same function the `scheduled` handler in index.ts invokes on
-// its daily fire — with the real test env, mirroring how the REST/MCP purge tests seed
-// and backdate trash.
+/*
+ * PROJ-496: the Workers Cron Trigger itself can't be exercised locally (no local cron
+ * firing in dev/test), so this calls the exported `purgeAllWorkspacesExpiredWikiPages`
+ * helper directly — the same function the `scheduled` handler in worker.ts invokes on
+ * its daily fire — with the real test env, mirroring how the REST/MCP purge tests seed
+ * and backdate trash.
+ */
 describe('scheduled wiki trash purge (PROJ-496)', () => {
-  let token: string
-  let slug: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'admin' })
-    token = fixture.token
-    slug = fixture.workspace.slug
-  })
-
-  async function req(url: string, opts?: RequestInit) {
-    await resetRateLimits()
-    return SELF.fetch(url, opts)
+    const { token } = fixture
+    const { slug } = fixture.workspace
+    return { slug, token }
   }
 
-  it('purges expired trash across every workspace, leaving unexpired trash untouched', async () => {
+  const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
+    await resetRateLimits()
+    return fetchNativeApi(url, opts)
+  }
+
+  test('purges expired trash across every workspace, leaving unexpired trash untouched', async () => {
+    const { slug, token } = await seedTestData()
     const other = await seedFixture({ role: 'admin' })
 
     const pageRes = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Scheduled Purge Page', content: 'content' }),
+      body: JSON.stringify({ content: 'content', title: 'Scheduled Purge Page' }),
     })
-    const page = (await pageRes.json()) as { id: string; slug: string }
+    const page = await readNativeJson(pageRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE id = ?')
-      .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, page.id)
+      .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, page.id)
       .run()
 
     const otherPageRes = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
-      body: JSON.stringify({ title: 'Scheduled Purge Other Page', content: 'content' }),
+      body: JSON.stringify({ content: 'content', title: 'Scheduled Purge Other Page' }),
     })
-    const otherPage = (await otherPageRes.json()) as { id: string; slug: string }
+    const otherPage = await readNativeJson(otherPageRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
       method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),
@@ -134,28 +149,33 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
 
     await purgeAllWorkspacesExpiredWikiPages(env)
 
-    expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(page.id).first()).toBeNull()
-    expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(otherPage.id).first()).not.toBeNull()
+    await expect(env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(page.id).first()).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(otherPage.id).first(),
+    ).resolves.not.toBeNull()
   })
 
-  it('does not throw when a workspace has no expired trash', async () => {
+  test('does not throw when a workspace has no expired trash', async () => {
+    await seedTestData()
     await expect(purgeAllWorkspacesExpiredWikiPages(env)).resolves.toBeUndefined()
   })
 })
 
-// PROJ-869: retention for wiki_notifications, ended agent_sessions (only ones no
-// issue_leases row references), and the activity log — each pruned only once past its own
-// window, and left alone otherwise. issue_leases is never pruned by age (post-review
-// correction): flow metrics read old leases for lease-held time and lease expiries.
+/*
+ * PROJ-869: retention for wiki_notifications, ended agent_sessions (only ones no
+ * issue_leases row references), and the activity log — each pruned only once past its own
+ * window, and left alone otherwise. issue_leases is never pruned by age (post-review
+ * correction): flow metrics read old leases for lease-held time and lease expiries.
+ */
 describe('scheduled retention purge (PROJ-869)', () => {
-  const now = () => Math.floor(Date.now() / 1000)
+  const now = (): number => currentEpochSeconds()
   const DAY = 24 * 60 * 60
 
-  it("deletes only rows older than each category's retention window", async () => {
+  test("deletes only rows older than each category's retention window", async () => {
     const fixture = await seedIssueFixture({ role: 'admin' })
     const { workspaceId, userId, issueId } = fixture
 
-    // wiki_notifications: one older than 90 days, one recent.
+    // Table wiki_notifications: one older than 90 days, one recent.
     const expiredNotificationId = crypto.randomUUID()
     const freshNotificationId = crypto.randomUUID()
     await env.DB.prepare(
@@ -170,11 +190,11 @@ describe('scheduled retention purge (PROJ-869)', () => {
 			   (id, workspace_id, user_id, page_id, page_slug, page_title, action, actor_id, summary, created_at)
 			 VALUES (?, ?, ?, 'p2', 'p2', 'P2', 'updated', NULL, 'x', ?)`,
     )
-      .bind(freshNotificationId, workspaceId, userId, now() - 1 * DAY)
+      .bind(freshNotificationId, workspaceId, userId, now() - DAY)
       .run()
 
-    // agent_sessions: one ended 91 days ago with NO lease (should be purged), one ended
-    // 91 days ago that STILL has a lease (must survive — flow metrics need it), one live.
+    /* Table agent_sessions: one ended 91 days ago with NO lease (should be purged), one ended
+     * 91 days ago that STILL has a lease (must survive — flow metrics need it), one live. */
     const expiredNoLeaseId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO agent_sessions
@@ -193,7 +213,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
       .run()
     const live = await seedAgentLease(workspaceId, issueId, { live: true })
 
-    // activity: one older than 1 year, one recent.
+    // Activity: one older than 1 year, one recent.
     const expiredActivityId = crypto.randomUUID()
     const freshActivityId = crypto.randomUUID()
     await env.DB.prepare(
@@ -206,64 +226,77 @@ describe('scheduled retention purge (PROJ-869)', () => {
       `INSERT INTO activity (id, workspace_id, entity_type, entity_id, actor_id, action, diff, created_at)
 			 VALUES (?, ?, 'issue', ?, ?, 'updated', NULL, ?)`,
     )
-      .bind(freshActivityId, workspaceId, issueId, userId, now() - 1 * DAY)
+      .bind(freshActivityId, workspaceId, issueId, userId, now() - DAY)
       .run()
 
     await purgeExpiredRetentionData(env)
 
-    expect(
-      await env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(expiredNotificationId).first(),
-    ).toBeNull()
-    expect(
-      await env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(freshNotificationId).first(),
-    ).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(expiredNotificationId).first(),
+    ).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM wiki_notifications WHERE id = ?').bind(freshNotificationId).first(),
+    ).resolves.not.toBeNull()
 
     // The lease-less expired session is purged.
-    expect(await env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredNoLeaseId).first()).toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredNoLeaseId).first(),
+    ).resolves.toBeNull()
 
-    // PROJ-869 (must-fix): an old ended session that STILL has a lease survives, and so
-    // does its lease — issue_leases is never pruned by age, and the NOT EXISTS clause on
-    // agent_sessions keeps any session a lease still references.
-    expect(
-      await env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(expiredWithLease.leaseId).first(),
-    ).not.toBeNull()
-    expect(
-      await env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredWithLease.agentSessionId).first(),
-    ).not.toBeNull()
+    /*
+     * PROJ-869 (must-fix): an old ended session that STILL has a lease survives, and so
+     * does its lease — issue_leases is never pruned by age, and the NOT EXISTS clause on
+     * agent_sessions keeps any session a lease still references.
+     */
+    await expect(
+      env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(expiredWithLease.leaseId).first(),
+    ).resolves.not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredWithLease.agentSessionId).first(),
+    ).resolves.not.toBeNull()
 
-    expect(await env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(live.leaseId).first()).not.toBeNull()
-    expect(
-      await env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(live.agentSessionId).first(),
-    ).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(live.leaseId).first(),
+    ).resolves.not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(live.agentSessionId).first(),
+    ).resolves.not.toBeNull()
 
-    expect(await env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(expiredActivityId).first()).toBeNull()
-    expect(await env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(freshActivityId).first()).not.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(expiredActivityId).first(),
+    ).resolves.toBeNull()
+    await expect(
+      env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(freshActivityId).first(),
+    ).resolves.not.toBeNull()
   })
 
-  it('does not throw when there is nothing expired', async () => {
+  test('does not throw when there is nothing expired', async () => {
     await expect(purgeExpiredRetentionData(env)).resolves.toBeUndefined()
   })
 })
 
-// PROJ-865: the daily cron's wiki-trash purge must scale with the number of workspaces
-// that actually have expired trash, not the number of workspaces in the instance, and
-// must never risk the Workers per-invocation subrequest ceiling regardless of backlog
-// size — bounding the work per invocation via a budget + KV cursor instead.
+/*
+ * PROJ-865: the daily cron's wiki-trash purge must scale with the number of workspaces
+ * that actually have expired trash, not the number of workspaces in the instance, and
+ * must never risk the Workers per-invocation subrequest ceiling regardless of backlog
+ * size — bounding the work per invocation via a budget + KV cursor instead.
+ */
 describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
-  const EXPIRED_AT = Math.floor(Date.now() / 1000) - 40 * 24 * 60 * 60 // well past the 30-day retention
+  // Well past the 30-day retention
+  const EXPIRED_AT = currentEpochSeconds() - 40 * 24 * 60 * 60
 
-  it('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
+  test('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
     const creator = await seedUser(`cron-purge-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const workspaceIds: string[] = []
-    for (let i = 0; i < 50; i++) {
-      const ws = await seedWorkspace(`cron-purge-ws-${i}-${crypto.randomUUID().slice(0, 6)}`)
+    await runIndexedInOrder(50, async (index): Promise<void> => {
+      const ws = await seedWorkspace(`cron-purge-ws-${index}-${crypto.randomUUID().slice(0, 6)}`)
       workspaceIds.push(ws.id)
-    }
+    })
 
     const pageIds: string[] = []
     const workspaceIdByPageId = new Map<string, string>()
-    for (let i = 0; i < 300; i++) {
-      const workspaceId = workspaceIds[i % workspaceIds.length]
+    await runIndexedInOrder(300, async (index): Promise<void> => {
+      const workspaceId = workspaceIds[index % workspaceIds.length]
       const id = crypto.randomUUID()
       workspaceIdByPageId.set(id, workspaceId)
       await env.DB.prepare(
@@ -276,8 +309,8 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         .bind(
           id,
           workspaceId,
-          `expired-page-${i}`,
-          `Expired Page ${i}`,
+          `expired-page-${index}`,
+          `Expired Page ${index}`,
           creator.id,
           creator.id,
           EXPIRED_AT,
@@ -287,36 +320,49 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         )
         .run()
       pageIds.push(id)
-    }
+    })
 
-    for (let i = 0; i < 100; i++) {
-      const pageId = pageIds[i * 3] // spread across ~1/3 of the pages
+    await runIndexedInOrder(100, async (index): Promise<void> => {
+      // Spread across ~1/3 of the pages
+      const pageId = pageIds[index * 3]
       const workspaceId = workspaceIdByPageId.get(pageId)
-      if (!workspaceId) throw new Error(`no workspace recorded for page ${pageId}`)
+      if (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId)) {
+        throw new Error(`no workspace recorded for page ${pageId}`)
+      }
       await env.DB.prepare(
         `INSERT INTO attachments
 				   (id, workspace_id, kind, r2_key, filename, content_type, size, url,
 				    linked_wiki_page_id, entity_type, entity_id, created_by_id, created_at)
 				 VALUES (?, ?, 'file', ?, ?, 'text/plain', 3, NULL, NULL, 'wiki_page', ?, ?, ?)`,
       )
-        .bind(crypto.randomUUID(), workspaceId, `cron-purge-file-${i}`, `file-${i}.txt`, pageId, creator.id, EXPIRED_AT)
+        .bind(
+          crypto.randomUUID(),
+          workspaceId,
+          `cron-purge-file-${index}`,
+          `file-${index}.txt`,
+          pageId,
+          creator.id,
+          EXPIRED_AT,
+        )
         .run()
-    }
+    })
 
-    // Run the real cron function repeatedly (as separate scheduled fires would),
-    // checking every single invocation's subrequest count, until nothing is left.
+    /*
+     * Run the real cron function repeatedly (as separate scheduled fires would),
+     * checking every single invocation's subrequest count, until nothing is left.
+     */
     let iterations = 0
     let remainingPages = 300
     while (remainingPages > 0 && iterations < 20) {
       const { env: countedEnv, count } = countSubrequests(env)
       await purgeAllWorkspacesExpiredWikiPages(countedEnv)
       expect(count()).toBeLessThanOrEqual(100)
-      iterations++
+      iterations += 1
 
       const row = await env.DB.prepare(
         'SELECT COUNT(*) AS n FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?',
       )
-        .bind(Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60)
+        .bind(currentEpochSeconds() - 30 * 24 * 60 * 60)
         .first<{ n: number }>()
       remainingPages = row?.n ?? 0
     }
@@ -336,20 +382,22 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     expect(leftoverAttachments?.n ?? 0).toBe(0)
   }, 60_000)
 
-  // PROJ-865 (must-fix): purgeExpiredWikiPages itself must bound its own per-call work —
-  // previously it selected every expired page in a workspace with no LIMIT, so a single
-  // workspace with a large backlog could blow the subrequest budget in ONE workspace's
-  // worth of work before the outer loop's per-workspace budget check ever got a chance to
-  // stop it. A single workspace with 500 expired pages must therefore stay within budget
-  // on every call, and the KV cursor must keep re-visiting that SAME workspace (instead of
-  // moving on) until it's fully drained, since findWorkspacesWithExpiredTrash won't be
-  // re-run while the cursor still lists it.
-  it('1 workspace / 500 expired pages: every run stays within budget, repeated runs purge them all', async () => {
+  /*
+   * PROJ-865 (must-fix): purgeExpiredWikiPages itself must bound its own per-call work —
+   * previously it selected every expired page in a workspace with no LIMIT, so a single
+   * workspace with a large backlog could blow the subrequest budget in ONE workspace's
+   * worth of work before the outer loop's per-workspace budget check ever got a chance to
+   * stop it. A single workspace with 500 expired pages must therefore stay within budget
+   * on every call, and the KV cursor must keep re-visiting that SAME workspace (instead of
+   * moving on) until it's fully drained, since findWorkspacesWithExpiredTrash won't be
+   * re-run while the cursor still lists it.
+   */
+  test('1 workspace / 500 expired pages: every run stays within budget, repeated runs purge them all', async () => {
     const creator = await seedUser(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const ws = await seedWorkspace(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 6)}`)
 
     const pageIds: string[] = []
-    for (let i = 0; i < 500; i++) {
+    await runIndexedInOrder(500, async (index): Promise<void> => {
       const id = crypto.randomUUID()
       await env.DB.prepare(
         `INSERT INTO wiki_pages
@@ -361,18 +409,19 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         .bind(
           id,
           ws.id,
-          `one-ws-expired-page-${i}`,
-          `One WS Expired Page ${i}`,
+          `one-ws-expired-page-${index}`,
+          `One WS Expired Page ${index}`,
           creator.id,
           creator.id,
           EXPIRED_AT,
           EXPIRED_AT,
-          EXPIRED_AT - i, // stagger deleted_at so ORDER BY is deterministic
+          // Stagger deleted_at so ORDER BY is deterministic
+          EXPIRED_AT - index,
           crypto.randomUUID(),
         )
         .run()
       pageIds.push(id)
-    }
+    })
 
     let iterations = 0
     let remainingPages = 500
@@ -380,18 +429,19 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
       const { env: countedEnv, count } = countSubrequests(env)
       await purgeAllWorkspacesExpiredWikiPages(countedEnv)
       expect(count()).toBeLessThanOrEqual(100)
-      iterations++
+      iterations += 1
 
       const row = await env.DB.prepare(
         'SELECT COUNT(*) AS n FROM wiki_pages WHERE workspace_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?',
       )
-        .bind(ws.id, Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60)
+        .bind(ws.id, currentEpochSeconds() - 30 * 24 * 60 * 60)
         .first<{ n: number }>()
       remainingPages = row?.n ?? 0
     }
 
     expect(remainingPages).toBe(0)
-    expect(iterations).toBeGreaterThan(1) // 500 pages couldn't have drained in a single call
+    // 500 pages couldn't have drained in a single call
+    expect(iterations).toBeGreaterThan(1)
     const leftover = await env.DB.prepare(
       'SELECT COUNT(*) AS n FROM wiki_pages WHERE id IN (SELECT value FROM json_each(?))',
     )
@@ -401,11 +451,13 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   }, 60_000)
 })
 
-// PROJ-816 follow-up: a one-off wiki_fts dedupe, guarded by a KV flag so it runs exactly
-// once ever, removes stray FTS rows that pre-0065 worker code inserted during the deploy
-// window with an auto-assigned rowid instead of the page's search_rowid.
+/*
+ * PROJ-816 follow-up: a one-off wiki_fts dedupe, guarded by a KV flag so it runs exactly
+ * once ever, removes stray FTS rows that pre-0065 worker code inserted during the deploy
+ * window with an auto-assigned rowid instead of the page's search_rowid.
+ */
 describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
-  it('removes a stray FTS row and runs the DELETE only once across repeated cron fires', async () => {
+  test('removes a stray FTS row and runs the DELETE only once across repeated cron fires', async () => {
     await env.KV.delete('maint:fts-dedupe-0065')
 
     // A stray row: inserted with an auto rowid that no wiki_pages.search_rowid points at.
@@ -419,20 +471,23 @@ describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
         get(target, prop, receiver) {
           if (prop === 'prepare') {
             return (sql: string) => {
-              if (sql.includes('DELETE FROM wiki_fts WHERE rowid NOT IN')) ran++
+              if (sql.includes('DELETE FROM wiki_fts WHERE rowid NOT IN')) {
+                ran += 1
+              }
               return originalPrepare(sql)
             }
           }
           return Reflect.get(target, prop, receiver)
         },
       }),
-    } as unknown as Env
+    }
 
     await runFtsDedupeOnce(spyEnv)
-    await runFtsDedupeOnce(spyEnv) // second cron fire: must be a no-op, guarded by the KV flag
+    // Second cron fire: must be a no-op, guarded by the KV flag
+    await runFtsDedupeOnce(spyEnv)
 
     expect(ran).toBe(1)
-    expect(await env.DB.prepare('SELECT rowid FROM wiki_fts WHERE rowid = 999999999').first()).toBeNull()
-    expect(await env.KV.get('maint:fts-dedupe-0065')).not.toBeNull()
+    await expect(env.DB.prepare('SELECT rowid FROM wiki_fts WHERE rowid = 999999999').first()).resolves.toBeNull()
+    await expect(env.KV.get('maint:fts-dedupe-0065')).resolves.not.toBeNull()
   })
 })

@@ -1,10 +1,12 @@
-// Single source of truth for shipped agent playbooks — generic, reusable working
-// patterns (as opposed to workflow-content.ts, which is projektor's own state-machine
-// rules). Consumed via list_playbooks/get_playbook (services/playbooks.ts) and
-// GET /api/playbooks[/:name]. sidebarOrder is preserved as registry metadata.
-//
-// Kept as a plain TS constant (not a `?raw` markdown import) for the same reason as
-// WORKFLOW_SPEC: identical loading under the test runner and the Worker bundle.
+/*
+ * Single source of truth for shipped agent playbooks — generic, reusable working
+ * patterns (as opposed to workflow-content.ts, which is projektor's own state-machine
+ * rules). Consumed via list_playbooks/get_playbook (services/playbooks.ts) and
+ * GET /api/playbooks[/:name]. sidebarOrder is preserved as registry metadata.
+ *
+ * Kept as a plain TS constant (not a `?raw` markdown import) for the same reason as
+ * WORKFLOW_SPEC: identical loading under the test runner and the Worker bundle.
+ */
 export interface Playbook {
   name: string
   title: string
@@ -14,9 +16,11 @@ export interface Playbook {
   body: string
 }
 
-// The individual template clauses, factored out so services/playbook-compose.ts can
-// fill and assemble the same wording that PLAYBOOKS' prose body documents below —
-// one source for both the human-readable doc and the machine-composed directive.
+/*
+ * The individual template clauses, factored out so services/playbook-compose.ts can
+ * fill and assemble the same wording that PLAYBOOKS' prose body documents below —
+ * one source for both the human-readable doc and the machine-composed directive.
+ */
 export const EPIC_GOAL_TEMPLATE = {
   goal: '**Goal:** work through {EPIC} autonomously until it is fully done.',
   auditFirst:

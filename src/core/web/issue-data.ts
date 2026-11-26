@@ -1,111 +1,148 @@
 import { sql } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
-import { Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 
-import { schema } from '#db'
-import { listComments } from '#services/comments'
-import { type AttachmentMetadata, listAttachments, listIssueReviewTargets } from '#services/files'
-import { listLinksForIssue } from '#services/issue-links'
-import * as issueQueries from '#services/issues'
-import { searchWiki } from '#services/wiki'
-
-import { ScopeError } from '../../contracts/errors'
-import { ReviewFilterSchema, type ReviewFilter } from '../../contracts/review-targets'
-import { WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
+import { ScopeError } from '#contracts/errors.ts'
+import type { ApiError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { ReviewFilterSchema } from '#contracts/review-targets.ts'
+import type { ReviewFilter, ReviewTarget } from '#contracts/review-targets.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import {
   normalizeAttachments,
   normalizeComments,
   normalizeIssue,
   normalizeIssuePage,
   normalizeLinks,
-} from '../../contracts/web-schemas/issues'
+} from '#contracts/web-schemas/issues.ts'
+import type { Attachment, Comment, Issue, IssueLink, IssuePage } from '#contracts/web-schemas/issues.ts'
+import { schema } from '#db'
+import { listComments } from '#services/comments.ts'
+import { listAttachments, listIssueReviewTargets } from '#services/files.ts'
+import type { AttachmentMetadata } from '#services/files.ts'
+import { listLinksForIssue } from '#services/issue-links.ts'
+import * as issueQueries from '#services/issues.ts'
+import { searchWiki } from '#services/wiki.ts'
+
 import {
   authorizeDataEntity,
   dataError,
   requireDataProject,
   requireDataWorkspace,
   visibleProjectPredicate,
-} from './data-context'
-import { CoreReadServices as RequestServices } from './read-services'
-import type { RequestScope } from './scope'
+} from './data-context.ts'
+import { CoreReadServices as RequestServices } from './read-services.ts'
+import type { RequestScope } from './scope.ts'
 
-/** Keep application policy failures, and redact storage failures before reaching a client. */
-export function checked<A>(read: () => A) {
+type IssueRead<A> = Effect.Effect<A, ScopeError | ApiError, RequestServices>
+
+/**
+ * Keep application policy failures, and redact storage failures before reaching a client.
+ *
+ * @param {() => A} read The synchronous read that can throw a scope or storage error.
+ * @returns {Effect.Effect<A, ScopeError | ApiError>} An effect that preserves scope errors and maps storage errors to public failures.
+ */
+export const checked = function checked<A>(read: () => A): Effect.Effect<A, ScopeError | ApiError> {
   return Effect.try({
-    try: read,
     catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
+    try: read,
   })
 }
 const BooleanQuery = Schema.Literals(['true', '1', 'false', '0', ''])
 const NumericQuery = Schema.NumberFromString.check(Schema.isFinite())
+
+const issueListQueryFields = fieldsInOrder([
+  ['review', Schema.optional(ReviewFilterSchema)],
+  ['status', Schema.optional(Schema.Literals(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled']))],
+  ['priority', Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none']))],
+  ['category', Schema.optional(Schema.Literals(['todo', 'in_progress', 'done', 'cancelled']))],
+  ['statusId', Schema.optional(Schema.String)],
+  ['statusIds', Schema.optional(Schema.String)],
+  ['priorities', Schema.optional(Schema.String)],
+  ['parentId', Schema.optional(Schema.String)],
+  ['typeId', Schema.optional(Schema.String)],
+  ['excludeTypeIds', Schema.optional(Schema.String)],
+  ['sprintId', Schema.optional(Schema.String)],
+  ['assignee', Schema.optional(Schema.String)],
+  ['noParent', Schema.optional(BooleanQuery)],
+  ['includeRollups', Schema.optional(BooleanQuery)],
+  ['includeBody', Schema.optional(BooleanQuery)],
+  ['needsAudit', Schema.optional(BooleanQuery)],
+  ['completedAfter', Schema.optional(NumericQuery)],
+  ['completedBefore', Schema.optional(NumericQuery)],
+  ['updatedAfter', Schema.optional(NumericQuery)],
+  ['updatedBefore', Schema.optional(NumericQuery)],
+  [
+    'cursor',
+    Schema.optional(
+      Schema.String.check(Schema.isPattern(/^\d+(?::[A-Za-z0-9-]+)?$/u, { toJsonSchema: () => [{}, true] })),
+    ),
+  ],
+  ['limit', Schema.optional(NumericQuery.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 })))],
+  ['cfKey', Schema.optional(Schema.String)],
+  ['cfValue', Schema.optional(Schema.String)],
+  ['cfOp', Schema.optional(Schema.Literals(['eq', 'gt', 'gte', 'lt', 'lte']))],
+])
+
 const IssueListQuerySchema = Schema.fromURLSearchParams(
-  Schema.Struct({
-    review: Schema.optional(ReviewFilterSchema),
-    status: Schema.optional(Schema.Literals(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled'])),
-    priority: Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])),
-    category: Schema.optional(Schema.Literals(['todo', 'in_progress', 'done', 'cancelled'])),
-    statusId: Schema.optional(Schema.String),
-    statusIds: Schema.optional(Schema.String),
-    priorities: Schema.optional(Schema.String),
-    parentId: Schema.optional(Schema.String),
-    typeId: Schema.optional(Schema.String),
-    excludeTypeIds: Schema.optional(Schema.String),
-    sprintId: Schema.optional(Schema.String),
-    assignee: Schema.optional(Schema.String),
-    noParent: Schema.optional(BooleanQuery),
-    includeRollups: Schema.optional(BooleanQuery),
-    includeBody: Schema.optional(BooleanQuery),
-    needsAudit: Schema.optional(BooleanQuery),
-    completedAfter: Schema.optional(NumericQuery),
-    completedBefore: Schema.optional(NumericQuery),
-    updatedAfter: Schema.optional(NumericQuery),
-    updatedBefore: Schema.optional(NumericQuery),
-    cursor: Schema.optional(Schema.String.check(Schema.isPattern(/^\d+(?::[A-Za-z0-9-]+)?$/))),
-    limit: Schema.optional(NumericQuery.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 }))),
-    cfKey: Schema.optional(Schema.String),
-    cfValue: Schema.optional(Schema.String),
-    cfOp: Schema.optional(Schema.Literals(['eq', 'gt', 'gte', 'lt', 'lte'])),
-  }).check(
+  Schema.Struct(issueListQueryFields).check(
     Schema.makeFilter(
       (query) =>
-        (query.completedAfter === undefined ||
-          query.completedBefore === undefined ||
+        (Predicate.isNullish(query.completedAfter) ||
+          Predicate.isNullish(query.completedBefore) ||
           query.completedAfter <= query.completedBefore) &&
-        (query.updatedAfter === undefined ||
-          query.updatedBefore === undefined ||
+        (Predicate.isNullish(query.updatedAfter) ||
+          Predicate.isNullish(query.updatedBefore) ||
           query.updatedAfter <= query.updatedBefore),
     ),
   ),
 )
-function listOptions(params: URLSearchParams, scope: RequestScope) {
-  return Schema.decodeUnknownEffect(IssueListQuerySchema)(params).pipe(
-    Effect.mapError(() => new ScopeError(400, 'Invalid issue filters or cursor.')),
+const decodeIssueListQuery = Schema.decodeUnknownEffect(IssueListQuerySchema)
+const decodeOptionalReviewFilter = Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))
+const decodeWikiSearchResults = Schema.decodeUnknownEffect(WikiSearchResultsSchema)
+
+const listOptions = function listOptions(params: URLSearchParams, scope: RequestScope) {
+  return decodeIssueListQuery(params).pipe(
+    Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid issue filters or cursor.')),
     Effect.map(
       ({ cursor, noParent, includeRollups, includeBody, needsAudit, assignee, cfKey, cfValue, cfOp, ...fields }) => {
         const [createdAt, id] = cursor?.split(':') ?? []
-        const boolean = (value: string | undefined) =>
-          value === undefined ? undefined : value === '1' || value === 'true'
-        return {
-          options: {
-            ...fields,
-            limit: fields.limit ?? 30,
-            cursor: cursor ? { createdAt: Number(createdAt), id } : undefined,
-            noParent: boolean(noParent),
-            includeRollups: boolean(includeRollups),
-            includeBody: boolean(includeBody),
-            needsAudit: boolean(needsAudit),
-            assignee: assignee === 'me' ? scope.user.id : assignee,
-          } satisfies issueQueries.IssueListOptions,
-          cfKey,
-          cfValue,
-          cfOp,
-        }
+        const boolean = (value: string | undefined): undefined | boolean =>
+          Predicate.isNullish(value) ? undefined : value === '1' || value === 'true'
+        return fieldsInOrder([
+          [
+            'options',
+            {
+              ...fields,
+              limit: fields.limit ?? 30,
+              cursor:
+                Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)
+                  ? { createdAt: Number(createdAt), id }
+                  : undefined,
+              noParent: boolean(noParent),
+              includeRollups: boolean(includeRollups),
+              includeBody: boolean(includeBody),
+              needsAudit: boolean(needsAudit),
+              assignee: assignee === 'me' ? scope.user.id : assignee,
+            } satisfies issueQueries.IssueListOptions,
+          ],
+          ['cfKey', cfKey],
+          ['cfValue', cfValue],
+          ['cfOp', cfOp],
+        ])
       },
     ),
   )
 }
 
-export function readDataIssue(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataIssue = function readDataIssue(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<Issue> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
@@ -116,34 +153,44 @@ export function readDataIssue(scope: RequestScope, workspaceId: string, identifi
         issueQueries.ISSUE_REF_PATTERN.test(identifier) ? { ref: identifier } : { id: identifier },
       )
       .pipe(Effect.mapError(dataError))
-    if (!row) return yield* new ScopeError(404, 'Issue not found.')
+    if (!row) {
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Issue not found.')
+    }
     yield* checked(() => authorizeDataEntity(scope, workspaceId, { projectId: row.project_id }))
-    if (projectId && row.project_id !== projectId)
-      return yield* new ScopeError(404, 'Issue not found in the selected project.')
+    if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && row.project_id !== projectId) {
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Issue not found in the selected project.')
+    }
     const extras = yield* issueQueries.getIssueExtras(db, workspaceId, row.id).pipe(Effect.mapError(dataError))
     const targets = yield* listIssueReviewTargets(db, workspaceId, [row.id]).pipe(Effect.mapError(dataError))
     return normalizeIssue({ ...row, ...extras, reviewTargets: targets.get(row.id) ?? [] })
   })
 }
-export function readDataIssuePage(scope: RequestScope, workspaceId: string, params: URLSearchParams) {
+export const readDataIssuePage = function readDataIssuePage(
+  scope: RequestScope,
+  workspaceId: string,
+  params: URLSearchParams,
+): IssueRead<IssuePage> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
     const decoded = yield* listOptions(params, scope)
     const options: issueQueries.IssueListOptions = decoded.options
     const projectValue = params.get('project')
-    if (projectValue) {
+    if (Predicate.isNotNullish(projectValue) && String.isNonEmpty(projectValue)) {
       const project = scope.projects.find(
         (entry) => entry.workspace_id === workspaceId && (entry.id === projectValue || entry.key === projectValue),
       )
       options.projectId = (yield* checked(() => requireDataProject(scope, project?.id ?? projectValue, workspaceId))).id
     }
-    if (options.parentId && issueQueries.ISSUE_REF_PATTERN.test(options.parentId))
+    if (options.parentId && issueQueries.ISSUE_REF_PATTERN.test(options.parentId)) {
       options.parentId = (yield* readDataIssue(scope, workspaceId, options.parentId)).id
+    }
     const { cfKey, cfOp, cfValue } = decoded
-    if (cfKey) {
+    if (Predicate.isNotNullish(cfKey) && String.isNonEmpty(cfKey)) {
       const field = yield* issueQueries.findIssueCustomField(db, workspaceId, cfKey).pipe(Effect.mapError(dataError))
-      if (!field) return yield* new ScopeError(400, 'Unknown custom field key.')
+      if (!field) {
+        return yield* new ScopeError(HTTP_BAD_REQUEST, 'Unknown custom field key.')
+      }
       options.customField = { id: field.id, op: cfOp ?? 'eq', value: cfValue ?? '' }
     }
     const visibility = yield* checked(() => visibleProjectPredicate(scope, workspaceId, schema.issues.projectId))
@@ -159,21 +206,25 @@ export function readDataIssuePage(scope: RequestScope, workspaceId: string, para
     })
   })
 }
-export function searchDataIssues(
+export const searchDataIssues = function searchDataIssues(
   scope: RequestScope,
   workspaceId: string,
   query: string,
   projectId?: string,
   review?: ReviewFilter,
-) {
+): IssueRead<(issueQueries.IssueSearchRow & { reviewTargets: ReviewTarget[] })[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
-    const reviewFilter = yield* Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))(review).pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid review filter.')),
+    const reviewFilter = yield* decodeOptionalReviewFilter(review).pipe(
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid review filter.')),
     )
-    if (projectId) yield* checked(() => requireDataProject(scope, projectId, workspaceId))
-    if (!query.length) return yield* new ScopeError(400, 'A search query is required.')
+    if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
+      yield* checked(() => requireDataProject(scope, projectId, workspaceId))
+    }
+    if (!query.length) {
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'A search query is required.')
+    }
     const predicate = yield* checked(() => visibleProjectPredicate(scope, workspaceId, sql`i.project_id`))
     const visibility = predicate ? new SQLiteSyncDialect().sqlToQuery(predicate) : undefined
     const rows = yield* issueQueries
@@ -187,21 +238,36 @@ export function searchDataIssues(
     return rows.map((entry) => ({ ...entry, reviewTargets: targets.get(entry.id) ?? [] }))
   })
 }
-export function readDataComments(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataComments = function readDataComments(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<Comment[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
     return normalizeComments(yield* listComments(db, workspaceId, issue.id).pipe(Effect.mapError(dataError)))
   })
 }
-export function readDataLinks(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataLinks = function readDataLinks(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<IssueLink[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
     return normalizeLinks(yield* listLinksForIssue(db, workspaceId, issue.id).pipe(Effect.mapError(dataError)))
   })
 }
-export function readDataAttachments(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataAttachments = function readDataAttachments(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<Attachment[]> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
@@ -227,17 +293,23 @@ export function readDataAttachments(scope: RequestScope, workspaceId: string, id
   })
 }
 
-export function searchDataWikiAttachments(scope: RequestScope, workspaceId: string, query: string) {
+export const searchDataWikiAttachments = function searchDataWikiAttachments(
+  scope: RequestScope,
+  workspaceId: string,
+  query: string,
+): IssueRead<typeof WikiSearchResultsSchema.Type> {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
     const ftsQuery = query
       .trim()
-      .split(/\s+/)
-      .filter((word) => /\w/.test(word))
-      .map((word) => `"${word.replace(/"/g, '""')}"`)
+      .split(/\s+/u)
+      .filter((word) => /\w/u.test(word))
+      .map((word) => `"${word.replaceAll('"', '""')}"`)
       .join(' ')
-    if (!ftsQuery) return []
+    if (!ftsQuery) {
+      return []
+    }
     const predicate = yield* checked(() => visibleProjectPredicate(scope, workspaceId, sql`p.project_id`))
     const visibilitySql = predicate
       ? new SQLiteSyncDialect().sqlToQuery(sql`p.project_id IS NULL OR ${predicate}`)
@@ -245,10 +317,10 @@ export function searchDataWikiAttachments(scope: RequestScope, workspaceId: stri
     const rows = yield* searchWiki(db, workspaceId, ftsQuery, {
       limit: 10,
       offset: 0,
-      now: Math.floor(Date.now() / 1000),
+      now: currentEpochSeconds(),
       visibilitySql,
     }).pipe(Effect.mapError(dataError))
     // Wiki searches expose broad metadata, while this picker deliberately consumes identity only.
-    return yield* Schema.decodeUnknownEffect(WikiSearchResultsSchema)(rows).pipe(Effect.mapError(dataError))
+    return yield* decodeWikiSearchResults(rows).pipe(Effect.mapError(dataError))
   })
 }

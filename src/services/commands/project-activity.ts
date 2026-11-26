@@ -1,13 +1,18 @@
+import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
-import { effectiveProjectRole, isWorkspaceAdmin } from './access'
-import { NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
+
+const MIN_ACTIVITY_PAGE_SIZE = 1
+const MAX_ACTIVITY_PAGE_SIZE = 200
+const DEFAULT_ACTIVITY_PAGE_SIZE = 50
 
 const ListProjectActivitySchema = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.uuid(),
   since: z.number().int().optional(),
-  limit: z.number().int().min(1).max(200).default(50),
+  limit: z.number().int().min(MIN_ACTIVITY_PAGE_SIZE).max(MAX_ACTIVITY_PAGE_SIZE).default(DEFAULT_ACTIVITY_PAGE_SIZE),
 })
 
 export interface ActivityEvent {
@@ -20,19 +25,21 @@ export interface ActivityEvent {
   created_at: number
 }
 
-async function fetchActivityRows(
+const fetchActivityRows = async function fetchActivityRows(
   ctx: ServiceCtx,
   projectId: string,
   since: number | undefined,
   limit: number,
 ): Promise<ActivityEvent[]> {
-  // D1 limits compound SELECT to a small number of terms, so we run separate
-  // queries per event category and merge/sort in JS.
-  const sinceFilter = (col: string) => (since !== undefined ? `AND ${col} >= ?` : '')
-  const s = since !== undefined ? [since] : []
+  /*
+   * D1 limits compound SELECT to a small number of terms, so we run separate
+   * queries per event category and merge/sort in JS.
+   */
+  const sinceFilter = (col: string): string => (Predicate.isNotNullish(since) ? `AND ${col} >= ?` : '')
+  const sinceParams = Predicate.isNotNullish(since) ? [since] : []
 
   const [issues, comments, statusChanges, wikiPages, sprints] = await Promise.all([
-    // issue_created
+    // Activity events issue_created
     ctx.db
       .prepare(
         `SELECT 'issue_created' AS type, i.created_by_id AS actor,
@@ -43,10 +50,10 @@ async function fetchActivityRows(
 				 WHERE i.project_id = ? AND i.workspace_id = ? ${sinceFilter('i.created_at')}
 				 ORDER BY i.created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // issue_commented
+    // Activity events issue_commented
     ctx.db
       .prepare(
         `SELECT 'issue_commented' AS type, ic.author_id AS actor,
@@ -59,16 +66,16 @@ async function fetchActivityRows(
 				 WHERE i.project_id = ? AND i.workspace_id = ? ${sinceFilter('ic.created_at')}
 				 ORDER BY ic.created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // issue_status_changed (via activity log)
-    // PROJ-869: this used to json_extract over a `diff` blob that could carry the
-    // issue's full new body text (services/issues.ts's buildUpdateDiffCore stored
-    // `diff.body` verbatim), so parsing it to check for `$.status` cost a full-body
-    // JSON parse on every row. Update diffs now only record a `bodyChanged` marker
-    // (not the text), so `diff` is always small and this json_extract stays cheap
-    // regardless of the issue's body size.
+    /* Activity events issue_status_changed (via activity log)
+     * PROJ-869: this used to json_extract over a `diff` blob that could carry the
+     * issue's full new body text (services/issues.ts's buildUpdateDiffCore stored
+     * `diff.body` verbatim), so parsing it to check for `$.status` cost a full-body
+     * JSON parse on every row. Update diffs now only record a `bodyChanged` marker
+     * (not the text), so `diff` is always small and this json_extract stays cheap
+     * regardless of the issue's body size. */
     ctx.db
       .prepare(
         `SELECT 'issue_status_changed' AS type, a.actor_id AS actor,
@@ -84,10 +91,10 @@ async function fetchActivityRows(
 				   ${sinceFilter('a.created_at')}
 				 ORDER BY a.created_at DESC LIMIT ?`,
       )
-      .bind(ctx.workspaceId, projectId, ...s, limit)
+      .bind(ctx.workspaceId, projectId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // wiki_page_created + wiki_page_edited (2-term UNION, well under D1 limit)
+    // Activity events wiki_page_created + wiki_page_edited (2-term UNION, well under D1 limit)
     ctx.db
       .prepare(
         `SELECT 'wiki_page_created' AS type, wp.created_by_id AS actor,
@@ -104,10 +111,10 @@ async function fetchActivityRows(
 				   AND wp.updated_at != wp.created_at ${sinceFilter('wp.updated_at')}
 				 ORDER BY created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
 
-    // sprint_started + sprint_completed (2-term UNION)
+    // Activity events sprint_started + sprint_completed (2-term UNION)
     ctx.db
       .prepare(
         `SELECT 'sprint_started' AS type, NULL AS actor,
@@ -128,29 +135,36 @@ async function fetchActivityRows(
 				   ${sinceFilter('s.updated_at')}
 				 ORDER BY created_at DESC LIMIT ?`,
       )
-      .bind(projectId, ctx.workspaceId, ...s, projectId, ctx.workspaceId, ...s, limit)
+      .bind(projectId, ctx.workspaceId, ...sinceParams, projectId, ctx.workspaceId, ...sinceParams, limit)
       .all<ActivityEvent>(),
   ])
 
   return [...issues.results, ...comments.results, ...statusChanges.results, ...wikiPages.results, ...sprints.results]
 }
 
-export async function listProjectActivity(ctx: ServiceCtx, input: unknown): Promise<ActivityEvent[]> {
+export const listProjectActivity = async function listProjectActivity(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<ActivityEvent[]> {
   const parsed = ListProjectActivitySchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(z.flattenError(parsed.error))
+  }
   const { projectId, since, limit } = parsed.data
 
   const project = await ctx.db
     .prepare('SELECT id FROM projects WHERE id = ? AND workspace_id = ?')
     .bind(projectId, ctx.workspaceId)
     .first<{ id: string }>()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
   // PROJ-311: a non-admin without a grant can't see the project's activity feed.
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     throw new NotFoundError('Project not found')
   }
 
   const all = await fetchActivityRows(ctx, projectId, since, limit)
-  all.sort((a, b) => b.created_at - a.created_at)
-  return all.slice(0, limit)
+  all.sort((left, right) => right.created_at - left.created_at)
+  return Array.take(all, limit)
 }

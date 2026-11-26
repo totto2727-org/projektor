@@ -1,0 +1,261 @@
+'use client'
+import { Array } from 'effect'
+import type { JSX, Dispatch, RefObject, SetStateAction } from 'react'
+
+import { Button } from '@/components/ui/button.tsx'
+import { Select } from '@/components/ui/select.tsx'
+import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import type { IssuesRoute } from '@/features/issues/views/issues-page.tsx'
+
+import type { DateField } from './filters-popover.tsx'
+import { FiltersPopover } from './filters-popover.tsx'
+import { SavedViewsControl } from './saved-views-control.tsx'
+import { SearchBox } from './search-box.tsx'
+import type { useSavedViews } from './use-saved-views.ts'
+
+interface FilterSelectsProps {
+  uniqueProjects: { key: string; name: string }[]
+  filterProject: string
+  setFilterProject: (project: string) => void
+  setFilterSprintId: Dispatch<SetStateAction<string>>
+  sprints: { id: string; name: string; status: string }[]
+  filterSprintId: string
+  uniqueTypes: [string, string][]
+  filterType: string
+  setFilterType: (type: string) => void
+  epics: Issue[]
+  filterEpicId: string
+  setFilterEpicId: (epicId: string) => void
+  hideEpics: boolean
+  setHideEpics: (hide: boolean) => void
+}
+
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+const FilterSelects = function FilterSelects({
+  uniqueProjects,
+  filterProject,
+  setFilterProject,
+  setFilterSprintId,
+  sprints,
+  filterSprintId,
+  uniqueTypes,
+  filterType,
+  setFilterType,
+  epics,
+  filterEpicId,
+  setFilterEpicId,
+  hideEpics,
+  setHideEpics,
+}: FilterSelectsProps): JSX.Element {
+  return (
+    <>
+      {Array.isArrayNonEmpty(uniqueProjects) && (
+        <Select
+          ariaLabel='Filter by project'
+          value={filterProject}
+          onChange={(value) => {
+            setFilterProject(value)
+            setFilterSprintId('')
+          }}
+          options={[
+            { label: 'All projects', value: '' },
+            ...uniqueProjects.map(({ key, name }) => ({ label: name, value: key })),
+          ]}
+        />
+      )}
+
+      {Array.isArrayNonEmpty(sprints) && (
+        <Select
+          ariaLabel='Filter by sprint'
+          value={filterSprintId}
+          onChange={setFilterSprintId}
+          options={[
+            { label: 'All sprints', value: '' },
+            ...sprints.map((sprint) => ({
+              value: sprint.id,
+              label: `${sprint.status === 'active' ? '● ' : ''}${sprint.name}`,
+            })),
+          ]}
+        />
+      )}
+
+      {Array.isArrayNonEmpty(uniqueTypes) && (
+        <Select
+          ariaLabel='Filter by type'
+          value={filterType}
+          onChange={setFilterType}
+          options={[
+            { label: 'All types', value: '' },
+            ...uniqueTypes.map(([key, name]) => ({ value: key, label: name })),
+          ]}
+        />
+      )}
+
+      {Array.isArrayNonEmpty(epics) && (
+        <Select
+          ariaLabel='Filter by epic'
+          value={filterEpicId}
+          onChange={setFilterEpicId}
+          options={[
+            { label: 'All epics', value: '' },
+            { label: 'No epic', value: 'none' },
+            ...epics.map((epic) => ({
+              value: epic.id,
+              label: `${epic.project_key ? `${epic.project_key}-${epic.number}` : `#${epic.number}`} ${epic.title}`,
+            })),
+          ]}
+        />
+      )}
+
+      {Array.isArrayNonEmpty(epics) && (
+        <label className='flex items-center gap-1.5 text-[0.8rem] text-text-muted whitespace-nowrap cursor-pointer select-none'>
+          <input
+            type='checkbox'
+            checked={hideEpics}
+            onChange={(event) => {
+              setHideEpics(event.target.checked)
+            }}
+          />
+          Hide epics
+        </label>
+      )}
+    </>
+  )
+}
+
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+const SortControls = function SortControls({
+  sortBy,
+  setSortBy,
+  sortDir,
+  setSortDir,
+}: {
+  sortBy: SortKey
+  setSortBy: (sortKey: SortKey) => void
+  sortDir: 'asc' | 'desc'
+  setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
+}): JSX.Element {
+  return (
+    <span className='ml-auto max-sm:ml-0 max-sm:w-full flex gap-2 items-center flex-wrap'>
+      <span className='text-sm text-text-muted'>Sort:</span>
+      <Select
+        ariaLabel='Sort by'
+        value={sortBy}
+        onChange={(value) => {
+          setSortBy(value as SortKey)
+        }}
+        options={[
+          { label: 'Created', value: 'created_at' },
+          { label: 'Updated', value: 'updated' },
+          { label: 'Priority', value: 'priority' },
+          { label: 'Status', value: 'status' },
+          { label: 'Title', value: 'title' },
+          { label: 'Assignee', value: 'assignee' },
+          { label: 'Number', value: 'number' },
+        ]}
+      />
+      <Button
+        type='button'
+        variant='outline'
+        size='sm'
+        aria-label={sortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
+        onClick={() => {
+          setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))
+        }}
+      >
+        {sortDir === 'asc' ? '↑' : '↓'}
+      </Button>
+    </span>
+  )
+}
+
+interface ToolbarProps extends FilterSelectsProps {
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+  isSearchActive: boolean
+  searchInputRef: RefObject<HTMLInputElement | null>
+  searchRoute: IssuesRoute
+
+  derivedStatuses: Readonly<TaskStatus[]>
+  filterStatuses: string[]
+  setFilterStatuses: Dispatch<SetStateAction<string[]>>
+  filterPriorities: string[]
+  setFilterPriorities: Dispatch<SetStateAction<string[]>>
+  filterDateField: DateField
+  setFilterDateField: Dispatch<SetStateAction<DateField>>
+  filterDateFrom: string
+  setFilterDateFrom: Dispatch<SetStateAction<string>>
+  filterDateTo: string
+  setFilterDateTo: Dispatch<SetStateAction<string>>
+
+  saved: ReturnType<typeof useSavedViews>
+
+  sortBy: SortKey
+  setSortBy: (sortKey: SortKey) => void
+  sortDir: 'asc' | 'desc'
+  setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
+}
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function Toolbar(props: ToolbarProps): JSX.Element {
+  const {
+    searchQuery,
+    setSearchQuery,
+    isSearchActive,
+    searchInputRef,
+    derivedStatuses,
+    filterStatuses,
+    setFilterStatuses,
+    filterPriorities,
+    setFilterPriorities,
+    filterDateField,
+    setFilterDateField,
+    filterDateFrom,
+    setFilterDateFrom,
+    filterDateTo,
+    setFilterDateTo,
+    saved,
+    sortBy,
+    setSortBy,
+    sortDir,
+    setSortDir,
+  } = props
+
+  return (
+    <div
+      className={[
+        'flex gap-2 flex-wrap items-center mb-4 p-3 bg-surface rounded-lg border border-border',
+        'shadow-elevation-sm',
+      ].join(' ')}
+    >
+      <SearchBox
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        isSearchActive={isSearchActive}
+        searchInputRef={searchInputRef}
+        route={props.searchRoute}
+      />
+
+      <FiltersPopover
+        derivedStatuses={derivedStatuses}
+        filterStatuses={filterStatuses}
+        setFilterStatuses={setFilterStatuses}
+        filterPriorities={filterPriorities}
+        setFilterPriorities={setFilterPriorities}
+        filterDateField={filterDateField}
+        setFilterDateField={setFilterDateField}
+        filterDateFrom={filterDateFrom}
+        setFilterDateFrom={setFilterDateFrom}
+        filterDateTo={filterDateTo}
+        setFilterDateTo={setFilterDateTo}
+        isSearchActive={isSearchActive}
+      />
+
+      <FilterSelects {...props} />
+
+      <SavedViewsControl saved={saved} />
+
+      <SortControls sortBy={sortBy} setSortBy={setSortBy} sortDir={sortDir} setSortDir={setSortDir} />
+    </div>
+  )
+}

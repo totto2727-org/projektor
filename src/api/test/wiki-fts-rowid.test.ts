@@ -1,16 +1,19 @@
-// PROJ-816: wiki_fts rows are keyed by wiki_pages.search_rowid, so a page's re-index
-// deletes its FTS row by rowid (a direct lookup) rather than scanning the UNINDEXED
-// page_id column across every tenant's pages.
+/*
+ * PROJ-816: wiki_fts rows are keyed by wiki_pages.search_rowid, so a page's re-index
+ * deletes its FTS row by rowid (a direct lookup) rather than scanning the UNINDEXED
+ * page_id column across every tenant's pages.
+ */
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { ServiceCtx } from '#commands/types'
-import { createWikiPage, updateWikiPage } from '#commands/wiki'
+import type { ServiceCtx } from '#commands/types.ts'
+import { createWikiPage, updateWikiPage } from '#commands/wiki.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
-import { env } from './fixture-api'
-import { seedFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedFixture } from './helpers.ts'
 
-async function ctxFor(): Promise<ServiceCtx> {
+const ctxFor = async function ctxFor(): Promise<ServiceCtx> {
   const { workspace, user } = await seedFixture({ role: 'owner' })
   return {
     db: env.DB,
@@ -22,54 +25,56 @@ async function ctxFor(): Promise<ServiceCtx> {
   }
 }
 
-async function plan(sql: string, ...params: unknown[]): Promise<string> {
+const plan = async function plan(sql: string, ...params: unknown[]): Promise<string> {
   const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${sql}`)
     .bind(...params)
     .all<{ detail: string }>()
-  return rows.results.map((r) => r.detail).join(' | ')
+  return rows.results.map((result) => result.detail).join(' | ')
 }
 
-describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
-  it('re-indexing deletes by rowid — the plan is a rowid lookup, not a full-index scan', async () => {
+describe("covers PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
+  test('re-indexing deletes by rowid — the plan is a rowid lookup, not a full-index scan', async () => {
     const fullScan = await plan('DELETE FROM wiki_fts WHERE page_id = ?', 'x')
     const byRowid = await plan(
       'DELETE FROM wiki_fts WHERE rowid = (SELECT search_rowid FROM wiki_pages WHERE id = ? AND workspace_id = ?)',
       'x',
       'y',
     )
-    // FTS5 reports its xBestIndex choice as "VIRTUAL TABLE INDEX <n>:<constraints>";
-    // a rowid-equality lookup carries an '=' constraint, the page_id filter none.
-    expect(fullScan).toMatch(/VIRTUAL TABLE INDEX \d+:(\s|$|\|)/)
-    expect(byRowid).toMatch(/VIRTUAL TABLE INDEX \d+:=/)
+    /*
+     * FTS5 reports its xBestIndex choice as "VIRTUAL TABLE INDEX <n>:<constraints>";
+     * a rowid-equality lookup carries an '=' constraint, the page_id filter none.
+     */
+    expect(fullScan).toMatch(/VIRTUAL TABLE INDEX \d+:(?:\s|$|\|)/u)
+    expect(byRowid).toMatch(/VIRTUAL TABLE INDEX \d+:=/u)
   })
 
-  it("each save keeps exactly one FTS row per page, under the page's search_rowid", async () => {
+  test("each save keeps exactly one FTS row per page, under the page's search_rowid", async () => {
     const ctx = await ctxFor()
-    const a = (await createWikiPage(ctx, { title: 'Alpha', content: 'one' })) as {
+    const alphaPage = (await createWikiPage(ctx, { title: 'Alpha', content: 'one' })) as {
       id: string
       slug: string
     }
-    const b = (await createWikiPage(ctx, { title: 'Beta', content: 'two' })) as {
+    const betaPage = (await createWikiPage(ctx, { title: 'Beta', content: 'two' })) as {
       id: string
       slug: string
     }
-    for (const content of ['three', 'four', 'five']) {
-      await updateWikiPage(ctx, a.slug, { content })
-    }
+    await runInOrder(['three', 'four', 'five'], async (content): Promise<void> => {
+      await updateWikiPage(ctx, alphaPage.slug, { content })
+    })
     const rows = await env.DB.prepare(
       `SELECT f.page_id, f.content, f.rowid = p.search_rowid AS keyed
 			 FROM wiki_fts f JOIN wiki_pages p ON p.id = f.page_id WHERE p.id IN (?, ?) ORDER BY f.page_id`,
     )
-      .bind(a.id, b.id)
+      .bind(alphaPage.id, betaPage.id)
       .all<{ page_id: string; content: string; keyed: number }>()
-    const byPage = Object.fromEntries(rows.results.map((r) => [r.page_id, r]))
+    const byPage = Object.fromEntries(rows.results.map((result) => [result.page_id, result]))
     expect(rows.results).toHaveLength(2)
-    expect(byPage[a.id].content).toBe('five')
-    expect(byPage[b.id].content).toBe('two')
-    expect(rows.results.every((r) => r.keyed === 1)).toBe(true)
+    expect(byPage[alphaPage.id].content).toBe('five')
+    expect(byPage[betaPage.id].content).toBe('two')
+    expect(rows.results.every((result) => result.keyed === 1)).toBe(true)
   })
 
-  it('a page with no search_rowid yet (written outside the service) gets one on save', async () => {
+  test('a page with no search_rowid yet (written outside the service) gets one on save', async () => {
     const ctx = await ctxFor()
     const page = (await createWikiPage(ctx, { title: 'Legacy', content: 'x' })) as {
       id: string

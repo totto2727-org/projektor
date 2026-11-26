@@ -1,62 +1,67 @@
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { Hono } from 'hono'
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createIssue } from '#commands/issues'
-import { broadcastWorkspaceEvent } from '#commands/realtime'
-import type { ServiceCtx } from '#commands/types'
+import { WorkspaceHub } from '#api/realtime/workspace-hub.ts'
+import type { SocketAttachment } from '#api/realtime/workspace-hub.ts'
+import { realtimeRouter } from '#api/routes/realtime.ts'
+import { createIssue } from '#commands/issues.ts'
+import { broadcastWorkspaceEvent } from '#commands/realtime.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import type { CoreActor } from '#core/authorization.ts'
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { ApiEnv, HonoEnv, RealtimeEvent } from '#types'
 
-import type { CoreActor } from '../../core/authorization'
-import { CORE_ACTOR_HEADER } from '../../core/contract'
-import { WorkspaceHub, type SocketAttachment } from '../realtime/workspace-hub'
-import { realtimeRouter } from '../routes/realtime'
-import { env } from './fixture-api'
-import { authHeaders, hashToken, seedGroupGrant, seedProject, seedWorkspaceRoles } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, hashToken, seedGroupGrant, seedProject, seedWorkspaceRoles } from './helpers.ts'
 
-function actorFor(token: string): CoreActor {
+const actorFor = function actorFor(token: string): CoreActor {
   return { requestUrl: 'http://localhost/api/realtime', method: 'GET', bearer: token }
 }
 
 // Socket doubles retain attachments across messages, like hibernating native sockets.
-function socket(initial: SocketAttachment) {
+const socket = function socket(initial: SocketAttachment) {
   let attachment = initial
   const ws = {
     send: vi.fn<(message: string) => void>(),
-    serializeAttachment: vi.fn((next: SocketAttachment) => {
+    serializeAttachment: vi.fn<(next: SocketAttachment) => void>((next: SocketAttachment) => {
       attachment = next
     }),
-    deserializeAttachment: vi.fn(() => attachment),
-    close: vi.fn(),
+    deserializeAttachment: vi.fn<() => SocketAttachment>(() => attachment),
+    close: vi.fn<WebSocket['close']>(),
   }
   return ws
 }
 
 type Socket = ReturnType<typeof socket>
 
-function hubFor(sockets: Socket[] = []) {
+const hubFor = function hubFor(sockets: Socket[] = []) {
   const state = {
     acceptWebSocket: vi.fn<(ws: WebSocket) => void>(),
-    getWebSockets: vi.fn(() => sockets),
+    getWebSockets: vi.fn<(tag?: string) => Socket[]>(() => sockets),
   }
   const hub = new WorkspaceHub(state as unknown as DurableObjectState, env as unknown as ApiEnv)
   return { hub, state }
 }
 
-describe('Realtime WebSockets (Opt-In)', () => {
+describe('realtime WebSockets (Opt-In)', () => {
   let roles: Awaited<ReturnType<typeof seedWorkspaceRoles>>
   let projectId: string
   let otherProjectId: string
 
   beforeEach(async () => {
     roles = await seedWorkspaceRoles()
-    projectId = (await seedProject(roles.workspace.id, 'SEEN')).id
-    otherProjectId = (await seedProject(roles.workspace.id, 'OTHER')).id
+    const result = await seedProject(roles.workspace.id, 'SEEN')
+    projectId = result.id
+    const resolvedValue = await seedProject(roles.workspace.id, 'OTHER')
+    otherProjectId = resolvedValue.id
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, projectId, 'member')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, otherProjectId, 'viewer')
   })
 
-  function attachmentFor(
+  const attachmentFor = function attachmentFor(
     principal: 'owner' | 'member' | 'viewer' = 'member',
     overrides: Partial<SocketAttachment> = {},
   ): SocketAttachment {
@@ -72,7 +77,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     }
   }
 
-  function upgradeRequest(token: string) {
+  const upgradeRequest = function upgradeRequest(token: string): Request<unknown, CfProperties<unknown>> {
     return new Request('http://localhost/realtime', {
       headers: {
         Upgrade: 'websocket',
@@ -82,18 +87,18 @@ describe('Realtime WebSockets (Opt-In)', () => {
     })
   }
 
-  function event(overrides: Partial<RealtimeEvent> = {}): RealtimeEvent {
+  const event = function event(overrides: Partial<RealtimeEvent> = {}): RealtimeEvent {
     return {
       type: 'issue.created',
       workspaceId: roles.workspace.id,
       projectId,
       data: { id: 'issue-123' },
-      timestamp: Math.floor(Date.now() / 1000),
+      timestamp: currentEpochSeconds(),
       ...overrides,
     }
   }
 
-  it('returns 501 when WORKSPACE_HUB is not configured (graceful degradation)', async () => {
+  test('returns 501 when WORKSPACE_HUB is not configured (graceful degradation)', async () => {
     const app = new Hono<HonoEnv>()
     app.route('/api', realtimeRouter)
     const unconfigured = { ...env, WORKSPACE_HUB: undefined } as unknown as ApiEnv
@@ -106,13 +111,13 @@ describe('Realtime WebSockets (Opt-In)', () => {
     )
     await waitOnExecutionContext(executionContext)
     expect(response.status).toBe(501)
-    expect(await response.json()).toEqual({
+    await expect(response.json()).resolves.toStrictEqual({
       error:
         'Realtime WebSockets are not enabled on this instance. Configure WORKSPACE_HUB in wrangler.toml to enable.',
     })
   })
 
-  it('completes an authenticated native Hub connection and close handshake when configured', async () => {
+  test('completes an authenticated native Hub connection and close handshake when configured', async () => {
     const app = new Hono<HonoEnv>()
     app.route('/api', realtimeRouter)
     const configured = {
@@ -129,16 +134,18 @@ describe('Realtime WebSockets (Opt-In)', () => {
     await waitOnExecutionContext(executionContext)
     expect(response.status).toBe(101)
     const client = response.webSocket
-    if (!client) throw new Error('Expected an upgraded WebSocket')
+    if (!client) {
+      throw new Error('Expected an upgraded WebSocket')
+    }
     client.accept()
     const closed = new Promise<CloseEvent>((resolve) => {
       client.addEventListener('close', resolve, { once: true })
     })
     client.close(1000, 'Finished')
-    expect(await closed).toMatchObject({ code: 1000 })
+    await expect(closed).resolves.toMatchObject({ code: 1000 })
   })
 
-  it('broadcastWorkspaceEvent is a silent no-op when WORKSPACE_HUB is undefined', async () => {
+  test('broadcastWorkspaceEvent is a silent no-op when WORKSPACE_HUB is undefined', async () => {
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,
@@ -151,7 +158,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('rejects WebSocket upgrades without a Core actor even when legacy identity headers claim owner', async () => {
+  test('rejects WebSocket upgrades without a Core actor even when legacy identity headers claim owner', async () => {
     const { hub, state } = hubFor()
     const response = await hub.fetch(
       new Request('http://localhost/realtime', {
@@ -167,20 +174,21 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 
-  it('requires a WebSocket upgrade before accepting a connection', async () => {
+  test('requires a WebSocket upgrade before accepting a connection', async () => {
     const { hub, state } = hubFor()
-    expect((await hub.fetch(new Request('http://localhost/realtime'))).status).toBe(426)
+    const result = await hub.fetch(new Request('http://localhost/realtime'))
+    expect(result.status).toBe(426)
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 
-  it('computes member visibility from current Core grants rather than forged owner headers', async () => {
+  test('computes member visibility from current Core grants rather than forged owner headers', async () => {
     const { hub, state } = hubFor()
     const request = upgradeRequest(roles.member.token)
     request.headers.set('X-Internal-User-Id', roles.owner.user.id)
     request.headers.set('X-Internal-Role', 'owner')
     const response = await hub.fetch(request)
     expect(response.status).toBe(101)
-    expect(state.acceptWebSocket).toHaveBeenCalledTimes(1)
+    expect(state.acceptWebSocket).toHaveBeenCalledOnce()
     const accepted = state.acceptWebSocket.mock.calls[0][0]
     expect(accepted.deserializeAttachment()).toMatchObject({
       actor: actorFor(roles.member.token),
@@ -191,9 +199,10 @@ describe('Realtime WebSockets (Opt-In)', () => {
     })
   })
 
-  it('computes all project IDs for an owner on upgrade', async () => {
+  test('computes all project IDs for an owner on upgrade', async () => {
     const { hub, state } = hubFor()
-    expect((await hub.fetch(upgradeRequest(roles.owner.token))).status).toBe(101)
+    const resolvedValue = await hub.fetch(upgradeRequest(roles.owner.token))
+    expect(resolvedValue.status).toBe(101)
     const accepted = state.acceptWebSocket.mock.calls[0][0]
     expect(accepted.deserializeAttachment()).toMatchObject({
       role: 'owner',
@@ -202,16 +211,17 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(accepted.deserializeAttachment()).toHaveProperty('visibleProjectIds.length', 2)
   })
 
-  it('rejects a revoked credential before accepting a socket', async () => {
+  test('rejects a revoked credential before accepting a socket', async () => {
     await env.DB.prepare('DELETE FROM api_tokens WHERE token_hash = ?')
       .bind(await hashToken(roles.member.token))
       .run()
     const { hub, state } = hubFor()
-    expect((await hub.fetch(upgradeRequest(roles.member.token))).status).toBe(401)
+    const response = await hub.fetch(upgradeRequest(roles.member.token))
+    expect(response.status).toBe(401)
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 
-  it('responds to ping after refreshing a stale visibility snapshot', async () => {
+  test('responds to ping after refreshing a stale visibility snapshot', async () => {
     const ws = socket(attachmentFor('member', { visibleProjectIds: [] }))
     const { hub } = hubFor()
     await hub.webSocketMessage(ws as unknown as WebSocket, JSON.stringify({ action: 'ping' }))
@@ -221,25 +231,25 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"pong"'))
   })
 
-  it('intersects subscriptions with current project grants', async () => {
+  test('intersects subscriptions with current project grants', async () => {
     const ws = socket(attachmentFor())
     const { hub } = hubFor()
     await hub.webSocketMessage(
       ws as unknown as WebSocket,
       JSON.stringify({ action: 'subscribe', projects: [projectId, otherProjectId], eventTypes: ['issue.*'] }),
     )
-    expect(ws.deserializeAttachment().filters).toEqual({ projects: [projectId], eventTypes: ['issue.*'] })
+    expect(ws.deserializeAttachment().filters).toStrictEqual({ eventTypes: ['issue.*'], projects: [projectId] })
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"subscribed"'))
   })
 
-  it('defaults a member subscription without a project filter to current visible projects', async () => {
+  test('defaults a member subscription without a project filter to current visible projects', async () => {
     const ws = socket(attachmentFor())
     const { hub } = hubFor()
     await hub.webSocketMessage(ws as unknown as WebSocket, JSON.stringify({ action: 'subscribe' }))
-    expect(ws.deserializeAttachment().filters).toEqual({ projects: [projectId], eventTypes: undefined })
+    expect(ws.deserializeAttachment().filters).toStrictEqual({ eventTypes: undefined, projects: [projectId] })
   })
 
-  it('broadcasts to matching subscriptions and filters other projects and event types', async () => {
+  test('broadcasts to matching subscriptions and filters other projects and event types', async () => {
     const matching = socket(attachmentFor('member', { filters: { projects: [projectId], eventTypes: ['issue.*'] } }))
     const otherProject = socket(
       attachmentFor('viewer', { filters: { projects: [otherProjectId], eventTypes: ['issue.*'] } }),
@@ -247,101 +257,107 @@ describe('Realtime WebSockets (Opt-In)', () => {
     const otherType = socket(attachmentFor('member', { filters: { projects: [projectId], eventTypes: ['comment.*'] } }))
     const { hub } = hubFor([matching, otherProject, otherType])
     const broadcast = event()
-    expect(await hub.broadcast(broadcast)).toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(broadcast)).resolves.toStrictEqual({ recipientCount: 1 })
     expect(matching.send).toHaveBeenCalledWith(JSON.stringify(broadcast))
     expect(otherProject.send).not.toHaveBeenCalled()
     expect(otherType.send).not.toHaveBeenCalled()
   })
 
-  it('enforces current server-side visibility without a client filter', async () => {
+  test('enforces current server-side visibility without a client filter', async () => {
     const allowed = socket(attachmentFor())
     const forbidden = socket(attachmentFor('viewer'))
     const admin = socket(attachmentFor('owner'))
     const { hub } = hubFor([allowed, forbidden, admin])
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 2 })
-    expect(allowed.send).toHaveBeenCalledTimes(1)
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 2 })
+    expect(allowed.send).toHaveBeenCalledOnce()
     expect(forbidden.send).not.toHaveBeenCalled()
-    expect(admin.send).toHaveBeenCalledTimes(1)
+    expect(admin.send).toHaveBeenCalledOnce()
   })
 
-  it('does not trust a cached project list or client filter over current grants', async () => {
+  test('does not trust a cached project list or client filter over current grants', async () => {
     const ws = socket(attachmentFor('viewer', { visibleProjectIds: [projectId], filters: { projects: [projectId] } }))
     const { hub } = hubFor([ws])
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 0 })
-    expect(ws.deserializeAttachment().visibleProjectIds).toEqual([otherProjectId])
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
+    expect(ws.deserializeAttachment().visibleProjectIds).toStrictEqual([otherProjectId])
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('fails closed for non-admins when an event has no projectId', async () => {
+  test('fails closed for non-admins when an event has no projectId', async () => {
     const member = socket(attachmentFor())
     const admin = socket(attachmentFor('owner'))
     const { hub } = hubFor([member, admin])
-    expect(await hub.broadcast(event({ type: 'workspace.announcement', projectId: undefined }))).toEqual({
-      recipientCount: 1,
-    })
+    await expect(hub.broadcast(event({ type: 'workspace.announcement', projectId: undefined }))).resolves.toStrictEqual(
+      {
+        recipientCount: 1,
+      },
+    )
     expect(member.send).not.toHaveBeenCalled()
-    expect(admin.send).toHaveBeenCalledTimes(1)
+    expect(admin.send).toHaveBeenCalledOnce()
   })
 
-  it('denies a removed admin without sending a pong or a later workspace broadcast', async () => {
+  test('denies a removed admin without sending a pong or a later workspace broadcast', async () => {
     const ws = socket(attachmentFor('owner'))
     const { hub } = hubFor([ws])
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(roles.workspace.id, roles.owner.user.id)
       .run()
     await hub.webSocketMessage(ws as unknown as WebSocket, JSON.stringify({ action: 'ping' }))
     expect(ws.send).not.toHaveBeenCalled()
-    expect(await hub.broadcast(event({ type: 'workspace.event', projectId: undefined }))).toEqual({ recipientCount: 0 })
+    await expect(hub.broadcast(event({ type: 'workspace.event', projectId: undefined }))).resolves.toStrictEqual({
+      recipientCount: 0,
+    })
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('drops a revoked grant on a passive socket immediately without a ping or stale-snapshot delay', async () => {
-    const ws = socket(attachmentFor('member', { snapshotAt: Math.floor(Date.now() / 1000) }))
+  test('drops a revoked grant on a passive socket immediately without a ping or stale-snapshot delay', async () => {
+    const ws = socket(attachmentFor('member', { snapshotAt: currentEpochSeconds() }))
     const { hub } = hubFor([ws])
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare(
       'DELETE FROM group_project_grants WHERE project_id = ? AND group_id IN (SELECT group_id FROM user_group_members WHERE user_id = ?)',
     )
       .bind(projectId, roles.member.user.id)
       .run()
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 0 })
-    expect(ws.deserializeAttachment().visibleProjectIds).toEqual([])
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
+    expect(ws.deserializeAttachment().visibleProjectIds).toStrictEqual([])
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('denies passive broadcasts immediately after token revocation', async () => {
-    const ws = socket(attachmentFor('owner', { snapshotAt: Math.floor(Date.now() / 1000) }))
+  test('denies passive broadcasts immediately after token revocation', async () => {
+    const ws = socket(attachmentFor('owner', { snapshotAt: currentEpochSeconds() }))
     const { hub } = hubFor([ws])
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare('DELETE FROM api_tokens WHERE token_hash = ?')
       .bind(await hashToken(roles.owner.token))
       .run()
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 0 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('drops cached elevated access immediately after an owner is demoted', async () => {
+  test('drops cached elevated access immediately after an owner is demoted', async () => {
     const ws = socket(attachmentFor('owner', { visibleProjectIds: [projectId, otherProjectId] }))
     const { hub } = hubFor([ws])
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 1 })
     ws.send.mockClear()
     await env.DB.prepare('UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?')
       .bind('member', roles.workspace.id, roles.owner.user.id)
       .run()
-    expect(await hub.broadcast(event())).toEqual({ recipientCount: 0 })
+    await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
     expect(ws.deserializeAttachment()).toMatchObject({ role: 'member', visibleProjectIds: [] })
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('dispatches a broadcast event when creating an issue with a WORKSPACE_HUB stub', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ recipientCount: 1 })))
+  test('dispatches a broadcast event when creating an issue with a WORKSPACE_HUB stub', async () => {
+    const fetchMock = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ recipientCount: 1 })))
     const namespace = {
-      idFromName: vi.fn().mockReturnValue('mock-do-id'),
-      get: vi.fn().mockReturnValue({ fetch: fetchMock }),
+      idFromName: vi.fn<(name: string) => string>().mockReturnValue('mock-do-id'),
+      get: vi.fn<(id: string) => { fetch: typeof fetchMock }>().mockReturnValue({ fetch: fetchMock }),
     }
     const ctx: ServiceCtx = {
       db: env.DB,
@@ -353,16 +369,16 @@ describe('Realtime WebSockets (Opt-In)', () => {
       workspaceHub: namespace as unknown as DurableObjectNamespace,
     }
     const created = await createIssue(ctx, { projectId, title: 'Realtime test issue' })
-    expect(created.id).toBeTruthy()
+    expect(isNonEmptyText(created.id)).toBe(true)
     expect(fetchMock).toHaveBeenCalledWith(
       'http://do/broadcast',
-      expect.objectContaining({ method: 'POST', body: expect.stringContaining('"type":"issue.created"') }),
+      expect.objectContaining({ body: expect.stringContaining('"type":"issue.created"'), method: 'POST' }),
     )
   })
 })
 
-describe('WorkspaceHub native WebSocket close handling', () => {
-  it.each([
+describe('covers WorkspaceHub native WebSocket close handling', () => {
+  test.each([
     [1000, 1000],
     [1001, 1001],
     [1011, 1011],
@@ -387,7 +403,7 @@ describe('WorkspaceHub native WebSocket close handling', () => {
     const { hub } = hubFor()
     try {
       await expect(hub.webSocketClose(server, peerCode, 'Peer disconnected', false)).resolves.toBeUndefined()
-      expect(await closed).toMatchObject({ code: expectedCode, reason: 'Closed' })
+      await expect(closed).resolves.toMatchObject({ code: expectedCode, reason: 'Closed' })
     } finally {
       client.close(1000, 'Finished')
       server.close(1000, 'Finished')

@@ -1,1 +1,1 @@
-export { assertSameOriginMutation, checkSameOriginMutation } from '../../contracts/mutation'
+export { assertSameOriginMutation, checkSameOriginMutation } from '#contracts/mutation.ts'

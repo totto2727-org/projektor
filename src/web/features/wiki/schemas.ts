@@ -1,1 +1,1 @@
-export * from '../../../contracts/web-schemas/wiki'
+export * from '#contracts/web-schemas/wiki.ts'

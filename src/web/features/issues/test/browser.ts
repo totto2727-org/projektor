@@ -1,6 +1,8 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vite-plus/test'
 
+import { ISSUE_BOARD_WIDE_MIN_WIDTH } from '../components/board-utils.ts'
+
 vi.mock('../../../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
   uploadInlineImage: vi.fn(),
@@ -29,15 +31,17 @@ vi.mock('@effront/core/query', async () => {
   const { Effect } = await import('effect')
   return {
     query: (operation: (input: unknown) => Promise<unknown>) => (input: unknown) =>
-      Effect.tryPromise({ try: () => operation(input), catch: (error) => error }),
+      Effect.tryPromise({ catch: (error) => error, try: () => operation(input) }),
   }
 })
 beforeEach(() => {
-  Object.defineProperty(window, 'matchMedia', {
+  Object.defineProperty(globalThis, 'matchMedia', {
     configurable: true,
     writable: true,
     value: (query: string) => ({
-      matches: query.includes('max-width') ? window.innerWidth < 640 : window.innerWidth >= 640,
+      matches: query.includes('max-width')
+        ? globalThis.innerWidth < ISSUE_BOARD_WIDE_MIN_WIDTH
+        : globalThis.innerWidth >= ISSUE_BOARD_WIDE_MIN_WIDTH,
       media: query,
       onchange: null,
       addListener: vi.fn(),

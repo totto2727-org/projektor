@@ -1,56 +1,93 @@
-import { formatTimestampDate } from '../timestamp'
-import type { RangeState, SprintIssue } from './types'
+import { String, Predicate } from 'effect'
 
-/** Original local-midnight date input contract, including timezone-safe round trips. */
-export function dateInputToUnix(value: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
-  if (!m) return null
-  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / 1000)
+import { defaultFlowMetricsStartDate } from '#contracts/flow-metrics-range.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import {
+  SECONDS_PER_DAY,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  LAST_SECOND_OF_DAY,
+  MILLISECONDS_PER_SECOND,
+  formatUtcDatePrefix,
+  utcMidnightMilliseconds,
+} from '#contracts/time.ts'
+import { formatTimestampDate } from '@/features/timestamp.ts'
+
+import type { RangeState, SprintIssue } from './types.ts'
+
+const CALENDAR_MONTH_INDEX_OFFSET = 1
+const CALENDAR_FIELD_WIDTH = 2
+const DEFAULT_STORY_POINTS = 0
+const DISPLAY_DECIMAL_PLACES = 1
+const PERCENT_SCALE = 100
+
+/**
+ * Original local-midnight date input contract, including timezone-safe round trips.
+ *
+ * @param {string} value The date input in year-month-day form.
+ * @returns {number | null} The Unix timestamp in seconds at local midnight, or null if the input cannot be parsed.
+ */
+export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
+  const parts = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u.exec(value.trim())?.groups
+  if (!parts) {
+    return null
+  }
+  const date = new Date(Number(parts.year), Number(parts.month) - CALENDAR_MONTH_INDEX_OFFSET, Number(parts.day))
+  return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / MILLISECONDS_PER_SECOND)
 }
-export function unixToDateInput(ts: number | null): string {
-  if (ts === null) return ''
-  const date = new Date(ts * 1000)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+export const unixToDateInput = function unixToDateInput(ts: number | null): string {
+  if (Predicate.isNullish(ts)) {
+    return ''
+  }
+  const date = new Date(ts * MILLISECONDS_PER_SECOND)
+  return `${date.getFullYear()}-${globalThis.String(date.getMonth() + CALENDAR_MONTH_INDEX_OFFSET).padStart(CALENDAR_FIELD_WIDTH, '0')}-${globalThis.String(date.getDate()).padStart(CALENDAR_FIELD_WIDTH, '0')}`
 }
-export function formatUnixDate(ts: number | null): string {
-  return ts === null ? '\u2013' : formatTimestampDate(ts)
+export const formatUnixDate = function formatUnixDate(ts: number | null): string {
+  return Predicate.isNullish(ts) ? '\u2013' : formatTimestampDate(ts)
 }
-export function getStoryPoints(issue: SprintIssue): number {
+export const getStoryPoints = function getStoryPoints(issue: SprintIssue): number {
   const field = issue.customFields.find((entry) => entry.key === 'story_points')
-  if (!field) return 0
+  if (!field) {
+    return DEFAULT_STORY_POINTS
+  }
   const value = Number.parseFloat(field.value)
-  return Number.isNaN(value) ? 0 : value
+  return Number.isNaN(value) ? DEFAULT_STORY_POINTS : value
 }
-export function issueHref(issue: SprintIssue, workspaceSlug: string): string {
+export const issueHref = function issueHref(issue: SprintIssue, workspaceSlug: string): string {
   const query = new URLSearchParams({ id: issue.id, workspace: workspaceSlug })
-  if (!issue.project_key) return `/issues/view?${query}`
+  if (!isNonEmptyText(issue.project_key)) {
+    return `/issues/view?${query}`
+  }
   const slug = issue.title
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replaceAll(/[^a-z0-9]+/gu, '-')
+    .replaceAll(/^-|-$/gu, '')
   return `/projects/${encodeURIComponent(issue.project_key)}/issues/${issue.number}/${slug}?workspace=${encodeURIComponent(workspaceSlug)}`
 }
-export function defaultRange(now = new Date()): RangeState {
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 35)
+export const defaultRange = function defaultRange(now = new Date()): RangeState {
+  const monday = defaultFlowMetricsStartDate(now)
   return {
-    since: monday.toISOString().slice(0, 10),
-    until: now.toISOString().slice(0, 10),
+    since: formatUtcDatePrefix(monday),
+    until: formatUtcDatePrefix(now),
     granularity: 'week',
   }
 }
-export function dateEpochStart(date: string): number {
-  return Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000)
+export const dateEpochStart = function dateEpochStart(date: string): number {
+  return Math.floor(utcMidnightMilliseconds(date) / MILLISECONDS_PER_SECOND)
 }
-export function dateEpochEnd(date: string): number {
-  return dateEpochStart(date) + 86399
+export const dateEpochEnd = function dateEpochEnd(date: string): number {
+  return dateEpochStart(date) + LAST_SECOND_OF_DAY
 }
-export function rangeFromUrl(url: URL, now = new Date()): RangeState {
+export const rangeFromUrl = function rangeFromUrl(url: URL, now = new Date()): RangeState {
   const fallback = defaultRange(now)
-  const date = (key: 'since' | 'until') => {
+  const date = (key: 'since' | 'until'): string => {
     const value = url.searchParams.get(key)
-    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(dateEpochStart(value)) ? value : fallback[key]
+    return Predicate.isNotNullish(value) &&
+      String.isNonEmpty(value) &&
+      /^\d{4}-\d{2}-\d{2}$/u.test(value) &&
+      Number.isFinite(dateEpochStart(value))
+      ? value
+      : fallback[key]
   }
   const since = date('since')
   const until = date('until')
@@ -60,13 +97,23 @@ export function rangeFromUrl(url: URL, now = new Date()): RangeState {
     granularity: url.searchParams.get('granularity') === 'day' ? 'day' : 'week',
   }
 }
-export function formatDuration(seconds: number | null): string {
-  if (seconds === null) return '\u2013'
+export const formatDuration = function formatDuration(seconds: number | null): string {
+  if (Predicate.isNullish(seconds)) {
+    return '\u2013'
+  }
   const abs = Math.abs(seconds)
-  if (abs < 60) return `${Math.round(seconds)}s`
-  if (abs < 3600) return `${(seconds / 60).toFixed(1)}m`
-  if (abs < 86400) return `${(seconds / 3600).toFixed(1)}h`
-  return `${(seconds / 86400).toFixed(1)}d`
+  if (abs < SECONDS_PER_MINUTE) {
+    return `${Math.round(seconds)}s`
+  }
+  if (abs < SECONDS_PER_HOUR) {
+    return `${(seconds / SECONDS_PER_MINUTE).toFixed(DISPLAY_DECIMAL_PLACES)}m`
+  }
+  if (abs < SECONDS_PER_DAY) {
+    return `${(seconds / SECONDS_PER_HOUR).toFixed(DISPLAY_DECIMAL_PLACES)}h`
+  }
+  return `${(seconds / SECONDS_PER_DAY).toFixed(DISPLAY_DECIMAL_PLACES)}d`
 }
-export const formatPercent = (value: number | null) => (value === null ? '\u2013' : `${Math.round(value * 100)}%`)
-export const formatCount = (value: number | null) => (value === null ? '\u2013' : value.toFixed(1))
+export const formatPercent = (value: number | null): string =>
+  Predicate.isNullish(value) ? '\u2013' : `${Math.round(value * PERCENT_SCALE)}%`
+export const formatCount = (value: number | null): string =>
+  Predicate.isNullish(value) ? '\u2013' : value.toFixed(DISPLAY_DECIMAL_PLACES)

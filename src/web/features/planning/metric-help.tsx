@@ -1,0 +1,152 @@
+'use client'
+
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import type { JSX } from 'react'
+
+import { Popover } from '@/components/ui/popover.tsx'
+
+import { METRIC_DEFINITIONS } from './metric-definitions.ts'
+import type { MetricId } from './metric-definitions.ts'
+
+const VIEWPORT_INSET_PX = 8
+const HELP_PANEL_WIDTH_PX = 256
+const HELP_TRIGGER_GAP_PX = 4
+const ESTIMATED_HELP_HEIGHT_PX = 140
+
+export const computeMetricHelpPosition = function computeMetricHelpPosition(rect: DOMRect): {
+  top: number
+  left: number
+} {
+  const left = Math.max(
+    VIEWPORT_INSET_PX,
+    Math.min(rect.left, window.innerWidth - HELP_PANEL_WIDTH_PX - VIEWPORT_INSET_PX),
+  )
+  const below = window.innerHeight - rect.bottom - HELP_TRIGGER_GAP_PX - VIEWPORT_INSET_PX
+  const above = rect.top - HELP_TRIGGER_GAP_PX - VIEWPORT_INSET_PX
+  const top =
+    below < ESTIMATED_HELP_HEIGHT_PX && above > below
+      ? Math.max(VIEWPORT_INSET_PX, rect.top - HELP_TRIGGER_GAP_PX - ESTIMATED_HELP_HEIGHT_PX)
+      : rect.bottom + HELP_TRIGGER_GAP_PX
+  return { top, left }
+}
+/**
+ * Original viewport-clamped toggletip, dismissed by Escape, outside clicks and scroll.
+ *
+ * @param {{ id: MetricId }} props The ID of the metric whose definition should be shown.
+ * @returns {JSX.Element} The accessible help trigger and its positioned definition when open.
+ */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Element {
+  const definition = METRIC_DEFINITIONS[id]
+  const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState<{ top: number; left: number }>()
+  const root = useRef<HTMLSpanElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const popoverId = useId()
+  const reposition = useCallback(() => {
+    const rect = trigger.current?.getBoundingClientRect()
+    if (rect) {
+      setPosition(computeMetricHelpPosition(rect))
+    }
+  }, [])
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const inside = (node: Node): undefined | boolean =>
+      root.current?.contains(node) === true ? true : panel.current?.contains(node)
+    const pointer = (event: MouseEvent): void => {
+      if (!(event.target instanceof Node) || inside(event.target) !== true) {
+        setOpen(false)
+      }
+    }
+    const key = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+    const scroll = (event: Event): void => {
+      if (!(event.target instanceof Node) || inside(event.target) !== true) {
+        setOpen(false)
+      }
+    }
+    let width = window.innerWidth
+    const resize = (): void => {
+      if (window.innerWidth !== width) {
+        width = window.innerWidth
+        setOpen(false)
+      } else {
+        reposition()
+      }
+    }
+    const viewport = window.visualViewport
+    document.addEventListener('mousedown', pointer)
+    document.addEventListener('keydown', key)
+    window.addEventListener('scroll', scroll, true)
+    window.addEventListener('resize', resize)
+    viewport?.addEventListener('resize', resize)
+    return () => {
+      document.removeEventListener('mousedown', pointer)
+      document.removeEventListener('keydown', key)
+      window.removeEventListener('scroll', scroll, true)
+      window.removeEventListener('resize', resize)
+      viewport?.removeEventListener('resize', resize)
+    }
+  }, [open, reposition])
+  return (
+    <span className='metric-help' ref={root}>
+      <button
+        ref={trigger}
+        type='button'
+        className='metric-help-trigger'
+        aria-label={`About ${definition.label}`}
+        aria-expanded={open}
+        aria-describedby={open ? popoverId : undefined}
+        onClick={() => {
+          if (open) {
+            setOpen(false)
+          } else {
+            reposition()
+            setOpen(true)
+          }
+        }}
+      >
+        <span aria-hidden='true'>ⓘ</span>
+      </button>
+      {open && position && (
+        <Popover
+          id={popoverId}
+          strategy='portal-fixed'
+          className='popover-metric-help'
+          role='dialog'
+          ariaModal={false}
+          ariaLabel={`${definition.label} definition`}
+          elementRef={panel}
+          position={position}
+        >
+          <p className='m-0 mb-1 text-[0.8rem] text-text-base'>{definition.definition}</p>
+          <p className='m-0 text-[0.72rem] text-text-muted'>{definition.computation}</p>
+        </Popover>
+      )}
+    </span>
+  )
+}
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const SectionHeading = function SectionHeading({
+  metricId,
+  caption,
+}: {
+  metricId: MetricId
+  caption?: string
+}): JSX.Element {
+  return (
+    <>
+      <h2 className='m-0 mb-1 text-base font-semibold text-text-base inline-flex items-center gap-1.5'>
+        {METRIC_DEFINITIONS[metricId].label}
+        <MetricHelp id={metricId} />
+      </h2>
+      {caption && <p className='m-0 mb-3 text-[0.72rem] text-text-muted'>{caption}</p>}
+    </>
+  )
+}

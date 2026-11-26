@@ -1,8 +1,12 @@
-import { Effect, Schema } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { String, Predicate, Iterable, Effect, Schema } from 'effect'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
+import { sqliteRowFields } from '#tests/sqlite-records.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import { inMemoryKV, inMemoryR2, testEnvironment } from '@/server/test/resources.ts'
+
 import {
   setAttachmentReviewStatus,
   addComment,
@@ -23,53 +27,52 @@ import {
   readIssuePage,
   searchIssues,
   updateIssue,
-} from './actions'
-import { issueDataFixture } from './test/data-fixture'
-import { project, scope, workspace } from './test/fixtures'
+} from './actions.ts'
+import { issueDataFixture } from './test/data-fixture.ts'
+import { issueIdentity, project, scope, workspace } from './test/fixtures.ts'
 const databases: ReturnType<typeof issueDataFixture>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
 
-// Capture the framework's schema boundary while exercising migrated D1, real development
-// authentication, shared domain authorization and direct command side effects.
+/*
+ * Capture the framework's schema boundary while exercising migrated D1, real development
+ * authentication, shared domain authorization and direct command side effects.
+ */
 vi.mock('../../effront', () => ({
   EFFRONT: { ServerFn: { make: (definition: unknown) => ({ definition }) } },
 }))
-vi.mock('@effront/core/workers', async () => {
-  const { Effect } = await import('effect')
+vi.mock(import('@effront/core/workers'), async () => {
+  const { Effect: fixtureEffect } = await import('effect')
   return {
-    getWorkersRequestContext: () => Effect.die('Worker context is supplied by this operation test.'),
+    getWorkersRequestContext: () => fixtureEffect.die('Worker context is supplied by this operation test.'),
   }
 })
-interface Definition {
-  readonly input: Schema.Decoder<unknown> | ReadonlyArray<Schema.Decoder<unknown>>
-  readonly handler: (...input: readonly unknown[]) => Effect.Effect<unknown, unknown, RequestServices>
-}
-function fixture(options: { origin?: string } = {}) {
+type Definition = Readonly<{
+  input: Schema.Decoder<unknown> | Readonly<Schema.Decoder<unknown>[]>
+  handler: (...input: Readonly<unknown[]>) => Effect.Effect<unknown, unknown, RequestServices>
+}>
+const fixture = function fixture(options: { origin?: string } = {}) {
   const database = issueDataFixture()
   databases.push(database)
-  const invalidated = vi.fn()
+  const invalidated = vi.fn<() => void>()
   const kv = inMemoryKV()
   const r2 = inMemoryR2()
-  async function invoke(action: unknown, input: unknown) {
-    const definition = (action as { definition: Definition }).definition
+  const invoke = async function invoke(action: unknown, input: unknown): Promise<unknown> {
+    const { definition } = action as { definition: Definition }
     const multiple = Array.isArray(definition.input)
     const inputSchema = multiple
-      ? Schema.Tuple(definition.input as ReadonlyArray<Schema.Decoder<unknown>>)
+      ? Schema.Tuple(definition.input as Readonly<Schema.Decoder<unknown>[]>)
       : (definition.input as Schema.Decoder<unknown>)
-    const decoded = await Effect.runPromise(Schema.decodeUnknownEffect(inputSchema)(input))
+    const decoded = await runTestEffect(Schema.decodeUnknownEffect(inputSchema)(input))
     const request = new Request('https://front.test/_effront/query', {
       method: 'POST',
       headers: {
         origin: options.origin ?? 'https://front.test',
       },
     })
-    const services = await Effect.runPromise(
+    const services = await runTestEffect(
       makeRequestServices(request, testEnvironment(database.db, 'user@example.test', { KV: kv, R2: r2 })),
     )
-    return Effect.runPromise(
-      definition.handler(...(multiple ? (decoded as readonly unknown[]) : [decoded])).pipe(
+    return runTestEffect(
+      definition.handler(...(multiple ? (decoded as Readonly<unknown[]>) : [decoded])).pipe(
         Effect.provideService(RequestServices, {
           ...services,
           invalidate: services.invalidate.pipe(Effect.tap(() => Effect.sync(invalidated))),
@@ -81,276 +84,316 @@ function fixture(options: { origin?: string } = {}) {
 }
 
 describe('individual issue ServerFn authorization and contracts', () => {
-  it('sets and clears review status through the named Core command under selected issue ownership', async () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
+  test('sets and clears review status through the named Core command under selected issue ownership', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('review-file','workspace-a','file','w/file','review.pdf','application/pdf',1,'issue','issue-a','user-a',1)",
     )
-    const input = { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'review-file', status: 'fixing' }
-    expect(await invoke(setAttachmentReviewStatus, input)).toEqual({ ok: true, value: { ok: true } })
-    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
+    const input = { ...issueIdentity(workspace.slug, 'issue-a'), attachmentId: 'review-file', status: 'fixing' }
+    await expect(invoke(setAttachmentReviewStatus, input)).resolves.toStrictEqual({ ok: true, value: { ok: true } })
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()),
+    ).toStrictEqual({
       review_status: 'fixing',
     })
-    expect(await invoke(setAttachmentReviewStatus, { ...input, issueId: 'issue-b', status: 'done' })).toMatchObject({
+    await expect(
+      invoke(setAttachmentReviewStatus, { ...input, issueId: 'issue-b', status: 'done' }),
+    ).resolves.toMatchObject({
       ok: false,
       status: 404,
     })
-    expect(await invoke(setAttachmentReviewStatus, { ...input, status: null })).toEqual({
+    await expect(invoke(setAttachmentReviewStatus, { ...input, status: JSON_NULL })).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
-    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
-      review_status: null,
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()),
+    ).toStrictEqual({
+      review_status: JSON_NULL,
     })
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
 
-  it('rejects cross-origin review status mutations before command execution', async () => {
+  test('rejects cross-origin review status mutations before command execution', async () => {
     const { invoke, invalidated } = fixture({ origin: 'https://evil.test' })
-    expect(
-      await invoke(setAttachmentReviewStatus, {
-        workspaceSlug: workspace.slug,
-        issueId: 'issue-a',
+    await expect(
+      invoke(setAttachmentReviewStatus, {
+        ...issueIdentity(workspace.slug, 'issue-a'),
         attachmentId: 'missing',
         status: 'fixing',
       }),
-    ).toMatchObject({ ok: false, status: 403 })
+    ).resolves.toMatchObject({ ok: false, status: 403 })
     expect(invalidated).toHaveBeenCalledOnce()
   })
 
-  it('updates a sprint directly while preserving tenant and project grant checks', async () => {
+  test('updates a sprint directly while preserving tenant and project grant checks', async () => {
+    expect.hasAssertions()
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO sprints (id,workspace_id,project_id,name,status,created_at,updated_at) VALUES ('sprint-a','workspace-a','project-a','Original','planned',1,1),('sprint-hidden','workspace-a','hidden-project','Hidden','planned',1,1),('sprint-other','workspace-b','other-project','Other','planned',1,1)",
     )
-    const patch = { name: 'Updated', goal: 'Direct command', status: 'active', startDate: null, endDate: null }
-    for (const sprintId of ['sprint-hidden', 'sprint-other']) {
-      expect(await invoke(updateSprint, { workspaceSlug: workspace.slug, sprintId, patch })).toMatchObject({
+    const patch = {
+      name: 'Updated',
+      goal: 'Direct command',
+      status: 'active',
+      startDate: JSON_NULL,
+      endDate: JSON_NULL,
+    }
+    await runInOrder(['sprint-hidden', 'sprint-other'], async (sprintId): Promise<void> => {
+      await expect(invoke(updateSprint, { workspaceSlug: workspace.slug, sprintId, patch })).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
-    }
-    expect(await invoke(updateSprint, { workspaceSlug: workspace.slug, sprintId: 'sprint-a', patch })).toMatchObject({
+    })
+    await expect(
+      invoke(updateSprint, { workspaceSlug: workspace.slug, sprintId: 'sprint-a', patch }),
+    ).resolves.toMatchObject({
       ok: true,
       value: { ok: true },
     })
-    expect(database.sqlite.prepare("SELECT name,goal,status FROM sprints WHERE id = 'sprint-a'").get()).toEqual({
-      name: 'Updated',
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT name,goal,status FROM sprints WHERE id = 'sprint-a'").get()),
+    ).toStrictEqual({
       goal: 'Direct command',
+      name: 'Updated',
       status: 'active',
     })
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
-  it('removes both stored bytes and attachment metadata through the shared storage command', async () => {
+
+  test('removes both stored bytes and attachment metadata through the shared storage command', async () => {
     const { invoke, database, r2, invalidated } = fixture()
     database.sqlite.exec(
       "UPDATE attachments SET kind = 'file', r2_key = 'workspace-a/file-a', filename = 'file.txt', content_type = 'text/plain', size = 4, url = NULL WHERE id = 'file-a'",
     )
     await r2.put('workspace-a/file-a', 'data')
-    expect(
-      await invoke(deleteAttachment, { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'file-a' }),
-    ).toMatchObject({ ok: true, value: { ok: true } })
-    expect(await r2.get('workspace-a/file-a')).toBeNull()
+    await expect(
+      invoke(deleteAttachment, { ...issueIdentity(workspace.slug, 'issue-a'), attachmentId: 'file-a' }),
+    ).resolves.toMatchObject({ ok: true, value: { ok: true } })
+    await expect(r2.get('workspace-a/file-a')).resolves.toBeNull()
     expect(database.sqlite.prepare("SELECT id FROM attachments WHERE id = 'file-a'").get()).toBeUndefined()
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it('persists comment creation, editing and deletion with authenticated authorship', async () => {
+
+  test('persists comment creation, editing and deletion with authenticated authorship', async () => {
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
-    expect(await invoke(addComment, { ...identity, body: 'Added directly' })).toMatchObject({
+    const identity = issueIdentity(workspace.slug, 'issue-a')
+    await expect(invoke(addComment, { ...identity, body: 'Added directly' })).resolves.toMatchObject({
       ok: true,
-      value: { id: expect.any(String) },
+      value: { id: expect.any(globalThis.String) },
     })
     const comment = database.sqlite
       .prepare("SELECT id,author_id,body FROM issue_comments WHERE body = 'Added directly'")
       .get() as { id: string; author_id: string; body: string }
     expect(comment.author_id).toBe(scope.user.id)
-    expect(await invoke(editComment, { ...identity, commentId: comment.id, body: 'Edited directly' })).toMatchObject({
+    await expect(
+      invoke(editComment, { ...identity, commentId: comment.id, body: 'Edited directly' }),
+    ).resolves.toMatchObject({
       ok: true,
       value: { ok: true },
     })
-    expect(database.sqlite.prepare('SELECT body FROM issue_comments WHERE id = ?').get(comment.id)).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare('SELECT body FROM issue_comments WHERE id = ?').get(comment.id)),
+    ).toStrictEqual({
       body: 'Edited directly',
     })
-    expect(await invoke(deleteComment, { ...identity, commentId: comment.id })).toMatchObject({
+    await expect(invoke(deleteComment, { ...identity, commentId: comment.id })).resolves.toMatchObject({
       ok: true,
       value: { ok: true },
     })
     expect(database.sqlite.prepare('SELECT id FROM issue_comments WHERE id = ?').get(comment.id)).toBeUndefined()
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
-  it('preserves comment ownership and issue association for edit and delete commands', async () => {
+
+  test('preserves comment ownership and issue association for edit and delete commands', async () => {
+    expect.hasAssertions()
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO users (id,email,name,created_at) VALUES ('author-b','other@example.test','Other',1); INSERT INTO issue_comments (id,issue_id,author_id,body,created_at,updated_at) VALUES ('foreign-comment','issue-a','author-b','Unchanged',1,1),('other-comment','issue-b','user-a','Other issue',1,1)",
     )
-    for (const action of [editComment, deleteComment]) {
-      expect(
-        await invoke(action, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          commentId: 'foreign-comment',
-          body: 'Changed',
-        }),
-      ).toMatchObject({ ok: false, status: 403 })
-      expect(
-        await invoke(action, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          commentId: 'other-comment',
-          body: 'Changed',
-        }),
-      ).toMatchObject({ ok: false, status: 404 })
-    }
-    expect(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'foreign-comment'").get()).toEqual({
+    await runInOrder([editComment, deleteComment], async (action): Promise<void> => {
+      await expect(
+        invoke(action, { ...issueIdentity(workspace.slug, 'issue-a'), commentId: 'foreign-comment', body: 'Changed' }),
+      ).resolves.toMatchObject({ ok: false, status: 403 })
+      await expect(
+        invoke(action, { ...issueIdentity(workspace.slug, 'issue-a'), commentId: 'other-comment', body: 'Changed' }),
+      ).resolves.toMatchObject({ ok: false, status: 404 })
+    })
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'foreign-comment'").get()),
+    ).toStrictEqual({
       body: 'Unchanged',
     })
-    expect(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'other-comment'").get()).toEqual({
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT body FROM issue_comments WHERE id = 'other-comment'").get()),
+    ).toStrictEqual({
       body: 'Other issue',
     })
     expect(invalidated).toHaveBeenCalledTimes(4)
   })
-  it('persists canonical links and refuses deletion under a different issue', async () => {
+
+  test('persists canonical links and refuses deletion under a different issue', async () => {
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
-    expect(await invoke(addIssueLink, { ...identity, targetIssueId: 'issue-b', type: 'blocked_by' })).toMatchObject({
+    const identity = issueIdentity(workspace.slug, 'issue-a')
+    await expect(
+      invoke(addIssueLink, { ...identity, targetIssueId: 'issue-b', type: 'blocked_by' }),
+    ).resolves.toMatchObject({
       ok: true,
-      value: { id: expect.any(String) },
+      value: { id: expect.any(globalThis.String) },
     })
     const link = database.sqlite.prepare('SELECT id,source_issue_id,target_issue_id,type FROM issue_links').get() as {
       id: string
     }
     expect(link).toMatchObject({ source_issue_id: 'issue-b', target_issue_id: 'issue-a', type: 'blocks' })
     database.insertIssue({ id: 'issue-c', number: 3 })
-    expect(
-      await invoke(deleteIssueLink, { workspaceSlug: workspace.slug, issueId: 'issue-c', linkId: link.id }),
-    ).toMatchObject({ ok: false, status: 404 })
+    await expect(
+      invoke(deleteIssueLink, { ...issueIdentity(workspace.slug, 'issue-c'), linkId: link.id }),
+    ).resolves.toMatchObject({ ok: false, status: 404 })
     expect(database.sqlite.prepare('SELECT id FROM issue_links WHERE id = ?').get(link.id)).toBeDefined()
-    expect(await invoke(deleteIssueLink, { ...identity, linkId: link.id })).toMatchObject({
+    await expect(invoke(deleteIssueLink, { ...identity, linkId: link.id })).resolves.toMatchObject({
       ok: true,
       value: { ok: true },
     })
     expect(database.sqlite.prepare('SELECT id FROM issue_links WHERE id = ?').get(link.id)).toBeUndefined()
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
-  it('persists hashed share tokens and link attachment DTOs through concrete commands', async () => {
+
+  test('persists hashed share tokens and link attachment DTOs through concrete commands', async () => {
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
+    const identity = issueIdentity(workspace.slug, 'issue-a')
     const result = (await invoke(shareIssue, identity)) as { ok: true; value: { token: string; url: string } }
     expect(result).toMatchObject({
       ok: true,
-      value: { token: expect.any(String), url: `/share/${result.value.token}` },
+      value: { token: expect.any(globalThis.String), url: `/share/${result.value.token}` },
     })
     const token = database.sqlite.prepare('SELECT id,issue_id,created_by FROM share_tokens').get()
     expect(token).toMatchObject({ issue_id: 'issue-a', created_by: scope.user.id })
     expect(token).not.toMatchObject({ id: result.value.token })
-    expect(
-      await invoke(addAttachmentLink, {
+    await expect(
+      invoke(addAttachmentLink, {
         ...identity,
         link: { kind: 'url', url: 'https://example.test/direct', label: 'Direct' },
       }),
-    ).toMatchObject({ ok: true, value: { id: expect.any(String), kind: 'url' } })
+    ).resolves.toMatchObject({ ok: true, value: { id: expect.any(globalThis.String), kind: 'url' } })
     expect(
-      database.sqlite
-        .prepare("SELECT entity_type,entity_id,url FROM attachments WHERE url = 'https://example.test/direct'")
-        .get(),
-    ).toEqual({ entity_type: 'issue', entity_id: 'issue-a', url: 'https://example.test/direct' })
+      sqliteRowFields(
+        database.sqlite
+          .prepare("SELECT entity_type,entity_id,url FROM attachments WHERE url = 'https://example.test/direct'")
+          .get(),
+      ),
+    ).toStrictEqual({ entity_type: 'issue', entity_id: 'issue-a', url: 'https://example.test/direct' })
     expect(invalidated).toHaveBeenCalledTimes(2)
   })
-  it.each(['http://example.test/path', 'https://example.test/path', 'mailto:review@example.test'])(
+
+  test.each(['http://example.test/path', 'https://example.test/path', 'mailto:review@example.test'])(
     'persists a standard URL through the decoded Web boundary: %s',
     async (url) => {
       const { invoke, database } = fixture()
+      await expect(
+        invoke(addAttachmentLink, { ...issueIdentity(workspace.slug, 'issue-a'), link: { kind: 'url', url } }),
+      ).resolves.toMatchObject({ ok: true, value: { id: expect.any(globalThis.String), kind: 'url' } })
       expect(
-        await invoke(addAttachmentLink, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          link: { kind: 'url', url },
-        }),
-      ).toMatchObject({ ok: true, value: { id: expect.any(String), kind: 'url' } })
-      expect(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)).toEqual({ url })
+        sqliteRowFields(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)),
+      ).toStrictEqual({ url })
     },
   )
-  it.each(['not-a-url', 'https://[broken', '/relative/path'])(
+
+  test.each(['not-a-url', 'https://[broken', '/relative/path'])(
     'rejects malformed URLs before Web command execution: %s',
     async (url) => {
       const { invoke, database, invalidated } = fixture()
       const before = database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()
       await expect(
-        invoke(addAttachmentLink, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          link: { kind: 'url', url },
-        }),
-      ).rejects.toThrow()
-      expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toEqual(before)
+        invoke(addAttachmentLink, { ...issueIdentity(workspace.slug, 'issue-a'), link: { kind: 'url', url } }),
+      ).rejects.toThrow('["link"]["url"]')
+      expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toStrictEqual(before)
       expect(invalidated).not.toHaveBeenCalled()
     },
   )
-  it('enforces actual read-only project grants for issue, link, share and attachment commands', async () => {
+
+  test('enforces actual read-only project grants for issue, link, share and attachment commands', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec("UPDATE group_project_grants SET role = 'viewer' WHERE project_id = 'project-a'")
-    const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
-    expect(await invoke(updateIssue, { ...identity, patch: { title: 'Denied' } })).toMatchObject({
+    const identity = issueIdentity(workspace.slug, 'issue-a')
+    await expect(invoke(updateIssue, { ...identity, patch: { title: 'Denied' } })).resolves.toMatchObject({
       ok: false,
       status: 403,
     })
-    expect(await invoke(addIssueLink, { ...identity, targetIssueId: 'issue-b', type: 'blocks' })).toMatchObject({
+    await expect(
+      invoke(addIssueLink, { ...identity, targetIssueId: 'issue-b', type: 'blocks' }),
+    ).resolves.toMatchObject({
       ok: false,
       status: 403,
     })
-    expect(await invoke(shareIssue, identity)).toMatchObject({ ok: false, status: 403 })
+    await expect(invoke(shareIssue, identity)).resolves.toMatchObject({ ok: false, status: 403 })
+    await expect(
+      invoke(addAttachmentLink, { ...identity, link: { kind: 'url', url: 'https://example.test/denied' } }),
+    ).resolves.toMatchObject({ ok: false, status: 403 })
     expect(
-      await invoke(addAttachmentLink, { ...identity, link: { kind: 'url', url: 'https://example.test/denied' } }),
-    ).toMatchObject({ ok: false, status: 403 })
-    expect(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()).toEqual({
+      sqliteRowFields(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()),
+    ).toStrictEqual({
       title: 'Original issue',
     })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issue_links').get()).toEqual({ count: 0 })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM share_tokens').get()).toEqual({ count: 0 })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM attachments').get()).toEqual({ count: 1 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issue_links').get())).toStrictEqual({
+      count: 0,
+    })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM share_tokens').get())).toStrictEqual({
+      count: 0,
+    })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM attachments').get())).toStrictEqual({
+      count: 1,
+    })
     expect(invalidated).toHaveBeenCalledTimes(4)
   })
-  it('resolves an entity in the explicit workspace and checks its authorized catalog project', async () => {
+
+  test('resolves an entity in the explicit workspace and checks its authorized catalog project', async () => {
     const valid = fixture()
-    expect(await valid.invoke(readIssue, { workspaceSlug: workspace.slug, issueId: 'issue-a' })).toMatchObject({
+    await expect(valid.invoke(readIssue, issueIdentity(workspace.slug, 'issue-a'))).resolves.toMatchObject({
       ok: true,
       value: { id: 'issue-a', workspaceSlug: workspace.slug },
     })
     expect(valid.invalidated).not.toHaveBeenCalled()
     const hidden = fixture()
+    await expect(
+      hidden.invoke(updateIssue, { ...issueIdentity(workspace.slug, 'hidden-issue'), patch: { title: 'Changed' } }),
+    ).resolves.toMatchObject({ ok: false, status: 404 })
     expect(
-      await hidden.invoke(updateIssue, {
-        workspaceSlug: workspace.slug,
-        issueId: 'hidden-issue',
-        patch: { title: 'Changed' },
-      }),
-    ).toMatchObject({ ok: false, status: 404 })
-    expect(hidden.database.sqlite.prepare("SELECT title FROM issues WHERE id = 'hidden-issue'").get()).toEqual({
+      sqliteRowFields(hidden.database.sqlite.prepare("SELECT title FROM issues WHERE id = 'hidden-issue'").get()),
+    ).toStrictEqual({
       title: 'Hidden secret',
     })
     expect(hidden.invalidated).toHaveBeenCalledOnce()
   })
-  it('builds project list and search contracts from D1, without query refresh', async () => {
+
+  test('builds project list and search contracts from D1, without query refresh', async () => {
     const { invoke, database, invalidated } = fixture()
-    expect(
-      await invoke(readIssuePage, {
+    await expect(
+      invoke(readIssuePage, {
         workspaceSlug: workspace.slug,
         projectId: project.id,
         limit: 30,
       }),
-    ).toMatchObject({ ok: true, value: { items: [{ id: 'issue-a' }], total: 1 } })
-    expect(
-      await invoke(searchIssues, {
+    ).resolves.toMatchObject({ ok: true, value: { items: [{ id: 'issue-a' }], total: 1 } })
+    await expect(
+      invoke(searchIssues, {
         workspaceSlug: workspace.slug,
         projectId: project.id,
         query: 'Original',
       }),
-    ).toMatchObject({ ok: true, value: [{ id: 'issue-a', project_id: project.id }] })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    ).resolves.toMatchObject({ ok: true, value: [{ id: 'issue-a', project_id: project.id }] })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).not.toHaveBeenCalled()
   })
-  it.each([
+
+  test.each([
     { issueId: 'hidden-issue' },
     { issueId: 'other-issue' },
     { issueId: 'missing-issue' },
@@ -360,103 +403,118 @@ describe('individual issue ServerFn authorization and contracts', () => {
     { issueId: 'issue-a', projectId: project.id, parentId: 'issue-b' },
   ])('rejects inaccessible mutation references from D1: %j', async ({ issueId, projectId, parentId }) => {
     const { invoke, database, invalidated } = fixture()
-    expect(
-      await invoke(updateIssue, {
+    await expect(
+      invoke(updateIssue, {
         workspaceSlug: workspace.slug,
-        ...(projectId ? { projectId } : {}),
+        ...(Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? { projectId } : {}),
         issueId,
-        patch: { title: 'Changed', ...(parentId ? { parentId } : {}) },
+        patch: {
+          title: 'Changed',
+          ...(Predicate.isNotNullish(parentId) && String.isNonEmpty(parentId) ? { parentId } : {}),
+        },
       }),
-    ).toMatchObject({ ok: false, status: 404 })
+    ).resolves.toMatchObject({ ok: false, status: 404 })
     expect(
       database.sqlite
         .prepare('SELECT title FROM issues WHERE id = ?')
         .get(issueId === 'missing-issue' ? 'issue-a' : issueId),
-    ).toMatchObject({ title: expect.not.stringMatching(/^Changed$/) })
+    ).toMatchObject({ title: expect.not.stringMatching(/^Changed$/u) })
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it('preserves archived project visibility only through an explicit authorized project selector', async () => {
+
+  test('preserves archived project visibility only through an explicit authorized project selector', async () => {
     const { invoke, database } = fixture()
     database.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id IN ('project-a', 'hidden-project')")
-    expect(
-      await invoke(updateIssue, {
-        workspaceSlug: workspace.slug,
-        issueId: 'issue-a',
-        patch: { title: 'Changed' },
-      }),
-    ).toMatchObject({ ok: false, status: 404 })
-    expect(
-      await invoke(updateIssue, {
+    await expect(
+      invoke(updateIssue, { ...issueIdentity(workspace.slug, 'issue-a'), patch: { title: 'Changed' } }),
+    ).resolves.toMatchObject({ ok: false, status: 404 })
+    await expect(
+      invoke(updateIssue, {
         workspaceSlug: workspace.slug,
         projectId: 'hidden-project',
         issueId: 'hidden-issue',
         patch: { title: 'Changed' },
       }),
-    ).toMatchObject({ ok: false, status: 404 })
-    expect(
-      await invoke(updateIssue, {
+    ).resolves.toMatchObject({ ok: false, status: 404 })
+    await expect(
+      invoke(updateIssue, {
         workspaceSlug: workspace.slug,
         projectId: project.id,
         issueId: 'issue-a',
         patch: { title: 'Changed' },
       }),
-    ).toMatchObject({ ok: true })
-    expect(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()).toEqual({ title: 'Changed' })
+    ).resolves.toMatchObject({ ok: true })
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()),
+    ).toStrictEqual({ title: 'Changed' })
   })
-  it('independently authorizes comments, links, attachments and wiki searches before direct reads', async () => {
+
+  test('independently authorizes comments, links, attachments and wiki searches before direct reads', async () => {
+    expect.hasAssertions()
     const { invoke, database, invalidated } = fixture()
-    const identity = { workspaceSlug: workspace.slug, issueId: 'A-1' }
-    expect(await invoke(readComments, identity)).toMatchObject({
+    const identity = issueIdentity(workspace.slug, 'A-1')
+    await expect(invoke(readComments, identity)).resolves.toMatchObject({
       ok: true,
       value: [{ id: 'comment-a', author_id: scope.user.id }],
     })
-    expect(await invoke(readLinks, identity)).toEqual({ ok: true, value: [] })
-    expect(await invoke(readAttachments, identity)).toMatchObject({
+    await expect(invoke(readLinks, identity)).resolves.toStrictEqual({ ok: true, value: [] })
+    await expect(invoke(readAttachments, identity)).resolves.toMatchObject({
       ok: true,
       value: [{ id: 'file-a', kind: 'url' }],
     })
-    expect(await invoke(searchWikiAttachments, { workspaceSlug: workspace.slug, query: 'guide' })).toMatchObject({
+    await expect(
+      invoke(searchWikiAttachments, { workspaceSlug: workspace.slug, query: 'guide' }),
+    ).resolves.toMatchObject({
       ok: true,
       value: expect.arrayContaining([
         { id: 'wiki-a', title: 'Visible guide', slug: 'guide', project_id: project.id },
-        { id: 'wiki-global', title: 'Workspace guide', slug: 'workspace-guide', project_id: null },
+        { id: 'wiki-global', title: 'Workspace guide', slug: 'workspace-guide', project_id: JSON_NULL },
       ]),
     })
-    for (const read of [readIssue, readComments, readLinks, readAttachments]) {
-      expect(await invoke(read, { workspaceSlug: workspace.slug, issueId: 'hidden-issue' })).toMatchObject({
+    await runInOrder([readIssue, readComments, readLinks, readAttachments], async (read): Promise<void> => {
+      await expect(invoke(read, issueIdentity(workspace.slug, 'hidden-issue'))).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
-      expect(
-        await invoke(read, {
+      await expect(
+        invoke(read, {
           workspaceSlug: workspace.slug,
           projectId: project.id,
           issueId: 'issue-b',
         }),
-      ).toMatchObject({ ok: false, status: 404 })
-    }
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+      ).resolves.toMatchObject({ ok: false, status: 404 })
+    })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).not.toHaveBeenCalled()
   })
-  it('rejects malformed cursor input through Effect Schema before the shared query', async () => {
+
+  test('rejects malformed cursor input through Effect Schema before the shared query', async () => {
     const { invoke, database } = fixture()
-    expect(await invoke(readIssuePage, { workspaceSlug: workspace.slug, cursor: 'next' })).toMatchObject({
+    await expect(invoke(readIssuePage, { workspaceSlug: workspace.slug, cursor: 'next' })).resolves.toMatchObject({
       ok: false,
       status: 400,
     })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
   })
-  it('rejects cross-origin writes before any backend read and invalidates expected failures', async () => {
+
+  test('rejects cross-origin writes before any backend read and invalidates expected failures', async () => {
     const { invoke, database, invalidated } = fixture({ origin: 'https://evil.test' })
     const data = new FormData()
     data.set('workspaceSlug', workspace.slug)
     data.set('projectId', project.id)
     data.set('title', 'Created')
-    expect(await invoke(createIssue, [null, data])).toMatchObject({ ok: false, status: 403 })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    await expect(invoke(createIssue, [JSON_NULL, data])).resolves.toMatchObject({ ok: false, status: 403 })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it('passes only schema-selected issue fields to explicit shared commands', async () => {
+
+  test('passes only schema-selected issue fields to explicit shared commands', async () => {
     const native = fixture()
     const formData = new FormData()
     formData.set('workspaceSlug', workspace.slug)
@@ -465,28 +523,37 @@ describe('individual issue ServerFn authorization and contracts', () => {
     formData.set('priority', 'medium')
     formData.set('method', 'DELETE')
     formData.set('path', '/api/workspaces/other')
-    expect(await native.invoke(createIssue, [null, formData])).toMatchObject({ ok: true })
+    await expect(native.invoke(createIssue, [JSON_NULL, formData])).resolves.toMatchObject({ ok: true })
     expect(
-      native.database.sqlite
-        .prepare("SELECT project_id,title,priority FROM issues WHERE title = 'Created natively'")
-        .get(),
-    ).toEqual({ project_id: project.id, title: 'Created natively', priority: 'medium' })
-    expect(native.database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 5 })
+      sqliteRowFields(
+        native.database.sqlite
+          .prepare("SELECT project_id,title,priority FROM issues WHERE title = 'Created natively'")
+          .get(),
+      ),
+    ).toStrictEqual({ project_id: project.id, title: 'Created natively', priority: 'medium' })
+    expect(sqliteRowFields(native.database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual(
+      { count: 5 },
+    )
     expect(native.invalidated).toHaveBeenCalledOnce()
     const { invoke, database, invalidated } = fixture()
-    expect(
-      await invoke(updateIssue, {
-        workspaceSlug: workspace.slug,
-        issueId: 'issue-a',
+    await expect(
+      invoke(updateIssue, {
+        ...issueIdentity(workspace.slug, 'issue-a'),
         patch: { title: 'Changed', path: '/api/workspaces/other' },
         method: 'DELETE',
       }),
-    ).toMatchObject({ ok: true })
-    expect(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()).toEqual({ title: 'Changed' })
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    ).resolves.toMatchObject({ ok: true })
+    expect(
+      sqliteRowFields(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()),
+    ).toStrictEqual({ title: 'Changed' })
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it("will not delete an attachment absent from the issue's server-loaded attachment set", async () => {
+
+  test("will not delete an attachment absent from the issue's server-loaded attachment set", async () => {
+    expect.hasAssertions()
     const { invoke, database } = fixture()
     database.sqlite.exec(`
       INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at) VALUES
@@ -494,50 +561,61 @@ describe('individual issue ServerFn authorization and contracts', () => {
         ('foreign-workspace','workspace-b','url','','Other workspace','text/uri-list',0,'https://example.test','issue','issue-a','user-a',1),
         ('wiki-attachment','workspace-a','url','','Wiki','text/uri-list',0,'https://example.test','wiki_page','issue-a','user-a',1);
     `)
-    for (const attachmentId of ['foreign-attachment', 'foreign-workspace', 'wiki-attachment', 'missing-attachment']) {
-      expect(
-        await invoke(deleteAttachment, {
-          workspaceSlug: workspace.slug,
-          issueId: 'issue-a',
-          attachmentId,
-        }),
-      ).toMatchObject({ ok: false, status: 404 })
-    }
-    expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
+    await runInOrder(
+      ['foreign-attachment', 'foreign-workspace', 'wiki-attachment', 'missing-attachment'],
+      async (attachmentId): Promise<void> => {
+        await expect(
+          invoke(deleteAttachment, {
+            workspaceSlug: workspace.slug,
+            issueId: 'issue-a',
+            attachmentId,
+          }),
+        ).resolves.toMatchObject({ ok: false, status: 404 })
+      },
+    )
+    expect(sqliteRowFields(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get())).toStrictEqual({
+      count: 4,
+    })
     expect(
-      database.sqlite
-        .prepare(
-          "SELECT COUNT(*) AS count FROM attachments WHERE id IN ('foreign-attachment','foreign-workspace','wiki-attachment')",
-        )
-        .get(),
-    ).toEqual({ count: 3 })
+      sqliteRowFields(
+        database.sqlite
+          .prepare(
+            "SELECT COUNT(*) AS count FROM attachments WHERE id IN ('foreign-attachment','foreign-workspace','wiki-attachment')",
+          )
+          .get(),
+      ),
+    ).toStrictEqual({ count: 3 })
   })
-  it('deletes an issue-owned attachment through shared storage command after direct retrieval', async () => {
+
+  test('deletes an issue-owned attachment through shared storage command after direct retrieval', async () => {
     const { invoke, database, invalidated } = fixture()
-    expect(
-      await invoke(deleteAttachment, {
+    await expect(
+      invoke(deleteAttachment, {
         workspaceSlug: workspace.slug,
         projectId: project.id,
         issueId: 'issue-a',
         attachmentId: 'file-a',
       }),
-    ).toMatchObject({ ok: true, value: { ok: true } })
+    ).resolves.toMatchObject({ ok: true, value: { ok: true } })
     expect(database.sqlite.prepare("SELECT id FROM attachments WHERE id = 'file-a'").get()).toBeUndefined()
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it.each([{ issueId: 'hidden-issue' }, { issueId: 'other-issue' }, { issueId: 'issue-b', projectId: project.id }])(
+
+  test.each([{ issueId: 'hidden-issue' }, { issueId: 'other-issue' }, { issueId: 'issue-b', projectId: project.id }])(
     'rejects attachment deletion under an inaccessible issue: %j',
     async ({ issueId, projectId }) => {
       const { invoke, database, invalidated } = fixture()
-      expect(
-        await invoke(deleteAttachment, {
+      await expect(
+        invoke(deleteAttachment, {
           workspaceSlug: workspace.slug,
-          ...(projectId ? { projectId } : {}),
+          ...(Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? { projectId } : {}),
           issueId,
           attachmentId: 'file-a',
         }),
-      ).toMatchObject({ ok: false, status: 404 })
-      expect(database.sqlite.prepare("SELECT entity_id FROM attachments WHERE id = 'file-a'").get()).toEqual({
+      ).resolves.toMatchObject({ ok: false, status: 404 })
+      expect(
+        sqliteRowFields(database.sqlite.prepare("SELECT entity_id FROM attachments WHERE id = 'file-a'").get()),
+      ).toStrictEqual({
         entity_id: 'issue-a',
       })
       expect(invalidated).toHaveBeenCalledOnce()

@@ -1,3 +1,14 @@
+import { Iterable } from 'effect'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
+
+import {
+  capabilityForMcpTool,
+  capabilityForMethod,
+  capabilityForOAuthScope,
+  OAUTH_SCOPES_SUPPORTED,
+  parseScopes,
+  tokenAllows,
+} from '#api/auth/scopes.ts'
 /**
  * PROJ-17 — API-token scope enforcement.
  *
@@ -7,37 +18,25 @@
  *  - MCP per-tool enforcement (read token blocked from write tools),
  *  - scope validation + membership check at token creation (/auth/tokens).
  */
+import { currentEpochSeconds } from '#contracts/time.ts'
 
-import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedProject, seedToken, seedUser, seedWorkspace } from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { stringifyOrderedFields, fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
-import {
-  capabilityForMcpTool,
-  capabilityForMethod,
-  capabilityForOAuthScope,
-  OAUTH_SCOPES_SUPPORTED,
-  parseScopes,
-  tokenAllows,
-} from '../auth/scopes'
-import { env } from './fixture-api'
-import {
-  authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
-  seedProject,
-  seedToken,
-  seedUser,
-  seedWorkspace,
-} from './helpers'
-
-/** Seed a workspace + owner + a project in it, for scope-enforcement tests. */
-async function seedScopeFixture() {
+/**
+ * Seed a workspace + owner + a project in it, for scope-enforcement tests.
+ *
+ * @returns {Promise<{ slug: string; workspaceId: string; userId: string; projectId: string }>} The workspace slug and the workspace, owner, and project IDs.
+ */
+const seedScopeFixture = async function seedScopeFixture() {
   const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
   const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
   await env.DB.prepare(
     "INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
   )
-    .bind(ws.id, user.id, Math.floor(Date.now() / 1000))
+    .bind(ws.id, user.id, currentEpochSeconds())
     .run()
   const project = await seedProject(ws.id)
   return { slug: ws.slug, workspaceId: ws.id, userId: user.id, projectId: project.id }
@@ -47,29 +46,29 @@ async function seedScopeFixture() {
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-describe('PROJ-17: scope helpers', () => {
-  it("tokenAllows: '*' grants everything", () => {
+describe('covers PROJ-17: scope helpers', () => {
+  test("tokenAllows: '*' grants everything", () => {
     expect(tokenAllows(['*'], 'read')).toBe(true)
     expect(tokenAllows(['*'], 'write')).toBe(true)
   })
 
-  it("tokenAllows: 'write' implies 'read'", () => {
+  test("tokenAllows: 'write' implies 'read'", () => {
     expect(tokenAllows(['write'], 'write')).toBe(true)
     expect(tokenAllows(['write'], 'read')).toBe(true)
   })
 
-  it("tokenAllows: 'read' permits reads only", () => {
+  test("tokenAllows: 'read' permits reads only", () => {
     expect(tokenAllows(['read'], 'read')).toBe(true)
     expect(tokenAllows(['read'], 'write')).toBe(false)
   })
 
-  it('tokenAllows: unknown/empty scopes grant nothing (fail-closed)', () => {
+  test('tokenAllows: unknown/empty scopes grant nothing (fail-closed)', () => {
     expect(tokenAllows([], 'read')).toBe(false)
     expect(tokenAllows(['bogus'], 'read')).toBe(false)
     expect(tokenAllows(['bogus'], 'write')).toBe(false)
   })
 
-  it('capabilityForMethod: safe methods read, others write', () => {
+  test('capabilityForMethod: safe methods read, others write', () => {
     expect(capabilityForMethod('GET')).toBe('read')
     expect(capabilityForMethod('HEAD')).toBe('read')
     expect(capabilityForMethod('POST')).toBe('write')
@@ -77,7 +76,7 @@ describe('PROJ-17: scope helpers', () => {
     expect(capabilityForMethod('DELETE')).toBe('write')
   })
 
-  it('capabilityForMcpTool: list/get/search/wiki_tree read, rest write', () => {
+  test('capabilityForMcpTool: list/get/search/wiki_tree read, rest write', () => {
     expect(capabilityForMcpTool('list_issues')).toBe('read')
     expect(capabilityForMcpTool('get_prioritized_issues')).toBe('read')
     expect(capabilityForMcpTool('search_wiki')).toBe('read')
@@ -87,19 +86,19 @@ describe('PROJ-17: scope helpers', () => {
     expect(capabilityForMcpTool('delete_wiki_page')).toBe('write')
   })
 
-  it('parseScopes: parses JSON arrays, fails closed on garbage', () => {
-    expect(parseScopes('["read","write"]')).toEqual(['read', 'write'])
-    expect(parseScopes(null)).toEqual([])
-    expect(parseScopes('not json')).toEqual([])
-    expect(parseScopes('{"a":1}')).toEqual([])
-    expect(parseScopes('["read",2,null]')).toEqual(['read'])
+  test('parseScopes: parses JSON arrays, fails closed on garbage', () => {
+    expect(parseScopes('["read","write"]')).toStrictEqual(['read', 'write'])
+    expect(parseScopes(null)).toStrictEqual([])
+    expect(parseScopes('not json')).toStrictEqual([])
+    expect(parseScopes('{"a":1}')).toStrictEqual([])
+    expect(parseScopes('["read",2,null]')).toStrictEqual(['read'])
   })
 
-  it('parseScopes: accepts the legacy unquoted bracketed format', () => {
+  test('parseScopes: accepts the legacy unquoted bracketed format', () => {
     // Some early tokens stored "[read,write]" (not valid JSON) — must still work.
-    expect(parseScopes('[read,write]')).toEqual(['read', 'write'])
-    expect(parseScopes('[ read , write ]')).toEqual(['read', 'write'])
-    expect(parseScopes('[]')).toEqual([])
+    expect(parseScopes('[read,write]')).toStrictEqual(['read', 'write'])
+    expect(parseScopes('[ read , write ]')).toStrictEqual(['read', 'write'])
+    expect(parseScopes('[]')).toStrictEqual([])
     // Round-trips through tokenAllows as a real write-capable token.
     expect(tokenAllows(parseScopes('[read,write]'), 'write')).toBe(true)
   })
@@ -109,60 +108,54 @@ describe('PROJ-17: scope helpers', () => {
 // REST enforcement
 // ---------------------------------------------------------------------------
 
-describe('PROJ-17: REST scope enforcement', () => {
-  let slug: string
-  let projectId: string
-  let userId: string
-  let workspaceId: string
-
-  beforeEach(async () => {
-    ;({ slug, workspaceId, userId, projectId } = await seedScopeFixture())
-  })
-
-  it('read-only token can GET but not POST', async () => {
+describe('covers PROJ-17: REST scope enforcement', () => {
+  test('read-only token can GET but not POST', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
     const headers = authHeaders(token, slug)
 
-    const getRes = await SELF.fetch('http://localhost/api/issues', { headers })
+    const getRes = await fetchNativeApi('http://localhost/api/issues', { headers })
     expect(getRes.status).toBe(200)
 
-    const postRes = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ projectId, title: 'should be blocked' }),
-    })
+    const postRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ projectId, title: 'should be blocked' })),
+    )
     expect(postRes.status).toBe(403)
-    expect(await postRes.json()).toMatchObject({ error: expect.stringContaining('write') })
+    await expect(postRes.json()).resolves.toMatchObject({ error: expect.stringContaining('write') })
   })
 
-  it('write token can POST', async () => {
+  test('write token can POST', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['write'] })
-    const res = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'written by write token' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
   })
 
-  it('wildcard token can both read and write', async () => {
+  test('wildcard token can both read and write', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['*'] })
     const headers = authHeaders(token, slug)
 
-    expect((await SELF.fetch('http://localhost/api/issues', { headers })).status).toBe(200)
-    const postRes = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ projectId, title: 'written by wildcard token' }),
-    })
+    const response = await fetchNativeApi('http://localhost/api/issues', { headers })
+    expect(response.status).toBe(200)
+    const postRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody('POST', headers, JSON.stringify({ projectId, title: 'written by wildcard token' })),
+    )
     expect(postRes.status).toBe(201)
   })
 
-  it('read token is blocked from DELETE', async () => {
+  test('read token is blocked from DELETE', async () => {
+    const { slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
-    const res = await SELF.fetch(`http://localhost/api/issues/${crypto.randomUUID()}`, {
-      method: 'DELETE',
+    const res = await fetchNativeApi(`http://localhost/api/issues/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(403)
   })
@@ -172,40 +165,35 @@ describe('PROJ-17: REST scope enforcement', () => {
 // MCP enforcement
 // ---------------------------------------------------------------------------
 
-async function mcpCall(
+const mcpCall = async function mcpCall(
   workspaceId: string,
   name: string,
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/call',
-      params: { name, arguments: args },
-    }),
-  })
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      headers,
+      JSON.stringify({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { arguments: args, name },
+      }),
+    ),
+  )
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
-  return 'error' in r
+const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc is JsonRpcError {
+  return 'error' in rpc
 }
 
-describe('PROJ-17: MCP scope enforcement', () => {
-  let slug: string
-  let projectId: string
-  let userId: string
-  let workspaceId: string
-
-  beforeEach(async () => {
-    ;({ slug, workspaceId, userId, projectId } = await seedScopeFixture())
-  })
-
-  it('read token: read tool works, write tool is blocked', async () => {
+describe('covers PROJ-17: MCP scope enforcement', () => {
+  test('read token: read tool works, write tool is blocked', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
     const headers = authHeaders(token, slug)
 
@@ -215,12 +203,13 @@ describe('PROJ-17: MCP scope enforcement', () => {
     const created = await mcpCall(workspaceId, 'create_issue', { projectId, title: 'blocked' }, headers)
     expect(isMcpError(created)).toBe(true)
     if (isMcpError(created)) {
-      expect(created.error.code).toBe(-32003)
+      expect(created.error.code).toBe(-32_003)
       expect(created.error.message).toContain('write')
     }
   })
 
-  it('write token: write tool works', async () => {
+  test('write token: write tool works', async () => {
+    const { projectId, slug, userId, workspaceId } = await seedScopeFixture()
     const token = await seedToken(workspaceId, userId, { scopes: ['write'] })
     const created = await mcpCall(
       workspaceId,
@@ -236,80 +225,101 @@ describe('PROJ-17: MCP scope enforcement', () => {
 // Token creation: scope validation + membership (POST /auth/tokens)
 // ---------------------------------------------------------------------------
 
-describe('PROJ-17: POST /auth/tokens', () => {
-  let workspaceId: string
-  let userId: string
-  let prevDevEmail: string | undefined
+interface MintTokenTestContext {
+  restoreDevEmail?: () => void
+  workspaceId: string
+}
 
+describe('covers PROJ-17: POST /auth/tokens', () => {
   // PROJ-903: minting requires a human session — the dev bypass here.
-  afterEach(() => {
-    env.DEV_USER_EMAIL = prevDevEmail as string
+  afterEach<MintTokenTestContext>(({ restoreDevEmail }) => {
+    restoreDevEmail?.()
   })
 
-  beforeEach(async () => {
-    const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
-    workspaceId = ws.id
+  beforeEach<MintTokenTestContext>(async (context) => {
+    const workspace = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
+    const workspaceId = workspace.id
+    context.workspaceId = workspaceId
     const email = `u-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
-    userId = user.id
+    const userId = user.id
     await env.DB.prepare(
       "INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
     )
-      .bind(workspaceId, userId, Math.floor(Date.now() / 1000))
+      .bind(workspaceId, userId, currentEpochSeconds())
       .run()
-    prevDevEmail = env.DEV_USER_EMAIL
+    const previousDevEmail = env.DEV_USER_EMAIL
+    context.restoreDevEmail = () => {
+      env.DEV_USER_EMAIL = previousDevEmail
+    }
     env.DEV_USER_EMAIL = email
   })
 
-  it('a member can mint a token for their workspace', async () => {
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
-      method: 'POST',
+  test<MintTokenTestContext>('a member can mint a token for their workspace', async ({ workspaceId }) => {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
+      body: stringifyOrderedFields([
+        ['name', 'mine'],
+        ['workspaceId', workspaceId],
+        ['scopes', ['read']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'mine', workspaceId, scopes: ['read'] }),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
-    expect(await res.json()).toMatchObject({ token: expect.any(String) })
+    await expect(res.json()).resolves.toMatchObject({ token: expect.any(String) })
   })
 
-  it("minting a token for a workspace you don't belong to is forbidden", async () => {
+  test("minting a token for a workspace you don't belong to is forbidden", async () => {
     const other = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
-      method: 'POST',
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
+      body: stringifyOrderedFields([
+        ['name', 'sneaky'],
+        ['workspaceId', other.id],
+        ['scopes', ['*']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'sneaky', workspaceId: other.id, scopes: ['*'] }),
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
 
-  it('rejects invalid scope values', async () => {
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
-      method: 'POST',
+  test<MintTokenTestContext>('rejects invalid scope values', async ({ workspaceId }) => {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
+      body: stringifyOrderedFields([
+        ['name', 'bad'],
+        ['workspaceId', workspaceId],
+        ['scopes', ['admin']],
+      ]),
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'bad', workspaceId, scopes: ['admin'] }),
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
 })
 
-// PROJ-655: the OAuth wire names are a public contract — they ship in
-// `scopes_supported` on the discovery documents, which Claude caches globally by
-// URL across every user of an instance. Pinning them in a test makes a rename a
-// deliberate act rather than a refactor's collateral damage.
-describe('OAuth wire scope names (PROJ-655)', () => {
-  it('advertises exactly the two namespaced scopes', () => {
-    expect([...OAUTH_SCOPES_SUPPORTED]).toEqual(['projektor:read', 'projektor:write'])
+/*
+ * PROJ-655: the OAuth wire names are a public contract — they ship in
+ * `scopes_supported` on the discovery documents, which Claude caches globally by
+ * URL across every user of an instance. Pinning them in a test makes a rename a
+ * deliberate act rather than a refactor's collateral damage.
+ */
+describe('covers OAuth wire scope names (PROJ-655)', () => {
+  test('advertises exactly the two namespaced scopes', () => {
+    expect([...OAUTH_SCOPES_SUPPORTED]).toStrictEqual(['projektor:read', 'projektor:write'])
   })
 
-  it('maps each wire scope to the capability it grants', () => {
+  test('maps each wire scope to the capability it grants', () => {
     expect(capabilityForOAuthScope('projektor:read')).toBe('read')
     expect(capabilityForOAuthScope('projektor:write')).toBe('write')
   })
 
-  it('fails closed on a scope it does not issue', () => {
-    // Notably the bare internal names: they are NOT valid on the wire, so a
-    // client that guesses them gets nothing rather than accidental read access.
-    for (const scope of ['read', 'write', '*', 'offline_access', 'projektor:admin', '']) {
+  test('fails closed on a scope it does not issue', () => {
+    /*
+     * Notably the bare internal names: they are NOT valid on the wire, so a
+     * client that guesses them gets nothing rather than accidental read access.
+     */
+    Iterable.forEach(['read', 'write', '*', 'offline_access', 'projektor:admin', ''], (scope) => {
       expect(capabilityForOAuthScope(scope)).toBeNull()
-    }
+    })
   })
 })

@@ -1,9 +1,19 @@
 'use client'
-import type { ReviewStatus } from '../../../../contracts/review-targets'
-import type { RenderedMarkdown } from '../../../components/markdown/render'
-import type { CustomFieldValue, TaskStatus } from './board-utils'
+import type { ReviewStatus } from '#contracts/review-targets.ts'
+import {
+  SECONDS_PER_DAY,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  MILLISECONDS_PER_SECOND,
+  currentEpochMilliseconds,
+} from '#contracts/time.ts'
+import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 
-export type { CustomFieldValue, TaskStatus }
+import type { CustomFieldValue } from './board-utils.ts'
+
+export { formatBytes } from '@/lib/file-size.ts'
+
+export type { CustomFieldValue, TaskStatus } from './board-utils.ts'
 
 export interface IssueLink {
   id: string
@@ -93,30 +103,33 @@ export const LINK_TYPE_LABELS: Record<string, string> = {
 }
 
 export const LINK_TYPE_OPTIONS = [
-  { value: 'relates_to', label: 'Relates to' },
-  { value: 'blocks', label: 'Blocks' },
-  { value: 'blocked_by', label: 'Blocked by' },
-  { value: 'duplicates', label: 'Duplicates' },
+  { label: 'Relates to', value: 'relates_to' },
+  { label: 'Blocks', value: 'blocks' },
+  { label: 'Blocked by', value: 'blocked_by' },
+  { label: 'Duplicates', value: 'duplicates' },
 ]
 
+const RELATIVE_DATE_WINDOW_DAYS = 7
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-export function formatDate(unixSeconds: number): string {
-  const d = new Date(unixSeconds * 1000)
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+export const formatDate = function formatDate(unixSeconds: number): string {
+  const date = new Date(unixSeconds * MILLISECONDS_PER_SECOND)
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 
-export function relativeTime(unixSeconds: number): string {
-  const diff = Date.now() / 1000 - unixSeconds
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}d ago`
+export const relativeTime = function relativeTime(unixSeconds: number): string {
+  const diff = currentEpochMilliseconds() / MILLISECONDS_PER_SECOND - unixSeconds
+  if (diff < SECONDS_PER_MINUTE) {
+    return 'just now'
+  }
+  if (diff < SECONDS_PER_HOUR) {
+    return `${Math.floor(diff / SECONDS_PER_MINUTE)}m ago`
+  }
+  if (diff < SECONDS_PER_DAY) {
+    return `${Math.floor(diff / SECONDS_PER_HOUR)}h ago`
+  }
+  if (diff < RELATIVE_DATE_WINDOW_DAYS * SECONDS_PER_DAY) {
+    return `${Math.floor(diff / SECONDS_PER_DAY)}d ago`
+  }
   return formatDate(unixSeconds)
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }

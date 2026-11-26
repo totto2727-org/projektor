@@ -1,12 +1,15 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
+import { String, Array, Predicate } from 'effect'
 
-import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from './auth-scopes'
+import { hasSingleItem } from '#contracts/item-count.ts'
+
+import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
 /** Provider mechanics validate clients, redirect URIs and PKCE. This contract binds the workspace audience. */
 export class OAuthRequestError extends Error {
-  readonly code: 'invalid_target' | 'invalid_scope'
-  readonly reason: string
-  constructor(code: 'invalid_target' | 'invalid_scope', reason: string) {
+  public readonly code: 'invalid_target' | 'invalid_scope'
+  public readonly reason: string
+  public constructor(code: 'invalid_target' | 'invalid_scope', reason: string) {
     super(reason)
     this.code = code
     this.reason = reason
@@ -14,51 +17,79 @@ export class OAuthRequestError extends Error {
   }
 }
 
-export function workspaceIdFromResource(resource: string | string[] | undefined): string {
-  if (resource === undefined)
-    throw new OAuthRequestError('invalid_target', 'A `resource` parameter naming the target workspace is required')
-  if (Array.isArray(resource)) {
-    if (resource.length !== 1) throw new OAuthRequestError('invalid_target', 'Exactly one `resource` may be requested')
-    return workspaceIdFromResource(resource[0])
-  }
-  let url: URL
+const parseResourceUrl = function parseResourceUrl(resource: string): URL {
   try {
-    url = new URL(resource)
+    return new URL(resource)
   } catch {
     throw new OAuthRequestError('invalid_target', '`resource` is not a valid URL')
   }
-  const workspaceId = /^\/mcp\/([^/]+)$/.exec(url.pathname)?.[1]
-  if (!workspaceId)
+}
+
+export const workspaceIdFromResource = function workspaceIdFromResource(
+  resource: string | string[] | undefined,
+): string {
+  if (Predicate.isNullish(resource)) {
+    throw new OAuthRequestError('invalid_target', 'A `resource` parameter naming the target workspace is required')
+  }
+  if (globalThis.Array.isArray(resource)) {
+    if (!hasSingleItem(resource)) {
+      throw new OAuthRequestError('invalid_target', 'Exactly one `resource` may be requested')
+    }
+    return workspaceIdFromResource(resource[0])
+  }
+  const { pathname } = parseResourceUrl(resource)
+  const workspaceId = /^\/mcp\/(?<workspaceId>[^/]+)$/u.exec(pathname)?.groups?.workspaceId
+  if (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId)) {
     throw new OAuthRequestError('invalid_target', '`resource` must name an MCP endpoint, e.g. https://host/mcp/<id>')
+  }
   return decodeURIComponent(workspaceId)
 }
 
-/** An omitted scope requests all supported scopes. Unsupported extras are discarded. */
-export function grantedScopes(requested: readonly string[]): string[] {
-  if (requested.length === 0) return [...OAUTH_SCOPES_SUPPORTED]
+/**
+ * Use all supported scopes when the request omits the scope list. Discard unsupported scopes from an explicit list.
+ *
+ * @param {Readonly<string[]>} requested The scopes supplied by the OAuth client.
+ * @returns {string[]} The granted scopes in provider order.
+ */
+export const grantedScopes = function grantedScopes(requested: Readonly<string[]>): string[] {
+  if (Array.isReadonlyArrayEmpty(requested)) {
+    return [...OAUTH_SCOPES_SUPPORTED]
+  }
   const granted = OAUTH_SCOPES_SUPPORTED.filter((scope) => requested.includes(scope))
-  if (granted.length === 0)
+  if (Array.isArrayEmpty(granted)) {
     throw new OAuthRequestError(
       'invalid_scope',
       `No supported scopes requested. Supported: ${OAUTH_SCOPES_SUPPORTED.join(', ')}`,
     )
+  }
   return [...granted]
 }
-export function describeScope(scope: string): string {
-  if (scope === OAUTH_SCOPE_READ) return 'Read issues, wiki pages, projects and comments'
-  if (scope === OAUTH_SCOPE_WRITE) return 'Create and change issues, wiki pages, projects and comments'
+export const describeScope = function describeScope(scope: string): string {
+  if (scope === OAUTH_SCOPE_READ) {
+    return 'Read issues, wiki pages, projects and comments'
+  }
+  if (scope === OAUTH_SCOPE_WRITE) {
+    return 'Create and change issues, wiki pages, projects and comments'
+  }
   return scope
 }
-/** The host, not the self-declared application name, is the relying party identity. */
-export function relyingPartyHost(clientId: string): string {
+/**
+ * Derive the relying party identity from the client identifier.
+ *
+ * @param {string} clientId The registered OAuth client identifier.
+ * @returns {string} The host including a port when present, or the raw identifier for clients with opaque IDs.
+ */
+export const relyingPartyHost = function relyingPartyHost(clientId: string): string {
   try {
     return new URL(clientId).host
   } catch {
     return clientId
   }
 }
-export function isLoopbackOnlyClient(redirectUris: readonly string[]): boolean {
-  if (redirectUris.length === 0) return false
+export const isLoopbackOnlyClient = function isLoopbackOnlyClient(redirectUris: Readonly<string[]>): boolean {
+  if (Array.isReadonlyArrayEmpty(redirectUris)) {
+    return false
+  }
   return redirectUris.every((uri) => {
     try {
       const { hostname } = new URL(uri)
@@ -69,7 +100,7 @@ export function isLoopbackOnlyClient(redirectUris: readonly string[]): boolean {
   })
 }
 export type ConsentRequest = Readonly<{ authRequest: AuthRequest; workspaceId: string; scopes: string[] }>
-export function parseConsentRequest(authRequest: AuthRequest): ConsentRequest {
+export const parseConsentRequest = function parseConsentRequest(authRequest: AuthRequest): ConsentRequest {
   return {
     authRequest,
     workspaceId: workspaceIdFromResource(authRequest.resource),

@@ -1,24 +1,28 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Array, Predicate, Effect, Number } from 'effect'
 import { z } from 'zod'
 
+import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
+import { CreateProjectSchema, UpdateProjectSchema } from '#contracts/inputs/projects.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
+import type { Project, ProjectSummary } from '#services/projects.ts'
 
-import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common'
-import { CreateProjectSchema, UpdateProjectSchema } from '../../contracts/inputs/projects'
-import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access'
-import { recordActivity } from './activity'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
+import { recordActivity } from './activity.ts'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { deleteR2Keys } from './r2-delete.ts'
+import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
-const PROJECTS_CACHE_KEY = (workspaceId: string) => `ws-meta:${workspaceId}:projects`
+const PROJECTS_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:projects`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-async function invalidateProjectsCache(ctx: ServiceCtx) {
+const invalidateProjectsCache = async function invalidateProjectsCache(ctx: ServiceCtx): Promise<void> {
   const cacheKey = PROJECTS_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
@@ -26,9 +30,11 @@ async function invalidateProjectsCache(ctx: ServiceCtx) {
 
 const ListProjectsOptionsSchema = z.object({ includeArchived: BooleanQueryParam.optional() })
 
-export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
+export const listProjects = async function listProjects(ctx: ServiceCtx, opts: unknown = {}): Promise<unknown[]> {
   const parsed = ListProjectsOptionsSchema.safeParse(opts)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(z.flattenError(parsed.error))
+  }
   // PROJ-311: owner/admin share the cached workspace list; others get an uncached per-user set.
   const visible = visibleProjectPredicate(ctx, schema.projects.id)
   const includeArchived = parsed.data.includeArchived ?? false
@@ -38,7 +44,9 @@ export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
     }
     const cacheKey = PROJECTS_CACHE_KEY(ctx.workspaceId)
     const local = localCache.get(cacheKey)
-    if (local) return local
+    if (local) {
+      return local
+    }
     const cached = await cache.get<unknown[]>(ctx.kv, cacheKey)
     if (cached) {
       localCache.set(cacheKey, cached)
@@ -58,15 +66,17 @@ export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
   )
 }
 
-export type ProjectSummary = data.ProjectSummary
+export type { ProjectSummary } from '#services/projects.ts'
 
-export async function listProjectsAcrossWorkspaces(
+export const listProjectsAcrossWorkspaces = async function listProjectsAcrossWorkspaces(
   userId: string,
   db: D1Database,
   includeArchived = false,
 ): Promise<ProjectSummary[]> {
-  // PROJ-311: this app owns the role/grant policy. The shared query only
-  // evaluates the explicitly supplied predicate within the user's memberships.
+  /*
+   * PROJ-311: this app owns the role/grant policy. The shared query only
+   * evaluates the explicitly supplied predicate within the user's memberships.
+   */
   const visibility: data.ProjectSummaryVisibility = {
     sql: `wm.role IN ('owner','admin')
          OR EXISTS (
@@ -78,81 +88,113 @@ export async function listProjectsAcrossWorkspaces(
   return Effect.runPromise(data.listProjectSummaries(db, userId, visibility, includeArchived))
 }
 
-const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/
+const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/u
 
-export async function resolveProjectIdParam(ctx: ServiceCtx, param: string): Promise<string> {
-  if (!PROJECT_KEY_PATTERN.test(param)) return param
+export const resolveProjectIdParam = async function resolveProjectIdParam(
+  ctx: ServiceCtx,
+  param: string,
+): Promise<string> {
+  if (!PROJECT_KEY_PATTERN.test(param)) {
+    return param
+  }
 
   const row = await Effect.runPromise(data.findProjectIdByKey(ctx.db, ctx.workspaceId, param))
-  if (!row) throw new NotFoundError('Project not found')
+  if (!row) {
+    throw new NotFoundError('Project not found')
+  }
   return row.id
 }
 
-export async function resolveVisibleProjectIdParam(ctx: ServiceCtx, param: string): Promise<string> {
-  if (!PROJECT_KEY_PATTERN.test(param)) return param
+export const resolveVisibleProjectIdParam = async function resolveVisibleProjectIdParam(
+  ctx: ServiceCtx,
+  param: string,
+): Promise<string> {
+  if (!PROJECT_KEY_PATTERN.test(param)) {
+    return param
+  }
 
   const row = await Effect.runPromise(data.findProjectIdByKey(ctx.db, ctx.workspaceId, param))
-  if (!row) return crypto.randomUUID()
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, row.id)) === null) {
+  if (!row) {
+    return crypto.randomUUID()
+  }
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, row.id))) {
     return crypto.randomUUID()
   }
   return row.id
 }
 
-export async function getProject(ctx: ServiceCtx, id: string) {
+export const getProject = async function getProject(ctx: ServiceCtx, id: string): Promise<Project> {
   const project = await Effect.runPromise(data.findProjectById(ctx.db, ctx.workspaceId, id))
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 
   // PROJ-311: default-deny — a non-admin without a grant 404s (existence hidden).
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, id)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, id))) {
     throw new NotFoundError('Project not found')
   }
   return project
 }
 
-// PROJ-376: pretty project URLs (/projects/view/<slug>) resolve here instead of
-// the UUID route. Same visibility rules as getProject.
-export async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
+/*
+ * PROJ-376: pretty project URLs (/projects/view/<slug>) resolve here instead of
+ * the UUID route. Same visibility rules as getProject.
+ */
+export const getProjectBySlug = async function getProjectBySlug(ctx: ServiceCtx, slug: string): Promise<Project> {
   const project = await Effect.runPromise(data.findProjectBySlug(ctx.db, ctx.workspaceId, slug))
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, project.id)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, project.id))) {
     throw new NotFoundError('Project not found')
   }
   return project
 }
 
-function slugify(name: string): string {
+const slugify = function slugify(name: string): string {
   return (
     name
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'project'
+      .replaceAll(/[^a-z0-9]+/gu, '-')
+      .replaceAll(/^-+|-+$/gu, '') || 'project'
   )
 }
 
-// Generates a workspace-unique slug from the project name, appending -2, -3, ...
-// on collision. Bounded query count: at most one SELECT per candidate tried.
-async function generateUniqueSlug(orm: ReturnType<typeof drizzle>, workspaceId: string, name: string): Promise<string> {
+/*
+ * Generates a workspace-unique slug from the project name, appending -2, -3, ...
+ * on collision. Bounded query count: at most one SELECT per candidate tried.
+ */
+const generateUniqueSlug = async function generateUniqueSlug(
+  orm: ReturnType<typeof drizzle>,
+  workspaceId: string,
+  name: string,
+): Promise<string> {
   const base = slugify(name)
   let candidate = base
-  for (let n = 2; ; n++) {
+  for (let suffix = 2; ; suffix = Number.increment(suffix)) {
     const existing = await orm
       .select({ id: schema.projects.id })
       .from(schema.projects)
       .where(and(eq(schema.projects.workspaceId, workspaceId), eq(schema.projects.slug, candidate)))
       .get()
-    if (!existing) return candidate
-    candidate = `${base}-${n}`
+    if (!existing) {
+      return candidate
+    }
+    candidate = `${base}-${suffix}`
   }
 }
 
-export async function createProject(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+export const createProject = async function createProject(ctx: ServiceCtx, input: unknown) {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const parsed = CreateProjectSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(z.flattenError(parsed.error))
+  }
 
   const { name, key, description, agentWipLimit } = parsed.data
 
@@ -162,46 +204,74 @@ export async function createProject(ctx: ServiceCtx, input: unknown) {
     .from(schema.projects)
     .where(and(eq(schema.projects.workspaceId, ctx.workspaceId), eq(schema.projects.key, key)))
     .get()
-  if (existing) throw new ConflictError(`Project key ${key} already exists`)
+  if (existing) {
+    throw new ConflictError(`Project key ${key} already exists`)
+  }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const slug = await generateUniqueSlug(orm, ctx.workspaceId, name)
 
-  await orm.insert(schema.projects).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    name,
-    key,
-    slug,
-    description: description ?? null,
-    agentWipLimit: agentWipLimit ?? null,
-    createdAt: now,
-    updatedAt: now,
-  })
+  await orm.insert(schema.projects).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['name', name],
+      ['key', key],
+      ['slug', slug],
+      ['description', description ?? null],
+      ['agentWipLimit', agentWipLimit ?? null],
+      ['createdAt', now],
+      ['updatedAt', now],
+    ]),
+  )
 
-  await recordActivity(ctx, { entityType: 'project', entityId: id, action: 'created' })
+  await recordActivity(ctx, { action: 'created', entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)
-  return { id, name, key, slug }
+  return fieldsInOrder([
+    ['id', id],
+    ['name', name],
+    ['key', key],
+    ['slug', slug],
+  ])
 }
 
-export async function updateProject(ctx: ServiceCtx, id: string, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+export const updateProject = async function updateProject(
+  ctx: ServiceCtx,
+  id: string,
+  input: unknown,
+): Promise<{ ok: boolean }> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const parsed = UpdateProjectSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(z.flattenError(parsed.error))
+  }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   const setObj: Record<string, unknown> = {}
-  if (parsed.data.name !== undefined) setObj.name = parsed.data.name
-  if (parsed.data.key !== undefined) setObj.key = parsed.data.key
-  if (parsed.data.description !== undefined) setObj.description = parsed.data.description
-  if (parsed.data.agentWipLimit !== undefined) setObj.agentWipLimit = parsed.data.agentWipLimit
-  if (parsed.data.archived !== undefined) setObj.archivedAt = parsed.data.archived ? now : null
+  if (Predicate.isNotNullish(parsed.data.name)) {
+    setObj.name = parsed.data.name
+  }
+  if (Predicate.isNotNullish(parsed.data.key)) {
+    setObj.key = parsed.data.key
+  }
+  if (Predicate.isNotNullish(parsed.data.description)) {
+    setObj.description = parsed.data.description
+  }
+  if (parsed.data.agentWipLimit !== undefined) {
+    setObj.agentWipLimit = parsed.data.agentWipLimit
+  }
+  if (Predicate.isNotNullish(parsed.data.archived)) {
+    setObj.archivedAt = parsed.data.archived ? now : null
+  }
 
-  if (Object.keys(setObj).length === 0)
-    throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
+  if (Array.isArrayEmpty(Object.keys(setObj))) {
+    throw new ValidationError(validationIssues(['Nothing to update'], {}))
+  }
 
   setObj.updatedAt = now
 
@@ -211,7 +281,9 @@ export async function updateProject(ctx: ServiceCtx, id: string, input: unknown)
     .from(schema.projects)
     .where(and(eq(schema.projects.id, id), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Project not found')
+  if (!existing) {
+    throw new NotFoundError('Project not found')
+  }
 
   await orm
     .update(schema.projects)
@@ -220,7 +292,7 @@ export async function updateProject(ctx: ServiceCtx, id: string, input: unknown)
 
   const diff: Record<string, unknown> = { ...setObj }
   delete diff.updatedAt
-  await recordActivity(ctx, { entityType: 'project', entityId: id, action: 'updated', diff })
+  await recordActivity(ctx, { action: 'updated', diff, entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)
 
   return { ok: true }
@@ -230,9 +302,11 @@ export async function updateProject(ctx: ServiceCtx, id: string, input: unknown)
 const ISSUES_OF_PROJECT = 'SELECT id FROM issues WHERE project_id = ?1 AND workspace_id = ?2'
 const PAGES_OF_PROJECT = 'SELECT id FROM wiki_pages WHERE project_id = ?1 AND workspace_id = ?2'
 
-// PROJ-819: explicit cleanup for deleteProject, children before parents. Mirrors
-// deleteIssue's per-issue list (PROJ-922) and the wiki purge's per-page list.
-const PROJECT_CLEANUP_SQL: readonly string[] = [
+/*
+ * PROJ-819: explicit cleanup for deleteProject, children before parents. Mirrors
+ * deleteIssue's per-issue list (PROJ-922) and the wiki purge's per-page list.
+ */
+const PROJECT_CLEANUP_SQL: Readonly<string[]> = [
   // Issue dependents.
   `DELETE FROM issues_fts WHERE workspace_id = ?2 AND issue_id IN (${ISSUES_OF_PROJECT})`,
   `DELETE FROM issue_comments WHERE issue_id IN (${ISSUES_OF_PROJECT})`,
@@ -259,8 +333,10 @@ const PROJECT_CLEANUP_SQL: readonly string[] = [
   `DELETE FROM wiki_notifications WHERE page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM wiki_redirects WHERE page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM wiki_links WHERE source_page_id IN (${PAGES_OF_PROJECT})`,
-  // Links from other projects into this one: re-point to another live page they still
-  // match (outside this project), else unresolve — same rule as a wiki purge (PROJ-814).
+  /*
+   * Links from other projects into this one: re-point to another live page they still
+   * match (outside this project), else unresolve — same rule as a wiki purge (PROJ-814).
+   */
   `UPDATE wiki_links SET target_page_id = (
 	   SELECT p.id FROM wiki_pages p
 	   WHERE p.workspace_id = ?2 AND p.deleted_at IS NULL AND (p.project_id IS NULL OR p.project_id <> ?1)
@@ -269,7 +345,7 @@ const PROJECT_CLEANUP_SQL: readonly string[] = [
 	   ORDER BY p.created_at, p.id LIMIT 1)
 	 WHERE workspace_id = ?2 AND target_page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM attachments WHERE workspace_id = ?2 AND entity_type = 'wiki_page' AND entity_id IN (${PAGES_OF_PROJECT})`,
-  // wiki_ref attachments elsewhere pointing at this project's pages (the FK column).
+  // Find wiki_ref attachments elsewhere pointing at this project's pages (the FK column).
   `DELETE FROM attachments WHERE workspace_id = ?2 AND linked_wiki_page_id IN (${PAGES_OF_PROJECT})`,
   // Project-level rows.
   'DELETE FROM sprints WHERE project_id = ?1 AND workspace_id = ?2',
@@ -283,10 +359,14 @@ const PROJECT_CLEANUP_SQL: readonly string[] = [
   'DELETE FROM projects WHERE id = ?1 AND workspace_id = ?2',
 ]
 
-export async function deleteProject(ctx: ServiceCtx, id: string) {
+export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role !== 'owner') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
+  }
+  if (ctx.role !== 'owner') {
+    throw new ForbiddenError()
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const project = await orm
@@ -294,25 +374,28 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
     .from(schema.projects)
     .where(and(eq(schema.projects.id, id), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 
-  // PROJ-819/918: D1 doesn't guarantee the FK cascades the schema declares (PROJ-407),
-  // and several references have no FK at all (FTS mirrors, R2 objects, other projects'
-  // links into this one). Clean everything up explicitly. Every statement is set-based
-  // (subqueries keyed on the project), so the statement and bound-parameter counts stay
-  // constant however large the project is; the whole thing is one atomic batch. R2
-  // objects are listed first and deleted only after the batch commits.
-  const r2Keys = (
-    await ctx.db
-      .prepare(
-        `SELECT r2_key AS k FROM attachments
+  /*
+   * PROJ-819/918: D1 doesn't guarantee the FK cascades the schema declares (PROJ-407),
+   * and several references have no FK at all (FTS mirrors, R2 objects, other projects'
+   * links into this one). Clean everything up explicitly. Every statement is set-based
+   * (subqueries keyed on the project), so the statement and bound-parameter counts stay
+   * constant however large the project is; the whole thing is one atomic batch. R2
+   * objects are listed first and deleted only after the batch commits.
+   */
+  const queryResult = await ctx.db
+    .prepare(
+      `SELECT r2_key AS k FROM attachments
 				 WHERE workspace_id = ?2 AND kind = 'file' AND r2_key IS NOT NULL AND (
 				   (entity_type = 'issue' AND entity_id IN (${ISSUES_OF_PROJECT}))
 				   OR (entity_type = 'wiki_page' AND entity_id IN (${PAGES_OF_PROJECT})))`,
-      )
-      .bind(id, ctx.workspaceId)
-      .all<{ k: string }>()
-  ).results.map((r) => r.k)
+    )
+    .bind(id, ctx.workspaceId)
+    .all<{ k: string }>()
+  const r2Keys = queryResult.results.map((result) => result.k)
 
   await ctx.db.batch(
     PROJECT_CLEANUP_SQL.map((sql) =>
@@ -320,15 +403,11 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
     ),
   )
 
-  for (let i = 0; i < r2Keys.length; i += 1000) {
-    try {
-      await ctx.r2.delete(r2Keys.slice(i, i + 1000))
-    } catch (err) {
-      console.error('deleteProject: R2 cleanup failed', { id, err: String(err) })
-    }
-  }
+  await deleteR2Keys(ctx.r2, r2Keys, (error) => {
+    console.error('deleteProject: R2 cleanup failed', { id, err: String(error) })
+  })
 
-  await recordActivity(ctx, { entityType: 'project', entityId: id, action: 'deleted' })
+  await recordActivity(ctx, { action: 'deleted', entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)
   return { ok: true }
 }

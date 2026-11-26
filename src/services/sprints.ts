@@ -3,15 +3,21 @@ import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export type Sprint = typeof schema.sprints.$inferSelect
-export interface ListSprintsOptions {
-  readonly projectId: string
-}
+export type ListSprintsOptions = Readonly<{ projectId: string }>
 
-/** Caller validates options and authorizes project access before executing. */
-export function listSprints(
+/**
+ * Caller validates options and authorizes project access before executing.
+ *
+ * @param {D1Database} db Database that stores sprints.
+ * @param {string} workspaceId Workspace that owns the project.
+ * @param {ListSprintsOptions} opts Validated project selection.
+ * @returns {Effect.Effect<Sprint[], DataQueryError>} An Effect that reads the project's sprints in creation order.
+ */
+export const listSprints = function listSprints(
   db: D1Database,
   workspaceId: string,
   opts: ListSprintsOptions,
@@ -25,8 +31,15 @@ export function listSprints(
   )
 }
 
-/** Missing rows carry no application-level not-found semantics. */
-export function findSprintById(
+/**
+ * Missing rows carry no application-level not-found semantics.
+ *
+ * @param {D1Database} db Database that stores sprints.
+ * @param {string} workspaceId Workspace that owns the sprint.
+ * @param {string} id Identifier of the sprint to find.
+ * @returns {Effect.Effect<Sprint | undefined, DataQueryError>} An Effect that reads the matching sprint or undefined.
+ */
+export const findSprintById = function findSprintById(
   db: D1Database,
   workspaceId: string,
   id: string,

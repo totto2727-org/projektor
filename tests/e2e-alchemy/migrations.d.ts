@@ -1,8 +1,10 @@
 declare module 'virtual:fixture-migrations' {
-  const migrations: readonly {
-    readonly name: string
-    readonly queries: readonly string[]
-    readonly hash: string
-  }[]
+  type Migration = Readonly<{
+    name: string
+    queries: Readonly<string[]>
+    hash: string
+  }>
+
+  const migrations: Readonly<Migration[]>
   export default migrations
 }

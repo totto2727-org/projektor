@@ -1,30 +1,40 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { String } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import m0050 from '../../../migrations/0050_wiki_slug_slash_backfill.sql?raw'
-import { env } from './fixture-api'
-import { seedUser, seedWorkspace } from './helpers'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import m0050 from '#migrations/0050_wiki_slug_slash_backfill.sql?raw'
 
-// PROJ-517/512: runs the actual 0050 migration SQL against seeded rows, rather than
-// hand-simulating what it does — the earlier test in wiki.test.ts only exercised the
-// resulting redirect/slug shape, not the migration's own collision-handling logic
-// (row-number disambiguation, EXISTS collision against a pre-existing slug, and the
-// wiki_redirects ON CONFLICT upsert).
+import { env } from './fixture-api.ts'
+import { seedUser, seedWorkspace } from './helpers.ts'
 
-function splitStatements(sql: string): string[] {
+/*
+ * PROJ-517/512: runs the actual 0050 migration SQL against seeded rows, rather than
+ * hand-simulating what it does — the earlier test in wiki.test.ts only exercised the
+ * resulting redirect/slug shape, not the migration's own collision-handling logic
+ * (row-number disambiguation, EXISTS collision against a pre-existing slug, and the
+ * wiki_redirects ON CONFLICT upsert).
+ */
+
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
-    .replace(/--[^\n]*/g, '')
+    .replaceAll(/--[^\n]*/gu, '')
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+    .map((statement) => statement.trim())
+    .filter((statement) => String.isNonEmpty(statement))
 }
 
-async function runMigration0050() {
+const runMigration0050 = async function runMigration0050(): Promise<void> {
   for (const stmt of splitStatements(m0050)) {
     await env.DB.prepare(stmt).run()
   }
 }
 
-async function insertPage(workspaceId: string, userId: string, slug: string, createdAt: number) {
+const insertPage = async function insertPage(
+  workspaceId: string,
+  userId: string,
+  slug: string,
+  createdAt: number,
+): Promise<ReturnType<typeof crypto.randomUUID>> {
   const id = crypto.randomUUID()
   await env.DB.prepare(
     `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
@@ -37,18 +47,22 @@ async function insertPage(workspaceId: string, userId: string, slug: string, cre
 }
 
 describe('0050 wiki slug slash backfill', () => {
-  let workspaceId: string
-  let userId: string
+  type TestData = Readonly<{
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const ws = await seedWorkspace()
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
-    workspaceId = ws.id
-    userId = user.id
-  })
+    const workspaceId = ws.id
+    const userId = user.id
+    return { userId, workspaceId }
+  }
 
-  it('rewrites a simple slashy slug with no collision and leaves a redirect', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('rewrites a simple slashy slug with no collision and leaves a redirect', async () => {
+    const { userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     const pageId = await insertPage(workspaceId, userId, 'docs/setup', now)
 
     await runMigration0050()
@@ -62,8 +76,9 @@ describe('0050 wiki slug slash backfill', () => {
     expect(redirect?.page_id).toBe(pageId)
   })
 
-  it('disambiguates two slashy slugs that rewrite to the same candidate with an id suffix', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('disambiguates two slashy slugs that rewrite to the same candidate with an id suffix', async () => {
+    const { userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     const firstId = await insertPage(workspaceId, userId, 'a/b/c', now)
     const secondId = await insertPage(workspaceId, userId, 'a-b/c', now + 1)
 
@@ -72,13 +87,14 @@ describe('0050 wiki slug slash backfill', () => {
     const rows = await env.DB.prepare('SELECT id, slug FROM wiki_pages WHERE id IN (?, ?)')
       .bind(firstId, secondId)
       .all<{ id: string; slug: string }>()
-    const bySlug = new Map(rows.results.map((r) => [r.id, r.slug]))
+    const bySlug = new Map(rows.results.map((result) => [result.id, result.slug]))
     expect(bySlug.get(firstId)).toBe('a-b-c')
     expect(bySlug.get(secondId)).toBe(`a-b-c-${secondId.slice(0, 8)}`)
   })
 
-  it('suffixes a slashy slug whose rewritten candidate collides with a pre-existing non-slashy page', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('suffixes a slashy slug whose rewritten candidate collides with a pre-existing non-slashy page', async () => {
+    const { userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     await insertPage(workspaceId, userId, 'docs-faq', now)
     const slashyId = await insertPage(workspaceId, userId, 'docs/faq', now + 1)
 
@@ -90,8 +106,9 @@ describe('0050 wiki slug slash backfill', () => {
     expect(page?.slug).toBe(`docs-faq-${slashyId.slice(0, 8)}`)
   })
 
-  it('upserts a pre-existing wiki_redirects row instead of aborting the migration on collision', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('upserts a pre-existing wiki_redirects row instead of aborting the migration on collision', async () => {
+    const { userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     const otherPageId = await insertPage(workspaceId, userId, 'unrelated', now - 2000)
     await env.DB.prepare(
       'INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)',
@@ -109,10 +126,13 @@ describe('0050 wiki slug slash backfill', () => {
     expect(redirect?.page_id).toBe(pageId)
   })
 
-  it('truncates an oversized rewritten candidate before appending the id suffix, staying under 200 chars', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const candidate = `${'b'.repeat(120)}-${'c'.repeat(120)}` // 241 chars
-    const slashy = `${'b'.repeat(120)}/${'c'.repeat(120)}` // same length, collides once rewritten
+  test('truncates an oversized rewritten candidate before appending the id suffix, staying under 200 chars', async () => {
+    const { userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
+    // 241 chars
+    const candidate = `${'b'.repeat(120)}-${'c'.repeat(120)}`
+    // Same length, collides once rewritten
+    const slashy = `${'b'.repeat(120)}/${'c'.repeat(120)}`
     await insertPage(workspaceId, userId, candidate, now)
     const slashyId = await insertPage(workspaceId, userId, slashy, now + 1)
 

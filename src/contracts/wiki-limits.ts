@@ -1,0 +1,4 @@
+export const MAX_SLUG_LENGTH = 200
+export const MAX_PAGE_TITLE_LENGTH = 300
+export const MAX_PAGE_CONTENT_LENGTH = 500_000
+export const MAX_WIKI_TYPE_LENGTH = 50

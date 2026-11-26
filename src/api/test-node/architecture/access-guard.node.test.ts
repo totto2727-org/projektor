@@ -1,37 +1,40 @@
-// PROJ-837: every exported service operation that takes a project-scoped entity id
-// must reach the central access guard (services/access.ts) — directly, or through a
-// helper that does.
-//
-// Why: PROJ-792 (share links), 794, 818 and 822 were all the same bug — a service
-// that hand-rolled its project check and forgot it, or never had one. A per-service
-// review can't keep up with the number of services; this test makes "forgot the
-// guard" a build failure instead of a security report.
-//
-// How it works (static, TypeScript compiler API, no execution):
-//   1. Parse every src/services/commands/*.ts file.
-//   2. Build a call graph of top-level functions, resolving `./x` imports across files.
-//   3. A function is GUARDED if it calls a guard from services/access.ts, or calls
-//      (transitively) a function that is guarded.
-//   4. An exported function is a TARGET if its first parameter is `ctx` and another
-//      parameter names a project-scoped entity (issueId, projectId, pageId, …; or a
-//      bare `id`/`slug` in a project-scoped domain file).
-//   5. Every target must be guarded, or be listed in ALLOWLIST with a reason.
-//
-// Known limitation: operations that take `input: unknown` and parse the id out of it
-// are not detected by parameter name. PROJ-896 moves this onto the operation
-// registry's `projectScoped` flag, which removes the heuristic.
-//
-// This runs in node (reads source off disk) — hence the .node.test.ts suffix.
+/*
+ * PROJ-837: every exported service operation that takes a project-scoped entity id
+ * must reach the central access guard (services/access.ts) — directly, or through a
+ * helper that does.
+ *
+ * Why: PROJ-792 (share links), 794, 818 and 822 were all the same bug — a service
+ * that hand-rolled its project check and forgot it, or never had one. A per-service
+ * review can't keep up with the number of services; this test makes "forgot the
+ * guard" a build failure instead of a security report.
+ *
+ * How it works (static, TypeScript compiler API, no execution):
+ *   1. Parse every src/services/commands/*.ts file.
+ *   2. Build a call graph of top-level functions, resolving `./x` imports across files.
+ *   3. A function is GUARDED if it calls a guard from services/access.ts, or calls
+ *      (transitively) a function that is guarded.
+ *   4. An exported function is a TARGET if its first parameter is `ctx` and another
+ *      parameter names a project-scoped entity (issueId, projectId, pageId, …; or a
+ *      bare `id`/`slug` in a project-scoped domain file).
+ *   5. Every target must be guarded, or be listed in ALLOWLIST with a reason.
+ *
+ * Known limitation: operations that take `input: unknown` and parse the id out of it
+ * are not detected by parameter name. PROJ-896 moves this onto the operation
+ * registry's `projectScoped` flag, which removes the heuristic.
+ *
+ * This runs in node (reads source off disk) — hence the .node.test.ts suffix.
+ */
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { Iterable } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { ACCESS_GUARD_ALLOWLIST } from './access-guard-allowlist'
+import { ACCESS_GUARD_ALLOWLIST } from './access-guard-allowlist.ts'
 
 const SERVICES = join(import.meta.dirname, '..', '..', '..', 'services', 'commands')
 
@@ -47,8 +50,8 @@ const GUARDS = new Set([
   'visibleProjectIds',
 ])
 
-const ENTITY_PARAM = /^(issueId|projectId|sprintId|pageId|wikiPageId|parentId|issueRef)$/
-const GENERIC_ID_PARAM = /^(id|idOrSlug|slug|pageIdOrSlug|ref)$/
+const ENTITY_PARAM = /^(?:issueId|projectId|sprintId|pageId|wikiPageId|parentId|issueRef)$/u
+const GENERIC_ID_PARAM = /^(?:id|idOrSlug|slug|pageIdOrSlug|ref)$/u
 const PROJECT_SCOPED_FILES = new Set([
   'issues',
   'sprints',
@@ -68,16 +71,17 @@ interface FnInfo {
   name: string
   exported: boolean
   params: string[]
-  calls: string[] // resolved keys "file:name", or "guard:<name>"
+  // Resolved keys "file:name", or "guard:<name>"
+  calls: string[]
 }
 
-function paramName(p: ts.ParameterDeclaration): string {
-  return ts.isIdentifier(p.name) ? p.name.text : ''
+const paramName = function paramName(parameter: ts.ParameterDeclaration): string {
+  return ts.isIdentifier(parameter.name) ? parameter.name.text : ''
 }
 
-function collect(): Map<string, FnInfo> {
+const collect = function collect(): Map<string, FnInfo> {
   const fns = new Map<string, FnInfo>()
-  const files = readdirSync(SERVICES).filter((f) => f.endsWith('.ts') && !f.endsWith('.d.ts'))
+  const files = readdirSync(SERVICES).filter((file) => file.endsWith('.ts') && !file.endsWith('.d.ts'))
 
   // TS7 parses through its public API session, not the version-only root export.
   // Explicit roots retain the original source coverage without resolving dependencies.
@@ -97,35 +101,39 @@ function collect(): Map<string, FnInfo> {
   try {
     const snapshot = api.updateSnapshot({ openProjects: [configFile] })
     const project = snapshot.getProject(configFile)
-    if (!project) throw new Error(`Could not load architecture sources: ${configFile}`)
+    if (!project) {
+      throw new Error(`Could not load architecture sources: ${configFile}`)
+    }
 
-    for (const fileName of files) {
-      const file = fileName.replace(/\.ts$/, '')
+    Iterable.forEach(files, (fileName) => {
+      const file = fileName.replace(/\.ts$/u, '')
       const src = project.program.getSourceFile(join(SERVICES, fileName))
-      if (!src) throw new Error(`Could not parse architecture source: ${fileName}`)
+      if (!src) {
+        throw new Error(`Could not parse architecture source: ${fileName}`)
+      }
 
-      // import name → "file:name" (or "guard:name" for access.ts guards)
+      // Import name → "file:name" (or "guard:name" for access.ts guards)
       const imports = new Map<string, string>()
-      const locals: Array<{ name: string; node: ts.Node; exported: boolean; params: string[] }> = []
+      const locals: { name: string; node: ts.Node; exported: boolean; params: string[] }[] = []
 
-      for (const stmt of src.statements) {
+      Iterable.forEach(src.statements, (stmt) => {
         if (
           ts.isImportDeclaration(stmt) &&
           ts.isStringLiteral(stmt.moduleSpecifier) &&
           stmt.moduleSpecifier.text.startsWith('./')
         ) {
-          const from = stmt.moduleSpecifier.text.slice(2)
+          const from = stmt.moduleSpecifier.text.slice(2).replace(/\.ts$/u, '')
           const named = stmt.importClause?.namedBindings
           if (named && ts.isNamedImports(named)) {
-            for (const el of named.elements) {
+            Iterable.forEach(named.elements, (el) => {
               const orig = (el.propertyName ?? el.name).text
               imports.set(el.name.text, from === 'access' && GUARDS.has(orig) ? `guard:${orig}` : `${from}:${orig}`)
-            }
+            })
           }
         }
         const exported =
           (ts.isFunctionDeclaration(stmt) || ts.isVariableStatement(stmt)) &&
-          !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+          stmt.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
         if (ts.isFunctionDeclaration(stmt) && stmt.name) {
           locals.push({
             name: stmt.name.text,
@@ -134,109 +142,123 @@ function collect(): Map<string, FnInfo> {
             params: stmt.parameters.map(paramName),
           })
         } else if (ts.isVariableStatement(stmt)) {
-          for (const d of stmt.declarationList.declarations) {
+          Iterable.forEach(stmt.declarationList.declarations, (declaration) => {
             if (
-              ts.isIdentifier(d.name) &&
-              d.initializer &&
-              (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer))
+              ts.isIdentifier(declaration.name) &&
+              declaration.initializer &&
+              (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer))
             ) {
               locals.push({
-                name: d.name.text,
-                node: d.initializer,
+                name: declaration.name.text,
+                node: declaration.initializer,
                 exported,
-                params: d.initializer.parameters.map(paramName),
+                params: declaration.initializer.parameters.map(paramName),
               })
             }
-          }
+          })
         }
-      }
+      })
 
-      const localNames = new Set(locals.map((l) => l.name))
-      for (const l of locals) {
+      const localNames = new Set(locals.map((local) => local.name))
+      Iterable.forEach(locals, (local) => {
         const calls: string[] = []
-        const visit = (n: ts.Node) => {
+        const visit = (node: ts.Node): void => {
           // Any reference counts (call, or passed as a callback / predicate).
-          if (ts.isIdentifier(n) && n !== (l.node as ts.FunctionDeclaration).name) {
-            const id = n.text
-            if (file === 'access' && GUARDS.has(id)) calls.push(`guard:${id}`)
-            else if (localNames.has(id)) calls.push(`${file}:${id}`)
-            else if (imports.has(id)) calls.push(imports.get(id) as string)
+          if (ts.isIdentifier(node) && node !== (local.node as ts.FunctionDeclaration).name) {
+            const id = node.text
+            if (file === 'access' && GUARDS.has(id)) {
+              calls.push(`guard:${id}`)
+            } else if (localNames.has(id)) {
+              calls.push(`${file}:${id}`)
+            } else if (imports.has(id)) {
+              calls.push(imports.get(id) as string)
+            }
           }
-          n.forEachChild(visit)
+          node.forEachChild(visit)
         }
-        l.node.forEachChild(visit)
-        fns.set(`${file}:${l.name}`, {
+        local.node.forEachChild(visit)
+        fns.set(`${file}:${local.name}`, {
           file,
-          name: l.name,
-          exported: l.exported,
-          params: l.params,
+          name: local.name,
+          exported: local.exported,
+          params: local.params,
           calls,
         })
-      }
-    }
+      })
+    })
     return fns
   } finally {
     api.close()
   }
 }
 
-function guardedSet(fns: Map<string, FnInfo>): Set<string> {
+const guardedSet = function guardedSet(fns: Map<string, FnInfo>): Set<string> {
   const guarded = new Set<string>()
-  for (const g of GUARDS) guarded.add(`access:${g}`)
+  Iterable.forEach(GUARDS, (guard) => {
+    guarded.add(`access:${guard}`)
+  })
   let changed = true
   while (changed) {
     changed = false
-    for (const [key, fn] of fns) {
-      if (guarded.has(key)) continue
-      if (fn.calls.some((c) => c.startsWith('guard:') || guarded.has(c))) {
+    Iterable.forEach(fns, ([key, fn]) => {
+      if (guarded.has(key)) {
+        return
+      }
+      if (fn.calls.some((call) => call.startsWith('guard:') || guarded.has(call))) {
         guarded.add(key)
         changed = true
       }
-    }
+    })
   }
   return guarded
 }
 
-function isTarget(fn: FnInfo): boolean {
-  if (!fn.exported || fn.file === 'access') return false
-  if (fn.params[0] !== 'ctx') return false
+const isTarget = function isTarget(fn: FnInfo): boolean {
+  if (!fn.exported || fn.file === 'access') {
+    return false
+  }
+  if (fn.params[0] !== 'ctx') {
+    return false
+  }
   const rest = fn.params.slice(1)
-  if (rest.some((p) => ENTITY_PARAM.test(p))) return true
-  return PROJECT_SCOPED_FILES.has(fn.file) && rest.some((p) => GENERIC_ID_PARAM.test(p))
+  if (rest.some((parameter) => ENTITY_PARAM.test(parameter))) {
+    return true
+  }
+  return PROJECT_SCOPED_FILES.has(fn.file) && rest.some((parameter) => GENERIC_ID_PARAM.test(parameter))
 }
 
-describe('PROJ-837: project-scoped service operations reach the access guard', () => {
+describe('covers PROJ-837: project-scoped service operations reach the access guard', () => {
   const fns = collect()
   const guarded = guardedSet(fns)
   const targets = [...fns.entries()].filter(([, fn]) => isTarget(fn))
 
-  it("finds the operations it is meant to police (the heuristic isn't silently empty)", () => {
+  test("finds the operations it is meant to police (the heuristic isn't silently empty)", () => {
     expect(targets.length).toBeGreaterThan(20)
-    expect(targets.map(([k]) => k)).toContain('share:createShareToken')
+    expect(targets.map(([targetKey]) => targetKey)).toContain('share:createShareToken')
   })
 
-  it('every target calls the guard, directly or through a helper', () => {
+  test('every target calls the guard, directly or through a helper', () => {
     const unguarded = targets
       .filter(([key]) => !guarded.has(key) && !(key in ACCESS_GUARD_ALLOWLIST))
       .map(([key]) => key)
-      .sort()
+      .toSorted()
     expect(
       unguarded,
       'These exported services take a project-scoped id but never reach services/access.ts. ' +
         'Call assertProjectAccess/hasProjectAccess (or a helper that does), or — if the ' +
         'function is genuinely safe, add it to src/api/test-node/architecture/access-guard-allowlist.ts with a reason.',
-    ).toEqual([])
+    ).toStrictEqual([])
   })
 
-  it('allowlist entries are live: each names a real target that is still unguarded', () => {
+  test('allowlist entries are live: each names a real target that is still unguarded', () => {
     const stale = Object.keys(ACCESS_GUARD_ALLOWLIST).filter((key) => {
       const fn = fns.get(key)
       return !fn || !isTarget(fn) || guarded.has(key)
     })
-    expect(stale, 'Remove these allowlist entries — they no longer need an exception').toEqual([])
+    expect(stale, 'Remove these allowlist entries — they no longer need an exception').toStrictEqual([])
   })
 
-  it('regression: share create/revoke are guarded (PROJ-792)', () => {
+  test('regression: share create/revoke are guarded (PROJ-792)', () => {
     expect(guarded.has('share:createShareToken')).toBe(true)
     expect(guarded.has('share:revokeShareToken')).toBe(true)
   })

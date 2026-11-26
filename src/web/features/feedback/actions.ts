@@ -2,43 +2,38 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront'
-import { RequestServices } from '../../request'
-import { runBrowserCommand as runCommand } from '../../server/browser-command'
-import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context'
-import { checkSameOriginMutation } from '../../server/mutation'
-import { feedbackCommands, sourceCommands } from './data'
-import { SourceFields } from './schemas'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { EFFRONT } from '@/effront.ts'
+import { actionFailure } from '@/function-result.ts'
+import { RequestServices } from '@/request.ts'
+import { runBrowserCommand as runCommand } from '@/server/browser-command.ts'
+import { FunctionSelectorSchema, resolveFunctionContext } from '@/server/function-context.ts'
+import { checkSameOriginMutation } from '@/server/mutation.ts'
 
-const identifier = Schema.String.check(Schema.isMinLength(1))
+import { feedbackCommands, sourceCommands } from './data.ts'
+import { BulkFeedbackIds, FeedbackIdentifier, SourceFields } from './schemas.ts'
+
 const SourceReference = Schema.Struct({
   ...FunctionSelectorSchema.fields,
-  projectId: identifier,
-  sourceId: identifier,
+  projectId: FeedbackIdentifier,
+  sourceId: FeedbackIdentifier,
 })
 const FeedbackReference = Schema.Struct({
   ...FunctionSelectorSchema.fields,
-  projectId: identifier,
-  feedbackId: identifier,
+  ...fieldsInOrder([
+    ['projectId', FeedbackIdentifier],
+    ['feedbackId', FeedbackIdentifier],
+  ]),
 })
 const Bulk = Schema.Struct({
   ...FunctionSelectorSchema.fields,
-  projectId: identifier,
-  feedbackIds: Schema.mutable(Schema.Array(identifier)).check(Schema.isMinLength(1), Schema.isMaxLength(500)),
+  ...fieldsInOrder([
+    ['projectId', FeedbackIdentifier],
+    ['feedbackIds', BulkFeedbackIds],
+  ]),
 })
 
 export const createFeedbackSource = EFFRONT.ServerFn.make({
-  // Previous React action state is transport protocol, not domain data.
-  input: [
-    Schema.Unknown,
-    Schema.fromFormData(
-      Schema.Struct({
-        ...FunctionSelectorSchema.fields,
-        projectId: identifier,
-        ...SourceFields.fields,
-      }),
-    ),
-  ] as const,
   handler: (_previousState, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -46,13 +41,15 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const origins = input.origins
-          .split(/[\n,]/)
+          .split(/[\n,]/u)
           .map((value) => value.trim())
           .filter(Boolean)
         const value = yield* runCommand(ctx, (command) =>
           sourceCommands.createFeedbackSource(command, {
-            projectId: ctx.projectId,
-            name: input.name.trim(),
+            ...fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['name', input.name.trim()],
+            ]),
             ...(input.description.trim() ? { description: input.description.trim() } : {}),
             ...(origins.length ? { allowedOrigins: origins } : {}),
           }),
@@ -60,16 +57,26 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  // Previous React action state is transport protocol, not domain data.
+  input: [
+    Schema.Unknown,
+    Schema.fromFormData(
+      Schema.Struct({
+        ...FunctionSelectorSchema.fields,
+        projectId: FeedbackIdentifier,
+        ...SourceFields.fields,
+      }),
+    ),
+  ] as const,
 })
 
 export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...SourceReference.fields, active: Schema.Boolean }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -77,25 +84,28 @@ export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          sourceCommands.updateFeedbackSource(command, {
-            projectId: ctx.projectId,
-            sourceId: input.sourceId,
-            isActive: input.active,
-          }),
+          sourceCommands.updateFeedbackSource(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['sourceId', input.sourceId],
+              ['isActive', input.active],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...SourceReference.fields, active: Schema.Boolean }),
 })
 
 export const rotateFeedbackSourceToken = EFFRONT.ServerFn.make({
-  input: SourceReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -108,16 +118,16 @@ export const rotateFeedbackSourceToken = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: SourceReference,
 })
 
 export const revokeFeedbackSource = EFFRONT.ServerFn.make({
-  input: SourceReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -130,16 +140,16 @@ export const revokeFeedbackSource = EFFRONT.ServerFn.make({
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: SourceReference,
 })
 
 export const markFeedbackReviewed = EFFRONT.ServerFn.make({
-  input: FeedbackReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -147,25 +157,28 @@ export const markFeedbackReviewed = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.updateFeedbackStatus(command, {
-            projectId: ctx.projectId,
-            feedbackId: input.feedbackId,
-            status: 'reviewed',
-          }),
+          feedbackCommands.updateFeedbackStatus(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackId', input.feedbackId],
+              ['status', 'reviewed'],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: FeedbackReference,
 })
 
 export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
-  input: FeedbackReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -173,21 +186,27 @@ export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.convertFeedbackToIssue(command, { projectId: ctx.projectId, feedbackId: input.feedbackId }),
+          feedbackCommands.convertFeedbackToIssue(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackId', input.feedbackId],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: FeedbackReference,
 })
 
 export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
-  input: Bulk,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -195,21 +214,27 @@ export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.bulkMarkReviewed(command, { projectId: ctx.projectId, feedbackIds: input.feedbackIds }),
+          feedbackCommands.bulkMarkReviewed(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackIds', input.feedbackIds],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Bulk,
 })
 
 export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
-  input: Bulk,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -217,15 +242,22 @@ export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const value = yield* runCommand(ctx, (command) =>
-          feedbackCommands.bulkConvertToIssue(command, { projectId: ctx.projectId, feedbackIds: input.feedbackIds }),
+          feedbackCommands.bulkConvertToIssue(
+            command,
+            fieldsInOrder([
+              ['projectId', ctx.projectId],
+              ['feedbackIds', input.feedbackIds],
+            ]),
+          ),
         )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
-          ApiError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ApiError: (error) => Effect.succeed(actionFailure(error.status, error.message)),
+          ScopeError: (scopeError) => Effect.succeed(actionFailure(scopeError.status, scopeError.message)),
         }),
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Bulk,
 })

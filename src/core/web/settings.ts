@@ -1,15 +1,13 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect, Schema } from 'effect'
+import { Predicate, Effect } from 'effect'
+import type { Schema } from 'effect'
 
-import * as groups from '#commands/groups'
-import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth'
-import type { ServiceCtx } from '#commands/types'
-import * as workspaces from '#commands/workspaces'
-import { schema } from '#db'
-import * as groupQueries from '#services/groups'
-import { listProjects } from '#services/projects'
-import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces'
-
+import * as groups from '#commands/groups.ts'
+import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import * as workspaces from '#commands/workspaces.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import {
   ConnectorsSchema,
   CreatedGroupSchema,
@@ -18,34 +16,46 @@ import {
   SettingsGroupsSchema,
   SettingsOkSchema,
   SettingsTokensSchema,
-} from '../../contracts/web-schemas/settings'
-import { apiOrigin } from '../../deployment'
-import { coreFailure, coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, publicWebFailure } from './authentication'
-import { browserCommand } from './command'
-import { BrowserCommandSchema, type BrowserCommand } from './command-contract'
-import { requireDataWorkspace, visibleProjectPredicate } from './data-context'
-import { checked } from './issue-data'
-import { webRead } from './issue-operations'
-import type { RequestScope, WebRequest } from './scope'
+} from '#contracts/web-schemas/settings.ts'
+import type { CoreReply } from '#core/contract.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { schema } from '#db'
+import { apiOrigin } from '#deployment'
+import * as groupQueries from '#services/groups.ts'
+import { listProjects } from '#services/projects.ts'
+import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces.ts'
 
-const admin = (role: string | undefined) => role === 'owner' || role === 'admin'
-function readContext(env: CoreEnvironment, proof: BrowserCommand) {
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import { decodeBrowserCommand } from './command-contract.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { requireDataWorkspace, visibleProjectPredicate } from './data-context.ts'
+import { checked } from './issue-data.ts'
+import { webRead } from './issue-operations.ts'
+import type { RequestScope, WebRequest } from './scope.ts'
+
+const admin = (role: string | undefined): boolean => role === 'owner' || role === 'admin'
+const readContext = function readContext(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
-    const input = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(proof).pipe(
-      Effect.mapError(() => coreFailure(400, 'Invalid browser request.')),
+    const input = yield* decodeBrowserCommand(proof).pipe(
+      Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser request.')),
     )
-    const scope = yield* loadBrowserScope(env, input.request, {
-      workspaceHint: input.workspaceSlug,
-      projectHint: '',
-      requireWorkspace: true,
-    })
+    const scope = yield* loadBrowserScope(
+      env,
+      input.request,
+      fieldsInOrder([
+        ['workspaceHint', input.workspaceSlug],
+        ['projectHint', ''],
+        ['requireWorkspace', true],
+      ]),
+    )
     const workspace = yield* checked(() => requireDataWorkspace(scope))
-    const auth = scope.auth
-    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev'))
-      return yield* coreFailure(403, 'An interactive browser session is required.')
+    const { auth } = scope
+    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
+      return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
+    }
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,
@@ -57,40 +67,51 @@ function readContext(env: CoreEnvironment, proof: BrowserCommand) {
       auth,
       workspaceHub: env.WORKSPACE_HUB,
     }
-    return { ctx, workspace, scope }
+    return fieldsInOrder([
+      ['ctx', ctx],
+      ['workspace', workspace],
+      ['scope', scope],
+    ])
   })
 }
-function authorizeGrantProject(env: CoreEnvironment, scope: RequestScope, workspaceId: string, projectId: string) {
+const authorizeGrantProject = function authorizeGrantProject(
+  env: CoreEnvironment,
+  scope: RequestScope,
+  workspaceId: string,
+  projectId: string,
+) {
   return Effect.gen(function* () {
     const visibility = yield* checked(() =>
       and(visibleProjectPredicate(scope, workspaceId, schema.projects.id), eq(schema.projects.id, projectId)),
     )
     const [project] = yield* listProjects(env.DB, workspaceId, { includeArchived: true, visibility })
-    if (!project) return yield* coreFailure(404, 'Project not found in the selected workspace.')
+    if (!project) {
+      return yield* coreFailure(HTTP_NOT_FOUND, 'Project not found in the selected workspace.')
+    }
   })
 }
 export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function mutation<S extends Schema.Top, A>(
+  const mutation = function mutation<S extends Schema.Top, A>(
     name: string,
     codec: S,
     proof: BrowserCommand,
     operation: (ctx: ServiceCtx, env: CoreEnvironment) => Promise<A>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) =>
       coreReply(
         name,
         codec,
-        browserCommand(env, proof, (ctx) => operation(ctx, env)),
+        browserCommand(env, proof, async (ctx) => operation(ctx, env)),
       ),
     )
   }
-  function grant(
+  const grant = function grant(
     name: string,
     proof: BrowserCommand,
     groupId: string,
     projectId: string,
     role?: 'viewer' | 'member' | 'admin',
-  ) {
+  ): Effect.Effect<string, never, R> {
     return Effect.flatMap(envSource, (env) =>
       coreReply(
         name,
@@ -98,8 +119,8 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
         Effect.gen(function* () {
           const { scope, workspace } = yield* readContext(env, proof)
           yield* authorizeGrantProject(env, scope, workspace.id, projectId)
-          return yield* browserCommand(env, proof, (ctx) =>
-            role === undefined
+          return yield* browserCommand(env, proof, async (ctx) =>
+            Predicate.isNullish(role)
               ? groups.removeGroupGrant(ctx, groupId, projectId)
               : groups.setGroupGrant(ctx, groupId, { projectId, role }),
           )
@@ -108,7 +129,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     )
   }
   return {
-    webSettingsGroups: (request: WebRequest, workspaceId: string) =>
+    webSettingsGroups: (request: WebRequest, workspaceId: string): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsGroups',
@@ -131,14 +152,14 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                       Effect.all(
                         rows.map((group) =>
                           Effect.gen(function* () {
-                            const [members, grants] = yield* Effect.all(
+                            const [groupMembers, grants] = yield* Effect.all(
                               [
                                 groupQueries.listGroupMembers(env.DB, workspaceId, group.id),
                                 groupQueries.listGroupGrants(env.DB, workspaceId, group.id),
                               ],
                               { concurrency: 2 },
                             )
-                            return { ...group, members, grants }
+                            return { ...group, members: groupMembers, grants }
                           }),
                         ),
                         { concurrency: 4 },
@@ -161,7 +182,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           ),
         ),
       ),
-    webSettingsTokens: (proof: BrowserCommand) =>
+    webSettingsTokens: (proof: BrowserCommand): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsTokens',
@@ -174,23 +195,27 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                 )
               : []
             const grants = yield* Effect.tryPromise({
-              try: async () =>
-                listConnectorGrants(
-                  (await import('#services/oauth-provider')).oauthApi(env),
-                  ctx.userId,
-                  ctx.workspaceId,
-                ),
               catch: publicDomainFailure,
+              try: async () => {
+                const provider = await import('#services/oauth-provider.ts')
+                return listConnectorGrants(provider.oauthApi(env), ctx.userId, ctx.workspaceId)
+              },
             })
             const info = yield* Effect.tryPromise({
-              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
               catch: publicDomainFailure,
+              try: async () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
             }).pipe(Effect.catch(() => Effect.succeed(null)))
-            return { tokens, tokensDenied: !admin(ctx.role), grants, connectorsDenied: false, info }
+            return fieldsInOrder([
+              ['tokens', tokens],
+              ['tokensDenied', !admin(ctx.role)],
+              ['grants', grants],
+              ['connectorsDenied', false],
+              ['info', info],
+            ])
           }).pipe(Effect.mapError(publicWebFailure)),
         ),
       ),
-    webSettingsConnectors: (proof: BrowserCommand) =>
+    webSettingsConnectors: (proof: BrowserCommand): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsConnectors',
@@ -198,18 +223,16 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           Effect.gen(function* () {
             const { ctx } = yield* readContext(env, proof)
             return yield* Effect.tryPromise({
-              try: async () =>
-                listConnectorGrants(
-                  (await import('#services/oauth-provider')).oauthApi(env),
-                  ctx.userId,
-                  ctx.workspaceId,
-                ),
               catch: publicDomainFailure,
+              try: async () => {
+                const provider = await import('#services/oauth-provider.ts')
+                return listConnectorGrants(provider.oauthApi(env), ctx.userId, ctx.workspaceId)
+              },
             })
           }),
         ),
       ),
-    webSettingsMcp: (proof: BrowserCommand) =>
+    webSettingsMcp: (proof: BrowserCommand): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsMcp',
@@ -217,22 +240,22 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           Effect.gen(function* () {
             const { ctx, workspace } = yield* readContext(env, proof)
             return yield* Effect.tryPromise({
-              try: () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
               catch: publicDomainFailure,
+              try: async () => workspaces.getWorkspaceMcpInfo(ctx, workspace, apiOrigin),
             })
           }),
         ),
       ),
-    webCreateGroup: (proof: BrowserCommand, input: unknown) =>
-      mutation('webCreateGroup', CreatedGroupSchema, proof, (ctx) => groups.createGroup(ctx, input)),
-    webUpdateGroup: (proof: BrowserCommand, groupId: string, input: unknown) =>
-      mutation('webUpdateGroup', SettingsOkSchema, proof, (ctx) => groups.updateGroup(ctx, groupId, input)),
-    webDeleteGroup: (proof: BrowserCommand, groupId: string) =>
-      mutation('webDeleteGroup', SettingsOkSchema, proof, (ctx) => groups.deleteGroup(ctx, groupId)),
-    webAddGroupMember: (proof: BrowserCommand, groupId: string, input: unknown) =>
-      mutation('webAddGroupMember', SettingsOkSchema, proof, (ctx) => groups.addGroupMember(ctx, groupId, input)),
-    webRemoveGroupMember: (proof: BrowserCommand, groupId: string, userId: string) =>
-      mutation('webRemoveGroupMember', SettingsOkSchema, proof, (ctx) =>
+    webCreateGroup: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webCreateGroup', CreatedGroupSchema, proof, async (ctx) => groups.createGroup(ctx, input)),
+    webUpdateGroup: (proof: BrowserCommand, groupId: string, input: unknown): CoreReply<R> =>
+      mutation('webUpdateGroup', SettingsOkSchema, proof, async (ctx) => groups.updateGroup(ctx, groupId, input)),
+    webDeleteGroup: (proof: BrowserCommand, groupId: string): CoreReply<R> =>
+      mutation('webDeleteGroup', SettingsOkSchema, proof, async (ctx) => groups.deleteGroup(ctx, groupId)),
+    webAddGroupMember: (proof: BrowserCommand, groupId: string, input: unknown): CoreReply<R> =>
+      mutation('webAddGroupMember', SettingsOkSchema, proof, async (ctx) => groups.addGroupMember(ctx, groupId, input)),
+    webRemoveGroupMember: (proof: BrowserCommand, groupId: string, userId: string): CoreReply<R> =>
+      mutation('webRemoveGroupMember', SettingsOkSchema, proof, async (ctx) =>
         groups.removeGroupMember(ctx, groupId, userId),
       ),
     webSetGroupGrant: (
@@ -240,21 +263,17 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
       groupId: string,
       projectId: string,
       role: 'viewer' | 'member' | 'admin',
-    ) => grant('webSetGroupGrant', proof, groupId, projectId, role),
-    webRemoveGroupGrant: (proof: BrowserCommand, groupId: string, projectId: string) =>
+    ): CoreReply<R> => grant('webSetGroupGrant', proof, groupId, projectId, role),
+    webRemoveGroupGrant: (proof: BrowserCommand, groupId: string, projectId: string): CoreReply<R> =>
       grant('webRemoveGroupGrant', proof, groupId, projectId),
-    webCreateToken: (proof: BrowserCommand, input: unknown) =>
-      mutation('webCreateToken', NewTokenSchema, proof, (ctx) => workspaces.createToken(ctx, input)),
-    webRevokeToken: (proof: BrowserCommand, tokenId: string) =>
-      mutation('webRevokeToken', SettingsOkSchema, proof, (ctx) => workspaces.revokeToken(ctx, tokenId)),
-    webDisconnectConnector: (proof: BrowserCommand, connectorId: string) =>
-      mutation('webDisconnectConnector', SettingsOkSchema, proof, async (ctx, env) =>
-        revokeConnectorGrant(
-          (await import('#services/oauth-provider')).oauthApi(env),
-          ctx.userId,
-          ctx.workspaceId,
-          connectorId,
-        ),
-      ),
+    webCreateToken: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webCreateToken', NewTokenSchema, proof, async (ctx) => workspaces.createToken(ctx, input)),
+    webRevokeToken: (proof: BrowserCommand, tokenId: string): CoreReply<R> =>
+      mutation('webRevokeToken', SettingsOkSchema, proof, async (ctx) => workspaces.revokeToken(ctx, tokenId)),
+    webDisconnectConnector: (proof: BrowserCommand, connectorId: string): CoreReply<R> =>
+      mutation('webDisconnectConnector', SettingsOkSchema, proof, async (ctx, env) => {
+        const provider = await import('#services/oauth-provider.ts')
+        return revokeConnectorGrant(provider.oauthApi(env), ctx.userId, ctx.workspaceId, connectorId)
+      }),
   }
 }

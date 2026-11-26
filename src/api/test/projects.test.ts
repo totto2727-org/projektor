@@ -1,482 +1,535 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Predicate, Schema } from 'effect'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
-import { authHeaders, type JsonRpcError, type JsonRpcResult, seedWorkspaceRoles, toolError } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
-async function mcpCall<T>(
+import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
+import { stringifyOrderedFields, fetchNativeApi, fetchNativeMcpTool, requestOptionsWithBody } from './native-fetch.ts'
+import type { McpToolRequest } from './native-fetch.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
+import {
+  KeyListResponse,
+  parseNativeMcpText,
+  IdResponse,
+  JsonListResponse,
+  McpRpcResponse,
+  RpcTextResponse,
+  readNativeJson,
+} from './response-json.ts'
+
+const callMcpTool = async function callMcpTool(
   workspaceId: string,
-  name: string,
-  args: unknown,
+  params: McpToolRequest,
   headers: Record<string, string>,
-): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/call',
-      params: { name, arguments: args },
-    }),
-  })
-  return res.json()
+): Promise<typeof RpcTextResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, RpcTextResponse)
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
-  return 'error' in r
+const mcpCall = async function mcpCall(
+  workspaceId: string,
+  params: McpToolRequest,
+  headers: Record<string, string>,
+): Promise<typeof McpRpcResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, params, headers)
+  return readNativeJson(response, McpRpcResponse)
 }
 
-describe('Projects REST', () => {
-  let ownerToken: string
-  let memberToken: string
-  let viewerToken: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
+describe('projects REST', () => {
+  type TestData = Readonly<{
+    memberHeaders: Record<string, string>
+    memberToken: string
+    ownerHeaders: Record<string, string>
+    ownerToken: string
+    slug: string
+    viewerHeaders: Record<string, string>
+    viewerToken: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    slug = roles.workspace.slug
-    ownerToken = roles.owner.token
-    memberToken = roles.member.token
-    viewerToken = roles.viewer.token
-    ownerHeaders = authHeaders(ownerToken, slug)
-    memberHeaders = authHeaders(memberToken, slug)
-    viewerHeaders = authHeaders(viewerToken, slug)
-  })
+    const { slug } = roles.workspace
+    const ownerToken = roles.owner.token
+    const memberToken = roles.member.token
+    const viewerToken = roles.viewer.token
+    const ownerHeaders = authHeaders(ownerToken, slug)
+    const memberHeaders = authHeaders(memberToken, slug)
+    const viewerHeaders = authHeaders(viewerToken, slug)
+    return { memberHeaders, memberToken, ownerHeaders, ownerToken, slug, viewerHeaders, viewerToken }
+  }
 
-  it('GET /api/projects returns empty list initially', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
+  test('handles GET /api/projects returns empty list initially', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as unknown[]
+    const body = await readNativeJson(res, JsonListResponse)
     expect(Array.isArray(body)).toBe(true)
     expect(body).toHaveLength(0)
   })
 
-  it('POST /api/projects creates a project (owner)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Alpha', key: 'ALPHA' }),
-    })
+  test('handles POST /api/projects creates a project (owner)', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'ALPHA', name: 'Alpha' })),
+    )
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; name: string; key: string }
-    expect(body.id).toBeTruthy()
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ id: Schema.String, key: Schema.String, name: Schema.String }),
+    )
+    expect(isNonEmptyText(body.id)).toBe(true)
     expect(body.name).toBe('Alpha')
     expect(body.key).toBe('ALPHA')
   })
 
-  it('POST /api/projects accepts lowercase key and uppercases it', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Beta', key: 'beta' }),
-    })
+  test('handles POST /api/projects accepts lowercase key and uppercases it', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'beta', name: 'Beta' })),
+    )
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { key: string }
+    const body = await readNativeJson(res, Schema.Struct({ key: Schema.String }))
     expect(body.key).toBe('BETA')
   })
 
-  it('POST /api/projects rejects member role (403)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: memberHeaders,
-      body: JSON.stringify({ name: 'Gamma', key: 'GAMMA' }),
-    })
+  test('handles POST /api/projects rejects member role (403)', async () => {
+    const { memberHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ key: 'GAMMA', name: 'Gamma' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('POST /api/projects rejects viewer role (403)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Delta', key: 'DELTA' }),
-    })
+  test('handles POST /api/projects rejects viewer role (403)', async () => {
+    const { viewerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', viewerHeaders, JSON.stringify({ key: 'DELTA', name: 'Delta' })),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('POST /api/projects returns 409 for duplicate key', async () => {
-    await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'First', key: 'DUPL' }),
-    })
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Second', key: 'DUPL' }),
-    })
+  test('handles POST /api/projects returns 409 for duplicate key', async () => {
+    const { ownerHeaders } = await seedTestData()
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DUPL', name: 'First' })),
+    )
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DUPL', name: 'Second' })),
+    )
     expect(res.status).toBe(409)
   })
 
-  it('POST /api/projects returns 400 for invalid key format', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Bad', key: 'BAD KEY!' }),
-    })
+  test('handles POST /api/projects returns 400 for invalid key format', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'BAD KEY!', name: 'Bad' })),
+    )
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Leading digit', key: '2FA' }),
-    })
+  test('handles POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: '2FA', name: 'Leading digit' })),
+    )
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Digit key', key: 'WEB2' }),
-    })
+  test('handles POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'WEB2', name: 'Digit key' })),
+    )
     expect(res.status).toBe(201)
   })
 
-  it('POST /api/projects returns 400 for name too long', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'x'.repeat(101), key: 'TOOLONG' }),
-    })
+  test('handles POST /api/projects returns 400 for name too long', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const requestOptions = requestOptionsWithBody(
+      'POST',
+      ownerHeaders,
+      stringifyOrderedFields([
+        ['name', 'x'.repeat(101)],
+        ['key', 'TOOLONG'],
+      ]),
+    )
+    const res = await fetchNativeApi('http://localhost/api/projects', requestOptions)
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/projects stores NULL description by default', async () => {
-    await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'NullDesc', key: 'NULLD' }),
-    })
-    const listRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const projects = (await listRes.json()) as Array<{ key: string; description: string | null }>
-    const proj = projects.find((p) => p.key === 'NULLD')
-    expect(proj).toBeTruthy()
-    expect(proj!.description).toBeNull()
+  test('handles POST /api/projects stores NULL description by default', async () => {
+    const { ownerHeaders } = await seedTestData()
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'NULLD', name: 'NullDesc' })),
+    )
+    const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
+    const projectsShape = Schema.Array(
+      Schema.Struct({ description: Schema.Union([Schema.String, Schema.Null]), key: Schema.String }),
+    ).pipe(Schema.mutable)
+    const projects = await readNativeJson(listRes, projectsShape)
+    const proj = projects.find((project) => project.key === 'NULLD')
+    assert.isDefined(proj)
+    expect(proj.description).toBeNull()
   })
 
-  it('GET /api/projects/:id returns the project', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'GetMe', key: 'GETME' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+  test('handles GET /api/projects/:id returns the project', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'GETME', name: 'GetMe' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${id}`, { headers: ownerHeaders })
+    const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, { headers: ownerHeaders })
     expect(res.status).toBe(200)
-    const proj = (await res.json()) as { name: string; key: string }
+    const proj = await readNativeJson(res, Schema.Struct({ key: Schema.String, name: Schema.String }))
     expect(proj.name).toBe('GetMe')
     expect(proj.key).toBe('GETME')
   })
 
-  it('GET /api/projects/:id returns 404 for missing project', async () => {
-    const res = await SELF.fetch(`http://localhost/api/projects/${crypto.randomUUID()}`, {
+  test('handles GET /api/projects/:id returns 404 for missing project', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const res = await fetchNativeApi(`http://localhost/api/projects/${crypto.randomUUID()}`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(404)
   })
 
-  it('PATCH /api/projects/:id updates name (owner)', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'OldName', key: 'PATCH1' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+  test('handles PATCH /api/projects/:id updates name (owner)', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PATCH1', name: 'OldName' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const patchRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'NewName' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ name: 'NewName' })),
+    )
     expect(patchRes.status).toBe(200)
   })
 
-  it('PATCH /api/projects/:id rejects member (403)', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'PatchTarget', key: 'PTGT' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+  test('handles PATCH /api/projects/:id rejects member (403)', async () => {
+    const { memberHeaders, ownerHeaders } = await seedTestData()
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PTGT', name: 'PatchTarget' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const patchRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: memberHeaders,
-      body: JSON.stringify({ name: 'Hacked' }),
-    })
+    const patchRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', memberHeaders, JSON.stringify({ name: 'Hacked' })),
+    )
     expect(patchRes.status).toBe(403)
   })
 
-  it('PATCH /api/projects/:id archives and unarchives a project', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Archivable', key: 'ARCH1' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+  test('handles PATCH /api/projects/:id archives and unarchives a project', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'ARCH1', name: 'Archivable' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const archiveRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ archived: true }),
-    })
+    const archiveRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ archived: true })),
+    )
     expect(archiveRes.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const keys = ((await listRes.json()) as Array<{ key: string }>).map((p) => p.key)
+    const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
+    const projects = await readNativeJson(listRes, KeyListResponse)
+    const keys = projects.map((project) => project.key)
     expect(keys).not.toContain('ARCH1')
 
-    const includeArchivedRes = await SELF.fetch('http://localhost/api/projects?includeArchived=true', {
+    const includeArchivedRes = await fetchNativeApi('http://localhost/api/projects?includeArchived=true', {
       headers: ownerHeaders,
     })
-    const withArchived = (await includeArchivedRes.json()) as Array<{
-      key: string
-      archived_at: number | null
-    }>
-    const archived = withArchived.find((p) => p.key === 'ARCH1')
-    expect(archived).toBeTruthy()
-    expect(archived!.archived_at).not.toBeNull()
+    const withArchivedShape = Schema.Array(
+      Schema.Struct({ archived_at: Schema.Union([Schema.Number, Schema.Null]), key: Schema.String }),
+    ).pipe(Schema.mutable)
+    const withArchived = await readNativeJson(includeArchivedRes, withArchivedShape)
+    const archived = withArchived.find((project) => project.key === 'ARCH1')
+    assert.isDefined(archived)
+    expect(archived.archived_at).not.toBeNull()
 
     await resetRateLimits()
 
-    const unarchiveRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
-      body: JSON.stringify({ archived: false }),
-    })
+    const unarchiveRes = await fetchNativeApi(
+      `http://localhost/api/projects/${id}`,
+      requestOptionsWithBody('PATCH', ownerHeaders, JSON.stringify({ archived: false })),
+    )
     expect(unarchiveRes.status).toBe(200)
 
-    const afterUnarchive = await SELF.fetch('http://localhost/api/projects', {
+    const afterUnarchive = await fetchNativeApi('http://localhost/api/projects', {
       headers: ownerHeaders,
     })
-    const afterKeys = ((await afterUnarchive.json()) as Array<{ key: string }>).map((p) => p.key)
+    const visibleProjects = await readNativeJson(afterUnarchive, KeyListResponse)
+    const afterKeys = visibleProjects.map((project) => project.key)
     expect(afterKeys).toContain('ARCH1')
   })
 
-  it('DELETE /api/projects/:id works for owner', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'ToDelete', key: 'DEL1' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+  test('handles DELETE /api/projects/:id works for owner', async () => {
+    const { ownerHeaders } = await seedTestData()
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'DEL1', name: 'ToDelete' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const delRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'DELETE',
+    const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       headers: ownerHeaders,
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(200)
   })
 
-  it('DELETE /api/projects/:id rejects member (403)', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'NoDelete', key: 'NODEL' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
+  test('handles DELETE /api/projects/:id rejects member (403)', async () => {
+    const { memberHeaders, ownerHeaders } = await seedTestData()
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'NODEL', name: 'NoDelete' })),
+    )
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const delRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
-      method: 'DELETE',
+    const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       headers: memberHeaders,
+      method: 'DELETE',
     })
     expect(delRes.status).toBe(403)
   })
 })
 
-describe('Projects MCP', () => {
-  let ownerToken: string
-  let slug: string
-  let workspaceId: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
+describe('projects MCP', () => {
+  type TestData = Readonly<{
+    memberHeaders: Record<string, string>
+    ownerHeaders: Record<string, string>
+    ownerToken: string
+    slug: string
+    viewerHeaders: Record<string, string>
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    slug = roles.workspace.slug
-    workspaceId = roles.workspace.id
-    ownerToken = roles.owner.token
-    ownerHeaders = authHeaders(ownerToken, slug)
-    memberHeaders = authHeaders(roles.member.token, slug)
-    viewerHeaders = authHeaders(roles.viewer.token, slug)
-  })
+    const { slug } = roles.workspace
+    const workspaceId = roles.workspace.id
+    const ownerToken = roles.owner.token
+    const ownerHeaders = authHeaders(ownerToken, slug)
+    const memberHeaders = authHeaders(roles.member.token, slug)
+    const viewerHeaders = authHeaders(roles.viewer.token, slug)
+    return { memberHeaders, ownerHeaders, ownerToken, slug, viewerHeaders, workspaceId }
+  }
 
-  it('list_projects returns empty list initially', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
-      workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    expect(isMcpError(res)).toBe(false)
+  test('list_projects returns empty list initially', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
+    expect('error' in res).toBe(false)
     expect(toolError(res)).toBeUndefined()
-    const data = JSON.parse(res.result.content[0].text) as unknown[]
+    const data = parseNativeMcpText(res.result.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
 
-  it('create_project succeeds for owner', async () => {
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'MCP Project', key: 'MCP' }, ownerHeaders)
-    expect(isMcpError(res)).toBe(false)
+  test('create_project succeeds for owner', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await callMcpTool(
+      workspaceId,
+      { arguments: { key: 'MCP', name: 'MCP Project' }, name: 'create_project' },
+      ownerHeaders,
+    )
+    expect('error' in res).toBe(false)
     expect(toolError(res)).toBeUndefined()
-    const result = res as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const data = JSON.parse(result.result.content[0].text) as { id: string; key: string }
-    expect(data.id).toBeTruthy()
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({ id: Schema.String, key: Schema.String }),
+    )
+    expect(isNonEmptyText(data.id)).toBe(true)
     expect(data.key).toBe('MCP')
   })
 
-  it('create_project uppercases key', async () => {
-    const res = (await mcpCall(
+  test('create_project uppercases key', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await callMcpTool(
       workspaceId,
-      'create_project',
-      { name: 'Lower', key: 'lower' },
+      { arguments: { key: 'lower', name: 'Lower' }, name: 'create_project' },
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const data = JSON.parse(res.result.content[0].text) as { key: string }
+    )
+    const data = parseNativeMcpText(res.result.content[0].text, Schema.Struct({ key: Schema.String }))
     expect(data.key).toBe('LOWER')
   })
 
-  it('create_project rejects member role', async () => {
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, memberHeaders)
+  test('create_project rejects member role', async () => {
+    const { memberHeaders, workspaceId } = await seedTestData()
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'BLKD', name: 'Blocked' }, name: 'create_project' },
+      memberHeaders,
+    )
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('create_project rejects viewer role', async () => {
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, viewerHeaders)
+  test('create_project rejects viewer role', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'BLKD', name: 'Blocked' }, name: 'create_project' },
+      viewerHeaders,
+    )
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('create_project rejects duplicate key', async () => {
-    await mcpCall(workspaceId, 'create_project', { name: 'First', key: 'DUPL' }, ownerHeaders)
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Second', key: 'DUPL' }, ownerHeaders)
+  test('create_project rejects duplicate key', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    await mcpCall(workspaceId, { arguments: { key: 'DUPL', name: 'First' }, name: 'create_project' }, ownerHeaders)
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'DUPL', name: 'Second' }, name: 'create_project' },
+      ownerHeaders,
+    )
     expect(toolError(res)?.code).toBe('conflict')
   })
 
-  it('create_project rejects invalid key format', async () => {
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'Bad', key: 'BAD KEY!' }, ownerHeaders)
-    expect(toolError(res)?.code).toBe('validation')
-  })
-
-  it('create_project rejects name too long', async () => {
-    const res = await mcpCall(workspaceId, 'create_project', { name: 'x'.repeat(101), key: 'TOOLNG' }, ownerHeaders)
-    expect(toolError(res)?.code).toBe('validation')
-  })
-
-  it('create_project stores NULL description by default', async () => {
-    await mcpCall(workspaceId, 'create_project', { name: 'NullDesc', key: 'MCPND' }, ownerHeaders)
-
-    const listRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('create_project rejects invalid key format', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await mcpCall(
       workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const projects = JSON.parse(listRes.result.content[0].text) as Array<{
-      key: string
-      description: string | null
-    }>
-    const proj = projects.find((p) => p.key === 'MCPND')
-    expect(proj).toBeTruthy()
-    expect(proj!.description).toBeNull()
-  })
-
-  it('REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
-    await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Shape Check', key: 'SHAPE' }),
-    })
-
-    const res = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const projects = (await res.json()) as Array<{
-      key: string
-      workspace_id: string
-      workspace_slug: string
-      workspace_name: string
-      open_issue_count: number
-    }>
-    const proj = projects.find((p) => p.key === 'SHAPE')
-    expect(proj).toBeTruthy()
-    expect(proj!.workspace_id).toBeTruthy()
-    expect(typeof proj!.workspace_slug).toBe('string')
-    expect(typeof proj!.workspace_name).toBe('string')
-    expect(typeof proj!.open_issue_count).toBe('number')
-    expect(proj!.open_issue_count).toBe(0)
-  })
-
-  it('REST and MCP list_projects return the same keys', async () => {
-    // Create via REST
-    await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Parity Test', key: 'PARITY' }),
-    })
-
-    const restRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const restProjects = (await restRes.json()) as Array<{ key: string }>
-
-    const mcpRes = (await mcpCall<{ content: Array<{ text: string }> }>(
-      workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const mcpProjects = JSON.parse(mcpRes.result.content[0].text) as Array<{ key: string }>
-
-    expect(restProjects.map((p) => p.key)).toEqual(mcpProjects.map((p) => p.key))
-  })
-
-  it('update_project archives a project and list_projects excludes it by default', async () => {
-    const createRes = await mcpCall(
-      workspaceId,
-      'create_project',
-      { name: 'MCP Archivable', key: 'MARCH' },
+      { arguments: { key: 'BAD KEY!', name: 'Bad' }, name: 'create_project' },
       ownerHeaders,
     )
-    const { id } = JSON.parse(
-      (createRes as JsonRpcResult<{ content: Array<{ text: string }> }>).result.content[0].text,
-    ) as { id: string }
+    expect(toolError(res)?.code).toBe('validation')
+  })
 
-    const updateRes = await mcpCall(workspaceId, 'update_project', { id, archived: true }, ownerHeaders)
-    expect(isMcpError(updateRes)).toBe(false)
+  test('create_project rejects name too long', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const res = await mcpCall(
+      workspaceId,
+      { arguments: { name: 'x'.repeat(101), key: 'TOOLNG' }, name: 'create_project' },
+      ownerHeaders,
+    )
+    expect(toolError(res)?.code).toBe('validation')
+  })
+
+  test('create_project stores NULL description by default', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    await mcpCall(workspaceId, { arguments: { key: 'MCPND', name: 'NullDesc' }, name: 'create_project' }, ownerHeaders)
+
+    const listRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
+    const projects = parseNativeMcpText(
+      listRes.result.content[0].text,
+      Schema.Array(Schema.Struct({ description: Schema.Union([Schema.String, Schema.Null]), key: Schema.String })).pipe(
+        Schema.mutable,
+      ),
+    )
+    const proj = projects.find((project) => project.key === 'MCPND')
+    assert.isDefined(proj)
+    expect(proj.description).toBeNull()
+  })
+
+  test('covers REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
+    const { ownerHeaders } = await seedTestData()
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'SHAPE', name: 'Shape Check' })),
+    )
+
+    const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
+    const projects = await readNativeJson(
+      res,
+      Schema.Array(
+        Schema.Struct({
+          key: Schema.String,
+          open_issue_count: Schema.Number,
+          workspace_id: Schema.String,
+          workspace_name: Schema.String,
+          workspace_slug: Schema.String,
+        }),
+      ).pipe(Schema.mutable),
+    )
+    const proj = projects.find((project) => project.key === 'SHAPE')
+    assert.isDefined(proj)
+    expect(isNonEmptyText(proj.workspace_id)).toBe(true)
+    expect(proj.workspace_slug).toSatisfy(Predicate.isString)
+    expect(proj.workspace_name).toSatisfy(Predicate.isString)
+    expect(proj.open_issue_count).toSatisfy(Predicate.isNumber)
+    expect(proj.open_issue_count).toBe(0)
+  })
+
+  test('covers REST and MCP list_projects return the same keys', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    // Create via REST
+    await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', ownerHeaders, JSON.stringify({ key: 'PARITY', name: 'Parity Test' })),
+    )
+
+    const restRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
+    const restProjects = await readNativeJson(
+      restRes,
+      Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
+    )
+
+    const mcpRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
+    const mcpProjects = parseNativeMcpText(mcpRes.result.content[0].text, KeyListResponse)
+
+    expect(restProjects.map((project) => project.key)).toStrictEqual(mcpProjects.map((project) => project.key))
+  })
+
+  test('update_project archives a project and list_projects excludes it by default', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
+    const createRes = await callMcpTool(
+      workspaceId,
+      { arguments: { key: 'MARCH', name: 'MCP Archivable' }, name: 'create_project' },
+      ownerHeaders,
+    )
+    const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
+
+    const updateRes = await mcpCall(
+      workspaceId,
+      { arguments: { id, archived: true }, name: 'update_project' },
+      ownerHeaders,
+    )
+    expect('error' in updateRes).toBe(false)
     expect(toolError(updateRes)).toBeUndefined()
 
-    const listRes = (await mcpCall<{ content: Array<{ text: string }> }>(
-      workspaceId,
-      'list_projects',
-      {},
-      ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const keys = (JSON.parse(listRes.result.content[0].text) as Array<{ key: string }>).map((p) => p.key)
+    const listRes = await callMcpTool(workspaceId, { arguments: {}, name: 'list_projects' }, ownerHeaders)
+    const keys = parseNativeMcpText(listRes.result.content[0].text, KeyListResponse).map((project) => project.key)
     expect(keys).not.toContain('MARCH')
 
-    const includeArchivedRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const includeArchivedRes = await callMcpTool(
       workspaceId,
-      'list_projects',
-      { includeArchived: true },
+      { arguments: { includeArchived: true }, name: 'list_projects' },
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const includeArchivedKeys = (JSON.parse(includeArchivedRes.result.content[0].text) as Array<{ key: string }>).map(
-      (p) => p.key,
+    )
+    const includeArchivedKeys = parseNativeMcpText(includeArchivedRes.result.content[0].text, KeyListResponse).map(
+      (project) => project.key,
     )
     expect(includeArchivedKeys).toContain('MARCH')
   })
 
-  it('REST create_project and MCP create_project enforce the same role guard', async () => {
-    const restRes = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: memberHeaders,
-      body: JSON.stringify({ name: 'ByMember', key: 'MEMBR' }),
-    })
-    const mcpRes = await mcpCall(workspaceId, 'create_project', { name: 'ByMember', key: 'MEMBR' }, memberHeaders)
+  test('covers REST create_project and MCP create_project enforce the same role guard', async () => {
+    const { memberHeaders, workspaceId } = await seedTestData()
+    const restRes = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody('POST', memberHeaders, JSON.stringify({ key: 'MEMBR', name: 'ByMember' })),
+    )
+    const mcpRes = await mcpCall(
+      workspaceId,
+      { arguments: { key: 'MEMBR', name: 'ByMember' }, name: 'create_project' },
+      memberHeaders,
+    )
 
     // Both must reject member
     expect(restRes.status).toBe(403)
@@ -484,10 +537,10 @@ describe('Projects MCP', () => {
   })
 })
 
-describe('GET /api/projects cross-workspace', () => {
-  it('returns projects from all workspaces the user belongs to', async () => {
+describe('handles GET /api/projects cross-workspace', () => {
+  test('returns projects from all workspaces the user belongs to', async () => {
     const { seedFixture, seedProject, seedWorkspace, seedMember, seedGroupGrant, seedUserToken } =
-      await import('./helpers')
+      await import('./helpers.ts')
 
     const ws1 = await seedFixture({ role: 'owner' })
     const ws2 = await seedWorkspace()
@@ -498,39 +551,41 @@ describe('GET /api/projects cross-workspace', () => {
     await seedGroupGrant(ws2.id, ws1.user.id, ws2p.id)
 
     const userToken = await seedUserToken(ws1.user.id)
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${userToken}` },
     })
     expect(res.status).toBe(200)
-    const keys = ((await res.json()) as Array<{ key: string }>).map((p) => p.key)
+    const projects = await readNativeJson(res, KeyListResponse)
+    const keys = projects.map((project) => project.key)
     expect(keys).toContain('WS1P')
     expect(keys).toContain('WS2P')
   })
 
-  it('does not return projects from workspaces the user is not a member of', async () => {
-    const { seedFixture, seedProject, seedWorkspace } = await import('./helpers')
+  test('does not return projects from workspaces the user is not a member of', async () => {
+    const { seedFixture, seedProject, seedWorkspace } = await import('./helpers.ts')
 
     const user = await seedFixture({ role: 'owner' })
     const other = await seedWorkspace()
     await seedProject(user.workspace.id, 'MINE')
     await seedProject(other.id, 'NOTMINE')
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${user.token}` },
     })
     expect(res.status).toBe(200)
-    const keys = ((await res.json()) as Array<{ key: string }>).map((p) => p.key)
+    const projects = await readNativeJson(res, KeyListResponse)
+    const keys = projects.map((project) => project.key)
     expect(keys).toContain('MINE')
     expect(keys).not.toContain('NOTMINE')
   })
 
-  it('returns 401 with no auth', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects')
+  test('returns 401 with no auth', async () => {
+    const res = await fetchNativeApi('http://localhost/api/projects')
     expect(res.status).toBe(401)
   })
 
-  it('open_issue_count reflects non-done issues only', async () => {
-    const { seedFixture, seedProject, seedIssue } = await import('./helpers')
+  test('open_issue_count reflects non-done issues only', async () => {
+    const { seedFixture, seedProject, seedIssue } = await import('./helpers.ts')
 
     const fixture = await seedFixture({ role: 'owner' })
     const project = await seedProject(fixture.workspace.id, 'ICNT')
@@ -539,12 +594,15 @@ describe('GET /api/projects cross-workspace', () => {
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { status: 'todo' })
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { status: 'done' })
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
-    const projects = (await res.json()) as Array<{ key: string; open_issue_count: number }>
-    const proj = projects.find((p) => p.key === 'ICNT')
-    expect(proj).toBeTruthy()
-    expect(proj!.open_issue_count).toBe(2)
+    const projects = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ key: Schema.String, open_issue_count: Schema.Number })).pipe(Schema.mutable),
+    )
+    const proj = projects.find((selectedProject) => selectedProject.key === 'ICNT')
+    assert.isDefined(proj)
+    expect(proj.open_issue_count).toBe(2)
   })
 })

@@ -1,55 +1,55 @@
 import { Hono } from 'hono'
 
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { createProject, deleteProject, getProject, getProjectBySlug, updateProject } from '#api/services/projects.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { createProject, deleteProject, getProject, getProjectBySlug, updateProject } from '../services/projects'
-import { ctxFromHono } from '../services/types'
+export const projectsRouter = new Hono<HonoEnv>()
 
-const router = new Hono<HonoEnv>()
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-router.post('/', async (c) => {
-  const ctx = ctxFromHono(c)
+projectsRouter.post('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    const body = await jsonBody(c)
-    return c.json(await createProject(ctx, body), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    const body = await jsonBody(httpContext)
+    return httpContext.json(await createProject(ctx, body), HTTP_CREATED)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.get('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
-  const param = c.req.param('id')
+projectsRouter.get('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const param = httpContext.req.param('id')
   try {
-    // PROJ-376: pretty project URLs pass a slug (e.g. "start-line") here instead
-    // of a UUID.
-    return c.json(UUID_RE.test(param) ? await getProject(ctx, param) : await getProjectBySlug(ctx, param))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    /*
+     * PROJ-376: pretty project URLs pass a slug (e.g. "start-line") here instead
+     * of a UUID.
+     */
+    return httpContext.json(UUID_RE.test(param) ? await getProject(ctx, param) : await getProjectBySlug(ctx, param))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+projectsRouter.patch('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    const body = await jsonBody(c)
-    return c.json(await updateProject(ctx, c.req.param('id'), body))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    const body = await jsonBody(httpContext)
+    return httpContext.json(await updateProject(ctx, httpContext.req.param('id'), body))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+projectsRouter.delete('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await deleteProject(ctx, c.req.param('id')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await deleteProject(ctx, httpContext.req.param('id')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as projectsRouter }

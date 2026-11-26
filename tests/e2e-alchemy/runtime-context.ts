@@ -1,25 +1,25 @@
 import * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/RuntimeServices'
 import * as Credentials from '@distilled.cloud/cloudflare/Credentials'
-import * as NodeServices from '@effect/platform-node/NodeServices'
-import { Effect, Exit, Layer, Scope } from 'effect'
+import { NodeServices } from '@effect/platform-node'
+import { String, Predicate, Effect, Exit, Layer, Scope } from 'effect'
 import { FetchHttpClient, HttpClient } from 'effect/http'
 import type { Plugin } from 'vite-plus'
 
-import { makeInlineApiLayer } from './inline-api'
+import { makeInlineApiLayer } from './inline-api.ts'
 
-/** Only preview allocates runtime services. A build must remain offline and exit. */
-export async function makePreviewContext(isPreview: boolean | undefined) {
-  if (!isPreview) return undefined
+const openPreviewRuntime = async function openPreviewRuntime() {
   const directory = process.env.PROJEKTOR_E2E_STORAGE_DIRECTORY
-  if (!directory) {
+  if (Predicate.isNullish(directory) || String.isEmpty(directory)) {
     throw new Error(
       'Run previews through the E2E config so all three Workers use one isolated runtime and storage directory.',
     )
   }
   const scope = Scope.makeUnsafe()
-  // Use the supported public runtime factory, not private Paths/services.
-  // It includes the remote-binding layer, but credentials cannot resolve and
-  // the node-side client only permits loopback transport for the dev registry.
+  /*
+   * Use the supported public runtime factory, not private Paths/services.
+   * It includes the remote-binding layer, but credentials cannot resolve and
+   * the node-side client only permits loopback transport for the dev registry.
+   */
   const noCredentials = Layer.succeed(
     Credentials.Credentials,
     Effect.die(new Error('Cloudflare credentials are forbidden in the isolated E2E host.')),
@@ -50,9 +50,23 @@ export async function makePreviewContext(isPreview: boolean | undefined) {
     configurePreviewServer(server) {
       server.httpServer.once('close', () => {
         const close = Scope.closeUnsafe(scope, Exit.void)
-        if (close) void Effect.runPromiseExit(close)
+        if (close) {
+          void Effect.runPromiseExit(close)
+        }
       })
     },
   }
   return { context, lifecycle }
+}
+
+/**
+ * Only preview allocates runtime services. A build must remain offline and exit.
+ *
+ * @param {boolean | undefined} isPreview Whether the application is running in browser acceptance preview.
+ * @returns {Promise<Awaited<ReturnType<typeof openPreviewRuntime>> | undefined>} The preview runtime services and lifecycle, or undefined during a build.
+ */
+export const makePreviewContext = async function makePreviewContext(
+  isPreview: boolean | undefined,
+): Promise<Awaited<ReturnType<typeof openPreviewRuntime>> | undefined> {
+  return isPreview === true ? openPreviewRuntime() : undefined
 }

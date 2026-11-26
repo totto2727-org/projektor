@@ -1,17 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { Iterable } from 'effect'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback'
-import { createIssue } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
-
-import { createTestDatabase } from '../../web/test/database'
+import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
+import { createIssue } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
 
-function fixture(concurrentBatches = 1) {
+const fixture = function fixture(concurrentBatches = 1) {
   const database = createTestDatabase()
   databases.push(database)
   // The migrated node fixture omits FTS5. This mirror verifies row consistency, not FTS matching.
@@ -23,7 +21,7 @@ function fixture(concurrentBatches = 1) {
     INSERT INTO feedback_sources (id,token_hash,workspace_id,project_id,name,created_by,created_at)
       VALUES ('s','hash','w','p','Source','u',1);`)
   let arrivals = 0
-  let release = () => {}
+  let release = (): void => {}
   const barrier = new Promise<void>((resolve) => {
     release = resolve
   })
@@ -31,31 +29,41 @@ function fixture(concurrentBatches = 1) {
   const binds: number[] = []
   const db = new Proxy(database.db, {
     get(target, key) {
-      if (key === 'prepare')
+      if (key === 'prepare') {
         return (query: string) => {
           const statement = target.prepare(query)
           return new Proxy(statement, {
             get(prepared, property) {
-              if (property === 'bind')
+              if (property === 'bind') {
                 return (...values: unknown[]) => {
                   binds.push(values.length)
-                  if (values.length > 100) throw new Error('D1 bind budget exceeded')
+                  if (values.length > 100) {
+                    throw new Error('D1 bind budget exceeded')
+                  }
                   return prepared.bind(...values)
                 }
+              }
               return Reflect.get(prepared, property)
             },
           })
         }
-      if (key !== 'batch') return Reflect.get(target, key)
+      }
+      if (key !== 'batch') {
+        return Reflect.get(target, key)
+      }
       return async (statements: D1PreparedStatement[]) => {
-        if (++arrivals >= concurrentBatches) release()
+        if (++arrivals >= concurrentBatches) {
+          release()
+        }
         await barrier
         // D1 serializes atomic batches. Both callers must reach the write boundary before either runs.
         const pending = tail.then(async () => {
           database.sqlite.exec('BEGIN')
           try {
             const results = []
-            for (const statement of statements) results.push(await statement.all())
+            for (const statement of statements) {
+              results.push(await statement.all())
+            }
             database.sqlite.exec('COMMIT')
             return results
           } catch (error) {
@@ -68,15 +76,22 @@ function fixture(concurrentBatches = 1) {
       }
     },
   })
-  const fetch = vi.fn(async () => new Response())
+  const fetch = vi.fn<() => Promise<Response>>(async () => new Response())
   const ctx: ServiceCtx = {
     db,
-    kv: { get: vi.fn(async () => null), put: vi.fn(), delete: vi.fn() } as unknown as KVNamespace,
+    kv: {
+      get: vi.fn<() => Promise<null>>(async () => null),
+      put: vi.fn<KVNamespace['put']>(),
+      delete: vi.fn<KVNamespace['delete']>(),
+    } as unknown as KVNamespace,
     r2: {} as R2Bucket,
     workspaceId: 'w',
     userId: 'u',
     role: 'owner',
-    workspaceHub: { idFromName: vi.fn(), get: () => ({ fetch }) } as unknown as DurableObjectNamespace,
+    workspaceHub: {
+      idFromName: vi.fn<DurableObjectNamespace['idFromName']>(),
+      get: () => ({ fetch }),
+    } as unknown as DurableObjectNamespace,
   }
   const seed = (id: string) =>
     database.sqlite
@@ -88,73 +103,95 @@ function fixture(concurrentBatches = 1) {
 }
 
 describe('feedback conversion transaction', () => {
-  it('permits exactly one concurrent single conversion without orphan issues, mirrors, activity or events', async () => {
-    const f = fixture(2)
-    f.seed('f')
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
+  test('permits exactly one concurrent single conversion without orphan issues, mirrors, activity or events', async () => {
+    const testFixture = fixture(2)
+    testFixture.seed('f')
     const results = await Promise.allSettled([
-      convertFeedbackToIssue(f.ctx, { feedbackId: 'f' }),
-      convertFeedbackToIssue(f.ctx, { feedbackId: 'f' }),
+      convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' }),
+      convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' }),
     ])
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
-    expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
-    for (const table of ['issues', 'issues_fts', 'activity']) expect(f.count(table), table).toBe(1)
-    expect(f.fetch).toHaveBeenCalledTimes(1)
-    const issue = f.sqlite.prepare('SELECT id,number FROM issues').get()
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
+    Iterable.forEach(['issues', 'issues_fts', 'activity'], (table) => {
+      expect(testFixture.count(table), table).toBe(1)
+    })
+    expect(testFixture.fetch).toHaveBeenCalledOnce()
+    const issue = testFixture.sqlite.prepare('SELECT id,number FROM issues').get()
     expect(issue?.number).toBe(1)
-    expect(f.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
+    expect(testFixture.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
       linked_issue_id: issue?.id,
       status: 'actioned',
     })
   })
 
-  it('does not partially convert an overlapping bulk selection when another conversion wins', async () => {
-    const f = fixture(2)
-    for (const id of ['a', 'b', 'c']) f.seed(id)
+  test('does not partially convert an overlapping bulk selection when another conversion wins', async () => {
+    const testFixture = fixture(2)
+    Iterable.forEach(['a', 'b', 'c'], (id) => {
+      testFixture.seed(id)
+    })
     const results = await Promise.allSettled([
-      bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['a', 'b'] }),
-      bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['b', 'c'] }),
+      bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ['a', 'b'] }),
+      bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ['b', 'c'] }),
     ])
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
-    expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
-    expect(f.count('issues')).toBe(1)
-    expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n).toBe(2)
-    expect(f.count('issues_fts')).toBe(1)
-    expect(f.count('activity')).toBe(1)
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
+    expect(testFixture.count('issues')).toBe(1)
+    expect(
+      testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n,
+    ).toBe(2)
+    expect(testFixture.count('issues_fts')).toBe(1)
+    expect(testFixture.count('activity')).toBe(1)
   })
 
-  it('rolls back issue number, FTS and activity when linking fails, then retries cleanly', async () => {
-    const f = fixture()
-    f.seed('f')
-    f.sqlite.exec(`CREATE TRIGGER fail_link BEFORE UPDATE OF linked_issue_id ON feedback
+  test('rolls back issue number, FTS and activity when linking fails, then retries cleanly', async () => {
+    const testFixture = fixture()
+    testFixture.seed('f')
+    testFixture.sqlite.exec(`CREATE TRIGGER fail_link BEFORE UPDATE OF linked_issue_id ON feedback
       BEGIN SELECT RAISE(ABORT,'link failure'); END;`)
-    await expect(convertFeedbackToIssue(f.ctx, { feedbackId: 'f' })).rejects.toThrow('link failure')
-    for (const table of ['issues', 'issues_fts', 'activity']) expect(f.count(table), table).toBe(0)
-    expect(f.fetch).not.toHaveBeenCalled()
-    expect(f.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
-      linked_issue_id: null,
+    await expect(convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' })).rejects.toThrow('link failure')
+    Iterable.forEach(['issues', 'issues_fts', 'activity'], (table) => {
+      expect(testFixture.count(table), table).toBe(0)
+    })
+    expect(testFixture.fetch).not.toHaveBeenCalled()
+    expect(testFixture.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
+      linked_issue_id: SQL_NULL,
       status: 'new',
     })
-    f.sqlite.exec('DROP TRIGGER fail_link')
-    await expect(convertFeedbackToIssue(f.ctx, { feedbackId: 'f' })).resolves.toMatchObject({ number: 1 })
+    testFixture.sqlite.exec('DROP TRIGGER fail_link')
+    await expect(convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' })).resolves.toMatchObject({ number: 1 })
   })
 
-  it('converts the 500-ID maximum without crossing the D1 bind cap', async () => {
-    const f = fixture()
-    const ids = Array.from({ length: 500 }, (_, i) => `f${i}`)
-    for (const id of ids) f.seed(id)
-    await expect(bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ids })).resolves.toMatchObject({
+  test('converts the 500-ID maximum without crossing the D1 bind cap', async () => {
+    const testFixture = fixture()
+    const ids = Array.from({ length: 500 }, (_value, index) => `f${index}`)
+    Iterable.forEach(ids, (id) => {
+      testFixture.seed(id)
+    })
+    await expect(bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ids })).resolves.toMatchObject({
       convertedCount: 500,
       number: 1,
     })
-    expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n).toBe(500)
-    expect(Math.max(...f.binds)).toBeLessThanOrEqual(100)
+    expect(
+      testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n,
+    ).toBe(500)
+    expect(Math.max(...testFixture.binds)).toBeLessThanOrEqual(100)
   })
 
-  it('preserves ordinary issue creation and sequential number allocation', async () => {
-    const f = fixture()
-    await expect(createIssue(f.ctx, { projectId: 'p', title: 'Normal' })).resolves.toMatchObject({ number: 1 })
-    await expect(createIssue(f.ctx, { projectId: 'p', title: 'Normal two' })).resolves.toMatchObject({ number: 2 })
-    expect(f.count('issues_fts')).toBe(2)
-    expect(f.count('activity')).toBe(2)
+  test('preserves ordinary issue creation and sequential number allocation', async () => {
+    const testFixture = fixture()
+    await expect(createIssue(testFixture.ctx, { projectId: 'p', title: 'Normal' })).resolves.toMatchObject({
+      number: 1,
+    })
+    await expect(createIssue(testFixture.ctx, { projectId: 'p', title: 'Normal two' })).resolves.toMatchObject({
+      number: 2,
+    })
+    expect(testFixture.count('issues_fts')).toBe(2)
+    expect(testFixture.count('activity')).toBe(2)
   })
 })

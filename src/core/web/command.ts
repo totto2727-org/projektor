@@ -1,40 +1,62 @@
-import { Effect, Schema } from 'effect'
+import { Effect } from 'effect'
 
-import type { ServiceCtx } from '#commands/types'
-import { checkRateLimit } from '#services/request-rate-limit'
+import type { ServiceCtx } from '#commands/types.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_TOO_MANY_REQUESTS } from '#contracts/http-status.ts'
+import { assertSameOriginMutation } from '#contracts/mutation.ts'
+import { requireDataWorkspace } from '#contracts/web-data.ts'
+import { coreFailure } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { checkRateLimit } from '#services/request-rate-limit.ts'
 
-import { assertSameOriginMutation } from '../../contracts/mutation'
-import { requireDataWorkspace } from '../../contracts/web-data'
-import { coreFailure } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, nativeRequest, publicWebFailure } from './authentication'
-import { BrowserCommandSchema, type BrowserCommand } from './command-contract'
+import { loadBrowserScope, nativeRequest, publicWebFailure } from './authentication.ts'
+import { decodeBrowserCommand } from './command-contract.ts'
+import type { BrowserCommand } from './command-contract.ts'
 
-/** Proof and selectors cross the binding. Storage capabilities are constructed only in Core. */
-export function browserCommand<A>(
+/**
+ * Proof and selectors cross the binding. Storage capabilities are constructed only in Core.
+ *
+ * @param {CoreEnvironment} env The private Core bindings for the request.
+ * @param {BrowserCommand} input The browser request proof and workspace and project selectors.
+ * @param {(ctx: ServiceCtx) => Promise<A>} operation The command that receives the authorized workspace context.
+ * @returns {Effect.Effect<A, unknown>} An effect that applies the request checks and runs the command.
+ */
+export const browserCommand = function browserCommand<A>(
   env: CoreEnvironment,
   input: BrowserCommand,
   operation: (ctx: ServiceCtx) => Promise<A>,
-) {
+): Effect.Effect<A, unknown> {
   return Effect.gen(function* () {
-    const proof = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(input).pipe(
-      Effect.mapError(() => coreFailure(400, 'Invalid browser command.')),
+    const proof = yield* decodeBrowserCommand(input).pipe(
+      Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser command.')),
     )
     const request = nativeRequest(proof.request)
-    yield* Effect.try({ try: () => assertSameOriginMutation(request), catch: publicWebFailure })
+    yield* Effect.try({
+      catch: publicWebFailure,
+      try: () => {
+        assertSameOriginMutation(request)
+      },
+    })
     const scope = yield* loadBrowserScope(env, proof.request, {
       workspaceHint: proof.workspaceSlug,
       projectHint: proof.projectId ?? '',
       requireWorkspace: true,
     })
-    const workspace = yield* Effect.try({ try: () => requireDataWorkspace(scope), catch: publicWebFailure })
-    if (workspace.slug !== proof.workspaceSlug) return yield* coreFailure(403, 'Selected workspace is not accessible.')
-    const auth = scope.auth
-    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev'))
-      return yield* coreFailure(403, 'An interactive browser session is required.')
-    const limited = yield* Effect.tryPromise({ try: () => checkRateLimit(request, env), catch: publicDomainFailure })
-    if (limited) return yield* coreFailure(429, 'Too many requests', { retryAfter: limited.retryAfter })
+    const workspace = yield* Effect.try({ catch: publicWebFailure, try: () => requireDataWorkspace(scope) })
+    if (workspace.slug !== proof.workspaceSlug) {
+      return yield* coreFailure(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
+    }
+    const { auth } = scope
+    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
+      return yield* coreFailure(HTTP_FORBIDDEN, 'An interactive browser session is required.')
+    }
+    const limited = yield* Effect.tryPromise({
+      catch: publicDomainFailure,
+      try: async () => checkRateLimit(request, env),
+    })
+    if (limited) {
+      return yield* coreFailure(HTTP_TOO_MANY_REQUESTS, 'Too many requests', { retryAfter: limited.retryAfter })
+    }
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,
@@ -46,6 +68,6 @@ export function browserCommand<A>(
       auth,
       workspaceHub: env.WORKSPACE_HUB,
     }
-    return yield* Effect.tryPromise({ try: () => operation(ctx), catch: publicDomainFailure })
+    return yield* Effect.tryPromise({ catch: publicDomainFailure, try: async () => operation(ctx) })
   })
 }

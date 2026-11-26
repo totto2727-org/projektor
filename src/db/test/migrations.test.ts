@@ -3,74 +3,81 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
-import { describe, expect, it } from 'vite-plus/test'
+import { String, Predicate, Iterable } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { loadMigrations, migratedDb } from './helpers'
+import { SQL_NULL } from '#db/sql-null.ts'
+
+import { loadMigrations, migratedDb } from './helpers.ts'
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../migrations')
 
 describe('migrations', () => {
-  it('apply cleanly in order against a fresh database', () => {
+  test('apply cleanly in order against a fresh database', () => {
     expect(() => migratedDb()).not.toThrow()
   })
 
-  it('discovers every root migration file in filename order', () => {
+  test('discovers every root migration file in filename order', () => {
     const files = readdirSync(MIGRATIONS_DIR)
       .filter((file) => file.endsWith('.sql'))
-      .sort()
+      .toSorted()
     expect(files.length).toBeGreaterThan(0)
-    expect(loadMigrations()).toEqual(files.map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8')))
+    expect(loadMigrations()).toStrictEqual(files.map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8')))
   })
 
-  it('creates the core tables', () => {
+  test('creates the core tables', () => {
     const db = migratedDb()
     const rows = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
       name: string
     }[]
-    const tables = rows.map((r) => r.name)
-    expect(tables).toEqual(expect.arrayContaining(['workspaces', 'users', 'workspace_members', 'projects', 'issues']))
+    const tables = rows.map((row) => row.name)
+    expect(tables).toStrictEqual(
+      expect.arrayContaining(['workspaces', 'users', 'workspace_members', 'projects', 'issues']),
+    )
   })
 })
 
 describe('schema constraints', () => {
-  it('rejects a NULL in a NOT NULL column', () => {
+  test('rejects a NULL in a NOT NULL column', () => {
     const db = migratedDb()
     expect(() =>
-      db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', null, 'acme', 0),
-    ).toThrow()
+      db
+        .prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
+        .run('w1', SQL_NULL, 'acme', 0),
+    ).toThrow('NOT NULL constraint failed: workspaces.name')
   })
 
-  it('rejects a duplicate value in a UNIQUE column (workspaces.slug)', () => {
+  test('rejects a duplicate value in a UNIQUE column (workspaces.slug)', () => {
     const db = migratedDb()
     db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', 'Acme', 'acme', 0)
     expect(() =>
       db
         .prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
         .run('w2', 'Acme Two', 'acme', 0),
-    ).toThrow()
+    ).toThrow('UNIQUE constraint failed: workspaces.slug')
   })
 
-  it('rejects a duplicate value in a UNIQUE column (users.email)', () => {
+  test('rejects a duplicate value in a UNIQUE column (users.email)', () => {
     const db = migratedDb()
     db.prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)').run('u1', 'a@example.com', 'A', 0)
     expect(() =>
       db
         .prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)')
         .run('u2', 'a@example.com', 'A2', 0),
-    ).toThrow()
+    ).toThrow('UNIQUE constraint failed: users.email')
   })
 
-  it('rejects a foreign key violation (workspace_members.workspace_id -> workspaces)', () => {
+  test('rejects a foreign key violation (workspace_members.workspace_id -> workspaces)', () => {
     const db = migratedDb()
     db.prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)').run('u1', 'a@example.com', 'A', 0)
     expect(() =>
       db
         .prepare('INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)')
         .run('no-such-workspace', 'u1', 'member', 0),
-    ).toThrow()
+    ).toThrow('FOREIGN KEY constraint failed')
   })
 
-  it('cascades workspace deletion to its members', () => {
+  test('cascades workspace deletion to its members', () => {
     const db = migratedDb()
     db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', 'Acme', 'acme', 0)
     db.prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)').run('u1', 'a@example.com', 'A', 0)
@@ -87,7 +94,7 @@ describe('schema constraints', () => {
     expect(rows).toHaveLength(0)
   })
 
-  it('rejects a duplicate issue number within the same project (composite UNIQUE index)', () => {
+  test('rejects a duplicate issue number within the same project (composite UNIQUE index)', () => {
     const db = migratedDb()
     db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', 'Acme', 'acme', 0)
     db.prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)').run('u1', 'a@example.com', 'A', 0)
@@ -106,35 +113,41 @@ describe('schema constraints', () => {
 					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run('i2', 'w1', 'p1', 1, 'Duplicate number', 'u1', 0, 0),
-    ).toThrow()
+    ).toThrow('UNIQUE constraint failed: issues.project_id, issues.number')
   })
 
-  // PROJ-376: the 0035 backfill must not violate its own unique index when two
-  // pre-existing projects in the same workspace slugify to the same value —
-  // this previously aborted the whole migration on real data (opus review finding).
-  it('0035_project_slug backfill dedupes colliding slugs instead of aborting', () => {
+  /*
+   * PROJ-376: the 0035 backfill must not violate its own unique index when two
+   * pre-existing projects in the same workspace slugify to the same value —
+   * this previously aborted the whole migration on real data (opus review finding).
+   */
+  test('0035_project_slug backfill dedupes colliding slugs instead of aborting', () => {
     const migrationFiles = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith('.sql'))
-      .sort()
-    const preSlugFiles = migrationFiles.filter((f) => f < '0035')
-    const slugFile = migrationFiles.find((f) => f.startsWith('0035'))
-    if (!slugFile) throw new Error('expected a 0035 migration file')
+      .filter((file) => file.endsWith('.sql'))
+      .toSorted()
+    const preSlugFiles = migrationFiles.filter((file) => file < '0035')
+    const slugFile = migrationFiles.find((file) => file.startsWith('0035'))
+    if (Predicate.isNullish(slugFile) || String.isEmpty(slugFile)) {
+      throw new Error('expected a 0035 migration file')
+    }
 
     const db = new DatabaseSync(':memory:')
     db.exec('PRAGMA foreign_keys = ON;')
-    const splitStatements = (sql: string) =>
+    const splitStatements = (sql: string): string[] =>
       sql
-        .replace(/--[^\n]*/g, '')
+        .replaceAll(/--[^\n]*/gu, '')
         .split(';')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    for (const file of preSlugFiles) {
+        .map((statement) => statement.trim())
+        .filter((statement) => String.isNonEmpty(statement))
+    Iterable.forEach(preSlugFiles, (file): void => {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8')
-      for (const stmt of splitStatements(sql)) {
-        if (/\bfts5\b/i.test(stmt) || /\bissues_fts\b/i.test(stmt)) continue
+      Iterable.forEach(splitStatements(sql), (stmt) => {
+        if (/\bfts5\b/i.test(stmt) || /\bissues_fts\b/i.test(stmt)) {
+          return
+        }
         db.exec(stmt)
-      }
-    }
+      })
+    })
 
     db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', 'Acme', 'acme', 0)
     // Two projects that slugify to the same base value ("start-line").
@@ -147,14 +160,16 @@ describe('schema constraints', () => {
 
     const slugSql = readFileSync(join(MIGRATIONS_DIR, slugFile), 'utf8')
     expect(() => {
-      for (const stmt of splitStatements(slugSql)) db.exec(stmt)
+      Iterable.forEach(splitStatements(slugSql), (stmt) => {
+        db.exec(stmt)
+      })
     }).not.toThrow()
 
     const rows = db.prepare('SELECT id, slug FROM projects ORDER BY id').all() as {
       id: string
       slug: string
     }[]
-    const slugs = rows.map((r) => r.slug)
+    const slugs = rows.map((row) => row.slug)
     expect(new Set(slugs).size).toBe(2)
     expect(slugs).toContain('start-line')
     expect(slugs).toContain('start-line-2')

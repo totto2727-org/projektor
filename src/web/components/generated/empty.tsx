@@ -1,10 +1,12 @@
-import { cva, type VariantProps } from 'class-variance-authority'
+import { cva } from 'class-variance-authority'
+import type { VariantProps } from 'class-variance-authority'
 
 // Projektor customization: route class merging through the configured app utility alias.
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Empty({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const Empty = function Empty({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='empty'
@@ -12,13 +14,19 @@ function Empty({ className, ...props }: React.ComponentProps<'div'>) {
         'flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border-dashed p-6 text-center text-balance',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function EmptyHeader({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const EmptyHeader = function EmptyHeader({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
+    // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
     <div data-slot='empty-header' className={cn('flex max-w-sm flex-col items-center gap-2', className)} {...props} />
   )
 }
@@ -38,32 +46,40 @@ const emptyMediaVariants = cva(
   },
 )
 
-function EmptyMedia({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const EmptyMedia = function EmptyMedia({
   className,
   variant = 'default',
   ...props
-}: React.ComponentProps<'div'> & VariantProps<typeof emptyMediaVariants>) {
+}: React.ComponentProps<'div'> & VariantProps<typeof emptyMediaVariants>): React.JSX.Element {
   return (
     <div
       data-slot='empty-icon'
       data-variant={variant}
       className={cn(emptyMediaVariants({ variant, className }))}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function EmptyTitle({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const EmptyTitle = function EmptyTitle({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='empty-title'
       className={cn('font-heading text-sm font-medium tracking-tight', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function EmptyDescription({ className, ...props }: React.ComponentProps<'p'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const EmptyDescription = function EmptyDescription({
+  className,
+  ...props
+}: React.ComponentProps<'p'>): React.JSX.Element {
   return (
     <div
       data-slot='empty-description'
@@ -71,19 +87,23 @@ function EmptyDescription({ className, ...props }: React.ComponentProps<'p'>) {
         'text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function EmptyContent({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const EmptyContent = function EmptyContent({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='empty-content'
       className={cn('flex w-full max-w-sm min-w-0 flex-col items-center gap-2.5 text-sm text-balance', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
-
-export { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent, EmptyMedia }

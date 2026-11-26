@@ -1,8 +1,8 @@
 import type { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import type { Effect } from 'effect'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { makeCoreHandlers } from './worker'
+import type { makeCoreHandlers } from './worker.ts'
 
 // Type-only imports keep native Worker code out of the Node-only type regression.
 type IsAny<T> = 0 extends 1 & T ? true : false
@@ -20,7 +20,7 @@ const wireSuccessIsString: Same<Effect.Success<ResolveWorkspace>, string> = true
 const wireErrorIsNever: Same<Effect.Error<ResolveWorkspace>, never> = true
 
 describe('official Core native Worker types', () => {
-  it('retains concrete construction, request requirements and encoded reply types', () => {
+  test('retains concrete construction, request requirements and encoded reply types', () => {
     expect(constructionIsTyped).toBe(false)
     expect(invocationIsTyped).toBe(false)
     expect(constructionIsBindingFree).toBe(true)

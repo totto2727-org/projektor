@@ -1,15 +1,16 @@
 import { Request as WorkerRequest, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
-import { Cache, Context, Data, Effect, Exit, Layer, Option } from 'effect'
+import { Predicate, Cache, Context, Data, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { makeCoreClient } from 'projektor/core-client'
 import type { ReactNode } from 'react'
 
+import type { CoreRpcShape } from '#core/contract.ts'
 import type { Env as ApiEnvironment } from '#types'
 
-import type { CoreRpcShape } from '../core/contract'
-import { type ApiError, loadRequestScope, type RequestScope, type ScopeError, type ScopeOptions } from './server'
+import { loadRequestScope } from './server/server-context.ts'
+import type { ApiError, RequestScope, ScopeError, ScopeOptions } from './server/server-context.ts'
 
-export interface Env extends Pick<
+export type Env = Pick<
   ApiEnvironment,
   | 'ENVIRONMENT'
   | 'RATE_LIMITER'
@@ -23,27 +24,33 @@ export interface Env extends Pick<
   | 'BRAND_ACCENT'
   | 'BRAND_ON_ACCENT'
   | 'BRAND_LOGO_URL'
-> {
-  readonly CORE: { readonly fetch: (request: Request) => Promise<Response> }
-}
+> &
+  Readonly<{ CORE: Readonly<{ fetch: (request: Request) => Promise<Response> }> }>
 
-export function isWebEnvironment(value: unknown): value is Env {
-  if (typeof value !== 'object' || value === null) return false
+const isMissingBinding = Schema.is(Schema.Undefined)
+
+export const isWebEnvironment = function isWebEnvironment(value: unknown): value is Env {
+  if (!Predicate.isObjectOrArray(value)) {
+    return false
+  }
   const core: unknown = Reflect.get(value, 'CORE')
-  if (typeof core !== 'object' || core === null || typeof Reflect.get(core, 'fetch') !== 'function') return false
+  if (!Predicate.isObjectOrArray(core) || !Predicate.isFunction(Reflect.get(core, 'fetch'))) {
+    return false
+  }
   if (
     !['development', 'staging', 'production'].some((environment) => environment === Reflect.get(value, 'ENVIRONMENT'))
-  )
+  ) {
     return false
+  }
   const limiter: unknown = Reflect.get(value, 'RATE_LIMITER')
   if (
-    limiter !== undefined &&
-    (typeof limiter !== 'object' ||
-      limiter === null ||
-      typeof Reflect.get(limiter, 'get') !== 'function' ||
-      typeof Reflect.get(limiter, 'idFromName') !== 'function')
-  )
+    !isMissingBinding(limiter) &&
+    (!Predicate.isObjectOrArray(limiter) ||
+      !Predicate.isFunction(Reflect.get(limiter, 'get')) ||
+      !Predicate.isFunction(Reflect.get(limiter, 'idFromName')))
+  ) {
     return false
+  }
   const strings = [
     'RATE_LIMIT_AUTH_MAX',
     'RATE_LIMIT_API_MAX',
@@ -55,8 +62,10 @@ export function isWebEnvironment(value: unknown): value is Env {
     'BRAND_ACCENT',
     'BRAND_ON_ACCENT',
     'BRAND_LOGO_URL',
-  ] satisfies readonly (keyof Env)[]
-  return strings.every((key) => Reflect.get(value, key) === undefined || typeof Reflect.get(value, key) === 'string')
+  ] satisfies Readonly<(keyof Env)[]>
+  return strings.every(
+    (key) => isMissingBinding(Reflect.get(value, key)) || Predicate.isString(Reflect.get(value, key)),
+  )
 }
 
 export type PageFailure = ApiError | ScopeError
@@ -72,22 +81,28 @@ export const getRouteParams: Effect.Effect<RouteParams> = Effect.serviceOption(H
 
 export class RequestServices extends Context.Service<
   RequestServices,
-  {
-    readonly request: Request
-    readonly core: CoreRpcShape
-    readonly env: Env
-    readonly url: URL
-    readonly scope: (options?: ScopeOptions) => Effect.Effect<RequestScope, PageFailure>
-    readonly prepare: (view: PreparedView) => PreparedView
-    readonly invalidate: Effect.Effect<void>
-  }
+  Readonly<{
+    request: Request
+    core: CoreRpcShape
+    env: Env
+    url: URL
+    scope: (options?: ScopeOptions) => Effect.Effect<RequestScope, PageFailure>
+    prepare: (view: PreparedView) => PreparedView
+    invalidate: Effect.Effect<void>
+  }>
 >()('projektor/ssr/RequestServices') {}
 
-/** Construct services without creating a nested runtime or any cross-request cache. */
+/**
+ * Construct services without creating a nested runtime or any cross-request cache.
+ *
+ * @param {Request} request The browser request for the lifetime of the request-local caches.
+ * @param {Env} env The Web Worker environment with its Core binding.
+ * @returns {ReturnType<typeof makeRequestServices>} An effect that constructs the request services and their scope and view caches.
+ */
 export const makeRequestServices = (request: Request, env: Env) =>
   Effect.gen(function* () {
     const url = new URL(request.url)
-    const scopes = yield* Cache.makeWith((options: ScopeOptions) => loadRequestScope(url, options, { request, env }), {
+    const scopes = yield* Cache.makeWith((options: ScopeOptions) => loadRequestScope(url, options, { env, request }), {
       capacity: 32,
       timeToLive: (exit) => (Exit.isSuccess(exit) ? Infinity : 0),
     })
@@ -121,7 +136,9 @@ export const RequestServicesLive = Layer.effect(
   Effect.gen(function* () {
     const request = yield* WorkerRequest
     const env = yield* WorkerEnvironment
-    if (!isWebEnvironment(env)) return yield* Effect.die(new Error('Invalid Web Worker bindings'))
+    if (!isWebEnvironment(env)) {
+      return yield* Effect.die(new Error('Invalid Web Worker bindings'))
+    }
     return yield* makeRequestServices(request, env)
   }),
 )

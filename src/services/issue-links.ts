@@ -1,9 +1,12 @@
-import { and, asc, eq, inArray, or, type SQL } from 'drizzle-orm'
+import { and, asc, eq, inArray, or } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
+import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { inChunks } from './custom-fields'
-import { queryEffect } from './errors'
+import { inChunks } from './custom-fields.ts'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export interface IssueLinkRow {
   id: string
@@ -17,8 +20,21 @@ export interface IssueLinkRow {
   createdAt: number
 }
 
-/** The application supplies current linked-project visibility alongside parent authorization. */
-export function listLinksForIssue(db: D1Database, workspaceId: string, issueId: string, visibility?: SQL) {
+/**
+ * The application supplies current linked-project visibility alongside parent authorization.
+ *
+ * @param {D1Database} db Database that stores issues and links.
+ * @param {string} workspaceId Workspace that owns the issue.
+ * @param {string} issueId Issue whose incoming and outgoing links to read.
+ * @param {SQL} [visibility] Current visibility predicate for linked projects.
+ * @returns {Effect.Effect<IssueLinkRow[], DataQueryError>} Links visible to the caller in creation order.
+ */
+export const listLinksForIssue = function listLinksForIssue(
+  db: D1Database,
+  workspaceId: string,
+  issueId: string,
+  visibility?: SQL,
+): Effect.Effect<IssueLinkRow[], DataQueryError> {
   return queryEffect('listLinksForIssue', async (): Promise<IssueLinkRow[]> => {
     const orm = drizzle(db, { schema })
     const rows = await orm
@@ -38,7 +54,7 @@ export function listLinksForIssue(db: D1Database, workspaceId: string, issueId: 
       createdById: row.createdById,
       createdAt: row.createdAt,
     }))
-    const issueRows = await inChunks([...new Set(enriched.map((r) => r.linkedIssueId))], (chunk) =>
+    const issueRows = await inChunks([...new Set(enriched.map((link) => link.linkedIssueId))], (chunk) =>
       orm
         .select({
           id: schema.issues.id,
@@ -51,21 +67,21 @@ export function listLinksForIssue(db: D1Database, workspaceId: string, issueId: 
         .leftJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
         .where(and(inArray(schema.issues.id, chunk), eq(schema.issues.workspaceId, workspaceId), visibility)),
     )
-    const byId = new Map(issueRows.map((r) => [r.id, r]))
+    const byId = new Map(issueRows.map((row) => [row.id, row]))
     return enriched
-      .filter((r) => !visibility || byId.has(r.linkedIssueId))
-      .map((r) => {
-        const linked = byId.get(r.linkedIssueId)
+      .filter((link) => !visibility || byId.has(link.linkedIssueId))
+      .map((link) => {
+        const linked = byId.get(link.linkedIssueId)
         return {
-          id: r.id,
-          type: r.type,
-          linkedIssueId: r.linkedIssueId,
+          id: link.id,
+          type: link.type,
+          linkedIssueId: link.linkedIssueId,
           linkedIssueTitle: linked?.title ?? '',
           linkedIssueNumber: linked?.number ?? 0,
           linkedIssueProjectKey: linked?.projectKey ?? '',
           linkedIssueStatusCategory: linked?.statusCategory ?? '',
-          createdById: r.createdById,
-          createdAt: r.createdAt,
+          createdById: link.createdById,
+          createdAt: link.createdAt,
         }
       })
   })

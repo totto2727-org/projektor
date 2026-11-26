@@ -1,8 +1,10 @@
 import { and, asc, eq } from 'drizzle-orm'
+import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export interface CommentRow {
   id: string
@@ -14,8 +16,19 @@ export interface CommentRow {
   author_email: string
 }
 
-/** Caller authorizes the issue, while this query independently enforces tenant scope. */
-export function listComments(db: D1Database, workspaceId: string, issueId: string) {
+/**
+ * Caller authorizes the issue, while this query independently enforces tenant scope.
+ *
+ * @param {D1Database} db Database that stores issues and comments.
+ * @param {string} workspaceId Workspace that owns the issue.
+ * @param {string} issueId Issue whose comments to read.
+ * @returns {Effect.Effect<CommentRow[], DataQueryError>} The issue comments in creation order.
+ */
+export const listComments = function listComments(
+  db: D1Database,
+  workspaceId: string,
+  issueId: string,
+): Effect.Effect<CommentRow[], DataQueryError> {
   return queryEffect('listComments', async (): Promise<CommentRow[]> => {
     const orm = drizzle(db, { schema })
     return orm

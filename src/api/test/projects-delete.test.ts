@@ -1,17 +1,18 @@
-// PROJ-819/918: deleteProject must clean up everything under the project explicitly —
-// Note: `PRAGMA foreign_keys = OFF` is a no-op on D1/Miniflare (verified: it still
-// reads 1), so FK-backed children are also removed by the database's own cascade here —
-// for those, these are end-state checks. What they prove is the cleanup the database
-// can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
-// fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
+/*
+ * PROJ-819/918: deleteProject must clean up everything under the project explicitly —
+ * Note: `PRAGMA foreign_keys = OFF` is a no-op on D1/Miniflare (verified: it still
+ * reads 1), so FK-backed children are also removed by the database's own cascade here —
+ * for those, these are end-state checks. What they prove is the cleanup the database
+ * can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
+ * fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
+ */
+import { describe, expect, test } from 'vite-plus/test'
 
-import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import type { ServiceCtx } from '#commands/types.ts'
+import { createWikiPage, updateWikiPage } from '#commands/wiki.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
-import type { ServiceCtx } from '#commands/types'
-import { createWikiPage, updateWikiPage } from '#commands/wiki'
-
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedAgentLease,
@@ -22,17 +23,19 @@ import {
   seedGroupGrant,
   seedIssue,
   seedProject,
-} from './helpers'
+} from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
-async function count(sql: string, ...params: unknown[]): Promise<number> {
+const count = async function count(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
     .bind(...params)
     .first<{ n: number }>()
   return row?.n ?? 0
 }
 
-describe('PROJ-819: deleteProject cleans up explicitly', () => {
-  it("removes the project's issues, wiki pages and their dependents; detaches outside references", async () => {
+describe('covers PROJ-819: deleteProject cleans up explicitly', () => {
+  test("removes the project's issues, wiki pages and their dependents; detaches outside references", async () => {
+    expect.hasAssertions()
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const ctx: ServiceCtx = {
       db: env.DB,
@@ -73,24 +76,29 @@ describe('PROJ-819: deleteProject cleans up explicitly', () => {
       projectId: other.id,
     })) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${doomed.id}`, {
-      method: 'DELETE',
+    const res = await fetchNativeApi(`http://localhost/api/projects/${doomed.id}`, {
       headers: authHeaders(token, workspace.slug),
+      method: 'DELETE',
     })
     expect(res.status).toBe(200)
 
-    expect(await count('SELECT COUNT(*) AS n FROM issues WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?', field.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM issues_fts WHERE issue_id = ?', issue.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?', doomed.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM wiki_fts WHERE page_id = ?', page.id)).toBe(0)
-    expect(await count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', doomed.id)).toBe(0)
+    const removedRows = [
+      ['SELECT COUNT(*) AS n FROM issues WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?', field.id],
+      ['SELECT COUNT(*) AS n FROM issues_fts WHERE issue_id = ?', issue.id],
+      ['SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?', doomed.id],
+      ['SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?', page.id],
+      ['SELECT COUNT(*) AS n FROM wiki_fts WHERE page_id = ?', page.id],
+      ['SELECT COUNT(*) AS n FROM projects WHERE id = ?', doomed.id],
+    ] as const
+    await runInOrder(removedRows, async ([query, recordId]) => {
+      await expect(count(query, recordId)).resolves.toBe(0)
+    })
 
     // Outside references are detached, not left dangling.
     const childRow = await env.DB.prepare('SELECT parent_id AS p FROM issues WHERE id = ?')
@@ -103,15 +111,15 @@ describe('PROJ-819: deleteProject cleans up explicitly', () => {
     expect(link?.t).toBeNull()
   })
 
-  it("404s for another workspace's project", async () => {
-    const a = await seedFixture({ role: 'owner' })
-    const b = await seedFixture({ role: 'owner' })
-    const bProject = await seedProject(b.workspace.id, 'BBB')
-    const res = await SELF.fetch(`http://localhost/api/projects/${bProject.id}`, {
+  test("404s for another workspace's project", async () => {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const currentTestFixture = await seedFixture({ role: 'owner' })
+    const bProject = await seedProject(currentTestFixture.workspace.id, 'BBB')
+    const res = await fetchNativeApi(`http://localhost/api/projects/${bProject.id}`, {
+      headers: authHeaders(testFixture.token, testFixture.workspace.slug),
       method: 'DELETE',
-      headers: authHeaders(a.token, a.workspace.slug),
     })
     expect(res.status).toBe(404)
-    expect(await count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', bProject.id)).toBe(1)
+    await expect(count('SELECT COUNT(*) AS n FROM projects WHERE id = ?', bProject.id)).resolves.toBe(1)
   })
 })

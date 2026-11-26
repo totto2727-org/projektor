@@ -1,33 +1,35 @@
-import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { deriveBrandMark } from '../routes/config'
+import { deriveBrandMark } from '#api/routes/config.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 
-describe('GET /api/config/brand', () => {
-  it('reflects configured BRAND_* vars, deriving the mark and defaulting unset fields (open, no auth)', async () => {
-    const res = await SELF.fetch('http://localhost/api/config/brand')
+import { fetchNativeApi } from './native-fetch.ts'
+
+describe('handles GET /api/config/brand', () => {
+  test('reflects configured BRAND_* vars, deriving the mark and defaulting unset fields (open, no auth)', async () => {
+    const res = await fetchNativeApi('http://localhost/api/config/brand')
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({
-      name: 'Test Brand',
-      mark: 'T',
+    await expect(res.json()).resolves.toStrictEqual({
       accent: '#123456',
-      onAccent: null,
-      logoUrl: null,
+      logoUrl: JSON_NULL,
+      mark: 'T',
+      name: 'Test Brand',
+      onAccent: JSON_NULL,
     })
   })
 })
 
 describe('deriveBrandMark', () => {
-  it('uppercases the first character of the brand name', () => {
+  test('uppercases the first character of the brand name', () => {
     expect(deriveBrandMark('acme')).toBe('A')
   })
 
-  it('falls back to P for an empty or whitespace-only name', () => {
+  test('falls back to P for an empty or whitespace-only name', () => {
     expect(deriveBrandMark('   ')).toBe('P')
     expect(deriveBrandMark('')).toBe('P')
   })
 
-  it('keeps an astral-plane leading character intact instead of splitting its surrogate pair', () => {
+  test('keeps an astral-plane leading character intact instead of splitting its surrogate pair', () => {
     expect(deriveBrandMark('🚀 Acme')).toBe('🚀')
   })
 })

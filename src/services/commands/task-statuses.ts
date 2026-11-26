@@ -1,27 +1,33 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
-import type { z } from 'zod'
+import { String, Predicate, Effect } from 'effect'
+import { z } from 'zod'
 
-import { drizzle, schema } from '#db'
-import { listTaskStatuses as queryStatuses } from '#services/task-statuses'
+import { IdSchema } from '#contracts/inputs/common.ts'
+import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '#contracts/inputs/task-statuses.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQL_NULL, SQLITE_FALSE, SQLITE_TRUE, drizzle, schema } from '#db'
+import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
 
-import { IdSchema } from '../../contracts/inputs/common'
-import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '../../contracts/inputs/task-statuses'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { buildCloseIssueReviewTargetsStatement } from './review-targets'
-import { prepareQuery } from './sql'
-import type { ServiceCtx } from './types'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'
+import { prepareQuery } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
+
+const INITIAL_TASK_POSITION = 0
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
-const TASK_STATUSES_CACHE_KEY = (workspaceId: string) => `ws-meta:${workspaceId}:task-statuses`
+const TASK_STATUSES_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:task-statuses`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-export async function listTaskStatuses(ctx: ServiceCtx) {
+export const listTaskStatuses = async function listTaskStatuses(ctx: ServiceCtx): Promise<unknown[]> {
   const cacheKey = TASK_STATUSES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
-  if (local) return local
+  if (local) {
+    return local
+  }
 
   const cached = await cache.get<unknown[]>(ctx.kv, cacheKey)
   if (cached) {
@@ -35,16 +41,29 @@ export async function listTaskStatuses(ctx: ServiceCtx) {
   return result
 }
 
-async function invalidateTaskStatusesCache(ctx: ServiceCtx) {
+const invalidateTaskStatusesCache = async function invalidateTaskStatusesCache(ctx: ServiceCtx): Promise<void> {
   const cacheKey = TASK_STATUSES_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
 }
 
-export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+interface CreatedTaskStatus {
+  id: ReturnType<typeof crypto.randomUUID>
+  key: string
+  name: string
+}
+
+export const createTaskStatus = async function createTaskStatus(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<CreatedTaskStatus> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = CreateTaskStatusSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const { key, name, category, color, position, isDefault, isReviewStep } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -53,9 +72,11 @@ export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
     .from(schema.taskStatuses)
     .where(and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.key, key)))
     .get()
-  if (existing) throw new ConflictError(`Task status key '${key}' already exists`)
+  if (existing) {
+    throw new ConflictError(`Task status key '${key}' already exists`)
+  }
 
-  if (isDefault) {
+  if (isDefault === true) {
     await orm
       .update(schema.taskStatuses)
       .set({ isDefault: 0 })
@@ -63,17 +84,19 @@ export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
   }
 
   const id = crypto.randomUUID()
-  await orm.insert(schema.taskStatuses).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    key,
-    name,
-    category,
-    color: color ?? null,
-    position: position ?? 0,
-    isDefault: isDefault ? 1 : 0,
-    isReviewStep: isReviewStep ? 1 : 0,
-  })
+  await orm.insert(schema.taskStatuses).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['key', key],
+      ['name', name],
+      ['category', category],
+      ['color', color ?? SQL_NULL],
+      ['position', position ?? INITIAL_TASK_POSITION],
+      ['isDefault', isDefault === true ? SQLITE_TRUE : SQLITE_FALSE],
+      ['isReviewStep', isReviewStep === true ? SQLITE_TRUE : SQLITE_FALSE],
+    ]),
+  )
 
   await invalidateTaskStatusesCache(ctx)
   return { id, key, name }
@@ -81,37 +104,66 @@ export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
 
 type TaskStatusUpdateData = z.infer<typeof UpdateTaskStatusSchema>
 
-function buildTaskStatusSetObj(data: TaskStatusUpdateData) {
+const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpdateData): Record<string, unknown> {
   const setObj: Record<string, unknown> = {}
-  if (data.name !== undefined) setObj.name = data.name
-  if (data.category !== undefined) setObj.category = data.category
-  if ('color' in data) setObj.color = data.color ?? null
-  if (data.position !== undefined) setObj.position = data.position
-  if (data.isDefault !== undefined) setObj.isDefault = data.isDefault ? 1 : 0
-  if (data.isReviewStep !== undefined) setObj.isReviewStep = data.isReviewStep ? 1 : 0
+  if (Predicate.isNotNullish(data.name)) {
+    setObj.name = data.name
+  }
+  if (Predicate.isNotNullish(data.category)) {
+    setObj.category = data.category
+  }
+  if ('color' in data) {
+    setObj.color = data.color ?? SQL_NULL
+  }
+  if (Predicate.isNotNullish(data.position)) {
+    setObj.position = data.position
+  }
+  if (Predicate.isNotNullish(data.isDefault)) {
+    setObj.isDefault = data.isDefault ? SQLITE_TRUE : SQLITE_FALSE
+  }
+  if (Predicate.isNotNullish(data.isReviewStep)) {
+    setObj.isReviewStep = data.isReviewStep ? SQLITE_TRUE : SQLITE_FALSE
+  }
   return setObj
 }
 
-export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+export const updateTaskStatus = async function updateTaskStatus(
+  ctx: ServiceCtx,
+  id: string,
+  raw: unknown,
+): Promise<{ ok: boolean }> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = UpdateTaskStatusSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
-  const data = result.data
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
+  const { data } = result
 
   const setObj = buildTaskStatusSetObj(data)
   const orm = drizzle(ctx.db, { schema })
 
   const existing = await orm
-    .select({ id: schema.taskStatuses.id, category: schema.taskStatuses.category })
+    .select(
+      fieldsInOrder([
+        ['id', schema.taskStatuses.id],
+        ['category', schema.taskStatuses.category],
+      ]),
+    )
     .from(schema.taskStatuses)
     .where(and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Task status not found')
+  if (!existing) {
+    throw new NotFoundError('Task status not found')
+  }
 
-  // PROJ-849: a status's category can change after issues already reference it by
-  // status_id — re-sync issues.status_category for every issue on this status in the
-  // same batch as the status update, so the two never drift (open/backlog tile counts
-  // and anything else reading status_category depend on it staying in sync).
+  /*
+   * PROJ-849: a status's category can change after issues already reference it by
+   * status_id — re-sync issues.status_category for every issue on this status in the
+   * same batch as the status update, so the two never drift (open/backlog tile counts
+   * and anything else reading status_category depend on it staying in sync).
+   */
   const categoryChanged = setObj.category !== undefined && setObj.category !== existing.category
 
   const statusUpdate = orm
@@ -129,13 +181,13 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
       .set({ statusCategory: setObj.category as string })
       .where(and(eq(schema.issues.statusId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     const statements = [
-      ...(data.isDefault ? [prepareQuery(ctx.db, clearDefaults.toSQL())] : []),
+      ...(data.isDefault === true ? [prepareQuery(ctx.db, clearDefaults.toSQL())] : []),
       prepareQuery(ctx.db, statusUpdate.toSQL()),
       prepareQuery(ctx.db, issuesResync.toSQL()),
       buildCloseIssueReviewTargetsStatement(ctx, { statusId: id }),
     ]
     await ctx.db.batch(statements)
-  } else if (data.isDefault) {
+  } else if (data.isDefault === true) {
     await orm.batch([clearDefaults, statusUpdate])
   } else {
     await statusUpdate
@@ -145,10 +197,14 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
   return { ok: true }
 }
 
-export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
+export const deleteTaskStatus = async function deleteTaskStatus(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
+  }
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
@@ -156,15 +212,21 @@ export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
     .from(schema.taskStatuses)
     .where(and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
     .get()
-  if (!row) throw new NotFoundError('Task status not found')
-  if (row.isDefault === 1) throw new ConflictError('Cannot delete the default task status')
+  if (!row) {
+    throw new NotFoundError('Task status not found')
+  }
+  if (row.isDefault === SQLITE_TRUE) {
+    throw new ConflictError('Cannot delete the default task status')
+  }
 
   const inUse = await orm
     .select({ id: schema.issues.id })
     .from(schema.issues)
     .where(and(eq(schema.issues.statusId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  if (inUse) throw new ConflictError('Task status is in use by one or more issues')
+  if (inUse) {
+    throw new ConflictError('Task status is in use by one or more issues')
+  }
 
   await orm
     .delete(schema.taskStatuses)
@@ -174,7 +236,10 @@ export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
+export const buildDefaultTaskStatusStatements = function buildDefaultTaskStatusStatements(
+  db: D1Database,
+  workspaceId: string,
+): D1PreparedStatement[] {
   const defaults = [
     {
       key: 'backlog',
@@ -212,7 +277,7 @@ export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: st
     },
   ]
   const orm = drizzle(db, { schema })
-  return defaults.map((s) =>
+  return defaults.map((selectedStatus) =>
     prepareQuery(
       db,
       orm
@@ -220,13 +285,13 @@ export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: st
         .values({
           id: crypto.randomUUID(),
           workspaceId,
-          key: s.key,
-          name: s.name,
-          category: s.category as 'todo' | 'in_progress' | 'done' | 'cancelled',
-          color: null,
-          position: s.position,
-          isDefault: s.isDefault,
-          isReviewStep: s.isReviewStep,
+          key: selectedStatus.key,
+          name: selectedStatus.name,
+          category: selectedStatus.category as 'todo' | 'in_progress' | 'done' | 'cancelled',
+          color: SQL_NULL,
+          position: selectedStatus.position,
+          isDefault: selectedStatus.isDefault,
+          isReviewStep: selectedStatus.isReviewStep,
         })
         .onConflictDoNothing()
         .toSQL(),
@@ -234,16 +299,21 @@ export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: st
   )
 }
 
-export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: string) {
+export const seedDefaultTaskStatuses = async function seedDefaultTaskStatuses(
+  db: D1Database,
+  workspaceId: string,
+): Promise<void> {
   await db.batch(buildDefaultTaskStatusStatements(db, workspaceId))
 }
 
-// PROJ-870: also returns the resolved status's category, read from the same row lookup —
-// the issue write paths previously re-queried task_statuses by id just to get it.
-// category is null when no task_statuses row backs the result (legacy key / fallback).
-// PROJ-749: isReviewStep is the status's explicit review-step flag (only the built-in
-// "in_review" key counts when there is no backing row).
-export async function resolveStatus(
+/*
+ * PROJ-870: also returns the resolved status's category, read from the same row lookup —
+ * the issue write paths previously re-queried task_statuses by id just to get it.
+ * category is null when no task_statuses row backs the result (legacy key / fallback).
+ * PROJ-749: isReviewStep is the status's explicit review-step flag (only the built-in
+ * "in_review" key counts when there is no backing row).
+ */
+export const resolveStatus = async function resolveStatus(
   ctx: ServiceCtx,
   statusId: string | null | undefined,
   legacyStatus?: string,
@@ -255,10 +325,18 @@ export async function resolveStatus(
     category: schema.taskStatuses.category,
     isReviewStep: schema.taskStatuses.isReviewStep,
   }
-  type Row = { id: string; key: string; category: string | null; isReviewStep: number }
-  const fromRow = (r: Row) => ({ ...r, isReviewStep: r.isReviewStep === 1 })
+  interface Row {
+    id: string
+    key: string
+    category: string | null
+    isReviewStep: number
+  }
+  const fromRow = (row: Row): { isReviewStep: boolean; id: string; key: string; category: string | null } => ({
+    ...row,
+    isReviewStep: row.isReviewStep === SQLITE_TRUE,
+  })
   // No task_statuses row backs the key: only the built-in "in_review" is a review step.
-  const fromKey = (key: string) => ({
+  const fromKey = (key: string): { id: null; key: string; category: null; isReviewStep: boolean } => ({
     id: null,
     key,
     category: null,
@@ -266,22 +344,20 @@ export async function resolveStatus(
   })
 
   if (statusId === null) {
-    return fromKey(legacyStatus || 'backlog')
+    return fromKey(isNonEmptyText(legacyStatus) ? legacyStatus : 'backlog')
   }
-  if (statusId) {
+  if (Predicate.isNotNullish(statusId) && String.isNonEmpty(statusId)) {
     const found = await orm
       .select(cols)
       .from(schema.taskStatuses)
       .where(and(eq(schema.taskStatuses.id, statusId), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
       .get()
-    if (!found)
-      throw new ValidationError({
-        formErrors: ['Task status not found in this workspace'],
-        fieldErrors: {},
-      })
+    if (!found) {
+      throw new ValidationError(validationIssues(['Task status not found in this workspace'], {}))
+    }
     return fromRow(found)
   }
-  if (legacyStatus) {
+  if (Predicate.isNotNullish(legacyStatus) && String.isNonEmpty(legacyStatus)) {
     const found = await orm
       .select(cols)
       .from(schema.taskStatuses)
@@ -292,7 +368,7 @@ export async function resolveStatus(
   const def = await orm
     .select(cols)
     .from(schema.taskStatuses)
-    .where(and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.isDefault, 1)))
+    .where(and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.isDefault, SQLITE_TRUE)))
     .get()
   return def ? fromRow(def) : fromKey('backlog')
 }

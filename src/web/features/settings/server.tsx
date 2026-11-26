@@ -1,26 +1,36 @@
 import { Effect, Schema } from 'effect'
+import type { JSX } from 'react'
 
-import { browserRequest, coreResult } from '../../core'
-import { RequestServices } from '../../request'
-import { runBrowserCommand } from '../../server/browser-command'
-import { requireDataWorkspace } from '../../server/data-context'
-import { ScopeError } from '../../server/errors'
-import type { RequestScope, WorkspaceMembership } from '../../server/request-context'
-import { GroupViewSchema } from './input-schemas'
-import { ConnectorsSchema, McpInfoSchema, SettingsGroupsSchema, SettingsTokensSchema } from './schemas'
-import type { ConnectorGrant, Token } from './types'
-import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from './widgets'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+import { RequestServices } from '@/request.ts'
+import type { PageFailure } from '@/request.ts'
+import { runBrowserCommand } from '@/server/browser-command.ts'
+import { requireDataWorkspace } from '@/server/data-context.ts'
+import { ScopeError } from '@/server/errors.ts'
+import type { RequestScope, WorkspaceMembership } from '@/server/request-context.ts'
+
+import { GroupViewSchema } from './input-schemas.ts'
+import { ConnectorsSchema, McpInfoSchema, SettingsGroupsSchema, SettingsTokensSchema } from './schemas.ts'
+import type { ConnectorGrant, Token } from './types.ts'
+import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from './widgets.tsx'
+
+type SettingsView = Effect.Effect<JSX.Element, PageFailure, RequestServices>
+
+const decodeGroupView = Schema.decodeUnknownEffect(GroupViewSchema)
 
 const choose = (scope: RequestScope): WorkspaceMembership | null =>
   scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
-const forbidden = (error: { status: number }) => error.status === 403
-function selected(scope: RequestScope) {
+const forbidden = (error: { status: number }): boolean => error.status === HTTP_FORBIDDEN
+const selected = function selected(scope: RequestScope): Effect.Effect<WorkspaceMembership, ScopeError> {
   return Effect.try({
+    catch: (cause) =>
+      cause instanceof ScopeError ? cause : new ScopeError(HTTP_FORBIDDEN, 'Select an accessible workspace.'),
     try: () => requireDataWorkspace(scope),
-    catch: (cause) => (cause instanceof ScopeError ? cause : new ScopeError(403, 'Select an accessible workspace.')),
   })
 }
-function TokenSettings({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+const TokenSettings = function TokenSettings({
   workspaceSlug,
   initialTokens,
   initialGrants,
@@ -36,7 +46,7 @@ function TokenSettings({
   mcpCommandTemplate: string | null
   tokensDenied: boolean
   connectorsDenied: boolean
-}) {
+}): JSX.Element {
   return (
     <div>
       <header className='mb-6'>
@@ -83,13 +93,15 @@ function TokenSettings({
     </div>
   )
 }
-export function renderGroups(scope: RequestScope, url: URL) {
+export const renderGroups = function renderGroups(scope: RequestScope, url: URL): SettingsView {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to manage groups.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to manage groups.</p>
+    }
     yield* selected(scope)
-    const view = yield* Schema.decodeUnknownEffect(GroupViewSchema)(url.searchParams.get('view') ?? 'groups').pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid groups view.')),
+    const view = yield* decodeGroupView(url.searchParams.get('view') ?? 'groups').pipe(
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid groups view.')),
     )
     const services = yield* RequestServices
     const data = yield* coreResult(
@@ -121,15 +133,17 @@ export function renderGroups(scope: RequestScope, url: URL) {
     ),
   )
 }
-export function renderTokens(scope: RequestScope, _url: URL) {
+export const renderTokens = function renderTokens(scope: RequestScope, _url: URL): SettingsView {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to manage tokens.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to manage tokens.</p>
+    }
     yield* selected(scope)
     const data = yield* runBrowserCommand({ scope, workspaceSlug: workspace.slug }, (client) =>
       coreResult(SettingsTokensSchema, client.core.webSettingsTokens(client.proof)),
     )
-    const info = data.info
+    const { info } = data
     const template =
       info?.mcpAddCommandTemplate ??
       (info?.mcpUrl
@@ -162,20 +176,27 @@ export function renderTokens(scope: RequestScope, _url: URL) {
     ),
   )
 }
-export function renderConnectAgent(scope: RequestScope, _url: URL) {
+export const renderConnectAgent = function renderConnectAgent(
+  scope: RequestScope,
+  _url: URL,
+): Effect.Effect<JSX.Element, never, RequestServices> {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to connect an agent.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to connect an agent.</p>
+    }
     const info = yield* runBrowserCommand({ scope, workspaceSlug: workspace.slug }, (client) =>
       coreResult(McpInfoSchema, client.core.webSettingsMcp(client.proof)),
     ).pipe(Effect.catch(() => Effect.succeed(null)))
     return <ConnectAgentGuide key={workspace.slug} workspaceSlug={workspace.slug} mcpUrl={info?.mcpUrl ?? null} />
   })
 }
-export function renderConnectors(scope: RequestScope, _url: URL) {
+export const renderConnectors = function renderConnectors(scope: RequestScope, _url: URL): SettingsView {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to manage connectors.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to manage connectors.</p>
+    }
     const grants = yield* runBrowserCommand({ scope, workspaceSlug: workspace.slug }, (client) =>
       coreResult(ConnectorsSchema, client.core.webSettingsConnectors(client.proof)),
     )

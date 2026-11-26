@@ -1,71 +1,77 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import { Hono } from 'hono'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { authMiddleware, requireInteractiveHuman } from '#api/middleware/auth.ts'
+import { apiReply } from '#api/services/reply.ts'
+import { ApiUserBootstrap } from '#contracts/api-auth.ts'
+import { HTTP_CREATED, HTTP_FOUND } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-import { ApiUserBootstrap } from '../../contracts/api-auth'
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { authMiddleware, requireInteractiveHuman } from '../middleware/auth'
+export const authRouter = new Hono<HonoEnv>()
 
-const router = new Hono<HonoEnv>()
-
-function isSafeRedirectPath(url: string): boolean {
+const isSafeRedirectPath = function isSafeRedirectPath(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//')
 }
 
-router.get('/login', (c) => {
-  const requested = c.req.query('redirect_url') ?? '/'
-  return c.redirect(isSafeRedirectPath(requested) ? requested : '/', 302)
+authRouter.get('/login', (httpContext) => {
+  const requested = httpContext.req.query('redirect_url') ?? '/'
+  return httpContext.redirect(isSafeRedirectPath(requested) ? requested : '/', HTTP_FOUND)
 })
 
-router.get('/me', authMiddleware, async (c) => {
+authRouter.get('/me', authMiddleware, async (httpContext) => {
   try {
-    return c.json(
-      await Effect.runPromise(
-        decodeCoreReply(ApiUserBootstrap, makeCoreClient(c.env.CORE).apiUserBootstrap(c.get('coreActor'))),
+    return httpContext.json(
+      await apiReply(
+        ApiUserBootstrap,
+        makeCoreClient(httpContext.env.CORE).apiUserBootstrap(httpContext.get('coreActor')),
       ),
     )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 
 const HUMAN_SESSION_REQUIRED =
   'Personal access tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.'
 
-router.post('/tokens', authMiddleware, async (c) => {
-  const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
-  if (denied) return denied
+authRouter.post('/tokens', authMiddleware, async (httpContext) => {
+  const denied = requireInteractiveHuman(httpContext, HUMAN_SESSION_REQUIRED)
+  if (denied) {
+    return denied
+  }
   try {
-    const result = await Effect.runPromise(
-      decodeCoreReply(
-        Schema.Struct({ token: Schema.String }),
-        makeCoreClient(c.env.CORE).apiCreateUserToken(c.get('coreActor'), await jsonBody(c)),
+    const result = await apiReply(
+      Schema.Struct({ token: Schema.String }),
+      makeCoreClient(httpContext.env.CORE).apiCreateUserToken(
+        httpContext.get('coreActor'),
+        await jsonBody(httpContext),
       ),
     )
-    return c.json(result, 201)
+    return httpContext.json(result, HTTP_CREATED)
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
 
-router.delete('/tokens/:id', authMiddleware, async (c) => {
-  const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
-  if (denied) return denied
+authRouter.delete('/tokens/:id', authMiddleware, async (httpContext) => {
+  const denied = requireInteractiveHuman(httpContext, HUMAN_SESSION_REQUIRED)
+  if (denied) {
+    return denied
+  }
   try {
-    return c.json(
-      await Effect.runPromise(
-        decodeCoreReply(
-          Schema.Struct({ ok: Schema.Boolean }),
-          makeCoreClient(c.env.CORE).apiDeleteUserToken(c.get('coreActor'), c.req.param('id') ?? ''),
+    return httpContext.json(
+      await apiReply(
+        Schema.Struct({ ok: Schema.Boolean }),
+        makeCoreClient(httpContext.env.CORE).apiDeleteUserToken(
+          httpContext.get('coreActor'),
+          httpContext.req.param('id') ?? '',
         ),
       ),
     )
   } catch (error) {
-    return serviceErrToResponse(c, error)
+    return serviceErrToResponse(httpContext, error)
   }
 })
-
-export { router as authRouter }

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { injectWikiMetadata } from '../lib/wiki-ssr'
+import { injectWikiMetadata } from '#api/lib/wiki-ssr.ts'
 
 const SHELL_HTML = `<!doctype html><html><head><title>Wiki — Projektor</title>
 <meta property="og:title" content="Projektor — project management for humans and agents." />
@@ -9,7 +9,7 @@ const SHELL_HTML = `<!doctype html><html><head><title>Wiki — Projektor</title>
 </head><body></body></html>`
 
 describe('injectWikiMetadata', () => {
-  it("rewrites title and og tags with the resolved page's real values", async () => {
+  test("rewrites title and og tags with the resolved page's real values", async () => {
     const response = new Response(SHELL_HTML, { headers: { 'content-type': 'text/html' } })
     const rewritten = injectWikiMetadata(
       response,
@@ -28,7 +28,7 @@ describe('injectWikiMetadata', () => {
     expect(html).toContain('content="https://example.test/wiki/deploy-runbook"')
   })
 
-  it('strips markdown syntax from the injected description excerpt', async () => {
+  test('strips markdown syntax from the injected description excerpt', async () => {
     const response = new Response(SHELL_HTML, { headers: { 'content-type': 'text/html' } })
     const rewritten = injectWikiMetadata(
       response,

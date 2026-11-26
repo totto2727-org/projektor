@@ -1,32 +1,30 @@
+import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { getCodeHeatmap } from '#api/services/code-heatmap.ts'
+import { ctxFromHono } from '#api/services/types.ts'
 import type { HonoEnv } from '#types'
 
-import { serviceErrToResponse } from '../http/error-adapter'
-import { getCodeHeatmap } from '../services/code-heatmap'
-import { ctxFromHono } from '../services/types'
+export const codeHeatmapRouter = new Hono<HonoEnv>()
 
-const router = new Hono<HonoEnv>()
-
-router.get('/:id/code-heatmap', async (c) => {
-  const ctx = ctxFromHono(c)
+codeHeatmapRouter.get('/:id/code-heatmap', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    const since = c.req.query('since')
-    const until = c.req.query('until')
-    const prefix = c.req.query('prefix')
-    const mode = c.req.query('mode')
-    return c.json(
+    const since = httpContext.req.query('since')
+    const until = httpContext.req.query('until')
+    const prefix = httpContext.req.query('prefix')
+    const mode = httpContext.req.query('mode')
+    return httpContext.json(
       await getCodeHeatmap(ctx, {
-        projectId: c.req.param('id'),
-        since: since ? Number(since) : undefined,
-        until: until ? Number(until) : undefined,
+        projectId: httpContext.req.param('id'),
+        since: Predicate.isNotNullish(since) && String.isNonEmpty(since) ? Number(since) : undefined,
+        until: Predicate.isNotNullish(until) && String.isNonEmpty(until) ? Number(until) : undefined,
         prefix,
         mode,
       }),
     )
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as codeHeatmapRouter }

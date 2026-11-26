@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
-
-import { drizzle, schema } from '#db'
+import { String, Array, Predicate } from 'effect'
+import { flattenError } from 'zod'
 
 import {
   EndAgentSchema,
@@ -9,24 +9,32 @@ import {
   ListActiveAgentsSchema,
   RegisterAgentSchema,
   StartWorkSchema,
-} from '../../contracts/inputs/agents'
-import { assertIssueAccess, visibleProjectPredicate } from './access'
-import { agentSessionCredential, assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity'
-import { postMessage } from './agent-messages'
-import { NotFoundError, ValidationError } from './errors'
-import { claimFiles, releaseClaimsForAgent } from './file-claims'
-import { claimIssue, releaseLeasesForAgent } from './issue-leases'
-import { updateIssue } from './issues'
-import { resolveVisibleProjectIdParam } from './projects'
-import type { ServiceCtx } from './types'
+} from '#contracts/inputs/agents.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
+
+import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
+import { agentSessionCredential, assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
+import { postMessage } from './agent-messages.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import { claimFiles, releaseClaimsForAgent } from './file-claims.ts'
+import { claimIssue, releaseLeasesForAgent } from './issue-leases.ts'
+import { updateIssue } from './issues.ts'
+import { resolveVisibleProjectIdParam } from './projects.ts'
+import type { ServiceCtx } from './types.ts'
 
 const ACTIVE_TTL = 120
 
-// PROJ-336: agent_sessions.kind is caller-declared at register_agent with no
-// privilege check (the original review-gate spoof vector; PROJ-287 rebound the
-// gate to live leases instead, ignoring kind entirely). It drives no remaining
-// behavior, so it's excluded here to stop it reading as a trust/attribution
-// signal in list_active_agents and register/heartbeat/end responses.
+/*
+ * PROJ-336: agent_sessions.kind is caller-declared at register_agent with no
+ * privilege check (the original review-gate spoof vector; PROJ-287 rebound the
+ * gate to live leases instead, ignoring kind entirely). It drives no remaining
+ * behavior, so it's excluded here to stop it reading as a trust/attribution
+ * signal in list_active_agents and register/heartbeat/end responses.
+ */
 const AGENT_SESSION_COLUMNS = {
   id: schema.agentSessions.id,
   workspaceId: schema.agentSessions.workspaceId,
@@ -39,40 +47,56 @@ const AGENT_SESSION_COLUMNS = {
   endedAt: schema.agentSessions.endedAt,
 }
 
-function isApiTokenMethod(method: string): boolean {
+type AgentSession = Pick<typeof schema.agentSessions.$inferSelect, keyof typeof AGENT_SESSION_COLUMNS>
+type ActiveAgent = AgentSession & { issueRef: string | null; live: boolean }
+interface StartedWork {
+  claimedFiles: Awaited<ReturnType<typeof claimFiles>>['created']
+  lease: Awaited<ReturnType<typeof claimIssue>>
+  sessionId: string
+}
+
+const isApiTokenMethod = function isApiTokenMethod(method: string): boolean {
   return method === 'pk' || method === 'pat'
 }
 
-export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
+export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = RegisterAgentSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const { issueId, name } = result.data
 
   const orm = drizzle(ctx.db, { schema })
 
-  if (issueId) await assertIssueAccess(ctx, issueId, 'edit')
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
+    await assertIssueAccess(ctx, issueId, 'edit')
+  }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
-  // PROJ-336: kind is no longer read from the caller — see AGENT_SESSION_COLUMNS
-  // for why it's dropped from every response. The DB column keeps its "agent"
-  // default so existing rows/queries are unaffected.
+  /*
+   * PROJ-336: kind is no longer read from the caller — see AGENT_SESSION_COLUMNS
+   * for why it's dropped from every response. The DB column keeps its "agent"
+   * default so existing rows/queries are unaffected.
+   */
   await orm.insert(schema.agentSessions).values({
     id,
     workspaceId: ctx.workspaceId,
-    issueId: issueId ?? null,
-    // PROJ-894: the credential is recorded so an omitted agentId can later resolve to
-    // this session. token_id keeps its FK meaning (api_tokens.id), so it is only set
-    // for pk/pat credentials; an OAuth grant id lives in credential_id alone.
-    tokenId: ctx.auth?.credentialId && isApiTokenMethod(ctx.auth.method) ? ctx.auth.credentialId : null,
-    authMethod: ctx.auth?.method ?? null,
-    credentialId: agentSessionCredential(ctx) ?? null,
+    issueId: issueId ?? SQL_NULL,
+    /*
+     * PROJ-894: the credential is recorded so an omitted agentId can later resolve to
+     * this session. token_id keeps its FK meaning (api_tokens.id), so it is only set
+     * for pk/pat credentials; an OAuth grant id lives in credential_id alone.
+     */
+    tokenId: ctx.auth?.credentialId && isApiTokenMethod(ctx.auth.method) ? ctx.auth.credentialId : SQL_NULL,
+    authMethod: ctx.auth?.method ?? SQL_NULL,
+    credentialId: agentSessionCredential(ctx) ?? SQL_NULL,
     name,
     status: 'active',
     startedAt: now,
     lastHeartbeatAt: now,
-    endedAt: null,
+    endedAt: SQL_NULL,
   })
 
   const row = await orm
@@ -81,7 +105,7 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
     .where(eq(schema.agentSessions.id, id))
     .get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just inserted; SELECT immediately after guarantees it exists
+  // Row was just inserted; SELECT immediately after guarantees it exists
   return row!
 }
 
@@ -100,10 +124,17 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
  * itself crashes mid-call (so the compensating end_agent never runs), the claims it
  * made are still reclaimable by the next caller once the session's heartbeat goes
  * stale after ACTIVE_TTL (120s) — see claim_issue/claim_files's stale-holder reclaim.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The issue ID, agent name and optional file paths.
+ * @returns {Promise<{sessionId: string, lease: Awaited<ReturnType<typeof claimIssue>>, claimedFiles: Awaited<ReturnType<typeof claimFiles>>['created']}>}
+ * The created session, issue lease, and newly claimed files.
  */
-export async function startWork(ctx: ServiceCtx, raw: unknown) {
+export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown): Promise<StartedWork> {
   const result = StartWorkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const { issue: issueId, paths, name } = result.data
 
   const session = await registerAgent(ctx, { name, issueId })
@@ -111,7 +142,8 @@ export async function startWork(ctx: ServiceCtx, raw: unknown) {
   try {
     const lease = await claimIssue(ctx, { issueId, agentId: session.id })
 
-    const claimed = paths && paths.length > 0 ? await claimFiles(ctx, { issueId, agentId: session.id, paths }) : null
+    const claimed =
+      paths && Array.isArrayNonEmpty(paths) ? await claimFiles(ctx, { issueId, agentId: session.id, paths }) : null
 
     await postMessage(ctx, {
       scope: `issue:${issueId}`,
@@ -119,26 +151,30 @@ export async function startWork(ctx: ServiceCtx, raw: unknown) {
       body: `${name} started work`,
     })
 
-    return {
-      sessionId: session.id,
-      lease,
-      claimedFiles: claimed?.created ?? [],
-    }
-  } catch (err) {
+    return fieldsInOrder([
+      ['sessionId', session.id],
+      ['lease', lease],
+      ['claimedFiles', claimed?.created ?? []],
+    ])
+  } catch (error) {
     try {
       await endAgent(ctx, { id: session.id })
-    } catch (cleanupErr) {
-      console.error('startWork: compensating endAgent failed', cleanupErr)
+    } catch (compensationError) {
+      console.error('startWork: compensating endAgent failed', compensationError)
     }
-    throw err
+    throw error
   }
 }
 
-export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
+export const heartbeatAgent = async function heartbeatAgent(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = HeartbeatAgentSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
-  // PROJ-894: heartbeat resolves against still-active sessions (not only live ones) —
-  // this call is what revives a session that just went stale.
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
+  /*
+   * PROJ-894: heartbeat resolves against still-active sessions (not only live ones) —
+   * this call is what revives a session that just went stale.
+   */
   const id = await resolveAgentSessionId(ctx, result.data.id, { includeStale: true })
 
   const orm = drizzle(ctx.db, { schema })
@@ -153,9 +189,11 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
       ),
     )
     .get()
-  if (!existing) throw new NotFoundError('Agent session not found')
+  if (!existing) {
+    throw new NotFoundError('Agent session not found')
+  }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .update(schema.agentSessions)
     .set({ lastHeartbeatAt: now })
@@ -167,13 +205,15 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
     .where(eq(schema.agentSessions.id, id))
     .get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just updated; SELECT immediately after guarantees it exists
+  // Row was just updated; SELECT immediately after guarantees it exists
   return row!
 }
 
-export async function endAgent(ctx: ServiceCtx, raw: unknown) {
+export async function endAgent(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = EndAgentSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const id = await resolveAgentSessionId(ctx, result.data.id, {
     includeStale: true,
     allowAdministrativeOverride: true,
@@ -185,12 +225,14 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
     .from(schema.agentSessions)
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Agent session not found')
+  if (!existing) {
+    throw new NotFoundError('Agent session not found')
+  }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .update(schema.agentSessions)
-    .set({ status: 'ended', endedAt: now })
+    .set({ endedAt: now, status: 'ended' })
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
 
   await releaseClaimsForAgent(ctx, id)
@@ -202,7 +244,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
     .where(eq(schema.agentSessions.id, id))
     .get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just updated; SELECT immediately after guarantees it exists
+  // Row was just updated; SELECT immediately after guarantees it exists
   return row!
 }
 
@@ -212,21 +254,29 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
  * update_issue call), then ends the session — which already releases every claim and
  * lease it holds (see endAgent). Replaces release_issue + release_files + end_agent
  * (+ an update_issue call, if the issue is being closed) with one call.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The session and issue IDs, optional status and completion report.
+ * @returns {ReturnType<typeof endAgent>} The ended session after the issue update, if requested.
  */
-export async function finishWork(ctx: ServiceCtx, raw: unknown) {
+export const finishWork = async function finishWork(ctx: ServiceCtx, raw: unknown): Promise<AgentSession> {
   const result = FinishWorkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const { sessionId, issue: issueId, completionReport, status } = result.data
   await assertIssueAccess(ctx, issueId, 'edit')
   await assertAgentSessionAccess(ctx, sessionId)
 
-  if (status !== undefined || completionReport !== undefined) {
+  if (Predicate.isNotNullish(status) || Predicate.isNotNullish(completionReport)) {
     await updateIssue(ctx, issueId, {
-      ...(status !== undefined ? { status } : {}),
-      ...(completionReport !== undefined ? { completionReport } : {}),
-      // Attributes the transition to this session for the PROJ-375 audit flag and
-      // the review-gate's completion-report requirement, exactly as a caller passing
-      // agentSessionId on a plain update_issue already does.
+      ...(Predicate.isNotNullish(status) ? { status } : {}),
+      ...(Predicate.isNotNullish(completionReport) ? { completionReport } : {}),
+      /*
+       * Attributes the transition to this session for the PROJ-375 audit flag and
+       * the review-gate's completion-report requirement, exactly as a caller passing
+       * agentSessionId on a plain update_issue already does.
+       */
       agentSessionId: sessionId,
     })
   }
@@ -243,37 +293,53 @@ export async function finishWork(ctx: ServiceCtx, raw: unknown) {
  * check, it doesn't reach into ended sessions. Each item carries a `live` boolean
  * (true when its heartbeat is inside the TTL) and, when linked to an issue, that
  * issue's display ref (issueRef, e.g. "PROJ-857").
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} raw The optional issue and project filters and stale-session policy.
+ * @returns {Promise<{items: (Awaited<ReturnType<typeof registerAgent>> & {issueRef: string | null, live: boolean})[]}>}
+ * Visible active sessions with current liveness and issue references.
  */
-export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
+export const listActiveAgents = async function listActiveAgents(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ items: ActiveAgent[] }> {
   const result = ListActiveAgentsSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const { issueId, includeStale } = result.data
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined
 
   const orm = drizzle(ctx.db, { schema })
-  const cutoff = Math.floor(Date.now() / 1000) - ACTIVE_TTL
+  const cutoff = currentEpochSeconds() - ACTIVE_TTL
 
-  // `status='active'` is unconditional — an ended session is never returned, whether or
-  // not includeStale is set. includeStale only lifts the heartbeat-freshness check below.
+  /*
+   * `status='active'` is unconditional — an ended session is never returned, whether or
+   * not includeStale is set. includeStale only lifts the heartbeat-freshness check below.
+   */
   const conditions = [eq(schema.agentSessions.workspaceId, ctx.workspaceId), eq(schema.agentSessions.status, 'active')]
-  if (!includeStale) {
+  if (includeStale !== true) {
     conditions.push(gt(schema.agentSessions.lastHeartbeatAt, cutoff))
   }
 
-  if (issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
     conditions.push(eq(schema.agentSessions.issueId, issueId))
   }
-  // PROJ-932: a session with no issue link has no project to check, so it's excluded
-  // once a projectId filter is given (see the list_active_agents tool description).
-  if (projectId) {
+  /*
+   * PROJ-932: a session with no issue link has no project to check, so it's excluded
+   * once a projectId filter is given (see the list_active_agents tool description).
+   */
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     conditions.push(eq(schema.issues.projectId, projectId))
   }
 
-  // PROJ-316: a non-admin member only sees agents working an issue in a project
-  // they can access. Agents not tied to any issue carry no project, so they stay
-  // workspace-visible. Owner/admin (predicate undefined) see every agent. The LEFT
-  // JOIN to issues below lets the predicate take the joined project id column
-  // directly instead of a correlated subquery.
+  /*
+   * PROJ-316: a non-admin member only sees agents working an issue in a project
+   * they can access. Agents not tied to any issue carry no project, so they stay
+   * workspace-visible. Owner/admin (predicate undefined) see every agent. The LEFT
+   * JOIN to issues below lets the predicate take the joined project id column
+   * directly instead of a correlated subquery.
+   */
   const vis = visibleProjectPredicate(ctx, schema.issues.projectId)
   if (vis) {
     conditions.push(or(isNull(schema.agentSessions.issueId), vis) ?? vis)
@@ -282,8 +348,10 @@ export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
   const rows = await orm
     .select({
       ...AGENT_SESSION_COLUMNS,
-      projectKey: schema.projects.key,
-      issueNumber: schema.issues.number,
+      ...fieldsInOrder([
+        ['projectKey', schema.projects.key],
+        ['issueNumber', schema.issues.number],
+      ]),
     })
     .from(schema.agentSessions)
     .leftJoin(
@@ -296,7 +364,10 @@ export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
 
   const items = rows.map(({ projectKey, issueNumber, ...session }) => ({
     ...session,
-    issueRef: session.issueId && projectKey ? `${projectKey}-${issueNumber}` : null,
+    issueRef:
+      session.issueId && Predicate.isNotNullish(projectKey) && String.isNonEmpty(projectKey)
+        ? `${projectKey}-${issueNumber}`
+        : JSON_NULL,
     live: session.lastHeartbeatAt > cutoff,
   }))
 

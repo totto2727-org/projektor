@@ -4,13 +4,26 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#db": "./src/db/index.ts",
-    "#db/*": "./src/db/*.ts",
-    "#services": "./src/services/index.ts",
-    "#services/*": "./src/services/*.ts",
-    "#commands/*": "./src/services/commands/*.ts",
-    "#types": "./src/types/index.ts",
-    "#plugin-sdk": "./src/plugin-sdk/index.ts"
+    "#db": "./src/db/database.ts",
+    "#db/*": "./src/db/*",
+    "#services": "./src/services/queries.ts",
+    "#services/*": "./src/services/*",
+    "#commands/*": "./src/services/commands/*",
+    "#types": "./src/types/shared.ts",
+    "#plugin-sdk": "./src/plugin-sdk/definitions.ts",
+    "#contracts/*": "./src/contracts/*",
+    "#core/*": "./src/core/*",
+    "#types/*": "./src/types/*",
+    "#deployment": "./src/deployment.ts",
+    "#tests/*": "./tests/*",
+    "#worker-identities": "./src/workers/identities.ts",
+    "#api/*": "./src/api/*",
+    "#migrations/*": "./migrations/*",
+    "#worker-graph": "./worker-graph.ts",
+    "#worker-core": "./workers/core.ts",
+    "#vite-config": "./vite.config.ts",
+    "#package-metadata": "./package.json",
+    "#worker-environment": "./worker-environment.ts"
   },
   "exports": {
     "./core-client": "./src/core/client.ts"

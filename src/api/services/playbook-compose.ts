@@ -1,8 +1,12 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '#contracts/api-results.ts'
+import type { CoreRpcShape } from '#core/contract.ts'
 
-export function composePlaybook(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiComposePlaybook']>) {
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
+
+export const composePlaybook = async function composePlaybook(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiComposePlaybook']>
+): Promise<typeof ApiResults.apiComposePlaybook.Type> {
   return apiReply(ApiResults.apiComposePlaybook, ctx.core.apiComposePlaybook(ctx.actor, ctx.workspaceId, ...args))
 }

@@ -1,42 +1,60 @@
 import { and, eq } from 'drizzle-orm'
-import { Effect } from 'effect'
-import type { z } from 'zod'
+import { Predicate, Effect } from 'effect'
+import { z } from 'zod'
 
-import { drizzle, schema } from '#db'
-import { listTaskTypes as queryTypes } from '#services/task-types'
+import { IdSchema } from '#contracts/inputs/common.ts'
+import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '#contracts/inputs/task-types.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQLITE_FALSE, SQLITE_TRUE, drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { listTaskTypes as queryTypes } from '#services/task-types.ts'
 
-import { IdSchema } from '../../contracts/inputs/common'
-import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '../../contracts/inputs/task-types'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { prepareQuery } from './sql'
-import type { ServiceCtx } from './types'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { prepareQuery } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
+
+const INITIAL_TASK_POSITION = 0
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
-const TASK_TYPES_CACHE_KEY = (workspaceId: string) => `ws-meta:${workspaceId}:task-types`
+const TASK_TYPES_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:task-types`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-async function invalidateTaskTypesCache(ctx: ServiceCtx) {
+const invalidateTaskTypesCache = async function invalidateTaskTypesCache(ctx: ServiceCtx): Promise<void> {
   const cacheKey = TASK_TYPES_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
 }
 
-function buildTaskTypeUpdateSet(data: z.infer<typeof UpdateTaskTypeSchema>): Record<string, unknown> {
+const buildTaskTypeUpdateSet = function buildTaskTypeUpdateSet(
+  data: z.infer<typeof UpdateTaskTypeSchema>,
+): Record<string, unknown> {
   const setObj: Record<string, unknown> = {}
-  if (data.name !== undefined) setObj.name = data.name
-  if ('color' in data) setObj.color = data.color ?? null
-  if ('icon' in data) setObj.icon = data.icon ?? null
-  if (data.position !== undefined) setObj.position = data.position
-  if (data.isDefault !== undefined) setObj.isDefault = data.isDefault ? 1 : 0
+  if (Predicate.isNotNullish(data.name)) {
+    setObj.name = data.name
+  }
+  if ('color' in data) {
+    setObj.color = data.color ?? SQL_NULL
+  }
+  if ('icon' in data) {
+    setObj.icon = data.icon ?? SQL_NULL
+  }
+  if (Predicate.isNotNullish(data.position)) {
+    setObj.position = data.position
+  }
+  if (Predicate.isNotNullish(data.isDefault)) {
+    setObj.isDefault = data.isDefault ? SQLITE_TRUE : SQLITE_FALSE
+  }
   return setObj
 }
 
-export async function listTaskTypes(ctx: ServiceCtx) {
+export const listTaskTypes = async function listTaskTypes(ctx: ServiceCtx): Promise<unknown[]> {
   const cacheKey = TASK_TYPES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
-  if (local) return local
+  if (local) {
+    return local
+  }
 
   const cached = await cache.get<unknown[]>(ctx.kv, cacheKey)
   if (cached) {
@@ -50,10 +68,20 @@ export async function listTaskTypes(ctx: ServiceCtx) {
   return result
 }
 
-export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+interface CreatedTaskType {
+  id: ReturnType<typeof crypto.randomUUID>
+  key: string
+  name: string
+}
+
+export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw: unknown): Promise<CreatedTaskType> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = CreateTaskTypeSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const { key, name, color, icon, position, isDefault } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -62,33 +90,45 @@ export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.key, key)))
     .get()
-  if (existing) throw new ConflictError(`Task type key '${key}' already exists`)
+  if (existing) {
+    throw new ConflictError(`Task type key '${key}' already exists`)
+  }
 
-  if (isDefault) {
+  if (isDefault === true) {
     await orm.update(schema.taskTypes).set({ isDefault: 0 }).where(eq(schema.taskTypes.workspaceId, ctx.workspaceId))
   }
 
   const id = crypto.randomUUID()
-  await orm.insert(schema.taskTypes).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    key,
-    name,
-    color: color ?? null,
-    icon: icon ?? null,
-    position: position ?? 0,
-    isDefault: isDefault ? 1 : 0,
-  })
+  await orm.insert(schema.taskTypes).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['key', key],
+      ['name', name],
+      ['color', color ?? SQL_NULL],
+      ['icon', icon ?? SQL_NULL],
+      ['position', position ?? INITIAL_TASK_POSITION],
+      ['isDefault', isDefault === true ? SQLITE_TRUE : SQLITE_FALSE],
+    ]),
+  )
 
   await invalidateTaskTypesCache(ctx)
   return { id, key, name }
 }
 
-export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+export const updateTaskType = async function updateTaskType(
+  ctx: ServiceCtx,
+  id: string,
+  raw: unknown,
+): Promise<{ ok: boolean }> {
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = UpdateTaskTypeSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
-  const data = result.data
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
+  const { data } = result
   const setObj = buildTaskTypeUpdateSet(data)
 
   const orm = drizzle(ctx.db, { schema })
@@ -98,13 +138,15 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.id, id), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Task type not found')
+  if (!existing) {
+    throw new NotFoundError('Task type not found')
+  }
 
   const update = orm
     .update(schema.taskTypes)
     .set(setObj)
     .where(and(eq(schema.taskTypes.id, id), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
-  if (data.isDefault) {
+  if (data.isDefault === true) {
     await orm.batch([
       orm.update(schema.taskTypes).set({ isDefault: 0 }).where(eq(schema.taskTypes.workspaceId, ctx.workspaceId)),
       update,
@@ -117,10 +159,14 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
   return { ok: true }
 }
 
-export async function deleteTaskType(ctx: ServiceCtx, id: string) {
+export const deleteTaskType = async function deleteTaskType(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
+  }
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const inUse = await orm
@@ -128,14 +174,18 @@ export async function deleteTaskType(ctx: ServiceCtx, id: string) {
     .from(schema.issues)
     .where(and(eq(schema.issues.typeId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  if (inUse) throw new ConflictError('Task type is in use by one or more issues')
+  if (inUse) {
+    throw new ConflictError('Task type is in use by one or more issues')
+  }
 
   const existing = await orm
     .select({ id: schema.taskTypes.id })
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.id, id), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Task type not found')
+  if (!existing) {
+    throw new NotFoundError('Task type not found')
+  }
 
   await orm
     .delete(schema.taskTypes)
@@ -145,7 +195,10 @@ export async function deleteTaskType(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
+export const buildDefaultTaskTypeStatements = function buildDefaultTaskTypeStatements(
+  db: D1Database,
+  workspaceId: string,
+): D1PreparedStatement[] {
   const defaults = [
     { key: 'epic', name: 'Epic', position: 1, isDefault: 0 },
     { key: 'story', name: 'Story', position: 2, isDefault: 0 },
@@ -153,7 +206,7 @@ export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: stri
     { key: 'bug', name: 'Bug', position: 4, isDefault: 0 },
   ]
   const orm = drizzle(db, { schema })
-  return defaults.map((t) =>
+  return defaults.map((taskType) =>
     prepareQuery(
       db,
       orm
@@ -161,12 +214,12 @@ export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: stri
         .values({
           id: crypto.randomUUID(),
           workspaceId,
-          key: t.key,
-          name: t.name,
-          color: null,
-          icon: null,
-          position: t.position,
-          isDefault: t.isDefault,
+          key: taskType.key,
+          name: taskType.name,
+          color: SQL_NULL,
+          icon: SQL_NULL,
+          position: taskType.position,
+          isDefault: taskType.isDefault,
         })
         .onConflictDoNothing()
         .toSQL(),
@@ -174,6 +227,9 @@ export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: stri
   )
 }
 
-export async function seedDefaultTaskTypes(db: D1Database, workspaceId: string) {
+export const seedDefaultTaskTypes = async function seedDefaultTaskTypes(
+  db: D1Database,
+  workspaceId: string,
+): Promise<void> {
   await db.batch(buildDefaultTaskTypeStatements(db, workspaceId))
 }

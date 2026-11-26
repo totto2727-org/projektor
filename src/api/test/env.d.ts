@@ -1,10 +1,9 @@
 import type { Env as ProjektorEnv } from '#types'
 
-// vitest-pool-workers ≥0.13 types `cloudflare:test`'s `env` as `Cloudflare.Env`
-// (the old `ProvidedEnv` interface was removed). Augment that global namespace
-// with our binding shape so `env.DB` / `env.KV` / … are typed in tests.
+// Describe the bindings used by the native test API Worker.
 declare global {
   namespace Cloudflare {
+    // oxlint-disable-next-line typescript/no-empty-interface, typescript/no-empty-object-type -- The platform merges this interface with Cloudflare.Env to expose the test Worker bindings.
     interface Env extends ProjektorEnv {}
   }
 }

@@ -1,32 +1,37 @@
 import { readdirSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 
-import { describe, expect, it } from 'vite-plus/test'
+import { Iterable } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { loadMigrations } from './helpers'
+import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
 
-// These are offline, explicitly approved fixture mappings, not a production repair
-// algorithm. Execute complete historical files, including FTS, without rewriting SQL
-// or simulating an Alchemy ledger. Node SQLite does not prove native D1 atomicity.
+import { loadMigrations } from './helpers.ts'
+
+/*
+ * These are offline, explicitly approved fixture mappings, not a production repair
+ * algorithm. Execute complete historical files, including FTS, without rewriting SQL
+ * or simulating an Alchemy ledger. Node SQLite does not prove native D1 atomicity.
+ */
 const pageId = 'abcdef12-0000-4000-8000-000000000001'
 const migrations = loadMigrations()
 const filenames = readdirSync(new URL('../../../migrations/', import.meta.url))
   .filter((file) => file.endsWith('.sql'))
-  .sort()
+  .toSorted()
 
-function seedWorkspace(db: DatabaseSync) {
+const seedWorkspace = function seedWorkspace(db: DatabaseSync): void {
   db.exec(`INSERT INTO workspaces(id,name,slug,created_at) VALUES ('w','Workspace','workspace',0);
     INSERT INTO users(id,email,name,created_at) VALUES ('u','user@example.invalid','User',0);`)
   // No owner membership: historical template seeds must not create unrelated pages.
 }
 
-function seedWiki(db: DatabaseSync, slugs: readonly string[]) {
+const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>): void {
   const insert = db.prepare(`INSERT INTO wiki_pages
     (id,workspace_id,slug,title,content,created_by_id,updated_by_id,created_at,updated_at)
     VALUES (?,?,?,?,'searchneedle','u','u',?,?)`)
-  for (const [index, slug] of slugs.entries()) {
+  Iterable.forEach(slugs.entries(), ([index, slug]) => {
     insert.run(index === 0 ? pageId : `other-${index}`, 'w', slug, `Page ${index}`, index, index)
-  }
+  })
   db.exec(`INSERT INTO wiki_revisions(id,page_id,content,author_id,created_at)
     VALUES ('revision','${pageId}','original content','u',0)`)
   if (db.prepare("SELECT name FROM sqlite_master WHERE name='wiki_fts'").get()) {
@@ -35,13 +40,14 @@ function seedWiki(db: DatabaseSync, slugs: readonly string[]) {
   }
 }
 
-function checkIntegrity(db: DatabaseSync) {
-  expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
-  expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
+const checkIntegrity = function checkIntegrity(db: DatabaseSync): void {
+  expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
+  expect(sqliteRowFields(db.prepare('PRAGMA integrity_check').get())).toStrictEqual({ integrity_check: 'ok' })
 }
 
-function pages(db: DatabaseSync) {
-  return db.prepare('SELECT id,workspace_id,slug,version FROM wiki_pages ORDER BY id').all()
+const pages = function pages(db: DatabaseSync) {
+  const rows = db.prepare('SELECT id,workspace_id,slug,version FROM wiki_pages ORDER BY id').all()
+  return rows.map(({ id, slug, version, workspace_id }) => ({ id, slug, version, workspace_id }))
 }
 
 const cases = [
@@ -58,10 +64,12 @@ const cases = [
       )
     },
     verify(this: void, db: DatabaseSync) {
-      expect(db.prepare('SELECT id,workspace_id,name,slug FROM projects ORDER BY id').all()).toEqual([
-        { id: 'first', workspace_id: 'w', name: 'Foo', slug: 'foo' },
-        { id: 'natural', workspace_id: 'w', name: 'Foo-2', slug: 'foo-2' },
-        { id: 'second', workspace_id: 'w', name: 'Foo legacy 2', slug: 'foo-legacy-2' },
+      expect(
+        sqliteRowsFields(db.prepare('SELECT id,workspace_id,name,slug FROM projects ORDER BY id').all()),
+      ).toStrictEqual([
+        { id: 'first', name: 'Foo', slug: 'foo', workspace_id: 'w' },
+        { id: 'natural', name: 'Foo-2', slug: 'foo-2', workspace_id: 'w' },
+        { id: 'second', name: 'Foo legacy 2', slug: 'foo-legacy-2', workspace_id: 'w' },
       ])
     },
   },
@@ -77,10 +85,10 @@ const cases = [
       ).toBe(1)
     },
     verify(this: void, db: DatabaseSync) {
-      expect(pages(db)).toEqual([
-        { id: pageId, workspace_id: 'w', slug: 'operations', version: 0 },
-        { id: 'other-1', workspace_id: 'w', slug: 'operations-legacy-copy', version: 0 },
-        { id: 'other-2', workspace_id: 'w', slug: 'operations-other-1', version: 0 },
+      expect(pages(db)).toStrictEqual([
+        { id: pageId, slug: 'operations', version: 0, workspace_id: 'w' },
+        { id: 'other-1', slug: 'operations-legacy-copy', version: 0, workspace_id: 'w' },
+        { id: 'other-2', slug: 'operations-other-1', version: 0, workspace_id: 'w' },
       ])
     },
   },
@@ -96,20 +104,22 @@ const cases = [
       expect(
         db.prepare("UPDATE wiki_pages SET slug='a-b-legacy-copy' WHERE id=? AND slug='a/b'").run(pageId).changes,
       ).toBe(1)
-      // The reviewed mapping transfers this exact old URL to the repaired page,
-      // preserving the existing redirect ID rather than silently replacing it.
+      /*
+       * The reviewed mapping transfers this exact old URL to the repaired page,
+       * preserving the existing redirect ID rather than silently replacing it.
+       */
       expect(
         db.prepare("UPDATE wiki_redirects SET page_id=? WHERE id='prior' AND page_id='other-2'").run(pageId).changes,
       ).toBe(1)
     },
     verify(this: void, db: DatabaseSync) {
-      expect(pages(db)).toEqual([
-        { id: pageId, workspace_id: 'w', slug: 'a-b-legacy-copy', version: 0 },
-        { id: 'other-1', workspace_id: 'w', slug: 'a-b', version: 0 },
-        { id: 'other-2', workspace_id: 'w', slug: 'a-b-abcdef12', version: 0 },
+      expect(pages(db)).toStrictEqual([
+        { id: pageId, slug: 'a-b-legacy-copy', version: 0, workspace_id: 'w' },
+        { id: 'other-1', slug: 'a-b', version: 0, workspace_id: 'w' },
+        { id: 'other-2', slug: 'a-b-abcdef12', version: 0, workspace_id: 'w' },
       ])
-      expect(db.prepare('SELECT * FROM wiki_redirects').all()).toEqual([
-        { id: 'prior', workspace_id: 'w', old_slug: 'a/b', page_id: pageId, created_at: 0 },
+      expect(sqliteRowsFields(db.prepare('SELECT * FROM wiki_redirects').all())).toStrictEqual([
+        { created_at: 0, id: 'prior', old_slug: 'a/b', page_id: pageId, workspace_id: 'w' },
       ])
     },
   },
@@ -126,17 +136,17 @@ const cases = [
       ).toBe(1)
     },
     verify(this: void, db: DatabaseSync) {
-      expect(pages(db)).toEqual([
-        { id: pageId, workspace_id: 'w', slug: 'view-legacy-copy', version: 1 },
-        { id: 'other-1', workspace_id: 'w', slug: 'view-page', version: 0 },
-        { id: 'other-2', workspace_id: 'w', slug: 'view-page-abcdef12', version: 0 },
+      expect(pages(db)).toStrictEqual([
+        { id: pageId, slug: 'view-legacy-copy', version: 1, workspace_id: 'w' },
+        { id: 'other-1', slug: 'view-page', version: 0, workspace_id: 'w' },
+        { id: 'other-2', slug: 'view-page-abcdef12', version: 0, workspace_id: 'w' },
       ])
     },
   },
 ]
 
 describe('offline populated historical upgrades with approved fixture mappings', () => {
-  it.each(cases)(
+  test.each(cases)(
     'resumes unchanged history at $prefix without losing populated identities or search',
     ({ prefix, seed, repair, verify }) => {
       const db = new DatabaseSync(':memory:')
@@ -144,7 +154,9 @@ describe('offline populated historical upgrades with approved fixture mappings',
         db.exec('PRAGMA foreign_keys=ON')
         const position = filenames.findIndex((file) => file.startsWith(`${String(prefix).padStart(4, '0')}_`))
         expect(position).toBeGreaterThanOrEqual(0)
-        for (const sql of migrations.slice(0, position)) db.exec(sql)
+        Iterable.forEach(migrations.slice(0, position), (sql) => {
+          db.exec(sql)
+        })
         seedWorkspace(db)
         seed(db)
         const originalPages = db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()
@@ -153,26 +165,32 @@ describe('offline populated historical upgrades with approved fixture mappings',
           .prepare('SELECT id,page_id,content,author_id,created_at FROM wiki_revisions ORDER BY id')
           .all()
         repair(db)
-        for (const sql of migrations.slice(position)) db.exec(sql)
-        expect(db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()).toEqual(originalPages)
-        expect(db.prepare('SELECT id,workspace_id FROM projects ORDER BY id').all()).toEqual(originalProjects)
+        Iterable.forEach(migrations.slice(position), (sql) => {
+          db.exec(sql)
+        })
+        expect(db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()).toStrictEqual(originalPages)
+        expect(db.prepare('SELECT id,workspace_id FROM projects ORDER BY id').all()).toStrictEqual(originalProjects)
         expect(
           db.prepare('SELECT id,page_id,content,author_id,created_at FROM wiki_revisions ORDER BY id').all(),
-        ).toEqual(originalRevisions)
+        ).toStrictEqual(originalRevisions)
         verify(db)
         expect(
-          db.prepare("SELECT page_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle' ORDER BY page_id").all(),
-        ).toEqual(originalPages.map(({ id }) => ({ page_id: id })))
-        expect(db.prepare('SELECT page_id FROM wiki_fts ORDER BY page_id').all()).toEqual(
+          sqliteRowsFields(
+            db.prepare("SELECT page_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle' ORDER BY page_id").all(),
+          ),
+        ).toStrictEqual(originalPages.map(({ id }) => ({ page_id: id })))
+        expect(sqliteRowsFields(db.prepare('SELECT page_id FROM wiki_fts ORDER BY page_id').all())).toStrictEqual(
           originalPages.map(({ id }) => ({ page_id: id })),
         )
         expect(
-          db
-            .prepare(
-              'SELECT p.id FROM wiki_pages p JOIN wiki_fts f ON f.rowid=p.search_rowid AND f.page_id=p.id ORDER BY p.id',
-            )
-            .all(),
-        ).toEqual(originalPages.map(({ id }) => ({ id })))
+          sqliteRowsFields(
+            db
+              .prepare(
+                'SELECT p.id FROM wiki_pages p JOIN wiki_fts f ON f.rowid=p.search_rowid AND f.page_id=p.id ORDER BY p.id',
+              )
+              .all(),
+          ),
+        ).toStrictEqual(originalPages.map(({ id }) => ({ id })))
         checkIntegrity(db)
       } finally {
         db.close()
@@ -180,7 +198,7 @@ describe('offline populated historical upgrades with approved fixture mappings',
     },
   )
 
-  it('replays fresh full history including real issue and wiki FTS backfills', () => {
+  test('replays fresh full history including real issue and wiki FTS backfills', () => {
     const db = new DatabaseSync(':memory:')
     try {
       db.exec('PRAGMA foreign_keys=ON')
@@ -191,13 +209,19 @@ describe('offline populated historical upgrades with approved fixture mappings',
         INSERT INTO issues(id,workspace_id,project_id,number,title,body,created_by_id,created_at,updated_at)
         VALUES ('issue','w','project',1,'Issueneedle','Body','u',0,0)`)
       seedWiki(db, ['wiki-page'])
-      for (const sql of migrations.slice(1)) db.exec(sql)
+      Iterable.forEach(migrations.slice(1), (sql) => {
+        db.exec(sql)
+      })
       expect(
-        db.prepare("SELECT issue_id,workspace_id FROM issues_fts WHERE issues_fts MATCH 'issueneedle'").all(),
-      ).toEqual([{ issue_id: 'issue', workspace_id: 'w' }])
-      expect(db.prepare("SELECT page_id,workspace_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle'").all()).toEqual(
-        [{ page_id: pageId, workspace_id: 'w' }],
-      )
+        sqliteRowsFields(
+          db.prepare("SELECT issue_id,workspace_id FROM issues_fts WHERE issues_fts MATCH 'issueneedle'").all(),
+        ),
+      ).toStrictEqual([{ issue_id: 'issue', workspace_id: 'w' }])
+      expect(
+        sqliteRowsFields(
+          db.prepare("SELECT page_id,workspace_id FROM wiki_fts WHERE wiki_fts MATCH 'searchneedle'").all(),
+        ),
+      ).toStrictEqual([{ page_id: pageId, workspace_id: 'w' }])
       checkIntegrity(db)
     } finally {
       db.close()

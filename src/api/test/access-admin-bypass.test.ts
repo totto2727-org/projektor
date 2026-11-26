@@ -1,36 +1,51 @@
-import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { Order } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers'
+import { ApiResults } from '#contracts/api-results.ts'
 
-// PROJ-319: pin the admin-bypass path through the hand-written SQL callers of
-// visibleProjectSqlFragment (search) and the effectiveProjectRole/isWorkspaceAdmin
-// bypass used by flow-metrics, contrasted against a non-admin member who is
-// default-deny until granted.
+import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
-async function search(token: string, slug: string, q: string) {
-  const res = await SELF.fetch(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
+/*
+ * PROJ-319: pin the admin-bypass path through the hand-written SQL callers of
+ * visibleProjectSqlFragment (search) and the effectiveProjectRole/isWorkspaceAdmin
+ * bypass used by flow-metrics, contrasted against a non-admin member who is
+ * default-deny until granted.
+ */
+
+const search = async function search(
+  token: string,
+  slug: string,
+  query: string,
+): Promise<{ status: number; body: typeof ApiResults.apiSearchIssues.Type }> {
+  const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(query)}`, {
     headers: authHeaders(token, slug),
   })
-  return { status: res.status, body: (await res.json()) as Array<{ project_id: string }> }
+  return { status: res.status, body: await readNativeJson(res, ApiResults.apiSearchIssues) }
 }
 
-// seedIssue() inserts directly into `issues`, bypassing the FTS index (which is
-// populated by the create-issue service, not a DB trigger); go through the REST
-// route so search can actually find these issues.
-async function createIssue(token: string, slug: string, projectId: string, title: string) {
-  const res = await SELF.fetch('http://localhost/api/issues', {
-    method: 'POST',
-    headers: authHeaders(token, slug),
+/* The seedIssue() helper inserts directly into `issues`, bypassing the FTS index (which is
+ * populated by the create-issue service, not a DB trigger); go through the REST
+ * route so search can actually find these issues. */
+const createIssue = async function createIssue(
+  token: string,
+  slug: string,
+  projectId: string,
+  title: string,
+): Promise<void> {
+  const res = await fetchNativeApi('http://localhost/api/issues', {
     body: JSON.stringify({ projectId, title }),
+    headers: authHeaders(token, slug),
+    method: 'POST',
   })
   expect(res.status).toBe(201)
 }
 
-describe('PROJ-319 admin bypass pinning', () => {
-  it("owner's search sees issues across projects they hold no group grant on", async () => {
+describe('covers PROJ-319 admin bypass pinning', () => {
+  test("owner's search sees issues across projects they hold no group grant on", async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const p1 = await seedProject(roles.workspace.id, 'P1')
     const p2 = await seedProject(roles.workspace.id, 'P2')
     await createIssue(roles.owner.token, slug, p1.id, 'sentinel-bypass-token')
@@ -38,29 +53,30 @@ describe('PROJ-319 admin bypass pinning', () => {
 
     const result = await search(roles.owner.token, slug, 'sentinel-bypass-token')
     expect(result.status).toBe(200)
-    const projectIds = result.body.map((i) => i.project_id).sort()
-    expect(projectIds).toEqual([p1.id, p2.id].sort())
+    const compareProjectIds = Order.mapInput(Order.String, globalThis.String)
+    const projectIds = result.body.map((issue) => issue.project_id).toSorted(compareProjectIds)
+    expect(projectIds).toStrictEqual([p1.id, p2.id].toSorted(compareProjectIds))
   })
 
-  it("owner's get_flow_metrics returns real data for an ungranted project", async () => {
+  test("owner's get_flow_metrics returns real data for an ungranted project", async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'UNGRANTED')
     await seedIssue(roles.workspace.id, project.id, roles.owner.user.id, {
       title: 'Metrics issue',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${project.id}/flow-metrics`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${project.id}/flow-metrics`, {
       headers: authHeaders(roles.owner.token, slug),
     })
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as { leadTime: { count: number } }
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.leadTime).toBeDefined()
   })
 
-  it('a non-admin member granted only P1 sees only P1 in search (contrast)', async () => {
+  test('a non-admin member granted only P1 sees only P1 in search (contrast)', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const p1 = await seedProject(roles.workspace.id, 'MP1')
     const p2 = await seedProject(roles.workspace.id, 'MP2')
     await createIssue(roles.owner.token, slug, p1.id, 'sentinel-scoped-token')
@@ -69,18 +85,18 @@ describe('PROJ-319 admin bypass pinning', () => {
 
     const result = await search(roles.member.token, slug, 'sentinel-scoped-token')
     expect(result.status).toBe(200)
-    expect(result.body.map((i) => i.project_id)).toEqual([p1.id])
+    expect(result.body.map((issue) => issue.project_id)).toStrictEqual([p1.id])
   })
 
-  it('get_flow_metrics 404s for a non-admin member with no grant on the project', async () => {
+  test('get_flow_metrics 404s for a non-admin member with no grant on the project', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'MUNGRANTED')
     await seedIssue(roles.workspace.id, project.id, roles.owner.user.id, {
       title: 'Hidden metrics',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${project.id}/flow-metrics`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${project.id}/flow-metrics`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(res.status).toBe(404)

@@ -1,4 +1,5 @@
-import { ValidationError } from '../../contracts/errors'
+import { String, Predicate } from 'effect'
+
 import {
   completeSprint,
   createSprint,
@@ -7,144 +8,156 @@ import {
   listSprints,
   moveIssuesToSprint,
   updateSprint,
-} from '../services/sprints'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+} from '#api/services/sprints.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import type { MCPTool } from './types.ts'
 
 export const sprintsTools: MCPTool[] = [
   {
-    name: 'list_sprints',
-    description: 'List sprints for a project, ordered by creation date',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId'],
-      properties: {
-        projectId: { type: 'string', description: 'Project UUID' },
-      },
-    },
     annotations: READ,
-    handler(input, ctx) {
+    description: 'List sprints for a project, ordered by creation date',
+    async handler(input, ctx) {
       return listSprints(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(['projectId'], {
+      projectId: describedInputProperty('string', 'Project UUID'),
+    }),
+    name: 'list_sprints',
   },
   {
-    name: 'get_sprint',
-    description: 'Get a sprint by ID',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string', description: 'Sprint UUID' },
-      },
-    },
     annotations: READ,
-    handler(input, ctx) {
+    description: 'Get a sprint by ID',
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return getSprint(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: describedInputProperty('string', 'Sprint UUID'),
+    }),
+    name: 'get_sprint',
   },
   {
-    name: 'create_sprint',
-    description: 'Create a new sprint in a project',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'name'],
-      properties: {
-        projectId: { type: 'string' },
-        name: { type: 'string' },
-        goal: { type: 'string', description: 'Sprint goal description' },
-        startDate: { type: 'number', description: 'Unix timestamp for sprint start' },
-        endDate: { type: 'number', description: 'Unix timestamp for sprint end' },
-      },
-    },
     annotations: CREATE,
-    handler(input, ctx) {
+    description: 'Create a new sprint in a project',
+    async handler(input, ctx) {
       return createSprint(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['projectId', 'name'],
+      fieldsInOrder([
+        ['projectId', { type: 'string' }],
+        ['name', { type: 'string' }],
+        ['goal', describedInputProperty('string', 'Sprint goal description')],
+        ['startDate', describedInputProperty('number', 'Unix timestamp for sprint start')],
+        ['endDate', describedInputProperty('number', 'Unix timestamp for sprint end')],
+      ]),
+    ),
+    name: 'create_sprint',
   },
   {
-    name: 'update_sprint',
-    description: 'Update sprint fields — name, goal, status, start/end dates',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string' },
-        name: { type: 'string' },
-        goal: { type: 'string', nullable: true },
-        status: { type: 'string', enum: ['planned', 'active', 'completed'] },
-        startDate: { type: 'number', nullable: true },
-        endDate: { type: 'number', nullable: true },
-      },
-    },
     annotations: IDEMPOTENT_WRITE,
-    handler(input, ctx) {
+    description: 'Update sprint fields — name, goal, status, start/end dates',
+    async handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!id || typeof id !== 'string') {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return updateSprint(ctx, id, fields)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['id'],
+      fieldsInOrder([
+        ['id', { type: 'string' }],
+        ['name', { type: 'string' }],
+        [
+          'goal',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['nullable', true],
+          ]),
+        ],
+        [
+          'status',
+          fieldsInOrder([
+            ['type', 'string'],
+            ['enum', ['planned', 'active', 'completed']],
+          ]),
+        ],
+        [
+          'startDate',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['nullable', true],
+          ]),
+        ],
+        [
+          'endDate',
+          fieldsInOrder([
+            ['type', 'number'],
+            ['nullable', true],
+          ]),
+        ],
+      ]),
+    ),
+    name: 'update_sprint',
   },
   {
-    name: 'complete_sprint',
-    description: 'Mark an active sprint as completed',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string', description: 'Sprint UUID' },
-      },
-    },
     annotations: PLAIN_WRITE,
-    handler(input, ctx) {
+    description: 'Mark an active sprint as completed',
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return completeSprint(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: describedInputProperty('string', 'Sprint UUID'),
+    }),
+    name: 'complete_sprint',
   },
   {
-    name: 'delete_sprint',
-    description: 'Delete a sprint (issues in the sprint will have their sprint_id cleared)',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string', description: 'Sprint UUID' },
-      },
-    },
     annotations: DESTRUCTIVE,
-    handler(input, ctx) {
+    description: 'Delete a sprint (issues in the sprint will have their sprint_id cleared)',
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteSprint(ctx, id)
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: describedInputProperty('string', 'Sprint UUID'),
+    }),
+    name: 'delete_sprint',
   },
   {
-    name: 'move_issues_to_sprint',
-    description: 'Bulk move issues into a sprint by setting their sprint_id',
-    inputSchema: {
-      type: 'object',
-      required: ['sprintId', 'issueIds'],
-      properties: {
-        sprintId: { type: 'string', description: 'Target sprint UUID' },
-        issueIds: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Issue UUIDs to move (max 500)',
-        },
-      },
-    },
     annotations: PLAIN_WRITE,
-    handler(input, ctx) {
+    description: 'Bulk move issues into a sprint by setting their sprint_id',
+    async handler(input, ctx) {
       return moveIssuesToSprint(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['sprintId', 'issueIds'],
+      fieldsInOrder([
+        ['sprintId', describedInputProperty('string', 'Target sprint UUID')],
+        [
+          'issueIds',
+          fieldsInOrder([
+            ['type', 'array'],
+            ['items', { type: 'string' }],
+            ['description', 'Issue UUIDs to move (max 500)'],
+          ]),
+        ],
+      ]),
+    ),
+    name: 'move_issues_to_sprint',
   },
 ]

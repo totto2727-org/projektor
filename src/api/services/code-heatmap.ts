@@ -1,8 +1,12 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '#contracts/api-results.ts'
+import type { CoreRpcShape } from '#core/contract.ts'
 
-export function getCodeHeatmap(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetCodeHeatmap']>) {
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
+
+export const getCodeHeatmap = async function getCodeHeatmap(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiGetCodeHeatmap']>
+): Promise<typeof ApiResults.apiGetCodeHeatmap.Type> {
   return apiReply(ApiResults.apiGetCodeHeatmap, ctx.core.apiGetCodeHeatmap(ctx.actor, ctx.workspaceId, ...args))
 }

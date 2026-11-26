@@ -1,18 +1,21 @@
+import { flattenError } from 'zod'
+
+import { ComposePlaybookSchema } from '#contracts/inputs/playbooks.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { drizzle, schema } from '#db'
 
-import { ComposePlaybookSchema } from '../../contracts/inputs/playbooks'
-import { NotFoundError, ValidationError } from './errors'
-import { fetchAgentWipCap } from './issue-leases'
-import { getIssue } from './issues'
-import { EPIC_GOAL_TEMPLATE, PLAYBOOKS } from './playbook-content'
-import type { ServiceCtx } from './types'
+import { NotFoundError, ValidationError } from './errors.ts'
+import { fetchAgentWipCap } from './issue-leases.ts'
+import { getIssue } from './issues.ts'
+import { EPIC_GOAL_TEMPLATE, PLAYBOOKS } from './playbook-content.ts'
+import type { ServiceCtx } from './types.ts'
 
 const DEFAULT_VARIANT = 'bounded'
 const DEFAULT_REVIEW_MODEL = 'opus'
 const DEFAULT_CADENCE = 2
 const DEFAULT_CHECKPOINT_INTERVAL = 10
 
-function fillEpicGoalDirective(params: {
+const fillEpicGoalDirective = function fillEpicGoalDirective(params: {
   variant: 'bounded' | 'full'
   reviewModel: string
   cadence: number
@@ -22,11 +25,13 @@ function fillEpicGoalDirective(params: {
   openChildCount: number
   wipLimit: number
 }): string {
-  // Plain split/join instead of String.replace: replace's *replacement* string
-  // treats "$&", "$`", "$'", "$$" as special patterns, so a caller-controlled
-  // epic title or review model containing e.g. "$'" would silently corrupt the
-  // directive.
-  const fill = (template: string, placeholder: string, value: string) => template.split(placeholder).join(value)
+  /*
+   * Plain split/join instead of String.replace: replace's *replacement* string
+   * treats "$&", "$`", "$'", "$$" as special patterns, so a caller-controlled
+   * epic title or review model containing e.g. "$'" would silently corrupt the
+   * directive.
+   */
+  const fill = (template: string, placeholder: string, value: string): string => template.split(placeholder).join(value)
 
   const epicLabel = `${params.epicRef} ("${params.epicTitle}")`
   const clauses = [
@@ -47,21 +52,28 @@ function fillEpicGoalDirective(params: {
       : `**Live data:** the epic has no open child tickets yet — file some before looping; ` +
         `project agent WIP limit is ${params.wipLimit}.`
 
-  return [...clauses, liveData].map((c) => `> ${c}`).join('\n>\n')
+  return [...clauses, liveData].map((clause) => `> ${clause}`).join('\n>\n')
 }
 
-export async function composePlaybook(ctx: ServiceCtx, raw: unknown) {
+export const composePlaybook = async function composePlaybook(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ name: string; variant: 'full' | 'bounded'; directive: string }> {
   const result = ComposePlaybookSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(flattenError(result.error))
+  }
   const { name, params } = result.data
 
-  // epic-goal is the only composable playbook today; a future second playbook
-  // needs its own composer branch here rather than a generic dispatch table —
-  // not worth building ahead of a second real case.
-  const playbook = PLAYBOOKS.find((p) => p.name === name && name === 'epic-goal')
+  /* Epic-goal is the only composable playbook today; a future second playbook
+   * needs its own composer branch here rather than a generic dispatch table —
+   * not worth building ahead of a second real case. */
+  const playbook = PLAYBOOKS.find((selectedPlaybook) => selectedPlaybook.name === name && name === 'epic-goal')
   if (!playbook) {
     throw new NotFoundError(`Unknown or non-composable playbook "${name}"`, {
-      validNames: PLAYBOOKS.filter((p) => p.name === 'epic-goal').map((p) => p.name),
+      validNames: PLAYBOOKS.filter((selectedPlaybook) => selectedPlaybook.name === 'epic-goal').map(
+        (selectedPlaybook) => selectedPlaybook.name,
+      ),
     })
   }
 
@@ -92,9 +104,9 @@ export async function composePlaybook(ctx: ServiceCtx, raw: unknown) {
     wipLimit,
   })
 
-  return {
-    name: playbook.name,
-    variant,
-    directive,
-  }
+  return fieldsInOrder([
+    ['name', playbook.name],
+    ['variant', variant],
+    ['directive', directive],
+  ])
 }

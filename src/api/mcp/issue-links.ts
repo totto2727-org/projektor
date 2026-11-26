@@ -1,68 +1,55 @@
-import { ValidationError } from '../../contracts/errors'
-import { createLink, deleteLink, listLinksForIssue } from '../services/issue-links'
-import { CREATE, DESTRUCTIVE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { String, Predicate } from 'effect'
+
+import { createLink, deleteLink, listLinksForIssue } from '#api/services/issue-links.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
+import { CREATE, DESTRUCTIVE, READ } from './annotations.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import type { MCPTool } from './types.ts'
 
 export const issueLinksTools: MCPTool[] = [
   {
-    name: 'create_issue_link',
-    description: 'Create a typed link between two issues (blocks, blocked_by, relates_to, duplicates)',
-    inputSchema: {
-      type: 'object',
-      required: ['sourceIssueId', 'targetIssueId', 'type'],
-      properties: {
-        sourceIssueId: {
-          type: 'string',
-          description: 'UUID of the source issue, or a ref like PROJ-42',
-        },
-        targetIssueId: {
-          type: 'string',
-          description: 'UUID of the target issue, or a ref like PROJ-42',
-        },
-        type: {
-          type: 'string',
-          enum: ['blocks', 'blocked_by', 'relates_to', 'duplicates'],
-          description: "Relationship type from the source issue's perspective",
-        },
-      },
-    },
     annotations: CREATE,
-    handler(input, ctx) {
+    description: 'Create a typed link between two issues (blocks, blocked_by, relates_to, duplicates)',
+    async handler(input, ctx) {
       return createLink(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(['sourceIssueId', 'targetIssueId', 'type'], {
+      sourceIssueId: describedInputProperty('string', 'UUID of the source issue, or a ref like PROJ-42'),
+      targetIssueId: describedInputProperty('string', 'UUID of the target issue, or a ref like PROJ-42'),
+      type: fieldsInOrder([
+        ['type', 'string'],
+        ['enum', ['blocks', 'blocked_by', 'relates_to', 'duplicates']],
+        ['description', "Relationship type from the source issue's perspective"],
+      ]),
+    }),
+    name: 'create_issue_link',
   },
   {
-    name: 'delete_issue_link',
-    description: 'Delete an issue link by ID',
-    inputSchema: {
-      type: 'object',
-      required: ['id'],
-      properties: {
-        id: { type: 'string', description: 'UUID of the link to delete' },
-      },
-    },
     annotations: DESTRUCTIVE,
-    handler(input, ctx) {
+    description: 'Delete an issue link by ID',
+    async handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || typeof id !== 'string') {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteLink(ctx, { id })
     },
+    inputSchema: requiredObjectInputSchema(['id'], {
+      id: describedInputProperty('string', 'UUID of the link to delete'),
+    }),
+    name: 'delete_issue_link',
   },
   {
-    name: 'list_issue_links',
-    description: "List all links for an issue (shows effective type from this issue's perspective)",
-    inputSchema: {
-      type: 'object',
-      required: ['issueId'],
-      properties: {
-        issueId: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
-      },
-    },
     annotations: READ,
-    handler(input, ctx) {
+    description: "List all links for an issue (shows effective type from this issue's perspective)",
+    async handler(input, ctx) {
       return listLinksForIssue(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(['issueId'], {
+      issueId: describedInputProperty('string', 'UUID of the issue, or a ref like PROJ-42'),
+    }),
+    name: 'list_issue_links',
   },
 ]

@@ -1,45 +1,57 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { Effect } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { Function, String, Predicate, Effect } from 'effect'
+import { afterEach, assert, describe, expect, test, vi } from 'vite-plus/test'
 
-import { uploadInlineImage } from '../../attachment-actions'
-import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions'
-import { navigateFeature } from './navigation'
-import { WikiPageClient, type WikiSeed } from './WikiPageClient'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+// @vitest-environment jsdom
+import { JSON_NULL } from '#tests/json-null.ts'
+import type * as AttachmentActions from '@/attachment-actions.ts'
+import { uploadInlineImage } from '@/attachment-actions.ts'
+
+import type * as Actions from './actions.ts'
+import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions.ts'
+import { navigateFeature } from './navigation.ts'
+import { WikiPageClient } from './wiki-page-client.tsx'
+import type { WikiSeed } from './wiki-page-client.tsx'
 
 vi.mock('../../attachment-actions', () => ({
-  uploadAttachment: vi.fn(),
-  uploadInlineImage: vi.fn(),
+  uploadAttachment: vi.fn<typeof AttachmentActions.uploadAttachment>(),
+  uploadInlineImage: vi.fn<typeof AttachmentActions.uploadInlineImage>(),
 }))
 
-vi.mock('./navigation', () => ({ navigateFeature: vi.fn() }))
+vi.mock(import('./navigation.ts'), () => ({ navigateFeature: vi.fn<typeof navigateFeature>() }))
 
 vi.mock('./actions', () => ({
-  createWikiPage: vi.fn(),
-  deleteWikiAttachment: vi.fn(),
-  discardWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } }),
-  duplicateWikiPage: vi.fn(),
-  getWikiDraftState: vi.fn().mockResolvedValue({ ok: true, value: { draft: null, revision: null } }),
-  getWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: null }),
-  getWikiPage: vi.fn(),
-  getWikiRevisionDiff: vi.fn(),
-  moveWikiPage: vi.fn(),
-  restoreTrashedWikiPage: vi.fn(),
-  restoreWikiRevision: vi.fn(),
+  createWikiPage: vi.fn<typeof Actions.createWikiPage>(),
+  deleteWikiAttachment: vi.fn<typeof Actions.deleteWikiAttachment>(),
+  discardWikiDraft: vi
+    .fn<typeof Actions.discardWikiDraft>()
+    .mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } }),
+  duplicateWikiPage: vi.fn<typeof Actions.duplicateWikiPage>(),
+  getWikiDraftState: vi
+    .fn<typeof Actions.getWikiDraftState>()
+    .mockResolvedValue({ ok: true, value: { draft: null, revision: null } }),
+  getWikiDraft: vi.fn<typeof Actions.getWikiDraft>().mockResolvedValue({ ok: true, value: null }),
+  getWikiPage: vi.fn<typeof Actions.getWikiPage>(),
+  getWikiRevisionDiff: vi.fn<typeof Actions.getWikiRevisionDiff>(),
+  moveWikiPage: vi.fn<typeof Actions.moveWikiPage>(),
+  restoreTrashedWikiPage: vi.fn<typeof Actions.restoreTrashedWikiPage>(),
+  restoreWikiRevision: vi.fn<typeof Actions.restoreWikiRevision>(),
   saveWikiDraft: vi
-    .fn()
-    .mockResolvedValue({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'saved' } }),
-  saveWikiPage: vi.fn().mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } }),
-  trashWikiPage: vi.fn(),
-  verifyWikiPage: vi.fn(),
+    .fn<typeof Actions.saveWikiDraft>()
+    .mockResolvedValue({ ok: true, value: { ok: true, pageId: 'page', revision: 'saved', updatedAt: 1 } }),
+  saveWikiPage: vi
+    .fn<typeof Actions.saveWikiPage>()
+    .mockResolvedValue({ ok: true, value: { draftRevision: 'published', ok: true } }),
+  trashWikiPage: vi.fn<typeof Actions.trashWikiPage>(),
+  verifyWikiPage: vi.fn<typeof Actions.verifyWikiPage>(),
 }))
 vi.mock('@effront/core/query', () => ({
   query: (operation: (input: unknown) => Promise<unknown>) => (input: unknown) =>
     Effect.promise(() => operation(input)),
 }))
-vi.mock('./LazyMarkdownEditor', () => ({
-  default: ({
+vi.mock(import('./lazy-markdown-editor.tsx'), () => ({
+  LazyMarkdownEditor: ({
     value,
     onChange,
     onImageFile,
@@ -49,12 +61,20 @@ vi.mock('./LazyMarkdownEditor', () => ({
     onImageFile?: (file: File) => Promise<string | null>
   }) => (
     <>
-      <textarea aria-label='Markdown' value={value} onChange={(event) => onChange(event.target.value)} />
+      <textarea
+        aria-label='Markdown'
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value)
+        }}
+      />
       <button
         type='button'
         onClick={async () => {
           const url = await onImageFile?.(new File(['image'], 'inline.png', { type: 'image/png' }))
-          if (url) onChange(`${value}\n![inline](${url})`)
+          if (Predicate.isNotNullish(url) && String.isNonEmpty(url)) {
+            onChange(`${value}\n![inline](${url})`)
+          }
         }}
       >
         Paste inline image
@@ -62,47 +82,47 @@ vi.mock('./LazyMarkdownEditor', () => ({
     </>
   ),
 }))
-function seed(): WikiSeed & { page: NonNullable<WikiSeed['page']> } {
+const seed = function seed(): WikiSeed & { page: NonNullable<WikiSeed['page']> } {
   return {
-    workspaceSlug: 'team',
-    projectId: '',
-    slug: 'guide',
-    mode: 'edit',
+    attachments: [],
     brandName: 'Acme',
-    publicViewer: false,
     createTitle: '',
-    filterType: '',
+    draft: JSON_NULL,
+    draftStatus: 'ready',
     filterStatus: '',
     filterTags: '',
-    searchQuery: '',
-    draft: null,
-    draftStatus: 'ready',
-    tree: [],
-    revisions: [],
-    attachments: [],
-    templates: [],
-    projects: [],
-    stalePages: [],
+    filterType: '',
     filteredPages: [],
-    searchResults: [],
+    mode: 'edit',
     page: {
-      id: 'page',
-      slug: 'guide',
-      title: 'Guide',
       content: 'Published',
-      project_id: null,
-      parent_id: null,
-      revisionId: 'rev',
-      updated_at: 1,
-      type: null,
-      status: null,
-      tags: [],
+      freshness: JSON_NULL,
+      id: 'page',
       owners: [],
-      verified_at: null,
-      verified_by: null,
-      verify_interval: null,
-      freshness: null,
+      parent_id: JSON_NULL,
+      project_id: JSON_NULL,
+      revisionId: 'rev',
+      slug: 'guide',
+      status: JSON_NULL,
+      tags: [],
+      title: 'Guide',
+      type: JSON_NULL,
+      updated_at: 1,
+      verified_at: JSON_NULL,
+      verified_by: JSON_NULL,
+      verify_interval: JSON_NULL,
     },
+    projectId: '',
+    projects: [],
+    publicViewer: false,
+    revisions: [],
+    searchQuery: '',
+    searchResults: [],
+    slug: 'guide',
+    stalePages: [],
+    templates: [],
+    tree: [],
+    workspaceSlug: 'team',
   }
 }
 afterEach(() => {
@@ -110,23 +130,24 @@ afterEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
   vi.unstubAllGlobals()
-  vi.mocked(saveWikiPage).mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } })
+  vi.mocked(saveWikiPage).mockResolvedValue({ ok: true, value: { draftRevision: 'published', ok: true } })
   vi.mocked(saveWikiDraft).mockResolvedValue({
     ok: true,
-    value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'saved' },
+    value: { ok: true, pageId: 'page', revision: 'saved', updatedAt: 1 },
   })
   vi.mocked(discardWikiDraft).mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } })
 })
-describe('Wiki delayed draft lifecycle', () => {
-  async function debounce() {
+describe('wiki delayed draft lifecycle', () => {
+  const debounce = async function debounce(): Promise<void> {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1100)
     })
   }
-  function timers() {
+  const timers = function timers(): void {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
   }
-  it('does not resurrect submitted A when unmounted during publication without newer typing', async () => {
+
+  test('does not resurrect submitted A when unmounted during publication without newer typing', async () => {
     const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
     vi.mocked(saveWikiPage).mockReturnValueOnce(publication.promise)
     const view = render(<WikiPageClient initial={seed()} />)
@@ -136,16 +157,17 @@ describe('Wiki delayed draft lifecycle', () => {
     })
     view.unmount()
     await act(async () => {
-      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+      publication.resolve({ ok: true, value: { draftRevision: 'published-head', ok: true } })
     })
     expect(saveWikiDraft).not.toHaveBeenCalled()
   })
-  it('does not resurrect the discarded snapshot when unmounted during deletion', async () => {
+
+  test('does not resurrect the discarded snapshot when unmounted during deletion', async () => {
     const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
     const view = render(
       <WikiPageClient
-        initial={{ ...seed(), draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+        initial={{ ...seed(), draft: { baseRevisionId: 'rev', content: 'Recover me', title: 'Saved', updatedAt: 2 } }}
       />,
     )
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Discarded A' } })
@@ -158,7 +180,8 @@ describe('Wiki delayed draft lifecycle', () => {
     })
     expect(saveWikiDraft).not.toHaveBeenCalled()
   })
-  it('serializes autosaves and coalesces B/C behind delayed A using acknowledged revisions', async () => {
+
+  test('serializes autosaves and coalesces B/C behind delayed A using acknowledged revisions', async () => {
     timers()
     const pending = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiDraft>>>()
     vi.mocked(saveWikiDraft).mockReturnValueOnce(pending.promise)
@@ -169,31 +192,33 @@ describe('Wiki delayed draft lifecycle', () => {
     await debounce()
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'C' } })
     await debounce()
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     await act(async () => {
-      pending.resolve({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'A-revision' } })
+      pending.resolve({ ok: true, value: { ok: true, pageId: 'page', revision: 'A-revision', updatedAt: 1 } })
     })
     expect(saveWikiDraft).toHaveBeenCalledTimes(2)
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
       expect.objectContaining({ content: 'C', expectedDraftRevision: 'A-revision' }),
     )
   })
-  it('keeps failed autosaves unacknowledged without blindly retrying on leave', async () => {
+
+  test('keeps failed autosaves unacknowledged without blindly retrying on leave', async () => {
     timers()
-    vi.mocked(saveWikiDraft).mockResolvedValueOnce({ ok: false, status: 503, message: 'Unavailable' })
+    vi.mocked(saveWikiDraft).mockResolvedValueOnce({ message: 'Unavailable', ok: false, status: 503 })
     const view = render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep A' } })
     await debounce()
-    expect(screen.getByText(/Autosave did not complete/)).toBeTruthy()
+    expect(screen.getByText(/Autosave did not complete/u)).toBeInstanceOf(Element)
     await act(async () => {
       view.unmount()
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
-      expect.objectContaining({ content: 'Keep A', expectedDraftRevision: null }),
+      expect.objectContaining({ content: 'Keep A', expectedDraftRevision: JSON_NULL }),
     )
   })
-  it('waits for autosave before publication and keeps newer typing after delayed publication', async () => {
+
+  test('waits for autosave before publication and keeps newer typing after delayed publication', async () => {
     timers()
     const draft = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiDraft>>>()
     const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
@@ -204,7 +229,7 @@ describe('Wiki delayed draft lifecycle', () => {
       ok: true,
       value: {
         ...initial.page,
-        project_id: initial.page.project_id ?? null,
+        project_id: initial.page.project_id ?? JSON_NULL,
         content: 'A',
         revisionId: 'published-page',
       },
@@ -218,27 +243,28 @@ describe('Wiki delayed draft lifecycle', () => {
     })
     expect(saveWikiPage).not.toHaveBeenCalled()
     await act(async () => {
-      draft.resolve({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'A-head' } })
+      draft.resolve({ ok: true, value: { ok: true, pageId: 'page', revision: 'A-head', updatedAt: 1 } })
     })
     expect(saveWikiPage).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'A', expectedDraftRevision: 'A-head' }),
     )
-    expect(saveWikiPage).toHaveBeenCalledTimes(1)
+    expect(saveWikiPage).toHaveBeenCalledOnce()
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Newer B' } })
     await act(async () => {
-      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+      publication.resolve({ ok: true, value: { draftRevision: 'published-head', ok: true } })
     })
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Newer B')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Newer B')
     await debounce()
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        baseRevisionId: 'published-page',
         content: 'Newer B',
         expectedDraftRevision: 'published-head',
-        baseRevisionId: 'published-page',
       }),
     )
   })
-  it('flushes newer typing on unmount after pending publication without resurrecting the submitted snapshot', async () => {
+
+  test('flushes newer typing on unmount after pending publication without resurrecting the submitted snapshot', async () => {
     const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
     vi.mocked(saveWikiPage).mockReturnValueOnce(publication.promise)
     const view = render(<WikiPageClient initial={seed()} />)
@@ -250,20 +276,21 @@ describe('Wiki delayed draft lifecycle', () => {
     view.unmount()
     expect(saveWikiDraft).not.toHaveBeenCalled()
     await act(async () => {
-      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+      publication.resolve({ ok: true, value: { draftRevision: 'published-head', ok: true } })
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'Leaving B', expectedDraftRevision: 'published-head' }),
     )
   })
-  it('keeps text and the restore choice when a delayed discard fails', async () => {
+
+  test('keeps text and the restore choice when a delayed discard fails', async () => {
     const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
     const initial = seed()
     render(
       <WikiPageClient
-        initial={{ ...initial, draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+        initial={{ ...initial, draft: { baseRevisionId: 'rev', content: 'Recover me', title: 'Saved', updatedAt: 2 } }}
       />,
     )
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Local A' } })
@@ -272,19 +299,20 @@ describe('Wiki delayed draft lifecycle', () => {
     })
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Local B' } })
     await act(async () => {
-      deletion.resolve({ ok: false, status: 503, message: 'Unavailable' })
+      deletion.resolve({ message: 'Unavailable', ok: false, status: 503 })
     })
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Local B')
-    expect(screen.getByRole('button', { name: 'Restore' })).toBeTruthy()
-    expect(screen.getByText(/Save failed/)).toBeTruthy()
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Local B')
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeInstanceOf(Element)
+    expect(screen.getByText(/Save failed/u)).toBeInstanceOf(Element)
   })
-  it('preserves newer local typing when discard succeeds, then autosaves it under the new head', async () => {
+
+  test('preserves newer local typing when discard succeeds, then autosaves it under the new head', async () => {
     timers()
     const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
     render(
       <WikiPageClient
-        initial={{ ...seed(), draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+        initial={{ ...seed(), draft: { baseRevisionId: 'rev', content: 'Recover me', title: 'Saved', updatedAt: 2 } }}
       />,
     )
     await act(async () => {
@@ -295,7 +323,7 @@ describe('Wiki delayed draft lifecycle', () => {
     await act(async () => {
       deletion.resolve({ ok: true, value: { ok: true, revision: 'discard-head' } })
     })
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Newer B')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Newer B')
     expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull()
     await debounce()
     expect(saveWikiDraft).toHaveBeenCalledWith(
@@ -303,24 +331,26 @@ describe('Wiki delayed draft lifecycle', () => {
     )
   })
 })
-describe('Wiki server prop adoption', () => {
-  it('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
+describe('wiki server prop adoption', () => {
+  test('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
     const { container } = render(<WikiPageClient initial={seed()} />)
     const stylesheet = container.querySelector('style')?.sheet
-    const mobileRules = Array.from(stylesheet?.cssRules ?? []).find(
+    const mobileRules = [...(stylesheet?.cssRules ?? [])].find(
       (rule) =>
         rule instanceof CSSMediaRule &&
         rule.conditionText === '(max-width: 640px)' &&
-        Array.from(rule.cssRules).some((child) => (child as CSSStyleRule).selectorText === '.wiki-sidebar'),
+        [...rule.cssRules].some((child) => (child as CSSStyleRule).selectorText === '.wiki-sidebar'),
     ) as CSSMediaRule | undefined
-    const sidebar = Array.from(mobileRules?.cssRules ?? []).find(
+    const sidebar = [...(mobileRules?.cssRules ?? [])].find(
       (rule) => (rule as CSSStyleRule).selectorText === '.wiki-sidebar',
     ) as CSSStyleRule | undefined
-    const backdrop = Array.from(mobileRules?.cssRules ?? []).find(
+    const backdrop = [...(mobileRules?.cssRules ?? [])].find(
       (rule) => (rule as CSSStyleRule).selectorText === '.wiki-drawer-overlay',
     ) as CSSStyleRule | undefined
-    // jsdom exposes the authored CSS geometry, not a visual layout. Worker/browser
-    // acceptance checks the actual header pixels and stacking in the mobile viewport.
+    /*
+     * Jsdom exposes the authored CSS geometry, not a visual layout. Worker/browser
+     * acceptance checks the actual header pixels and stacking in the mobile viewport.
+     */
     expect(sidebar?.style.getPropertyValue('top')).toBe('var(--topbar-height, 0px)')
     expect(backdrop?.style.getPropertyValue('inset')).toBe('var(--topbar-height, 0px) 0 0')
     expect(backdrop?.style.getPropertyValue('z-index')).toBe('30')
@@ -328,17 +358,19 @@ describe('Wiki server prop adoption', () => {
     // Both stay below the shell header's z40, including the drawer's shadow.
   })
 
-  it('preserves mobile page-tree focus restoration and Escape/backdrop dismissal', () => {
+  test('preserves mobile page-tree focus restoration and Escape/backdrop dismissal', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('max-width'),
       media: query,
-      addEventListener() {},
-      removeEventListener() {},
+      addEventListener: Function.constVoid,
+      removeEventListener: Function.constVoid,
     }))
     const { container } = render(<WikiPageClient initial={seed()} />)
     const trigger = screen.getByRole('button', { name: 'Pages' })
-    const sidebar = container.querySelector<HTMLElement>('#wiki-page-tree')!
-    const backdrop = container.querySelector<HTMLElement>('.wiki-drawer-overlay')!
+    const sidebar = container.querySelector<HTMLElement>('#wiki-page-tree')
+    const backdrop = container.querySelector<HTMLElement>('.wiki-drawer-overlay')
+    assert.isNotNull(sidebar)
+    assert.isNotNull(backdrop)
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(trigger)
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
@@ -354,20 +386,20 @@ describe('Wiki server prop adoption', () => {
     expect(document.activeElement).toBe(trigger)
   })
 
-  it('submits search and filters through native GET and renders refreshed server result arrays directly', async () => {
+  test('submits search and filters through native GET and renders refreshed server result arrays directly', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     })
     const result = {
+      excerpt: JSON_NULL,
+      freshness: JSON_NULL,
       id: 'result',
+      project_id: JSON_NULL,
       slug: 'result',
-      title: 'Server search result',
-      project_id: null,
-      excerpt: null,
-      type: null,
-      status: null,
+      status: JSON_NULL,
       tags: [],
-      freshness: null,
+      title: 'Server search result',
+      type: JSON_NULL,
     }
     const initial = {
       ...seed(),
@@ -384,14 +416,16 @@ describe('Wiki server prop adoption', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
     const form = view.container.querySelector<HTMLFormElement>('form[method="get"]')
-    if (!form) throw new Error('Missing native Wiki search form')
+    if (!form) {
+      throw new Error('Missing native Wiki search form')
+    }
     expect(form.getAttribute('action')).toBe('/wiki/guide')
     const data = new FormData(form)
     expect(data.get('q')).toBe('new')
     expect(data.get('tags')).toBe('docs')
     expect(data.get('workspace')).toBe('team')
     expect(data.get('scope')).toBe('workspace')
-    expect(screen.getByText('Server search result')).toBeTruthy()
+    expect(screen.getByText('Server search result')).toBeInstanceOf(Element)
     expect(getWikiPage).not.toHaveBeenCalled()
     expect(navigateFeature).not.toHaveBeenCalled()
     view.rerender(
@@ -404,45 +438,53 @@ describe('Wiki server prop adoption', () => {
         }}
       />,
     )
-    expect(screen.getByText('Refreshed server result')).toBeTruthy()
+    expect(screen.getByText('Refreshed server result')).toBeInstanceOf(Element)
     expect(screen.queryByText('Server search result')).toBeNull()
   })
-  it('uses one named ServerFn attachment file field and the shared backend File schema', async () => {
+
+  test('uses one named ServerFn attachment file field and the shared backend File schema', async () => {
+    expect.hasAssertions()
     const { container } = render(<WikiPageClient initial={{ ...seed(), mode: 'read' }} />)
-    fireEvent.click(screen.getByRole('button', { name: /Attach file/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Attach file/u }))
     const form = container.querySelector<HTMLInputElement>('input[type="hidden"][name="entityId"][value="page"]')?.form
     expect(form?.querySelector<HTMLInputElement>('input[name="workspaceSlug"]')?.value).toBe('team')
     expect(form?.querySelector<HTMLInputElement>('input[name="entityType"]')?.value).toBe('wiki_page')
     expect(form?.getAttribute('action')).not.toContain('/attachments/upload')
-    expect(screen.getByText(/10 MiB including form data/)).toBeTruthy()
+    expect(screen.getByText(/10 MiB including form data/u)).toBeInstanceOf(Element)
     expect(form?.querySelectorAll('input[type="file"][name="file"]')).toHaveLength(1)
     const input = form?.querySelector<HTMLInputElement>('input[type="file"]')
-    expect(input).toBeTruthy()
+    expect(input).toBeInstanceOf(HTMLInputElement)
     const file = new File(['x'], 'large.png', { type: 'image/png' })
     Object.defineProperty(file, 'size', { value: 50 * 1024 * 1024 + 1 })
-    if (!input) throw new Error('Missing native attachment file input')
+    if (!input) {
+      throw new Error('Missing native attachment file input')
+    }
     fireEvent.change(input, {
       target: { files: [new File(['valid'], 'valid.png', { type: 'image/png' })] },
     })
     expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(false)
     fireEvent.change(input, { target: { files: [file] } })
     expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(true)
-    expect(screen.getByRole('alert').textContent).toBeTruthy()
-    if (!form) throw new Error('Missing native attachment form')
+    expect(isNonEmptyText(screen.getByRole('alert').textContent)).toBe(true)
+    if (!form) {
+      throw new Error('Missing native attachment form')
+    }
     await act(async () => {
       expect(fireEvent.submit(form)).toBe(false)
     })
   })
-  it('inserts inline image metadata through the named ServerFn without replacing the unsaved draft', async () => {
+
+  test('inserts inline image metadata through the named ServerFn without replacing the unsaved draft', async () => {
+    expect.hasAssertions()
     vi.mocked(uploadInlineImage).mockResolvedValue({
       ok: true,
-      value: { id: 'inline-file', filename: 'inline.png', contentType: 'image/png', size: 5 },
+      value: { contentType: 'image/png', filename: 'inline.png', id: 'inline-file', size: 5 },
     })
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Unsaved draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Paste inline image' }))
     await waitFor(() => {
-      expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe(
+      expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe(
         'Unsaved draft\n![inline](/api/files/inline-file?workspace=team)',
       )
     })
@@ -454,61 +496,66 @@ describe('Wiki server prop adoption', () => {
     })
     expect(saveWikiPage).not.toHaveBeenCalled()
   })
-  it('preserves the unsaved draft when an inline ServerFn upload is rejected by request limits', async () => {
+
+  test('preserves the unsaved draft when an inline ServerFn upload is rejected by request limits', async () => {
     vi.mocked(uploadInlineImage).mockResolvedValue({
+      message: "Request body exceeds Effront's limit.",
       ok: false,
       status: 413,
-      message: "Request body exceeds Effront's limit.",
     })
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep my draft' } })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Paste inline image' }))
     })
-    expect(uploadInlineImage).toHaveBeenCalledTimes(1)
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
+    expect(uploadInlineImage).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Keep my draft')
     expect(saveWikiPage).not.toHaveBeenCalled()
   })
-  it('validates the TanStack draft before invoking a save and preserves the unsaved body', async () => {
+
+  test('validates the TanStack draft before invoking a save and preserves the unsaved body', async () => {
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Page title'), { target: { value: '' } })
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep my draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(
-      await screen.findByText('Use a title between 1 and 300 characters and content at most 500000 characters.'),
-    ).toBeTruthy()
+    await expect(
+      screen.findByText('Use a title between 1 and 300 characters and content at most 500000 characters.'),
+    ).resolves.toBeInstanceOf(Element)
     expect(saveWikiPage).not.toHaveBeenCalled()
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Keep my draft')
   })
-  it('retains editor content and exposes original overwrite controls on a revision conflict', async () => {
-    vi.mocked(saveWikiPage).mockResolvedValue({ ok: false, status: 409, message: 'Conflict' })
+
+  test('retains editor content and exposes original overwrite controls on a revision conflict', async () => {
+    vi.mocked(saveWikiPage).mockResolvedValue({ message: 'Conflict', ok: false, status: 409 })
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), {
       target: { value: 'My conflicted body' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByRole('button', { name: 'Overwrite with mine' })).toBeTruthy()
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('My conflicted body')
+    await expect(screen.findByRole('button', { name: 'Overwrite with mine' })).resolves.toBeInstanceOf(Element)
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('My conflicted body')
   })
-  it('protects unsaved native navigation while allowing same-URL framework refresh', () => {
+
+  test('protects unsaved native navigation while allowing same-URL framework refresh', () => {
     const navigation = new EventTarget()
     vi.stubGlobal('navigation', navigation)
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const confirm = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Page title'), { target: { value: 'Unsaved' } })
     const refreshed = Object.assign(new Event('navigate', { cancelable: true }), {
-      destination: { url: window.location.href },
+      destination: { url: globalThis.location.href },
     })
     navigation.dispatchEvent(refreshed)
     expect(confirm).not.toHaveBeenCalled()
     const leaving = Object.assign(new Event('navigate', { cancelable: true }), {
-      destination: { url: new URL('/wiki/other', window.location.href).href },
+      destination: { url: new URL('/wiki/other', globalThis.location.href).href },
     })
     navigation.dispatchEvent(leaving)
-    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(confirm).toHaveBeenCalledOnce()
     expect(leaving.defaultPrevented).toBe(true)
   })
-  it('does not perform initial client data loads and preserves edited title across same-URL refreshed props', async () => {
+
+  test('does not perform initial client data loads and preserves edited title across same-URL refreshed props', async () => {
     const initial = seed()
     const view = render(<WikiPageClient initial={initial} />)
     expect(saveWikiPage).not.toHaveBeenCalled()
@@ -523,10 +570,11 @@ describe('Wiki server prop adoption', () => {
         }}
       />,
     )
-    expect((screen.getByLabelText('Page title') as HTMLInputElement).value).toBe('Unsaved title')
+    expect(screen.getByLabelText<HTMLInputElement>('Page title').value).toBe('Unsaved title')
     view.unmount()
   })
-  it('autosaves once and does not loop when mutation refresh adopts an equivalent page object', async () => {
+
+  test('autosaves once and does not loop when mutation refresh adopts an equivalent page object', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     })
@@ -536,20 +584,20 @@ describe('Wiki server prop adoption', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1100)
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenCalledWith({
-      workspaceSlug: 'team',
+      baseRevisionId: 'rev',
+      content: 'Unsaved body',
+      expectedDraftRevision: JSON_NULL,
       slug: 'guide',
       title: 'Guide',
-      content: 'Unsaved body',
-      baseRevisionId: 'rev',
-      expectedDraftRevision: null,
+      workspaceSlug: 'team',
     })
     view.rerender(<WikiPageClient initial={{ ...initial, page: { ...initial.page } }} />)
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000)
     })
-    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
-    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Unsaved body')
+    expect(saveWikiDraft).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Markdown').value).toBe('Unsaved body')
   })
 })

@@ -1,4 +1,16 @@
-import type { ReviewTarget } from '../../../../contracts/review-targets'
+import { String, Array, Predicate } from 'effect'
+
+import type { ReviewTarget } from '#contracts/review-targets.ts'
+
+const MIN_MULTIWORD_NAME_PARTS = 2
+const LAST_PART_OFFSET = 1
+const INITIALS_START = 0
+const INITIALS_LENGTH = 2
+const BACKLOG_SORT_ORDER = 4
+const UNKNOWN_SORT_ORDER = 99
+const SORT_EQUAL = 0
+
+export const ISSUE_BOARD_WIDE_MIN_WIDTH = 640
 
 export interface TaskStatus {
   id: string
@@ -44,25 +56,25 @@ export interface Issue {
   updated_at: number
   created_at: number
   customFields?: CustomFieldValue[]
-  reviewTargets: readonly ReviewTarget[]
+  reviewTargets: Readonly<ReviewTarget[]>
 }
 
 export type SortKey = 'number' | 'priority' | 'updated' | 'status' | 'assignee' | 'created_at' | 'title'
 
 const PRIORITY_ORDER: Record<string, number> = {
-  urgent: 0,
   high: 1,
-  medium: 2,
   low: 3,
+  medium: 2,
   none: 4,
+  urgent: 0,
 }
 
 const STATUS_CATEGORY_ORDER: Record<string, number> = {
-  todo: 0,
+  cancelled: 5,
+  done: 3,
   in_progress: 1,
   in_review: 2,
-  done: 3,
-  cancelled: 5,
+  todo: 0,
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -80,79 +92,133 @@ export const BOARD_COLUMNS: { category: string; label: string }[] = [
   { category: 'done', label: 'Done' },
 ]
 
-export function categoryColor(category: string | null): string {
-  return category ? (CATEGORY_COLORS[category] ?? 'var(--text-muted)') : 'var(--text-muted)'
+export const categoryColor = function categoryColor(category: string | null): string {
+  return Predicate.isNotNullish(category) && String.isNonEmpty(category)
+    ? (CATEGORY_COLORS[category] ?? 'var(--text-muted)')
+    : 'var(--text-muted)'
 }
 
-export function assigneeInitials(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
+export const assigneeInitials = function assigneeInitials(name: string): string {
+  const parts = name.trim().split(/\s+/u)
+  if (parts.length >= MIN_MULTIWORD_NAME_PARTS) {
+    return (parts[0][0] + parts[parts.length - LAST_PART_OFFSET][0]).toUpperCase()
+  }
+  return name.slice(INITIALS_START, INITIALS_LENGTH).toUpperCase()
 }
 
 /**
- * Returns the best drop-target status ID for a given board column category.
+ * Returns the preferred drop-target status for a board column.
  * For 'todo': prefers the first non-backlog status; falls back to any todo status.
  * For other categories: returns the first status in that category.
+ *
+ * @param {Readonly<TaskStatus[]>} statuses The workspace's statuses in display order.
+ * @param {string} category The workflow category of the column.
+ * @returns {TaskStatus | undefined} The selected drop-target status, or undefined when none matches.
  */
-export function getFirstStatusForCategory(statuses: readonly TaskStatus[], category: string): TaskStatus | undefined {
+export const getFirstStatusForCategory = function getFirstStatusForCategory(
+  statuses: Readonly<TaskStatus[]>,
+  category: string,
+): TaskStatus | undefined {
   if (category === 'todo') {
     return (
-      statuses.find((s) => s.category === 'todo' && s.key !== 'backlog') ?? statuses.find((s) => s.category === 'todo')
+      statuses.find((selectedStatus) => selectedStatus.category === 'todo' && selectedStatus.key !== 'backlog') ??
+      statuses.find((selectedStatus) => selectedStatus.category === 'todo')
     )
   }
-  return statuses.find((s) => s.category === category)
+  return statuses.find((selectedStatus) => selectedStatus.category === category)
 }
 
 /**
  * Returns issues to display in a board column.
  * Todo column excludes backlog issues (those belong to the Backlog view).
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @param {string} category The workflow category of the column.
+ * @returns {Issue[]} The visible records for that board column.
  */
-export function getBoardColumnIssues(issues: readonly Issue[], category: string): Issue[] {
-  return issues.filter((i) => i.status_category === category && (category !== 'todo' || i.status_key !== 'backlog'))
+export const getBoardColumnIssues = function getBoardColumnIssues(
+  issues: Readonly<Issue[]>,
+  category: string,
+): Issue[] {
+  return issues.filter(
+    (issue) => issue.status_category === category && (category !== 'todo' || issue.status_key !== 'backlog'),
+  )
 }
 
-/** Returns issues for the Backlog view: todo category with backlog key. */
-export function getBacklogIssues(issues: readonly Issue[]): Issue[] {
-  return issues.filter((i) => i.status_category === 'todo' && i.status_key === 'backlog')
+/**
+ * Returns issues for the Backlog view: todo category with backlog key.
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @returns {Issue[]} The issues with the backlog status in the todo category.
+ */
+export const getBacklogIssues = function getBacklogIssues(issues: Readonly<Issue[]>): Issue[] {
+  return issues.filter((issue) => issue.status_category === 'todo' && issue.status_key === 'backlog')
 }
 
-/** Applies multi-predicate filtering to an issue list (all predicates are AND-ed). */
-export function filterIssues(
-  issues: readonly Issue[],
-  filterStatuses: readonly string[],
-  filterPriorities: readonly string[],
+/**
+ * Applies multi-predicate filtering to an issue list (all predicates are AND-ed).
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @param {Readonly<string[]>} filterStatuses The selected status IDs.
+ * @param {Readonly<string[]>} filterPriorities The selected priorities.
+ * @param {string} filterProject The project key, or an empty string for any project.
+ * @param {string} filterType The task type key, or an empty string for any type.
+ * @returns {Issue[]} The issues that match every active filter.
+ */
+export const filterIssues = function filterIssues(
+  issues: Readonly<Issue[]>,
+  filterStatuses: Readonly<string[]>,
+  filterPriorities: Readonly<string[]>,
   filterProject: string,
   filterType: string,
 ): Issue[] {
   return issues
-    .filter((i) => filterStatuses.length === 0 || (i.status_id !== null && filterStatuses.includes(i.status_id)))
-    .filter((i) => filterPriorities.length === 0 || filterPriorities.includes(i.priority))
-    .filter((i) => !filterProject || i.project_key === filterProject)
-    .filter((i) => !filterType || i.type_key === filterType)
+    .filter(
+      (issue) =>
+        Array.isReadonlyArrayEmpty(filterStatuses) ||
+        (Predicate.isNotNullish(issue.status_id) && filterStatuses.includes(issue.status_id)),
+    )
+    .filter((issue) => Array.isReadonlyArrayEmpty(filterPriorities) || filterPriorities.includes(issue.priority))
+    .filter((issue) => !filterProject || issue.project_key === filterProject)
+    .filter((issue) => !filterType || issue.type_key === filterType)
 }
 
-function statusSortOrder(issue: Issue): number {
-  // backlog issues: status_category=todo, status_key=backlog → order slot 4
-  if (issue.status_key === 'backlog') return 4
-  return STATUS_CATEGORY_ORDER[issue.status_category ?? ''] ?? 99
+const statusSortOrder = function statusSortOrder(issue: Issue): number {
+  // Backlog issues: status_category=todo, status_key=backlog → order slot 4
+  if (issue.status_key === 'backlog') {
+    return BACKLOG_SORT_ORDER
+  }
+  return STATUS_CATEGORY_ORDER[issue.status_category ?? ''] ?? UNKNOWN_SORT_ORDER
 }
 
-const SORT_COMPARATORS: Record<SortKey, (a: Issue, b: Issue) => number> = {
-  number: (a, b) => a.number - b.number,
-  priority: (a, b) => (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99),
-  updated: (a, b) => a.updated_at - b.updated_at,
-  created_at: (a, b) => a.created_at - b.created_at,
-  title: (a, b) => a.title.localeCompare(b.title),
-  assignee: (a, b) => (a.assignee_name ?? '').localeCompare(b.assignee_name ?? ''),
-  status: (a, b) => statusSortOrder(a) - statusSortOrder(b),
+const SORT_COMPARATORS: Record<SortKey, (issue: Issue, selectedIssue: Issue) => number> = {
+  assignee: (issue, selectedIssue) => (issue.assignee_name ?? '').localeCompare(selectedIssue.assignee_name ?? ''),
+  created_at: (issue, selectedIssue) => issue.created_at - selectedIssue.created_at,
+  number: (issue, selectedIssue) => issue.number - selectedIssue.number,
+  priority: (issue, selectedIssue) =>
+    (PRIORITY_ORDER[issue.priority] ?? UNKNOWN_SORT_ORDER) -
+    (PRIORITY_ORDER[selectedIssue.priority] ?? UNKNOWN_SORT_ORDER),
+  status: (issue, selectedIssue) => statusSortOrder(issue) - statusSortOrder(selectedIssue),
+  title: (issue, selectedIssue) => issue.title.localeCompare(selectedIssue.title),
+  updated: (issue, selectedIssue) => issue.updated_at - selectedIssue.updated_at,
 }
 
-/** Sorts a copy of an issue list by the given SortKey. */
-export function sortIssues(issues: readonly Issue[], sortBy: SortKey, sortDir: 'asc' | 'desc'): Issue[] {
+/**
+ * Sorts a copy of an issue list by the given SortKey.
+ *
+ * @param {Readonly<Issue[]>} issues The issue records to display.
+ * @param {SortKey} sortBy The column to sort by.
+ * @param {'asc' | 'desc'} sortDir The sort direction.
+ * @returns {Issue[]} A sorted copy of the issue list.
+ */
+export const sortIssues = function sortIssues(
+  issues: Readonly<Issue[]>,
+  sortBy: SortKey,
+  sortDir: 'asc' | 'desc',
+): Issue[] {
   const compare = SORT_COMPARATORS[sortBy]
-  return [...issues].sort((a, b) => {
-    const diff = compare ? compare(a, b) : 0
+  return [...issues].toSorted((left, right) => {
+    const diff = compare ? compare(left, right) : SORT_EQUAL
     return sortDir === 'asc' ? diff : -diff
   })
 }

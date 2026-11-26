@@ -1,36 +1,47 @@
 import { and, eq, inArray } from 'drizzle-orm'
-import { Effect } from 'effect'
-import type { z } from 'zod'
+import { Predicate, Effect } from 'effect'
+import { z } from 'zod'
 
+import { CreateIssueLinkSchema, DeleteIssueLinkSchema, ListIssueLinksSchema } from '#contracts/inputs/issues.ts'
+import type { LinkTypeStoredEnum } from '#contracts/inputs/issues.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
-import { listLinksForIssue as queryLinks } from '#services/issue-links'
+import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
+import type { IssueLinkRow } from '#services/issue-links.ts'
 
-import {
-  CreateIssueLinkSchema,
-  DeleteIssueLinkSchema,
-  type LinkTypeStoredEnum,
-  ListIssueLinksSchema,
-} from '../../contracts/inputs/issues'
-import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { resolveIssueIdParam } from './issues'
-import type { ServiceCtx } from './types'
+import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { resolveIssueIdParam } from './issues.ts'
+import type { ServiceCtx } from './types.ts'
 
-// PROJ-311: linking touches two issues; a non-admin must be able to write to the
-// project each issue belongs to (a missing grant reads as "issue not found").
-async function requireIssueProjectWrite(ctx: ServiceCtx, projectId: string, notFoundLabel: string): Promise<void> {
-  if (isWorkspaceAdmin(ctx.role)) return
+/*
+ * PROJ-311: linking touches two issues; a non-admin must be able to write to the
+ * project each issue belongs to (a missing grant reads as "issue not found").
+ */
+const requireIssueProjectWrite = async function requireIssueProjectWrite(
+  ctx: ServiceCtx,
+  projectId: string,
+  notFoundLabel: string,
+): Promise<void> {
+  if (isWorkspaceAdmin(ctx.role)) {
+    return
+  }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) throw new NotFoundError(notFoundLabel)
-  if (!canWriteProject(role)) throw new ForbiddenError('Insufficient permissions')
+  if (Predicate.isNullish(role)) {
+    throw new NotFoundError(notFoundLabel)
+  }
+  if (!canWriteProject(role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 }
 
 type StoredLinkType = z.infer<typeof LinkTypeStoredEnum>
 // Normalise the (source, target, type) triple to its canonical stored form.
 // 'blocked_by' (A blocked_by B) becomes 'blocks' (B blocks A).
 // 'relates_to' and 'duplicates' are symmetric: canonicalise by lexicographic order.
-function canonicalize(
+const canonicalize = function canonicalize(
   source: string,
   target: string,
   inputType: string,
@@ -40,22 +51,26 @@ function canonicalize(
   }
   const type = inputType as StoredLinkType
   if (type === 'relates_to' || type === 'duplicates') {
-    const [a, b] = source < target ? [source, target] : [target, source]
-    return { source: a, target: b, type }
+    const [firstId, secondId] = source < target ? [source, target] : [target, source]
+    return { source: firstId, target: secondId, type }
   }
   return { source, target, type }
 }
 
-export async function createLink(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+export async function createLink(ctx: ServiceCtx, raw: unknown): Promise<{ id: ReturnType<typeof crypto.randomUUID> }> {
+  if (ctx.role === 'viewer') {
+    throw new ForbiddenError('Insufficient permissions')
+  }
   const result = CreateIssueLinkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const { type } = result.data
   const sourceIssueId = await resolveIssueIdParam(ctx, result.data.sourceIssueId, 'Source issue not found')
   const targetIssueId = await resolveIssueIdParam(ctx, result.data.targetIssueId, 'Target issue not found')
 
   if (sourceIssueId === targetIssueId) {
-    throw new ValidationError({ formErrors: ['An issue cannot link to itself'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['An issue cannot link to itself'], {}))
   }
 
   const canon = canonicalize(sourceIssueId, targetIssueId, type)
@@ -74,8 +89,12 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
       .where(and(eq(schema.issues.id, canon.target), eq(schema.issues.workspaceId, ctx.workspaceId)))
       .get(),
   ])
-  if (!src) throw new NotFoundError('Source issue not found')
-  if (!tgt) throw new NotFoundError('Target issue not found')
+  if (!src) {
+    throw new NotFoundError('Source issue not found')
+  }
+  if (!tgt) {
+    throw new NotFoundError('Target issue not found')
+  }
   await requireIssueProjectWrite(ctx, src.projectId, 'Source issue not found')
   await requireIssueProjectWrite(ctx, tgt.projectId, 'Target issue not found')
 
@@ -92,20 +111,24 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
       ),
     )
     .get()
-  if (existing) throw new ConflictError('This link already exists')
+  if (existing) {
+    throw new ConflictError('This link already exists')
+  }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
-  await orm.insert(schema.issueLinks).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    sourceIssueId: canon.source,
-    targetIssueId: canon.target,
-    type: canon.type,
-    createdById: ctx.userId,
-    createdAt: now,
-  })
+  await orm.insert(schema.issueLinks).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['sourceIssueId', canon.source],
+      ['targetIssueId', canon.target],
+      ['type', canon.type],
+      ['createdById', ctx.userId],
+      ['createdAt', now],
+    ]),
+  )
 
   await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${canon.source}`)
   await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${canon.target}`)
@@ -113,10 +136,14 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
   return { id }
 }
 
-export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+export async function deleteLink(ctx: ServiceCtx, raw: unknown): Promise<{ ok: boolean }> {
+  if (ctx.role === 'viewer') {
+    throw new ForbiddenError('Insufficient permissions')
+  }
   const result = DeleteIssueLinkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const { id } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -129,7 +156,9 @@ export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
     .from(schema.issueLinks)
     .where(and(eq(schema.issueLinks.id, id), eq(schema.issueLinks.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Link not found')
+  if (!existing) {
+    throw new NotFoundError('Link not found')
+  }
 
   if (!isWorkspaceAdmin(ctx.role)) {
     const endpoints = await orm
@@ -156,9 +185,11 @@ export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
   return { ok: true }
 }
 
-export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown) {
+export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown): Promise<IssueLinkRow[]> {
   const result = ListIssueLinksSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const issueId = await resolveIssueIdParam(ctx, result.data.issueId)
 
   const orm = drizzle(ctx.db, { schema })
@@ -170,7 +201,7 @@ export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown) {
       .from(schema.issues)
       .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
       .get()
-    if (!issue || (await effectiveProjectRole(ctx, issue.projectId)) === null) {
+    if (!issue || Predicate.isNullish(await effectiveProjectRole(ctx, issue.projectId))) {
       throw new NotFoundError('Issue not found')
     }
   }

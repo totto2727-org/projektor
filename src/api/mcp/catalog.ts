@@ -1,26 +1,30 @@
-import { agentMessagesTools } from './agent-messages'
-import { agentsTools } from './agents'
-import { codeHeatmapTools } from './code-heatmap'
-import { commentsTools } from './comments'
-import { customFieldsTools } from './custom-fields'
-import { feedbackTools } from './feedback'
-import { fileClaimsTools } from './file-claims'
-import { filesTools } from './files'
-import { flowMetricsTools } from './flow-metrics'
-import { groupsTools } from './groups'
-import { issueLeasesTools } from './issue-leases'
-import { issueLinksTools } from './issue-links'
-import { issuesTools } from './issues'
-import { playbooksTools } from './playbooks'
-import { projectActivityTools } from './project-activity'
-import { projectsTools } from './projects'
-import { sprintsTools } from './sprints'
-import { taskStatusesTools } from './task-statuses'
-import { taskTypesTools } from './task-types'
-import type { MCPTool } from './types'
-import { wikiTools } from './wiki'
-import { workflowTools } from './workflow'
-import { workspacesTools } from './workspaces'
+import { Iterable } from 'effect'
+
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
+import { agentMessagesTools } from './agent-messages.ts'
+import { agentsTools } from './agents.ts'
+import { codeHeatmapTools } from './code-heatmap.ts'
+import { commentsTools } from './comments.ts'
+import { customFieldsTools } from './custom-fields.ts'
+import { feedbackTools } from './feedback.ts'
+import { fileClaimsTools } from './file-claims.ts'
+import { filesTools } from './files.ts'
+import { flowMetricsTools } from './flow-metrics.ts'
+import { groupsTools } from './groups.ts'
+import { issueLeasesTools } from './issue-leases.ts'
+import { issueLinksTools } from './issue-links.ts'
+import { issuesTools } from './issues.ts'
+import { playbooksTools } from './playbooks.ts'
+import { projectActivityTools } from './project-activity.ts'
+import { projectsTools } from './projects.ts'
+import { sprintsTools } from './sprints.ts'
+import { taskStatusesTools } from './task-statuses.ts'
+import { taskTypesTools } from './task-types.ts'
+import type { MCPTool } from './types.ts'
+import { wikiTools } from './wiki.ts'
+import { workflowTools } from './workflow.ts'
+import { workspacesTools } from './workspaces.ts'
 
 /**
  * A domain-facing grouping of the MCP tool registry.
@@ -38,75 +42,63 @@ export interface ToolDomain {
   tools: MCPTool[]
 }
 
+type ToolDomainEntry = Readonly<[domain: string, title: string, group: ToolDomain['group'], tools: ToolDomain['tools']]>
+
+const toolDomain = function toolDomain([domain, title, group, tools]: ToolDomainEntry): ToolDomain {
+  return fieldsInOrder([
+    ['domain', domain],
+    ['title', title],
+    ['group', group],
+    ['tools', tools],
+  ])
+}
+
 export const TOOL_DOMAINS: ToolDomain[] = [
-  {
-    domain: 'workspaces',
-    title: 'Workspaces & members',
-    group: 'Project data',
-    tools: workspacesTools,
-  },
-  { domain: 'groups', title: 'Groups & access', group: 'Project data', tools: groupsTools },
-  { domain: 'projects', title: 'Projects', group: 'Project data', tools: projectsTools },
-  {
-    domain: 'project-activity',
-    title: 'Project activity',
-    group: 'Project data',
-    tools: projectActivityTools,
-  },
-  { domain: 'issues', title: 'Issues', group: 'Project data', tools: issuesTools },
-  { domain: 'issue-links', title: 'Issue links', group: 'Project data', tools: issueLinksTools },
-  { domain: 'comments', title: 'Comments', group: 'Project data', tools: commentsTools },
-  { domain: 'wiki', title: 'Wiki', group: 'Project data', tools: wikiTools },
-  { domain: 'files', title: 'Attachments', group: 'Project data', tools: filesTools },
-  { domain: 'task-types', title: 'Task types', group: 'Project data', tools: taskTypesTools },
-  {
-    domain: 'task-statuses',
-    title: 'Task statuses',
-    group: 'Project data',
-    tools: taskStatusesTools,
-  },
-  {
-    domain: 'custom-fields',
-    title: 'Custom fields',
-    group: 'Project data',
-    tools: customFieldsTools,
-  },
-  { domain: 'sprints', title: 'Sprints', group: 'Project data', tools: sprintsTools },
-  { domain: 'feedback', title: 'Feedback', group: 'Project data', tools: feedbackTools },
-  { domain: 'agents', title: 'Agent sessions', group: 'Coordination', tools: agentsTools },
-  { domain: 'file-claims', title: 'File claims', group: 'Coordination', tools: fileClaimsTools },
-  { domain: 'issue-leases', title: 'Issue leases', group: 'Coordination', tools: issueLeasesTools },
-  {
-    domain: 'agent-messages',
-    title: 'Agent messages',
-    group: 'Coordination',
-    tools: agentMessagesTools,
-  },
-  { domain: 'workflow', title: 'Workflow spec', group: 'Coordination', tools: workflowTools },
-  { domain: 'playbooks', title: 'Playbooks', group: 'Coordination', tools: playbooksTools },
-  { domain: 'flow-metrics', title: 'Flow metrics', group: 'Project data', tools: flowMetricsTools },
-  {
-    domain: 'code-heatmap',
-    title: 'Code heatmap',
-    group: 'Project data',
-    tools: codeHeatmapTools,
-  },
+  toolDomain(['workspaces', 'Workspaces & members', 'Project data', workspacesTools]),
+  toolDomain(['groups', 'Groups & access', 'Project data', groupsTools]),
+  toolDomain(['projects', 'Projects', 'Project data', projectsTools]),
+  toolDomain(['project-activity', 'Project activity', 'Project data', projectActivityTools]),
+  toolDomain(['issues', 'Issues', 'Project data', issuesTools]),
+  toolDomain(['issue-links', 'Issue links', 'Project data', issueLinksTools]),
+  toolDomain(['comments', 'Comments', 'Project data', commentsTools]),
+  toolDomain(['wiki', 'Wiki', 'Project data', wikiTools]),
+  toolDomain(['files', 'Attachments', 'Project data', filesTools]),
+  toolDomain(['task-types', 'Task types', 'Project data', taskTypesTools]),
+  toolDomain(['task-statuses', 'Task statuses', 'Project data', taskStatusesTools]),
+  toolDomain(['custom-fields', 'Custom fields', 'Project data', customFieldsTools]),
+  toolDomain(['sprints', 'Sprints', 'Project data', sprintsTools]),
+  toolDomain(['feedback', 'Feedback', 'Project data', feedbackTools]),
+  toolDomain(['agents', 'Agent sessions', 'Coordination', agentsTools]),
+  toolDomain(['file-claims', 'File claims', 'Coordination', fileClaimsTools]),
+  toolDomain(['issue-leases', 'Issue leases', 'Coordination', issueLeasesTools]),
+  toolDomain(['agent-messages', 'Agent messages', 'Coordination', agentMessagesTools]),
+  toolDomain(['workflow', 'Workflow spec', 'Coordination', workflowTools]),
+  toolDomain(['playbooks', 'Playbooks', 'Coordination', playbooksTools]),
+  toolDomain(['flow-metrics', 'Flow metrics', 'Project data', flowMetricsTools]),
+  toolDomain(['code-heatmap', 'Code heatmap', 'Project data', codeHeatmapTools]),
 ]
 
 /** Total number of MCP tools across all domains. */
-export const TOOL_COUNT = TOOL_DOMAINS.reduce((n, d) => n + d.tools.length, 0)
+export const TOOL_COUNT = TOOL_DOMAINS.reduce((total, domain) => total + domain.tools.length, 0)
 
 /** Valid `?domains=` slugs, in catalog order — the fail-closed validation list. */
-export const TOOL_DOMAIN_SLUGS: string[] = TOOL_DOMAINS.map((d) => d.domain)
+export const TOOL_DOMAIN_SLUGS: string[] = TOOL_DOMAINS.map((domain) => domain.domain)
 
-/** Tool names belonging to the given domain slugs. Unknown slugs are silently ignored — callers validate against `TOOL_DOMAIN_SLUGS` first. */
-export function toolNamesForDomains(slugs: Iterable<string>): Set<string> {
+/**
+ * Tool names belonging to the given domain slugs. Unknown slugs are silently ignored — callers validate against `TOOL_DOMAIN_SLUGS` first.
+ *
+ * @param {Iterable<string>} slugs The domain slugs requested by the caller.
+ * @returns {Set<string>} A set of tool names in catalog order.
+ */
+export const toolNamesForDomains = function toolNamesForDomains(slugs: Iterable<string>): Set<string> {
   const wanted = new Set(slugs)
   const names = new Set<string>()
-  for (const d of TOOL_DOMAINS) {
-    if (wanted.has(d.domain)) {
-      for (const t of d.tools) names.add(t.name)
+  Iterable.forEach(TOOL_DOMAINS, (domain): void => {
+    if (wanted.has(domain.domain)) {
+      Iterable.forEach(domain.tools, (tool): void => {
+        names.add(tool.name)
+      })
     }
-  }
+  })
   return names
 }

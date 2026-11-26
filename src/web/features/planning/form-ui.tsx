@@ -1,17 +1,36 @@
-import type { ReactNode } from 'react'
+import { Predicate } from 'effect'
+import type { JSX, ReactNode } from 'react'
 
-function messages(value: unknown): string[] {
-  if (typeof value === 'string') return [value]
-  if (Array.isArray(value)) return value.flatMap(messages)
-  if (value && typeof value === 'object') {
-    if ('message' in value && typeof value.message === 'string') return [value.message]
-    return Object.values(value).flatMap(messages)
+const messages = function messages(value: unknown): string[] {
+  if (Predicate.isString(value)) {
+    return [value]
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => messages(entry))
+  }
+  if (Predicate.isObjectOrArray(value)) {
+    if ('message' in value && Predicate.isString(value.message)) {
+      return [value.message]
+    }
+    return Object.values(value).flatMap((entry) => messages(entry))
   }
   return []
 }
-/** Display Standard Schema issues without inventing a second validation layer. */
-export function FormErrors({ errors, children }: { errors: readonly unknown[]; children?: ReactNode }) {
-  const text = [...new Set(errors.flatMap(messages))]
+/**
+ * Display Standard Schema issues without inventing a second validation layer.
+ *
+ * @param {{ errors: Readonly<unknown[]>; children?: ReactNode }} props The validation issues and optional content to display alongside them.
+ * @returns {null | JSX.Element} An alert with distinct error messages, or null when no messages are present.
+ */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const FormErrors = function FormErrors({
+  errors,
+  children,
+}: {
+  errors: Readonly<unknown[]>
+  children?: ReactNode
+}): null | JSX.Element {
+  const text = [...new Set(errors.flatMap((entry) => messages(entry)))]
   return text.length ? (
     <div role='alert' className='text-danger-text text-[0.8rem] mb-3'>
       {text.map((message) => (

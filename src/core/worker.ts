@@ -2,15 +2,21 @@ import { Request as WorkerRequest } from 'alchemy/Cloudflare/Workers'
 import { Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 
-import { handleApiBinaryRequest } from './api/files'
-import { makeApiCoreHandlers } from './api/operations'
-import type { CoreShape } from './contract'
-import { coreEnvironment, type CoreEnvironmentSource } from './environment'
-import { handleCoreFileRequest } from './files'
-import { handleSharedLogoRequest } from './shared-logo'
-import { makeWebCoreHandlers } from './web/operations'
+import { handleApiBinaryRequest } from './api/files.ts'
+import { makeApiCoreHandlers } from './api/operations.ts'
+import type { CoreShape } from './contract.ts'
+import { coreEnvironment } from './environment.ts'
+import type { CoreEnvironmentSource } from './environment.ts'
+import { handleCoreFileRequest } from './files.ts'
+import { handleSharedLogoRequest } from './shared-logo.ts'
+import { makeWebCoreHandlers } from './web/operations.ts'
 
-/** Stable named handlers, with environment Effects resolved inside each invocation. */
+/**
+ * Build Core handlers that resolve the environment for each invocation.
+ *
+ * @param {CoreEnvironmentSource} environment Effect that provides the Core bindings.
+ * @returns {Effect.Effect<CoreShape>} An effect that creates the named handlers and the binary fetch handler.
+ */
 export const makeCoreHandlersWithEnvironment = (environment: CoreEnvironmentSource) =>
   Effect.sync(
     () =>

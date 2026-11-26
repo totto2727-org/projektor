@@ -1,42 +1,59 @@
-import { assertProjectAccess, usersWithProjectReadAccess } from './access'
-import { NotFoundError } from './errors'
-import type { ServiceCtx } from './types'
-import { getWorkspaceBrandForShare, getWorkspaceBrandLogoR2Key, type WorkspaceBrandDto } from './workspaces'
+import { String, Predicate } from 'effect'
 
-async function hashToken(token: string): Promise<string> {
+import { encodeHexBytes } from '#contracts/hex.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
+
+import { assertProjectAccess, usersWithProjectReadAccess } from './access.ts'
+import { NotFoundError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
+import { getWorkspaceBrandForShare, getWorkspaceBrandLogoR2Key } from './workspaces.ts'
+import type { WorkspaceBrandDto } from './workspaces.ts'
+
+const hashToken = async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
+  return encodeHexBytes(new Uint8Array(buf))
 }
 
 /**
  * PROJ-792: creating or revoking a public link needs *edit* access to the
  * issue's project (group grant, or workspace owner/admin) — not merely a
  * non-viewer workspace role. No access → 404 (hides existence); read-only → 403.
+ *
+ * @param {ServiceCtx} ctx Authenticated service scope for the workspace.
+ * @param {string} issueId Issue selected for sharing.
  */
-async function assertIssueShareable(ctx: ServiceCtx, issueId: string): Promise<void> {
+const assertIssueShareable = async function assertIssueShareable(ctx: ServiceCtx, issueId: string): Promise<void> {
   const issue = await ctx.db
     .prepare('SELECT project_id FROM issues WHERE id = ? AND workspace_id = ?')
     .bind(issueId, ctx.workspaceId)
     .first<{ project_id: string }>()
-  if (!issue) throw new NotFoundError('Issue not found')
+  if (!issue) {
+    throw new NotFoundError('Issue not found')
+  }
   await assertProjectAccess(ctx, issue.project_id, 'edit', {
     notFoundMessage: 'Issue not found',
     projectLoadedFromWorkspaceRow: true,
   })
 }
 
-export async function createShareToken(ctx: ServiceCtx, issueId: string): Promise<{ token: string; url: string }> {
+const SHARE_LINK_LIFETIME_DAYS = 3
+const SHARE_TOKEN_BYTES = 16
+
+export const createShareToken = async function createShareToken(
+  ctx: ServiceCtx,
+  issueId: string,
+): Promise<{ token: string; url: string }> {
   await assertIssueShareable(ctx, issueId)
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  const token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  const expiresAt = now + 3 * 86400
+  const bytes = crypto.getRandomValues(new Uint8Array(SHARE_TOKEN_BYTES))
+  const token = encodeHexBytes(bytes)
+  const expiresAt = now + SHARE_LINK_LIFETIME_DAYS * SECONDS_PER_DAY
 
-  // share_tokens.id stores sha256(token), never the raw token — see PROJ-239
+  // Table share_tokens.id stores sha256(token), never the raw token — see PROJ-239
   const id = await hashToken(token)
   await ctx.db
     .prepare(
@@ -57,12 +74,16 @@ export async function createShareToken(ctx: ServiceCtx, issueId: string): Promis
  *   and the issue's project isn't archived (issues have no archive state of their own);
  * - the token's creator can still read the issue's project — still a workspace member,
  *   and a workspace owner/admin or a member whose group holds a grant on it.
+ *
+ * @param {D1Database} db Database used for the token, issue and access lookups.
+ * @param {string} tokenHash Stored hash of the share token.
+ * @returns {Promise<{ issueId: string, workspaceId: string } | null>} The issue and workspace IDs for a valid link, or null when access fails.
  */
-async function resolveLiveShareToken(
+const resolveLiveShareToken = async function resolveLiveShareToken(
   db: D1Database,
   tokenHash: string,
 ): Promise<{ issueId: string; workspaceId: string } | null> {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const row = await db
     .prepare(
       `SELECT st.issue_id, st.workspace_id, st.created_by, i.project_id
@@ -74,12 +95,16 @@ async function resolveLiveShareToken(
     )
     .bind(tokenHash, now)
     .first<{ issue_id: string; workspace_id: string; created_by: string; project_id: string }>()
-  if (!row) return null
+  if (!row) {
+    return null
+  }
 
   const allowed = await usersWithProjectReadAccess({ db, workspaceId: row.workspace_id }, row.project_id, [
     row.created_by,
   ])
-  if (!allowed.has(row.created_by)) return null
+  if (!allowed.has(row.created_by)) {
+    return null
+  }
   return { issueId: row.issue_id, workspaceId: row.workspace_id }
 }
 
@@ -98,18 +123,20 @@ interface SharedIssueRow {
   workspace_slug: string
 }
 
-export async function getSharedIssue(
+export const getSharedIssue = async function getSharedIssue(
   db: D1Database,
   token: string,
 ): Promise<
   Omit<SharedIssueRow, 'workspace_id' | 'workspace_slug'> & {
-    customFields: Array<{ key: string; label: string; type: string; value: string }>
+    customFields: { key: string; label: string; type: string; value: string }[]
     brand: WorkspaceBrandDto
   }
 > {
   const id = await hashToken(token)
   const live = await resolveLiveShareToken(db, id)
-  if (!live) throw new NotFoundError('Share link not found or expired')
+  if (!live) {
+    throw new NotFoundError('Share link not found or expired')
+  }
 
   const row = await db
     .prepare(
@@ -132,7 +159,9 @@ export async function getSharedIssue(
     .bind(id)
     .first<SharedIssueRow>()
 
-  if (!row) throw new NotFoundError('Share link not found or expired')
+  if (!row) {
+    throw new NotFoundError('Share link not found or expired')
+  }
 
   const cfRows = await db
     .prepare(
@@ -145,23 +174,37 @@ export async function getSharedIssue(
     .all<{ key: string; label: string; type: string; value: string }>()
 
   const brandDto = await getWorkspaceBrandForShare(db, row.workspace_id, row.workspace_slug)
-  const brand = brandDto.logoUrl ? { ...brandDto, logoUrl: `/api/share/${token}/logo` } : brandDto
+  const brand = isNonEmptyText(brandDto.logoUrl) ? { ...brandDto, logoUrl: `/api/share/${token}/logo` } : brandDto
   const { workspace_id: _workspaceId, workspace_slug: _workspaceSlug, ...rest } = row
 
-  return { ...rest, customFields: cfRows.results ?? [], brand }
+  return {
+    ...rest,
+    ...fieldsInOrder([
+      ['customFields', cfRows.results ?? []],
+      ['brand', brand],
+    ]),
+  }
 }
 
-export async function getSharedLogo(db: D1Database, r2: R2Bucket, token: string): Promise<R2ObjectBody | null> {
+export const getSharedLogo = async function getSharedLogo(
+  db: D1Database,
+  r2: R2Bucket,
+  token: string,
+): Promise<R2ObjectBody | null> {
   const live = await resolveLiveShareToken(db, await hashToken(token))
-  if (!live) return null
+  if (!live) {
+    return null
+  }
 
   const r2Key = await getWorkspaceBrandLogoR2Key(db, live.workspaceId)
-  if (!r2Key) return null
+  if (Predicate.isNullish(r2Key) || String.isEmpty(r2Key)) {
+    return null
+  }
 
   return r2.get(r2Key)
 }
 
-export async function revokeShareToken(ctx: ServiceCtx, issueId: string): Promise<void> {
+export const revokeShareToken = async function revokeShareToken(ctx: ServiceCtx, issueId: string): Promise<void> {
   await assertIssueShareable(ctx, issueId)
 
   await ctx.db

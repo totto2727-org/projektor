@@ -1,12 +1,15 @@
-import { Effect, Schema } from 'effect'
+import { String, Predicate, Iterable, Effect, Schema } from 'effect'
+import type { Types } from 'effect'
 
-import * as commands from '#commands/feedback'
-import * as sources from '#commands/feedback-sources'
-import type { ServiceCtx } from '#commands/types'
-import * as queries from '#services/feedback'
-
-import { ScopeError } from '../../contracts/errors'
-import { requireDataProject, requireDataWorkspace } from '../../contracts/web-data'
+import * as sources from '#commands/feedback-sources.ts'
+import * as commands from '#commands/feedback.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { ScopeError } from '#contracts/errors.ts'
+import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { requireDataProject, requireDataWorkspace } from '#contracts/web-data.ts'
 import {
   FeedbackIndexSchema,
   FeedbackDetailSchema,
@@ -14,86 +17,107 @@ import {
   CreatedSource,
   Converted,
   Ok,
-} from '../../contracts/web-schemas/feedback'
-import { coreFailure, coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, publicWebFailure } from './authentication'
-import { browserCommand } from './command'
-import type { BrowserCommand } from './command-contract'
-import { checked } from './issue-data'
-import { webRead } from './issue-operations'
-import type { WebRequest } from './scope'
+} from '#contracts/web-schemas/feedback.ts'
+import type { Source, Summary } from '#contracts/web-schemas/feedback.ts'
+import type { CoreReply } from '#core/contract.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { SQLITE_TRUE } from '#db/sqlite-boolean.ts'
+import * as queries from '#services/feedback.ts'
 
-function admin(role: string) {
-  if (role !== 'owner' && role !== 'admin') throw new ScopeError(403, 'Insufficient permissions')
-}
-function sourceDto(row: queries.FeedbackSourceListRow) {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    isActive: row.is_active === 1,
-    allowedOrigins: row.allowed_origins ? JSON.parse(row.allowed_origins) : null,
-    tokenPreview: `${row.token_hash.slice(0, 12)}…`,
-    createdAt: row.created_at,
-    revokedAt: row.revoked_at,
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { checked } from './issue-data.ts'
+import { webRead } from './issue-operations.ts'
+import type { WebRequest } from './scope.ts'
+
+const decodeFeedbackStatusQuery = Schema.decodeUnknownEffect(StatusFields)
+
+const admin = function admin(role: string): void {
+  if (role !== 'owner' && role !== 'admin') {
+    throw new ScopeError(HTTP_FORBIDDEN, 'Insufficient permissions')
   }
 }
-function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
-  const map = new Map<
-    string,
-    {
-      sourceId: string
-      sourceName: string | null
-      totalCount: number
-      versions: Array<{
-        appVersion: string | null
-        totalCount: number
-        withCommentCount: number
-        thumbsUpPct: number | null
-        avgFiveStar: number | null
-        lastSeenAt: number
-      }>
-    }
-  >()
-  for (const row of rows) {
-    let source = map.get(row.source_id)
-    if (!source) {
-      source = { sourceId: row.source_id, sourceName: row.source_name, totalCount: 0, versions: [] }
+const TOKEN_PREVIEW_LENGTH = 12
+const NO_RATINGS = 0
+const PERCENT_UNIT = 100
+
+type SourceProjection = Omit<Types.Mutable<typeof Source.Type>, 'allowedOrigins'> & { allowedOrigins: unknown }
+type SummaryProjection = Types.DeepMutable<typeof Summary.Type> & { sourceName: string | null }
+type SummaryQueryError = Effect.Error<ReturnType<typeof queries.readFeedbackSummary>>
+
+const parseAllowedOrigins = function parseAllowedOrigins(origins: string | null): unknown {
+  return isNonEmptyText(origins) ? JSON.parse(origins) : JSON_NULL
+}
+
+const sourceDto = function sourceDto(row: queries.FeedbackSourceListRow): SourceProjection {
+  return fieldsInOrder([
+    ['id', row.id],
+    ['name', row.name],
+    ['description', row.description],
+    ['isActive', row.is_active === SQLITE_TRUE],
+    ['allowedOrigins', parseAllowedOrigins(row.allowed_origins)],
+    ['tokenPreview', `${String.takeLeft(row.token_hash, TOKEN_PREVIEW_LENGTH)}…`],
+    ['createdAt', row.created_at],
+    ['revokedAt', row.revoked_at],
+  ])
+}
+const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]): SummaryProjection[] {
+  const map = new Map<string, SummaryProjection>()
+  Iterable.forEach(rows, (row) => {
+    const existing = map.get(row.source_id)
+    const source = existing ?? { sourceId: row.source_id, sourceName: row.source_name, totalCount: 0, versions: [] }
+    if (!existing) {
       map.set(row.source_id, source)
     }
     source.totalCount += row.total
-    source.versions.push({
-      appVersion: row.app_version,
-      totalCount: row.total,
-      withCommentCount: row.with_comment_count,
-      thumbsUpPct: row.thumbs_total > 0 ? Math.round((row.thumbs_up / row.thumbs_total) * 100) : null,
-      avgFiveStar: row.five_star_total > 0 ? row.five_star_avg : null,
-      lastSeenAt: row.last_seen_at,
-    })
-  }
+    source.versions.push(
+      fieldsInOrder([
+        ['appVersion', row.app_version],
+        ['totalCount', row.total],
+        ['withCommentCount', row.with_comment_count],
+        [
+          'thumbsUpPct',
+          row.thumbs_total > NO_RATINGS ? Math.round((row.thumbs_up / row.thumbs_total) * PERCENT_UNIT) : JSON_NULL,
+        ],
+        ['avgFiveStar', row.five_star_total > NO_RATINGS ? row.five_star_avg : JSON_NULL],
+        ['lastSeenAt', row.last_seen_at],
+      ]),
+    )
+  })
   return [...map.values()]
 }
-function loadSources(env: CoreEnvironment, workspaceId: string, projectId: string) {
+const loadSources = function loadSources(
+  env: CoreEnvironment,
+  workspaceId: string,
+  projectId: string,
+): Effect.Effect<SourceProjection[], unknown> {
   return queries
     .listFeedbackSources(env.DB, workspaceId, { projectId })
-    .pipe(Effect.flatMap((rows) => Effect.try({ try: () => rows.map(sourceDto), catch: publicWebFailure })))
+    .pipe(
+      Effect.flatMap((rows) => Effect.try({ catch: publicWebFailure, try: () => rows.map((row) => sourceDto(row)) })),
+    )
 }
-function loadSummaries(env: CoreEnvironment, workspaceId: string, projectId: string) {
+const loadSummaries = function loadSummaries(
+  env: CoreEnvironment,
+  workspaceId: string,
+  projectId: string,
+): Effect.Effect<SummaryProjection[], SummaryQueryError> {
   return queries.readFeedbackSummary(env.DB, workspaceId, { projectId }).pipe(Effect.map(summaryDtos))
 }
 
 export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function mutation<S extends Schema.Top, A>(
+  const mutation = function mutation<S extends Schema.Top, A>(
     name: string,
     schema: S,
     proof: BrowserCommand,
     operation: (ctx: ServiceCtx) => Promise<A>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) => coreReply(name, schema, browserCommand(env, proof, operation)))
   }
   return {
-    webFeedbackIndex: (request: WebRequest, workspaceId: string, projectId: string) =>
+    webFeedbackIndex: (request: WebRequest, workspaceId: string, projectId: string): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webFeedbackIndex',
@@ -121,22 +145,32 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           ),
         ),
       ),
-    webFeedbackDetail: (request: WebRequest, sourceId: string, status: string, workspaceId?: string) =>
+    webFeedbackDetail: (request: WebRequest, sourceId: string, status: string, workspaceId?: string): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webFeedbackDetail',
           FeedbackDetailSchema,
           Effect.gen(function* () {
-            const scope = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: '' })
-            const filter = yield* Schema.decodeUnknownEffect(StatusFields)({ status }).pipe(
-              Effect.mapError(() => coreFailure(400, 'Invalid feedback status.')),
+            const scope = yield* loadBrowserScope(
+              env,
+              request,
+              fieldsInOrder([
+                ['workspaceHint', ''],
+                ['projectHint', ''],
+              ]),
             )
-            const candidates = workspaceId
-              ? scope.workspaces.filter((workspace) => workspace.id === workspaceId)
-              : scope.workspaces
+            const filter = yield* decodeFeedbackStatusQuery({ status }).pipe(
+              Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid feedback status.')),
+            )
+            const candidates =
+              Predicate.isNotNullish(workspaceId) && String.isNonEmpty(workspaceId)
+                ? scope.workspaces.filter((workspace) => workspace.id === workspaceId)
+                : scope.workspaces
             for (const workspace of candidates) {
               const row = yield* queries.findFeedbackSourceById(env.DB, workspace.id, sourceId)
-              if (!row) continue
+              if (!row) {
+                continue
+              }
               const projectId = row.project_id
               if (
                 !scope.projects.some(
@@ -145,8 +179,9 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                     project.workspace_id === workspace.id &&
                     project.workspace_slug === workspace.slug,
                 )
-              )
+              ) {
                 return null
+              }
               yield* checked(() => {
                 requireDataProject(scope, projectId, workspace.id)
                 admin(workspace.role)
@@ -163,65 +198,71 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                     })
                     .pipe(
                       Effect.map((rows) =>
-                        rows.map((item) => ({
-                          id: item.id,
-                          sourceId: item.source_id,
-                          sourceName: item.source_name,
-                          rating: item.rating,
-                          ratingScale: item.rating_scale,
-                          body: item.body,
-                          submitterLabel: item.submitter_label,
-                          sourceUrl: item.source_url,
-                          appVersion: item.app_version,
-                          status: item.status,
-                          linkedIssueId: item.linked_issue_id,
-                          createdAt: item.created_at,
-                        })),
+                        rows.map((item) =>
+                          fieldsInOrder([
+                            ['id', item.id],
+                            ['sourceId', item.source_id],
+                            ['sourceName', item.source_name],
+                            ['rating', item.rating],
+                            ['ratingScale', item.rating_scale],
+                            ['body', item.body],
+                            ['submitterLabel', item.submitter_label],
+                            ['sourceUrl', item.source_url],
+                            ['appVersion', item.app_version],
+                            ['status', item.status],
+                            ['linkedIssueId', item.linked_issue_id],
+                            ['createdAt', item.created_at],
+                          ]),
+                        ),
                       ),
                     ),
                 },
                 { concurrency: 3 },
               )
               const source = loaded.sources.find((item) => item.id === sourceId)
-              if (!source) return null
-              return {
-                source,
-                sources: loaded.sources,
-                rows: loaded.rows,
-                summary: loaded.summaries.find((item) => item.sourceId === sourceId) ?? null,
-                status: filter.status,
-                projectId,
-                workspaceSlug: workspace.slug,
+              if (!source) {
+                return null
               }
+              return fieldsInOrder([
+                ['source', source],
+                ['sources', loaded.sources],
+                ['rows', loaded.rows],
+                ['summary', loaded.summaries.find((item) => item.sourceId === sourceId) ?? null],
+                ['status', filter.status],
+                ['projectId', projectId],
+                ['workspaceSlug', workspace.slug],
+              ])
             }
             return null
           }).pipe(Effect.mapError(publicWebFailure)),
         ),
       ),
-    webCreateFeedbackSource: (proof: BrowserCommand, input: unknown) =>
-      mutation('webCreateFeedbackSource', CreatedSource, proof, (ctx) => sources.createFeedbackSource(ctx, input)),
-    webUpdateFeedbackSource: (proof: BrowserCommand, input: unknown) =>
-      mutation('webUpdateFeedbackSource', Ok, proof, (ctx) => sources.updateFeedbackSource(ctx, input)),
-    webRotateFeedbackSourceToken: (proof: BrowserCommand, input: unknown) =>
-      mutation('webRotateFeedbackSourceToken', Schema.Struct({ token: Schema.String }), proof, (ctx) =>
+    webCreateFeedbackSource: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webCreateFeedbackSource', CreatedSource, proof, async (ctx) =>
+        sources.createFeedbackSource(ctx, input),
+      ),
+    webUpdateFeedbackSource: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webUpdateFeedbackSource', Ok, proof, async (ctx) => sources.updateFeedbackSource(ctx, input)),
+    webRotateFeedbackSourceToken: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webRotateFeedbackSourceToken', Schema.Struct({ token: Schema.String }), proof, async (ctx) =>
         sources.rotateFeedbackSourceToken(ctx, input),
       ),
-    webRevokeFeedbackSource: (proof: BrowserCommand, input: unknown) =>
-      mutation('webRevokeFeedbackSource', Ok, proof, (ctx) => sources.revokeFeedbackSource(ctx, input)),
-    webUpdateFeedbackStatus: (proof: BrowserCommand, input: unknown) =>
-      mutation('webUpdateFeedbackStatus', Ok, proof, (ctx) => commands.updateFeedbackStatus(ctx, input)),
-    webConvertFeedback: (proof: BrowserCommand, input: unknown) =>
-      mutation('webConvertFeedback', Converted, proof, (ctx) => commands.convertFeedbackToIssue(ctx, input)),
-    webBulkReviewFeedback: (proof: BrowserCommand, input: unknown) =>
-      mutation('webBulkReviewFeedback', Schema.Struct({ updated: Schema.Number }), proof, (ctx) =>
+    webRevokeFeedbackSource: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webRevokeFeedbackSource', Ok, proof, async (ctx) => sources.revokeFeedbackSource(ctx, input)),
+    webUpdateFeedbackStatus: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webUpdateFeedbackStatus', Ok, proof, async (ctx) => commands.updateFeedbackStatus(ctx, input)),
+    webConvertFeedback: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webConvertFeedback', Converted, proof, async (ctx) => commands.convertFeedbackToIssue(ctx, input)),
+    webBulkReviewFeedback: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
+      mutation('webBulkReviewFeedback', Schema.Struct({ updated: Schema.Number }), proof, async (ctx) =>
         commands.bulkMarkReviewed(ctx, input),
       ),
-    webBulkConvertFeedback: (proof: BrowserCommand, input: unknown) =>
+    webBulkConvertFeedback: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation(
         'webBulkConvertFeedback',
         Schema.Struct({ ...Converted.fields, convertedCount: Schema.Number }),
         proof,
-        (ctx) => commands.bulkConvertToIssue(ctx, input),
+        async (ctx) => commands.bulkConvertToIssue(ctx, input),
       ),
   }
 }

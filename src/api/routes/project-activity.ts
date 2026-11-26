@@ -1,28 +1,26 @@
+import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { listProjectActivity } from '#api/services/project-activity.ts'
+import { ctxFromHono } from '#api/services/types.ts'
 import type { HonoEnv } from '#types'
 
-import { serviceErrToResponse } from '../http/error-adapter'
-import { listProjectActivity } from '../services/project-activity'
-import { ctxFromHono } from '../services/types'
+export const projectActivityRouter = new Hono<HonoEnv>()
 
-const router = new Hono<HonoEnv>()
-
-router.get('/:id/activity', async (c) => {
-  const ctx = ctxFromHono(c)
+projectActivityRouter.get('/:id/activity', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    const since = c.req.query('since')
-    const limit = c.req.query('limit')
-    return c.json(
+    const since = httpContext.req.query('since')
+    const limit = httpContext.req.query('limit')
+    return httpContext.json(
       await listProjectActivity(ctx, {
-        projectId: c.req.param('id'),
-        since: since ? Number(since) : undefined,
-        limit: limit ? Number(limit) : undefined,
+        projectId: httpContext.req.param('id'),
+        since: Predicate.isNotNullish(since) && String.isNonEmpty(since) ? Number(since) : undefined,
+        limit: Predicate.isNotNullish(limit) && String.isNonEmpty(limit) ? Number(limit) : undefined,
       }),
     )
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as projectActivityRouter }

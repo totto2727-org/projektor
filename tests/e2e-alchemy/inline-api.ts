@@ -6,10 +6,11 @@ import * as Plugin from '@alchemy.run/cloudflare-runtime/core/Plugin'
 import * as PluginContext from '@alchemy.run/cloudflare-runtime/core/PluginContext'
 import type * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/RuntimeServices'
 import type * as WorkerdConfig from '@alchemy.run/cloudflare-runtime/core/workerd/Config'
-import { Effect, Layer } from 'effect'
+import { Iterable, Predicate, Effect, Layer } from 'effect'
 
-import { deployment } from '../../worker-graph'
-import { apiWorkerOptions, coreServiceBinding, coreWorkerOptions, fixtureServices } from './api-host'
+import { deployment } from '#worker-graph'
+
+import { apiWorkerOptions, coreServiceBinding, coreWorkerOptions, fixtureServices } from './api-host.ts'
 
 const apiStorage = 'projektor-e2e-api-do-storage'
 const loopbackNetwork = 'projektor-e2e-loopback-only'
@@ -17,20 +18,32 @@ const loopbackNetwork = 'projektor-e2e-loopback-only'
 /** Public runtime extension hosts both actual backend artifacts in the frontend workerd. */
 export class InlineApi extends Plugin.Service<
   InlineApi,
-  { readonly bind: PluginContext.BindingHook<RuntimeServices.BindingServices> }
+  Readonly<{ bind: PluginContext.BindingHook<RuntimeServices.BindingServices> }>
 >()('cloudflare-runtime/plugin/ProjektorInlineApi') {}
 
-export const inlineCoreBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
+const { use: bindPlugin } = Plugin
+export const inlineCoreBinding = bindPlugin(InlineApi, (plugin) => plugin.api.bind)
 
-/** Read official build artifacts unchanged. Entry module must be first for workerd. */
-async function readWorkerModules(directory: string, entryName: string): Promise<WorkerdConfig.Worker_Module[]> {
+/**
+ * Read official build artifacts unchanged. Entry module must be first for workerd.
+ *
+ * @param {string} directory - The Worker build directory.
+ * @param {string} entryName - The name of the entry module relative to the build directory.
+ * @returns {Promise<WorkerdConfig.Worker_Module[]>} The workerd modules with the entry module first.
+ */
+const readWorkerModules = async function readWorkerModules(
+  directory: string,
+  entryName: string,
+): Promise<WorkerdConfig.Worker_Module[]> {
   const files = await readdir(directory, { recursive: true, withFileTypes: true })
   const modules: WorkerdConfig.Worker_Module[] = []
   for (const entry of files.filter((file) => file.isFile())) {
     const file = join(entry.parentPath, entry.name)
     const name = relative(directory, file).replaceAll('\\', '/')
     const extension = extname(file)
-    if (extension === '.map') continue
+    if (extension === '.map') {
+      continue
+    }
     if (extension === '.js' || extension === '.mjs') {
       modules.push({ name, esModule: await readFile(file, 'utf8') })
     } else if (extension === '.cjs') {
@@ -46,13 +59,19 @@ async function readWorkerModules(directory: string, entryName: string): Promise<
     }
   }
   const index = modules.findIndex((module) => module.name === entryName)
-  if (index < 0) throw new Error(`Build the official Worker artifact before previewing: ${entryName}`)
+  if (index < 0) {
+    throw new Error(`Build the official Worker artifact before previewing: ${entryName}`)
+  }
   const [entry] = modules.splice(index, 1)
-  if (!entry) throw new Error(`The official Worker entry module is missing: ${entryName}`)
+  if (!entry) {
+    throw new Error(`The official Worker entry module is missing: ${entryName}`)
+  }
   return [entry, ...modules]
 }
 
-export async function makeInlineApiLayer(directory: string) {
+export const makeInlineApiLayer = async function makeInlineApiLayer(
+  directory: string,
+): Promise<Layer.Layer<InlineApi, never>> {
   const [apiModules, coreModules] = await Promise.all([
     readWorkerModules(fileURLToPath(new URL('./dist/ssr/', import.meta.url)), 'api.worker.js'),
     readWorkerModules(fileURLToPath(new URL('./core-dist/ssr/', import.meta.url)), 'core.worker.js'),
@@ -80,16 +99,18 @@ export async function makeInlineApiLayer(directory: string) {
               },
             }),
           )
-          for (const binding of apiBindings) {
-            if (binding.name !== undefined && ['DB', 'KV', 'R2'].includes(binding.name)) {
+          Iterable.forEach(apiBindings, (binding) => {
+            if (Predicate.isNotNullish(binding.name) && ['DB', 'KV', 'R2'].includes(binding.name)) {
               throw new Error(`Public API fixture unexpectedly received storage: ${binding.name}`)
             }
-          }
+          })
           return yield* coreServiceBinding
         }),
       },
       defer: Effect.sync((): Plugin.PluginConfig => {
-        if (!apiBindings || !coreBindings) throw new Error('The native three-Worker graph was not initialized.')
+        if (!apiBindings || !coreBindings) {
+          throw new Error('The native three-Worker graph was not initialized.')
+        }
         return {
           userWorker: { globalOutbound: { name: loopbackNetwork } },
           services: [

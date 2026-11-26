@@ -1,54 +1,47 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Data, Iterable, Predicate, Schema } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import {
-  authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
-  seedComment,
-  seedIssue,
-  seedProject,
-  seedProjectFixture,
-  toolError,
-} from './helpers'
+import { ApiResults } from '#contracts/api-results.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
-type McpContent = { content: Array<{ text: string }> }
+import { env } from './fixture-api.ts'
+import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
+import { fetchNativeApi, fetchNativeMcpTool } from './native-fetch.ts'
+import { JsonListResponse, McpRpcResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
-async function mcpCall<T>(
+const ActivityPage = Schema.Struct({ items: ApiResults.apiListProjectActivity })
+
+class ProjectActivityRpcError extends Data.TaggedError('ProjectActivityRpcError')<Readonly<{ message: string }>> {}
+
+const callProjectActivity = async function callProjectActivity(
   workspaceId: string,
-  toolName: string,
   args: unknown,
   headers: Record<string, string>,
-): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/call',
-      params: { name: toolName, arguments: args },
-    }),
-  })
-  return res.json()
+): Promise<typeof McpRpcResponse.Type> {
+  const response = await fetchNativeMcpTool(workspaceId, { arguments: args, name: 'list_project_activity' }, headers)
+  return readNativeJson(response, McpRpcResponse)
 }
 
-function parseEvents(res: JsonRpcResult<McpContent> | JsonRpcError): unknown[] {
-  if ('error' in res && res.error) {
-    throw new Error(`MCP error: ${res.error.message}`)
+const parseEvents = function parseEvents(res: typeof McpRpcResponse.Type): typeof ActivityPage.Type.items {
+  if (res.error) {
+    throw new ProjectActivityRpcError({ message: `MCP error: ${res.error.message}` })
   }
-  const r = res as JsonRpcResult<McpContent>
-  return (JSON.parse(r.result.content[0].text) as { items: unknown[] }).items
+  const text = res.result?.content?.[0]?.text
+  if (!Predicate.isString(text)) {
+    throw new ProjectActivityRpcError({ message: 'Expected the project activity result to contain a first text item.' })
+  }
+  return parseNativeMcpText(text, ActivityPage).items
 }
 
-async function seedSprint(
+const seedSprint = async function seedSprint(
   workspaceId: string,
   projectId: string,
   opts: Readonly<{ name?: string; status?: string; startDate?: number; endDate?: number }> = {},
-) {
+): Promise<{ id: ReturnType<typeof crypto.randomUUID>; name: string }> {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO sprints (id, workspace_id, project_id, name, status, start_date, end_date, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -59,8 +52,8 @@ async function seedSprint(
       projectId,
       opts.name ?? 'Sprint 1',
       opts.status ?? 'planned',
-      opts.startDate ?? null,
-      opts.endDate ?? null,
+      opts.startDate ?? SQL_NULL,
+      opts.endDate ?? SQL_NULL,
       now,
       now,
     )
@@ -68,15 +61,15 @@ async function seedSprint(
   return { id, name: opts.name ?? 'Sprint 1' }
 }
 
-async function seedWikiPage(
+const seedWikiPage = async function seedWikiPage(
   workspaceId: string,
   projectId: string,
   authorId: string,
   opts: Readonly<{ title?: string; slug?: string; updatedAt?: number; deletedAt?: number }> = {},
-) {
+): Promise<{ id: ReturnType<typeof crypto.randomUUID>; slug: string }> {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
-  const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replace(/\s+/g, '-')
+  const now = currentEpochSeconds()
+  const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replaceAll(/\s+/gu, '-')
   const updatedAt = opts.updatedAt ?? now
   await env.DB.prepare(
     `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id,
@@ -93,186 +86,139 @@ async function seedWikiPage(
       authorId,
       now,
       updatedAt,
-      opts.deletedAt ?? null,
+      opts.deletedAt ?? SQL_NULL,
     )
     .run()
   return { id, slug }
 }
 
 describe('list_project_activity MCP tool', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-  let headers: Record<string, string>
+  type TestData = Readonly<{
+    headers: Record<string, string>
+    projectId: string
+    slug: string
+    token: string
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
-    headers = authHeaders(token, slug)
-  })
+  const seedTestData = async function seedTestData(): Promise<TestData> {
+    const { token, slug, workspaceId, userId, projectId } = await seedProjectFixture()
+    const headers = authHeaders(token, slug)
+    return { headers, projectId, slug, token, userId, workspaceId }
+  }
 
-  it('returns empty array when project has no activity', async () => {
-    const res = await mcpCall<McpContent>(workspaceId, 'list_project_activity', { projectId }, headers)
+  test('returns empty array when project has no activity', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
     const events = parseEvents(res)
     expect(Array.isArray(events)).toBe(true)
     expect(events).toHaveLength(0)
   })
 
-  it('returns issue_created events', async () => {
+  test('returns issue_created events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'My Issue' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-      summary: string
-      entity_type: string
-      entity_ref: string
-      created_at: number
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const created = events.filter((e) => e.type === 'issue_created')
+    const created = events.filter((selectedEvent) => selectedEvent.type === 'issue_created')
     expect(created).toHaveLength(1)
     expect(created[0].summary).toBe('My Issue')
     expect(created[0].entity_type).toBe('issue')
-    expect(created[0].entity_ref).toMatch(/^PROJ-\d+$/)
-    expect(typeof created[0].created_at).toBe('number')
+    expect(created[0].entity_ref).toMatch(/^PROJ-\d+$/u)
+    expect(created[0].created_at).toSatisfy(Predicate.isNumber)
   })
 
-  it('returns issue_commented events', async () => {
+  test('returns issue_commented events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     const issue = await seedIssue(workspaceId, projectId, userId)
     await seedComment(issue.id, userId, 'Hello world')
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-      actor: string | null
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const commented = events.filter((e) => e.type === 'issue_commented')
+    const commented = events.filter((selectedEvent) => selectedEvent.type === 'issue_commented')
     expect(commented).toHaveLength(1)
     expect(commented[0].actor).toBe(userId)
   })
 
-  it('returns wiki_page_created events', async () => {
+  test('returns wiki_page_created events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, { title: 'Design Doc' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-      entity_type: string
-      summary: string
-      entity_ref: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const wikiCreated = events.filter((e) => e.type === 'wiki_page_created')
+    const wikiCreated = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_created')
     expect(wikiCreated).toHaveLength(1)
     expect(wikiCreated[0].summary).toBe('Design Doc')
     expect(wikiCreated[0].entity_type).toBe('wiki_page')
     expect(wikiCreated[0].entity_ref).toBe('design-doc')
   })
 
-  it('returns wiki_page_edited events when updated_at differs from created_at', async () => {
+  test('returns wiki_page_edited events when updated_at differs from created_at', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, {
       title: 'Edited Doc',
-      updatedAt: Math.floor(Date.now() / 1000) + 10,
+      updatedAt: currentEpochSeconds() + 10,
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const edited = events.filter((e) => e.type === 'wiki_page_edited')
+    const edited = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_edited')
     expect(edited).toHaveLength(1)
   })
 
-  it('does not return wiki_page_edited when page was never updated', async () => {
+  test('does not return wiki_page_edited when page was never updated', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, { title: 'Untouched' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const edited = events.filter((e) => e.type === 'wiki_page_edited')
+    const edited = events.filter((selectedEvent) => selectedEvent.type === 'wiki_page_edited')
     expect(edited).toHaveLength(0)
   })
 
-  it('excludes trashed wiki pages from wiki_page_created/wiki_page_edited events', async () => {
+  test('excludes trashed wiki pages from wiki_page_created/wiki_page_edited events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, {
       title: 'Trashed Doc',
-      deletedAt: Math.floor(Date.now() / 1000),
-      updatedAt: Math.floor(Date.now() / 1000) + 10,
+      deletedAt: currentEpochSeconds(),
+      updatedAt: currentEpochSeconds() + 10,
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    expect(events.some((e) => e.type === 'wiki_page_created')).toBe(false)
-    expect(events.some((e) => e.type === 'wiki_page_edited')).toBe(false)
+    expect(events.some((selectedEvent) => selectedEvent.type === 'wiki_page_created')).toBe(false)
+    expect(events.some((selectedEvent) => selectedEvent.type === 'wiki_page_edited')).toBe(false)
   })
 
-  it('returns sprint_started events for active sprints with a start_date', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('returns sprint_started events for active sprints with a start_date', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     await seedSprint(workspaceId, projectId, {
       name: 'Sprint Alpha',
-      status: 'active',
       startDate: now,
+      status: 'active',
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-      summary: string
-      entity_type: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const started = events.filter((e) => e.type === 'sprint_started')
+    const started = events.filter((selectedEvent) => selectedEvent.type === 'sprint_started')
     expect(started).toHaveLength(1)
     expect(started[0].summary).toContain('Sprint Alpha')
     expect(started[0].entity_type).toBe('sprint')
   })
 
-  it('returns sprint_completed events for completed sprints', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('returns sprint_completed events for completed sprints', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     await seedSprint(workspaceId, projectId, {
       name: 'Sprint Beta',
       status: 'completed',
@@ -280,183 +226,157 @@ describe('list_project_activity MCP tool', () => {
       endDate: now,
     })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      type: string
-      summary: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const completed = events.filter((e) => e.type === 'sprint_completed')
+    const completed = events.filter((selectedEvent) => selectedEvent.type === 'sprint_completed')
     expect(completed).toHaveLength(1)
     expect(completed[0].summary).toContain('Sprint Beta')
 
-    const started = events.filter((e) => e.type === 'sprint_started')
+    const started = events.filter((selectedEvent) => selectedEvent.type === 'sprint_started')
     expect(started).toHaveLength(1)
   })
 
-  it('respects the limit parameter', async () => {
-    for (let i = 0; i < 5; i++) {
-      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
-    }
+  test('respects the limit parameter', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
+    await runIndexedInOrder(5, async (index): Promise<void> => {
+      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
+    })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId, limit: 2 },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as unknown[]
+    const res = await callProjectActivity(workspaceId, { projectId, limit: 2 }, headers)
+    const events = parseEvents(res)
     expect(events).toHaveLength(2)
   })
 
-  it('respects the since filter', async () => {
-    const past = Math.floor(Date.now() / 1000) - 3600
+  test('respects the since filter', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
+    const past = currentEpochSeconds() - 3600
     await seedIssue(workspaceId, projectId, userId, { title: 'Old issue', createdAt: past - 1 })
     await seedIssue(workspaceId, projectId, userId, { title: 'New issue' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId, since: past },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      summary: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId, since: past }, headers)
+    const events = parseEvents(res)
 
-    const titles = events.map((e) => e.summary)
+    const titles = events.map((selectedEvent) => selectedEvent.summary)
     expect(titles).toContain('New issue')
     expect(titles).not.toContain('Old issue')
   })
 
-  it('returns events ordered most-recent first', async () => {
-    const base = Math.floor(Date.now() / 1000) - 100
-    await seedIssue(workspaceId, projectId, userId, { title: 'Older', createdAt: base })
+  test('returns events ordered most-recent first', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
+    const base = currentEpochSeconds() - 100
+    await seedIssue(workspaceId, projectId, userId, { createdAt: base, title: 'Older' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Newer', createdAt: base + 50 })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      summary: string
-      created_at: number
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const created = events.filter((e) => e.summary === 'Older' || e.summary === 'Newer')
+    const created = events.filter(
+      (selectedEvent) => selectedEvent.summary === 'Older' || selectedEvent.summary === 'Newer',
+    )
     expect(created[0].summary).toBe('Newer')
     expect(created[1].summary).toBe('Older')
   })
 
-  it('scopes events to the given project and not other projects', async () => {
+  test('scopes events to the given project and not other projects', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     const other = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, other.id, userId, { title: 'Other project issue' })
     await seedIssue(workspaceId, projectId, userId, { title: 'This project issue' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
-      summary: string
-    }>
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    const summaries = events.map((e) => e.summary)
+    const summaries = events.map((selectedEvent) => selectedEvent.summary)
     expect(summaries).toContain('This project issue')
     expect(summaries).not.toContain('Other project issue')
   })
 
-  it('returns error for unknown project', async () => {
-    const res = await mcpCall(workspaceId, 'list_project_activity', { projectId: crypto.randomUUID() }, headers)
+  test('returns error for unknown project', async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const res = await callProjectActivity(workspaceId, { projectId: crypto.randomUUID() }, headers)
     const err = toolError(res)
     expect(err?.code).toBe('not_found')
-    expect(err?.message).toMatch(/not found/i)
+    expect(err?.message).toMatch(/not found/iu)
   })
 
-  it('returns error when projectId is missing', async () => {
-    const res = await mcpCall(workspaceId, 'list_project_activity', {}, headers)
+  test('returns error when projectId is missing', async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const res = await callProjectActivity(workspaceId, {}, headers)
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('response shape is flat (no nested objects)', async () => {
+  test('response shape is flat (no nested objects)', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'Flat check' })
 
-    const res = (await mcpCall<McpContent>(
-      workspaceId,
-      'list_project_activity',
-      { projectId },
-      headers,
-    )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<
-      Record<string, unknown>
-    >
+    const res = await callProjectActivity(workspaceId, { projectId }, headers)
+    const events = parseEvents(res)
 
-    for (const event of events) {
-      for (const val of Object.values(event)) {
-        expect(typeof val === 'object' && val !== null && !Array.isArray(val)).toBe(false)
-      }
-    }
+    Iterable.forEach(events, (event) => {
+      Iterable.forEach(Object.values(event), (val) => {
+        expect(Predicate.isObject(val)).toBe(false)
+      })
+    })
   })
 })
 
-describe('GET /api/projects/:id/activity (PROJ-245)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-  let headers: Record<string, string>
+describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
+  type TestData = Readonly<{
+    headers: Record<string, string>
+    projectId: string
+    slug: string
+    token: string
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
-    headers = authHeaders(token, slug)
-  })
+  const seedTestData = async function seedTestData(): Promise<TestData> {
+    const { token, slug, workspaceId, userId, projectId } = await seedProjectFixture()
+    const headers = authHeaders(token, slug)
+    return { headers, projectId, slug, token, userId, workspaceId }
+  }
 
-  it('returns empty array when project has no activity', async () => {
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/activity`, {
+  test('returns empty array when project has no activity', async () => {
+    const { headers, projectId } = await seedTestData()
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity`, {
       headers,
     })
     expect(res.status).toBe(200)
-    const events = (await res.json()) as unknown[]
-    expect(events).toEqual([])
+    const events = await readNativeJson(res, JsonListResponse)
+    expect(events).toStrictEqual([])
   })
 
-  it("returns issue_created events, matching the MCP tool's behavior", async () => {
+  test("returns issue_created events, matching the MCP tool's behavior", async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'REST activity issue' })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/activity`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity`, {
       headers,
     })
     expect(res.status).toBe(200)
-    const events = (await res.json()) as Array<{ type: string; summary: string }>
-    const created = events.filter((e) => e.type === 'issue_created')
+    const events = await readNativeJson(res, ApiResults.apiListProjectActivity)
+    const created = events.filter((selectedEvent) => selectedEvent.type === 'issue_created')
     expect(created).toHaveLength(1)
     expect(created[0].summary).toBe('REST activity issue')
   })
 
-  it('respects the limit query param', async () => {
-    for (let i = 0; i < 5; i++) {
-      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
-    }
+  test('respects the limit query param', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
+    await runIndexedInOrder(5, async (index): Promise<void> => {
+      await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
+    })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/activity?limit=2`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity?limit=2`, {
       headers,
     })
-    const events = (await res.json()) as unknown[]
+    const events = await readNativeJson(res, JsonListResponse)
     expect(events).toHaveLength(2)
   })
 
-  it('returns 404 for an unknown project', async () => {
-    const res = await SELF.fetch(`http://localhost/api/projects/${crypto.randomUUID()}/activity`, {
+  test('returns 404 for an unknown project', async () => {
+    const { headers } = await seedTestData()
+    const res = await fetchNativeApi(`http://localhost/api/projects/${crypto.randomUUID()}/activity`, {
       headers,
     })
     expect(res.status).toBe(404)

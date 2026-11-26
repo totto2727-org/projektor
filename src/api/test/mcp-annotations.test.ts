@@ -1,96 +1,104 @@
-// PROJ-887 — MCP tool annotations (readOnlyHint / destructiveHint / idempotentHint /
-// openWorldHint) on every core tool, and their presence on the `tools/list` wire
-// response.
+/*
+ * PROJ-887 — MCP tool annotations (readOnlyHint / destructiveHint / idempotentHint /
+ * openWorldHint) on every core tool, and their presence on the `tools/list` wire
+ * response.
+ */
+import { Predicate } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { capabilityForMcpTool } from '#api/auth/scopes.ts'
+import { DESTRUCTIVE_TOOLS } from '#api/mcp/annotations.ts'
+import { coreMCPTools } from '#api/routes/mcp.ts'
 
-import { capabilityForMcpTool } from '../auth/scopes'
-import { DESTRUCTIVE_TOOLS } from '../mcp/annotations'
-import { coreMCPTools } from '../routes/mcp'
-import { authHeaders, type JsonRpcResult, seedFixture } from './helpers'
+import { authHeaders, seedFixture } from './helpers.ts'
+import type { JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
-describe('MCP tool annotations (PROJ-887)', () => {
-  it('every core tool declares readOnlyHint and openWorldHint', () => {
+describe('covers MCP tool annotations (PROJ-887)', () => {
+  test('every core tool declares readOnlyHint and openWorldHint', () => {
     const missing = coreMCPTools.filter(
-      (t) => t.annotations?.readOnlyHint === undefined || t.annotations?.openWorldHint === undefined,
+      (tool) =>
+        Predicate.isNullish(tool.annotations?.readOnlyHint) || Predicate.isNullish(tool.annotations?.openWorldHint),
     )
-    expect(missing.map((t) => t.name)).toEqual([])
+    expect(missing.map((tool) => tool.name)).toStrictEqual([])
   })
 
-  it('openWorldHint is false on every core tool', () => {
-    const wrong = coreMCPTools.filter((t) => t.annotations?.openWorldHint !== false)
-    expect(wrong.map((t) => t.name)).toEqual([])
+  test('openWorldHint is false on every core tool', () => {
+    const wrong = coreMCPTools.filter((tool) => tool.annotations?.openWorldHint !== false)
+    expect(wrong.map((tool) => tool.name)).toStrictEqual([])
   })
 
-  it('every read-capability tool is annotated readOnlyHint: true', () => {
+  test('every read-capability tool is annotated readOnlyHint: true', () => {
     const wrong = coreMCPTools.filter(
-      (t) => capabilityForMcpTool(t.name) === 'read' && t.annotations?.readOnlyHint !== true,
+      (tool) => capabilityForMcpTool(tool.name) === 'read' && tool.annotations?.readOnlyHint !== true,
     )
-    expect(wrong.map((t) => t.name)).toEqual([])
+    expect(wrong.map((tool) => tool.name)).toStrictEqual([])
   })
 
-  it('readOnlyHint: true only on read-capability tools (never auto-approve a write)', () => {
+  test('readOnlyHint: true only on read-capability tools (never auto-approve a write)', () => {
     const wrong = coreMCPTools.filter(
-      (t) => t.annotations?.readOnlyHint === true && capabilityForMcpTool(t.name) !== 'read',
+      (tool) => tool.annotations?.readOnlyHint === true && capabilityForMcpTool(tool.name) !== 'read',
     )
-    expect(wrong.map((t) => t.name)).toEqual([])
+    expect(wrong.map((tool) => tool.name)).toStrictEqual([])
   })
 
-  it('update_wiki_page is not claimed idempotent (each save adds a revision)', () => {
-    const t = coreMCPTools.find((x) => x.name === 'update_wiki_page')
-    expect(t?.annotations?.idempotentHint).not.toBe(true)
+  test('update_wiki_page is not claimed idempotent (each save adds a revision)', () => {
+    const updateTool = coreMCPTools.find((tool) => tool.name === 'update_wiki_page')
+    expect(updateTool?.annotations?.idempotentHint).not.toBe(true)
   })
 
-  it('every non-read (write-capability) tool declares destructiveHint', () => {
+  test('every non-read (write-capability) tool declares destructiveHint', () => {
     const missing = coreMCPTools.filter(
-      (t) => capabilityForMcpTool(t.name) === 'write' && t.annotations?.destructiveHint === undefined,
+      (tool) => capabilityForMcpTool(tool.name) === 'write' && Predicate.isNullish(tool.annotations?.destructiveHint),
     )
-    expect(missing.map((t) => t.name)).toEqual([])
+    expect(missing.map((tool) => tool.name)).toStrictEqual([])
   })
 
-  it('the destructive set matches exactly the 22 tools from the ticket/wiki', () => {
+  test('the destructive set matches exactly the 22 tools from the ticket/wiki', () => {
     const actualDestructive = coreMCPTools
-      .filter((t) => t.annotations?.destructiveHint === true)
-      .map((t) => t.name)
-      .sort()
-    expect(actualDestructive).toEqual([...DESTRUCTIVE_TOOLS].sort())
-    expect(actualDestructive.length).toBe(22)
+      .filter((tool) => tool.annotations?.destructiveHint === true)
+      .map((tool) => tool.name)
+      .toSorted()
+    expect(actualDestructive).toStrictEqual([...DESTRUCTIVE_TOOLS].toSorted())
+    expect(actualDestructive).toHaveLength(22)
   })
 
-  it('no non-destructive tool is marked destructiveHint: true, and vice versa', () => {
+  test('no non-destructive tool is marked destructiveHint: true, and vice versa', () => {
     const destructiveSet = new Set(DESTRUCTIVE_TOOLS)
     const mismatched = coreMCPTools.filter(
-      (t) => Boolean(t.annotations?.destructiveHint) !== destructiveSet.has(t.name),
+      (tool) => Boolean(tool.annotations?.destructiveHint) !== destructiveSet.has(tool.name),
     )
-    expect(mismatched.map((t) => t.name)).toEqual([])
+    expect(mismatched.map((tool) => tool.name)).toStrictEqual([])
   })
 })
 
 describe('tools/list response carries annotations (PROJ-887)', () => {
-  it('returns readOnlyHint/openWorldHint/destructiveHint in the wire payload', async () => {
+  test('returns readOnlyHint/openWorldHint/destructiveHint in the wire payload', async () => {
     const fixture = await seedFixture()
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
-    const res = (await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
-    }).then((r) => r.json())) as JsonRpcResult<{
-      tools: Array<{ name: string; annotations?: Record<string, unknown> }>
+    const res = (await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        headers,
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tools/list', params: {} }),
+      ),
+    ).then((response) => response.json())) as JsonRpcResult<{
+      tools: { name: string; annotations?: Record<string, unknown> }[]
     }>
 
-    const listIssues = res.result.tools.find((t) => t.name === 'list_issues')
-    expect(listIssues?.annotations).toMatchObject({ readOnlyHint: true, openWorldHint: false })
+    const listIssues = res.result.tools.find((tool) => tool.name === 'list_issues')
+    expect(listIssues?.annotations).toMatchObject({ openWorldHint: false, readOnlyHint: true })
 
-    const deleteIssue = res.result.tools.find((t) => t.name === 'delete_issue')
+    const deleteIssue = res.result.tools.find((tool) => tool.name === 'delete_issue')
     expect(deleteIssue?.annotations).toMatchObject({
-      readOnlyHint: false,
       destructiveHint: true,
       openWorldHint: false,
+      readOnlyHint: false,
     })
 
     // Every tool in the wire response must carry annotations at all.
-    const missing = res.result.tools.filter((t) => t.annotations === undefined)
-    expect(missing.map((t) => t.name)).toEqual([])
+    const missing = res.result.tools.filter((tool) => Predicate.isNullish(tool.annotations))
+    expect(missing.map((tool) => tool.name)).toStrictEqual([])
   })
 })

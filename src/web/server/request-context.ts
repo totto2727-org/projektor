@@ -1,16 +1,18 @@
 import type { Effect } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 
-import { RequestScopeSchema, type RequestScope, type ScopeOptions } from '../../core/web/scope'
-import { browserRequest, coreResult } from '../core'
-import type { ApiError, ScopeError } from './errors'
+import { RequestScopeSchema } from '#core/web/scope.ts'
+import type { RequestScope, ScopeOptions } from '#core/web/scope.ts'
+import { browserRequest, coreResult } from '@/core.ts'
 
-export * from '../../core/web/scope'
+import type { ApiError, ScopeError } from './errors.ts'
 
-export function loadRequestScope(
+export * from '#core/web/scope.ts'
+
+export const loadRequestScope = function loadRequestScope(
   _url: URL,
   options: ScopeOptions,
-  services: { readonly request: Request; readonly env: { readonly CORE: unknown } },
+  services: Readonly<{ request: Request; env: Readonly<{ CORE: unknown }> }>,
 ): Effect.Effect<RequestScope, ApiError | ScopeError> {
   const core = makeCoreClient(services.env.CORE)
   // Cache keys are Data.Class instances. Only a plain DTO may cross native RPC.

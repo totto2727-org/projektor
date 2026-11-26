@@ -6,5 +6,6 @@ export {
   ServiceError,
   UnsupportedMediaTypeError,
   ValidationError,
+  validationIssues,
   type ZodFlattenOutput,
-} from '../../contracts/errors'
+} from '#contracts/errors.ts'

@@ -1,18 +1,28 @@
-import { and, desc, eq, gt, isNull, or, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
+import { String, Predicate, Array } from 'effect'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
-import { assertIssueAccess, isWorkspaceAdmin } from './access'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { assertIssueAccess, isWorkspaceAdmin } from './access.ts'
+import { ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
-// Mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
-// services/issue-leases.ts). Duplicated rather than imported: both of those files import
-// this one, so importing back would cycle.
+/*
+ * Mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
+ * services/issue-leases.ts). Duplicated rather than imported: both of those files import
+ * this one, so importing back would cycle.
+ */
 const LIVE_TTL_SECONDS = 120
 
-export function agentSessionCredential(ctx: ServiceCtx): string | undefined {
-  if (ctx.auth?.credentialId) return ctx.auth.credentialId
+export const agentSessionCredential = function agentSessionCredential(ctx: ServiceCtx): string | undefined {
+  if (isNonEmptyText(ctx.auth?.credentialId)) {
+    return ctx.auth.credentialId
+  }
   if (ctx.auth?.kind === 'human' && (ctx.auth.method === 'access' || ctx.auth.method === 'dev')) {
     return `user:${ctx.userId}`
   }
@@ -22,29 +32,43 @@ export function agentSessionCredential(ctx: ServiceCtx): string | undefined {
 /** A supplied session ID identifies a resource, never authority to impersonate its holder.
  * Legacy sessions without an ownership key are manageable only by workspace administrators.
  * New browser sessions use a namespaced user key, not a fabricated API-token foreign key.
+ *
+ * @param {ServiceCtx} ctx Authenticated service scope for the workspace.
+ * @param {string} id Agent session to authorize.
+ * @param {object} [options] Whether internal cleanup can use administrative access.
  */
-export async function assertAgentSessionAccess(
+export const assertAgentSessionAccess = async function assertAgentSessionAccess(
   ctx: ServiceCtx,
   id: string,
   options: { allowAdministrativeOverride?: boolean } = {},
 ): Promise<void> {
   const session = await drizzle(ctx.db, { schema })
-    .select({
-      credentialId: schema.agentSessions.credentialId,
-      tokenId: schema.agentSessions.tokenId,
-      issueId: schema.agentSessions.issueId,
-    })
+    .select(
+      fieldsInOrder([
+        ['credentialId', schema.agentSessions.credentialId],
+        ['tokenId', schema.agentSessions.tokenId],
+        ['issueId', schema.agentSessions.issueId],
+      ]),
+    )
     .from(schema.agentSessions)
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()
-  if (!session) throw new NotFoundError('Agent session not found')
-  if (!(options.allowAdministrativeOverride && isWorkspaceAdmin(ctx.role))) {
+  if (!session) {
+    throw new NotFoundError('Agent session not found')
+  }
+  if (!(options.allowAdministrativeOverride === true && isWorkspaceAdmin(ctx.role))) {
     const credential = agentSessionCredential(ctx)
-    if (!credential || credential !== (session.credentialId ?? session.tokenId)) {
+    if (
+      Predicate.isNullish(credential) ||
+      String.isEmpty(credential) ||
+      credential !== (session.credentialId ?? session.tokenId)
+    ) {
       throw new ForbiddenError('Agent session belongs to another credential')
     }
   }
-  if (session.issueId) await assertIssueAccess(ctx, session.issueId, 'edit')
+  if (isNonEmptyText(session.issueId)) {
+    await assertIssueAccess(ctx, session.issueId, 'edit')
+  }
 }
 
 /**
@@ -64,25 +88,29 @@ export async function assertAgentSessionAccess(
  * `includeStale`: heartbeat_agent/end_agent may fall back to a session that has just gone
  * stale (that call is what revives it), but only when the credential has no live session;
  * the claim path requires a live one, since a dead session can't hold a lease.
+ *
+ * @param {ServiceCtx} ctx Authenticated service scope for the workspace.
+ * @param {string | undefined} provided Explicit session ID when supplied by the caller.
+ * @param {object} [opts] Options for stale fallback and internal administrative access.
+ * @returns {Promise<string>} The authorized explicit session ID or the unique matching session ID.
  */
-export async function resolveAgentSessionId(
+export const resolveAgentSessionId = async function resolveAgentSessionId(
   ctx: ServiceCtx,
   provided: string | undefined,
   opts: { includeStale?: boolean; allowAdministrativeOverride?: boolean } = {},
 ): Promise<string> {
-  if (provided) {
+  if (Predicate.isNotNullish(provided) && String.isNonEmpty(provided)) {
     await assertAgentSessionAccess(ctx, provided, opts)
     return provided
   }
 
   const credentialId = agentSessionCredential(ctx)
-  if (!credentialId) {
-    throw new ValidationError({
-      formErrors: [],
-      fieldErrors: {
+  if (Predicate.isNullish(credentialId) || String.isEmpty(credentialId)) {
+    throw new ValidationError(
+      validationIssues([], {
         agentId: ['no session on this credential — pass agentId from register_agent'],
-      },
-    })
+      }),
+    )
   }
 
   const orm = drizzle(ctx.db, { schema })
@@ -103,26 +131,27 @@ export async function resolveAgentSessionId(
       .orderBy(desc(schema.agentSessions.lastHeartbeatAt))
       .limit(2)
 
-  const cutoff = Math.floor(Date.now() / 1000) - LIVE_TTL_SECONDS
+  const cutoff = currentEpochSeconds() - LIVE_TTL_SECONDS
   let rows = await find([gt(schema.agentSessions.lastHeartbeatAt, cutoff)])
-  // heartbeat/end must be able to reach a session that has just gone stale (that call
-  // revives it) — but only when no live session exists, so an abandoned session left
-  // behind by a crash can't make a lone agent's id-less heartbeat ambiguous.
-  if (rows.length === 0 && opts.includeStale) rows = await find([])
+  /* Heartbeat and end must be able to reach a session that has just gone stale (that call
+   * revives it) — but only when no live session exists, so an abandoned session left
+   * behind by a crash can't make a lone agent's id-less heartbeat ambiguous. */
+  if (Array.isArrayEmpty(rows) && opts.includeStale === true) {
+    rows = await find([])
+  }
 
-  if (rows.length === 1) {
+  if (hasSingleItem(rows)) {
     await assertAgentSessionAccess(ctx, rows[0].id, opts)
     return rows[0].id
   }
 
-  throw new ValidationError({
-    formErrors: [],
-    fieldErrors: {
+  throw new ValidationError(
+    validationIssues([], {
       agentId: [
-        rows.length === 0
+        Array.isArrayEmpty(rows)
           ? 'no live session on this credential — pass agentId from register_agent'
-          : `several ${opts.includeStale ? 'active' : 'live'} sessions on this credential — pass agentId from register_agent`,
+          : `several ${opts.includeStale === true ? 'active' : 'live'} sessions on this credential — pass agentId from register_agent`,
       ],
-    },
-  })
+    }),
+  )
 }

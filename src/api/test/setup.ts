@@ -1,19 +1,22 @@
+import { String } from 'effect'
 import { beforeAll, beforeEach } from 'vite-plus/test'
 
-import { configureCore, env } from './fixture-api'
-import { MIGRATIONS } from './migrations'
-import { resetRateLimits } from './rate-limit-reset'
+import { configureCore, env } from './fixture-api.ts'
+import { MIGRATIONS } from './migrations.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
-// Strip line comments before splitting on ; — Drizzle breakpoints and any
-// semicolons inside comments (e.g. "ON CONFLICT; old windows are") would
-// otherwise produce spurious fragments. prepare().run() is used per statement
-// because Miniflare's exec() doesn't handle multi-statement SQL.
-function splitStatements(sql: string): string[] {
+/*
+ * Strip line comments before splitting on ; — Drizzle breakpoints and any
+ * semicolons inside comments (e.g. "ON CONFLICT; old windows are") would
+ * otherwise produce spurious fragments. prepare().run() is used per statement
+ * because Miniflare's exec() doesn't handle multi-statement SQL.
+ */
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
-    .replace(/--[^\n]*/g, '')
+    .replaceAll(/--[^\n]*/gu, '')
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+    .map((statement) => statement.trim())
+    .filter((statement) => String.isNonEmpty(statement))
 }
 
 // Migrations run through the test-only Core fixture entrypoint. The actual public
@@ -26,11 +29,11 @@ beforeAll(async () => {
   }
 })
 
-// @cloudflare/vitest-pool-workers ≥0.13 isolates storage per *file*, not per
-// *test* (the old `isolatedStorage` per-test rollback was removed). The transient
-// rate-limit counter therefore accumulates across tests in a file and trips the
-// low test limits (AUTH_LIMIT=3). Reset it before each test so every test starts
-// from a clean window — restoring the per-test freshness the old isolation gave.
+/* The @cloudflare/vitest-pool-workers package has isolated storage per file since version 0.13.
+ * The old `isolatedStorage` per-test rollback was removed. The transient
+ * rate-limit counter therefore accumulates across tests in a file and trips the
+ * low test limits (AUTH_LIMIT=3). Reset it before each test so every test starts
+ * from a clean window — restoring the per-test freshness the old isolation gave. */
 beforeEach(async () => {
   await resetRateLimits()
   await configureCore()

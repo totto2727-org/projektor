@@ -1,13 +1,10 @@
 import { Effect, Schema } from 'effect'
 
-import { findSprintById, listSprints } from '#services/sprints'
-import { listTaskStatuses } from '#services/task-statuses'
-import { listTaskTypes } from '#services/task-types'
-import { listWorkspaceMembers } from '#services/workspaces'
-
-import { ScopeError } from '../../contracts/errors'
-import type { ReviewFilter } from '../../contracts/review-targets'
-import { SearchResultsSchema, WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
+import { ScopeError } from '#contracts/errors.ts'
+import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import type { ReviewFilter } from '#contracts/review-targets.ts'
+import { SearchResultsSchema, WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import {
   AttachmentsSchema,
   CommentsSchema,
@@ -19,41 +16,81 @@ import {
   TaskTypesSchema,
   normalizeStatuses,
   normalizeTaskTypes,
-} from '../../contracts/web-schemas/issues'
-import { SprintSchema } from '../../contracts/web-schemas/planning'
-import { coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, publicWebFailure } from './authentication'
-import { authorizeDataEntity, requireDataWorkspace } from './data-context'
-import * as data from './issue-data'
-import { CoreReadServices } from './read-services'
-import type { RequestScope, WebRequest } from './scope'
+} from '#contracts/web-schemas/issues.ts'
+import { SprintSchema } from '#contracts/web-schemas/planning.ts'
+import type { CoreReply } from '#core/contract.ts'
+import { coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { findSprintById, listSprints } from '#services/sprints.ts'
+import { listTaskStatuses } from '#services/task-statuses.ts'
+import { listTaskTypes } from '#services/task-types.ts'
+import { listWorkspaceMembers } from '#services/workspaces.ts'
 
-export function webRead<A, E>(
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import { authorizeDataEntity, requireDataWorkspace } from './data-context.ts'
+import * as data from './issue-data.ts'
+import { CoreReadServices } from './read-services.ts'
+import type { RequestScope, WebRequest } from './scope.ts'
+
+type WorkspaceReadScope = RequestScope &
+  Readonly<{ selection: Extract<RequestScope['selection'], { kind: 'workspace' }> }>
+
+export const webRead = function webRead<A, E>(
   env: CoreEnvironment,
   request: WebRequest,
   workspaceId: string,
-  operation: (scope: RequestScope) => Effect.Effect<A, E, CoreReadServices>,
+  operation: (scope: WorkspaceReadScope) => Effect.Effect<A, E, CoreReadServices>,
   projectId?: string,
-) {
+): Effect.Effect<A, unknown> {
   return Effect.gen(function* () {
-    const base = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: projectId ?? '' })
-    const workspace = yield* Effect.try({ try: () => requireDataWorkspace(base, workspaceId), catch: publicWebFailure })
-    const scope: RequestScope = { ...base, selection: { kind: 'workspace', workspace } }
+    const base = yield* loadBrowserScope(
+      env,
+      request,
+      fieldsInOrder([
+        ['workspaceHint', ''],
+        ['projectHint', projectId ?? ''],
+      ]),
+    )
+    const workspace = yield* Effect.try({ catch: publicWebFailure, try: () => requireDataWorkspace(base, workspaceId) })
+    const scope: WorkspaceReadScope = { ...base, selection: { kind: 'workspace', workspace } }
     return yield* operation(scope).pipe(Effect.provideService(CoreReadServices, { db: env.DB }))
   }).pipe(Effect.mapError(publicWebFailure))
 }
 
-export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function reply<S extends Schema.Top, A, E>(
+type IssueReadArguments = [request: WebRequest, workspaceId: string, identifier: string, projectId?: string]
+
+type IssueSearchArguments = [
+  request: WebRequest,
+  workspaceId: string,
+  query: string,
+  projectId?: string,
+  review?: ReviewFilter,
+]
+
+interface IssueReadHandlers<R> {
+  webIssue: (...args: IssueReadArguments) => CoreReply<R>
+  webIssuePage: (request: WebRequest, workspaceId: string, query: string) => CoreReply<R>
+  webIssueSearch: (...args: IssueSearchArguments) => CoreReply<R>
+  webIssueComments: (...args: IssueReadArguments) => CoreReply<R>
+  webIssueLinks: (...args: IssueReadArguments) => CoreReply<R>
+  webIssueAttachments: (...args: IssueReadArguments) => CoreReply<R>
+  webWikiAttachmentSearch: (request: WebRequest, workspaceId: string, query: string) => CoreReply<R>
+  webIssueLookups: (request: WebRequest, workspaceId: string) => CoreReply<R>
+  webIssueMembers: (request: WebRequest, workspaceId: string) => CoreReply<R>
+  webSprints: (request: WebRequest, workspaceId: string, projectId: string) => CoreReply<R>
+  webSprint: (request: WebRequest, workspaceId: string, sprintId: string) => CoreReply<R>
+}
+
+export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>): IssueReadHandlers<R> => {
+  const reply = function reply<S extends Schema.Top, A, E>(
     operation: string,
     schema: S,
     read: (env: CoreEnvironment) => Effect.Effect<A, E>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) => coreReply(operation, schema, read(env)))
   }
   return {
-    webIssue: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssue: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string): CoreReply<R> =>
       reply('webIssue', IssueSchema, (env) =>
         webRead(
           env,
@@ -63,7 +100,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssuePage: (request: WebRequest, workspaceId: string, query: string) =>
+    webIssuePage: (request: WebRequest, workspaceId: string, query: string): CoreReply<R> =>
       reply('webIssuePage', IssuePageSchema, (env) =>
         webRead(
           env,
@@ -79,7 +116,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
       query: string,
       projectId?: string,
       review?: ReviewFilter,
-    ) =>
+    ): CoreReply<R> =>
       reply('webIssueSearch', SearchResultsSchema, (env) =>
         webRead(
           env,
@@ -89,7 +126,12 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssueComments: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssueComments: (
+      request: WebRequest,
+      workspaceId: string,
+      identifier: string,
+      projectId?: string,
+    ): CoreReply<R> =>
       reply('webIssueComments', CommentsSchema, (env) =>
         webRead(
           env,
@@ -99,7 +141,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssueLinks: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssueLinks: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string): CoreReply<R> =>
       reply('webIssueLinks', LinksSchema, (env) =>
         webRead(
           env,
@@ -109,7 +151,12 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssueAttachments: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssueAttachments: (
+      request: WebRequest,
+      workspaceId: string,
+      identifier: string,
+      projectId?: string,
+    ): CoreReply<R> =>
       reply('webIssueAttachments', AttachmentsSchema, (env) =>
         webRead(
           env,
@@ -119,11 +166,11 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webWikiAttachmentSearch: (request: WebRequest, workspaceId: string, query: string) =>
+    webWikiAttachmentSearch: (request: WebRequest, workspaceId: string, query: string): CoreReply<R> =>
       reply('webWikiAttachmentSearch', WikiSearchResultsSchema, (env) =>
         webRead(env, request, workspaceId, (scope) => data.searchDataWikiAttachments(scope, workspaceId, query)),
       ),
-    webIssueLookups: (request: WebRequest, workspaceId: string) =>
+    webIssueLookups: (request: WebRequest, workspaceId: string): CoreReply<R> =>
       reply('webIssueLookups', Schema.Struct({ statuses: StatusesSchema, taskTypes: TaskTypesSchema }), (env) =>
         webRead(env, request, workspaceId, () =>
           Effect.all(
@@ -135,21 +182,22 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           ),
         ),
       ),
-    webIssueMembers: (request: WebRequest, workspaceId: string) =>
+    webIssueMembers: (request: WebRequest, workspaceId: string): CoreReply<R> =>
       reply('webIssueMembers', Schema.Array(MemberSchema), (env) =>
         webRead(env, request, workspaceId, () => listWorkspaceMembers(env.DB, workspaceId)),
       ),
-    webSprints: (request: WebRequest, workspaceId: string, projectId: string) =>
+    webSprints: (request: WebRequest, workspaceId: string, projectId: string): CoreReply<R> =>
       reply('webSprints', Schema.Array(SprintSchema), (env) =>
         webRead(env, request, workspaceId, (scope) =>
           Effect.gen(function* () {
-            if (!scope.projects.some((project) => project.id === projectId && project.workspace_id === workspaceId))
-              return yield* new ScopeError(404, 'Selected project is not accessible.')
+            if (!scope.projects.some((project) => project.id === projectId && project.workspace_id === workspaceId)) {
+              return yield* new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
+            }
             return yield* listSprints(env.DB, workspaceId, { projectId })
           }),
         ),
       ),
-    webSprint: (request: WebRequest, workspaceId: string, sprintId: string) =>
+    webSprint: (request: WebRequest, workspaceId: string, sprintId: string): CoreReply<R> =>
       reply('webSprint', SprintSchema, (env) =>
         webRead(env, request, workspaceId, (scope) =>
           Effect.gen(function* () {

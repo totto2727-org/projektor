@@ -1,53 +1,50 @@
-import { listMessages, postMessage } from '../services/agent-messages'
-import { PLAIN_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { listMessages, postMessage } from '#api/services/agent-messages.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
+import { PLAIN_WRITE, READ } from './annotations.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
+import type { MCPTool } from './types.ts'
 
 export const agentMessagesTools: MCPTool[] = [
   {
-    name: 'post_message',
-    description: 'Post a coordination message to a workspace or issue channel so the agent fleet can communicate',
-    inputSchema: {
-      type: 'object',
-      required: ['scope', 'body'],
-      properties: {
-        scope: {
-          type: 'string',
-          description:
-            'Channel scope: "workspace" for the workspace-wide channel, or "issue:<uuid>" for an issue channel',
-        },
-        agentId: {
-          type: 'string',
-          description: 'Agent session UUID posting the message (optional)',
-        },
-        body: { type: 'string', description: 'Message body (1–5000 characters)' },
-      },
-    },
     annotations: PLAIN_WRITE,
-    handler(input, ctx) {
+    description: 'Post a coordination message to a workspace or issue channel so the agent fleet can communicate',
+    async handler(input, ctx) {
       return postMessage(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['scope', 'body'],
+      fieldsInOrder([
+        [
+          'scope',
+          describedInputProperty(
+            'string',
+            'Channel scope: "workspace" for the workspace-wide channel, or "issue:<uuid>" for an issue channel',
+          ),
+        ],
+        ['agentId', describedInputProperty('string', 'Agent session UUID posting the message (optional)')],
+        ['body', describedInputProperty('string', 'Message body (1–5000 characters)')],
+      ]),
+    ),
+    name: 'post_message',
   },
   {
-    name: 'list_messages',
-    description: 'List coordination messages for a workspace or issue channel, in chronological order',
-    inputSchema: {
-      type: 'object',
-      required: ['scope'],
-      properties: {
-        scope: {
-          type: 'string',
-          description: 'Channel scope: "workspace" or "issue:<uuid>"',
-        },
-        cursor: {
-          type: 'string',
-          description: "Pagination cursor: pass the previous page's `nextCursor` unchanged",
-        },
-        limit: { type: 'number', description: 'Max messages to return (1–100, default 50)' },
-      },
-    },
     annotations: READ,
-    handler(input, ctx) {
+    description: 'List coordination messages for a workspace or issue channel, in chronological order',
+    async handler(input, ctx) {
       return listMessages(ctx, input)
     },
+    inputSchema: requiredObjectInputSchema(
+      ['scope'],
+      fieldsInOrder([
+        ['scope', describedInputProperty('string', 'Channel scope: "workspace" or "issue:<uuid>"')],
+        [
+          'cursor',
+          describedInputProperty('string', "Pagination cursor: pass the previous page's `nextCursor` unchanged"),
+        ],
+        ['limit', describedInputProperty('number', 'Max messages to return (1–100, default 50)')],
+      ]),
+    ),
+    name: 'list_messages',
   },
 ]

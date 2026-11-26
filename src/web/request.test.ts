@@ -1,20 +1,18 @@
-import { Effect } from 'effect'
+import { Iterable, Effect } from 'effect'
 import { HttpRouter, HttpServerResponse } from 'effect/http'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
-import { getRouteParams, isWebEnvironment, makeRequestServices, type PreparedView, RequestServices } from './request'
-import { ApiError } from './server'
-import { testEnvironment } from './server/test/resources'
-import { createTestDatabase } from './test/database'
+import { getRouteParams, isWebEnvironment, makeRequestServices, RequestServices } from './request.ts'
+import type { PreparedView } from './request.ts'
+import { ApiError } from './server/server-context.ts'
+import { testEnvironment } from './server/test/resources.ts'
+import { createTestDatabase } from './test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  resetAuthCachesForTests()
-  for (const database of databases.splice(0)) database.close()
-})
-function fixture() {
+const fixture = function fixture() {
   resetAuthCachesForTests()
   const database = createTestDatabase()
   databases.push(database)
@@ -26,21 +24,29 @@ function fixture() {
   `)
   return database
 }
-const incoming = () => new Request('https://front.example.test/')
+const incoming = (): Request<unknown, CfProperties> => new Request('https://front.example.test/')
 
 describe('request-scoped native services', () => {
-  it('requires a native Core fetch capability and valid browser-only configuration', () => {
-    expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'production' })).toBe(true)
+  afterEach(() => {
+    resetAuthCachesForTests()
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
+  test('requires a native Core fetch capability and valid browser-only configuration', () => {
+    expect(isWebEnvironment({ CORE: { fetch: async () => new Response() }, ENVIRONMENT: 'production' })).toBe(true)
     expect(isWebEnvironment({ CORE: {}, ENVIRONMENT: 'production' })).toBe(false)
-    expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'invalid' })).toBe(false)
+    expect(isWebEnvironment({ CORE: { fetch: async () => new Response() }, ENVIRONMENT: 'invalid' })).toBe(false)
     expect(
-      isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'production', BRAND_NAME: 42 }),
+      isWebEnvironment({ CORE: { fetch: async () => new Response() }, ENVIRONMENT: 'production', BRAND_NAME: 42 }),
     ).toBe(false)
     expect(isWebEnvironment(null)).toBe(false)
   })
-  it('reads matched framework parameters without another URL parser', async () => {
+
+  test('reads matched framework parameters without another URL parser', async () => {
     const params = { projectSlug: 'already%decoded', issueNumber: '12' }
-    const result = await Effect.runPromise(
+    const result = await runTestEffect(
       getRouteParams.pipe(
         Effect.provideService(HttpRouter.RouteContext, {
           params,
@@ -53,17 +59,18 @@ describe('request-scoped native services', () => {
       ),
     )
     expect(result).toBe(params)
-    expect(await Effect.runPromise(getRouteParams)).toEqual({})
+    await expect(runTestEffect(getRouteParams)).resolves.toStrictEqual({})
   })
 
-  it('keeps request-local cache key classes out of native browserScope arguments', async () => {
+  test('keeps request-local cache key classes out of native browserScope arguments', async () => {
+    expect.hasAssertions()
     const database = fixture()
     const env = testEnvironment(database.db, 'first@example.test')
     const original = env.CORE.browserScope
     let checked = false
     env.CORE.browserScope = (request, options = {}) => {
       expect(Object.getPrototypeOf(options)).toBe(Object.prototype)
-      expect(Object.keys(options).sort()).toEqual([
+      expect(Object.keys(options).toSorted()).toStrictEqual([
         'projectHint',
         'requireProject',
         'requireWorkspace',
@@ -72,36 +79,38 @@ describe('request-scoped native services', () => {
       checked = true
       return original(request, options)
     }
-    const services = await Effect.runPromise(makeRequestServices(incoming(), env))
+    const services = await runTestEffect(makeRequestServices(incoming(), env))
     await expect(
-      Effect.runPromise(services.scope({ workspaceHint: 'alpha', requireWorkspace: true })),
+      runTestEffect(services.scope({ workspaceHint: 'alpha', requireWorkspace: true })),
     ).resolves.toMatchObject({ selection: { kind: 'workspace' } })
     expect(checked).toBe(true)
   })
 
-  it('shares concurrent work only inside one verified identity request', async () => {
+  test('shares concurrent work only inside one verified identity request', async () => {
     const database = fixture()
-    const result = await Effect.runPromise(
+    const result = await runTestEffect(
       Effect.gen(function* () {
         const first = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'first@example.test'))
         const second = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'second@example.test'))
-        const [a, repeated, b] = yield* Effect.all([first.scope(), first.scope(), second.scope()], { concurrency: 3 })
-        return { a, repeated, b, first }
+        const [firstScope, repeated, secondScope] = yield* Effect.all([first.scope(), first.scope(), second.scope()], {
+          concurrency: 3,
+        })
+        return { a: firstScope, repeated, b: secondScope, first }
       }),
     )
     expect(result.a).toBe(result.repeated)
     expect(result.a.user.id).toBe('first')
     expect(result.b.user.id).toBe('second')
-    expect(result.a.workspaces.map((workspace) => workspace.slug)).toEqual(['alpha'])
-    expect(result.b.workspaces).toEqual([])
-    expect(result.a.auth).toEqual({ kind: 'human', method: 'dev' })
+    expect(result.a.workspaces.map((workspace) => workspace.slug)).toStrictEqual(['alpha'])
+    expect(result.b.workspaces).toStrictEqual([])
+    expect(result.a.auth).toStrictEqual({ kind: 'human', method: 'dev' })
     expect(result.first).not.toHaveProperty('api')
     expect(result.first).not.toHaveProperty('db')
   })
 
-  it('invalidates only request-owned scope state and reloads authoritative database memberships', async () => {
+  test('invalidates only request-owned scope state and reloads authoritative database memberships', async () => {
     const database = fixture()
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const env = testEnvironment(database.db, 'first@example.test')
         const services = yield* makeRequestServices(incoming(), env)
@@ -123,10 +132,10 @@ describe('request-scoped native services', () => {
     expect(actual.otherCached.workspaces[0].name).toBe('Before')
   })
 
-  it('retries failed authentication instead of caching failure permanently', async () => {
+  test('retries failed authentication instead of caching failure permanently', async () => {
     const database = fixture()
     const env = testEnvironment(database.db, 'first@example.test', { ENVIRONMENT: 'production' })
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(incoming(), env)
         const first = yield* services.scope().pipe(Effect.result)
@@ -139,10 +148,10 @@ describe('request-scoped native services', () => {
     expect(actual.recovered.user.id).toBe('first')
   })
 
-  it('invalidates prepared views explicitly, including concurrent work', async () => {
+  test('invalidates prepared views explicitly, including concurrent work', async () => {
     const database = fixture()
     let renders = 0
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(incoming(), testEnvironment(database.db))
         const view: PreparedView = Effect.gen(function* () {
@@ -150,10 +159,10 @@ describe('request-scoped native services', () => {
           return `${current.url.pathname}:${++renders}`
         })
         const prepare = services.prepare(view).pipe(Effect.provideService(RequestServices, services))
-        const [a, cached] = yield* Effect.all([prepare, prepare], { concurrency: 2 })
+        const [prepared, cached] = yield* Effect.all([prepare, prepare], { concurrency: 2 })
         yield* services.invalidate
         const refreshed = yield* prepare
-        return { a, cached, refreshed }
+        return { a: prepared, cached, refreshed }
       }),
     )
     expect(actual.a).toBe(actual.cached)
@@ -161,10 +170,10 @@ describe('request-scoped native services', () => {
     expect(renders).toBe(2)
   })
 
-  it('does not permanently cache a failed pre-stream render', async () => {
+  test('does not permanently cache a failed pre-stream render', async () => {
     const database = fixture()
     let attempts = 0
-    const actual = await Effect.runPromise(
+    const actual = await runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(incoming(), testEnvironment(database.db))
         const view: PreparedView = Effect.suspend(() =>

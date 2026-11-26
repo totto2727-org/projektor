@@ -1,45 +1,67 @@
 import { and, eq, inArray, ne } from 'drizzle-orm'
-import { Effect } from 'effect'
-import type { z } from 'zod'
+import { Array, Predicate, Effect } from 'effect'
+import { z } from 'zod'
 
-import { drizzle, schema } from '#db'
-import * as sprintQueries from '#services/sprints'
-
-import { IdSchema } from '../../contracts/inputs/common'
+import { IdSchema } from '#contracts/inputs/common.ts'
 import {
   CreateSprintSchema,
   ListSprintsSchema,
   MoveIssuesToSprintSchema,
   UpdateSprintSchema,
-} from '../../contracts/inputs/sprints'
-import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+} from '#contracts/inputs/sprints.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
+import * as sprintQueries from '#services/sprints.ts'
+import type { Sprint } from '#services/sprints.ts'
 
-// PROJ-311: sprints inherit their project's visibility. Reads on an ungranted
-// project 404/return empty; writes need a member/admin grant (owner/admin bypass).
-async function assertSprintProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
-  if (isWorkspaceAdmin(ctx.role)) return
-  if ((await effectiveProjectRole(ctx, projectId)) === null) {
+import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
+import { ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
+
+/*
+ * PROJ-311: sprints inherit their project's visibility. Reads on an ungranted
+ * project 404/return empty; writes need a member/admin grant (owner/admin bypass).
+ */
+const assertSprintProjectVisible = async function assertSprintProjectVisible(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
+  if (isWorkspaceAdmin(ctx.role)) {
+    return
+  }
+  if (Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     throw new NotFoundError('Sprint not found')
   }
 }
 
-async function requireSprintProjectWrite(ctx: ServiceCtx, projectId: string): Promise<void> {
-  if (isWorkspaceAdmin(ctx.role)) return
+const requireSprintProjectWrite = async function requireSprintProjectWrite(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
+  if (isWorkspaceAdmin(ctx.role)) {
+    return
+  }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) throw new NotFoundError('Sprint not found')
-  if (!canWriteProject(role)) throw new ForbiddenError('Insufficient permissions')
+  if (Predicate.isNullish(role)) {
+    throw new NotFoundError('Sprint not found')
+  }
+  if (!canWriteProject(role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 }
 
-export async function listSprints(ctx: ServiceCtx, raw: unknown) {
+export const listSprints = async function listSprints(ctx: ServiceCtx, raw: unknown): Promise<{ items: Sprint[] }> {
   const result = ListSprintsSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const { projectId } = result.data
 
   // A member without a grant on this project sees no sprints (existence hidden).
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) === null) {
+  if (!isWorkspaceAdmin(ctx.role) && Predicate.isNullish(await effectiveProjectRole(ctx, projectId))) {
     return { items: [] }
   }
 
@@ -48,17 +70,24 @@ export async function listSprints(ctx: ServiceCtx, raw: unknown) {
   return { items }
 }
 
-export async function getSprint(ctx: ServiceCtx, id: string) {
+export const getSprint = async function getSprint(ctx: ServiceCtx, id: string): Promise<Sprint> {
   const sprint = await Effect.runPromise(sprintQueries.findSprintById(ctx.db, ctx.workspaceId, id))
 
-  if (!sprint) throw new NotFoundError('Sprint not found')
+  if (!sprint) {
+    throw new NotFoundError('Sprint not found')
+  }
   await assertSprintProjectVisible(ctx, sprint.projectId)
   return sprint
 }
 
-export async function createSprint(ctx: ServiceCtx, raw: unknown) {
+export const createSprint = async function createSprint(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ id: ReturnType<typeof crypto.randomUUID> }> {
   const result = CreateSprintSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const { projectId, name, goal, startDate, endDate } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -67,53 +96,75 @@ export async function createSprint(ctx: ServiceCtx, raw: unknown) {
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
   await requireSprintProjectWrite(ctx, projectId)
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
-  await orm.insert(schema.sprints).values({
-    id,
-    workspaceId: ctx.workspaceId,
-    projectId,
-    name,
-    goal: goal ?? null,
-    status: 'planned',
-    startDate: startDate ?? null,
-    endDate: endDate ?? null,
-    createdAt: now,
-    updatedAt: now,
-  })
+  await orm.insert(schema.sprints).values(
+    fieldsInOrder([
+      ['id', id],
+      ['workspaceId', ctx.workspaceId],
+      ['projectId', projectId],
+      ['name', name],
+      ['goal', goal ?? SQL_NULL],
+      ['status', 'planned'],
+      ['startDate', startDate ?? SQL_NULL],
+      ['endDate', endDate ?? SQL_NULL],
+      ['createdAt', now],
+      ['updatedAt', now],
+    ]),
+  )
 
   return { id }
 }
 
 type SprintUpdateData = z.infer<typeof UpdateSprintSchema>
 
-function buildSprintSetData(data: SprintUpdateData, now: number) {
-  const setData: {
-    updatedAt: number
-    name?: string
-    goal?: string | null
-    status?: 'planned' | 'active' | 'completed'
-    startDate?: number | null
-    endDate?: number | null
-  } = { updatedAt: now }
+interface SprintSetData {
+  updatedAt: number
+  name?: string
+  goal?: string | null
+  status?: 'planned' | 'active' | 'completed'
+  startDate?: number | null
+  endDate?: number | null
+}
 
-  if (data.name !== undefined) setData.name = data.name
-  if ('goal' in data) setData.goal = data.goal ?? null
-  if (data.status !== undefined) setData.status = data.status
-  if ('startDate' in data) setData.startDate = data.startDate ?? null
-  if ('endDate' in data) setData.endDate = data.endDate ?? null
+const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, now: number): SprintSetData {
+  const setData: SprintSetData = { updatedAt: now }
+
+  if (Predicate.isNotNullish(data.name)) {
+    setData.name = data.name
+  }
+  if ('goal' in data) {
+    setData.goal = data.goal ?? SQL_NULL
+  }
+  if (Predicate.isNotNullish(data.status)) {
+    setData.status = data.status
+  }
+  if ('startDate' in data) {
+    setData.startDate = data.startDate ?? SQL_NULL
+  }
+  if ('endDate' in data) {
+    setData.endDate = data.endDate ?? SQL_NULL
+  }
 
   return setData
 }
 
-export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateSprint = async function updateSprint(
+  ctx: ServiceCtx,
+  id: string,
+  raw: unknown,
+): Promise<{ ok: boolean }> {
   const result = UpdateSprintSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
-  const data = result.data
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
+  const { data } = result
 
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm
@@ -121,10 +172,12 @@ export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Sprint not found')
+  if (!existing) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, existing.projectId)
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const setData = buildSprintSetData(data, now)
 
   await orm
@@ -135,26 +188,32 @@ export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
   return { ok: true }
 }
 
-export async function completeSprint(ctx: ServiceCtx, id: string) {
+export const completeSprint = async function completeSprint(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  if (!idCheck.success) {
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
+  }
   const orm = drizzle(ctx.db, { schema })
   const sprint = await orm
-    .select({ status: schema.sprints.status, projectId: schema.sprints.projectId })
+    .select(
+      fieldsInOrder([
+        ['status', schema.sprints.status],
+        ['projectId', schema.sprints.projectId],
+      ]),
+    )
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
 
-  if (!sprint) throw new NotFoundError('Sprint not found')
+  if (!sprint) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, sprint.projectId)
   if (sprint.status !== 'active') {
-    throw new ValidationError({
-      formErrors: ['Only active sprints can be completed'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Only active sprints can be completed'], {}))
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .update(schema.sprints)
     .set({ status: 'completed', updatedAt: now })
@@ -163,24 +222,30 @@ export async function completeSprint(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export async function deleteSprint(ctx: ServiceCtx, id: string) {
+export const deleteSprint = async function deleteSprint(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  if (!idCheck.success) {
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
+  }
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm
     .select({ id: schema.sprints.id, projectId: schema.sprints.projectId })
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Sprint not found')
+  if (!existing) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, existing.projectId)
 
-  // PROJ-863: unassign its issues explicitly — D1 doesn't guarantee FK enforcement
-  // (see PROJ-407), so ON DELETE SET NULL alone can leave issues pointing at a
-  // sprint that no longer exists.
+  /*
+   * PROJ-863: unassign its issues explicitly — D1 doesn't guarantee FK enforcement
+   * (see PROJ-407), so ON DELETE SET NULL alone can leave issues pointing at a
+   * sprint that no longer exists.
+   */
   await orm
     .update(schema.issues)
-    .set({ sprintId: null })
+    .set({ sprintId: SQL_NULL })
     .where(and(eq(schema.issues.sprintId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
   await orm
     .delete(schema.sprints)
@@ -189,9 +254,14 @@ export async function deleteSprint(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
+export const moveIssuesToSprint = async function moveIssuesToSprint(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ ok: boolean; count: number }> {
   const result = MoveIssuesToSprintSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(z.flattenError(result.error))
+  }
   const { issueIds, sprintId } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -200,14 +270,18 @@ export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, sprintId), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
-  if (!sprint) throw new NotFoundError('Sprint not found')
+  if (!sprint) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, sprint.projectId)
 
-  // PROJ-357: requireSprintProjectWrite only checked the *sprint's* project.
-  // Reject any caller-supplied issue that doesn't belong to that project —
-  // otherwise a write grant on the sprint's project alone would let a caller
-  // move issues from a project they have no access to (and sprints are
-  // project-scoped, so cross-project membership would also be a data bug).
+  /*
+   * PROJ-357: requireSprintProjectWrite only checked the *sprint's* project.
+   * Reject any caller-supplied issue that doesn't belong to that project —
+   * otherwise a write grant on the sprint's project alone would let a caller
+   * move issues from a project they have no access to (and sprints are
+   * project-scoped, so cross-project membership would also be a data bug).
+   */
   const foreignIssues = await inChunks(issueIds, async (chunk) =>
     orm
       .select({ id: schema.issues.id })
@@ -220,13 +294,13 @@ export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
         ),
       ),
   )
-  if (foreignIssues.length > 0) {
+  if (Array.isArrayNonEmpty(foreignIssues)) {
     throw new NotFoundError(`Issue not found: ${foreignIssues[0].id}`)
   }
 
-  const now = Math.floor(Date.now() / 1000)
-  // inChunks: issueIds is a caller-supplied batch, so keep each UPDATE under D1's
-  // 100-bound-parameter cap. See services/sql.ts.
+  const now = currentEpochSeconds()
+  /* Use inChunks because issueIds is a caller-supplied batch, so keep each UPDATE under D1's
+   * 100-bound-parameter cap. See services/sql.ts. */
   await inChunks(issueIds, async (chunk) => {
     await orm
       .update(schema.issues)
@@ -235,12 +309,17 @@ export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
     return []
   })
 
-  // PROJ-871: no KV invalidation needed here. PROJ-863 narrowed the per-issue KV cache
-  // (services/issues.ts's CachedIssueExtras) to only `rollup` and `customFields` —
-  // sprint_id is read live from the issues row on every getIssue/listIssues call, never
-  // served from that cache, so there is nothing to invalidate. This used to be
-  // `Promise.all(issueIds.map(id => cache.invalidate(...)))`, one KV subrequest per issue
-  // (up to 500, 10x the free-plan subrequest limit) invalidating a field the cache no
-  // longer even stores.
-  return { ok: true, count: issueIds.length }
+  /*
+   * PROJ-871: no KV invalidation needed here. PROJ-863 narrowed the per-issue KV cache
+   * (services/issues.ts's CachedIssueExtras) to only `rollup` and `customFields` —
+   * sprint_id is read live from the issues row on every getIssue/listIssues call, never
+   * served from that cache, so there is nothing to invalidate. This used to be
+   * `Promise.all(issueIds.map(id => cache.invalidate(...)))`, one KV subrequest per issue
+   * (up to 500, 10x the free-plan subrequest limit) invalidating a field the cache no
+   * longer even stores.
+   */
+  return fieldsInOrder([
+    ['ok', true],
+    ['count', issueIds.length],
+  ])
 }

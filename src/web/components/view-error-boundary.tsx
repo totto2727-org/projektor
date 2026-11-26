@@ -1,0 +1,32 @@
+'use client'
+
+import { Component } from 'react'
+import type { ReactNode } from 'react'
+
+/** Expected operation failures stay in action results. This catches unexpected client/render faults only. */
+export class ViewErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  public override state = { failed: false }
+  public static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+  public override render() {
+    if (!this.state.failed) {
+      return this.props.children
+    }
+    return (
+      <div role='alert' className='page-container'>
+        <h2>This view could not be completed.</h2>
+        <p>An action may already have completed. Reload to check the latest state before submitting it again.</p>
+        <button
+          type='button'
+          className='btn btn-secondary'
+          onClick={() => {
+            globalThis.location.reload()
+          }}
+        >
+          Reload page
+        </button>
+      </div>
+    )
+  }
+}

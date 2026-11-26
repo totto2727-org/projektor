@@ -1,80 +1,100 @@
-import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test'
+import { String, Array, Iterable, Predicate } from 'effect'
+import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
-import { validateToolArgs } from '../mcp/validate-args'
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, toolError } from './helpers'
+import { validateToolArgs } from '#api/mcp/validate-args.ts'
 
-// PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,
-// lengths, required) before the handler runs, so a wrongly-typed argument is a validation
-// tool error naming the field — never a handler crash surfacing as an internal error.
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, toolError } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+
+/*
+ * PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,
+ * lengths, required) before the handler runs, so a wrongly-typed argument is a validation
+ * tool error naming the field — never a handler crash surfacing as an internal error.
+ */
 
 type Schema = Record<string, unknown>
 
-function schemaType(s: Schema): string | undefined {
-  return Array.isArray(s.type) ? (s.type[0] as string) : (s.type as string | undefined)
+const schemaType = function schemaType(schema: Schema): string | undefined {
+  return globalThis.Array.isArray(schema.type) ? (schema.type[0] as string) : (schema.type as string | undefined)
 }
 
-function validValue(s: Schema): unknown {
-  if (Array.isArray(s.enum) && s.enum.length > 0) return s.enum[0]
-  switch (schemaType(s)) {
-    case 'string':
-      return 'x'.repeat(Math.max(1, typeof s.minLength === 'number' ? s.minLength : 1))
+const validValue = function validValue(schema: Schema): unknown {
+  if (globalThis.Array.isArray(schema.enum) && Array.isArrayNonEmpty(schema.enum)) {
+    return schema.enum[0]
+  }
+  switch (schemaType(schema)) {
+    case 'string': {
+      return 'x'.repeat(Math.max(1, Predicate.isNumber(schema.minLength) ? schema.minLength : 1))
+    }
     case 'number':
-    case 'integer':
-      return typeof s.minimum === 'number' ? s.minimum : 1
-    case 'boolean':
+    case 'integer': {
+      return Predicate.isNumber(schema.minimum) ? schema.minimum : 1
+    }
+    case 'boolean': {
       return true
-    case 'array':
+    }
+    case 'array': {
       return []
-    case 'object':
+    }
+    case 'object': {
       return {}
-    default:
+    }
+    default: {
       return 'x'
+    }
   }
 }
 
-function wrongValue(s: Schema): unknown {
-  switch (schemaType(s)) {
-    case 'string':
+const wrongValue = function wrongValue(schema: Schema): unknown {
+  switch (schemaType(schema)) {
+    case 'string': {
       return 42
+    }
     case 'number':
-    case 'integer':
+    case 'integer': {
       return 'ten'
-    case 'boolean':
+    }
+    case 'boolean': {
       return 'yes'
+    }
     case 'array':
-    case 'object':
+    case 'object': {
       return 'not-a-container'
-    default:
+    }
+    default: {
       return undefined
+    }
   }
 }
 
-async function rpc(workspaceId: string, headers: Record<string, string>, method: string, params: unknown) {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
-  return res.json() as Promise<{
-    result?: { tools: Array<{ name: string; inputSchema: Schema }> }
-  }>
+const rpc = async function rpc(
+  workspaceId: string,
+  headers: Record<string, string>,
+  method: string,
+  params: unknown,
+): Promise<{ result?: { tools: { name: string; inputSchema: Schema }[] } }> {
+  const res = await fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
+  return res.json()
 }
 
-describe('PROJ-920: MCP tool arguments are type-checked before the handler runs', () => {
+describe('covers PROJ-920: MCP tool arguments are type-checked before the handler runs', () => {
   const prevMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
-    env.RATE_LIMIT_API_MAX = '10000' // one call per tool below
+    // One call per tool below
+    env.RATE_LIMIT_API_MAX = '10000'
   })
   afterAll(() => {
     env.RATE_LIMIT_API_MAX = prevMax
   })
 
-  it('every tool rejects a wrongly-typed required argument with a validation tool error naming it', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const headers = authHeaders(f.token, f.workspace.slug)
-    const list = await rpc(f.workspace.id, headers, 'tools/list', {})
+  test('every tool rejects a wrongly-typed required argument with a validation tool error naming it', async () => {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const headers = authHeaders(testFixture.token, testFixture.workspace.slug)
+    const list = await rpc(testFixture.workspace.id, headers, 'tools/list', {})
     const tools = list.result?.tools ?? []
     expect(tools.length).toBeGreaterThan(50)
 
@@ -82,43 +102,47 @@ describe('PROJ-920: MCP tool arguments are type-checked before the handler runs'
     let checked = 0
     for (const tool of tools) {
       const props = (tool.inputSchema.properties ?? {}) as Record<string, Schema>
-      const required = ((tool.inputSchema.required ?? []) as string[]).filter((k) => props[k])
-      const target = required.find((k) => wrongValue(props[k]) !== undefined)
-      if (!target) continue
+      const required = ((tool.inputSchema.required ?? []) as string[]).filter((key) => props[key])
+      const target = required.find((key) => wrongValue(props[key]) !== undefined)
+      if (Predicate.isNullish(target) || String.isEmpty(target)) {
+        continue
+      }
       const args: Record<string, unknown> = {}
-      for (const k of required) args[k] = validValue(props[k])
+      Iterable.forEach(required, (key) => {
+        args[key] = validValue(props[key])
+      })
       args[target] = wrongValue(props[target])
 
-      const res = await rpc(f.workspace.id, headers, 'tools/call', {
+      const res = await rpc(testFixture.workspace.id, headers, 'tools/call', {
         name: tool.name,
         arguments: args,
       })
-      checked++
+      checked += 1
       const err = toolError(res)
       if (err?.code !== 'validation' || !err.fields || !(target in err.fields)) {
         failures.push(`${tool.name}.${target}: ${err?.code ?? 'ok'} ${err?.message ?? ''}`)
       }
     }
     expect(checked).toBeGreaterThan(50)
-    expect(failures).toEqual([])
+    expect(failures).toStrictEqual([])
   })
 
-  it('puts the failing field in fields like a service ValidationError', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const headers = authHeaders(f.token, f.workspace.slug)
-    const res = await rpc(f.workspace.id, headers, 'tools/call', {
+  test('puts the failing field in fields like a service ValidationError', async () => {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const headers = authHeaders(testFixture.token, testFixture.workspace.slug)
+    const res = await rpc(testFixture.workspace.id, headers, 'tools/call', {
       name: 'get_issue',
       arguments: { id: 42 },
     })
     const err = toolError(res)
     expect(err?.code).toBe('validation')
-    expect(err?.fields?.id?.[0]).toMatch(/must be string/)
+    expect(err?.fields?.id?.[0]).toMatch(/must be string/u)
   })
 
-  it('still reports missing required arguments by name (PROJ-877)', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const headers = authHeaders(f.token, f.workspace.slug)
-    const res = await rpc(f.workspace.id, headers, 'tools/call', {
+  test('still reports missing required arguments by name (PROJ-877)', async () => {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const headers = authHeaders(testFixture.token, testFixture.workspace.slug)
+    const res = await rpc(testFixture.workspace.id, headers, 'tools/call', {
       name: 'create_issue',
       arguments: {},
     })
@@ -143,7 +167,7 @@ describe('validateToolArgs', () => {
     required: ['status'],
   }
 
-  it('accepts valid args, null for nullable fields, and undeclared extras', () => {
+  test('accepts valid args, null for nullable fields, and undeclared extras', () => {
     expect(
       validateToolArgs(schema, {
         status: 'todo',
@@ -152,24 +176,26 @@ describe('validateToolArgs', () => {
         limit: 3,
         extra: 1,
       }),
-    ).toEqual([])
+    ).toStrictEqual([])
   })
 
-  it('reports enum, item, length, integer and minimum violations with paths', () => {
+  test('reports enum, item, length, integer and minimum violations with paths', () => {
     const issues = validateToolArgs(schema, {
       status: 'nope',
       labels: ['a', 2, 'c'],
       limit: 1.5,
       title: 'toolong',
     })
-    const paths = issues.map((i) => i.path).sort()
-    expect(paths).toEqual(['labels', 'labels[1]', 'limit', 'status', 'title'])
+    const paths = issues.map((issue) => issue.path).toSorted()
+    expect(paths).toStrictEqual(['labels', 'labels[1]', 'limit', 'status', 'title'])
   })
 
-  it('stays as lenient as the services: numeric/boolean strings and null for optional fields', () => {
-    expect(validateToolArgs(schema, { status: 'done', limit: '3', labels: null, title: null })).toEqual([])
-    expect(validateToolArgs({ properties: { flag: { type: 'boolean' } } }, { flag: 'true' })).toEqual([])
-    expect(validateToolArgs(schema, { status: null }).map((i) => i.path)).toEqual(['status'])
-    expect(validateToolArgs(schema, { status: 'todo', limit: 'ten' }).map((i) => i.path)).toEqual(['limit'])
+  test('stays as lenient as the services: numeric/boolean strings and null for optional fields', () => {
+    expect(validateToolArgs(schema, { status: 'done', limit: '3', labels: null, title: null })).toStrictEqual([])
+    expect(validateToolArgs({ properties: { flag: { type: 'boolean' } } }, { flag: 'true' })).toStrictEqual([])
+    expect(validateToolArgs(schema, { status: null }).map((issue) => issue.path)).toStrictEqual(['status'])
+    expect(validateToolArgs(schema, { status: 'todo', limit: 'ten' }).map((issue) => issue.path)).toStrictEqual([
+      'limit',
+    ])
   })
 })

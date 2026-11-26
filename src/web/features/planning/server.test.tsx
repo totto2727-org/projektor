@@ -1,35 +1,45 @@
-import { Effect, Schema } from 'effect'
+import { Effect, Result, Schema, pipe } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
+import { coreResult, browserRequest } from '@/core.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import type { ApiError, ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
+import { testEnvironment } from '@/server/test/resources.ts'
 
-import { coreResult, browserRequest } from '../../core'
-import { makeRequestServices, RequestServices } from '../../request'
-import type { ApiError, ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { testEnvironment } from '../../server/test/resources'
-import { featureDatabase } from './action-test-fixture'
-import { defaultRange, rangeFromUrl } from './helpers'
-import { HeatmapSchema, MetricsSchema, SprintsSchema } from './schemas'
-import { loadSprintIssues, renderMetrics, renderSprints } from './server'
+import { featureDatabase } from './action-test-fixture.ts'
+import type * as Actions from './actions.ts'
+import { defaultRange, rangeFromUrl } from './helpers.ts'
+import { HeatmapSchema, MetricsSchema, SprintsSchema } from './schemas.ts'
+import { loadSprintIssues, renderMetrics, renderSprints } from './server.tsx'
 
 vi.mock('./actions', () => ({
-  createSprint: vi.fn(),
-  editSprint: vi.fn(),
-  setSprintStatus: vi.fn(),
-  archiveSprint: vi.fn(),
-  moveSprintIssues: vi.fn(),
+  createSprint: vi.fn<typeof Actions.createSprint>(),
+  editSprint: vi.fn<typeof Actions.editSprint>(),
+  setSprintStatus: vi.fn<typeof Actions.setSprintStatus>(),
+  archiveSprint: vi.fn<typeof Actions.archiveSprint>(),
+  moveSprintIssues: vi.fn<typeof Actions.moveSprintIssues>(),
 }))
 vi.hoisted(() =>
   vi.stubGlobal(
     'matchMedia',
-    vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn<MediaQueryList['addEventListener']>(),
+      removeEventListener: vi.fn<MediaQueryList['removeEventListener']>(),
+    })),
   ),
 )
 
-function runWithDatabase<T>(
+const decodeSprints = Schema.decodeUnknownResult(SprintsSchema, { errors: 'all' })
+const decodeMetrics = Schema.decodeUnknownResult(MetricsSchema, { errors: 'all' })
+const decodeHeatmap = Schema.decodeUnknownResult(HeatmapSchema)
+
+const runWithDatabase = function runWithDatabase<T>(
   database: ReturnType<typeof featureDatabase>,
   url: URL,
   use: (scope: RequestScope) => Effect.Effect<T, ApiError | ScopeError, RequestServices>,
@@ -37,7 +47,7 @@ function runWithDatabase<T>(
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
   const transport = vi.spyOn(globalThis, 'fetch')
-  const result = Effect.runPromise(
+  const result = runTestEffect(
     Effect.gen(function* () {
       const services = yield* makeRequestServices(new Request(url), testEnvironment(database.db))
       const scope = yield* services.scope({
@@ -50,16 +60,17 @@ function runWithDatabase<T>(
   )
   return { result, transport }
 }
-function issueRows(database: ReturnType<typeof featureDatabase>, count: number) {
+const issueRows = function issueRows(database: ReturnType<typeof featureDatabase>, count: number): void {
   const statement = database.sqlite.prepare(
     "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at,sprint_id,status) VALUES (?, 'w1', 'p1', ?, ?, 'u1', 1, 1, 's1', 'done')",
   )
-  for (let index = 0; index < count; index++)
+  for (let index = 0; index < count; index += 1) {
     statement.run(`i${String(index).padStart(3, '0')}`, index + 1, `Completed task ${index}`)
+  }
 }
 
 describe('planning SSR named shared queries on real migrated D1', () => {
-  it.each(['all', 'planned', 'active', 'completed'] as const)(
+  test.each(['all', 'planned', 'active', 'completed'] as const)(
     'renders URL %s mode with full sprint and velocity context without read HTTP',
     async (mode) => {
       const database = featureDatabase()
@@ -72,8 +83,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       )
       const node = await run.result
       expect(node.props.mode).toBe(mode)
-      expect(node.props.allSprints.map((item: { id: string }) => item.id)).toEqual(['s1', 's2'])
-      expect(node.props.initialSprints.map((item: { status: string }) => item.status)).toEqual(
+      expect(node.props.allSprints.map((item: { id: string }) => item.id)).toStrictEqual(['s1', 's2'])
+      expect(node.props.initialSprints.map((item: { status: string }) => item.status)).toStrictEqual(
         ['completed', 'active'].filter((status) => mode === 'all' || status === mode),
       )
       expect(node.props.initialIssues).toHaveLength(1)
@@ -81,7 +92,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       expect(run.transport).toHaveBeenCalledTimes(0)
     },
   )
-  it('loads every issue page, including same-timestamp ties and real custom fields, for velocity', async () => {
+
+  test('loads every issue page, including same-timestamp ties and real custom fields, for velocity', async () => {
     const database = featureDatabase()
     issueRows(database, 205)
     database.sqlite
@@ -98,11 +110,12 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     expect(issues.some((item) => item.id === 'other-project-issue')).toBe(false)
     expect(issues).toHaveLength(205)
     expect(new Set(issues.map((item) => item.id)).size).toBe(205)
-    expect(issues.find((item) => item.id === 'i000')?.customFields).toEqual([{ key: 'story_points', value: '5' }])
+    expect(issues.find((item) => item.id === 'i000')?.customFields).toStrictEqual([{ key: 'story_points', value: '5' }])
     expect(issues.some((item) => item.id === 'private')).toBe(false)
     expect(run.transport).toHaveBeenCalledTimes(0)
   })
-  it('rejects aggregates over the explicit budget instead of returning partial velocity', async () => {
+
+  test('rejects aggregates over the explicit budget instead of returning partial velocity', async () => {
     const database = featureDatabase()
     issueRows(database, 1001)
     await expect(
@@ -111,33 +124,36 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       ).result,
     ).rejects.toMatchObject({ _tag: 'ApiError', status: 422 })
   })
-  it('rejects inaccessible selected projects before loading project data', async () => {
+
+  test('rejects inaccessible selected projects before loading project data', async () => {
     const database = featureDatabase()
     const run = runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
       renderSprints({ ...scope, projects: [] }, new URL('https://front.example/sprints')),
     )
     await expect(run.result).rejects.toMatchObject({ _tag: 'ScopeError', status: 404 })
   })
-  it('rejects invalid sprint modes and metrics ranges rather than sending HTTP reads', async () => {
+
+  test('rejects invalid sprint modes and metrics ranges rather than sending HTTP reads', async () => {
+    expect.hasAssertions()
     const database = featureDatabase()
     await expect(
       runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
         renderSprints(scope, new URL('https://front.example/sprints?status=archived')),
       ).result,
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
-    for (const query of [
-      'since=2026-10-04&until=2026-10-01',
-      'since=2026-02-30',
-      'since=2020-01-01&until=2026-01-01',
-    ]) {
-      await expect(
-        runWithDatabase(database, new URL('https://front.example/metrics'), (scope) =>
-          renderMetrics(scope, new URL(`https://front.example/metrics?${query}`)),
-        ).result,
-      ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
-    }
+    await runInOrder(
+      ['since=2026-10-04&until=2026-10-01', 'since=2026-02-30', 'since=2020-01-01&until=2026-01-01'],
+      async (query): Promise<void> => {
+        await expect(
+          runWithDatabase(database, new URL('https://front.example/metrics'), (scope) =>
+            renderMetrics(scope, new URL(`https://front.example/metrics?${query}`)),
+          ).result,
+        ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
+      },
+    )
   })
-  it('private Core rejects excessive metrics ranges with HTTP 400 before chart allocation', async () => {
+
+  test('private Core rejects excessive metrics ranges with HTTP 400 before chart allocation', async () => {
     const database = featureDatabase()
     const run = runWithDatabase(database, new URL('https://front.example/metrics'), () =>
       Effect.gen(function* () {
@@ -147,7 +163,7 @@ describe('planning SSR named shared queries on real migrated D1', () => {
           services.core.webFlowMetrics(browserRequest(services.request), 'w1', {
             projectId: 'p1',
             since: 0,
-            until: 366 * 86400,
+            until: 366 * 86_400,
             granularity: 'day',
             mode: 'claims',
             prefix: '',
@@ -157,7 +173,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     )
     await expect(run.result).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
   })
-  it('uses the exact UTC metrics window and contention prefix from the URL against real rows', async () => {
+
+  test('uses the exact UTC metrics window and contention prefix from the URL against real rows', async () => {
     const database = featureDatabase()
     issueRows(database, 1)
     const doneAt = Date.parse('2026-09-02T12:00:00Z') / 1000
@@ -174,35 +191,36 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     )
     const run = runWithDatabase(database, url, (scope) => renderMetrics(scope, url))
     const node = await run.result
-    expect(node.props.initialRange).toEqual({
+    expect(node.props.initialRange).toStrictEqual({
+      granularity: 'day',
       since: '2026-09-01',
       until: '2026-10-01',
-      granularity: 'day',
     })
-    expect(node.props.initialMetrics.leadTime).toEqual({
-      count: 1,
+    expect(node.props.initialMetrics.leadTime).toStrictEqual({
       avg: 3600,
+      count: 1,
       p50: 3600,
       p90: 3600,
     })
-    expect(node.props.initialHeatmap).toEqual({
-      prefix: 'src',
-      totalDistinctIssues: 1,
+    expect(node.props.initialHeatmap).toStrictEqual({
       entries: [
         {
+          conflictCount: 1,
+          distinctRejectedIssueCount: 1,
+          isLeaf: false,
           path: 'src/api',
           segment: 'api',
-          isLeaf: false,
-          distinctRejectedIssueCount: 1,
-          conflictCount: 1,
         },
       ],
+      prefix: 'src',
+      totalDistinctIssues: 1,
     })
     expect(node.props.initialUrl).toContain('workspace=alpha')
     expect(renderToStaticMarkup(node)).toContain('Where the fleet queues up')
     expect(run.transport).toHaveBeenCalledTimes(0)
   })
-  it('retains core metrics when optional heatmap queries fail and safely reports core failures', async () => {
+
+  test('retains core metrics when optional heatmap queries fail and safely reports core failures', async () => {
     const database = featureDatabase()
     database.sqlite.exec('DROP TABLE claim_conflicts')
     const url = new URL('https://front.example/metrics?heatmapMode=contention')
@@ -212,27 +230,34 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     database.sqlite.exec('DROP TABLE task_types')
     await expect(runWithDatabase(database, url, (scope) => renderMetrics(scope, url)).result).rejects.toMatchObject({
       _tag: 'ApiError',
-      status: 500,
       message: 'An unexpected error occurred.',
+      status: 500,
     })
   })
-  it('decodes the existing concrete sprint, metrics and heatmap DTO contracts', () => {
-    expect(() => Schema.decodeUnknownSync(SprintsSchema)({ items: [{ id: 's1', status: 'archived' }] })).toThrow()
-    expect(() => Schema.decodeUnknownSync(MetricsSchema)({ bugTypeTracked: 'false' })).toThrow()
-    expect(() =>
-      Schema.decodeUnknownSync(HeatmapSchema)({
-        prefix: '',
-        totalDistinctIssues: '1',
-        entries: [],
-      }),
-    ).toThrow()
+
+  test('decodes the existing concrete sprint, metrics and heatmap DTO contracts', () => {
+    const invalidSprintStatus = pipe(
+      decodeSprints({ items: [{ id: 's1', status: 'archived' }] }),
+      Result.flip,
+      Result.getOrUndefined,
+    )
+    expect(invalidSprintStatus?.message).toContain('["items"][0]["status"]')
+    const invalidBugTrackedFlag = pipe(decodeMetrics({ bugTypeTracked: 'false' }), Result.flip, Result.getOrUndefined)
+    expect(invalidBugTrackedFlag?.message).toContain('["bugTypeTracked"]')
+    const invalidDistinctIssueTotal = pipe(
+      decodeHeatmap({ prefix: '', totalDistinctIssues: '1', entries: [] }),
+      Result.flip,
+      Result.getOrUndefined,
+    )
+    expect(invalidDistinctIssueTotal?.message).toContain('["totalDistinctIssues"]')
   })
-  it('keeps the six-week weekly default and date normalization', () => {
+
+  test('keeps the six-week weekly default and date normalization', () => {
     const now = new Date('2026-10-04T12:00:00Z')
-    expect(defaultRange(now)).toEqual({
+    expect(defaultRange(now)).toStrictEqual({
+      granularity: 'week',
       since: '2026-08-24',
       until: '2026-10-04',
-      granularity: 'week',
     })
     expect(rangeFromUrl(new URL('https://front.example/metrics?since=not-a-date&until=2026-10-04'), now).since).toBe(
       '2026-08-24',

@@ -44,7 +44,7 @@ export type AuthMethod = 'oauth' | 'pk' | 'pat' | 'access' | 'dev' | 'public'
 export interface AuthInfo {
   kind: 'human' | 'agent'
   method: AuthMethod
-  /** api_tokens.id for pk/pat, the grant id for oauth; absent for sessions. */
+  /** Api_tokens.id for pk/pat, the grant id for oauth; absent for sessions. */
   credentialId?: string
   /** OAuth client id (grants created after PROJ-889 only). */
   clientId?: string
@@ -70,12 +70,14 @@ export interface PluginContext {
   auth?: AuthInfo
   workspaceHub?: DurableObjectNamespace
   waitUntil?: (promise: Promise<unknown>) => void
-  // PROJ-928: parsed, narrowly-typed config tunables a service may need — never the raw
-  // worker env. A prior version of this put the whole `env` here, which (since
-  // PluginContext is shared by every service and MCP/plugin handler) would have handed
-  // every tool secrets and bindings it has no business touching. Each field is parsed
-  // once from the real env (see ctxFromHono) and defaults are applied there, not by
-  // the reading service.
+  /*
+   * PROJ-928: parsed, narrowly-typed config tunables a service may need — never the raw
+   * worker env. A prior version of this put the whole `env` here, which (since
+   * PluginContext is shared by every service and MCP/plugin handler) would have handed
+   * every tool secrets and bindings it has no business touching. Each field is parsed
+   * once from the real env (see ctxFromHono) and defaults are applied there, not by
+   * the reading service.
+   */
   config?: {
     fileClaimTtlSeconds?: number
   }
@@ -86,7 +88,7 @@ export interface Plugin {
   name: string
   version: string
   migrations?: Migration[]
-  // biome-ignore lint/suspicious/noExplicitAny: Hono app type not available in this package
+  // Hono app type not available in this package
   register?: (app: any) => void
   mcpTools?: MCPTool[]
 }

@@ -1,14 +1,16 @@
 import type { Effect } from 'effect'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
-export interface FeedbackProjectOptions {
-  readonly projectId: string
-}
-export interface ListFeedbackOptions extends FeedbackProjectOptions {
-  readonly status?: 'new' | 'reviewed' | 'actioned'
-  readonly sourceId?: string
-}
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
+
+export type FeedbackProjectOptions = Readonly<{ projectId: string }>
+export type ListFeedbackOptions = FeedbackProjectOptions &
+  Readonly<{
+    status?: 'new' | 'reviewed' | 'actioned'
+    sourceId?: string
+  }>
 export interface FeedbackJoinRow {
   id: string
   source_id: string
@@ -49,8 +51,15 @@ export interface FeedbackSourceRow extends FeedbackSourceListRow {
   project_id: string
 }
 
-/** Validated filters only. Authorization and response shaping belong to callers. */
-export function listFeedback(
+/**
+ * Validated filters only. Authorization and response shaping belong to callers.
+ *
+ * @param {D1Database} db The D1 connection for feedback data.
+ * @param {string} workspaceId The workspace to query.
+ * @param {ListFeedbackOptions} opts The project and optional source and status filters.
+ * @returns {Effect.Effect<FeedbackJoinRow[], DataQueryError>} An effect that reads matching feedback rows in reverse creation order.
+ */
+export const listFeedback = function listFeedback(
   db: D1Database,
   workspaceId: string,
   opts: ListFeedbackOptions,
@@ -62,7 +71,7 @@ export function listFeedback(
       clauses.push('f.status = ?')
       binds.push(opts.status)
     }
-    if (opts.sourceId) {
+    if (isNonEmptyText(opts.sourceId)) {
       clauses.push('f.source_id = ?')
       binds.push(opts.sourceId)
     }
@@ -79,8 +88,15 @@ export function listFeedback(
   })
 }
 
-/** Raw aggregate rows retain database semantics, including null averages. */
-export function readFeedbackSummary(
+/**
+ * Raw aggregate rows retain database semantics, including null averages.
+ *
+ * @param {D1Database} db The D1 connection for feedback data.
+ * @param {string} workspaceId The workspace to query.
+ * @param {FeedbackProjectOptions} opts The project to summarize.
+ * @returns {Effect.Effect<FeedbackSummaryRow[], DataQueryError>} An effect that reads aggregates by source and app version.
+ */
+export const readFeedbackSummary = function readFeedbackSummary(
   db: D1Database,
   workspaceId: string,
   opts: FeedbackProjectOptions,
@@ -107,7 +123,7 @@ export function readFeedbackSummary(
   })
 }
 
-export function listFeedbackSources(
+export const listFeedbackSources = function listFeedbackSources(
   db: D1Database,
   workspaceId: string,
   opts: FeedbackProjectOptions,
@@ -122,8 +138,15 @@ export function listFeedbackSources(
   })
 }
 
-/** Token hashes are database model fields, never a browser response contract. */
-export function findFeedbackSourceById(
+/**
+ * Token hashes are database model fields, never a browser response contract.
+ *
+ * @param {D1Database} db The D1 connection for feedback data.
+ * @param {string} workspaceId The workspace to query.
+ * @param {string} sourceId The feedback source ID in the workspace.
+ * @returns {Effect.Effect<FeedbackSourceRow | null, DataQueryError>} An effect that reads the source row, or null if it is missing.
+ */
+export const findFeedbackSourceById = function findFeedbackSourceById(
   db: D1Database,
   workspaceId: string,
   sourceId: string,

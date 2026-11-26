@@ -1,132 +1,157 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Schema } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { authHeaders, type JsonRpcResult, seedFixture, toolError } from './helpers'
+import { ApiResults } from '#contracts/api-results.ts'
 
-describe('Playbooks', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+import { authHeaders, seedFixture, toolError } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
+import { RpcTextResponse, parseNativeMcpText, readNativeJson, readNativeMcpResultText } from './response-json.ts'
 
-  beforeEach(async () => {
+describe('playbooks', () => {
+  type TestData = Readonly<{
+    slug: string
+    token: string
+    workspaceId: string
+  }>
+
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-  })
+    const { token } = fixture
+    const { slug } = fixture.workspace
+    const workspaceId = fixture.workspace.id
+    return { slug, token, workspaceId }
+  }
 
-  it('GET /api/playbooks lists the registry', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks', {
+  test('handles GET /api/playbooks lists the registry', async () => {
+    const { slug, token } = await seedTestData()
+    const res = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as Array<{ name: string; title: string }>
-    expect(body.find((p) => p.name === 'epic-goal')).toBeTruthy()
-    expect(body.find((p) => p.name === 'idea-discovery')).toBeTruthy()
+    const body = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ name: Schema.String, title: Schema.String })).pipe(Schema.mutable),
+    )
+    expect(body.some((playbook) => playbook.name === 'epic-goal')).toBe(true)
+    expect(body.some((playbook) => playbook.name === 'idea-discovery')).toBe(true)
   })
 
-  // PROJ-633: the playbook reads are deliberately global — no workspace. Adding the
-  // compose route required workspace context, and applying workspaceMiddleware to the
-  // whole /api/playbooks prefix to get it would make these two 400 without a slug.
-  // Every other test here sends one, so only this asserts the prefix stays global.
-  it('GET /api/playbooks and /:name work without an X-Workspace-Slug header', async () => {
+  /*
+   * PROJ-633: the playbook reads are deliberately global — no workspace. Adding the
+   * compose route required workspace context, and applying workspaceMiddleware to the
+   * whole /api/playbooks prefix to get it would make these two 400 without a slug.
+   * Every other test here sends one, so only this asserts the prefix stays global.
+   */
+  test('handles GET /api/playbooks and /:name work without an X-Workspace-Slug header', async () => {
+    const { token } = await seedTestData()
     const auth = { Authorization: `Bearer ${token}` }
 
-    const list = await SELF.fetch('http://localhost/api/playbooks', { headers: auth })
+    const list = await fetchNativeApi('http://localhost/api/playbooks', { headers: auth })
     expect(list.status).toBe(200)
 
-    const one = await SELF.fetch('http://localhost/api/playbooks/epic-goal', { headers: auth })
+    const one = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', { headers: auth })
     expect(one.status).toBe(200)
   })
 
-  it('MCP list_playbooks returns the same content as REST', async () => {
-    const restRes = await SELF.fetch('http://localhost/api/playbooks', {
+  test('covers MCP list_playbooks returns the same content as REST', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
+    const restRes = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
-    const restBody = await restRes.json()
+    const restBody = await readNativeJson(restRes, ApiResults.apiListPlaybooks)
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'list_playbooks', arguments: {} },
+        params: { arguments: {}, name: 'list_playbooks' },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text)
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
+    const text = readNativeMcpResultText(mcpJson.result)
+    const mcpBody = parseNativeMcpText(text, ApiResults.apiListPlaybooks)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
-  it('GET /api/playbooks/:name returns the full playbook', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/epic-goal', {
+  test('handles GET /api/playbooks/:name returns the full playbook', async () => {
+    const { slug, token } = await seedTestData()
+    const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { name: string; content: string }
+    const body = await readNativeJson(res, Schema.Struct({ content: Schema.String, name: Schema.String }))
     expect(body.name).toBe('epic-goal')
     expect(body.content).toContain('bounded variant')
     expect(body.content).toContain('full variant')
     expect(body.content).toContain('Audit first')
   })
 
-  it('GET /api/playbooks/idea-discovery returns the full playbook', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/idea-discovery', {
+  test('handles GET /api/playbooks/idea-discovery returns the full playbook', async () => {
+    const { slug, token } = await seedTestData()
+    const res = await fetchNativeApi('http://localhost/api/playbooks/idea-discovery', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { name: string; content: string }
+    const body = await readNativeJson(res, Schema.Struct({ content: Schema.String, name: Schema.String }))
     expect(body.name).toBe('idea-discovery')
     expect(body.content).toContain('Research frontier')
     expect(body.content).toContain('Gap hypotheses')
     expect(body.content).toContain('Free/open data sources only')
   })
 
-  it('MCP get_playbook returns the same content as REST', async () => {
-    const restRes = await SELF.fetch('http://localhost/api/playbooks/epic-goal', {
+  test('covers MCP get_playbook returns the same content as REST', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
+    const restRes = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
-    const restBody = await restRes.json()
+    const restBody = await readNativeJson(restRes, ApiResults.apiGetPlaybook)
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'get_playbook', arguments: { name: 'epic-goal' } },
+        params: { arguments: { name: 'epic-goal' }, name: 'get_playbook' },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text)
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
+    const text = readNativeMcpResultText(mcpJson.result)
+    const mcpBody = parseNativeMcpText(text, ApiResults.apiGetPlaybook)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
-  it('GET /api/playbooks/:name 404s on an unknown name', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/does-not-exist', {
+  test('handles GET /api/playbooks/:name 404s on an unknown name', async () => {
+    const { slug, token } = await seedTestData()
+    const res = await fetchNativeApi('http://localhost/api/playbooks/does-not-exist', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
-    const body = (await res.json()) as { error: string; validNames: string[] }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ error: Schema.String, validNames: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(body.error).toContain('does-not-exist')
     expect(body.validNames).toContain('epic-goal')
   })
 
-  it('MCP get_playbook errors on an unknown name, naming valid options', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+  test('covers MCP get_playbook errors on an unknown name, naming valid options', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'get_playbook', arguments: { name: 'does-not-exist' } },
+        params: { arguments: { name: 'does-not-exist' }, name: 'get_playbook' },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     const json = await res.json()
     const err = toolError(json)

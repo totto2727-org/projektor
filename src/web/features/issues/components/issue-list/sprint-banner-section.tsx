@@ -1,0 +1,470 @@
+'use client'
+import { Schema } from 'effect'
+import type { FormEvent, JSX, Dispatch, SetStateAction } from 'react'
+import { useState } from 'react'
+
+import { unwrapResult } from '@/client/functions.ts'
+import { Button } from '@/components/ui/button.tsx'
+import { updateSprint } from '@/features/issues/actions.ts'
+import type { Issue } from '@/features/issues/components/board-utils.ts'
+import { RequiredText, Text, useIssueForm } from '@/features/issues/forms.ts'
+import { dateInputToUnix, unixToDateInput } from '@/features/issues/utils/date-input.ts'
+import { formatTimestampDate } from '@/features/timestamp.ts'
+
+export interface SprintDetail {
+  id: string
+  name: string
+  status: 'planned' | 'active' | 'completed'
+  startDate: number | null
+  endDate: number | null
+  goal: string | null
+  projectId: string
+}
+
+const tsToDateInput = unixToDateInput
+
+const sprintStatusStyle = function sprintStatusStyle(status: SprintDetail['status']): {
+  background: string
+  color: string
+  borderColor: string
+} {
+  if (status === 'active') {
+    return {
+      background: 'var(--sprint-active-bg)',
+      color: 'var(--status-in-progress)',
+      borderColor: 'var(--sprint-active-border)',
+    }
+  }
+  if (status === 'completed') {
+    return {
+      background: 'var(--sprint-completed-bg)',
+      color: 'var(--status-done)',
+      borderColor: 'var(--sprint-completed-border)',
+    }
+  }
+  return { background: 'var(--surface)', color: 'var(--text-muted)', borderColor: 'var(--border)' }
+}
+
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+const SprintProgress = function SprintProgress({ issues }: { issues: Issue[] }): undefined | JSX.Element {
+  const doneCount = issues.filter((issue) => issue.status_category === 'done').length
+  const totalCount = issues.length
+  if (totalCount === 0) {
+    return undefined
+  }
+  const pct = Math.round((doneCount / totalCount) * 100)
+  return (
+    <div className='mt-2'>
+      <div className='flex justify-between text-[0.72rem] text-text-muted mb-1'>
+        <span>
+          {doneCount}/{totalCount} done
+        </span>
+        <span>{pct}%</span>
+      </div>
+      <div className='h-1.5 bg-bg rounded-full overflow-hidden border border-border'>
+        <div className='h-full rounded-full transition-[width] duration-300 bg-accent' style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+interface SprintBannerProps {
+  sprintDetail: SprintDetail
+  sprintEditing: boolean
+  setSprintEditing: Dispatch<SetStateAction<boolean>>
+  sprintEditName: string
+  setSprintEditName: Dispatch<SetStateAction<string>>
+  sprintEditGoal: string
+  setSprintEditGoal: Dispatch<SetStateAction<string>>
+  sprintEditStatus: 'planned' | 'active' | 'completed'
+  setSprintEditStatus: Dispatch<SetStateAction<'planned' | 'active' | 'completed'>>
+  sprintEditStart: string
+  setSprintEditStart: Dispatch<SetStateAction<string>>
+  sprintEditEnd: string
+  setSprintEditEnd: Dispatch<SetStateAction<string>>
+  sprintEditSaving: boolean
+  sprintEditError: string | undefined
+  saveSprintEdit: (selectedEvent: FormEvent<HTMLFormElement>) => void
+  openSprintEdit: () => void
+  setFilterSprintId: Dispatch<SetStateAction<string>>
+  issues: Issue[]
+}
+
+const SPRINT_EDIT_INPUT_CLASS = [
+  'px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base',
+  'font-normal normal-case tracking-normal mt-[0.2rem]',
+].join(' ')
+
+const renderSprintEditName = (
+  sprintEditName: SprintBannerProps['sprintEditName'],
+  setSprintEditName: SprintBannerProps['setSprintEditName'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    Name *
+    <input
+      type='text'
+      value={sprintEditName}
+      onInput={(event) => {
+        setSprintEditName((event.target as HTMLInputElement).value)
+      }}
+      required
+      maxLength={255}
+      className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
+    />
+  </label>
+)
+
+const renderSprintEditStatus = (
+  sprintEditStatus: SprintBannerProps['sprintEditStatus'],
+  setSprintEditStatus: SprintBannerProps['setSprintEditStatus'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    Status
+    <select
+      value={sprintEditStatus}
+      onChange={(event) => {
+        setSprintEditStatus(event.target.value as 'planned' | 'active' | 'completed')
+      }}
+      className={`cursor-pointer ${SPRINT_EDIT_INPUT_CLASS}`}
+    >
+      <option value='planned'>Planned</option>
+      <option value='active'>Active</option>
+      <option value='completed'>Completed</option>
+    </select>
+  </label>
+)
+
+const renderSprintEditStart = (
+  sprintEditStart: SprintBannerProps['sprintEditStart'],
+  setSprintEditStart: SprintBannerProps['setSprintEditStart'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    Start date
+    <input
+      type='date'
+      value={sprintEditStart}
+      onInput={(event) => {
+        setSprintEditStart((event.target as HTMLInputElement).value)
+      }}
+      className={SPRINT_EDIT_INPUT_CLASS}
+    />
+  </label>
+)
+
+const renderSprintEditEnd = (
+  sprintEditEnd: SprintBannerProps['sprintEditEnd'],
+  setSprintEditEnd: SprintBannerProps['setSprintEditEnd'],
+): JSX.Element => (
+  <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+    End date
+    <input
+      type='date'
+      value={sprintEditEnd}
+      onInput={(event) => {
+        setSprintEditEnd((event.target as HTMLInputElement).value)
+      }}
+      className={SPRINT_EDIT_INPUT_CLASS}
+    />
+  </label>
+)
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+function SprintEditFields({
+  sprintEditName,
+  setSprintEditName,
+  sprintEditStatus,
+  setSprintEditStatus,
+  sprintEditStart,
+  setSprintEditStart,
+  sprintEditEnd,
+  setSprintEditEnd,
+}: Pick<
+  SprintBannerProps,
+  | 'sprintEditName'
+  | 'setSprintEditName'
+  | 'sprintEditStatus'
+  | 'setSprintEditStatus'
+  | 'sprintEditStart'
+  | 'setSprintEditStart'
+  | 'sprintEditEnd'
+  | 'setSprintEditEnd'
+>): JSX.Element {
+  return (
+    <div className='flex gap-3 flex-wrap items-end'>
+      <div className='flex-1 min-w-[160px]'>{renderSprintEditName(sprintEditName, setSprintEditName)}</div>
+      <div>{renderSprintEditStatus(sprintEditStatus, setSprintEditStatus)}</div>
+      <div>{renderSprintEditStart(sprintEditStart, setSprintEditStart)}</div>
+      <div>{renderSprintEditEnd(sprintEditEnd, setSprintEditEnd)}</div>
+    </div>
+  )
+}
+
+const renderSprintEditGoal = (
+  sprintEditGoal: string,
+  setSprintEditGoal: SprintBannerProps['setSprintEditGoal'],
+): JSX.Element => (
+  <div>
+    <label className='block text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
+      Goal
+      <input
+        type='text'
+        value={sprintEditGoal}
+        onInput={(event) => {
+          setSprintEditGoal((event.target as HTMLInputElement).value)
+        }}
+        maxLength={2000}
+        placeholder='What do you want to achieve this sprint?'
+        className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
+      />
+    </label>
+  </div>
+)
+
+const renderSprintEditActions = (
+  sprintEditSaving: boolean,
+  sprintEditName: string,
+  setSprintEditing: SprintBannerProps['setSprintEditing'],
+): JSX.Element => (
+  <div className='flex gap-2'>
+    <Button type='submit' variant='primary' size='sm' disabled={sprintEditSaving || !sprintEditName.trim()}>
+      {sprintEditSaving ? 'Saving…' : 'Save'}
+    </Button>
+    <Button
+      type='button'
+      variant='outline'
+      size='sm'
+      onClick={() => {
+        setSprintEditing(false)
+      }}
+    >
+      Cancel
+    </Button>
+  </div>
+)
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+function SprintEditForm({
+  sprintEditName,
+  setSprintEditName,
+  sprintEditGoal,
+  setSprintEditGoal,
+  sprintEditStatus,
+  setSprintEditStatus,
+  sprintEditStart,
+  setSprintEditStart,
+  sprintEditEnd,
+  setSprintEditEnd,
+  sprintEditSaving,
+  sprintEditError,
+  saveSprintEdit,
+  setSprintEditing,
+}: Omit<
+  SprintBannerProps,
+  'sprintDetail' | 'openSprintEdit' | 'setFilterSprintId' | 'issues' | 'sprintEditing'
+>): JSX.Element {
+  return (
+    <form onSubmit={saveSprintEdit}>
+      {sprintEditError && (
+        <p role='alert' className='text-danger-text text-sm mb-2'>
+          {sprintEditError}
+        </p>
+      )}
+      <div className='flex flex-col gap-3'>
+        <SprintEditFields
+          sprintEditName={sprintEditName}
+          setSprintEditName={setSprintEditName}
+          sprintEditStatus={sprintEditStatus}
+          setSprintEditStatus={setSprintEditStatus}
+          sprintEditStart={sprintEditStart}
+          setSprintEditStart={setSprintEditStart}
+          sprintEditEnd={sprintEditEnd}
+          setSprintEditEnd={setSprintEditEnd}
+        />
+        {renderSprintEditGoal(sprintEditGoal, setSprintEditGoal)}
+        {renderSprintEditActions(sprintEditSaving, sprintEditName, setSprintEditing)}
+      </div>
+    </form>
+  )
+}
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+function SprintBannerView({
+  sprintDetail,
+  openSprintEdit,
+  setFilterSprintId,
+  issues,
+}: Pick<SprintBannerProps, 'sprintDetail' | 'openSprintEdit' | 'setFilterSprintId' | 'issues'>): JSX.Element {
+  return (
+    <>
+      <div className='flex items-center gap-2 flex-wrap'>
+        <span className='font-semibold text-text-base'>{sprintDetail.name}</span>
+        <span
+          className='text-[0.72rem] font-semibold px-2 py-0.5 rounded-full capitalize border'
+          style={sprintStatusStyle(sprintDetail.status)}
+        >
+          {sprintDetail.status}
+        </span>
+        {sprintDetail.startDate && (
+          <span className='text-sm text-text-muted'>
+            {formatTimestampDate(sprintDetail.startDate)}
+            {' – '}
+            {sprintDetail.endDate ? formatTimestampDate(sprintDetail.endDate) : 'ongoing'}
+          </span>
+        )}
+        <button
+          type='button'
+          onClick={openSprintEdit}
+          className={[
+            'py-[0.2rem] px-2 rounded border border-border bg-bg text-text-muted cursor-pointer',
+            'text-[0.78rem] hover:text-text-base',
+          ].join(' ')}
+        >
+          Edit
+        </button>
+        <button
+          type='button'
+          onClick={() => {
+            setFilterSprintId('')
+          }}
+          className='ml-auto py-[0.2rem] px-2 rounded border border-border bg-bg text-text-muted cursor-pointer text-[0.78rem]'
+        >
+          ✕ Clear sprint
+        </button>
+      </div>
+      {sprintDetail.goal && <p className='mt-1 text-sm text-text-muted m-0'>{sprintDetail.goal}</p>}
+      <SprintProgress issues={issues} />
+    </>
+  )
+}
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+function SprintBanner(props: SprintBannerProps): JSX.Element {
+  return (
+    <div className='mb-4 px-[0.875rem] py-[0.625rem] bg-surface border border-border rounded-md'>
+      {props.sprintEditing ? <SprintEditForm {...props} /> : <SprintBannerView {...props} />}
+    </div>
+  )
+}
+
+interface SprintBannerSectionProps {
+  filterSprintId: string
+  sprintDetail: SprintDetail | null
+  setFilterSprintId: Dispatch<SetStateAction<string>>
+  workspaceSlug?: string
+  issues: Issue[]
+}
+
+/**
+ * Wraps SprintBanner with its own edit-form state, isolated from the parent list.
+ *
+ * @param {SprintBannerSectionProps} props The selected sprint's details, filter controls, workspace, and issues.
+ * @returns {false | JSX.Element} The sprint summary or editor, or false when the selection has no details.
+ */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SprintBannerSection({
+  filterSprintId,
+  sprintDetail,
+  setFilterSprintId,
+  workspaceSlug,
+  issues,
+}: SprintBannerSectionProps): false | JSX.Element {
+  const [sprintEditing, setSprintEditing] = useState(false)
+  const sprintForm = useIssueForm<{
+    name: string
+    goal: string
+    status: SprintDetail['status']
+    start: string
+    end: string
+  }>(
+    {
+      name: '',
+      goal: '',
+      status: 'planned',
+      start: '',
+      end: '',
+    },
+    Schema.Struct({
+      name: RequiredText.check(Schema.isMaxLength(255)),
+      goal: Text.check(Schema.isMaxLength(2000)),
+      status: Schema.Literals(['planned', 'active', 'completed']),
+      start: Text,
+      end: Text,
+    }),
+  )
+  const [sprintEditName, setSprintEditName] = sprintForm.field('name')
+  const [sprintEditGoal, setSprintEditGoal] = sprintForm.field('goal')
+  const [sprintEditStatus, setSprintEditStatus] = sprintForm.field('status')
+  const [sprintEditStart, setSprintEditStart] = sprintForm.field('start')
+  const [sprintEditEnd, setSprintEditEnd] = sprintForm.field('end')
+  const [sprintEditSaving, setSprintEditSaving] = useState(false)
+  const [sprintEditError, setSprintEditError] = useState<string>()
+
+  const openSprintEdit = function openSprintEdit(): void {
+    if (!sprintDetail) {
+      return
+    }
+    setSprintEditName(sprintDetail.name)
+    setSprintEditGoal(sprintDetail.goal ?? '')
+    setSprintEditStatus(sprintDetail.status)
+    setSprintEditStart(sprintDetail.startDate ? tsToDateInput(sprintDetail.startDate) : '')
+    setSprintEditEnd(sprintDetail.endDate ? tsToDateInput(sprintDetail.endDate) : '')
+    setSprintEditError(undefined)
+    setSprintEditing(true)
+  }
+
+  const saveSprintEdit = async function saveSprintEdit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault()
+    if (!sprintDetail) {
+      return
+    }
+    if (!(await sprintForm.validate())) {
+      setSprintEditError('Enter a sprint name.')
+      return
+    }
+    setSprintEditSaving(true)
+    setSprintEditError(undefined)
+    try {
+      const body = {
+        name: sprintEditName.trim(),
+        goal: sprintEditGoal.trim() || null,
+        status: sprintEditStatus,
+        startDate: dateInputToUnix(sprintEditStart),
+        endDate: dateInputToUnix(sprintEditEnd),
+      }
+      unwrapResult(await updateSprint({ sprintId: sprintDetail.id, workspaceSlug, patch: body }))
+
+      setSprintEditing(false)
+    } catch (error) {
+      setSprintEditError(String(error))
+    }
+    setSprintEditSaving(false)
+  }
+
+  if (!filterSprintId || !sprintDetail) {
+    return false
+  }
+
+  return (
+    <SprintBanner
+      sprintDetail={sprintDetail}
+      sprintEditing={sprintEditing}
+      setSprintEditing={setSprintEditing}
+      sprintEditName={sprintEditName}
+      setSprintEditName={setSprintEditName}
+      sprintEditGoal={sprintEditGoal}
+      setSprintEditGoal={setSprintEditGoal}
+      sprintEditStatus={sprintEditStatus}
+      setSprintEditStatus={setSprintEditStatus}
+      sprintEditStart={sprintEditStart}
+      setSprintEditStart={setSprintEditStart}
+      sprintEditEnd={sprintEditEnd}
+      setSprintEditEnd={setSprintEditEnd}
+      sprintEditSaving={sprintEditSaving}
+      sprintEditError={sprintEditError}
+      saveSprintEdit={saveSprintEdit}
+      openSprintEdit={openSprintEdit}
+      setFilterSprintId={setFilterSprintId}
+      issues={issues}
+    />
+  )
+}

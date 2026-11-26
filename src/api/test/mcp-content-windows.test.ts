@@ -1,56 +1,68 @@
-// PROJ-892: windowed reads — bodyChars previews on lists, get_wiki_page maxChars/cursor/
-// section/outline, and get_issue's long-body cursor.
+/*
+ * PROJ-892: windowed reads — bodyChars previews on lists, get_wiki_page maxChars/cursor/
+ * section/outline, and get_issue's long-body cursor.
+ */
+import { String, Predicate } from 'effect'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { outlineOf, sectionOf, windowText } from '#api/mcp/windowing.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
-import { outlineOf, sectionOf, windowText } from '../mcp/windowing'
-import { env } from './fixture-api'
-import { seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 
-type Rpc = { result?: { content?: Array<{ text: string }>; isError?: boolean } }
+interface Rpc {
+  result?: { content?: { text: string }[]; isError?: boolean }
+}
 
-describe('PROJ-892: windowing (unit)', () => {
-  it('never splits a surrogate pair at the window edge, and the cursor continues losslessly', () => {
-    const text = `ab${'😀'.repeat(5)}cd` // 😀 is two UTF-16 units
-    const first = windowText(text, { max: 3 }) // would land mid-pair
+describe('covers PROJ-892: windowing (unit)', () => {
+  test('never splits a surrogate pair at the window edge, and the cursor continues losslessly', () => {
+    // 😀 is two UTF-16 units
+    const text = `ab${'😀'.repeat(5)}cd`
+    // Would land mid-pair
+    const first = windowText(text, { max: 3 })
     expect(first.text).toBe('ab')
     expect(first.next).toBe('2')
     let out = first.text
     let cursor = first.next
-    while (cursor) {
-      const w = windowText(text, { max: 3, cursor })
-      out += w.text
-      cursor = w.next
+    while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
+      const currentWindow = windowText(text, { cursor, max: 3 })
+      out += currentWindow.text
+      cursor = currentWindow.next
     }
     expect(out).toBe(text)
     expect(first.totalChars).toBe(text.length)
   })
 
-  it('a window smaller than one code point still makes progress (max:1 on an emoji)', () => {
+  test('a window smaller than one code point still makes progress (max:1 on an emoji)', () => {
     const text = '😀abc'
     const first = windowText(text, { max: 1 })
     expect(first.text).toBe('😀')
     expect(first.next).toBe('2')
-    expect(windowText(text, { max: 1, cursor: first.next }).text).toBe('a')
+    expect(windowText(text, { cursor: first.next, max: 1 }).text).toBe('a')
   })
 
-  it('rejects a bad cursor', () => {
-    expect(() => windowText('abc', { max: 2, cursor: 'x' })).toThrow()
-    expect(() => windowText('abc', { max: 2, cursor: '99' })).toThrow()
+  test('rejects a bad cursor', () => {
+    const invalidCursor: unknown = expect.objectContaining({
+      issues: { fieldErrors: { cursor: ['invalid cursor'] }, formErrors: [] },
+      message: 'Validation failed',
+    })
+    expect(() => windowText('abc', { cursor: 'x', max: 2 })).toThrow(invalidCursor)
+    expect(() => windowText('abc', { cursor: '99', max: 2 })).toThrow(invalidCursor)
   })
 
-  it('outline skips code fences and frontmatter; sectionOf stops at the next same-or-higher heading', () => {
+  test('outline skips code fences and frontmatter; sectionOf stops at the next same-or-higher heading', () => {
     const md =
       '---\ntitle: x\n# not a heading\n---\n# Top\nintro\n## A\na body\n```\n# fake\n```\n### A1\ndeep\n## B\nb body\n'
-    expect(outlineOf(md)).toEqual(['# Top', '## A', '### A1', '## B'])
+    expect(outlineOf(md)).toStrictEqual(['# Top', '## A', '### A1', '## B'])
     expect(sectionOf(md, 'A')).toBe('## A\na body\n```\n# fake\n```\n### A1\ndeep')
     expect(sectionOf(md, '## b')).toBe('## B\nb body')
     expect(sectionOf(md, 'nope')).toBeUndefined()
   })
 })
 
-describe('PROJ-892: MCP tools', () => {
+describe('covers PROJ-892: MCP tools', () => {
   const prevApiMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
     env.RATE_LIMIT_API_MAX = '1000'
@@ -59,65 +71,83 @@ describe('PROJ-892: MCP tools', () => {
     env.RATE_LIMIT_API_MAX = prevApiMax
   })
 
-  let f: Awaited<ReturnType<typeof seedProjectFixture>>
+  let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
   beforeEach(async () => {
-    f = await seedProjectFixture()
+    fixture = await seedProjectFixture()
   })
 
-  async function call(name: string, args: Record<string, unknown> = {}): Promise<Rpc> {
-    const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name, arguments: args },
-      }),
-    })
-    return (await res.json()) as Rpc
+  const call = async function call(name: string, args: Record<string, unknown> = {}): Promise<Rpc> {
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${fixture.workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: args, name },
+        }),
+      ),
+    )
+    const result: Rpc = await res.json()
+    return result
   }
-  async function tool<T = Record<string, unknown>>(name: string, args = {}): Promise<T> {
+  const tool = async function tool<T = Record<string, unknown>>(name: string, args = {}): Promise<T> {
     const body = await call(name, args)
     expect(body.result?.isError, JSON.stringify(body)).toBeUndefined()
     return JSON.parse(body.result?.content?.[0].text ?? 'null') as T
   }
 
-  it('list_issues: bodyChars previews and flags truncation; default has no body', async () => {
-    await tool('create_issue', {
-      projectId: f.projectId,
-      title: 'Long',
-      body: 'z'.repeat(3000),
-    })
-    await tool('create_issue', { projectId: f.projectId, title: 'Short', body: 'tiny' })
+  test('list_issues: bodyChars previews and flags truncation; default has no body', async () => {
+    await tool(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Long'],
+        ['body', 'z'.repeat(3000)],
+      ]),
+    )
+    await tool(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Short'],
+        ['body', 'tiny'],
+      ]),
+    )
 
-    const none = await tool<{ items: Array<Record<string, unknown>> }>('list_issues', {})
-    expect(none.items.every((i) => !('body' in i))).toBe(true)
+    const none = await tool<{ items: Record<string, unknown>[] }>('list_issues', {})
+    expect(none.items.every((item) => !('body' in item))).toBe(true)
 
-    const page = await tool<{ items: Array<Record<string, unknown>> }>('list_issues', {
+    const page = await tool<{ items: Record<string, unknown>[] }>('list_issues', {
       bodyChars: 100,
     })
-    const long = page.items.find((i) => i.title === 'Long')
-    const short = page.items.find((i) => i.title === 'Short')
-    expect(String(long?.body)).toHaveLength(100)
+    const long = page.items.find((item) => item.title === 'Long')
+    const short = page.items.find((item) => item.title === 'Short')
+    expect(globalThis.String(long?.body)).toHaveLength(100)
     expect(long?.bodyTruncated).toBe(true)
     expect(short?.body).toBe('tiny')
     expect(short).not.toHaveProperty('bodyTruncated')
   })
 
-  it('list_issues: bodyChars is validated (max 1000)', async () => {
+  test('list_issues: bodyChars is validated (max 1000)', async () => {
     const res = await call('list_issues', { bodyChars: 5000 })
     expect(res.result?.isError).toBe(true)
     expect(res.result?.content?.[0].text).toContain('bodyChars')
   })
 
-  it('get_issue: a body over 16,000 chars is windowed and continues via cursor', async () => {
-    const body = 'abcdefghij'.repeat(2000) // 20,000 chars
-    const created = await tool<{ id: string }>('create_issue', {
-      projectId: f.projectId,
-      title: 'Huge',
-      body,
-    })
+  test('get_issue: a body over 16,000 chars is windowed and continues via cursor', async () => {
+    // 20,000 chars
+    const body = 'abcdefghij'.repeat(2000)
+    const created = await tool<{ id: string }>(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Huge'],
+        ['body', body],
+      ]),
+    )
     const first = await tool<{
       body: string
       bodyTruncated?: boolean
@@ -127,32 +157,44 @@ describe('PROJ-892: MCP tools', () => {
     expect(first.body).toHaveLength(16_000)
     expect(first.bodyTruncated).toBe(true)
     expect(first.bodyTotalChars).toBe(20_000)
-    const second = await tool<{ body: string; next?: string }>('get_issue', {
-      id: created.id,
-      cursor: first.next,
-    })
+    const second = await tool<{ body: string; next?: string }>(
+      'get_issue',
+      fieldsInOrder([
+        ['id', created.id],
+        ['cursor', first.next],
+      ]),
+    )
     expect(second.next).toBeUndefined()
     expect(first.body + second.body).toBe(body)
   })
 
-  it('get_issue: a short body is returned whole with no window fields', async () => {
-    const created = await tool<{ id: string }>('create_issue', {
-      projectId: f.projectId,
-      title: 'Small',
-      body: 'hello',
-    })
-    const got = await tool<Record<string, unknown>>('get_issue', { id: created.id })
+  test('get_issue: a short body is returned whole with no window fields', async () => {
+    const created = await tool<{ id: string }>(
+      'create_issue',
+      fieldsInOrder([
+        ['projectId', fixture.projectId],
+        ['title', 'Small'],
+        ['body', 'hello'],
+      ]),
+    )
+    const got = await tool('get_issue', { id: created.id })
     expect(got.body).toBe('hello')
     expect(got).not.toHaveProperty('next')
     expect(got).not.toHaveProperty('bodyTotalChars')
   })
 
-  async function makeWiki(content: string): Promise<string> {
-    const p = await tool<{ slug: string }>('create_wiki_page', { title: 'Long Doc', content })
-    return p.slug
+  const makeWiki = async function makeWiki(content: string): Promise<string> {
+    const createdPage = await tool<{ slug: string }>(
+      'create_wiki_page',
+      fieldsInOrder([
+        ['title', 'Long Doc'],
+        ['content', content],
+      ]),
+    )
+    return createdPage.slug
   }
 
-  it('get_wiki_page: windows by maxChars with totalChars/outline, and the cursor reassembles the page', async () => {
+  test('get_wiki_page: windows by maxChars with totalChars/outline, and the cursor reassembles the page', async () => {
     const content = `# Intro\n${'x'.repeat(50)}\n## Details\n${'y'.repeat(50)}\n`
     const slug = await makeWiki(content)
     const first = await tool<{
@@ -161,38 +203,50 @@ describe('PROJ-892: MCP tools', () => {
       outline: string[]
       next?: string
       revisionId: string
-    }>('get_wiki_page', { slug, maxChars: 40 })
+    }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 40],
+      ]),
+    )
     expect(first.content).toHaveLength(40)
     expect(first.totalChars).toBe(content.length)
-    expect(first.outline).toEqual(['# Intro', '## Details'])
+    expect(first.outline).toStrictEqual(['# Intro', '## Details'])
     expect(first).toHaveProperty('revisionId')
 
     let text = first.content
-    let next = first.next
-    while (next) {
-      const w = await tool<{ content: string; next?: string }>('get_wiki_page', {
-        slug,
-        maxChars: 40,
-        cursor: next,
-      })
-      text += w.content
-      next = w.next
+    let { next } = first
+    while (Predicate.isNotNullish(next) && String.isNonEmpty(next)) {
+      const segment = await tool<{ content: string; next?: string }>(
+        'get_wiki_page',
+        fieldsInOrder([
+          ['slug', slug],
+          ['maxChars', 40],
+          ['cursor', next],
+        ]),
+      )
+      text += segment.content
+      ;({ next } = segment)
     }
     expect(text).toBe(content)
   })
 
-  it('get_wiki_page: contentTruncated is set on a partial window and absent on a whole page', async () => {
+  test('get_wiki_page: contentTruncated is set on a partial window and absent on a whole page', async () => {
     const slug = await makeWiki(`# T\n${'q'.repeat(200)}`)
-    const part = await tool<{ contentTruncated?: boolean }>('get_wiki_page', {
-      slug,
-      maxChars: 50,
-    })
+    const part = await tool<{ contentTruncated?: boolean }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 50],
+      ]),
+    )
     expect(part.contentTruncated).toBe(true)
-    const whole = await tool<Record<string, unknown>>('get_wiki_page', { slug })
+    const whole = await tool('get_wiki_page', { slug })
     expect(whole).not.toHaveProperty('contentTruncated')
   })
 
-  it('get_wiki_page: default window returns a small page whole', async () => {
+  test('get_wiki_page: default window returns a small page whole', async () => {
     const slug = await makeWiki('# Only\nshort')
     const page = await tool<{ content: string; next?: string; totalChars: number }>('get_wiki_page', { slug })
     expect(page.content).toBe('# Only\nshort')
@@ -200,32 +254,47 @@ describe('PROJ-892: MCP tools', () => {
     expect(page.totalChars).toBe(12)
   })
 
-  it('get_wiki_page: section returns just that section; a miss returns the outline', async () => {
+  test('get_wiki_page: section returns just that section; a miss returns the outline', async () => {
     const slug = await makeWiki('# Top\nintro\n## Alpha\nalpha text\n## Beta\nbeta text\n')
-    const hit = await tool<{ content: string; section: string }>('get_wiki_page', {
-      slug,
-      section: 'alpha',
-    })
+    const hit = await tool<{ content: string; section: string }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['section', 'alpha'],
+      ]),
+    )
     expect(hit.content).toBe('## Alpha\nalpha text')
 
-    const miss = await tool<{ sectionFound: boolean; outline: string[]; content?: string }>('get_wiki_page', {
-      slug,
-      section: 'gamma',
-    })
+    const miss = await tool<{ sectionFound: boolean; outline: string[]; content?: string }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['section', 'gamma'],
+      ]),
+    )
     expect(miss.sectionFound).toBe(false)
-    expect(miss.outline).toEqual(['# Top', '## Alpha', '## Beta'])
+    expect(miss.outline).toStrictEqual(['# Top', '## Alpha', '## Beta'])
     expect(miss).not.toHaveProperty('content')
   })
 
-  it('get_wiki_page: maxChars is validated and a multi-byte boundary is not split', async () => {
+  test('get_wiki_page: maxChars is validated and a multi-byte boundary is not split', async () => {
     const slug = await makeWiki('😀'.repeat(10))
-    const bad = await call('get_wiki_page', { slug, maxChars: 99_999 })
+    const bad = await call(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 99_999],
+      ]),
+    )
     expect(bad.result?.isError).toBe(true)
-    const w = await tool<{ content: string; next?: string }>('get_wiki_page', {
-      slug,
-      maxChars: 3,
-    })
-    expect(w.content).toBe('😀')
-    expect(w.next).toBe('2')
+    const segment = await tool<{ content: string; next?: string }>(
+      'get_wiki_page',
+      fieldsInOrder([
+        ['slug', slug],
+        ['maxChars', 3],
+      ]),
+    )
+    expect(segment.content).toBe('😀')
+    expect(segment.next).toBe('2')
   })
 })

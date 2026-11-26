@@ -1,18 +1,20 @@
 import { readFileSync } from 'node:fs'
 
+import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { cn } from '../../lib/utils'
-import { Badge } from './badge'
-import { Button } from './button'
-import { Card, CardContent, CardHeader, CardTitle } from './card'
-import { Field, FieldError, FieldLabel } from './field'
-import { Input } from './input'
+import { cn } from '@/lib/utils.ts'
+
+import { Badge } from './badge.tsx'
+import { Button } from './button.tsx'
+import { Card, CardContent, CardHeader, CardTitle } from './card.tsx'
+import { Field, FieldError, FieldLabel } from './field.tsx'
+import { Input } from './input.tsx'
 
 // Application integration checks, not modifications to official generated primitives.
 describe('official Base UI component integration', () => {
-  it('retains Base UI button semantics and merges caller classes', () => {
+  test('retains Base UI button semantics and merges caller classes', () => {
     const html = renderToStaticMarkup(
       <Button disabled className='h-12'>
         Save
@@ -25,7 +27,7 @@ describe('official Base UI component integration', () => {
     expect(cn('h-8', 'h-12')).toBe('h-12')
   })
 
-  it('keeps form labels, input naming and field errors available to adapters', () => {
+  test('keeps form labels, input naming and field errors available to adapters', () => {
     const html = renderToStaticMarkup(
       <Field>
         <FieldLabel htmlFor='generated-title'>Title</FieldLabel>
@@ -40,7 +42,7 @@ describe('official Base UI component integration', () => {
     expect(html).toContain('Title is required')
   })
 
-  it('renders generated card and badge slots without legacy UI implementations', () => {
+  test('renders generated card and badge slots without legacy UI implementations', () => {
     const html = renderToStaticMarkup(
       <Card>
         <CardHeader>
@@ -51,12 +53,12 @@ describe('official Base UI component integration', () => {
         </CardContent>
       </Card>,
     )
-    for (const slot of ['card', 'card-header', 'card-title', 'card-content', 'badge']) {
+    Iterable.forEach(['card', 'card-header', 'card-title', 'card-content', 'badge'], (slot) => {
       expect(html).toContain(`data-slot="${slot}"`)
-    }
+    })
   })
 
-  it('keeps official Base UI generation aliases and Tailwind v4 theme integration', () => {
+  test('keeps official Base UI generation aliases and Tailwind v4 theme integration', () => {
     const config = JSON.parse(readFileSync(new URL('../../../../components.json', import.meta.url), 'utf8'))
     const css = readFileSync(new URL('../../styles/shadcn.css', import.meta.url), 'utf8')
     expect(config.style).toBe('base-nova')
@@ -64,8 +66,8 @@ describe('official Base UI component integration', () => {
     expect(config.aliases.ui).toBe('@/components/generated')
     expect(config.aliases.utils).toBe('@/lib/utils')
     expect(config.tailwind.config).toBe('')
-    expect(css).toMatch(/@import\s+["']shadcn\/tailwind\.css["']/)
-    expect(css).toMatch(/\[data-theme=["']dark["']\]/)
+    expect(css).toMatch(/@import\s+["']shadcn\/tailwind\.css["']/u)
+    expect(css).toMatch(/\[data-theme=["']dark["']\]/u)
     expect(css).toContain('--sidebar: var(--nav-bg')
     expect(css).not.toContain('@fontsource-variable/geist')
   })

@@ -1,8 +1,8 @@
-import { env as nativeEnv } from 'cloudflare:test'
+import { env as nativeEnv } from 'cloudflare:workers'
+import { Iterable, Predicate, Schema } from 'effect'
 
+import type NativeFixtureCore from '#tests/native-workers/core.worker.ts'
 import type { Env } from '#types'
-
-import type NativeFixtureCore from '../../../tests/native-workers/core.worker'
 
 type FixtureOperations = Pick<
   NativeFixtureCore,
@@ -23,7 +23,7 @@ type FixtureCore = {
   ) => Promise<Awaited<ReturnType<FixtureOperations[Key]>>>
 }
 
-function core(): FixtureCore {
+const core = function core(): FixtureCore {
   // Only the native test Core entrypoint exposes these fixture operations.
   return Reflect.get(nativeEnv, 'CORE') as FixtureCore
 }
@@ -32,13 +32,16 @@ const originalCore = core()
 let explicitSettings: Readonly<Record<string, string | null>> = {}
 let settingsSnapshot: Record<string, string | null> = {}
 
-function synchronizeConfiguration(): void {
+const isOptionalSetting = Schema.is(Schema.UndefinedOr(Schema.String))
+const isMissingMetadata = Schema.is(Schema.Undefined)
+
+const synchronizeConfiguration = function synchronizeConfiguration(): void {
   const configuration: Record<string, string | null> = {}
-  for (const [key, value] of Object.entries(nativeEnv)) {
-    if (key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
+  Iterable.forEach(Object.entries(nativeEnv), ([key, value]) => {
+    if (key !== 'CORE_FIXTURE_CONFIGURATION' && isOptionalSetting(value)) {
       configuration[key] = value ?? null
     }
-  }
+  })
   settingsSnapshot = {
     ...configuration,
     FIXTURE_LIMITER_MODE: nativeEnv.RATE_LIMITER ? 'native' : 'absent',
@@ -53,76 +56,92 @@ function synchronizeConfiguration(): void {
   }
 }
 
-/** Explicit failure modes survive subsequent ordinary scalar fixture mutations. */
-export async function configureCore(settings: Readonly<Record<string, string | null>> = {}): Promise<void> {
+/**
+ * Explicit failure modes survive subsequent ordinary scalar fixture mutations.
+ *
+ * @param {Readonly<Record<string, string | null>>} settings - The overrides to apply to the Core fixture configuration.
+ */
+export const configureCore = async function configureCore(
+  settings: Readonly<Record<string, string | null>> = {},
+): Promise<void> {
   explicitSettings = { ...settings }
   synchronizeConfiguration()
   await originalCore.fixtureSession(settingsSnapshot)
 }
 
-// Direct Hono calls run in the driver's context. Resolve their native session at
-// dispatch, never retain an I/O capability created by an earlier test invocation.
+/*
+ * Direct Hono calls run in the driver's context. Resolve their native session at
+ * dispatch, never retain an I/O capability created by an earlier test invocation.
+ */
 const directCore = new Proxy(
   {},
   {
     get(_target, key): unknown {
-      if (key === 'then') return undefined
+      if (key === 'then') {
+        return undefined
+      }
       return async (...args: unknown[]): Promise<unknown> => {
         const session = await originalCore.fixtureSession({ ...settingsSnapshot })
         const method: unknown = Reflect.get(session, key)
-        if (typeof method !== 'function') throw new Error(`Missing native fixture method: ${String(key)}`)
+        if (!Predicate.isFunction(method)) {
+          throw new Error(`Missing native fixture method: ${String(key)}`)
+        }
         return Reflect.apply(method, session, args)
       }
     },
   },
 )
 
-export async function resetCoreAuthCaches(): Promise<void> {
+export const resetCoreAuthCaches = async function resetCoreAuthCaches(): Promise<void> {
   await originalCore.fixtureResetAuthCaches()
 }
 
-export async function resetCoreObservations(): Promise<void> {
+export const resetCoreObservations = async function resetCoreObservations(): Promise<void> {
   await originalCore.fixtureResetObservations(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
 }
 
-export async function createCoreFixtureSession(settings: Readonly<Record<string, string | null>>) {
+export const createCoreFixtureSession = async function createCoreFixtureSession(
+  settings: Readonly<Record<string, string | null>>,
+): ReturnType<typeof originalCore.fixtureSession> {
   return originalCore.fixtureSession({ ...settingsSnapshot, ...settings })
 }
 
-export async function getCoreObservations(epoch = nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '') {
+export const getCoreObservations = async function getCoreObservations(
+  epoch = nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '',
+): ReturnType<typeof originalCore.fixtureObservations> {
   return originalCore.fixtureObservations(epoch)
 }
 
-export async function getCoreLimiterCalls(): Promise<number> {
+export const getCoreLimiterCalls = async function getCoreLimiterCalls(): Promise<number> {
   return originalCore.fixtureLimiterCalls(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
 }
 
 class FixturePreparedStatement {
-  readonly sql: string
-  readonly params: unknown[]
+  public readonly sql: string
+  public readonly params: unknown[]
 
-  constructor(sql: string, params: unknown[] = []) {
+  public constructor(sql: string, params: unknown[] = []) {
     this.sql = sql
     this.params = params
   }
 
-  bind(...params: unknown[]): FixturePreparedStatement {
+  public bind(...params: unknown[]): FixturePreparedStatement {
     return new FixturePreparedStatement(this.sql, params)
   }
 
-  all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
+  public all<T = Record<string, unknown>>(): Promise<D1Result<T>> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'all' }) as Promise<D1Result<T>>
   }
 
-  run<T = Record<string, unknown>>(): Promise<D1Result<T>> {
+  public run<T = Record<string, unknown>>(): Promise<D1Result<T>> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'run' }) as Promise<D1Result<T>>
   }
 
-  first<T = Record<string, unknown>>(column?: string): Promise<T | null> {
+  public first<T = Record<string, unknown>>(column?: string): Promise<T | null> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'first', column }) as Promise<T | null>
   }
 
-  raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<T[]> {
+  public raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<T[]> {
     return core().fixtureD1({ sql: this.sql, params: this.params, method: 'raw', options }) as Promise<T[]>
   }
 }
@@ -145,7 +164,7 @@ const db = {
   },
 }
 
-function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
+const fixtureKV = function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
   return {
     get: (...args: unknown[]) => core().fixtureKV(namespace, 'get', args),
     getWithMetadata: (...args: unknown[]) => core().fixtureKV(namespace, 'getWithMetadata', args),
@@ -155,28 +174,33 @@ function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
   }
 }
 
-function r2Object(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') return value
+const r2Object = function r2Object(value: unknown): unknown {
+  if (!Predicate.isObjectKeyword(value) || Predicate.isFunction(value)) {
+    return value
+  }
   const metadata = Reflect.get(value, 'httpMetadata') as R2HTTPMetadata | undefined
   const object = {
     ...value,
     writeHttpMetadata(headers: Headers) {
       const names: Record<string, string> = {
-        contentType: 'content-type',
-        contentLanguage: 'content-language',
-        contentDisposition: 'content-disposition',
-        contentEncoding: 'content-encoding',
         cacheControl: 'cache-control',
         cacheExpiry: 'expires',
+        contentDisposition: 'content-disposition',
+        contentEncoding: 'content-encoding',
+        contentLanguage: 'content-language',
+        contentType: 'content-type',
       }
-      for (const [key, entry] of Object.entries(metadata ?? {})) {
-        if (entry !== undefined)
-          headers.set(names[key] ?? key, entry instanceof Date ? entry.toUTCString() : String(entry))
-      }
+      Iterable.forEach(Object.entries(metadata ?? {}), ([key, entry]: [string, string | Date | undefined]): void => {
+        if (!isMissingMetadata(entry)) {
+          headers.set(names[key] ?? key, entry instanceof Date ? entry.toUTCString() : entry)
+        }
+      })
     },
   }
   const body: unknown = Reflect.get(value, 'body')
-  if (!(body instanceof ReadableStream)) return object
+  if (!(body instanceof ReadableStream)) {
+    return object
+  }
   const response = new Response(body)
   return {
     ...object,
@@ -204,14 +228,20 @@ const fixtures = { DB: db, KV: fixtureKV('KV'), R2: r2 }
  * bindings remain on the real API environment so existing per-test overrides apply. */
 export const env: Env = new Proxy(nativeEnv, {
   get(target, key, receiver): unknown {
-    if (key === 'DB' || key === 'KV' || key === 'R2') return fixtures[key]
-    if (key === 'CORE') return directCore
+    if (key === 'DB' || key === 'KV' || key === 'R2') {
+      return fixtures[key]
+    }
+    if (key === 'CORE') {
+      return directCore
+    }
     return Reflect.get(target, key, receiver)
   },
   set(target, key, value): boolean {
     const applied = Reflect.set(target, key, value)
-    if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
-      if (typeof key === 'string') explicitSettings = { ...explicitSettings, [key]: value ?? null }
+    if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && isOptionalSetting(value)) {
+      if (Predicate.isString(key)) {
+        explicitSettings = { ...explicitSettings, [key]: value ?? null }
+      }
       synchronizeConfiguration()
     }
     return applied
@@ -219,7 +249,7 @@ export const env: Env = new Proxy(nativeEnv, {
   deleteProperty(target, key): boolean {
     const value: unknown = Reflect.get(target, key)
     const applied = Reflect.deleteProperty(target, key)
-    if (applied && typeof key === 'string' && (typeof value === 'string' || value === undefined)) {
+    if (applied && Predicate.isString(key) && isOptionalSetting(value)) {
       explicitSettings = { ...explicitSettings, [key]: null }
       synchronizeConfiguration()
     }
@@ -229,8 +259,9 @@ export const env: Env = new Proxy(nativeEnv, {
     return [...new Set([...Reflect.ownKeys(target), ...Object.keys(fixtures)])]
   },
   getOwnPropertyDescriptor(target, key) {
-    if (key === 'DB' || key === 'KV' || key === 'R2')
+    if (key === 'DB' || key === 'KV' || key === 'R2') {
       return { configurable: true, enumerable: true, writable: false, value: fixtures[key] }
+    }
     return Reflect.getOwnPropertyDescriptor(target, key)
   },
 })

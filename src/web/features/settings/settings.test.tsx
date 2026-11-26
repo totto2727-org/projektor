@@ -1,105 +1,117 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { Iterable } from 'effect'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { ConnectAgentGuide } from './ConnectAgentGuide'
-import { ConnectorManager } from './ConnectorManager'
-import { GroupManager } from './GroupManager'
-import { TokenManager } from './TokenManager'
-import type { ConnectorGrant, GroupData, Token } from './types'
+import { JSON_NULL } from '#tests/json-null.ts'
 
-const request = vi.hoisted(() => vi.fn())
-const nativeSubmitted = vi.hoisted(() => vi.fn())
+import { ConnectAgentGuide } from './connect-agent-guide.tsx'
+import { ConnectorManager } from './connector-manager.tsx'
+import { GroupManager } from './group-manager.tsx'
+import { TokenManager } from './token-manager.tsx'
+import type { ConnectorGrant, GroupData, Token } from './types.ts'
+
+const request = vi.hoisted(() => vi.fn<(operation: string, input: unknown) => unknown>())
+const nativeSubmitted = vi.hoisted(() => vi.fn<(operation: string, previous: unknown, data: FormData) => void>())
 vi.mock('./actions', () => ({
-  createGroup: (previous: unknown, data: FormData) => {
-    nativeSubmitted('createGroup', previous, data)
-    return request('createGroup', Object.fromEntries(data))
-  },
-  deleteGroup: (input: unknown) => request('deleteGroup', input),
-  renameGroup: (previous: unknown, data: FormData) => {
-    nativeSubmitted('renameGroup', previous, data)
-    return request('renameGroup', Object.fromEntries(data))
-  },
-  describeGroup: (previous: unknown, data: FormData) => {
-    nativeSubmitted('describeGroup', previous, data)
-    return request('describeGroup', Object.fromEntries(data))
-  },
   addGroupMember: (previous: unknown, data: FormData) => {
     nativeSubmitted('addMember', previous, data)
     return request('addMember', Object.fromEntries(data))
+  },
+  createGroup: (previous: unknown, data: FormData) => {
+    nativeSubmitted('createGroup', previous, data)
+    return request('createGroup', Object.fromEntries(data))
   },
   createGroupGrant: (previous: unknown, data: FormData) => {
     nativeSubmitted('createGrant', previous, data)
     return request('setGrant', Object.fromEntries(data))
   },
-  removeGroupMember: (input: unknown) => request('removeMember', input),
-  setGroupGrant: (input: unknown) => request('setGrant', input),
-  removeGroupGrant: (input: unknown) => request('removeGrant', input),
   createToken: (previous: unknown, data: FormData) => {
     nativeSubmitted('createToken', previous, data)
     return request('createToken', Object.fromEntries(data))
   },
-  revokeToken: (input: unknown) => request('revokeToken', input),
+  deleteGroup: (input: unknown) => request('deleteGroup', input),
+  describeGroup: (previous: unknown, data: FormData) => {
+    nativeSubmitted('describeGroup', previous, data)
+    return request('describeGroup', Object.fromEntries(data))
+  },
   disconnectConnector: (input: unknown) => request('disconnect', input),
+  removeGroupGrant: (input: unknown) => request('removeGrant', input),
+  removeGroupMember: (input: unknown) => request('removeMember', input),
+  renameGroup: (previous: unknown, data: FormData) => {
+    nativeSubmitted('renameGroup', previous, data)
+    return request('renameGroup', Object.fromEntries(data))
+  },
+  revokeToken: (input: unknown) => request('revokeToken', input),
+  setGroupGrant: (input: unknown) => request('setGrant', input),
 }))
 const groupData = (): GroupData => ({
-  role: 'admin',
-  groups: [{ id: 'g1', name: 'Team', description: 'Original', memberCount: 1, grantCount: 1 }],
   details: [
     {
-      id: 'g1',
-      name: 'Team',
       description: 'Original',
-      memberCount: 1,
       grantCount: 1,
-      members: [{ userId: 'u1', name: 'Alice', email: 'alice@example.test' }],
-      grants: [{ projectId: 'p1', projectName: 'Project One', projectKey: 'ONE', role: 'viewer' }],
+      grants: [{ projectId: 'p1', projectKey: 'ONE', projectName: 'Project One', role: 'viewer' }],
+      id: 'g1',
+      memberCount: 1,
+      members: [{ email: 'alice@example.test', name: 'Alice', userId: 'u1' }],
+      name: 'Team',
     },
   ],
+  groups: [{ description: 'Original', grantCount: 1, id: 'g1', memberCount: 1, name: 'Team' }],
+  memberGroups: [{ groups: [{ id: 'g1', name: 'Team' }], userId: 'u1' }],
   members: [
-    { id: 'u1', name: 'Alice', email: 'alice@example.test', role: 'member' },
-    { id: 'u2', name: 'Bob', email: 'bob@example.test', role: 'member' },
-    { id: 'admin', name: 'Admin', email: 'admin@example.test', role: 'admin' },
+    { email: 'alice@example.test', id: 'u1', name: 'Alice', role: 'member' },
+    { email: 'bob@example.test', id: 'u2', name: 'Bob', role: 'member' },
+    { email: 'admin@example.test', id: 'admin', name: 'Admin', role: 'admin' },
   ],
-  memberGroups: [{ userId: 'u1', groups: [{ id: 'g1', name: 'Team' }] }],
   projects: [
-    { id: 'p1', name: 'Project One', key: 'ONE', workspace_slug: 'alpha' },
-    { id: 'p2', name: 'Project Two', key: 'TWO', workspace_slug: 'alpha' },
+    { id: 'p1', key: 'ONE', name: 'Project One', workspace_slug: 'alpha' },
+    { id: 'p2', key: 'TWO', name: 'Project Two', workspace_slug: 'alpha' },
   ],
+  role: 'admin',
 })
 const token = (name = 'Agent'): Token => ({
+  createdAt: 1,
+  expiresAt: JSON_NULL,
   id: 't1',
+  lastUsedAt: JSON_NULL,
   name,
   scopes: '["read","write"]',
-  lastUsedAt: null,
-  expiresAt: null,
-  createdAt: 1,
 })
 const grant = (client = 'Claude'): ConnectorGrant => ({
-  id: 'c1',
   client,
   clientId: 'client',
-  scopes: ['projektor:read', 'projektor:write'],
+  expiresAt: 2_000_000_000,
   grantedAt: 1,
-  expiresAt: 2000000000,
+  id: 'c1',
+  scopes: ['projektor:read', 'projektor:write'],
 })
-const groupScope = { workspaceSlug: 'alpha', groupId: 'g1' }
-const writeText = vi.fn().mockResolvedValue(undefined)
-afterEach(cleanup)
-beforeEach(() => {
-  request.mockReset()
-  nativeSubmitted.mockReset()
-  writeText.mockClear()
-  request.mockResolvedValue({ ok: true, value: { ok: true } })
-  Object.defineProperty(navigator, 'clipboard', {
-    configurable: true,
-    value: { writeText },
-  })
+const groupScope = { groupId: 'g1', workspaceSlug: 'alpha' }
+const writeText = vi.fn<Clipboard['writeText']>(async () => {
+  // Record the copied text without writing to the host clipboard.
 })
 
+const submitNewGroup = function submitNewGroup(name: string): void {
+  fireEvent.change(screen.getByLabelText('New group name'), { target: { value: name } })
+  fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
+}
+
 describe('original settings controls with TanStack schemas and semantic ServerFns', () => {
-  it('releases delayed member-removal failures and preserves editor drafts through canonical refresh', async () => {
+  afterEach(cleanup)
+
+  beforeEach(() => {
+    request.mockReset()
+    nativeSubmitted.mockReset()
+    writeText.mockClear()
+    request.mockResolvedValue({ ok: true, value: { ok: true } })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+  })
+
+  test('releases delayed member-removal failures and preserves editor drafts through canonical refresh', async () => {
     const pending = Promise.withResolvers<unknown>()
     request.mockReturnValueOnce(pending.promise)
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
@@ -111,7 +123,9 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     const next = groupData()
     next.details[0].name = 'Canonical name'
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={next} />)
-    await act(async () => pending.reject(new Error('Removal unavailable')))
+    await act(async () => {
+      pending.reject(new Error('Removal unavailable'))
+    })
     expect(screen.getByRole('alert').textContent).toContain('Removal unavailable')
     expect(screen.getByRole('button', { name: 'Close' }).hasAttribute('disabled')).toBe(false)
     expect(screen.getByLabelText('Group name')).toHaveProperty('value', 'Unsaved rename')
@@ -121,17 +135,23 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByRole('button', { name: 'Close' }).hasAttribute('disabled')).toBe(false)
   })
-  it('keeps native group creation drafts after typed failure and clears them only after success', async () => {
-    request.mockResolvedValueOnce({ ok: false, status: 409, message: 'Group conflict' })
+
+  test('keeps native group creation drafts after typed failure and clears them only after success', async () => {
+    expect.hasAssertions()
+    request.mockResolvedValueOnce({ message: 'Group conflict', ok: false, status: 409 })
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
-    fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'Retry team' } })
+    submitNewGroup('Retry team')
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Group conflict')
+    })
+    expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe('Retry team')
     fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Group conflict'))
-    expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe('Retry team')
-    fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
-    await waitFor(() => expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe(''))
+    await waitFor(() => {
+      expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe('')
+    })
   })
-  it('never fetches primary lists/details and preserves all active group form drafts on canonical refresh', () => {
+
+  test('never fetches primary lists/details and preserves all active group form drafts on canonical refresh', () => {
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
     fireEvent.change(screen.getByLabelText('Group name'), { target: { value: 'Unsaved rename' } })
@@ -144,24 +164,28 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     const next = groupData()
     next.groups[0].name = 'Server Team'
     next.details[0].name = 'Server Team'
-    next.details[0].members = [{ userId: 'u2', name: 'Bob', email: 'bob@example.test' }]
+    next.details[0].members = [{ email: 'bob@example.test', name: 'Bob', userId: 'u2' }]
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={next} />)
-    expect(screen.getAllByRole('button', { name: 'Server Team' }).length).toBe(2)
-    expect(screen.getByLabelText('Remove Bob')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Server Team' })).toHaveLength(2)
+    expect(screen.getByLabelText('Remove Bob')).toBeInstanceOf(Element)
     expect(screen.queryByLabelText('Remove Alice')).toBeNull()
-    expect((screen.getByLabelText('Group name') as HTMLInputElement).value).toBe('Unsaved rename')
-    expect((screen.getByLabelText('Description') as HTMLTextAreaElement).value).toBe('Unsaved description')
-    expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe('Unsaved new group')
+    expect(screen.getByLabelText<HTMLInputElement>('Group name').value).toBe('Unsaved rename')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Description').value).toBe('Unsaved description')
+    expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe('Unsaved new group')
     expect(request).not.toHaveBeenCalled()
   })
-  it('submits original rename/description/member/grant controls through typed semantic actions', async () => {
+
+  test('submits original rename/description/member/grant controls through typed semantic actions', async () => {
+    expect.hasAssertions()
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
-    const submitted = async (operation: string, fields: object) => {
-      await waitFor(() => expect(request).toHaveBeenLastCalledWith(operation, { ...groupScope, ...fields }))
-      await waitFor(() =>
-        expect((screen.getByRole('button', { name: 'Close' }) as HTMLButtonElement).disabled).toBe(false),
-      )
+    const submitted = async (operation: string, fields: object): Promise<void> => {
+      await waitFor(() => {
+        expect(request).toHaveBeenLastCalledWith(operation, { ...groupScope, ...fields })
+      })
+      await waitFor(() => {
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Close' }).disabled).toBe(false)
+      })
     }
     fireEvent.change(screen.getByLabelText('Group name'), { target: { value: ' Renamed ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
@@ -186,31 +210,38 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.change(screen.getByLabelText('New grant role'), { target: { value: 'admin' } })
     fireEvent.click(screen.getByRole('button', { name: 'Grant' }))
     await submitted('setGrant', { projectId: 'p2', role: 'admin' })
-    for (const operation of ['renameGroup', 'describeGroup', 'addMember', 'createGrant'])
-      expect(nativeSubmitted).toHaveBeenCalledWith(operation, null, expect.any(FormData))
+    Iterable.forEach(['renameGroup', 'describeGroup', 'addMember', 'createGrant'], (operation) => {
+      expect(nativeSubmitted).toHaveBeenCalledWith(operation, JSON_NULL, expect.any(FormData))
+    })
   })
-  it('creates groups without fake aggregate DTOs and requires deletion confirmation', async () => {
+
+  test('creates groups without fake aggregate DTOs and requires deletion confirmation', async () => {
+    expect.hasAssertions()
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
-    fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'New team' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
-    await waitFor(() =>
+    submitNewGroup('New team')
+    await waitFor(() => {
       expect(request).toHaveBeenCalledWith('createGroup', {
-        workspaceSlug: 'alpha',
         name: 'New team',
-      }),
-    )
-    await waitFor(() => expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe(''))
+        workspaceSlug: 'alpha',
+      })
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText<HTMLInputElement>('New group name').value).toBe('')
+    })
     const count = request.mock.calls.length
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
-    expect(request.mock.calls.length).toBe(count)
+    expect(request.mock.calls).toHaveLength(count)
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
-    await waitFor(() => expect(request).toHaveBeenLastCalledWith('deleteGroup', groupScope))
+    await waitFor(() => {
+      expect(request).toHaveBeenLastCalledWith('deleteGroup', groupScope)
+    })
   })
-  it('retains accessible tabs, member chips/pending/admin bypass and read-only groups', () => {
+
+  test('retains accessible tabs, member chips/pending/admin bypass and read-only groups', () => {
     const data = groupData()
     const view = render(<GroupManager workspaceSlug='alpha' initialData={data} />)
-    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
-    expect(screen.getByText(/Groups grant members access to projects/)).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Groups' })).toBeInstanceOf(Element)
+    expect(screen.getByText(/Groups grant members access to projects/u)).toBeInstanceOf(Element)
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Groups' }), { key: 'ArrowRight' })
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Members' }))
     expect(screen.getByRole('tabpanel').id).toBe('group-tabpanel-groups')
@@ -223,15 +254,17 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(target.searchParams.get('workspace')).toBe('alpha')
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={data} view='members' />)
     expect(screen.getByRole('tabpanel').id).toBe('group-tabpanel-members')
-    expect(screen.getAllByText('Pending: no access').length).toBe(2)
-    expect(screen.getAllByText('All projects (bypasses groups)').length).toBe(2)
+    expect(screen.getAllByText('Pending: no access')).toHaveLength(2)
+    expect(screen.getAllByText('All projects (bypasses groups)')).toHaveLength(2)
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={{ ...data, role: 'viewer', details: [] }} />)
-    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Groups' })).toBeInstanceOf(Element)
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create group' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Team' })).toBeNull()
   })
-  it('preserves token form fields on refresh and reveals/copies the one-time token and SSR MCP template', async () => {
+
+  test('preserves token form fields on refresh and reveals/copies the one-time token and SSR MCP template', async () => {
+    expect.hasAssertions()
     const props = {
       workspaceSlug: 'alpha',
       mcpUrl: 'https://api.example/mcp/ws',
@@ -245,97 +278,117 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     })
     fireEvent.click(screen.getByRole('radio', { name: 'Read-only' }))
     view.rerender(<TokenManager {...props} initialTokens={[token('Server token')]} />)
-    expect(screen.getAllByText('Server token').length).toBe(2)
-    expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('Unsaved agent')
+    expect(screen.getAllByText('Server token')).toHaveLength(2)
+    expect(screen.getByLabelText<HTMLInputElement>('Name *').value).toBe('Unsaved agent')
     expect(request).not.toHaveBeenCalled()
     request.mockResolvedValueOnce({
       ok: true,
       value: {
+        expiresAt: JSON_NULL,
         id: 'new',
         name: 'Unsaved agent',
-        token: 'pk_test_secret',
         scopes: ['read'],
-        expiresAt: null,
+        token: 'pk_test_secret',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create token' }))
-    await waitFor(() => expect(screen.getByText('pk_test_secret')).toBeTruthy())
+    await waitFor(() => {
+      expect(screen.getByText('pk_test_secret')).toBeInstanceOf(Element)
+    })
     expect(request).toHaveBeenLastCalledWith('createToken', {
-      workspaceSlug: 'alpha',
+      expiry: '90',
       name: 'Unsaved agent',
       scope: 'read',
-      expiry: '90',
+      workspaceSlug: 'alpha',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith('pk_test_secret'))
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('pk_test_secret')
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Copy command' }))
-    await waitFor(() =>
+    await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
         'claude --header "Authorization: Bearer pk_test_secret" https://api.example/mcp/ws',
-      ),
-    )
+      )
+    })
     view.rerender(<TokenManager {...props} initialTokens={[token('Refreshed token')]} />)
-    expect(screen.getByText('pk_test_secret')).toBeTruthy()
+    expect(screen.getByText('pk_test_secret')).toBeInstanceOf(Element)
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(screen.queryByText('pk_test_secret')).toBeNull()
   })
-  it('uses Effect Standard Schema to reject whitespace group names and fractional/out-of-range token expiry', async () => {
+
+  test('uses Effect Standard Schema to reject whitespace group names and fractional/out-of-range token expiry', async () => {
+    expect.hasAssertions()
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.change(screen.getByLabelText('New group name'), { target: { value: '  ' } })
-    await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Create group' }) as HTMLButtonElement).disabled).toBe(true),
-    )
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create group' }).disabled).toBe(true)
+    })
     expect(screen.getByRole('alert').textContent).toContain('Group name is required')
     view.unmount()
-    render(<TokenManager workspaceSlug='alpha' mcpUrl={null} initialTokens={[]} />)
+    render(<TokenManager workspaceSlug='alpha' mcpUrl={JSON_NULL} initialTokens={[]} />)
     fireEvent.click(screen.getByRole('button', { name: '+ New token' }))
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Agent' } })
     fireEvent.change(screen.getByLabelText('Expires in (days, optional)'), {
       target: { value: '1.5' },
     })
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('whole number'))
-    expect((screen.getByRole('button', { name: 'Create token' }) as HTMLButtonElement).disabled).toBe(true)
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('whole number')
+    })
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create token' }).disabled).toBe(true)
     expect(request).not.toHaveBeenCalled()
   })
-  it('requires token revoke confirmation and retains expected failure/retry controls', async () => {
-    render(<TokenManager workspaceSlug='alpha' mcpUrl={null} initialTokens={[token()]} />)
+
+  test('requires token revoke confirmation and retains expected failure/retry controls', async () => {
+    expect.hasAssertions()
+    render(<TokenManager workspaceSlug='alpha' mcpUrl={JSON_NULL} initialTokens={[token()]} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Revoke' })[0])
     expect(request).not.toHaveBeenCalled()
-    request.mockResolvedValueOnce({ ok: false, status: 403, message: 'Denied' })
+    request.mockResolvedValueOnce({ message: 'Denied', ok: false, status: 403 })
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
-    await waitFor(() => expect(screen.getAllByRole('alert')[0].textContent).toContain('Denied'))
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert')[0].textContent).toContain('Denied')
+    })
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
-    await waitFor(() =>
+    await waitFor(() => {
       expect(request).toHaveBeenLastCalledWith('revokeToken', {
-        workspaceSlug: 'alpha',
         tokenId: 't1',
-      }),
-    )
+        workspaceSlug: 'alpha',
+      })
+    })
   })
-  it('refreshes connector rows without state copies and retains disconnect confirmation/failure/retry', async () => {
+
+  test('refreshes connector rows without state copies and retains disconnect confirmation/failure/retry', async () => {
+    expect.hasAssertions()
     const view = render(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant()]} />)
     view.rerender(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant('Refreshed Claude')]} />)
-    expect(screen.getAllByText('Refreshed Claude').length).toBe(2)
+    expect(screen.getAllByText('Refreshed Claude')).toHaveLength(2)
     expect(request).not.toHaveBeenCalled()
     fireEvent.click(screen.getAllByRole('button', { name: 'Disconnect' })[0])
     expect(request).not.toHaveBeenCalled()
-    request.mockResolvedValueOnce({ ok: false, status: 403, message: 'Denied' })
+    request.mockResolvedValueOnce({ message: 'Denied', ok: false, status: 403 })
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
-    await waitFor(() => expect(screen.getAllByRole('alert')[0].textContent).toContain('Denied'))
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert')[0].textContent).toContain('Denied')
+    })
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
-    await waitFor(() =>
+    await waitFor(() => {
       expect(request).toHaveBeenLastCalledWith('disconnect', {
-        workspaceSlug: 'alpha',
         connectorId: 'c1',
-      }),
-    )
+        workspaceSlug: 'alpha',
+      })
+    })
   })
-  it('preserves every guide step and copies the refreshed server URL', async () => {
+
+  test('preserves every guide step and copies the refreshed server URL', async () => {
+    expect.hasAssertions()
     const view = render(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/first' />)
     view.rerender(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/second' />)
-    expect(screen.getByText(/leave request headers empty/)).toBeTruthy()
-    expect(screen.getByText(/approve the consent screen/)).toBeTruthy()
+    expect(screen.getByText(/leave request headers empty/u)).toBeInstanceOf(Element)
+    expect(screen.getByText(/approve the consent screen/u)).toBeInstanceOf(Element)
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://api.example/mcp/second'))
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('https://api.example/mcp/second')
+    })
   })
 })

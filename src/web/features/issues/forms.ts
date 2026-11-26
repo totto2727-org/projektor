@@ -1,20 +1,34 @@
 'use client'
-import { type DeepValue, useForm, useStore } from '@tanstack/react-form'
-import { Schema } from 'effect'
-import { type Dispatch, type SetStateAction, useRef } from 'react'
+import { useForm, useStore } from '@tanstack/react-form'
+import type { DeepValue } from '@tanstack/react-form'
+import { Predicate, Schema } from 'effect'
+import { useRef } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
+
+import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH, MAX_ISSUE_TITLE_LENGTH } from '#contracts/issue-limits.ts'
 
 export const Text = Schema.String
-export const RequiredText = Schema.String.check(Schema.isPattern(/\S/))
-export const TitleText = RequiredText.check(Schema.isMaxLength(500))
-export const BodyText = Text.check(Schema.isMaxLength(50000))
-export const CommentText = RequiredText.check(Schema.isMaxLength(10000))
+export const RequiredText = Schema.String.check(Schema.isPattern(/\S/u, { toJsonSchema: () => [{}, true] }))
+export const TitleText = RequiredText.check(Schema.isMaxLength(MAX_ISSUE_TITLE_LENGTH))
+export const BodyText = Text.check(Schema.isMaxLength(MAX_ISSUE_BODY_LENGTH))
+export const CommentText = RequiredText.check(Schema.isMaxLength(MAX_ISSUE_COMMENT_LENGTH))
 export const Priority = Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])
-export const IssueReference = Schema.String.check(Schema.isPattern(/^[A-Za-z][A-Za-z0-9]*-\d+$/))
-export const PointsText = Schema.String.check(Schema.isPattern(/^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)?$/))
+export const IssueReference = Schema.String.check(
+  Schema.isPattern(/^[A-Za-z][A-Za-z0-9]*-\d+$/u, { toJsonSchema: () => [{}, true] }),
+)
+export const PointsText = Schema.String.check(
+  Schema.isPattern(/^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)?$/u, { toJsonSchema: () => [{}, true] }),
+)
 export const UrlText = Schema.URLFromString
 
-/** TanStack owns editable values and Effect owns validation. Canonical DTO refreshes never reset unsaved input. */
-export function useIssueForm<Values extends Record<string, unknown>>(
+/**
+ * TanStack owns editable values and Effect owns validation. Canonical DTO refreshes never reset unsaved input.
+ *
+ * @param {Values} defaultValues The initial editable form values.
+ * @param {Schema.Codec<unknown, NoInfer<Values>>} schema The Effect codec used to validate changes and submissions.
+ * @returns {ReturnType<typeof useIssueForm>} The form state, typed field controls, and submit validation.
+ */
+export const useIssueForm = function useIssueForm<Values extends Record<string, unknown>>(
   defaultValues: Values,
   schema: Schema.Codec<unknown, NoInfer<Values>>,
 ) {
@@ -26,21 +40,22 @@ export function useIssueForm<Values extends Record<string, unknown>>(
   const values = useStore(form.store, (state) => state.values)
   const isValid = useStore(form.store, (state) => state.isValid)
   const setters = useRef(new Map<string, (next: unknown) => void>())
-  function field<Key extends keyof Values & string>(name: Key): [Values[Key], Dispatch<SetStateAction<Values[Key]>>] {
+  const field = function field<Key extends keyof Values & string>(
+    name: Key,
+  ): [Values[Key], Dispatch<SetStateAction<Values[Key]>>] {
     let setter = setters.current.get(name)
     if (!setter) {
       setter = (next: unknown) => {
-        const value =
-          typeof next === 'function'
-            ? (next as (previous: Values[Key]) => Values[Key])(form.state.values[name])
-            : (next as Values[Key])
+        const value = Predicate.isFunction(next)
+          ? (next as (previous: Values[Key]) => Values[Key])(form.state.values[name])
+          : (next as Values[Key])
         form.setFieldValue(name, value as DeepValue<Values, Key>)
       }
       setters.current.set(name, setter)
     }
     return [values[name], setter]
   }
-  async function validate() {
+  const validate = async function validate(): Promise<boolean> {
     await form.validate('submit')
     return form.state.isValid
   }

@@ -1,23 +1,27 @@
 import { z } from 'zod'
 
-const body = z.string().min(1).max(10000)
+import { MAX_ISSUE_COMMENT_LENGTH } from '#contracts/issue-limits.ts'
+
+import { objectInOrder } from './common.ts'
+
+const body = z.string().nonempty().max(MAX_ISSUE_COMMENT_LENGTH)
 
 export const ListCommentsSchema = z.object({
   issueId: z.string(),
 })
 
-export const AddCommentSchema = z.object({
-  issueId: z.string(),
-  body,
-})
+export const AddCommentSchema = objectInOrder([
+  ['issueId', z.string()],
+  ['body', body],
+])
 
-export const UpdateCommentSchema = z.object({
-  issueId: z.string(),
-  commentId: z.string(),
-  body,
-})
+export const UpdateCommentSchema = objectInOrder([
+  ['issueId', z.string()],
+  ['commentId', z.string()],
+  ['body', body],
+])
 
-export const DeleteCommentSchema = z.object({
-  issueId: z.string(),
-  commentId: z.string(),
-})
+export const DeleteCommentSchema = objectInOrder([
+  ['issueId', z.string()],
+  ['commentId', z.string()],
+])

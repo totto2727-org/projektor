@@ -1,33 +1,45 @@
-// PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
-// strategy records its method + credential on the request context.
-
-import { SELF } from 'cloudflare:test'
+import { Predicate, Schema } from 'effect'
 import { Hono } from 'hono'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import type { AuthInfo, HonoEnv } from '#types'
+import { authMiddleware } from '#api/middleware/auth.ts'
+/*
+ * PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
+ * strategy records its method + credential on the request context.
+ */
+import { ApiAuthInfo } from '#contracts/api-auth.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import type { HonoEnv } from '#types'
 
-import { authMiddleware } from '../middleware/auth'
-import { env, getCoreObservations, resetCoreObservations } from './fixture-api'
-import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers'
+import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
+import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
-describe('PROJ-889: MCP mutations broadcast like REST', () => {
-  it('add_comment over MCP posts a realtime event to the workspace hub', async () => {
-    const f = await seedIssueFixture()
+describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
+  test('add_comment over MCP posts a realtime event to the workspace hub', async () => {
+    const testFixture = await seedIssueFixture()
     await resetCoreObservations()
 
-    const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'add_comment', arguments: { issueId: f.issueId, body: 'hi' } },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/mcp/${testFixture.workspaceId}`,
+      requestOptionsWithBody(
+        'POST',
+        { Authorization: `Bearer ${testFixture.token}`, 'Content-Type': 'application/json' },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { arguments: { issueId: testFixture.issueId, body: 'hi' }, name: 'add_comment' },
+        }),
+      ),
+    )
     expect(res.status).toBe(200)
-    const rpc = (await res.json()) as { error?: unknown; result?: { isError?: boolean } }
+    const rpcShape = Schema.Struct({
+      error: Schema.optional(Schema.Unknown),
+      result: Schema.optional(Schema.Struct({ isError: Schema.optional(Schema.Boolean) })),
+    })
+    const rpc = await readNativeJson(res, rpcShape)
     expect(rpc.error).toBeUndefined()
     expect(rpc.result).toBeDefined()
     expect(rpc.result?.isError).not.toBe(true)
@@ -35,29 +47,29 @@ describe('PROJ-889: MCP mutations broadcast like REST', () => {
     await expect.poll(async () => (await getCoreObservations()).broadcasts.length).toBeGreaterThan(0)
     const { broadcasts } = await getCoreObservations()
     expect(broadcasts.length).toBeGreaterThan(0)
-    expect(broadcasts[0].url).toMatch(/\/broadcast$/)
+    expect(broadcasts[0].url).toMatch(/\/broadcast$/u)
     expect(JSON.parse(broadcasts[0].body)).toMatchObject({
-      workspaceId: f.workspaceId,
-      projectId: f.projectId,
+      workspaceId: testFixture.workspaceId,
+      projectId: testFixture.projectId,
       type: 'comment.created',
-      data: { issueId: f.issueId },
+      data: { issueId: testFixture.issueId },
     })
   })
 })
 
-describe('PROJ-889: auth middleware records method + credential', () => {
+describe('covers PROJ-889: auth middleware records method + credential', () => {
   const app = new Hono<HonoEnv>()
   app.use('*', authMiddleware)
-  app.get('/whoami', (c) => c.json(c.get('auth')))
+  app.get('/whoami', (httpContext) => httpContext.json(httpContext.get('auth')))
 
-  async function whoami(headers: Record<string, string> = {}): Promise<AuthInfo> {
+  const whoami = async function whoami(headers: Record<string, string> = {}): Promise<typeof ApiAuthInfo.Type> {
     const res = await app.request('/whoami', { headers }, env, {
       waitUntil: () => {},
       passThroughOnException: () => {},
       props: {},
-    } as unknown as ExecutionContext)
+    })
     expect(res.status).toBe(200)
-    return (await res.json()) as AuthInfo
+    return readNativeJson(res, ApiAuthInfo)
   }
 
   const prevDev = env.DEV_USER_EMAIL
@@ -65,34 +77,34 @@ describe('PROJ-889: auth middleware records method + credential', () => {
     env.DEV_USER_EMAIL = prevDev
   })
 
-  it('a pk_ workspace token → method pk, with its api_tokens id and scopes', async () => {
+  test('a pk_ workspace token → method pk, with its api_tokens id and scopes', async () => {
     const { workspace, user } = await seedFixture()
-    const raw = `pk_${crypto.randomUUID().replace(/-/g, '')}`
+    const raw = `pk_${crypto.randomUUID().replaceAll('-', '')}`
     const id = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, created_at)
 			 VALUES (?, ?, ?, 'pk', ?, '["read"]', ?)`,
     )
-      .bind(id, workspace.id, user.id, await hashToken(raw), Math.floor(Date.now() / 1000))
+      .bind(id, workspace.id, user.id, await hashToken(raw), currentEpochSeconds())
       .run()
 
     const auth = await whoami({ Authorization: `Bearer ${raw}` })
-    expect(auth).toMatchObject({ kind: 'agent', method: 'pk', credentialId: id })
+    expect(auth).toMatchObject({ credentialId: id, kind: 'agent', method: 'pk' })
     expect(auth.scopes).toContain('read')
   })
 
-  it('a personal access token → method pat', async () => {
+  test('a personal access token → method pat', async () => {
     const { user } = await seedFixture()
     const pat = await seedUserToken(user.id)
     const auth = await whoami({ Authorization: `Bearer ${pat}` })
     expect(auth.kind).toBe('agent')
     expect(auth.method).toBe('pat')
-    expect(typeof auth.credentialId).toBe('string')
+    expect(auth.credentialId).toSatisfy(Predicate.isString)
   })
 
-  it('the dev bypass → method dev', async () => {
+  test('the dev bypass → method dev', async () => {
     const { user } = await seedFixture()
     env.DEV_USER_EMAIL = user.email
-    expect(await whoami()).toEqual({ kind: 'human', method: 'dev' })
+    await expect(whoami()).resolves.toStrictEqual({ kind: 'human', method: 'dev' })
   })
 })

@@ -1,37 +1,47 @@
-import { SELF } from 'cloudflare:test'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { submitFeedback } from '../examples/feedback-widget-submit'
-import { env } from './fixture-api'
-import { authHeaders, seedProjectFixture } from './helpers'
+import { submitFeedback } from '#api/examples/feedback-widget-submit.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
-// Proves the maintained client example works against the real API Worker,
-// including successful persistence and rejected credentials.
+import { env } from './fixture-api.ts'
+import { authHeaders, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { TokenResponse, readNativeJson } from './response-json.ts'
+
+/*
+ * Proves the maintained client example works against the real API Worker,
+ * including successful persistence and rejected credentials.
+ */
 describe('feedback widget example', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('submitFeedback() submits to a live feedback source', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const created = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ name: 'Docs example source' }),
-    })
-    const { token } = (await created.json()) as { token: string }
+  test('submitFeedback() submits to a live feedback source', async () => {
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const created = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback-sources`,
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(testFixture.token, testFixture.slug),
+        JSON.stringify({ name: 'Docs example source' }),
+      ),
+    )
+    const { token } = await readNativeJson(created, TokenResponse)
 
-    // The example calls the ambient global `fetch`, exactly as it would in a
-    // browser; stub it to dispatch into the worker under test instead of the
-    // real network.
-    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => SELF.fetch(url, init))
+    /*
+     * The example calls the ambient global `fetch`, exactly as it would in a
+     * browser; stub it to dispatch into the worker under test instead of the
+     * real network.
+     */
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => fetchNativeApi(url, init))
 
     const result = await submitFeedback('http://localhost/api/feedback/submit', token, {
       rating: 1,
       ratingScale: 'thumbs',
       body: 'Docs example works',
     })
-    expect(result.id).toBeTruthy()
+    expect(isNonEmptyText(result.id)).toBe(true)
 
     const row = await env.DB.prepare('SELECT body, rating FROM feedback WHERE id = ?')
       .bind(result.id)
@@ -40,11 +50,11 @@ describe('feedback widget example', () => {
     expect(row?.rating).toBe(1)
   })
 
-  it('submitFeedback() surfaces a thrown error on rejection (e.g. bad token)', async () => {
-    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => SELF.fetch(url, init))
+  test('submitFeedback() surfaces a thrown error on rejection (e.g. bad token)', async () => {
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => fetchNativeApi(url, init))
 
     await expect(
       submitFeedback('http://localhost/api/feedback/submit', 'not-a-real-token', { body: 'x' }),
-    ).rejects.toThrow(/Feedback submit failed: 401/)
+    ).rejects.toThrow(/Feedback submit failed: 401/u)
   })
 })

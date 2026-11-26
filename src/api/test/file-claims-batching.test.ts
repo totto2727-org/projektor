@@ -1,27 +1,35 @@
-// PROJ-864: claim_files/release_files batch their per-path writes into a constant number
-// of db.batch() calls instead of issuing 1-2+ D1 round trips per path (100 paths measured
-// at 209 queries before this fix). This test proves it two ways: a direct round-trip count
-// (proxying the shared command's native D1 fixture so a standalone execution counts once,
-// and a whole db.batch() call counts once) plus a separate native REST behavioural check.
-// Query budgets cover shared domain work, not private Core authentication overhead.
-// Conflict/force/stale semantics remain asserted at 100-path scale.
+import { Schema, Iterable, Predicate } from 'effect'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { SELF } from 'cloudflare:test'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+/*
+ * PROJ-864: claim_files/release_files batch their per-path writes into a constant number
+ * of db.batch() calls instead of issuing 1-2+ D1 round trips per path (100 paths measured
+ * at 209 queries before this fix). This test proves it two ways: a direct round-trip count
+ * (proxying the shared command's native D1 fixture so a standalone execution counts once,
+ * and a whole db.batch() call counts once) plus a separate native REST behavioural check.
+ * Query budgets cover shared domain work, not private Core authentication overhead.
+ * Conflict/force/stale semantics remain asserted at 100-path scale.
+ */
+import { ApiResults } from '#contracts/api-results.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { runInOrder } from '#tests/run-effect.ts'
 
-import { claimFiles, releaseFiles } from '#commands/file-claims'
-import type { ServiceCtx } from '#commands/types'
-
-import { env } from './fixture-api'
-import { authHeaders, seedIssue, seedIssueFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedIssueFixture } from './helpers.ts'
+import { stringifyOrderedFields, fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 /**
  * Counts D1 round trips: each statement executed on its own (via .run()/.all()/.get()/.raw(),
  * however drizzle or hand-written code invokes it) counts once, and each env.DB.batch() call
  * counts once regardless of how many statements it carries — mirroring the fact that D1's
  * batch API sends every statement in the array over the wire in a single request.
+ *
+ * @returns {ReturnType<typeof trackD1RoundTrips>} Functions to inspect the number of round trips and restore the original database methods.
  */
-function trackD1RoundTrips() {
+const trackD1RoundTrips = function trackD1RoundTrips() {
   let count = 0
   const origPrepare = env.DB.prepare.bind(env.DB)
   const origBatch = env.DB.batch.bind(env.DB)
@@ -31,24 +39,26 @@ function trackD1RoundTrips() {
     new Proxy(stmt, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver)
-        if (typeof value !== 'function') return value
+        if (!Predicate.isFunction(value)) {
+          return value
+        }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
-            wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
+            wrapStmt((value as (...parameters: unknown[]) => D1PreparedStatement).apply(target, args))
         }
-        if (typeof prop === 'string' && EXEC_METHODS.has(prop)) {
+        if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
-            count++
-            return (value as (...a: unknown[]) => unknown).apply(target, args)
+            count += 1
+            return (value as (...parameters: unknown[]) => unknown).apply(target, args)
           }
         }
         return value.bind(target)
       },
     })
 
-  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement)
+  vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => wrapStmt(origPrepare(sql)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
-    count++
+    count += 1
     return origBatch(stmts)
   })
 
@@ -58,18 +68,23 @@ function trackD1RoundTrips() {
   }
 }
 
-describe('PROJ-864: claim_files/release_files write batching', () => {
+describe('covers PROJ-864: claim_files/release_files write batching', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  async function seedStaleClaim(workspaceId: string, issueId: string, path: string) {
+  const seedStaleClaim = async function seedStaleClaim(
+    workspaceId: string,
+    issueId: string,
+    path: string,
+  ): Promise<void> {
     const agentId = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
+    // 200s > 120s TTL — stale, but status stays 'active'
     await env.DB.prepare(
       `INSERT INTO agent_sessions
 				(id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
 			 VALUES (?, ?, NULL, NULL, 'stale-holder', 'agent', 'active', ?, ?, NULL)`,
     )
-      .bind(agentId, workspaceId, now, now - 200) // 200s > 120s TTL — stale, but status stays 'active'
+      .bind(agentId, workspaceId, now, now - 200)
       .run()
     await env.DB.prepare(
       `INSERT INTO issue_file_claims
@@ -80,9 +95,13 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       .run()
   }
 
-  async function seedLiveClaim(workspaceId: string, issueId: string, path: string) {
-    const now = Math.floor(Date.now() / 1000)
-    // agentId NULL: an agentless claim is live until its claim TTL expires.
+  const seedLiveClaim = async function seedLiveClaim(
+    workspaceId: string,
+    issueId: string,
+    path: string,
+  ): Promise<void> {
+    const now = currentEpochSeconds()
+    // A NULL agentId: an agentless claim is live until its claim TTL expires.
     await env.DB.prepare(
       `INSERT INTO issue_file_claims
 				(id, workspace_id, issue_id, agent_id, path, claimed_at, released_at, release_reason)
@@ -92,20 +111,24 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       .run()
   }
 
-  it.each(['native REST', 'shared command'] as const)(
+  test.each(['native REST', 'shared command'] as const)(
     'claiming 100 paths (10 conflicts + 5 stale, force:true), %s',
     async (boundary) => {
       const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
       const holder = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
 
-      const conflictPaths = Array.from({ length: 10 }, (_, i) => `src/conflict-${i}.ts`)
-      const stalePaths = Array.from({ length: 5 }, (_, i) => `src/stale-${i}.ts`)
-      const freshPaths = Array.from({ length: 85 }, (_, i) => `src/fresh-${i}.ts`)
+      const conflictPaths = Array.from({ length: 10 }, (_value, index) => `src/conflict-${index}.ts`)
+      const stalePaths = Array.from({ length: 5 }, (_value, index) => `src/stale-${index}.ts`)
+      const freshPaths = Array.from({ length: 85 }, (_value, index) => `src/fresh-${index}.ts`)
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
       expect(paths).toHaveLength(100)
 
-      for (const p of conflictPaths) await seedLiveClaim(workspaceId, holder.id, p)
-      for (const p of stalePaths) await seedStaleClaim(workspaceId, holder.id, p)
+      await runInOrder(conflictPaths, async (path): Promise<void> => {
+        await seedLiveClaim(workspaceId, holder.id, path)
+      })
+      await runInOrder(stalePaths, async (path): Promise<void> => {
+        await seedStaleClaim(workspaceId, holder.id, path)
+      })
 
       if (boundary === 'shared command') {
         const tracker = trackD1RoundTrips()
@@ -122,37 +145,37 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
         expect(roundTrips).toBeLessThanOrEqual(10)
         return
       }
-      const res = await SELF.fetch('http://localhost/api/file-claims', {
-        method: 'POST',
-        headers: authHeaders(token, slug),
+      const res = await fetchNativeApi('http://localhost/api/file-claims', {
         body: JSON.stringify({ issueId, paths, force: true }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
       })
 
       expect(res.status).toBe(201)
-      const body = (await res.json()) as {
-        created: Array<{ path: string }>
-        overridden: Array<{ path: string }>
-        reclaimed: Array<{ path: string }>
-      }
+      const body = await readNativeJson(res, ApiResults.apiClaimFiles)
       expect(body.created).toHaveLength(100)
       expect(body.overridden).toHaveLength(10)
       expect(body.reclaimed).toHaveLength(5)
     },
   )
 
-  it.each(['native REST', 'shared command'] as const)(
+  test.each(['native REST', 'shared command'] as const)(
     'rejecting a conflicting 100-path claim (force:false), %s',
     async (boundary) => {
       const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
       const holder = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
 
-      const conflictPaths = Array.from({ length: 10 }, (_, i) => `src/rconflict-${i}.ts`)
-      const stalePaths = Array.from({ length: 5 }, (_, i) => `src/rstale-${i}.ts`)
-      const freshPaths = Array.from({ length: 85 }, (_, i) => `src/rfresh-${i}.ts`)
+      const conflictPaths = Array.from({ length: 10 }, (_value, index) => `src/rconflict-${index}.ts`)
+      const stalePaths = Array.from({ length: 5 }, (_value, index) => `src/rstale-${index}.ts`)
+      const freshPaths = Array.from({ length: 85 }, (_value, index) => `src/rfresh-${index}.ts`)
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
 
-      for (const p of conflictPaths) await seedLiveClaim(workspaceId, holder.id, p)
-      for (const p of stalePaths) await seedStaleClaim(workspaceId, holder.id, p)
+      await runInOrder(conflictPaths, async (path): Promise<void> => {
+        await seedLiveClaim(workspaceId, holder.id, path)
+      })
+      await runInOrder(stalePaths, async (path): Promise<void> => {
+        await seedStaleClaim(workspaceId, holder.id, path)
+      })
 
       if (boundary === 'shared command') {
         const tracker = trackD1RoundTrips()
@@ -164,10 +187,10 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
         expect(roundTrips).toBeGreaterThan(0)
         expect(roundTrips).toBeLessThanOrEqual(10)
       } else {
-        const res = await SELF.fetch('http://localhost/api/file-claims', {
-          method: 'POST',
-          headers: authHeaders(token, slug),
+        const res = await fetchNativeApi('http://localhost/api/file-claims', {
           body: JSON.stringify({ issueId, paths }),
+          headers: authHeaders(token, slug),
+          method: 'POST',
         })
         expect(res.status).toBe(409)
       }
@@ -178,8 +201,10 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
         .first<{ n: number }>()
       expect(fresh?.n).toBe(0)
 
-      // The stale claim was still reclaimed even though the overall request was rejected —
-      // documented pre-existing behaviour (reclaim happens before conflict evaluation).
+      /*
+       * The stale claim was still reclaimed even though the overall request was rejected —
+       * documented pre-existing behaviour (reclaim happens before conflict evaluation).
+       */
       const staleRow = await env.DB.prepare('SELECT release_reason FROM issue_file_claims WHERE path = ?')
         .bind('src/rstale-0.ts')
         .first<{ release_reason: string | null }>()
@@ -195,16 +220,18 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     },
   )
 
-  // Native REST preserves observable behavior. The paired command case measures
-  // actual D1 calls because public-isolate spies cannot observe private Core execution.
-  it.each(['native REST', 'shared command'] as const)('releasing 100 claimed paths, %s', async (boundary) => {
+  /*
+   * Native REST preserves observable behavior. The paired command case measures
+   * actual D1 calls because public-isolate spies cannot observe private Core execution.
+   */
+  test.each(['native REST', 'shared command'] as const)('releasing 100 claimed paths, %s', async (boundary) => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
-    const paths = Array.from({ length: 100 }, (_, i) => `src/release-${i}.ts`)
+    const paths = Array.from({ length: 100 }, (_value, index) => `src/release-${index}.ts`)
 
-    const claimRes = await SELF.fetch('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
       body: JSON.stringify({ issueId, paths }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(claimRes.status).toBe(201)
 
@@ -221,39 +248,47 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       expect(roundTrips).toBeLessThanOrEqual(8)
       return
     }
-    const res = await SELF.fetch('http://localhost/api/file-claims/release', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const res = await fetchNativeApi('http://localhost/api/file-claims/release', {
       body: JSON.stringify({ issueId, paths }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { released: Array<{ path: string }>; count: number }
+    const bodyShape = Schema.Struct({
+      count: Schema.Number,
+      released: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.count).toBe(100)
   })
 
-  it('release reports only claims it actually released (a concurrent release is left alone)', async () => {
+  test('release reports only claims it actually released (a concurrent release is left alone)', async () => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
-    const paths = Array.from({ length: 5 }, (_, i) => `src/race-${i}.ts`)
-    const claimRes = await SELF.fetch('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const paths = Array.from({ length: 5 }, (_value, index) => `src/race-${index}.ts`)
+    const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
       body: JSON.stringify({ issueId, paths }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(claimRes.status).toBe(201)
 
-    // Native REST creation above remains an observable integration check. Inject this
-    // deterministic race at the shared command boundary: public-isolate spies cannot
-    // modify the private Core Worker's DB methods across the service binding.
-    // Simulate another request releasing one claim between releaseFiles' read and its
-    // write batch. Armed when the release UPDATE is prepared (i.e. after the read), so
-    // the auth middleware's own batch() calls earlier in the request don't trigger it.
+    /*
+     * Native REST creation above remains an observable integration check. Inject this
+     * deterministic race at the shared command boundary: public-isolate spies cannot
+     * modify the private Core Worker's DB methods across the service binding.
+     * Simulate another request releasing one claim between releaseFiles' read and its
+     * write batch. Armed when the release UPDATE is prepared (i.e. after the read), so
+     * the auth middleware's own batch() calls earlier in the request don't trigger it.
+     */
     const origPrepare = env.DB.prepare.bind(env.DB)
     const origBatch = env.DB.batch.bind(env.DB)
     let armed = false
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
-      if (/^update "issue_file_claims"/i.test(q)) armed = true
-      return origPrepare(q)
+    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
+      if (/^update "issue_file_claims"/i.test(sql)) {
+        armed = true
+      }
+      return origPrepare(sql)
     })
     vi.spyOn(env.DB, 'batch').mockImplementation(async (stmts: D1PreparedStatement[]) => {
       if (armed) {
@@ -276,45 +311,58 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     vi.restoreAllMocks()
 
     expect(body.count).toBe(4)
-    expect(body.released.map((r) => r.path)).not.toContain('src/race-0.ts')
+    expect(body.released.map((claim) => claim.path)).not.toContain('src/race-0.ts')
     const raced = await env.DB.prepare('SELECT released_at, release_reason FROM issue_file_claims WHERE path = ?')
       .bind('src/race-0.ts')
       .first()
-    expect(raced).toEqual({ released_at: 1, release_reason: 'expired' })
-    const observed = await SELF.fetch('http://localhost/api/file-claims?includeStale=true', {
+    expect(raced).toStrictEqual({ release_reason: 'expired', released_at: 1 })
+    const observed = await fetchNativeApi('http://localhost/api/file-claims?includeStale=true', {
       headers: authHeaders(token, slug),
     })
     expect(observed.status).toBe(200)
-    const listed = (await observed.json()) as { items: Array<{ path: string; releaseReason: string }> }
+    const listedShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ path: Schema.String, releaseReason: Schema.String })).pipe(Schema.mutable),
+    })
+    const listed = await readNativeJson(observed, listedShape)
     expect(listed.items.filter((claim) => paths.includes(claim.path))).toHaveLength(0)
   })
 
-  it('claiming the same path twice in one request claims it once', async () => {
+  test('claiming the same path twice in one request claims it once', async () => {
     const { token, slug, issueId } = await seedIssueFixture()
-    const res = await SELF.fetch('http://localhost/api/file-claims', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const res = await fetchNativeApi('http://localhost/api/file-claims', {
       body: JSON.stringify({ issueId, paths: ['src/b.ts', 'src/a.ts', 'src/b.ts'] }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { created: Array<{ path: string }> }
-    expect(body.created.map((c) => c.path)).toEqual(['src/b.ts', 'src/a.ts'])
+    const bodyShape = Schema.Struct({
+      created: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
+    expect(body.created.map((claim) => claim.path)).toStrictEqual(['src/b.ts', 'src/a.ts'])
   })
 
-  it('force-claim notifications stay within the 5,000-char message cap', async () => {
+  test('force-claim notifications stay within the 5,000-char message cap', async () => {
+    expect.hasAssertions()
     const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
     const holder = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
     // 100 paths of ~300 chars: the untruncated path list alone would be ~30,000 chars.
     const paths = Array.from(
       { length: 100 },
-      (_, i) => `src/${'deep/'.repeat(58)}file-${String(i).padStart(3, '0')}.ts`,
+      (_value, index) => `src/${'deep/'.repeat(58)}file-${String(index).padStart(3, '0')}.ts`,
     )
-    for (const p of paths) await seedLiveClaim(workspaceId, holder.id, p)
+    await runInOrder(paths, async (path): Promise<void> => {
+      await seedLiveClaim(workspaceId, holder.id, path)
+    })
 
-    const res = await SELF.fetch('http://localhost/api/file-claims', {
-      method: 'POST',
+    const res = await fetchNativeApi('http://localhost/api/file-claims', {
+      body: stringifyOrderedFields([
+        ['issueId', issueId],
+        ['paths', paths],
+        ['force', true],
+      ]),
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ issueId, paths, force: true }),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
 
@@ -322,10 +370,10 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       .bind(`issue:${issueId}`, `issue:${holder.id}`)
       .all<{ scope: string; body: string }>()
     expect(messages.results).toHaveLength(2)
-    for (const m of messages.results) {
-      expect(m.body.length).toBeLessThanOrEqual(5000)
-      expect(m.body).toContain(`"${paths[0]}"`)
-      expect(m.body).toMatch(/…and \d+ more/)
-    }
+    Iterable.forEach(messages.results, (result) => {
+      expect(result.body.length).toBeLessThanOrEqual(5000)
+      expect(result.body).toContain(`"${paths[0]}"`)
+      expect(result.body).toMatch(/…and \d+ more/u)
+    })
   })
 })

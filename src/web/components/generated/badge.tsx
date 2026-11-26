@@ -1,6 +1,8 @@
 import { mergeProps } from '@base-ui/react/merge-props'
 import { useRender } from '@base-ui/react/use-render'
-import { cva, type VariantProps } from 'class-variance-authority'
+import { cva } from 'class-variance-authority'
+import type { VariantProps } from 'class-variance-authority'
+import type * as React from 'react'
 
 // Projektor customization: route class merging through the configured app utility alias.
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
@@ -26,12 +28,12 @@ const badgeVariants = cva(
   },
 )
 
-function Badge({
+export const Badge = function Badge({
   className,
   variant = 'default',
   render,
   ...props
-}: useRender.ComponentProps<'span'> & VariantProps<typeof badgeVariants>) {
+}: useRender.ComponentProps<'span'> & VariantProps<typeof badgeVariants>): React.ReactElement {
   return useRender({
     defaultTagName: 'span',
     props: mergeProps<'span'>(
@@ -47,5 +49,3 @@ function Badge({
     },
   })
 }
-
-export { Badge, badgeVariants }

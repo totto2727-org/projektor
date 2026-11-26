@@ -1,70 +1,102 @@
-import { Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 
-import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits'
-import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
-import { ApiError, ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { readDataIssuePage, readSprints } from '../issues/data'
-import { readFlowMetrics, readCodeHeatmap } from './data'
-import { dateEpochEnd, dateEpochStart, rangeFromUrl } from './helpers'
-import { MetricsWindowSchema, SprintListModeSchema } from './input-schemas'
-import { IssuePageSchema } from './schemas'
-import type { SprintIssue } from './types'
-import { MetricsDashboard, SprintManager } from './widgets'
+import {
+  HTTP_BAD_REQUEST,
+  HTTP_FORBIDDEN,
+  HTTP_BAD_GATEWAY,
+  HTTP_UNPROCESSABLE_CONTENT,
+} from '#contracts/http-status.ts'
+import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
+import { readDataIssuePage, readSprints } from '@/features/issues/data.ts'
+import { dataError, requireDataProject, requireDataWorkspace } from '@/server/data-context.ts'
+import { ApiError, ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
 
-function selectedProject(scope: RequestScope, projectId: string, workspaceId: string) {
+import { readFlowMetrics, readCodeHeatmap } from './data.ts'
+import { dateEpochEnd, dateEpochStart, rangeFromUrl } from './helpers.ts'
+import { MetricsWindowSchema, SprintListModeSchema } from './input-schemas.ts'
+import { IssuePageSchema } from './schemas.ts'
+import type { SprintIssue } from './types.ts'
+import { MetricsDashboard, SprintManager } from './widgets.tsx'
+
+const decodeIssuePage = Schema.decodeUnknownEffect(IssuePageSchema)
+const decodeSprintListMode = Schema.decodeUnknownEffect(SprintListModeSchema)
+const decodeMetricsWindow = Schema.decodeUnknownEffect(MetricsWindowSchema)
+
+const selectedProject = function selectedProject(scope: RequestScope, projectId: string, workspaceId: string) {
   return Effect.try({
+    catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     try: () => {
       requireDataWorkspace(scope, workspaceId)
       return requireDataProject(scope, projectId, workspaceId)
     },
-    catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
   })
 }
 
-/** Fully page scoped issue DTOs on the server, including completed velocity history. */
-export function loadSprintIssues(projectId: string, workspaceSlug: string, scope: RequestScope) {
+/**
+ * Fully page scoped issue DTOs on the server, including completed velocity history.
+ *
+ * @param {string} projectId The project whose sprint issues to load.
+ * @param {string} workspaceSlug The workspace that owns the project.
+ * @param {RequestScope} scope The request scope used to authorize the project and workspace.
+ * @returns {ReturnType<typeof loadSprintIssues>} An effect that loads the project's issues with their sprint and velocity fields.
+ */
+export const loadSprintIssues = function loadSprintIssues(
+  projectId: string,
+  workspaceSlug: string,
+  scope: RequestScope,
+) {
   return Effect.gen(function* () {
     const workspace = scope.workspaces.find((item) => item.slug === workspaceSlug)
-    if (!workspace) return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+    if (!workspace) {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
+    }
     yield* selectedProject(scope, projectId, workspace.id)
     const issues: SprintIssue[] = []
     const cursors = new Set<string>()
     let cursor: string | undefined
     let nextCursor: string | null
     do {
-      const query = new URLSearchParams({ project: projectId, limit: String(AGGREGATE_PAGE_SIZE) })
-      if (cursor) query.set('cursor', cursor)
-      const page = yield* readDataIssuePage(scope, workspace.id, query).pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(IssuePageSchema)),
+      const query = new URLSearchParams({ project: projectId, limit: globalThis.String(AGGREGATE_PAGE_SIZE) })
+      if (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
+        query.set('cursor', cursor)
+      }
+      const page = yield* readDataIssuePage(workspace.id, query).pipe(
+        Effect.flatMap(decodeIssuePage),
         Effect.mapError(dataError),
       )
       issues.push(...page.items)
       nextCursor = page.nextCursor
-      if (issues.length > MAX_AGGREGATE_ISSUES || (issues.length === MAX_AGGREGATE_ISSUES && nextCursor))
+      if (
+        issues.length > MAX_AGGREGATE_ISSUES ||
+        (issues.length === MAX_AGGREGATE_ISSUES && Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor))
+      ) {
         return yield* new ApiError(
           'request',
-          422,
+          HTTP_UNPROCESSABLE_CONTENT,
           `Sprint overview supports at most ${MAX_AGGREGATE_ISSUES} issues. Use the paginated issue list for larger projects.`,
         )
-      if (nextCursor && cursors.has(nextCursor))
-        return yield* new ApiError('schema', 502, 'Repeated issue pagination cursor')
-      if (nextCursor) {
+      }
+      if (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor) && cursors.has(nextCursor)) {
+        return yield* new ApiError('schema', HTTP_BAD_GATEWAY, 'Repeated issue pagination cursor')
+      }
+      if (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor)) {
         cursors.add(nextCursor)
         cursor = nextCursor
       }
-    } while (nextCursor)
+    } while (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor))
     return issues
   })
 }
-export function renderSprints(scope: RequestScope, url: URL) {
+export const renderSprints = function renderSprints(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
-    if (scope.selection.kind !== 'project')
+    if (scope.selection.kind !== 'project') {
       return <p className='text-text-muted'>Select a project to view its sprints.</p>
+    }
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
-    const mode = yield* Schema.decodeUnknownEffect(SprintListModeSchema)(url.searchParams.get('status') ?? 'all').pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid sprint status view.')),
+    const mode = yield* decodeSprintListMode(url.searchParams.get('status') ?? 'all').pipe(
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid sprint status view.')),
     )
     const [sprints, issues] = yield* Effect.all(
       [readSprints(workspace.id, project.id), loadSprintIssues(project.id, workspace.slug, scope)],
@@ -84,13 +116,15 @@ export function renderSprints(scope: RequestScope, url: URL) {
     )
   })
 }
-export function renderMetrics(scope: RequestScope, url: URL) {
+export const renderMetrics = function renderMetrics(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
-    if (scope.selection.kind !== 'project') return <p className='text-text-muted'>Select a project to view metrics.</p>
+    if (scope.selection.kind !== 'project') {
+      return <p className='text-text-muted'>Select a project to view metrics.</p>
+    }
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
     const fallback = rangeFromUrl(new URL(url.pathname, url.origin))
-    const window = yield* Schema.decodeUnknownEffect(MetricsWindowSchema)({
+    const window = yield* decodeMetricsWindow({
       projectId: project.id,
       workspaceSlug: workspace.slug,
       since: url.searchParams.get('since') ?? fallback.since,
@@ -98,10 +132,10 @@ export function renderMetrics(scope: RequestScope, url: URL) {
       granularity: url.searchParams.get('granularity') ?? fallback.granularity,
       heatmapMode: url.searchParams.get('heatmapMode') ?? 'claims',
       prefix: url.searchParams.get('prefix') ?? '',
-    }).pipe(Effect.mapError(() => new ScopeError(400, 'Invalid metrics date range or chart options.')))
+    }).pipe(Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid metrics date range or chart options.')))
     const range = { since: window.since, until: window.until, granularity: window.granularity }
     const mode = window.heatmapMode
-    const prefix = window.prefix
+    const { prefix } = window
     const queryRange = {
       projectId: project.id,
       since: dateEpochStart(range.since),

@@ -1,3 +1,6 @@
+import { Predicate } from 'effect'
+
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import type { MCPToolAnnotations } from '#types'
 
 /**
@@ -14,20 +17,28 @@ import type { MCPToolAnnotations } from '#types'
  */
 
 /** Annotations for a read-only tool (list_/get_/search_/wiki_tree). */
-export const READ: MCPToolAnnotations = { readOnlyHint: true, openWorldHint: false }
+export const READ: MCPToolAnnotations = fieldsInOrder([
+  ['readOnlyHint', true],
+  ['openWorldHint', false],
+])
 
 /**
  * Annotations for a non-read (mutating) tool.
  * - `destructive`: true for the 22-tool destructive set, false otherwise.
  * - `idempotent`: pass only where obviously true (update_*, set_* or claim_*-by-id) or
  *   obviously false (create_*); omit for tools where it is not clear-cut (e.g. patch_*).
+ *
+ * @param {{ destructive: boolean; idempotent?: boolean }} opts The destructive flag and a known idempotency flag, when available.
+ * @returns {MCPToolAnnotations} The mutation annotations exposed to MCP clients.
  */
-export function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCPToolAnnotations {
+export const WRITE = function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCPToolAnnotations {
   return {
-    readOnlyHint: false,
-    openWorldHint: false,
-    destructiveHint: opts.destructive,
-    ...(opts.idempotent !== undefined ? { idempotentHint: opts.idempotent } : {}),
+    ...fieldsInOrder([
+      ['readOnlyHint', false],
+      ['openWorldHint', false],
+      ['destructiveHint', opts.destructive],
+    ]),
+    ...(Predicate.isNotNullish(opts.idempotent) ? { idempotentHint: opts.idempotent } : {}),
   }
 }
 
@@ -48,8 +59,8 @@ export const DESTRUCTIVE: MCPToolAnnotations = WRITE({ destructive: true })
  * truth so the annotations test can assert every tool's `destructiveHint`
  * against this exact set.
  */
-export const DESTRUCTIVE_TOOLS: readonly string[] = [
-  // delete_*
+export const DESTRUCTIVE_TOOLS: Readonly<string[]> = [
+  // Tools matching delete_*
   'delete_comment',
   'delete_custom_field_def',
   'delete_attachment',
@@ -62,20 +73,20 @@ export const DESTRUCTIVE_TOOLS: readonly string[] = [
   'delete_task_type',
   'delete_wiki_page',
   'delete_workspace',
-  // remove_*
+  // Tools matching remove_*
   'remove_group_member',
   'remove_group_grant',
   'remove_member',
-  // purge_wiki_trash
+  // Tools matching purge_wiki_trash
   'purge_wiki_trash',
-  // rotate_* or revoke_*
+  // Tools matching rotate_* or revoke_*
   'rotate_feedback_source_token',
   'revoke_feedback_source',
-  // update_member_role
+  // Tools matching update_member_role
   'update_member_role',
-  // discard_wiki_draft
+  // Tools matching discard_wiki_draft
   'discard_wiki_draft',
-  // release_*
+  // Tools matching release_*
   'release_files',
   'release_issue',
 ]

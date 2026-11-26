@@ -1,14 +1,18 @@
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
+import type { JSX } from 'react'
 
-import { browserRequest, coreResult } from '../../core'
-import { RequestServices } from '../../request'
-import { ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { FeedbackDetailClient } from './FeedbackDetailClient'
-import { FeedbackGridClient } from './FeedbackGridClient'
-import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas'
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+import { RequestServices } from '@/request.ts'
+import { ScopeError } from '@/server/errors.ts'
+import type { RequestScope } from '@/server/request-context.ts'
 
-function NeedProject() {
+import { FeedbackDetailClient } from './feedback-detail-client.tsx'
+import { FeedbackGridClient } from './feedback-grid-client.tsx'
+import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas.ts'
+
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+const NeedProject = function NeedProject(): JSX.Element {
   return (
     <section className='p-6 bg-surface border border-border rounded-lg'>
       <h1 className='m-0'>Choose a project</h1>
@@ -16,19 +20,23 @@ function NeedProject() {
     </section>
   )
 }
-function NotFound() {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+const NotFound = function NotFound(): JSX.Element {
   return (
     <section className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>
       Feedback source not found.
     </section>
   )
 }
-export function renderFeedback(scope: RequestScope, _url: URL) {
+export const renderFeedback = function renderFeedback(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
-    if (scope.selection.kind !== 'project') return <NeedProject />
+    if (scope.selection.kind !== 'project') {
+      return <NeedProject />
+    }
     const { project, workspace } = scope.selection
-    if (workspace.role !== 'owner' && workspace.role !== 'admin')
-      return yield* new ScopeError(403, 'Insufficient permissions')
+    if (workspace.role !== 'owner' && workspace.role !== 'admin') {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Insufficient permissions')
+    }
     const services = yield* RequestServices
     const { sources, summaries } = yield* coreResult(
       FeedbackIndexSchema,
@@ -45,14 +53,16 @@ export function renderFeedback(scope: RequestScope, _url: URL) {
     )
   })
 }
-export function renderFeedbackDetail(
+export const renderFeedbackDetail = function renderFeedbackDetail(
   scope: RequestScope,
   url: URL,
   params: Readonly<Record<string, string | undefined>> = {},
 ) {
   return Effect.gen(function* () {
     const sourceId = params.sourceId ?? url.searchParams.get('sourceId') ?? url.searchParams.get('id')
-    if (!sourceId) return <NotFound />
+    if (Predicate.isNullish(sourceId) || String.isEmpty(sourceId)) {
+      return <NotFound />
+    }
     const services = yield* RequestServices
     const chosen =
       scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
@@ -65,7 +75,9 @@ export function renderFeedbackDetail(
         chosen?.id,
       ),
     )
-    if (!data) return <NotFound />
+    if (!data) {
+      return <NotFound />
+    }
     const tab = url.searchParams.get('tab')
     const initialTab = tab === 'summary' || tab === 'settings' ? tab : 'items'
     return (

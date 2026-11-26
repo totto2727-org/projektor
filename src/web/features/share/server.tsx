@@ -1,15 +1,17 @@
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 import type React from 'react'
 
-import { deploymentBrand } from '../../brand'
-import { renderMarkdownEffect } from '../../components/markdown/effect'
-import { coreResult } from '../../core'
-import type { Env, PageFailure } from '../../request'
-import { ApiError } from '../../server/errors'
-import { layerBrand } from './brand'
-import { SharedIssue } from './schemas'
-import ShareView, { ErrorState } from './ShareView'
+import { HTTP_GONE, HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { deploymentBrand } from '@/brand.ts'
+import { renderMarkdownEffect } from '@/components/markdown/effect.ts'
+import { coreResult } from '@/core.ts'
+import type { Env, PageFailure } from '@/request.ts'
+import { ApiError } from '@/server/errors.ts'
+
+import { layerBrand } from './brand.ts'
+import { SharedIssue } from './schemas.ts'
+import { ShareView, ErrorState } from './share-view.tsx'
 const SHARE_STYLES = `
 @font-face { font-family: 'Projektor Mono'; src: url('/fonts/MonaspaceNeon-Variable.woff2') format('woff2-variations'); font-weight: 400 700; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+20AC, U+2000-206F, U+2190-21FF, U+2200-22FF, U+2500-257F, U+2580-259F, U+25A0-25FF, U+2713, U+2715, U+2717; }
 .share-page, .share-page *, .share-page *::before, .share-page *::after { box-sizing: border-box; }
@@ -34,8 +36,17 @@ const SHARE_STYLES = `
 .share-page .prose blockquote { border-left: 3px solid var(--border); margin: 0.75em 0; padding: 0.25em 1em; color: var(--text-muted); }
 `
 
-/** Token-authorized public view. Never requests a protected workspace/session lookup. */
-export function renderShare(
+/**
+ * Token-authorized public view. Never requests a protected workspace/session lookup.
+ *
+ * @param {Pick<Env, 'CORE' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>} env
+ *   The Core binding and deployment branding available to the public page.
+ * @param {null} _scope The empty scope supplied by the public route.
+ * @param {URL} url The request URL, which can supply the share token as a query parameter.
+ * @param {Readonly<Record<string, string | undefined>>} params The route parameters. A token in the path takes precedence over the query.
+ * @returns {Effect.Effect<React.ReactElement, PageFailure>} An effect that renders the shared issue or its public not-found view.
+ */
+export const renderShare = function renderShare(
   env: Pick<Env, 'CORE' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>,
   _scope: null,
   url: URL,
@@ -43,17 +54,21 @@ export function renderShare(
 ): Effect.Effect<React.ReactElement, PageFailure> {
   return Effect.gen(function* () {
     const shareToken = params.token ?? url.searchParams.get('token')
-    if (!shareToken) return <ErrorState error='not_found' />
+    if (Predicate.isNullish(shareToken) || String.isEmpty(shareToken)) {
+      return <ErrorState error='not_found' />
+    }
     const issue = yield* coreResult(SharedIssue, makeCoreClient(env.CORE).webSharedIssue(shareToken)).pipe(
       Effect.catchIf(
-        (cause) => [404, 410].includes(cause.status),
+        (cause) => [HTTP_NOT_FOUND, HTTP_GONE].includes(cause.status),
         () => Effect.succeed(null),
       ),
     )
     const base = deploymentBrand(env)
-    if (!issue) return <ErrorState error='not_found' />
+    if (!issue) {
+      return <ErrorState error='not_found' />
+    }
     const renderedBody = yield* renderMarkdownEffect(issue.body ?? '').pipe(
-      Effect.mapError((cause) => new ApiError('request', 500, cause.message, cause.cause)),
+      Effect.mapError((cause) => new ApiError('request', HTTP_INTERNAL_SERVER_ERROR, cause.message, cause.cause)),
     )
     const brand = layerBrand(base, issue.brand)
     const style: React.CSSProperties = {

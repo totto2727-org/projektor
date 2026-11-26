@@ -7,50 +7,69 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Avatar({
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const Avatar = function Avatar({
   className,
   size = 'default',
   ...props
 }: AvatarPrimitive.Root.Props & {
   size?: 'default' | 'sm' | 'lg'
-}) {
+}): React.JSX.Element {
   return (
     <AvatarPrimitive.Root
       data-slot='avatar'
       data-size={size}
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Avatar Root applies these classes to its own rendered element.
       className={cn(
         'group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve controlled state, lifecycle callbacks and children on the Base UI Root.
       {...props}
     />
   )
 }
 
-function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AvatarImage = function AvatarImage({
+  className,
+  ...props
+}: AvatarPrimitive.Image.Props): React.JSX.Element {
   return (
     <AvatarPrimitive.Image
       data-slot='avatar-image'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Avatar Image applies these classes to its own rendered element.
       className={cn('aspect-square size-full rounded-full object-cover', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Image.
       {...props}
     />
   )
 }
 
-function AvatarFallback({ className, ...props }: AvatarPrimitive.Fallback.Props) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AvatarFallback = function AvatarFallback({
+  className,
+  ...props
+}: AvatarPrimitive.Fallback.Props): React.JSX.Element {
   return (
     <AvatarPrimitive.Fallback
       data-slot='avatar-fallback'
+      // oxlint-disable-next-line react/forbid-component-props -- Base UI Avatar Fallback applies these classes to its own rendered element.
       className={cn(
         'flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve caller attributes and event handlers on the Base UI Fallback.
       {...props}
     />
   )
 }
 
-function AvatarBadge({ className, ...props }: React.ComponentProps<'span'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AvatarBadge = function AvatarBadge({
+  className,
+  ...props
+}: React.ComponentProps<'span'>): React.JSX.Element {
   return (
     <span
       data-slot='avatar-badge'
@@ -61,12 +80,17 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<'span'>) {
         'group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native span attributes and events.
       {...props}
     />
   )
 }
 
-function AvatarGroup({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AvatarGroup = function AvatarGroup({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='avatar-group'
@@ -74,12 +98,17 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<'div'>) {
         'group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function AvatarGroupCount({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AvatarGroupCount = function AvatarGroupCount({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='avatar-group-count'
@@ -87,9 +116,8 @@ function AvatarGroupCount({ className, ...props }: React.ComponentProps<'div'>) 
         'relative flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground ring-2 ring-background group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6 [&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
-
-export { Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarBadge }

@@ -1,43 +1,58 @@
-import { Effect } from 'effect'
-
-import * as feedbackQueries from '#services/feedback'
+import { String, Iterable, Predicate, Effect, Number } from 'effect'
+import { flattenError } from 'zod'
 
 import {
   BulkFeedbackIdsSchema,
   ConvertFeedbackSchema,
   ListFeedbackSchema,
-  SubmitFeedbackSchema,
   UpdateFeedbackSchema,
-} from '../../contracts/inputs/feedback'
-import { canWriteProject, requireProjectAccess, requireProjectInWorkspace } from './access'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { createIssueFromFeedback } from './issues'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+} from '#contracts/inputs/feedback.ts'
+import * as feedbackQueries from '#services/feedback.ts'
 
-async function requireProjectWriteAccess(ctx: ServiceCtx, projectId: string): Promise<void> {
+import { canWriteProject, requireProjectAccess, requireProjectInWorkspace } from './access.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { insertFeedbackRow, parseSubmitFeedbackBody } from './feedback-submission.ts'
+import type { FeedbackSubmissionSource } from './feedback-submission.ts'
+import { createIssueFromFeedback } from './issues.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
+
+const ACTIVE_SOURCE_FLAG = 1
+const POSITIVE_THUMBS_THRESHOLD = 0
+const CONVERTED_TITLE_MAX_LENGTH = 120
+const NO_RATINGS = 0
+const PERCENT_MULTIPLIER = 100
+const HEXADECIMAL_RADIX = 16
+const HEX_DIGITS_PER_BYTE = 2
+
+const requireProjectWriteAccess = async function requireProjectWriteAccess(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
   await requireProjectInWorkspace(ctx, projectId)
   const role = await requireProjectAccess(ctx, projectId)
-  if (!canWriteProject(role)) throw new ForbiddenError('Insufficient permissions')
+  if (!canWriteProject(role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 }
 
-export async function hashFeedbackToken(token: string): Promise<string> {
+export const hashFeedbackToken = async function hashFeedbackToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
+  return [...new Uint8Array(buf)]
+    .map((byte) => byte.toString(HEXADECIMAL_RADIX).padStart(HEX_DIGITS_PER_BYTE, '0'))
     .join('')
 }
 
-interface SubmitSourceRow {
-  id: string
-  workspace_id: string
-  project_id: string
+interface SubmitSourceRow extends FeedbackSubmissionSource {
   is_active: number
   allowed_origins: string | null
   revoked_at: number | null
 }
 
-async function resolveFeedbackSource(db: D1Database, tokenHash: string): Promise<SubmitSourceRow> {
+const resolveFeedbackSource = async function resolveFeedbackSource(
+  db: D1Database,
+  tokenHash: string,
+): Promise<SubmitSourceRow> {
   const source = await db
     .prepare(
       `SELECT id, workspace_id, project_id, is_active, allowed_origins, revoked_at
@@ -47,56 +62,31 @@ async function resolveFeedbackSource(db: D1Database, tokenHash: string): Promise
     .first<SubmitSourceRow>()
 
   // Unknown or revoked → treated as an invalid credential (route maps NotFound → 401).
-  if (!source || source.revoked_at !== null) throw new NotFoundError('Invalid feedback token')
+  if (!source || Predicate.isNotNullish(source.revoked_at)) {
+    throw new NotFoundError('Invalid feedback token')
+  }
   // Inactive → the credential is real but the source is paused (kill switch) → 403.
-  if (source.is_active !== 1) throw new ForbiddenError('Feedback source is inactive')
+  if (source.is_active !== ACTIVE_SOURCE_FLAG) {
+    throw new ForbiddenError('Feedback source is inactive')
+  }
 
   return source
 }
 
-function parseSubmitFeedbackBody(rawBody: unknown) {
-  const parsed = SubmitFeedbackSchema.safeParse(rawBody)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
-  return parsed.data
-}
-
-async function insertFeedbackRow(
-  db: D1Database,
+const resolveCorsAllowOrigin = function resolveCorsAllowOrigin(
   source: SubmitSourceRow,
-  d: ReturnType<typeof parseSubmitFeedbackBody>,
-): Promise<string> {
-  const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
-  await db
-    .prepare(
-      `INSERT INTO feedback
-       (id, source_id, workspace_id, project_id, rating, rating_scale, body, submitter_label,
-        source_url, app_version, status, linked_issue_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', NULL, ?)`,
-    )
-    .bind(
-      id,
-      source.id,
-      source.workspace_id,
-      source.project_id,
-      d.rating ?? null,
-      d.ratingScale ?? null,
-      d.body ?? null,
-      d.submitterLabel ?? null,
-      d.sourceUrl ?? null,
-      d.appVersion ?? null,
-      now,
-    )
-    .run()
-  return id
+  requestOrigin: string | null,
+): string | null {
+  const allowed = source.allowed_origins ? (JSON.parse(source.allowed_origins) as string[]) : undefined
+  return allowed &&
+    Predicate.isNotNullish(requestOrigin) &&
+    String.isNonEmpty(requestOrigin) &&
+    allowed.includes(requestOrigin)
+    ? requestOrigin
+    : null
 }
 
-function resolveCorsAllowOrigin(source: SubmitSourceRow, requestOrigin: string | null): string | null {
-  const allowed = source.allowed_origins ? (JSON.parse(source.allowed_origins) as string[]) : null
-  return allowed && requestOrigin && allowed.includes(requestOrigin) ? requestOrigin : null
-}
-
-export async function submitFeedback(
+export const submitFeedback = async function submitFeedback(
   db: D1Database,
   token: string,
   rawBody: unknown,
@@ -104,8 +94,8 @@ export async function submitFeedback(
 ): Promise<{ id: string; corsAllowOrigin: string | null }> {
   const tokenHash = await hashFeedbackToken(token)
   const source = await resolveFeedbackSource(db, tokenHash)
-  const d = parseSubmitFeedbackBody(rawBody)
-  const id = await insertFeedbackRow(db, source, d)
+  const input = parseSubmitFeedbackBody(rawBody)
+  const id = await insertFeedbackRow(db, source, input)
   const corsAllowOrigin = resolveCorsAllowOrigin(source, requestOrigin)
   return { id, corsAllowOrigin }
 }
@@ -125,9 +115,11 @@ export interface FeedbackView {
   createdAt: number
 }
 
-export async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<FeedbackView[]> {
+export const listFeedback = async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<FeedbackView[]> {
   const parsed = ListFeedbackSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { projectId, status, sourceId } = parsed.data
 
   await requireProjectInWorkspace(ctx, projectId)
@@ -137,19 +129,19 @@ export async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<Fee
     feedbackQueries.listFeedback(ctx.db, ctx.workspaceId, { projectId, status, sourceId }),
   )
 
-  return (results ?? []).map((r) => ({
-    id: r.id,
-    sourceId: r.source_id,
-    sourceName: r.source_name,
-    rating: r.rating,
-    ratingScale: r.rating_scale,
-    body: r.body,
-    submitterLabel: r.submitter_label,
-    sourceUrl: r.source_url,
-    appVersion: r.app_version,
-    status: r.status,
-    linkedIssueId: r.linked_issue_id,
-    createdAt: r.created_at,
+  return (results ?? []).map((result) => ({
+    id: result.id,
+    sourceId: result.source_id,
+    sourceName: result.source_name,
+    rating: result.rating,
+    ratingScale: result.rating_scale,
+    body: result.body,
+    submitterLabel: result.submitter_label,
+    sourceUrl: result.source_url,
+    appVersion: result.app_version,
+    status: result.status,
+    linkedIssueId: result.linked_issue_id,
+    createdAt: result.created_at,
   }))
 }
 
@@ -159,14 +151,14 @@ interface FeedbackScopeRow {
 
 // REST always passes the URL path's projectId (scoping the lookup, 404 on mismatch);
 // MCP omits it and the row's own project_id is used instead.
-async function requireFeedbackScope(
+const requireFeedbackScope = async function requireFeedbackScope(
   ctx: ServiceCtx,
   feedbackId: string,
   projectId: string | undefined,
 ): Promise<string> {
   const clauses = ['id = ?', 'workspace_id = ?']
   const binds: unknown[] = [feedbackId, ctx.workspaceId]
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     clauses.push('project_id = ?')
     binds.push(projectId)
   }
@@ -174,13 +166,20 @@ async function requireFeedbackScope(
     .prepare(`SELECT project_id FROM feedback WHERE ${clauses.join(' AND ')}`)
     .bind(...binds)
     .first<FeedbackScopeRow>()
-  if (!row) throw new NotFoundError('Feedback not found')
+  if (!row) {
+    throw new NotFoundError('Feedback not found')
+  }
   return row.project_id
 }
 
-export async function updateFeedbackStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+export const updateFeedbackStatus = async function updateFeedbackStatus(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: true }> {
   const parsed = UpdateFeedbackSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { projectId, feedbackId, status } = parsed.data
 
   const resolvedProjectId = await requireFeedbackScope(ctx, feedbackId, projectId)
@@ -194,9 +193,13 @@ export async function updateFeedbackStatus(ctx: ServiceCtx, input: unknown): Pro
   return { ok: true }
 }
 
-function ratingLabel(rating: number | null, scale: string | null): string {
-  if (rating === null) return 'Rating'
-  if (scale === 'thumbs') return rating > 0 ? '👍 Positive' : '👎 Negative'
+const ratingLabel = function ratingLabel(rating: number | null, scale: string | null): string {
+  if (Predicate.isNullish(rating)) {
+    return 'Rating'
+  }
+  if (scale === 'thumbs') {
+    return rating > POSITIVE_THUMBS_THRESHOLD ? '👍 Positive' : '👎 Negative'
+  }
   return `${rating}★`
 }
 
@@ -209,12 +212,14 @@ interface ConvertFeedbackRow {
   linked_issue_id: string | null
 }
 
-export async function convertFeedbackToIssue(
+export const convertFeedbackToIssue = async function convertFeedbackToIssue(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ id: string; number?: number }> {
   const parsed = ConvertFeedbackSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { projectId, feedbackId } = parsed.data
 
   const resolvedProjectId = await requireFeedbackScope(ctx, feedbackId, projectId)
@@ -227,15 +232,23 @@ export async function convertFeedbackToIssue(
     )
     .bind(feedbackId, resolvedProjectId, ctx.workspaceId)
     .first<ConvertFeedbackRow>()
-  if (!fb) throw new NotFoundError('Feedback not found')
-  // Already converted — reject re-conversion rather than silently creating a
-  // second issue or re-linking; the caller should follow the existing linked issue.
-  if (fb.linked_issue_id) throw new ConflictError('Feedback already converted to an issue')
+  if (!fb) {
+    throw new NotFoundError('Feedback not found')
+  }
+  /*
+   * Already converted — reject re-conversion rather than silently creating a
+   * second issue or re-linking; the caller should follow the existing linked issue.
+   */
+  if (fb.linked_issue_id) {
+    throw new ConflictError('Feedback already converted to an issue')
+  }
 
-  const title = fb.body ? fb.body.slice(0, 120) : `${ratingLabel(fb.rating, fb.rating_scale)} feedback`
+  const title = fb.body
+    ? String.takeLeft(fb.body, CONVERTED_TITLE_MAX_LENGTH)
+    : `${ratingLabel(fb.rating, fb.rating_scale)} feedback`
   const footer =
     `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
-    (fb.rating !== null ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
+    (Predicate.isNotNullish(fb.rating) ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
 
   return createIssueFromFeedback(
     ctx,
@@ -249,9 +262,14 @@ export async function convertFeedbackToIssue(
   )
 }
 
-export async function bulkMarkReviewed(ctx: ServiceCtx, input: unknown): Promise<{ updated: number }> {
+export const bulkMarkReviewed = async function bulkMarkReviewed(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ updated: number }> {
   const parsed = BulkFeedbackIdsSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { projectId, feedbackIds } = parsed.data
 
   await requireProjectWriteAccess(ctx, projectId)
@@ -282,12 +300,14 @@ interface BulkConvertFeedbackRow {
   linked_issue_id: string | null
 }
 
-export async function bulkConvertToIssue(
+export const bulkConvertToIssue = async function bulkConvertToIssue(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ id: string; number?: number; convertedCount: number }> {
   const parsed = BulkFeedbackIdsSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { projectId, feedbackIds } = parsed.data
 
   await requireProjectWriteAccess(ctx, projectId)
@@ -301,23 +321,31 @@ export async function bulkConvertToIssue(
       )
       .bind(...chunk, projectId, ctx.workspaceId)
       .all<BulkConvertFeedbackRow>()
-      .then((r) => r.results)
+      .then((result) => result.results)
   })
-  if (rows.length !== feedbackIds.length) throw new NotFoundError('Feedback not found')
-  // All-or-nothing: any row already converted rejects the whole batch rather than
-  // partially converting or silently re-linking.
-  if (rows.some((r) => r.linked_issue_id)) {
+  if (rows.length !== feedbackIds.length) {
+    throw new NotFoundError('Feedback not found')
+  }
+  /*
+   * All-or-nothing: any row already converted rejects the whole batch rather than
+   * partially converting or silently re-linking.
+   */
+  if (rows.some((row) => row.linked_issue_id)) {
     throw new ConflictError('One or more selected items are already linked to an issue')
   }
 
-  const byId = new Map(rows.map((r) => [r.id, r]))
-  const orderedRows = feedbackIds.map((id) => byId.get(id)).filter((r): r is BulkConvertFeedbackRow => r !== undefined)
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  const orderedRows = feedbackIds
+    .map((id) => byId.get(id))
+    .filter((row): row is BulkConvertFeedbackRow => Predicate.isNotNullish(row))
   const body = orderedRows
-    .map((fb, i) => {
+    .map((fb, index) => {
       const footer =
         `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
-        (fb.rating !== null ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
-      return [`${i + 1}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? '', footer].join('\n')
+        (Predicate.isNotNullish(fb.rating) ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
+      return [`${Number.increment(index)}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? '', footer].join(
+        '\n',
+      )
     })
     .join('\n\n')
 
@@ -351,7 +379,7 @@ export interface FeedbackSourceSummary {
   versions: FeedbackVersionSummary[]
 }
 
-export async function getFeedbackSummary(
+export const getFeedbackSummary = async function getFeedbackSummary(
   ctx: ServiceCtx,
   input: Readonly<{ projectId: string }>,
 ): Promise<FeedbackSourceSummary[]> {
@@ -363,21 +391,24 @@ export async function getFeedbackSummary(
   const results = await Effect.runPromise(feedbackQueries.readFeedbackSummary(ctx.db, ctx.workspaceId, { projectId }))
 
   const bySource = new Map<string, FeedbackSourceSummary>()
-  for (const r of results ?? []) {
-    let src = bySource.get(r.source_id)
+  Iterable.forEach(results ?? [], (result) => {
+    let src = bySource.get(result.source_id)
     if (!src) {
-      src = { sourceId: r.source_id, sourceName: r.source_name, totalCount: 0, versions: [] }
-      bySource.set(r.source_id, src)
+      src = { sourceId: result.source_id, sourceName: result.source_name, totalCount: 0, versions: [] }
+      bySource.set(result.source_id, src)
     }
-    src.totalCount += r.total
+    src.totalCount += result.total
     src.versions.push({
-      appVersion: r.app_version,
-      totalCount: r.total,
-      withCommentCount: r.with_comment_count,
-      thumbsUpPct: r.thumbs_total > 0 ? Math.round((r.thumbs_up / r.thumbs_total) * 100) : null,
-      avgFiveStar: r.five_star_total > 0 ? r.five_star_avg : null,
-      lastSeenAt: r.last_seen_at,
+      appVersion: result.app_version,
+      totalCount: result.total,
+      withCommentCount: result.with_comment_count,
+      thumbsUpPct:
+        result.thumbs_total > NO_RATINGS
+          ? Math.round((result.thumbs_up / result.thumbs_total) * PERCENT_MULTIPLIER)
+          : null,
+      avgFiveStar: result.five_star_total > NO_RATINGS ? result.five_star_avg : null,
+      lastSeenAt: result.last_seen_at,
     })
-  }
-  return Array.from(bySource.values())
+  })
+  return [...bySource.values()]
 }

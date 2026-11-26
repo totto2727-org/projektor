@@ -1,0 +1,150 @@
+// @vitest-environment jsdom
+import '@/features/issues/test/browser.ts'
+/*
+ * BoardView — mobile viewport tests (PROJ-417).
+ *
+ * BoardView disables HTML5 drag-and-drop below 640px (native DnD doesn't work
+ * on touch devices) by checking `window.innerWidth` directly in its drag
+ * handlers. This exercises that branch with the shared viewport helper,
+ * rather than relying on the `max-sm:` CSS classes alone.
+ */
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, test, vi } from 'vite-plus/test'
+
+import { JSON_NULL } from '#tests/json-null.ts'
+import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
+import { MOBILE_WIDTH, setViewportWidth } from '@/features/issues/test/viewport.ts'
+
+import { BoardView } from './board-view.tsx'
+
+const TODO_ISSUE: Issue = {
+  id: 'i1',
+  number: 1,
+  title: 'Move me',
+  priority: 'high',
+  assignee_id: JSON_NULL,
+  assignee_name: JSON_NULL,
+  parent_id: JSON_NULL,
+  project_key: 'PROJ',
+  project_name: 'Projektor',
+  type_key: JSON_NULL,
+  type_name: JSON_NULL,
+  status_id: 'st-todo',
+  status_key: 'todo',
+  status_name: 'Todo',
+  status_category: 'todo',
+  sprint_id: JSON_NULL,
+  updated_at: 1000,
+  created_at: 1000,
+  reviewTargets: [],
+}
+
+const STATUSES: TaskStatus[] = [
+  { id: 'st-todo', key: 'todo', name: 'Todo', category: 'todo', color: JSON_NULL },
+  {
+    id: 'st-in-progress',
+    key: 'in_progress',
+    name: 'In Progress',
+    category: 'in_progress',
+    color: JSON_NULL,
+  },
+]
+
+const fakeDataTransfer = function fakeDataTransfer() {
+  const store = new Map<string, string>()
+  return {
+    setData: (type: string, val: string) => store.set(type, val),
+    getData: (type: string) => store.get(type) ?? '',
+  }
+}
+
+const dragStartCard = function dragStartCard() {
+  const card = screen.getByText('Move me').closest('a') as HTMLElement
+  const dataTransfer = fakeDataTransfer()
+  fireEvent.dragStart(card, { dataTransfer })
+  return dataTransfer
+}
+
+const dropOnInProgress = function dropOnInProgress(dataTransfer: ReturnType<typeof fakeDataTransfer>): void {
+  const inProgressColumn = screen.getByRole('region', { name: 'In Progress column' })
+  fireEvent.drop(inProgressColumn, { dataTransfer })
+}
+
+describe('covers BoardView — mobile viewport', () => {
+  test('blocks drag-and-drop status changes below 640px', () => {
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
+    setViewportWidth(MOBILE_WIDTH)
+    render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
+
+    const dataTransfer = dragStartCard()
+    dropOnInProgress(dataTransfer)
+
+    expect(changeStatus).not.toHaveBeenCalled()
+  })
+
+  test('allows drag-and-drop status changes at desktop widths', () => {
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
+    setViewportWidth(1024)
+    render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
+
+    const dataTransfer = dragStartCard()
+    dropOnInProgress(dataTransfer)
+
+    expect(changeStatus).toHaveBeenCalledWith('i1', 'st-in-progress')
+  })
+
+  test('blocks the drop itself below 640px, even with data already set', () => {
+    /* The onDragStart handler already blocks setData below 640px, so the desktop/mobile
+     * tests above can't tell whether the drop handler's own width guard does
+     * anything. Seed dataTransfer at desktop width, then drop at mobile width
+     * to isolate that guard. */
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
+    setViewportWidth(1024)
+    render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
+
+    const dataTransfer = dragStartCard()
+
+    setViewportWidth(MOBILE_WIDTH)
+    dropOnInProgress(dataTransfer)
+
+    expect(changeStatus).not.toHaveBeenCalled()
+  })
+})
+
+describe('covers BoardView — mobile status menu (PROJ-416)', () => {
+  test('renders a tap-to-open status menu on each card', () => {
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
+    render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
+    expect(screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' })).toBeInstanceOf(Element)
+  })
+
+  test('changes status when a different option is chosen from the menu', async () => {
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
+    render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' }))
+    const option = await screen.findByRole('option', { name: 'In Progress' })
+    fireEvent.pointerDown(option, { pointerType: 'mouse' })
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      expect(changeStatus).toHaveBeenCalledWith('i1', 'st-in-progress')
+    })
+  })
+
+  test("renders the status menu outside the card's link, not nested inside it", () => {
+    /*
+     * The whole card body is a draggable <a> (desktop DnD target); nesting an
+     * interactive Select inside it would be invalid HTML (no interactive
+     * descendants in an <a>) and would risk taps on the menu also triggering
+     * navigation. The status menu must be a sibling of the <a>, not a child.
+     */
+    const changeStatus = vi.fn<(issueId: string, statusId: string) => void>()
+    render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
+
+    const link = screen.getByText('Move me').closest('a') as HTMLElement
+    const trigger = screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' })
+
+    expect(link.contains(trigger)).toBe(false)
+  })
+})

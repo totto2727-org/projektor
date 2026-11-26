@@ -1,35 +1,40 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
-import * as commands from '#commands/projects'
-import { drizzle, schema } from '#db'
-import { queryEffect } from '#services/errors'
-import { getFlowMetrics } from '#services/flow-metrics'
-import { findProjectById, listProjectSummaries } from '#services/projects'
-import { listWikiPages } from '#services/wiki'
-
+import * as commands from '#commands/projects.ts'
+import { defaultFlowMetricsStartDate } from '#contracts/flow-metrics-range.ts'
+import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { LAST_SECOND_OF_DAY, MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import {
   CreatedProjectSchema,
   ProjectMutationResultSchema,
   ProjectOverviewSchema,
   ProjectSummariesSchema,
-} from '../../contracts/web-schemas/projects'
-import { coreFailure, coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope } from './authentication'
-import { browserCommand } from './command'
-import type { BrowserCommand } from './command-contract'
-import { requireDataProject, projectSummaryVisibility, visibleProjectPredicate } from './data-context'
-import { checked } from './issue-data'
-import { webRead } from './issue-operations'
-import type { WebRequest } from './scope'
+} from '#contracts/web-schemas/projects.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { drizzle, schema } from '#db'
+import { queryEffect } from '#services/errors.ts'
+import { getFlowMetrics } from '#services/flow-metrics.ts'
+import { findProjectById, listProjectSummaries } from '#services/projects.ts'
+import { listWikiPages } from '#services/wiki.ts'
 
-function sixWeekRange(now = new Date()) {
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 35)
+import { loadBrowserScope } from './authentication.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { requireDataProject, projectSummaryVisibility, visibleProjectPredicate } from './data-context.ts'
+import { checked } from './issue-data.ts'
+import { webRead } from './issue-operations.ts'
+import type { WebRequest } from './scope.ts'
+
+const sixWeekRange = function sixWeekRange(now = new Date()): { since: number; until: number } {
+  const monday = defaultFlowMetricsStartDate(now)
   return {
-    since: Math.floor(monday.getTime() / 1000),
-    until: Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 86399,
+    since: Math.floor(monday.getTime() / MILLISECONDS_PER_SECOND),
+    until:
+      Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / MILLISECONDS_PER_SECOND) +
+      LAST_SECOND_OF_DAY,
   }
 }
 
@@ -40,7 +45,14 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
         'webProjectCatalog',
         ProjectSummariesSchema,
         Effect.gen(function* () {
-          const scope = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: '' })
+          const scope = yield* loadBrowserScope(
+            env,
+            request,
+            fieldsInOrder([
+              ['workspaceHint', ''],
+              ['projectHint', ''],
+            ]),
+          )
           return yield* listProjectSummaries(
             env.DB,
             scope.user.id,
@@ -63,7 +75,9 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
             Effect.gen(function* () {
               yield* checked(() => requireDataProject(scope, projectId, workspaceId))
               const project = yield* findProjectById(env.DB, workspaceId, projectId)
-              if (!project) return yield* coreFailure(404, 'Selected project is not accessible.')
+              if (!project) {
+                return yield* coreFailure(HTTP_NOT_FOUND, 'Selected project is not accessible.')
+              }
               const orm = drizzle(env.DB, { schema })
               const [issues, wiki, flow] = yield* Effect.all(
                 [
@@ -98,14 +112,23 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
                     visibility: visibleProjectPredicate(scope, workspaceId, sql`wiki_pages.project_id`),
                   }).pipe(
                     Effect.map((pages) =>
-                      [...pages].sort((a, b) => b.updated_at - a.updated_at || b.id.localeCompare(a.id)).slice(0, 5),
+                      [...pages]
+                        .toSorted(
+                          (left, right) => right.updated_at - left.updated_at || right.id.localeCompare(left.id),
+                        )
+                        .slice(0, 5),
                     ),
                   ),
                   getFlowMetrics(env.DB, workspaceId, { projectId, ...sixWeekRange(), granularity: 'week' }),
                 ],
                 { concurrency: 3 },
               )
-              return { project, issues, wiki, flow }
+              return fieldsInOrder([
+                ['project', project],
+                ['issues', issues],
+                ['wiki', wiki],
+                ['flow', flow],
+              ])
             }),
           projectId,
         ),
@@ -116,7 +139,7 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
       coreReply(
         'webCreateProject',
         CreatedProjectSchema,
-        browserCommand(env, proof, (ctx) => commands.createProject(ctx, input)),
+        browserCommand(env, proof, async (ctx) => commands.createProject(ctx, input)),
       ),
     ),
   webUpdateProject: (proof: BrowserCommand, id: string, input: unknown) =>
@@ -124,7 +147,7 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
       coreReply(
         'webUpdateProject',
         ProjectMutationResultSchema,
-        browserCommand(env, proof, (ctx) => commands.updateProject(ctx, id, input)),
+        browserCommand(env, proof, async (ctx) => commands.updateProject(ctx, id, input)),
       ),
     ),
 })

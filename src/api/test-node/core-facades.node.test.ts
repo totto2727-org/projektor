@@ -1,23 +1,27 @@
 import { makeRpcStub } from 'alchemy/Cloudflare/Workers'
-import { Effect, Schema } from 'effect'
+import { Effect, Result, Schema, pipe } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetAuthCachesForTests } from '#services/authentication'
+import { getIssue } from '#api/services/issues.ts'
+import { apiReply } from '#api/services/reply.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+import { makeApiDomainHandlers } from '#core/api/domain-operations.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { ApiResults } from '../../contracts/api-results'
-import { makeApiDomainHandlers } from '../../core/api/domain-operations'
-import { coreFailure, coreReply } from '../../core/contract'
-import type { CoreEnvironment } from '../../core/environment'
-import { createTestDatabase } from '../../web/test/database'
-import { getIssue } from '../services/issues'
-import { apiReply } from '../services/reply'
-
-vi.mock('../../contracts/oauth-provider', () => ({
+vi.mock(import('#contracts/oauth-provider.ts'), () => ({
   oauthApi: () => {
     throw new Error('OAuth provider must not resolve before interactive authorization')
   },
 }))
+
+const decodeBackfill = Schema.decodeUnknownResult(ApiResults.apiBackfillWikiLinks)
+const decodeWorkflow = Schema.decodeUnknownResult(ApiResults.apiGetWorkflow)
 
 const PublicIssue = Schema.Struct({
   id: Schema.String,
@@ -26,14 +30,14 @@ const PublicIssue = Schema.Struct({
 })
 
 // These substitute bindings test adapter execution, not workerd/native binding acceptance.
-function clientFor(wire: () => Promise<string>) {
+const clientFor = function clientFor(wire: () => Promise<string>) {
   return makeRpcStub<{ load(): Effect.Effect<string> }>({ load: wire })
 }
 
 const issue = { id: 'issue', title: 'Public issue', links: [{ id: 'linked', title: 'Linked issue' }] }
 
-describe('API facade reply boundary', () => {
-  it('runs actual named Core handlers with fresh credential checks and human-only token controls', async () => {
+describe('covers API facade reply boundary', () => {
+  test('runs actual named Core handlers with fresh credential checks and human-only token controls', async () => {
     const database = createTestDatabase()
     try {
       database.sqlite.exec(`
@@ -42,7 +46,7 @@ describe('API facade reply boundary', () => {
         INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('facade-workspace','facade-user','owner',1);
       `)
       const bearer = 'pk_facade-core'
-      const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer))))
+      const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer)))]
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join('')
       database.sqlite
@@ -52,7 +56,12 @@ describe('API facade reply boundary', () => {
       // SQLite and these partial binding substitutes are a local harness, not native Worker acceptance.
       const env = {
         DB: database.db,
-        KV: { get: async () => null, put: async () => undefined },
+        KV: {
+          get: async () => null,
+          put: async (): Promise<void> => {
+            // This fixture models a missing KV entry and discards writes.
+          },
+        },
         R2: {},
         ENVIRONMENT: 'production',
         CF_ACCESS_TEAM_DOMAIN: '',
@@ -84,11 +93,11 @@ describe('API facade reply boundary', () => {
         ApiResults.apiCreateToken,
         humanHandlers.apiCreateToken(human, 'facade-workspace', { name: 'Human credential', scopes: ['read'] }),
       )
-      expect(created).toMatchObject({ name: 'Human credential', scopes: ['read'], expiresAt: null })
-      expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/)
+      expect(created).toMatchObject({ expiresAt: JSON_NULL, name: 'Human credential', scopes: ['read'] })
+      expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/u)
       await expect(
         apiReply(ApiResults.apiRevokeToken, humanHandlers.apiRevokeToken(human, 'facade-workspace', created.id)),
-      ).resolves.toEqual({ ok: true })
+      ).resolves.toStrictEqual({ ok: true })
       expect(database.sqlite.prepare('SELECT count(*) AS count FROM api_tokens').get()).toEqual({ count: 1 })
       const playbooks = await apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))
       expect(playbooks.length).toBeGreaterThan(0)
@@ -107,25 +116,34 @@ describe('API facade reply boundary', () => {
       await expect(
         apiReply(ApiResults.apiListTokens, handlers.apiListTokens(actor, 'facade-workspace')),
       ).rejects.toMatchObject({ status: 403 })
-      await expect(apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))).resolves.toEqual(playbooks)
+      await expect(apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))).resolves.toStrictEqual(
+        playbooks,
+      )
     } finally {
       database.close()
       resetAuthCachesForTests()
     }
   })
-  it('preserves maintenance cursor compatibility and conditional workflow variants', () => {
+
+  test('preserves maintenance cursor compatibility and conditional workflow variants', () => {
     const backfill = { processed: 2, pagesProcessed: 2, nextCursor: { updatedAt: 9, id: 'page' } }
-    expect(Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)(backfill)).toEqual(backfill)
+    expect(decodeBackfill(backfill)).toStrictEqual(Result.succeed(backfill))
     const unchanged = { unchanged: true, version: 'current' }
-    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(unchanged)).toEqual(unchanged)
+    expect(decodeWorkflow(unchanged)).toStrictEqual(Result.succeed(unchanged))
     const full = { title: 'Workflow', description: 'Rules', content: 'Do work', version: 'current' }
-    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(full)).toEqual(full)
-    expect(() => Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)({ version: 'current' })).toThrow()
-    expect(() =>
-      Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)({ ...backfill, nextCursor: { id: 'page' } }),
-    ).toThrow()
+    expect(decodeWorkflow(full)).toStrictEqual(Result.succeed(full))
+    const missingWorkflowTitle = pipe(decodeWorkflow({ version: 'current' }), Result.flip, Result.getOrUndefined)
+    expect(missingWorkflowTitle?.message).toContain('["title"]')
+    const incompleteBackfillCursor = pipe(
+      decodeBackfill({ ...backfill, nextCursor: { id: 'page' } }),
+      Result.flip,
+      Result.getOrUndefined,
+    )
+    expect(incompleteBackfillCursor?.message).toContain('["nextCursor"]["updatedAt"]')
   })
-  it('dispatches a concrete issue operation with the current actor and workspace only', async () => {
+
+  test('dispatches a concrete issue operation with the current actor and workspace only', async () => {
+    expect.hasAssertions()
     const actor = { requestUrl: 'https://example.test/api/workspaces/team/issues/issue', method: 'GET' }
     const publicIssue = {
       id: 'issue',
@@ -136,25 +154,25 @@ describe('API facade reply boundary', () => {
       body: 'Body',
       status: 'todo',
       priority: 'high',
-      assignee_id: null,
+      assignee_id: JSON_NULL,
       labels: '["public"]',
-      parent_id: null,
-      type_id: null,
-      status_id: null,
-      status_category: null,
-      sprint_id: null,
+      parent_id: JSON_NULL,
+      type_id: JSON_NULL,
+      status_id: JSON_NULL,
+      status_category: JSON_NULL,
+      sprint_id: JSON_NULL,
       created_by_id: 'user',
-      author_kind: null,
+      author_kind: JSON_NULL,
       created_at: 1,
       updated_at: 2,
-      completed_at: null,
+      completed_at: JSON_NULL,
       needs_audit: false,
       project_key: 'PROJ',
       project_name: 'Project',
-      type_key: null,
-      type_name: null,
-      status_key: null,
-      status_name: null,
+      type_key: JSON_NULL,
+      type_name: JSON_NULL,
+      status_key: JSON_NULL,
+      status_name: JSON_NULL,
       rollup: { total: 1, byStatus: { todo: 1 }, done: 0, remaining: 1 },
       links: [
         {
@@ -174,25 +192,25 @@ describe('API facade reply boundary', () => {
     }
     const core = makeCoreClient({
       apiGetIssue: async (actualActor: unknown, workspaceId: unknown, input: unknown) => {
-        expect({ actor: actualActor, workspaceId, input }).toEqual({
+        expect({ actor: actualActor, workspaceId, input }).toStrictEqual({
           actor,
-          workspaceId: 'workspace',
           input: { id: 'issue' },
+          workspaceId: 'workspace',
         })
-        return Effect.runPromise(coreReply('getIssue', ApiResults.apiGetIssue, Effect.succeed(publicIssue)))
+        return runTestEffect(coreReply('getIssue', ApiResults.apiGetIssue, Effect.succeed(publicIssue)))
       },
     })
     await expect(
       getIssue({ core, actor, workspaceId: 'workspace', userId: 'presentation-user' }, { id: 'issue' }),
-    ).resolves.toEqual(publicIssue)
+    ).resolves.toStrictEqual(publicIssue)
   })
 
-  it('preserves custom-field casing, options and internal metadata', async () => {
+  test('preserves custom-field casing, options and internal metadata', async () => {
     const fields = [
       {
         id: 'field',
         workspaceId: 'workspace',
-        projectId: null,
+        projectId: JSON_NULL,
         key: 'size',
         label: 'Size',
         type: 'select',
@@ -202,15 +220,15 @@ describe('API facade reply boundary', () => {
       },
     ]
     const wire = coreReply('fields', ApiResults.apiListCustomFieldDefs, Effect.succeed(fields))
-    await expect(apiReply(ApiResults.apiListCustomFieldDefs, wire)).resolves.toEqual(fields)
+    await expect(apiReply(ApiResults.apiListCustomFieldDefs, wire)).resolves.toStrictEqual(fields)
   })
 
-  it('preserves displaced and reclaimed claim snapshots rather than just their paths', async () => {
+  test('preserves displaced and reclaimed claim snapshots rather than just their paths', async () => {
     const snapshot = {
       id: 'claim',
       workspaceId: 'workspace',
       issueId: 'issue',
-      agentId: null,
+      agentId: JSON_NULL,
       path: 'src/file.ts',
       claimedAt: 1,
       releasedAt: 2,
@@ -224,20 +242,20 @@ describe('API facade reply boundary', () => {
     }
     await expect(
       apiReply(ApiResults.apiClaimFiles, coreReply('claimFiles', ApiResults.apiClaimFiles, Effect.succeed(result))),
-    ).resolves.toEqual(result)
+    ).resolves.toStrictEqual(result)
   })
 
-  it('retains membership creation timestamps in the workspace catalog', async () => {
+  test('retains membership creation timestamps in the workspace catalog', async () => {
     const workspaces = [{ id: 'workspace', name: 'Workspace', slug: 'team', role: 'member', createdAt: 1 }]
     await expect(
       apiReply(
         ApiResults.apiListWorkspaces,
         coreReply('listWorkspaces', ApiResults.apiListWorkspaces, Effect.succeed(workspaces)),
       ),
-    ).resolves.toEqual(workspaces)
+    ).resolves.toStrictEqual(workspaces)
   })
 
-  it('round trips a command that deliberately returns no data', async () => {
+  test('round trips a command that deliberately returns no data', async () => {
     await expect(
       apiReply(
         ApiResults.apiRevokeShareToken,
@@ -246,23 +264,23 @@ describe('API facade reply boundary', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('preserves the complete recursive Wiki tree', async () => {
+  test('preserves the complete recursive Wiki tree', async () => {
     const tree = [
       {
         id: 'root',
         slug: 'root',
         title: 'Root',
         url: '/wiki/root',
-        type: null,
+        type: JSON_NULL,
         children: [{ id: 'child', slug: 'child', title: 'Child', url: '/wiki/child', type: 'guide', children: [] }],
       },
     ]
     await expect(
       apiReply(ApiResults.apiGetWikiTree, coreReply('tree', ApiResults.apiGetWikiTree, Effect.succeed(tree))),
-    ).resolves.toEqual(tree)
+    ).resolves.toStrictEqual(tree)
   })
 
-  it('validates nested Wiki children instead of trusting the outer array', async () => {
+  test('validates nested Wiki children instead of trusting the outer array', async () => {
     const wire = JSON.stringify({
       _tag: 'Success',
       success: [
@@ -271,45 +289,45 @@ describe('API facade reply boundary', () => {
           slug: 'root',
           title: 'Root',
           url: '/wiki/root',
-          type: null,
+          type: JSON_NULL,
           children: [{ privateDiagnostic: 'not a page' }],
         },
       ],
     })
     await expect(apiReply(ApiResults.apiGetWikiTree, Effect.succeed(wire))).rejects.toMatchObject({
       _tag: 'CorePublicError',
-      status: 502,
       message: 'The Core service returned an invalid response.',
+      status: 502,
     })
   })
 
-  it('does not turn cancellation into an application or transport error', async () => {
+  test('does not turn cancellation into an application or transport error', async () => {
     await expect(apiReply(PublicIssue, Effect.interrupt)).rejects.not.toMatchObject({ _tag: 'CorePublicError' })
   })
 
-  it('preserves the declared public success fields', async () => {
-    const client = clientFor(() => Effect.runPromise(coreReply('load', PublicIssue, Effect.succeed(issue))))
-    await expect(apiReply(PublicIssue, client.load())).resolves.toEqual(issue)
+  test('preserves the declared public success fields', async () => {
+    const client = clientFor(() => runTestEffect(coreReply('load', PublicIssue, Effect.succeed(issue))))
+    await expect(apiReply(PublicIssue, client.load())).resolves.toStrictEqual(issue)
   })
 
-  it('rejects a success value that violates the operation output codec', async () => {
+  test('rejects a success value that violates the operation output codec', async () => {
     const client = clientFor(async () =>
       JSON.stringify({ _tag: 'Success', success: { ...issue, links: 'private SQL' } }),
     )
     await expect(apiReply(PublicIssue, client.load())).rejects.toMatchObject({
       _tag: 'CorePublicError',
-      status: 502,
       message: 'The Core service returned an invalid response.',
+      status: 502,
     })
   })
 
-  it('preserves selected public conflict details without reviving an original error', async () => {
+  test('preserves selected public conflict details without reviving an original error', async () => {
     const failure = coreFailure(409, 'Revision changed', {
       kind: 'conflict',
       details: { currentRevisionId: 'revision', diff: 'public diff' },
       retryAfter: 4,
     })
-    const client = clientFor(() => Effect.runPromise(coreReply('update', PublicIssue, Effect.fail(failure))))
+    const client = clientFor(() => runTestEffect(coreReply('update', PublicIssue, Effect.fail(failure))))
     await expect(apiReply(PublicIssue, client.load())).rejects.toMatchObject({
       _tag: 'CorePublicError',
       status: 409,
@@ -322,28 +340,28 @@ describe('API facade reply boundary', () => {
     await expect(apiReply(PublicIssue, client.load())).rejects.not.toHaveProperty('originalError')
   })
 
-  it('sanitizes a transport failure instead of exposing native diagnostics', async () => {
+  test('sanitizes a transport failure instead of exposing native diagnostics', async () => {
     const client = clientFor(async () => {
       throw new Error('private storage diagnostic')
     })
     await expect(apiReply(PublicIssue, client.load())).rejects.toMatchObject({
       _tag: 'CorePublicError',
-      status: 502,
       message: 'The Core service is temporarily unavailable.',
+      status: 502,
     })
     await expect(apiReply(PublicIssue, client.load())).rejects.not.toHaveProperty('originalError')
   })
 
-  it('keeps concurrent contexts bound to their respective services', async () => {
+  test('keeps concurrent contexts bound to their respective services', async () => {
     const first = clientFor(() =>
-      Effect.runPromise(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'first' }))),
+      runTestEffect(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'first' }))),
     )
     const second = clientFor(() =>
-      Effect.runPromise(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'second' }))),
+      runTestEffect(coreReply('load', PublicIssue, Effect.succeed({ ...issue, id: 'second' }))),
     )
     await expect(
       Promise.all([apiReply(PublicIssue, first.load()), apiReply(PublicIssue, second.load())]),
-    ).resolves.toEqual([
+    ).resolves.toStrictEqual([
       { ...issue, id: 'first' },
       { ...issue, id: 'second' },
     ])

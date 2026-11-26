@@ -1,14 +1,16 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { afterEach, vi } from 'vite-plus/test'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import { inMemoryKV, inMemoryR2, testEnvironment, type TestEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
+import { runTestEffect } from '#tests/run-effect.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import { inMemoryKV, inMemoryR2, testEnvironment } from '@/server/test/resources.ts'
+import type { TestEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 type InputSchema = Schema.Constraint & Schema.Decoder<unknown>
 interface Definition {
-  input: InputSchema | readonly InputSchema[]
+  input: InputSchema | Readonly<InputSchema[]>
   handler: (...input: unknown[]) => Effect.Effect<unknown, unknown, RequestServices>
 }
 const definitions = vi.hoisted(() => new WeakMap<object, Definition>())
@@ -17,7 +19,7 @@ vi.mock('../../effront', () => ({
   EFFRONT: {
     ServerFn: {
       make: (definition: Definition) => {
-        const callable = () => Promise.reject(new Error('Use the maintained action test boundary.'))
+        const callable = (): Promise<never> => Promise.reject(new Error('Use the maintained action test boundary.'))
         definitions.set(callable, definition)
         return callable
       },
@@ -25,18 +27,24 @@ vi.mock('../../effront', () => ({
   },
 }))
 vi.mock('@effront/core/workers', async () => {
-  const { Effect } = await import('effect')
+  const { Effect: fixtureEffect } = await import('effect')
   return {
-    getWorkersRequestContext: () => Effect.die('Host context is not used by feature action tests.'),
+    getWorkersRequestContext: () => fixtureEffect.die('Host context is not used by feature action tests.'),
   }
 })
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  Iterable.forEach(databases.splice(0), (database) => {
+    database.close()
+  })
 })
 
-/** Shared page/action fixtures execute every read against the fully migrated real schema. */
-export function featureDatabase() {
+/**
+ * Shared page/action fixtures execute every read against the fully migrated real schema.
+ *
+ * @returns {ReturnType<typeof featureDatabase>} The migrated test database seeded with planning entities and registered for teardown.
+ */
+export const featureDatabase = function featureDatabase() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
@@ -61,7 +69,7 @@ export const planningIds = {
   target: '00000000-0000-4000-8000-000000000003',
 }
 
-export function actionFixture(
+export const actionFixture = function actionFixture(
   resolve: (url: URL, options?: RequestInit) => unknown = () => {
     throw new Error('Web actions must not use an API transport.')
   },
@@ -87,15 +95,20 @@ export function actionFixture(
     const value = await resolve(url, options)
     return value instanceof Response ? value : Response.json(value)
   })
-  function invoke<Input extends unknown[], Output>(operation: (...input: Input) => Promise<Output>, ...input: Input) {
+  const invoke = function invoke<Input extends unknown[], Output>(
+    operation: (...input: Input) => Promise<Output>,
+    ...input: Input
+  ): Promise<unknown> {
     const definition = definitions.get(operation)
-    if (!definition) throw new Error('Unregistered feature ServerFn.')
-    return Effect.runPromise(
+    if (!definition) {
+      throw new Error('Unregistered feature ServerFn.')
+    }
+    return runTestEffect(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(
           new Request('https://front.example/_effront/functions', {
-            method: 'POST',
             headers: { origin },
+            method: 'POST',
           }),
           env,
         )
@@ -114,9 +127,16 @@ export function actionFixture(
   return { invoke, transport, invalidated, env, kv, r2, oauthKV, ...database }
 }
 
-/** Native action test boundary uses the browser's actual submitted fields. */
-export function formData(values: Record<string, string | number>) {
+/**
+ * Native action test boundary uses the browser's actual submitted fields.
+ *
+ * @param {Record<string, string | number>} values The named form field values a browser would submit.
+ * @returns {FormData} The form with numeric values converted to strings.
+ */
+export const formData = function formData(values: Record<string, string | number>): FormData {
   const data = new FormData()
-  for (const [name, value] of Object.entries(values)) data.set(name, String(value))
+  Iterable.forEach(Object.entries(values), ([name, value]) => {
+    data.set(name, String(value))
+  })
   return data
 }

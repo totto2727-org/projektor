@@ -1,13 +1,18 @@
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
+import { String, Iterable, Predicate, Effect } from 'effect'
 
+import { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { drizzle, schema } from '#db'
 
-import type { ReviewFilter } from '../contracts/review-targets'
-import { batchLoadCustomFields, inChunks, type CustomFieldValue } from './custom-fields'
-import { queryEffect } from './errors'
+import { batchLoadCustomFields, inChunks } from './custom-fields.ts'
+import type { CustomFieldValue } from './custom-fields.ts'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
-export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/
+export { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
 export interface IssueListOptions {
   review?: ReviewFilter
   status?: typeof schema.issues.$inferSelect.status
@@ -40,13 +45,15 @@ export interface ChildRollup {
   done: number
   remaining: number
 }
-export function computeChildRollup(rows: readonly { status: string; count: number }[]): ChildRollup {
+export const computeChildRollup = function computeChildRollup(
+  rows: Readonly<{ status: string; count: number }[]>,
+): ChildRollup {
   const byStatus: Record<string, number> = {}
   let total = 0
-  for (const row of rows) {
+  Iterable.forEach(rows, (row) => {
     byStatus[row.status] = row.count
     total += row.count
-  }
+  })
   const done = (byStatus.done ?? 0) + (byStatus.cancelled ?? 0)
   return { total, byStatus, done, remaining: total - done }
 }
@@ -79,7 +86,7 @@ const issueColumns = {
   status_key: schema.taskStatuses.key,
   status_name: schema.taskStatuses.name,
 }
-function issueSelect(db: D1Database) {
+const issueSelect = function issueSelect(db: D1Database) {
   return drizzle(db, { schema })
     .select(issueColumns)
     .from(schema.issues)
@@ -100,12 +107,26 @@ export interface IssuePage {
   total: number | null
 }
 
-/** Reference syntax is validated by the application before calling. No authorization occurs here. */
-export function getIssue(db: D1Database, workspaceId: string, options: { id?: string; ref?: string }) {
+/**
+ * Reference syntax is validated by the application before calling. No authorization occurs here.
+ *
+ * @param {D1Database} db Database that stores issues and projects.
+ * @param {string} workspaceId Workspace that owns the issue.
+ * @param {object} options Issue ID or validated project reference.
+ * @returns {Effect.Effect<IssueRow | null, DataQueryError>} The matching issue or null.
+ */
+export const getIssue = function getIssue(
+  db: D1Database,
+  workspaceId: string,
+  options: { id?: string; ref?: string },
+): Effect.Effect<IssueRow | null, DataQueryError> {
   return queryEffect('getIssue', async () => {
-    const match = options.ref?.match(ISSUE_REF_PATTERN)
-    if (!options.id && !match) return null
-    const predicate = options.id
+    const { ref } = options
+    const match = Predicate.isNullish(ref) ? undefined : ISSUE_REF_PATTERN.exec(ref)
+    if (!isNonEmptyText(options.id) && !match) {
+      return null
+    }
+    const predicate = isNonEmptyText(options.id)
       ? eq(schema.issues.id, options.id)
       : and(eq(schema.projects.key, match![1]), eq(schema.issues.number, Number(match![2])))
     return (
@@ -115,10 +136,16 @@ export function getIssue(db: D1Database, workspaceId: string, options: { id?: st
     )
   })
 }
-export function findIssueIdByRef(db: D1Database, workspaceId: string, ref: string) {
+export const findIssueIdByRef = function findIssueIdByRef(
+  db: D1Database,
+  workspaceId: string,
+  ref: string,
+): Effect.Effect<string | null, DataQueryError> {
   return queryEffect('findIssueIdByRef', async () => {
-    const match = ref.match(ISSUE_REF_PATTERN)
-    if (!match) return null
+    const match = ISSUE_REF_PATTERN.exec(ref)
+    if (!match) {
+      return null
+    }
     const row = await drizzle(db, { schema })
       .select({ id: schema.issues.id })
       .from(schema.issues)
@@ -134,7 +161,11 @@ export function findIssueIdByRef(db: D1Database, workspaceId: string, ref: strin
     return row?.id ?? null
   })
 }
-export function findIssueCustomField(db: D1Database, workspaceId: string, key: string) {
+export const findIssueCustomField = function findIssueCustomField(
+  db: D1Database,
+  workspaceId: string,
+  key: string,
+): Effect.Effect<Pick<typeof schema.customFieldDefinitions.$inferSelect, 'id' | 'type'> | null, DataQueryError> {
   return queryEffect(
     'findIssueCustomField',
     async () =>
@@ -147,9 +178,15 @@ export function findIssueCustomField(db: D1Database, workspaceId: string, key: s
         .get()) ?? null,
   )
 }
-function listConditions(workspaceId: string, options: IssueListOptions, visibility?: SQL): SQL[] {
-  const conditions: SQL[] = [eq(schema.issues.workspaceId, workspaceId)]
-  if (visibility) conditions.push(visibility)
+const listConditions = function listConditions(
+  workspaceId: string,
+  options: IssueListOptions,
+  visibility?: SQL,
+): (SQL | undefined)[] {
+  const conditions: (SQL | undefined)[] = [eq(schema.issues.workspaceId, workspaceId)]
+  if (visibility) {
+    conditions.push(visibility)
+  }
   if (options.review) {
     const status =
       options.review === 'active'
@@ -161,46 +198,81 @@ function listConditions(workspaceId: string, options: IssueListOptions, visibili
         AND review_attachment.entity_type = 'issue' AND review_attachment.kind IN ('file', 'url')
         AND ${status})`)
   }
-  if (options.status) conditions.push(eq(schema.issues.status, options.status))
-  if (options.statusId) conditions.push(eq(schema.issues.statusId, options.statusId))
+  if (options.status) {
+    conditions.push(eq(schema.issues.status, options.status))
+  }
+  if (isNonEmptyText(options.statusId)) {
+    conditions.push(eq(schema.issues.statusId, options.statusId))
+  }
   const statusIds = options.statusIds
     ?.split(',')
-    .map((s) => s.trim())
+    .map((statusId) => statusId.trim())
     .filter(Boolean)
-  // Membership filters bind one JSON value instead of an input-scaled array, keeping
-  // the complete filtered count and cursor page under D1's 100-parameter cap.
-  if (statusIds?.length)
+  /*
+   * Membership filters bind one JSON value instead of an input-scaled array, keeping
+   * the complete filtered count and cursor page under D1's 100-parameter cap.
+   */
+  if (statusIds?.length) {
     conditions.push(sql`${schema.issues.statusId} IN (SELECT value FROM json_each(${JSON.stringify(statusIds)}))`)
-  if (options.category) conditions.push(eq(schema.issues.statusCategory, options.category))
-  if (options.needsAudit !== undefined) conditions.push(eq(schema.issues.needsAudit, options.needsAudit))
-  if (options.priority) conditions.push(eq(schema.issues.priority, options.priority))
+  }
+  if (isNonEmptyText(options.category)) {
+    conditions.push(eq(schema.issues.statusCategory, options.category))
+  }
+  if (Predicate.isNotNullish(options.needsAudit)) {
+    conditions.push(eq(schema.issues.needsAudit, options.needsAudit))
+  }
+  if (options.priority) {
+    conditions.push(eq(schema.issues.priority, options.priority))
+  }
   const priorities = options.priorities
     ?.split(',')
-    .map((s) => s.trim())
+    .map((priority) => priority.trim())
     .filter(Boolean) as NonNullable<IssueListOptions['priority']>[] | undefined
-  if (priorities?.length)
+  if (priorities?.length) {
     conditions.push(sql`${schema.issues.priority} IN (SELECT value FROM json_each(${JSON.stringify(priorities)}))`)
-  if (options.projectId) conditions.push(eq(schema.issues.projectId, options.projectId))
-  if (options.assignee) conditions.push(eq(schema.issues.assigneeId, options.assignee))
-  if (options.parentId) conditions.push(eq(schema.issues.parentId, options.parentId))
-  if (options.noParent) conditions.push(isNull(schema.issues.parentId))
-  if (options.typeId) conditions.push(eq(schema.issues.typeId, options.typeId))
+  }
+  if (isNonEmptyText(options.projectId)) {
+    conditions.push(eq(schema.issues.projectId, options.projectId))
+  }
+  if (isNonEmptyText(options.assignee)) {
+    conditions.push(eq(schema.issues.assigneeId, options.assignee))
+  }
+  if (isNonEmptyText(options.parentId)) {
+    conditions.push(eq(schema.issues.parentId, options.parentId))
+  }
+  if (options.noParent === true) {
+    conditions.push(isNull(schema.issues.parentId))
+  }
+  if (isNonEmptyText(options.typeId)) {
+    conditions.push(eq(schema.issues.typeId, options.typeId))
+  }
   const excluded = options.excludeTypeIds
     ?.split(',')
-    .map((s) => s.trim())
+    .map((typeId) => typeId.trim())
     .filter(Boolean)
-  if (excluded?.length)
+  if (excluded?.length) {
     conditions.push(
       or(
         isNull(schema.issues.typeId),
         sql`${schema.issues.typeId} NOT IN (SELECT value FROM json_each(${JSON.stringify(excluded)}))`,
-      )!,
+      ),
     )
-  if (options.sprintId) conditions.push(eq(schema.issues.sprintId, options.sprintId))
-  if (options.completedAfter) conditions.push(gte(schema.issues.completedAt, options.completedAfter))
-  if (options.completedBefore) conditions.push(lte(schema.issues.completedAt, options.completedBefore))
-  if (options.updatedAfter) conditions.push(gte(schema.issues.updatedAt, options.updatedAfter))
-  if (options.updatedBefore) conditions.push(lte(schema.issues.updatedAt, options.updatedBefore))
+  }
+  if (isNonEmptyText(options.sprintId)) {
+    conditions.push(eq(schema.issues.sprintId, options.sprintId))
+  }
+  if (options.completedAfter) {
+    conditions.push(gte(schema.issues.completedAt, options.completedAfter))
+  }
+  if (options.completedBefore) {
+    conditions.push(lte(schema.issues.completedAt, options.completedBefore))
+  }
+  if (options.updatedAfter) {
+    conditions.push(gte(schema.issues.updatedAt, options.updatedAfter))
+  }
+  if (options.updatedBefore) {
+    conditions.push(lte(schema.issues.updatedAt, options.updatedBefore))
+  }
   const field = options.customField
   if (field) {
     const op = field.op ?? 'eq'
@@ -212,7 +284,11 @@ function listConditions(workspaceId: string, options: IssueListOptions, visibili
   }
   return conditions
 }
-export function getChildRollups(db: D1Database, workspaceId: string, parentIds: readonly string[]) {
+export const getChildRollups = function getChildRollups(
+  db: D1Database,
+  workspaceId: string,
+  parentIds: Readonly<string[]>,
+): Effect.Effect<Record<string, ChildRollup>, DataQueryError> {
   return queryEffect('getChildRollups', async () => {
     const orm = drizzle(db, { schema })
     const rows = await inChunks(parentIds, (chunk) =>
@@ -227,11 +303,19 @@ export function getChildRollups(db: D1Database, workspaceId: string, parentIds: 
         .groupBy(schema.issues.parentId, schema.issues.status),
     )
     const grouped: Record<string, { status: string; count: number }[]> = {}
-    for (const row of rows) if (row.parent_id) (grouped[row.parent_id] ??= []).push(row)
+    Iterable.forEach(rows, (row) => {
+      if (isNonEmptyText(row.parent_id)) {
+        ;(grouped[row.parent_id] ??= []).push(row)
+      }
+    })
     return Object.fromEntries(parentIds.map((id) => [id, computeChildRollup(grouped[id] ?? [])]))
   })
 }
-export function getIssueExtras(db: D1Database, workspaceId: string, issueId: string) {
+export const getIssueExtras = function getIssueExtras(
+  db: D1Database,
+  workspaceId: string,
+  issueId: string,
+): Effect.Effect<{ rollup: ChildRollup; customFields: CustomFieldValue[] }, DataQueryError> {
   return Effect.gen(function* () {
     const rollups = yield* getChildRollups(db, workspaceId, [issueId])
     const fields = yield* batchLoadCustomFields(db, workspaceId, [issueId])
@@ -241,17 +325,22 @@ export function getIssueExtras(db: D1Database, workspaceId: string, issueId: str
     }
   })
 }
-export function listIssues(db: D1Database, workspaceId: string, options: IssueListOptions, visibility?: SQL) {
+export const listIssues = function listIssues(
+  db: D1Database,
+  workspaceId: string,
+  options: IssueListOptions,
+  visibility?: SQL,
+): Effect.Effect<IssuePage, DataQueryError> {
   return Effect.gen(function* () {
     const page = yield* queryEffect('listIssues', async () => {
       const orm = drizzle(db, { schema })
       const conditions = listConditions(workspaceId, options, visibility)
-      const cursor = options.cursor
+      const { cursor } = options
       const pageConditions = !cursor
         ? conditions
         : [
             ...conditions,
-            cursor.id === undefined
+            Predicate.isNullish(cursor.id)
               ? sql`${schema.issues.createdAt} < ${cursor.createdAt}`
               : sql`(${schema.issues.createdAt} < ${cursor.createdAt} OR (${schema.issues.createdAt} = ${cursor.createdAt} AND ${schema.issues.id} < ${cursor.id}))`,
           ]
@@ -271,12 +360,12 @@ export function listIssues(db: D1Database, workspaceId: string, options: IssueLi
       const last = items.at(-1)
       return { items, total, nextCursor: hasMore && last ? `${last.created_at}:${last.id}` : null }
     })
-    const ids = page.items.map((r) => r.id)
+    const ids = page.items.map((item) => item.id)
     const fields = yield* batchLoadCustomFields(db, workspaceId, ids)
-    const rollups = options.includeRollups ? yield* getChildRollups(db, workspaceId, ids) : null
+    const rollups = options.includeRollups === true ? yield* getChildRollups(db, workspaceId, ids) : null
     const items: IssueListRow[] = page.items.map(({ body, ...row }) => ({
       ...row,
-      ...(options.includeBody ? { body } : {}),
+      ...(options.includeBody === true ? { body } : {}),
       customFields: fields[row.id] ?? [],
       ...(rollups ? { rollup: rollups[row.id] ?? computeChildRollup([]) } : {}),
     }))
@@ -284,22 +373,38 @@ export function listIssues(db: D1Database, workspaceId: string, options: IssueLi
   })
 }
 export interface IssueBatchOptions {
-  refs?: readonly string[]
-  ids?: readonly string[]
+  refs?: Readonly<string[]>
+  ids?: Readonly<string[]>
   includeBody?: boolean
 }
-export function getIssuesBatch(db: D1Database, workspaceId: string, options: IssueBatchOptions, visibility?: SQL) {
+
+type IssueBatchItem = Omit<IssueRow, 'body'> & {
+  body?: string
+  customFields: CustomFieldValue[]
+}
+
+interface IssueBatch {
+  items: IssueBatchItem[]
+  missing: string[]
+}
+
+export const getIssuesBatch = function getIssuesBatch(
+  db: D1Database,
+  workspaceId: string,
+  options: IssueBatchOptions,
+  visibility?: SQL,
+): Effect.Effect<IssueBatch, DataQueryError> {
   return Effect.gen(function* () {
     const selection = yield* queryEffect('getIssuesBatch', async () => {
       const refs = options.refs ?? []
       const orm = drizzle(db, { schema })
       const numbersByKey = new Map<string, number[]>()
-      for (const ref of refs) {
-        const match = ref.match(ISSUE_REF_PATTERN)!
+      Iterable.forEach(refs, (ref) => {
+        const match = ISSUE_REF_PATTERN.exec(ref)!
         const numbers = numbersByKey.get(match[1]) ?? []
         numbers.push(Number(match[2]))
         numbersByKey.set(match[1], numbers)
-      }
+      })
       const refToId = new Map<string, string>()
       for (const [key, numbers] of numbersByKey) {
         const rows = await inChunks(numbers, (chunk) =>
@@ -315,14 +420,22 @@ export function getIssuesBatch(db: D1Database, workspaceId: string, options: Iss
               ),
             ),
         )
-        for (const row of rows) refToId.set(`${key}-${row.number}`, row.id)
+        Iterable.forEach(rows, (row) => {
+          refToId.set(`${key}-${row.number}`, row.id)
+        })
       }
       const order = refs.map((ref) => {
-        const m = ref.match(ISSUE_REF_PATTERN)!
-        return { requested: ref, id: refToId.get(`${m[1]}-${Number(m[2])}`) }
+        const match = ISSUE_REF_PATTERN.exec(ref)!
+        return { requested: ref, id: refToId.get(`${match[1]}-${Number(match[2])}`) }
       })
-      for (const id of options.ids ?? []) order.push({ requested: id, id })
-      const ids = [...new Set(order.map((o) => o.id).filter((id): id is string => !!id))]
+      Iterable.forEach(options.ids ?? [], (id) => {
+        order.push({ requested: id, id })
+      })
+      const ids = [
+        ...new Set(
+          order.map((entry) => entry.id).filter((id): id is string => !(Predicate.isNullish(id) || String.isEmpty(id))),
+        ),
+      ]
       const rows = await inChunks(ids, (chunk) =>
         issueSelect(db).where(
           and(eq(schema.issues.workspaceId, workspaceId), inArray(schema.issues.id, chunk), visibility),
@@ -333,30 +446,31 @@ export function getIssuesBatch(db: D1Database, workspaceId: string, options: Iss
     const fields = yield* batchLoadCustomFields(
       db,
       workspaceId,
-      selection.rows.map((r) => r.id),
+      selection.rows.map((row) => row.id),
     )
     const rowsById = new Map(
       selection.rows.map(({ body, ...row }) => [
         row.id,
-        { ...row, ...(options.includeBody ? { body } : {}), customFields: fields[row.id] ?? [] },
+        { ...row, ...(options.includeBody === true ? { body } : {}), customFields: fields[row.id] ?? [] },
       ]),
     )
-    const items: (Omit<NonNullable<IssueRow>, 'body'> & {
-      body?: string
-      customFields: CustomFieldValue[]
-    })[] = []
+    const items: IssueBatchItem[] = []
     const missing: string[] = []
     const seen = new Set<string>()
-    for (const entry of selection.order) {
-      const row = entry.id ? rowsById.get(entry.id) : undefined
+    Iterable.forEach(selection.order, (entry) => {
+      const row = isNonEmptyText(entry.id) ? rowsById.get(entry.id) : undefined
       if (!row) {
-        if (!missing.includes(entry.requested)) missing.push(entry.requested)
-        continue
+        if (!missing.includes(entry.requested)) {
+          missing.push(entry.requested)
+        }
+        return
       }
-      if (seen.has(row.id)) continue
+      if (seen.has(row.id)) {
+        return
+      }
       seen.add(row.id)
       items.push(row)
-    }
+    })
     return { items, missing }
   })
 }
@@ -381,23 +495,25 @@ export interface IssueSearchVisibility {
   sql: string
   params: unknown[]
 }
-export function searchIssues(
+export const searchIssues = function searchIssues(
   db: D1Database,
   workspaceId: string,
   options: IssueSearchOptions,
   visibility?: IssueSearchVisibility,
-) {
+): Effect.Effect<IssueSearchRow[], DataQueryError> {
   return queryEffect('searchIssues', async (): Promise<IssueSearchRow[]> => {
     const query = options.query
       .trim()
-      .split(/\s+/)
-      .filter((t) => Boolean(t) && /\w/.test(t))
-      .map((t) => `"${t.replace(/"/g, '""')}"`)
+      .split(/\s+/u)
+      .filter((token) => Boolean(token) && /\w/u.test(token))
+      .map((token) => `"${token.replaceAll('"', '""')}"`)
       .join(' ')
-    if (!query) return []
+    if (!query) {
+      return []
+    }
     let statement = `SELECT i.id, i.number, i.title, i.status, i.priority, p.id as project_id, p.key as project_key, p.name as project_name FROM issues_fts JOIN issues i ON i.id = issues_fts.issue_id LEFT JOIN projects p ON p.id = i.project_id WHERE issues_fts MATCH ? AND issues_fts.workspace_id = ?`
     const params: unknown[] = [query, workspaceId]
-    if (options.projectId) {
+    if (isNonEmptyText(options.projectId)) {
       statement += ' AND i.project_id = ?'
       params.push(options.projectId)
     }
@@ -415,15 +531,16 @@ export function searchIssues(
               : 'review_attachment.review_status = ?'
           })`
       params.push(workspaceId)
-      if (options.review !== 'active') params.push(options.review)
+      if (options.review !== 'active') {
+        params.push(options.review)
+      }
     }
     statement += ' ORDER BY bm25(issues_fts) LIMIT ?'
     params.push(options.limit)
-    return (
-      await db
-        .prepare(statement)
-        .bind(...params)
-        .all<IssueSearchRow>()
-    ).results
+    const result = await db
+      .prepare(statement)
+      .bind(...params)
+      .all<IssueSearchRow>()
+    return result.results
   })
 }

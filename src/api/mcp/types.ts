@@ -1,10 +1,9 @@
+import type { ApiServiceCtx } from '#api/services/types.ts'
 import type { MCPTool as DomainMcpTool } from '#types'
-
-import type { ApiServiceCtx } from '../services/types'
 
 /** External MCP handlers shape protocol data and invoke named Core operations. */
 export interface MCPTool extends Omit<DomainMcpTool, 'handler'> {
   handler: (input: unknown, ctx: ApiServiceCtx) => Promise<unknown>
 }
 
-export type PluginContext = ApiServiceCtx
+export type { ApiServiceCtx as PluginContext } from '#api/services/types.ts'

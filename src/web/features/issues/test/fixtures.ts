@@ -1,5 +1,7 @@
-import type { RequestScope } from '../../../server/request-context'
-import type { Issue } from '../types'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
+import type { Issue } from '@/features/issues/types.ts'
+import type { RequestScope } from '@/server/request-context.ts'
 export const workspace = {
   id: 'workspace-a',
   slug: 'workspace',
@@ -17,7 +19,7 @@ export const project = {
   workspace_slug: workspace.slug,
   open_issue_count: 1,
   backlog_issue_count: 0,
-  archived_at: null,
+  archived_at: JSON_NULL,
   created_at: 1,
   updated_at: 1,
 }
@@ -28,7 +30,7 @@ export const scope: RequestScope = {
   projects: [project, secondProject],
   selection: { kind: 'workspace', workspace },
 }
-export function issue(overrides: Partial<Issue> = {}): Issue {
+export const issue = function issue(overrides: Partial<Issue> = {}): Issue {
   return {
     id: 'issue-a',
     number: 1,
@@ -42,13 +44,13 @@ export function issue(overrides: Partial<Issue> = {}): Issue {
     status_key: 'todo',
     status_name: 'Todo',
     status_category: 'todo',
-    type_id: null,
-    type_key: null,
-    type_name: null,
-    parent_id: null,
-    assignee_id: null,
-    assignee_name: null,
-    sprint_id: null,
+    type_id: JSON_NULL,
+    type_key: JSON_NULL,
+    type_name: JSON_NULL,
+    parent_id: JSON_NULL,
+    assignee_id: JSON_NULL,
+    assignee_name: JSON_NULL,
+    sprint_id: JSON_NULL,
     created_at: 1,
     updated_at: 1,
     reviewTargets: [],
@@ -58,8 +60,8 @@ export function issue(overrides: Partial<Issue> = {}): Issue {
   }
 }
 export const statuses = [
-  { id: 'todo', key: 'todo', name: 'Todo', category: 'todo', color: null },
-  { id: 'done', key: 'done', name: 'Done', category: 'done', color: null },
+  { id: 'todo', key: 'todo', name: 'Todo', category: 'todo', color: JSON_NULL },
+  { id: 'done', key: 'done', name: 'Done', category: 'done', color: JSON_NULL },
 ]
 export const taskTypes = [{ id: 'epic-type', key: 'epic', name: 'Epic' }]
 export const comment = {
@@ -69,4 +71,14 @@ export const comment = {
   author_name: 'User',
   author_email: 'user@example.test',
   created_at: 1,
+}
+
+export const issueIdentity = function issueIdentity(
+  workspaceSlug: string,
+  issueId: string,
+): { issueId: string; workspaceSlug: string } {
+  return fieldsInOrder([
+    ['workspaceSlug', workspaceSlug],
+    ['issueId', issueId],
+  ])
 }

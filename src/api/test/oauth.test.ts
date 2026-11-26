@@ -1,53 +1,63 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Predicate } from 'effect'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { relyingPartyHost } from '#commands/oauth'
-import type { Env } from '#types'
+import { relyingPartyHost } from '#commands/oauth.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
+import { purgeExpiredOAuthData } from '#core/api/maintenance.ts'
+import { runIndexedInOrder } from '#tests/run-effect.ts'
 
-import { purgeExpiredOAuthData } from '../../core/api/maintenance'
-import { env, resetCoreAuthCaches } from './fixture-api'
-import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers'
+import { env, resetCoreAuthCaches } from './fixture-api.ts'
+import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody, stringifyOrderedFields } from './native-fetch.ts'
 
-// PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.
-//
-// These tests drive the real provider, not a stand-in: a browser session consents, the
-// client exchanges the code with a PKCE verifier, and the resulting access token is
-// used against the MCP endpoint. What they are guarding is the seam between the OAuth
-// library and projektor — who may consent, which workspace a grant is bound to, and
-// whether that binding actually holds when the token is spent somewhere else.
+/*
+ * PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.
+ *
+ * These tests drive the real provider, not a stand-in: a browser session consents, the
+ * client exchanges the code with a PKCE verifier, and the resulting access token is
+ * used against the MCP endpoint. What they are guarding is the seam between the OAuth
+ * library and projektor — who may consent, which workspace a grant is bound to, and
+ * whether that binding actually holds when the token is spent somewhere else.
+ */
 
 const HOST = 'https://projektor.example.com'
 const CLIENT_REDIRECT = 'https://claude.ai/api/mcp/auth_callback'
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 const ORCA_REDIRECT = 'http://127.0.0.1:40927/callback'
 
-// The rate limiter is IP-keyed for requests with no bearer token, and
-// vite.config.ts sets RATE_LIMIT_AUTH_MAX=3. A whole authorization flow is more
-// than three such requests, so each test gets its own bucket.
+/*
+ * The rate limiter is IP-keyed for requests with no bearer token, and
+ * vite.config.ts sets RATE_LIMIT_AUTH_MAX=3. A whole authorization flow is more
+ * than three such requests, so each test gets its own bucket.
+ */
 let clientIp: string
-function browserHeaders(extra: Record<string, string> = {}): Record<string, string> {
+const browserHeaders = function browserHeaders(extra: Record<string, string> = {}): Record<string, string> {
   return { 'CF-Connecting-IP': clientIp, ...extra }
 }
 
-// ---------------------------------------------------------------------------
-// A Cloudflare Access session. The consent screen is deliberately unreachable by
-// any credential except a signed-in human, so every happy-path test needs one.
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * A Cloudflare Access session. The consent screen is deliberately unreachable by
+ * any credential except a signed-in human, so every happy-path test needs one.
+ * ---------------------------------------------------------------------------
+ */
 
 const CF_DOMAIN = 'test-oauth.example.com'
 const CF_AUDIENCE = 'oauth-test-audience'
 
-function b64url(bytes: Uint8Array): string {
+const b64url = function b64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
 }
 
 let signingKey: CryptoKey
 
-async function installAccessKeys(): Promise<void> {
-  const pair = (await crypto.subtle.generateKey(
+const installAccessKeys = async function installAccessKeys(): Promise<void> {
+  const pair = await crypto.subtle.generateKey(
     {
       name: 'RSASSA-PKCS1-v1_5',
       modulusLength: 2048,
@@ -56,7 +66,7 @@ async function installAccessKeys(): Promise<void> {
     },
     true,
     ['sign', 'verify'],
-  )) as CryptoKeyPair
+  )
   signingKey = pair.privateKey
   await resetCoreAuthCaches()
   env.CF_ACCESS_TEAM_DOMAIN = CF_DOMAIN
@@ -64,59 +74,71 @@ async function installAccessKeys(): Promise<void> {
   await env.KV.put('cf-access-certs', JSON.stringify([await crypto.subtle.exportKey('jwk', pair.publicKey)]))
 }
 
-async function accessJwt(email: string): Promise<string> {
-  const part = (obj: unknown) => b64url(new TextEncoder().encode(JSON.stringify(obj)))
-  const header = part({ alg: 'RS256', typ: 'JWT' })
-  const body = part({
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    aud: CF_AUDIENCE,
-    iss: `https://${CF_DOMAIN}`,
-    email,
-  })
+const accessJwt = async function accessJwt(email: string): Promise<string> {
+  const part = (fields: Parameters<typeof stringifyOrderedFields>[0]): string =>
+    b64url(new TextEncoder().encode(stringifyOrderedFields(fields)))
+  const header = part([
+    ['alg', 'RS256'],
+    ['typ', 'JWT'],
+  ])
+  const body = part([
+    ['exp', currentEpochSeconds() + 3600],
+    ['aud', CF_AUDIENCE],
+    ['iss', `https://${CF_DOMAIN}`],
+    ['email', email],
+  ])
   const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', signingKey, new TextEncoder().encode(`${header}.${body}`))
   return `${header}.${body}.${b64url(new Uint8Array(sig))}`
 }
 
-// ---------------------------------------------------------------------------
-// A registered OAuth client, written straight into OAUTH_KV.
-//
-// The provider only exposes createClient through OAuthHelpers, which exists inside a
-// request it is handling — there is no way to register a client from out here. Writing
-// the record directly couples these tests to the library's storage layout (`client:<id>`
-// holding a ClientInfo), which is the smaller of two evils: the alternative is a CIMD
-// client, whose registration is an outbound HTTPS fetch of a metadata document that no
-// test runtime can serve.
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * A registered OAuth client, written straight into OAUTH_KV.
+ *
+ * The provider only exposes createClient through OAuthHelpers, which exists inside a
+ * request it is handling — there is no way to register a client from out here. Writing
+ * the record directly couples these tests to the library's storage layout (`client:<id>`
+ * holding a ClientInfo), which is the smaller of two evils: the alternative is a CIMD
+ * client, whose registration is an outbound HTTPS fetch of a metadata document that no
+ * test runtime can serve.
+ * ---------------------------------------------------------------------------
+ */
 
-async function seedOAuthClient(redirectUris: string[] = [CLIENT_REDIRECT]): Promise<{ clientId: string }> {
-  // Opaque, i.e. a DCR-registered client. A CIMD client's id is an HTTPS URL the
-  // provider fetches over the network, which is not seedable from a test.
+const seedOAuthClient = async function seedOAuthClient(
+  redirectUris: string[] = [CLIENT_REDIRECT],
+): Promise<{ clientId: string }> {
+  /*
+   * Opaque, i.e. a DCR-registered client. A CIMD client's id is an HTTPS URL the
+   * provider fetches over the network, which is not seedable from a test.
+   */
   const clientId = `test-client-${crypto.randomUUID().slice(0, 8)}`
   await env.OAUTH_KV.put(
     `client:${clientId}`,
-    JSON.stringify({
-      clientId,
-      redirectUris,
-      clientName: 'Test Connector',
-      grantTypes: ['authorization_code', 'refresh_token'],
-      responseTypes: ['code'],
-      registrationDate: Math.floor(Date.now() / 1000),
-      // Public client: no secret, PKCE is the only proof of possession. This is
-      // what Claude is, and what the metadata document advertises via
-      // token_endpoint_auth_methods_supported: ["none"].
-      tokenEndpointAuthMethod: 'none',
-    }),
+    stringifyOrderedFields([
+      ['clientId', clientId],
+      ['redirectUris', redirectUris],
+      ['clientName', 'Test Connector'],
+      ['grantTypes', ['authorization_code', 'refresh_token']],
+      ['responseTypes', ['code']],
+      ['registrationDate', currentEpochSeconds()],
+      /*
+       * Public client: no secret, PKCE is the only proof of possession. This is
+       * what Claude is, and what the metadata document advertises via
+       * token_endpoint_auth_methods_supported: ["none"].
+       */
+      ['tokenEndpointAuthMethod', 'none'],
+    ]),
   )
   return { clientId }
 }
 
-async function pkce(): Promise<{ verifier: string; challenge: string }> {
+const pkce = async function pkce(): Promise<{ verifier: string; challenge: string }> {
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)))
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
   return { verifier, challenge: b64url(new Uint8Array(digest)) }
 }
 
-function authorizeUrl(
+const authorizeUrl = function authorizeUrl(
   opts: Readonly<{
     clientId: string
     resource?: string
@@ -133,20 +155,29 @@ function authorizeUrl(
   url.searchParams.set('state', opts.state ?? 'opaque-state')
   url.searchParams.set('code_challenge', opts.challenge)
   url.searchParams.set('code_challenge_method', 'S256')
-  if (opts.scope !== undefined) url.searchParams.set('scope', opts.scope)
-  if (opts.resource !== undefined) url.searchParams.set('resource', opts.resource)
+  if (Predicate.isNotNullish(opts.scope)) {
+    url.searchParams.set('scope', opts.scope)
+  }
+  if (Predicate.isNotNullish(opts.resource)) {
+    url.searchParams.set('resource', opts.resource)
+  }
   return url.toString()
 }
 
-/** The hidden signed field the consent form carries. */
-function consentTokenFrom(html: string): string {
-  const match = /name="consent_token" value="([^"]+)"/.exec(html)
-  expect(match, 'consent screen did not render a consent_token').toBeTruthy()
+/**
+ * The hidden signed field the consent form carries.
+ *
+ * @param {string} html The HTML returned by the consent endpoint.
+ * @returns {string} The signed consent token rendered by the form.
+ */
+const consentTokenFrom = function consentTokenFrom(html: string): string {
+  const match = /name="consent_token" value="(?<token>[^"]+)"/u.exec(html)
+  expect(match, 'consent screen did not render a consent_token').not.toBeNull()
   return (match as RegExpExecArray)[1]
 }
 
-async function postConsent(token: string, decision: string, jwt: string): Promise<Response> {
-  return SELF.fetch(`${HOST}/oauth/authorize`, {
+const postConsent = async function postConsent(token: string, decision: string, jwt: string): Promise<Response> {
+  return fetchNativeApi(`${HOST}/oauth/authorize`, {
     method: 'POST',
     headers: browserHeaders({
       'Cf-Access-Jwt-Assertion': jwt,
@@ -157,34 +188,41 @@ async function postConsent(token: string, decision: string, jwt: string): Promis
   })
 }
 
-// The token endpoint has its own IP-keyed bound (it is served by the provider and never
-// reaches Hono's limiter), and the test limit is 3. Each call presents a fresh address
-// so a multi-step flow is not throttled by a control that has its own test below.
-async function exchange(body: Record<string, string>, ip?: string): Promise<Response> {
-  return SELF.fetch(`${HOST}/oauth/token`, {
-    method: 'POST',
-    headers: {
+/*
+ * The token endpoint has its own IP-keyed bound (it is served by the provider and never
+ * reaches Hono's limiter), and the test limit is 3. Each call presents a fresh address
+ * so a multi-step flow is not throttled by a control that has its own test below.
+ */
+const exchange = async function exchange(body: Record<string, string>, ip?: string): Promise<Response> {
+  const requestUrl = `${HOST}/oauth/token`
+  const requestOptions = requestOptionsWithBody(
+    'POST',
+    {
       'CF-Connecting-IP': ip ?? `198.51.100.${Math.floor(Math.random() * 250) + 1}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: new URLSearchParams(body).toString(),
-  })
+    new URLSearchParams(body).toString(),
+  )
+  return fetchNativeApi(requestUrl, requestOptions)
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-function registerClient(metadata: Record<string, unknown> = {}) {
-  return SELF.fetch(`${HOST}/oauth/register`, {
-    method: 'POST',
-    headers: browserHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
-      client_name: 'Orca',
-      redirect_uris: [ORCA_REDIRECT],
-      token_endpoint_auth_method: 'none',
-      grant_types: ['authorization_code', 'refresh_token'],
-      response_types: ['code'],
-      ...metadata,
-    }),
-  })
+const registerClient = function registerClient(metadata: Record<string, unknown> = {}): Promise<Response> {
+  return fetchNativeApi(
+    `${HOST}/oauth/register`,
+    requestOptionsWithBody(
+      'POST',
+      browserHeaders({ 'Content-Type': 'application/json' }),
+      JSON.stringify({
+        client_name: 'Orca',
+        redirect_uris: [ORCA_REDIRECT],
+        token_endpoint_auth_method: 'none',
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        ...metadata,
+      }),
+    ),
+  )
 }
 
 type TokenResponse = {
@@ -195,8 +233,14 @@ type TokenResponse = {
   scope?: string
 }
 
-/** Consent and exchange in one go — the whole flow a connector performs. */
-async function connect(opts: {
+/**
+ * Consent and exchange in one go — the whole flow a connector performs.
+ *
+ * @param {{ email: string; workspaceId: string; scope?: string; clientId?: string; redirectUris?: string[]; redirectUri?: string }} opts
+ *   The caller identity, target workspace, and optional OAuth client settings.
+ * @returns {Promise<{ tokens: TokenResponse; clientId: string; resource: string }>} The issued tokens, client ID, and selected MCP resource.
+ */
+const connect = async function connect(opts: {
   email: string
   workspaceId: string
   scope?: string
@@ -211,7 +255,7 @@ async function connect(opts: {
   const { verifier, challenge } = await pkce()
   const resource = `${HOST}/mcp/${opts.workspaceId}`
 
-  const consentPage = await SELF.fetch(
+  const consentPage = await fetchNativeApi(
     authorizeUrl({
       clientId,
       resource,
@@ -229,7 +273,7 @@ async function connect(opts: {
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   const callback = new URL(approved.headers.get('Location') as string)
   const code = callback.searchParams.get('code')
-  expect(code).toBeTruthy()
+  expect(isNonEmptyText(code)).toBe(true)
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   expect(`${callback.origin}${callback.pathname}`).toBe(opts.redirectUri ?? CLIENT_REDIRECT)
   expect(callback.searchParams.get('state')).toBe('opaque-state')
@@ -247,17 +291,25 @@ async function connect(opts: {
   return { tokens: await res.json<TokenResponse>(), clientId, resource }
 }
 
-function mcpCall(workspaceId: string, token: string, name: string, args: unknown = {}) {
-  return SELF.fetch(`${HOST}/mcp/${workspaceId}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/call',
-      params: { name, arguments: args },
-    }),
-  })
+const mcpCall = function mcpCall(
+  workspaceId: string,
+  token: string,
+  name: string,
+  args: unknown = {},
+): Promise<Response> {
+  return fetchNativeApi(
+    `${HOST}/mcp/${workspaceId}`,
+    requestOptionsWithBody(
+      'POST',
+      { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      stringifyOrderedFields([
+        ['jsonrpc', '2.0'],
+        ['id', 1],
+        ['method', 'tools/call'],
+        ['params', { name, arguments: args }],
+      ]),
+    ),
+  )
 }
 
 beforeEach(async () => {
@@ -267,66 +319,88 @@ beforeEach(async () => {
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 describe('dynamic client registration', () => {
-  it.each([
+  test.each([
     { redirect_uris: [CLIENT_REDIRECT] },
     { redirect_uris: [ORCA_REDIRECT, CLIENT_REDIRECT] },
     { token_endpoint_auth_method: 'client_secret_basic' },
   ])('rejects metadata outside the public loopback flow: %j', async (metadata) => {
     const response = await registerClient(metadata)
     expect(response.status).toBe(400)
-    expect(await response.json()).toMatchObject({ error: 'invalid_client_metadata' })
+    await expect(response.json()).resolves.toMatchObject({ error: 'invalid_client_metadata' })
   })
 
-  it('rate limits anonymous registrations independently of token requests', async () => {
-    for (let i = 0; i < 3; i++) expect((await registerClient()).status).toBe(201)
-    expect((await registerClient()).status).toBe(429)
-    const response = await exchange({ grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }, clientIp)
+  test('rate limits anonymous registrations independently of token requests', async () => {
+    expect.hasAssertions()
+    await runIndexedInOrder(3, async (): Promise<void> => {
+      const result = await registerClient()
+      expect(result.status).toBe(201)
+    })
+    const resolvedValue = await registerClient()
+    expect(resolvedValue.status).toBe(429)
+    const response = await exchange(
+      fieldsInOrder([
+        ['grant_type', 'authorization_code'],
+        ['code', 'nope'],
+        ['client_id', 'nope'],
+      ]),
+      clientIp,
+    )
     expect(response.status).toBe(401)
   })
 })
 
 describe('only a signed-in human reaches the consent screen', () => {
-  it('401s an anonymous request', async () => {
+  test('401s an anonymous request', async () => {
     const { challenge } = await pkce()
     const { clientId } = await seedOAuthClient()
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge }), {
+    const res = await fetchNativeApi(authorizeUrl({ challenge, clientId }), {
       headers: browserHeaders(),
     })
 
     expect(res.status).toBe(401)
   })
 
-  it('refuses an API token — a pk_ credential cannot mint an OAuth grant', async () => {
-    // The escalation this blocks: a leaked read-scoped API token being spent on a
-    // consent screen to obtain a longer-lived credential in the user's name.
+  test('refuses an API token — a pk_ credential cannot mint an OAuth grant', async () => {
+    /*
+     * The escalation this blocks: a leaked read-scoped API token being spent on a
+     * consent screen to obtain a longer-lived credential in the user's name.
+     */
     const fixture = await seedFixture()
     const token = await seedToken(fixture.workspace.id, fixture.user.id)
     const { challenge } = await pkce()
     const { clientId } = await seedOAuthClient()
 
-    const res = await SELF.fetch(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${fixture.workspace.id}` }),
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${fixture.workspace.id}`],
+        ]),
+      ),
       { headers: { Authorization: `Bearer ${token}` } },
     )
 
     expect(res.status).toBe(403)
-    expect(await res.text()).toContain('Sign-in required')
+    await expect(res.text()).resolves.toContain('Sign-in required')
   })
 
-  it('refuses the shared PUBLIC_READ_ONLY viewer', async () => {
-    // An instance running as a public demo has nobody who can authorize a
-    // connector. Consenting as the shared viewer would hand every anonymous visitor
-    // on the internet a token for the demo workspace.
+  test('refuses the shared PUBLIC_READ_ONLY viewer', async () => {
+    /*
+     * An instance running as a public demo has nobody who can authorize a
+     * connector. Consenting as the shared viewer would hand every anonymous visitor
+     * on the internet a token for the demo workspace.
+     */
     env.PUBLIC_READ_ONLY = 'true'
     try {
       const { challenge } = await pkce()
       const { clientId } = await seedOAuthClient()
-      const res = await SELF.fetch(authorizeUrl({ clientId, challenge }), {
+      const res = await fetchNativeApi(authorizeUrl({ challenge, clientId }), {
         headers: browserHeaders(),
       })
 
       expect(res.status).toBe(403)
-      expect(await res.text()).toContain('Sign-in required')
+      await expect(res.text()).resolves.toContain('Sign-in required')
     } finally {
       env.PUBLIC_READ_ONLY = undefined as unknown as string
     }
@@ -334,18 +408,20 @@ describe('only a signed-in human reaches the consent screen', () => {
 })
 
 describe('the authorization request must name a workspace the user belongs to', () => {
-  it('rejects a request with no resource parameter', async () => {
+  test('rejects a request with no resource parameter', async () => {
     const jwt = await accessJwt('resource-less@example.com')
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge }), {
+    const res = await fetchNativeApi(authorizeUrl({ challenge, clientId }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
       redirect: 'manual',
     })
 
-    // Redirected, not rendered: the redirect_uri was validated by parseAuthRequest,
-    // so the client gets a real OAuth error instead of a callback that never fires.
+    /*
+     * Redirected, not rendered: the redirect_uri was validated by parseAuthRequest,
+     * so the client gets a real OAuth error instead of a callback that never fires.
+     */
     expect(res.status).toBe(302)
     const location = new URL(res.headers.get('Location') as string)
     expect(location.origin + location.pathname).toBe(CLIENT_REDIRECT)
@@ -355,141 +431,196 @@ describe('the authorization request must name a workspace the user belongs to', 
     expect(location.searchParams.get('iss')).toBe(HOST)
   })
 
-  it('rejects a resource that is not an MCP endpoint', async () => {
+  test('rejects a resource that is not an MCP endpoint', async () => {
     const jwt = await accessJwt('wrong-shape@example.com')
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/api/projects` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
-      redirect: 'manual',
-    })
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/api/projects`],
+        ]),
+      ),
+      {
+        headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
+        redirect: 'manual',
+      },
+    )
 
     expect(res.status).toBe(302)
     expect(new URL(res.headers.get('Location') as string).searchParams.get('error')).toBe('invalid_target')
   })
 
-  it('refuses a workspace the signed-in user is not a member of', async () => {
+  test('refuses a workspace the signed-in user is not a member of', async () => {
     const outsider = 'outsider@example.com'
     const other = await seedWorkspace()
     const jwt = await accessJwt(outsider)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${other.id}` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
-      redirect: 'manual',
-    })
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${other.id}`],
+        ]),
+      ),
+      {
+        headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
+        redirect: 'manual',
+      },
+    )
 
-    // Rendered locally on purpose. Bouncing back with access_denied would tell the
-    // client whether this user is a member of that workspace.
+    /*
+     * Rendered locally on purpose. Bouncing back with access_denied would tell the
+     * client whether this user is a member of that workspace.
+     */
     expect(res.status).toBe(403)
-    expect(await res.text()).toContain('Workspace unavailable')
+    await expect(res.text()).resolves.toContain('Workspace unavailable')
   })
 })
 
 describe('the consent screen', () => {
-  let workspaceId: string
-  let email: string
-  let jwt: string
+  type TestData = Readonly<{
+    email: string
+    jwt: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `member-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `member-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
-    jwt = await accessJwt(email)
-  })
+    const jwt = await accessJwt(email)
+    return { email, jwt, workspaceId }
+  }
 
-  it('names the workspace, the identity and the permissions being granted', async () => {
+  test('names the workspace, the identity and the permissions being granted', async () => {
+    const { email, jwt, workspaceId } = await seedTestData()
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
-    })
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
+      {
+        headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
+      },
+    )
     const body = await res.text()
 
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('text/html')
-    // PROJ-660: wrapped so Cloudflare's Email Address Obfuscation leaves it alone.
-    // Rewritten, it becomes a placeholder plus a /cdn-cgi/ script this page's CSP
-    // blocks, and the line naming the account being handed out reads as a redaction.
+    /*
+     * PROJ-660: wrapped so Cloudflare's Email Address Obfuscation leaves it alone.
+     * Rewritten, it becomes a placeholder plus a /cdn-cgi/ script this page's CSP
+     * blocks, and the line naming the account being handed out reads as a redaction.
+     */
     expect(body).toContain(`<!--email_off-->${email}<!--/email_off-->`)
     expect(body).toContain('Test Connector')
     expect(body).toContain('Read issues')
     expect(body).toContain('Create and change issues')
-    // The footer has to wrap the long client_id and resource URLs, but `break-all`
-    // does it to ordinary prose too — on a phone the sentence beside them breaks
-    // mid-word. `anywhere` only breaks a token that cannot fit on its own.
+    /*
+     * The footer has to wrap the long client_id and resource URLs, but `break-all`
+     * does it to ordinary prose too — on a phone the sentence beside them breaks
+     * mid-word. `anywhere` only breaks a token that cannot fit on its own.
+     */
     expect(body).toContain('overflow-wrap:anywhere')
     expect(body).not.toContain('word-break:break-all')
   })
 
-  it("warns when the client collects its response on the user's own machine", async () => {
+  test("warns when the client collects its response on the user's own machine", async () => {
+    const { jwt, workspaceId } = await seedTestData()
     // Claude Code's callback. Any local process can bind that port, so the
     // "application" is not something projektor can vouch for.
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:8976/callback'])
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(
-      authorizeUrl({
-        clientId,
-        challenge,
-        resource: `${HOST}/mcp/${workspaceId}`,
-        redirectUri: 'http://127.0.0.1:8976/callback',
-      }),
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+          ['redirectUri', 'http://127.0.0.1:8976/callback'],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
 
-    expect(await res.text()).toContain('your own machine')
+    await expect(res.text()).resolves.toContain('your own machine')
   })
 
-  it('matches a loopback callback on a different ephemeral port (RFC 8252 §7.3)', async () => {
+  test('matches a loopback callback on a different ephemeral port (RFC 8252 §7.3)', async () => {
+    const { jwt, workspaceId } = await seedTestData()
     // Claude Code registers one port and calls back on whatever it managed to bind.
     // Without the library's port-ignoring comparison this is where it breaks.
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:1/callback'])
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(
-      authorizeUrl({
-        clientId,
-        challenge,
-        resource: `${HOST}/mcp/${workspaceId}`,
-        redirectUri: 'http://127.0.0.1:54321/callback',
-      }),
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+          ['redirectUri', 'http://127.0.0.1:54321/callback'],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
 
     expect(res.status).toBe(200)
   })
 
-  it('refuses a redirect_uri the client never registered', async () => {
+  test('refuses a redirect_uri the client never registered', async () => {
+    const { jwt, workspaceId } = await seedTestData()
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(
-      authorizeUrl({
-        clientId,
-        challenge,
-        resource: `${HOST}/mcp/${workspaceId}`,
-        redirectUri: 'https://attacker.example/steal',
-      }),
+    const res = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+          ['redirectUri', 'https://attacker.example/steal'],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }), redirect: 'manual' },
     )
 
-    // Rendered, never redirected — this is the open-redirect case, and the
-    // unvalidated URI is exactly where an error bounce must not go.
+    /*
+     * Rendered, never redirected — this is the open-redirect case, and the
+     * unvalidated URI is exactly where an error bounce must not go.
+     */
     expect(res.status).toBe(400)
     expect(res.headers.get('Location')).toBeNull()
   })
 
-  it('declining tells the client instead of leaving it waiting', async () => {
+  test('declining tells the client instead of leaving it waiting', async () => {
+    const { jwt, workspaceId } = await seedTestData()
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
+    const consentPage = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
 
@@ -503,47 +634,69 @@ describe('the consent screen', () => {
 })
 
 describe('the consent POST cannot be forged or replayed', () => {
-  let workspaceId: string
-  let email: string
+  type TestData = Readonly<{
+    email: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `csrf-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `csrf-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
-  })
+    return { email, workspaceId }
+  }
 
-  it('rejects a POST with no consent token', async () => {
-    // The CSRF case: another site can make the browser POST here with its cookies,
-    // but it cannot produce this field.
+  test('rejects a POST with no consent token', async () => {
+    const { email } = await seedTestData()
+    /*
+     * The CSRF case: another site can make the browser POST here with its cookies,
+     * but it cannot produce this field.
+     */
     const res = await postConsent('', 'approve', await accessJwt(email))
     expect(res.status).toBe(400)
   })
 
-  it('rejects a tampered consent token', async () => {
+  test('rejects a tampered consent token', async () => {
+    const { email, workspaceId } = await seedTestData()
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
+    const consentPage = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
     const token = consentTokenFrom(await consentPage.text())
     const [body, sig] = token.split('.')
 
-    // Same signature, different payload. Without the HMAC check this would consent
-    // to whatever the altered payload says.
+    /*
+     * Same signature, different payload. Without the HMAC check this would consent
+     * to whatever the altered payload says.
+     */
     const forged = `${body.slice(0, -4)}AAAA.${sig}`
-    expect((await postConsent(forged, 'approve', jwt)).status).toBe(400)
+    await expect(postConsent(forged, 'approve', jwt)).resolves.toHaveProperty('status', 400)
   })
 
-  it('rejects a consent token issued to a different user', async () => {
+  test('rejects a consent token issued to a different user', async () => {
+    const { email, workspaceId } = await seedTestData()
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
-      authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
+    const consentPage = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
     const token = consentTokenFrom(await consentPage.text())
@@ -559,19 +712,23 @@ describe('the consent POST cannot be forged or replayed', () => {
 })
 
 describe('the issued token is bound to the workspace it was granted for', () => {
-  let workspaceId: string
-  let email: string
+  type TestData = Readonly<{
+    email: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `grantee-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `grantee-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'admin')
-  })
+    return { email, workspaceId }
+  }
 
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-  it('registers Orca and completes consent, the loopback callback and an MCP call', async () => {
+  test('registers Orca and completes consent, the loopback callback and an MCP call', async () => {
+    const { email, workspaceId } = await seedTestData()
     const response = await registerClient()
     expect(response.status).toBe(201)
     const client = await response.json<{ client_id: string }>()
@@ -580,18 +737,21 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     const { tokens } = await connect({ email, workspaceId, clientId: client.client_id, redirectUri: ORCA_REDIRECT })
 
     expect(tokens.token_type).toBe('bearer')
-    // `<userId>:<grantId>:<secret>` — the shape index.ts's dispatcher keys on.
+    // `<userId>:<grantId>:<secret>` — the shape worker.ts's dispatcher keys on.
     expect(tokens.access_token.split(':')).toHaveLength(3)
 
     const res = await mcpCall(workspaceId, tokens.access_token, 'list_projects')
     expect(res.status).toBe(200)
-    expect(await res.json<{ error?: unknown }>()).not.toHaveProperty('error')
+    await expect(res.json<{ error?: unknown }>()).resolves.not.toHaveProperty('error')
   })
 
-  it("refuses the same token against another workspace's MCP endpoint", async () => {
-    // The whole point of RFC 8707 audience binding. The grant names one workspace;
-    // spending it anywhere else must fail, even though the user is a real member of
-    // this second workspace too.
+  test("refuses the same token against another workspace's MCP endpoint", async () => {
+    const { email, workspaceId } = await seedTestData()
+    /*
+     * The whole point of RFC 8707 audience binding. The grant names one workspace;
+     * spending it anywhere else must fail, even though the user is a real member of
+     * this second workspace too.
+     */
     const second = await seedWorkspace()
     const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first<{ id: string }>()
     await seedMember(second.id, (user as { id: string }).id, 'admin')
@@ -602,75 +762,102 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     expect(res.status).toBe(401)
   })
 
-  it('grants only the scopes that were asked for', async () => {
-    const { tokens } = await connect({ email, workspaceId, scope: 'projektor:read' })
+  test('grants only the scopes that were asked for', async () => {
+    const { email, workspaceId } = await seedTestData()
+    const { tokens } = await connect({ email, scope: 'projektor:read', workspaceId })
 
-    expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspaceId, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
     const write = await mcpCall(workspaceId, tokens.access_token, 'create_project', {
-      name: 'nope',
       key: 'NOPE',
+      name: 'nope',
     })
     expect(write.status).toBe(403)
     expect(write.headers.get('WWW-Authenticate')).toContain('insufficient_scope')
   })
 
-  it('rotates the refresh token, keeping exactly one generation alive', async () => {
+  test('rotates the refresh token, keeping exactly one generation alive', async () => {
+    const { email, workspaceId } = await seedTestData()
     const { tokens, clientId, resource } = await connect({ email, workspaceId })
-    const refresh = (refresh_token: string) =>
-      exchange({ grant_type: 'refresh_token', refresh_token, client_id: clientId, resource })
+    const refresh = (refresh_token: string): Promise<Response> =>
+      exchange(
+        fieldsInOrder([
+          ['grant_type', 'refresh_token'],
+          ['refresh_token', refresh_token],
+          ['client_id', clientId],
+          ['resource', resource],
+        ]),
+      )
 
     const first = await refresh(tokens.refresh_token)
     expect(first.status).toBe(200)
-    const second = (await first.json<TokenResponse>()).refresh_token
+    const body = await first.json<TokenResponse>()
+    const second = body.refresh_token
     expect(second).not.toBe(tokens.refresh_token)
 
-    // The library keeps the immediately-previous token usable on purpose: a refresh
-    // response lost in transit would otherwise leave the client holding a token it
-    // already spent and no way back. Asserted rather than assumed, because the
-    // window is exactly one generation wide and the next assertion depends on it.
+    /*
+     * The library keeps the immediately-previous token usable on purpose: a refresh
+     * response lost in transit would otherwise leave the client holding a token it
+     * already spent and no way back. Asserted rather than assumed, because the
+     * window is exactly one generation wide and the next assertion depends on it.
+     */
     const graced = await refresh(tokens.refresh_token)
     expect(graced.status).toBe(200)
-    const third = (await graced.json<TokenResponse>()).refresh_token
+    const responseBody = await graced.json<TokenResponse>()
+    const third = responseBody.refresh_token
 
-    // Two rotations on, the original is out of the window. A refresh token that
-    // stayed valid indefinitely would make every one ever issued a live credential.
+    /*
+     * Two rotations on, the original is out of the window. A refresh token that
+     * stayed valid indefinitely would make every one ever issued a live credential.
+     */
     await refresh(third)
     const replay = await refresh(tokens.refresh_token)
     expect(replay.status).toBe(400)
-    expect((await replay.json<{ error: string }>()).error).toBe('invalid_grant')
+    const replayBody = await replay.json<{ error: string }>()
+    expect(replayBody.error).toBe('invalid_grant')
   })
 
-  it('revokes a token at the endpoint the discovery document advertises', async () => {
-    // The AS metadata names the token endpoint as revocation_endpoint. If that ever
-    // drifts to a path nothing serves, the SPA fallback answers 200 and a client
-    // reports a token revoked that is still live.
+  test('revokes a token at the endpoint the discovery document advertises', async () => {
+    const { email, workspaceId } = await seedTestData()
+    /*
+     * The AS metadata names the token endpoint as revocation_endpoint. If that ever
+     * drifts to a path nothing serves, the SPA fallback answers 200 and a client
+     * reports a token revoked that is still live.
+     */
     const { tokens, clientId } = await connect({ email, workspaceId })
 
-    const revoked = await exchange({ token: tokens.access_token, client_id: clientId })
+    const revoked = await exchange(
+      fieldsInOrder([
+        ['token', tokens.access_token],
+        ['client_id', clientId],
+      ]),
+    )
     expect(revoked.status).toBe(200)
 
-    expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(401)
+    await expect(mcpCall(workspaceId, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
   })
 })
 
 describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => {
-  it('POST /auth/tokens with an OAuth access token is refused and mints nothing', async () => {
+  test('handles POST /auth/tokens with an OAuth access token is refused and mints nothing', async () => {
     const workspace = await seedWorkspace()
     const email = `pat-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'owner')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await SELF.fetch(`${HOST}/auth/tokens`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${tokens.access_token}`,
-        'Content-Type': 'application/json',
-        'CF-Connecting-IP': clientIp,
-      },
-      body: JSON.stringify({ name: 'oauth-escape', scopes: ['*'] }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/auth/tokens`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${tokens.access_token}`,
+          'Content-Type': 'application/json',
+          'CF-Connecting-IP': clientIp,
+        },
+        JSON.stringify({ name: 'oauth-escape', scopes: ['*'] }),
+      ),
+    )
     expect(res.status).not.toBe(201)
     expect([401, 403]).toContain(res.status)
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind('oauth-escape').first()
@@ -679,30 +866,33 @@ describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => 
 })
 
 describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', () => {
-  it('POST /api/workspaces/:slug/tokens with an OAuth access token is refused', async () => {
+  test('handles POST /api/workspaces/:slug/tokens with an OAuth access token is refused', async () => {
     const workspace = await seedWorkspace()
     const email = `wstok-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'owner')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await SELF.fetch(`${HOST}/api/workspaces/${workspace.slug}/tokens`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${tokens.access_token}`,
-        'X-Workspace-Slug': workspace.slug,
-        'Content-Type': 'application/json',
-        'CF-Connecting-IP': clientIp,
-      },
-      body: JSON.stringify({ name: 'oauth-ws-escape', scopes: ['*'] }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/api/workspaces/${workspace.slug}/tokens`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${tokens.access_token}`,
+          'X-Workspace-Slug': workspace.slug,
+          'Content-Type': 'application/json',
+          'CF-Connecting-IP': clientIp,
+        },
+        JSON.stringify({ name: 'oauth-ws-escape', scopes: ['*'] }),
+      ),
+    )
     expect(res.status).not.toBe(201)
     expect([401, 403]).toContain(res.status)
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind('oauth-ws-escape').first()
     expect(row).toBeNull()
   })
 
-  it('DELETE /api/workspaces/:slug/tokens/:id with an OAuth access token is refused', async () => {
+  test('handles DELETE /api/workspaces/:slug/tokens/:id with an OAuth access token is refused', async () => {
     const workspace = await seedWorkspace()
     const email = `wsrev-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -713,13 +903,13 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
       .first<{ id: string }>()
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await SELF.fetch(`${HOST}/api/workspaces/${workspace.slug}/tokens/${target?.id}`, {
-      method: 'DELETE',
+    const res = await fetchNativeApi(`${HOST}/api/workspaces/${workspace.slug}/tokens/${target?.id}`, {
       headers: {
         Authorization: `Bearer ${tokens.access_token}`,
         'X-Workspace-Slug': workspace.slug,
         'CF-Connecting-IP': clientIp,
       },
+      method: 'DELETE',
     })
     expect([401, 403]).toContain(res.status)
     const still = await env.DB.prepare('SELECT id FROM api_tokens WHERE id = ?').bind(target?.id).first()
@@ -728,27 +918,33 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
 })
 
 describe("the token endpoint's failure modes", () => {
-  let workspaceId: string
-  let email: string
+  type TestData = Readonly<{
+    email: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `token-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `token-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
-  })
+    return { email, workspaceId }
+  }
 
-  it('replaying an authorization code revokes everything the grant produced', async () => {
-    // OAuth 2.1's response to a stolen code: a second presentation means either the
-    // client or an attacker is replaying, and the safe reading is that the code
-    // leaked. Both parties lose the grant rather than one of them keeping it.
+  test('replaying an authorization code revokes everything the grant produced', async () => {
+    const { email, workspaceId } = await seedTestData()
+    /*
+     * OAuth 2.1's response to a stolen code: a second presentation means either the
+     * client or an attacker is replaying, and the safe reading is that the code
+     * leaked. Both parties lose the grant rather than one of them keeping it.
+     */
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { verifier, challenge } = await pkce()
     const resource = `${HOST}/mcp/${workspaceId}`
 
-    const consentPage = await SELF.fetch(authorizeUrl({ clientId, resource, challenge }), {
+    const consentPage = await fetchNativeApi(authorizeUrl({ challenge, clientId, resource }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
     })
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
@@ -769,24 +965,37 @@ describe("the token endpoint's failure modes", () => {
     const replay = await exchange(body)
     expect(replay.status).toBe(400)
     // RFC 6749 §5.2 wire shape. Claude's refresh path keys off this exact code.
-    expect(await replay.json()).toMatchObject({ error: 'invalid_grant' })
+    await expect(replay.json()).resolves.toMatchObject({ error: 'invalid_grant' })
 
-    // The access token already handed out is gone too — that is what makes this a
-    // revocation rather than just a rejected second exchange.
-    expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(401)
+    /*
+     * The access token already handed out is gone too — that is what makes this a
+     * revocation rather than just a rejected second exchange.
+     */
+    await expect(mcpCall(workspaceId, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
   })
 
-  it('rejects an authorization request that omits code_challenge_method', async () => {
-    // RFC 7636 says an absent method means `plain`. OAuth 2.1 does not offer plain,
-    // and the metadata document advertises S256 only, so this must be refused
-    // rather than silently downgraded.
+  test('rejects an authorization request that omits code_challenge_method', async () => {
+    const { email, workspaceId } = await seedTestData()
+    /*
+     * RFC 7636 says an absent method means `plain`. OAuth 2.1 does not offer plain,
+     * and the metadata document advertises S256 only, so this must be refused
+     * rather than silently downgraded.
+     */
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const url = new URL(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }))
+    const url = new URL(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['challenge', challenge],
+          ['resource', `${HOST}/mcp/${workspaceId}`],
+        ]),
+      ),
+    )
     url.searchParams.delete('code_challenge_method')
 
-    const res = await SELF.fetch(url.toString(), {
+    const res = await fetchNativeApi(url.toString(), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
       redirect: 'manual',
     })
@@ -795,85 +1004,103 @@ describe("the token endpoint's failure modes", () => {
     expect(new URL(res.headers.get('Location') as string).searchParams.get('error')).toBe('invalid_request')
   })
 
-  it('rejects a code exchanged with the wrong PKCE verifier', async () => {
+  test('rejects a code exchanged with the wrong PKCE verifier', async () => {
+    const { email, workspaceId } = await seedTestData()
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     const resource = `${HOST}/mcp/${workspaceId}`
 
-    const consentPage = await SELF.fetch(authorizeUrl({ clientId, resource, challenge }), {
+    const consentPage = await fetchNativeApi(authorizeUrl({ challenge, clientId, resource }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
     })
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
     const code = new URL(approved.headers.get('Location') as string).searchParams.get('code') as string
 
-    // A code intercepted from the redirect is worthless without the verifier that
-    // only the client that started the flow holds.
-    const res = await exchange({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: CLIENT_REDIRECT,
-      client_id: clientId,
-      code_verifier: (await pkce()).verifier,
-      resource,
-    })
+    /*
+     * A code intercepted from the redirect is worthless without the verifier that
+     * only the client that started the flow holds.
+     */
+    const res = await exchange(
+      fieldsInOrder([
+        ['grant_type', 'authorization_code'],
+        ['code', code],
+        ['redirect_uri', CLIENT_REDIRECT],
+        ['client_id', clientId],
+        ['code_verifier', (await pkce()).verifier],
+        ['resource', resource],
+      ]),
+    )
 
     expect(res.status).toBe(400)
-    expect(await res.json()).toMatchObject({ error: 'invalid_grant' })
+    await expect(res.json()).resolves.toMatchObject({ error: 'invalid_grant' })
   })
 })
 
 describe('the token endpoint is rate-limited', () => {
-  it('429s once the per-IP limit is exceeded', async () => {
-    // It never passes through Hono, so rateLimitMiddleware does not cover it — and
-    // it is unauthenticated by definition, since public clients have no secret.
-    // vite.config.ts sets RATE_LIMIT_AUTH_MAX=3 and setup.ts clears the counter
-    // before each test, so the 4th request here is the first over the line.
+  test('429s once the per-IP limit is exceeded', async () => {
+    /*
+     * It never passes through Hono, so rateLimitMiddleware does not cover it — and
+     * it is unauthenticated by definition, since public clients have no secret.
+     * vite.config.ts sets RATE_LIMIT_AUTH_MAX=3 and setup.ts clears the counter
+     * before each test, so the 4th request here is the first over the line.
+     */
+    expect.hasAssertions()
     const ip = '192.0.2.44'
     const body = { grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }
-    for (let i = 0; i < 3; i++) {
-      expect((await exchange(body, ip)).status).not.toBe(429)
-    }
-    expect((await exchange(body, ip)).status).toBe(429)
+    await runIndexedInOrder(3, async (): Promise<void> => {
+      const exchangeResponse = await exchange(body, ip)
+      expect(exchangeResponse.status).not.toBe(429)
+    })
+    await expect(exchange(body, ip)).resolves.toHaveProperty('status', 429)
   })
 })
 
 describe('a grant is only as live as the membership behind it (PROJ-658)', () => {
-  it('stops working the moment the user is removed from the workspace', async () => {
-    // The property that makes a connector token safe to hold for a long time: role
-    // and membership are read from D1 on every request, so offboarding someone kills
-    // their connectors with no token bookkeeping at all.
+  test('stops working the moment the user is removed from the workspace', async () => {
+    /*
+     * The property that makes a connector token safe to hold for a long time: role
+     * and membership are read from D1 on every request, so offboarding someone kills
+     * their connectors with no token bookkeeping at all.
+     */
     const workspace = await seedWorkspace()
     const email = `offboard-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'member')
 
     const { tokens } = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspace.id, user.id)
       .run()
 
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(403)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 403)
   })
 
-  it('revoking the refresh token takes the access token with it', async () => {
-    // RFC 7009 §2.1: revoking a refresh token invalidates the access tokens issued
-    // from the same grant. Without the cascade a user who clicks "disconnect" would
-    // still be reachable for up to the access token's remaining lifetime.
+  test('revoking the refresh token takes the access token with it', async () => {
+    /*
+     * RFC 7009 §2.1: revoking a refresh token invalidates the access tokens issued
+     * from the same grant. Without the cascade a user who clicks "disconnect" would
+     * still be reachable for up to the access token's remaining lifetime.
+     */
     const workspace = await seedWorkspace()
     const email = `cascade-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'member')
 
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
-    const revoked = await exchange({ token: tokens.refresh_token, client_id: clientId })
+    const revoked = await exchange(
+      fieldsInOrder([
+        ['token', tokens.refresh_token],
+        ['client_id', clientId],
+      ]),
+    )
     expect(revoked.status).toBe(200)
 
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(401)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
   })
 })
 
@@ -881,46 +1108,55 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
   // RATE_LIMIT_API_MAX in vite.config.ts.
   const API_LIMIT = 5
 
-  it("survives a token rotation, and does not spill onto the user's other grants", async () => {
+  test("survives a token rotation, and does not spill onto the user's other grants", async () => {
+    expect.hasAssertions()
     const workspace = await seedWorkspace()
     const email = `limited-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'member')
 
-    env.RATE_LIMIT_TEST_NOW_MS = String(Date.now())
+    env.RATE_LIMIT_TEST_NOW_MS = String(currentEpochMilliseconds())
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
-    for (let i = 0; i < API_LIMIT; i++) {
-      expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
-    }
-
-    const refreshed = await exchange({
-      grant_type: 'refresh_token',
-      refresh_token: tokens.refresh_token,
-      client_id: clientId,
+    await runIndexedInOrder(API_LIMIT, async (): Promise<void> => {
+      await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
     })
+
+    const refreshed = await exchange(
+      fieldsInOrder([
+        ['grant_type', 'refresh_token'],
+        ['refresh_token', tokens.refresh_token],
+        ['client_id', clientId],
+      ]),
+    )
     expect(refreshed.status).toBe(200)
     const rotated = await refreshed.json<TokenResponse>()
     expect(rotated.access_token).not.toBe(tokens.access_token)
-    expect((await mcpCall(workspace.id, rotated.access_token, 'list_projects')).status).toBe(429)
+    await expect(mcpCall(workspace.id, rotated.access_token, 'list_projects')).resolves.toHaveProperty('status', 429)
     env.RATE_LIMIT_TEST_NOW_MS = undefined
 
-    // And the other direction: a second connector for the same person gets its own
-    // budget, so one noisy client cannot lock the user out of the rest.
-    clientIp = '203.0.113.251' // the consent screen's own IP budget is 3 per window
+    /*
+     * And the other direction: a second connector for the same person gets its own
+     * budget, so one noisy client cannot lock the user out of the rest.
+     */
+    // The consent screen's own IP budget is 3 per window
+    clientIp = '203.0.113.251'
     const second = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, second.tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, second.tokens.access_token, 'list_projects')).resolves.toHaveProperty(
+      'status',
+      200,
+    )
   })
 })
 
-describe('Settings lists and withdraws connectors (PROJ-659)', () => {
-  function settings(slug: string, jwt: string, path = '', init: RequestInit = {}) {
-    return SELF.fetch(`${HOST}/api/workspaces/${slug}/connectors${path}`, {
+describe('settings lists and withdraws connectors (PROJ-659)', () => {
+  const settings = function settings(slug: string, jwt: string, path = '', init: RequestInit = {}): Promise<Response> {
+    return fetchNativeApi(`${HOST}/api/workspaces/${slug}/connectors${path}`, {
       ...init,
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt, 'X-Workspace-Slug': slug }),
     })
   }
 
-  it('shows the grant by the host of its client_id, not a name the client chose', async () => {
+  test('shows the grant by the host of its client_id, not a name the client chose', async () => {
     const workspace = await seedWorkspace()
     const email = `settings-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -935,23 +1171,27 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     clientIp = '203.0.113.240'
     const res = await settings(workspace.slug, await accessJwt(email))
     expect(res.status).toBe(200)
-    const grants = await res.json<Array<{ id: string; client: string; clientId: string; scopes: string[] }>>()
+    const grants = await res.json<{ id: string; client: string; clientId: string; scopes: string[] }[]>()
     expect(grants).toHaveLength(1)
     expect(grants[0].clientId).toBe(clientId)
-    expect(grants[0].scopes).toEqual(['projektor:read'])
-    // This client's id is opaque, so it is shown verbatim. A CIMD client's id is a
-    // URL, and only its host is shown — never the client_name, which the client
-    // asserts about itself and nothing verifies.
+    expect(grants[0].scopes).toStrictEqual(['projektor:read'])
+    /*
+     * This client's id is opaque, so it is shown verbatim. A CIMD client's id is a
+     * URL, and only its host is shown — never the client_name, which the client
+     * asserts about itself and nothing verifies.
+     */
     expect(grants[0].client).toBe(clientId)
     expect(relyingPartyHost('https://claude.ai/.well-known/oauth-client')).toBe('claude.ai')
   })
 
-  // PROJ-660. The library stamps expiresAt when the code is redeemed, so an abandoned
-  // consent leaves a grant with none. Listing it would tell the user an application is
-  // connected when it holds no credential, and the Disconnect beside it withdraws
-  // nothing. This also pins the assumption the filter rests on: a grant that did
-  // complete always has an expiry, because refreshTokenTTL is left at its default.
-  it('hides a consent the client never came back to redeem', async () => {
+  /*
+   * PROJ-660. The library stamps expiresAt when the code is redeemed, so an abandoned
+   * consent leaves a grant with none. Listing it would tell the user an application is
+   * connected when it holds no credential, and the Disconnect beside it withdraws
+   * nothing. This also pins the assumption the filter rests on: a grant that did
+   * complete always has an expiry, because refreshTokenTTL is left at its default.
+   */
+  test('hides a consent the client never came back to redeem', async () => {
     const workspace = await seedWorkspace()
     const email = `abandoned-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -960,48 +1200,59 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
-      authorizeUrl({ clientId, resource: `${HOST}/mcp/${workspace.id}`, challenge }),
+    const consentPage = await fetchNativeApi(
+      authorizeUrl(
+        fieldsInOrder([
+          ['clientId', clientId],
+          ['resource', `${HOST}/mcp/${workspace.id}`],
+          ['challenge', challenge],
+        ]),
+      ),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
     expect(approved.status).toBe(302)
 
     clientIp = '203.0.113.244'
-    expect(await (await settings(workspace.slug, jwt)).json()).toEqual([])
+    const settingsResponse = await settings(workspace.slug, jwt)
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
 
     clientIp = '203.0.113.245'
     await connect({ email, workspaceId: workspace.id })
     clientIp = '203.0.113.246'
-    const grants = await (await settings(workspace.slug, jwt)).json<Array<{ expiresAt: number }>>()
+    const grantsResponse = await settings(workspace.slug, jwt)
+    const grants = await grantsResponse.json<{ expiresAt: number }[]>()
     expect(grants).toHaveLength(1)
-    expect(grants[0].expiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000))
+    expect(grants[0].expiresAt).toBeGreaterThan(currentEpochSeconds())
   })
 
-  it('withdrawing a connector kills its token on the next request', async () => {
+  test('withdrawing a connector kills its token on the next request', async () => {
     const workspace = await seedWorkspace()
     const email = `withdraw-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'member')
 
     const { tokens } = await connect({ email, workspaceId: workspace.id })
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
 
     clientIp = '203.0.113.241'
     const jwt = await accessJwt(email)
     const listed = await settings(workspace.slug, jwt)
-    const [grant] = await listed.json<Array<{ id: string }>>()
+    const [grant] = await listed.json<{ id: string }[]>()
 
     const revoked = await settings(workspace.slug, jwt, `/${grant.id}`, { method: 'DELETE' })
     expect(revoked.status).toBe(200)
 
-    // No cache extends a revoked grant: middleware/auth.ts caches the *user*, but the
-    // grant lookup that produces the props is per-request, in the provider.
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(401)
-    expect(await (await settings(workspace.slug, jwt)).json()).toEqual([])
+    /*
+     * No cache extends a revoked grant: middleware/auth.ts caches the *user*, but the
+     * grant lookup that produces the props is per-request, in the provider.
+     */
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 401)
+    const settingsResponse = await settings(workspace.slug, jwt)
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
   })
 
-  it("keeps grants for another workspace off this workspace's page, and out of its reach", async () => {
+  test("keeps grants for another workspace off this workspace's page, and out of its reach", async () => {
     const email = `two-ws-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     const first = await seedWorkspace()
@@ -1014,25 +1265,30 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     clientIp = '203.0.113.242'
     const jwt = await accessJwt(email)
     const listed = await settings(second.slug, jwt)
-    const [grant] = await listed.json<Array<{ id: string }>>()
-    expect(grant).toBeTruthy()
+    const [grant] = await listed.json<{ id: string }[]>()
+    expect(isNonEmptyText(grant.id)).toBe(true)
 
-    expect(await (await settings(first.slug, jwt)).json()).toEqual([])
-    // Revoking it from the wrong workspace would disconnect a client this page never
-    // showed the user.
+    const settingsResponse = await settings(first.slug, jwt)
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
+    /*
+     * Revoking it from the wrong workspace would disconnect a client this page never
+     * showed the user.
+     */
     const crossed = await settings(first.slug, jwt, `/${grant.id}`, { method: 'DELETE' })
     expect(crossed.status).toBe(404)
   })
 
-  it('refuses the shared PUBLIC_READ_ONLY viewer outright', async () => {
-    // Not "returns an empty list": the shared viewer is one identity for every
-    // anonymous visitor, so "your connectors" has no meaning for it. It cannot
-    // consent today, which makes the list empty anyway — this asserts the endpoint
-    // does not rely on that.
+  test('refuses the shared PUBLIC_READ_ONLY viewer outright', async () => {
+    /*
+     * Not "returns an empty list": the shared viewer is one identity for every
+     * anonymous visitor, so "your connectors" has no meaning for it. It cannot
+     * consent today, which makes the list empty anyway — this asserts the endpoint
+     * does not rely on that.
+     */
     const workspace = await seedWorkspace()
     env.PUBLIC_READ_ONLY = 'true'
     try {
-      const res = await SELF.fetch(`${HOST}/api/workspaces/${workspace.slug}/connectors`, {
+      const res = await fetchNativeApi(`${HOST}/api/workspaces/${workspace.slug}/connectors`, {
         headers: browserHeaders({ 'X-Workspace-Slug': workspace.slug }),
       })
       expect(res.status).toBe(403)
@@ -1041,7 +1297,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     }
   })
 
-  it("does not show one member's connectors to another", async () => {
+  test("does not show one member's connectors to another", async () => {
     const workspace = await seedWorkspace()
     const owner = `grantee-${crypto.randomUUID().slice(0, 8)}@example.com`
     const other = `bystander-${crypto.randomUUID().slice(0, 8)}@example.com`
@@ -1053,51 +1309,74 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     await connect({ email: owner, workspaceId: workspace.id })
 
     clientIp = '203.0.113.243'
-    // An admin, deliberately: a grant is a personal credential, so seniority in the
-    // workspace does not confer visibility into it.
-    expect(await (await settings(workspace.slug, await accessJwt(other))).json()).toEqual([])
+    /*
+     * An admin, deliberately: a grant is a personal credential, so seniority in the
+     * workspace does not confer visibility into it.
+     */
+    const settingsResponse = await settings(workspace.slug, await accessJwt(other))
+    await expect(settingsResponse.json()).resolves.toStrictEqual([])
   })
 })
 
 describe('the scheduled purge', () => {
-  it('clears dead OAuth records without touching a live grant', async () => {
+  test('clears dead OAuth records without touching a live grant', async () => {
     const workspace = await seedWorkspace()
     const email = `purge-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'member')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    await purgeExpiredOAuthData(env as unknown as Env)
+    await purgeExpiredOAuthData(env)
 
-    expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
+    await expect(mcpCall(workspace.id, tokens.access_token, 'list_projects')).resolves.toHaveProperty('status', 200)
   })
 })
 
-describe('hardening the consent screen itself', () => {
-  let workspaceId: string
-  let email: string
+interface ConsentFixture {
+  email: string
+  workspaceId: string
+}
 
-  beforeEach(async () => {
+interface ConsentTestContext {
+  consentFixture: ConsentFixture
+}
+
+const consentPage = async function consentPage({ email, workspaceId }: ConsentFixture): Promise<Response> {
+  const { clientId } = await seedOAuthClient()
+  const { challenge } = await pkce()
+  return fetchNativeApi(
+    authorizeUrl(
+      fieldsInOrder([
+        ['clientId', clientId],
+        ['challenge', challenge],
+        ['resource', `${HOST}/mcp/${workspaceId}`],
+      ]),
+    ),
+    {
+      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
+    },
+  )
+}
+
+describe('hardening the consent screen itself', () => {
+  beforeEach<ConsentTestContext>(async (context) => {
     const workspace = await seedWorkspace()
-    workspaceId = workspace.id
-    email = `hardening-${crypto.randomUUID().slice(0, 8)}@example.com`
+    const workspaceId = workspace.id
+    const email = `hardening-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     await seedMember(workspaceId, user.id, 'member')
+    context.consentFixture = { email, workspaceId }
   })
 
-  async function consentPage(): Promise<Response> {
-    const { clientId } = await seedOAuthClient()
-    const { challenge } = await pkce()
-    return SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
-      headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
-    })
-  }
-
-  it('cannot be framed, and its form cannot be retargeted', async () => {
-    // Clickjacking is the attack a consent screen exists to be protected from:
-    // frame it invisibly under something the user wants to click and "Allow access"
-    // gets pressed on their behalf.
-    const res = await consentPage()
+  test<ConsentTestContext>('cannot be framed, and its form cannot be retargeted', async ({
+    consentFixture: { email, workspaceId },
+  }) => {
+    /*
+     * Clickjacking is the attack a consent screen exists to be protected from:
+     * frame it invisibly under something the user wants to click and "Allow access"
+     * gets pressed on their behalf.
+     */
+    const res = await consentPage({ email, workspaceId })
     const csp = res.headers.get('Content-Security-Policy') ?? ''
 
     expect(csp).toContain("frame-ancestors 'none'")
@@ -1106,12 +1385,15 @@ describe('hardening the consent screen itself', () => {
     expect(res.headers.get('Cache-Control')).toBe('no-store')
   })
 
-  it("lets the approval reach the client's redirect origin, and nowhere else", async () => {
-    // form-action is enforced on the redirect the POST lands on, not just the URL
-    // the form names. With 'self' alone the browser blocks the submission and
-    // reports it against /oauth/authorize — which is same-origin, so the report
-    // reads as a false positive while the connector flow is dead in every browser.
-    const csp = (await consentPage()).headers.get('Content-Security-Policy') ?? ''
+  test<ConsentTestContext>("lets the approval reach the client's redirect origin, and nowhere else", async ({
+    consentFixture: { email, workspaceId },
+  }) => {
+    /* The form-action directive is enforced on the redirect the POST lands on, not just the URL
+     * the form names. With 'self' alone the browser blocks the submission and
+     * reports it against /oauth/authorize — which is same-origin, so the report
+     * reads as a false positive while the connector flow is dead in every browser. */
+    const consentResponse = await consentPage({ email, workspaceId })
+    const csp = consentResponse.headers.get('Content-Security-Policy') ?? ''
 
     expect(csp).toContain(`form-action 'self' ${new URL(CLIENT_REDIRECT).origin}`)
     // The origin, not the callback path, and nothing wildcarded.
@@ -1119,10 +1401,14 @@ describe('hardening the consent screen itself', () => {
     expect(csp).not.toContain('*')
   })
 
-  it('does not name a redirect origin on a page with no form to submit', async () => {
-    // An error page carries no consent form, so widening its policy would grant
-    // reach that nothing on the page needs.
-    const res = await SELF.fetch(authorizeUrl({ clientId: 'nope', challenge: 'x' }), {
+  test<ConsentTestContext>('does not name a redirect origin on a page with no form to submit', async ({
+    consentFixture: { email },
+  }) => {
+    /*
+     * An error page carries no consent form, so widening its policy would grant
+     * reach that nothing on the page needs.
+     */
+    const res = await fetchNativeApi(authorizeUrl({ challenge: 'x', clientId: 'nope' }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
     })
     const csp = res.headers.get('Content-Security-Policy') ?? ''
@@ -1131,17 +1417,21 @@ describe('hardening the consent screen itself', () => {
     expect(csp).toContain("form-action 'self';")
   })
 
-  it('refuses to process consent at all when JWT_SECRET is unset', async () => {
-    // Without this the secret stringifies into the HMAC key as "undefined", which
-    // is the same key on every deployment that skipped `wrangler secret put` — and
-    // a forgeable consent token is a working CSRF against the one screen that
-    // grants standing access.
+  test<ConsentTestContext>('refuses to process consent at all when JWT_SECRET is unset', async ({
+    consentFixture: { email, workspaceId },
+  }) => {
+    /*
+     * Without this the secret stringifies into the HMAC key as "undefined", which
+     * is the same key on every deployment that skipped `wrangler secret put` — and
+     * a forgeable consent token is a working CSRF against the one screen that
+     * grants standing access.
+     */
     const saved = env.JWT_SECRET
-    env.JWT_SECRET = '' as unknown as string
+    env.JWT_SECRET = ''
     try {
-      const res = await consentPage()
+      const res = await consentPage({ email, workspaceId })
       expect(res.status).toBe(500)
-      expect(await res.text()).toContain('JWT_SECRET')
+      await expect(res.text()).resolves.toContain('JWT_SECRET')
     } finally {
       env.JWT_SECRET = saved
     }
@@ -1149,12 +1439,14 @@ describe('hardening the consent screen itself', () => {
 })
 
 describe('workspace confinement survives a header that says otherwise', () => {
-  it('403s an OAuth token aimed at its own workspace but labelled as another', async () => {
-    // The provider's audience check looks at the URL path, and workspaceMiddleware
-    // resolves the workspace from X-Workspace-Slug in preference to that path. A
-    // token for workspace A on /mcp/A carrying `X-Workspace-Slug: B` therefore
-    // passes the audience check and lands in B — unless the grant's workspace is
-    // also enforced independently, which is what tokenWorkspaceId is for.
+  test('403s an OAuth token aimed at its own workspace but labelled as another', async () => {
+    /*
+     * The provider's audience check looks at the URL path, and workspaceMiddleware
+     * resolves the workspace from X-Workspace-Slug in preference to that path. A
+     * token for workspace A on /mcp/A carrying `X-Workspace-Slug: B` therefore
+     * passes the audience check and lands in B — unless the grant's workspace is
+     * also enforced independently, which is what tokenWorkspaceId is for.
+     */
     const first = await seedWorkspace()
     const second = await seedWorkspace()
     const email = `confined-${crypto.randomUUID().slice(0, 8)}@example.com`
@@ -1164,43 +1456,51 @@ describe('workspace confinement survives a header that says otherwise', () => {
 
     const { tokens } = await connect({ email, workspaceId: first.id })
 
-    const res = await SELF.fetch(`${HOST}/mcp/${first.id}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${tokens.access_token}`,
-        'Content-Type': 'application/json',
-        'X-Workspace-Slug': second.slug,
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'list_projects', arguments: {} },
-      }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/mcp/${first.id}`,
+      requestOptionsWithBody(
+        'POST',
+        {
+          Authorization: `Bearer ${tokens.access_token}`,
+          'Content-Type': 'application/json',
+          'X-Workspace-Slug': second.slug,
+        },
+        JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: { name: 'list_projects', arguments: {} },
+        }),
+      ),
+    )
 
     expect(res.status).toBe(403)
   })
 })
 
 describe('existing credentials are untouched by the provider', () => {
-  it('a pk_ API token still reaches the MCP endpoint', async () => {
-    // The regression this guards: declaring /mcp/ an apiRoute makes the provider
-    // answer every request there itself, 401ing anything that is not one of its own
-    // tokens. index.ts only routes OAuth-shaped bearers into it for this reason.
+  test('a pk_ API token still reaches the MCP endpoint', async () => {
+    /*
+     * The regression this guards: declaring /mcp/ an apiRoute makes the provider
+     * answer every request there itself, 401ing anything that is not one of its own
+     * tokens. worker.ts only routes OAuth-shaped bearers into it for this reason.
+     */
     const fixture = await seedFixture()
     const res = await mcpCall(fixture.workspace.id, fixture.token, 'list_projects')
 
     expect(res.status).toBe(200)
   })
 
-  it("an unauthenticated MCP request still gets projektor's own 401 challenge", async () => {
+  test("an unauthenticated MCP request still gets projektor's own 401 challenge", async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch(`${HOST}/mcp/${fixture.workspace.id}`, {
-      method: 'POST',
-      headers: browserHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
-    })
+    const res = await fetchNativeApi(
+      `${HOST}/mcp/${fixture.workspace.id}`,
+      requestOptionsWithBody(
+        'POST',
+        browserHeaders({ 'Content-Type': 'application/json' }),
+        JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'initialize' }),
+      ),
+    )
 
     expect(res.status).toBe(401)
     expect(res.headers.get('WWW-Authenticate')).toContain(

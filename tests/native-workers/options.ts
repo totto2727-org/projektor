@@ -4,19 +4,21 @@ import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
-import { deployment } from '../../worker-graph'
+import { Function } from 'effect'
+
+import { deployment } from '#worker-graph'
 
 const execute = promisify(execFile)
 const buildDirectory = fileURLToPath(new URL('./.build/ssr/', import.meta.url))
 let building: Promise<void> | undefined
 
-function prepareCoreArtifact(): Promise<void> {
+const prepareCoreArtifact = function prepareCoreArtifact(): Promise<void> {
   // Parallel native suites share one compilation, never concurrent output writers.
   building ??= execute('vp', ['build', '--config', fileURLToPath(new URL('./core.vite.config.ts', import.meta.url))], {
     cwd: fileURLToPath(new URL('../../', import.meta.url)),
     maxBuffer: 16 * 1024 * 1024,
   })
-    .then(() => undefined)
+    .then(Function.constVoid)
     .catch((error: unknown) => {
       building = undefined
       throw error
@@ -24,9 +26,40 @@ function prepareCoreArtifact(): Promise<void> {
   return building
 }
 
-/** Compile the same official native Core bridge used by production and browser acceptance. */
-export async function nativeCoreWorker(runnerName: string) {
-  if (!runnerName) throw new Error('The native API runner must be initialized before its Core service.')
+const nativeCoreModuleType = function nativeCoreModuleType(
+  extension: string,
+): 'ESModule' | 'CommonJS' | 'CompiledWasm' | 'Text' | undefined {
+  switch (extension) {
+    case '.js':
+    case '.mjs': {
+      return 'ESModule'
+    }
+    case '.cjs': {
+      return 'CommonJS'
+    }
+    case '.wasm': {
+      return 'CompiledWasm'
+    }
+    case '.json':
+    case '.txt': {
+      return 'Text'
+    }
+    default: {
+      return undefined
+    }
+  }
+}
+
+/**
+ * Compile the same official native Core bridge used by production and browser acceptance.
+ *
+ * @param {string} runnerName The initialized native API runner that hosts the Durable Object classes.
+ * @returns {ReturnType<typeof nativeCoreWorker>} The native Core fixture options, including its compiled modules and storage bindings.
+ */
+export const nativeCoreWorker = async function nativeCoreWorker(runnerName: string) {
+  if (!runnerName) {
+    throw new Error('The native API runner must be initialized before its Core service.')
+  }
   await prepareCoreArtifact()
   const entries = await readdir(buildDirectory, { recursive: true, withFileTypes: true })
   const modules = await Promise.all(
@@ -35,22 +68,19 @@ export async function nativeCoreWorker(runnerName: string) {
       .map(async (entry) => {
         const path = join(entry.parentPath, entry.name)
         const extension = extname(path)
-        const type =
-          extension === '.js' || extension === '.mjs'
-            ? ('ESModule' as const)
-            : extension === '.cjs'
-              ? ('CommonJS' as const)
-              : extension === '.wasm'
-                ? ('CompiledWasm' as const)
-                : extension === '.json' || extension === '.txt'
-                  ? ('Text' as const)
-                  : undefined
-        if (!type) throw new Error(`Unsupported native Core build artifact: ${path}`)
+        const type = nativeCoreModuleType(extension)
+        if (!type) {
+          throw new Error(`Unsupported native Core build artifact: ${path}`)
+        }
         return { type, path, contents: await readFile(path) }
       }),
   )
-  modules.sort((a, b) => Number(b.path.endsWith('/core.worker.js')) - Number(a.path.endsWith('/core.worker.js')))
-  if (!modules[0]?.path.endsWith('/core.worker.js')) throw new Error('The official native Core artifact is missing.')
+  modules.sort(
+    (left, right) => Number(right.path.endsWith('/core.worker.js')) - Number(left.path.endsWith('/core.worker.js')),
+  )
+  if (!modules[0]?.path.endsWith('/core.worker.js')) {
+    throw new Error('The official native Core artifact is missing.')
+  }
   return {
     name: 'projektor-native-core',
     modules,

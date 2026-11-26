@@ -1,123 +1,126 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Iterable } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { Distribution } from '#commands/flow-metrics'
+import { ApiResults } from '#contracts/api-results.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, type JsonRpcResult, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
+import {
+  IdResponse,
+  parseNativeMcpText,
+  readNativeJson,
+  readNativeMcpResultText,
+  RpcTextResponse,
+} from './response-json.ts'
 
-interface FlowMetrics {
-  leadTime: Distribution
-  cycleTime: Distribution
-  wipOverTime: Array<{ date: string; count: number }>
-  throughputOverTime: Array<{ bucketStart: string; count: number }>
-  bugShareOverTime: Array<{
-    bucketStart: string
-    total: number
-    bugCount: number
-    bugSharePercent: number | null
-  }>
-  bugTypeTracked: boolean
-  reviewLatency: Distribution
-  reviewLatencyOverTime: Array<{ bucketStart: string; p50: number | null }>
-  humanInterventions: Distribution
-  autonomyRatio: Distribution
-  cfdOverTime: Array<{
-    bucketStart: string
-    backlogTodo: number
-    inProgress: number
-    inReview: number
-    done: number
-  }>
-  timeInProgress: Distribution
-  arrivalVsCompletionOverTime: Array<{
-    bucketStart: string
-    created: number
-    completed: number
-    net: number
-  }>
-  flowEfficiency: Distribution
-  agingWip: Array<{ id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }>
-  factoryHealth: {
-    leaseExpiries: number
-    abandonedClaims: number
-    gateRejections: number
-    wipCapPressure: number
-  }
-}
+const seedFlowMetricsFixture = async function seedFlowMetricsFixture() {
+  const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
 
-describe('Flow metrics (PROJ-252)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
-  })
-
-  async function stampFlowTimestamps(
+  const stampFlowTimestamps = async function stampFlowTimestamps(
     id: string,
     { readyAt, claimedAt, doneAt }: { readyAt?: number; claimedAt?: number; doneAt?: number },
-  ) {
+  ): Promise<void> {
     await env.DB.prepare('UPDATE issues SET ready_at = ?, claimed_at = ?, done_at = ? WHERE id = ?')
-      .bind(readyAt ?? null, claimedAt ?? null, doneAt ?? null, id)
+      .bind(readyAt ?? SQL_NULL, claimedAt ?? SQL_NULL, doneAt ?? SQL_NULL, id)
       .run()
   }
 
-  async function stampReviewFields(
+  const stampReviewFields = async function stampReviewFields(
     id: string,
     { inReviewAt, reviewBounceCount }: { inReviewAt?: number; reviewBounceCount?: number },
-  ) {
+  ): Promise<void> {
     await env.DB.prepare('UPDATE issues SET in_review_at = ?, review_bounce_count = ? WHERE id = ?')
-      .bind(inReviewAt ?? null, reviewBounceCount ?? 0, id)
+      .bind(inReviewAt ?? SQL_NULL, reviewBounceCount ?? 0, id)
       .run()
   }
 
-  async function registerAgent(): Promise<string> {
-    const res = await SELF.fetch('http://localhost/api/agents', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+  const registerAgent = async function registerAgent(): Promise<string> {
+    const res = await fetchNativeApi('http://localhost/api/agents', {
       body: JSON.stringify({ name: 'flow-metrics-test-agent' }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
     return session.id
   }
 
-  async function claim(issueId: string, agentId: string) {
-    await SELF.fetch(`http://localhost/api/issues/${issueId}/claim`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+  const claim = async function claim(issueId: string, agentId: string): Promise<void> {
+    await fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       body: JSON.stringify({ agentId }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
   }
 
-  async function getFlowMetrics(): Promise<FlowMetrics> {
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics`, {
+  const getFlowMetrics = async function getFlowMetrics(): Promise<typeof ApiResults.apiGetFlowMetrics.Type> {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    return (await res.json()) as FlowMetrics
+    const result = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
+    return result
   }
 
-  it('computes lead/cycle time', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  const stampLease = async function stampLease(
+    id: string,
+    issueId: string,
+    claimedAt: number,
+    releasedAt: number | null,
+  ): Promise<void> {
+    const now = currentEpochSeconds()
+    await env.DB.prepare(
+      `INSERT INTO agent_sessions
+			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
+			 VALUES (?, ?, ?, NULL, 'lease-test-agent', 'agent', 'ended', ?, ?, ?)`,
+    )
+      .bind(id, workspaceId, issueId, now, now, now)
+      .run()
+    await env.DB.prepare(
+      `INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(crypto.randomUUID(), workspaceId, issueId, id, claimedAt, releasedAt, releasedAt ? 'released' : SQL_NULL)
+      .run()
+  }
+
+  return {
+    claim,
+    getFlowMetrics,
+    projectId,
+    registerAgent,
+    slug,
+    stampFlowTimestamps,
+    stampLease,
+    stampReviewFields,
+    token,
+    userId,
+    workspaceId,
+  }
+}
+
+describe('flow metrics (PROJ-252)', () => {
+  test('computes lead/cycle time', async () => {
+    const { claim, getFlowMetrics, projectId, registerAgent, stampFlowTimestamps, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
 
     const agentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent-worked' })
     await stampFlowTimestamps(agentIssue.id, {
-      readyAt: now - 500,
       claimedAt: now - 400,
       doneAt: now,
+      readyAt: now - 500,
     })
     const agentSessionId = await registerAgent()
     await claim(agentIssue.id, agentSessionId)
 
     const humanIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Human-worked' })
     await stampFlowTimestamps(humanIssue.id, {
-      readyAt: now - 250,
       claimedAt: now - 200,
       doneAt: now,
+      readyAt: now - 250,
     })
 
     const metrics = await getFlowMetrics()
@@ -130,72 +133,79 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(Array.isArray(metrics.wipOverTime)).toBe(true)
   })
 
-  it('MCP get_flow_metrics matches REST', async () => {
-    const restRes = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics`, {
+  test('covers MCP get_flow_metrics matches REST', async () => {
+    const { projectId, slug, token, workspaceId } = await seedFlowMetricsFixture()
+    const restRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
-    const restBody = await restRes.json()
+    const restBody = await readNativeJson(restRes, ApiResults.apiGetFlowMetrics)
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       body: JSON.stringify({
-        jsonrpc: '2.0',
         id: 1,
+        jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'get_flow_metrics', arguments: { projectId } },
+        params: { arguments: { projectId }, name: 'get_flow_metrics' },
       }),
+      headers: authHeaders(token, slug),
+      method: 'POST',
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text)
+    const mcpJson = await readNativeJson(mcpRes, RpcTextResponse)
+    const mcpText = readNativeMcpResultText(mcpJson.result)
+    const mcpBody = parseNativeMcpText(mcpText, ApiResults.apiGetFlowMetrics)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
-  it('404s for a project in another workspace', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects/does-not-exist/flow-metrics', {
+  test('404s for a project in another workspace', async () => {
+    const { slug, token } = await seedFlowMetricsFixture()
+    const res = await fetchNativeApi('http://localhost/api/projects/does-not-exist/flow-metrics', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('includes an issue created before the window but claimed+done inside it (PROJ-294)', async () => {
-    const DAY = 86400
-    const now = Math.floor(Date.now() / 1000)
+  test('includes an issue created before the window but claimed+done inside it (PROJ-294)', async () => {
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
+    const DAY = 86_400
+    const now = currentEpochSeconds()
     const since = now - 3 * DAY
     const until = now
 
     const oldIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Created before window',
       createdAt: now - 10 * DAY,
+      title: 'Created before window',
     })
     await stampFlowTimestamps(oldIssue.id, {
-      readyAt: now - 10 * DAY,
       claimedAt: now - 2 * DAY,
-      doneAt: now - 1 * DAY,
+      doneAt: now - DAY,
+      readyAt: now - 10 * DAY,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(metrics.cycleTime.count).toBe(1)
     expect(metrics.cycleTime.avg).toBeCloseTo(DAY, 0)
-    expect(metrics.wipOverTime.some((b) => b.count >= 1)).toBe(true)
+    expect(metrics.wipOverTime.some((bucket) => bucket.count >= 1)).toBe(true)
   })
 
-  it('returns non-empty lead/cycle metrics for issues with backfilled done_at (PROJ-288)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('returns non-empty lead/cycle metrics for issues with backfilled done_at (PROJ-288)', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, userId, workspaceId } = await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Pre-migration done' })
-    // Simulates the 0026 backfill outcome: done_at populated from completed_at
-    // for an issue that finished before flow-timestamp stamping existed.
+    /*
+     * Simulates the 0026 backfill outcome: done_at populated from completed_at
+     * for an issue that finished before flow-timestamp stamping existed.
+     */
     await stampFlowTimestamps(issue.id, {
-      readyAt: now - 300,
       claimedAt: now - 200,
       doneAt: now - 50,
+      readyAt: now - 300,
     })
 
     const metrics = await getFlowMetrics()
@@ -204,51 +214,54 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.cycleTime.count).toBe(1)
   })
 
-  it('buckets throughput weekly and excludes issues outside the window', async () => {
+  test('buckets throughput weekly and excludes issues outside the window', async () => {
+    expect.hasAssertions()
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
     const thisWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'This week' })
     const lastWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Last week' })
     const outsideWindowIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Too old' })
-    const WEEK = 7 * 86400
-    const now = Math.floor(Date.now() / 1000)
+    const WEEK = 7 * 86_400
+    const now = currentEpochSeconds()
     const since = now - 3 * WEEK
     const until = now
 
     await stampFlowTimestamps(thisWeekIssue.id, {
-      readyAt: now - 100,
       claimedAt: now - 50,
       doneAt: now,
+      readyAt: now - 100,
     })
 
     await stampFlowTimestamps(lastWeekIssue.id, {
-      readyAt: now - WEEK - 100,
       claimedAt: now - WEEK - 50,
       doneAt: now - WEEK,
+      readyAt: now - WEEK - 100,
     })
 
     await stampFlowTimestamps(outsideWindowIssue.id, {
-      readyAt: now - 10 * WEEK,
       claimedAt: now - 10 * WEEK + 50,
       doneAt: now - 10 * WEEK + 100,
+      readyAt: now - 10 * WEEK,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
-    const totalCounted = metrics.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const totalCounted = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(totalCounted).toBe(2)
     expect(metrics.throughputOverTime.length).toBeGreaterThan(0)
-    for (const bucket of metrics.throughputOverTime) {
-      expect(bucket.bucketStart).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    }
+    Iterable.forEach(metrics.throughputOverTime, (bucket) => {
+      expect(bucket.bucketStart).toMatch(/^\d{4}-\d{2}-\d{2}$/u)
+    })
   })
 
-  it('excludes an issue completed just before `since` even though it falls in the aligned first bucket', async () => {
-    const WEEK = 7 * 86400
-    const now = Math.floor(Date.now() / 1000)
+  test('excludes an issue completed just before `since` even though it falls in the aligned first bucket', async () => {
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
+    const WEEK = 7 * 86_400
+    const now = currentEpochSeconds()
     const since = now - 2 * WEEK
     const until = now
 
@@ -256,104 +269,109 @@ describe('Flow metrics (PROJ-252)', () => {
       title: 'Just inside since',
     })
     await stampFlowTimestamps(justInsideIssue.id, {
-      readyAt: since - 100,
       claimedAt: since - 50,
       doneAt: since + 10,
+      readyAt: since - 100,
     })
 
     const justOutsideIssue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Just before since, same aligned bucket',
     })
     await stampFlowTimestamps(justOutsideIssue.id, {
-      readyAt: since - 200,
       claimedAt: since - 150,
       doneAt: since - 10,
+      readyAt: since - 200,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
-    const totalCounted = metrics.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const totalCounted = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(totalCounted).toBe(1)
   })
 
-  it('aligns weekly bucketStart labels to Monday', async () => {
-    const res = await SELF.fetch(
-      `http://localhost/api/projects/${projectId}/flow-metrics?since=${Math.floor(Date.now() / 1000) - 4 * 7 * 86400}`,
+  test('aligns weekly bucketStart labels to Monday', async () => {
+    expect.hasAssertions()
+    const { projectId, slug, token } = await seedFlowMetricsFixture()
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${projectId}/flow-metrics?since=${currentEpochSeconds() - 4 * 7 * 86_400}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
-    for (const bucket of metrics.throughputOverTime) {
+    Iterable.forEach(metrics.throughputOverTime, (bucket) => {
       const weekday = new Date(`${bucket.bucketStart}T00:00:00Z`).getUTCDay()
-      expect(weekday).toBe(1) // 1 === Monday
-    }
+      // 1 === Monday
+      expect(weekday).toBe(1)
+    })
   })
 
-  it('daily buckets sum to the same total as weekly buckets for the same window', async () => {
-    const WEEK = 7 * 86400
+  test('daily buckets sum to the same total as weekly buckets for the same window', async () => {
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
+    const WEEK = 7 * 86_400
     const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 2 * WEEK
     const until = now
 
     await stampFlowTimestamps(issueA.id, {
-      readyAt: now - WEEK - 100,
       claimedAt: now - WEEK - 50,
       doneAt: now - WEEK,
+      readyAt: now - WEEK - 100,
     })
     await stampFlowTimestamps(issueB.id, {
-      readyAt: now - 100,
       claimedAt: now - 50,
       doneAt: now,
+      readyAt: now - 100,
     })
 
-    const weeklyRes = await SELF.fetch(
+    const weeklyRes = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=week`,
       { headers: authHeaders(token, slug) },
     )
-    const dailyRes = await SELF.fetch(
+    const dailyRes = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
       { headers: authHeaders(token, slug) },
     )
     expect(weeklyRes.status).toBe(200)
     expect(dailyRes.status).toBe(200)
-    const weekly = (await weeklyRes.json()) as FlowMetrics
-    const daily = (await dailyRes.json()) as FlowMetrics
+    const weekly = await readNativeJson(weeklyRes, ApiResults.apiGetFlowMetrics)
+    const daily = await readNativeJson(dailyRes, ApiResults.apiGetFlowMetrics)
 
-    const weeklyTotal = weekly.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
-    const dailyTotal = daily.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const weeklyTotal = weekly.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
+    const dailyTotal = daily.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(dailyTotal).toBe(weeklyTotal)
     expect(dailyTotal).toBe(2)
   })
 
-  it('defaults the throughput window to Monday-of-current-week minus 5 weeks', async () => {
-    const WEEK = 7 * 86400
-    const DAY = 86400
-    const now = Math.floor(Date.now() / 1000)
+  test('defaults the throughput window to Monday-of-current-week minus 5 weeks', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, userId, workspaceId } = await seedFlowMetricsFixture()
+    const WEEK = 7 * 86_400
+    const DAY = 86_400
+    const now = currentEpochSeconds()
 
     const oldIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Old' })
     await stampFlowTimestamps(oldIssue.id, {
-      readyAt: now - 7 * WEEK,
       claimedAt: now - 7 * WEEK + 100,
       doneAt: now - 7 * WEEK + 200,
+      readyAt: now - 7 * WEEK,
     })
     const recentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Recent' })
     await stampFlowTimestamps(recentIssue.id, {
-      readyAt: now - 100,
       claimedAt: now - 50,
       doneAt: now,
+      readyAt: now - 100,
     })
 
     const metrics = await getFlowMetrics()
 
-    const total = metrics.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const total = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(total).toBe(1)
 
     const earliestBucket = metrics.throughputOverTime[0]?.bucketStart
@@ -367,39 +385,44 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(mondayIndex).toBe(currentMondayIndex - 5 * 7)
   })
 
-  it('returns an empty throughput series for a project with no completed issues', async () => {
+  test('returns an empty throughput series for a project with no completed issues', async () => {
+    const { getFlowMetrics } = await seedFlowMetricsFixture()
     const metrics = await getFlowMetrics()
 
     expect(Array.isArray(metrics.throughputOverTime)).toBe(true)
-    expect(metrics.throughputOverTime.every((b) => b.count === 0)).toBe(true)
+    expect(metrics.throughputOverTime.every((bucket) => bucket.count === 0)).toBe(true)
   })
 
-  it('returns null (not NaN/throw) percentiles for a project with zero issues (PROJ-301)', async () => {
+  test('returns null (not NaN/throw) percentiles for a project with zero issues (PROJ-301)', async () => {
+    const { getFlowMetrics } = await seedFlowMetricsFixture()
     const metrics = await getFlowMetrics()
 
-    for (const dist of [metrics.leadTime, metrics.cycleTime, metrics.reviewLatency]) {
+    Iterable.forEach([metrics.leadTime, metrics.cycleTime, metrics.reviewLatency], (dist) => {
       expect(dist.count).toBe(0)
       expect(dist.avg).toBeNull()
       expect(dist.p50).toBeNull()
       expect(dist.p90).toBeNull()
-    }
+    })
   })
 
-  it('excludes a NULL-timestamp legacy issue from lead/cycle time without crashing (PROJ-301)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('excludes a NULL-timestamp legacy issue from lead/cycle time without crashing (PROJ-301)', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, userId, workspaceId } = await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
 
-    // Pre-dates the PROJ-328 backfill: ready_at/claimed_at/done_at all NULL, even
-    // though the issue is otherwise done.
+    /*
+     * Pre-dates the PROJ-328 backfill: ready_at/claimed_at/done_at all NULL, even
+     * though the issue is otherwise done.
+     */
     const legacyIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Legacy done issue',
       status: 'done',
+      title: 'Legacy done issue',
     })
 
     const modernIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Modern issue' })
     await stampFlowTimestamps(modernIssue.id, {
-      readyAt: now - 300,
       claimedAt: now - 200,
       doneAt: now,
+      readyAt: now - 300,
     })
 
     const metrics = await getFlowMetrics()
@@ -407,31 +430,17 @@ describe('Flow metrics (PROJ-252)', () => {
     // The legacy issue contributes nothing — only the modern issue is counted.
     expect(metrics.leadTime.count).toBe(1)
     expect(metrics.cycleTime.count).toBe(1)
-    expect(metrics.agingWip.every((a) => a.id !== legacyIssue.id)).toBe(true)
+    expect(metrics.agingWip.every((issue) => issue.id !== legacyIssue.id)).toBe(true)
   })
 
   // PROJ-328: collaboration-shape metrics (review latency, human interventions, autonomy ratio).
-  async function stampLease(id: string, issueId: string, claimedAt: number, releasedAt: number | null) {
-    const now = Math.floor(Date.now() / 1000)
-    await env.DB.prepare(
-      `INSERT INTO agent_sessions
-			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-			 VALUES (?, ?, ?, NULL, 'lease-test-agent', 'agent', 'ended', ?, ?, ?)`,
-    )
-      .bind(id, workspaceId, issueId, now, now, now)
-      .run()
-    await env.DB.prepare(
-      `INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(crypto.randomUUID(), workspaceId, issueId, id, claimedAt, releasedAt, releasedAt ? 'released' : null)
-      .run()
-  }
 
-  it('computes review latency (in_review -> done)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('computes review latency (in_review -> done)', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, stampReviewFields, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Reviewed' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampReviewFields(issue.id, { inReviewAt: now - 100 })
 
     const metrics = await getFlowMetrics()
@@ -441,10 +450,12 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(Array.isArray(metrics.reviewLatencyOverTime)).toBe(true)
   })
 
-  it('counts human comments + review bounces as human interventions, excluding agent comments', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('counts human comments + review bounces as human interventions, excluding agent comments', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, stampReviewFields, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Intervened' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampReviewFields(issue.id, { inReviewAt: now - 100, reviewBounceCount: 2 })
     await seedComment(issue.id, userId, 'Looks good', 'human')
     await seedComment(issue.id, userId, 'wip update', 'agent')
@@ -453,15 +464,19 @@ describe('Flow metrics (PROJ-252)', () => {
     const metrics = await getFlowMetrics()
 
     expect(metrics.humanInterventions.count).toBe(1)
-    // 1 human comment + 2 review bounces; the agent comment and the authorKind-less
-    // legacy comment are both excluded.
+    /*
+     * 1 human comment + 2 review bounces; the agent comment and the authorKind-less
+     * legacy comment are both excluded.
+     */
     expect(metrics.humanInterventions.avg).toBe(3)
   })
 
-  it('computes autonomy ratio as lease-held time over cycle time', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('computes autonomy ratio as lease-held time over cycle time', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, stampLease, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Leased' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampLease(crypto.randomUUID(), issue.id, now - 400, now - 200)
 
     const metrics = await getFlowMetrics()
@@ -470,10 +485,12 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.autonomyRatio.avg).toBeCloseTo(0.5, 1)
   })
 
-  it('clamps autonomy ratio to 1 when leases held time exceeds cycle time', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('clamps autonomy ratio to 1 when leases held time exceeds cycle time', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, stampLease, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Over-leased' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     // Lease still held past doneAt (released_at NULL) — counts through doneAt, not "now".
     await stampLease(crypto.randomUUID(), issue.id, now - 400, null)
 
@@ -484,34 +501,39 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   // PROJ-329: cumulative flow diagram + time-in-state breakdown.
-  it('buckets CFD bands correctly for seeded transitions, never negative, done monotonic', async () => {
-    const DAY = 86400
+  test('buckets CFD bands correctly for seeded transitions, never negative, done monotonic', async () => {
+    expect.hasAssertions()
+    const { projectId, slug, stampFlowTimestamps, stampReviewFields, token, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const DAY = 86_400
     const WEEK = 7 * DAY
-    const now = Math.floor(Date.now() / 1000)
-    // Day-align since/until so the bucket loop (which starts at a day boundary and
-    // steps by exactly one day) lands its first/last samples exactly on since/until,
-    // regardless of what time of day the suite runs.
+    const now = currentEpochSeconds()
+    /*
+     * Day-align since/until so the bucket loop (which starts at a day boundary and
+     * steps by exactly one day) lands its first/last samples exactly on since/until,
+     * regardless of what time of day the suite runs.
+     */
     const todayStart = now - (now % DAY)
     const since = todayStart - 2 * WEEK
     const until = todayStart
 
     // Sits in backlog/todo for the whole window.
     await seedIssue(workspaceId, projectId, userId, {
-      title: 'Backlog',
       createdAt: since - DAY - 100,
+      title: 'Backlog',
     })
 
     // Claimed mid-window, never reaches review or done — in_progress by the end.
     const inProgressIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In progress',
       createdAt: since - DAY - 100,
+      title: 'In progress',
     })
     await stampFlowTimestamps(inProgressIssue.id, { claimedAt: since + WEEK })
 
     // Reaches review a week before `until` and finishes right at `until`.
     const doneIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Done',
       createdAt: since - DAY - 100,
+      title: 'Done',
     })
     await stampFlowTimestamps(doneIssue.id, {
       claimedAt: since + 10,
@@ -519,30 +541,32 @@ describe('Flow metrics (PROJ-252)', () => {
     })
     await stampReviewFields(doneIssue.id, { inReviewAt: until - WEEK })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(metrics.cfdOverTime.length).toBeGreaterThan(0)
 
-    for (const bucket of metrics.cfdOverTime) {
+    Iterable.forEach(metrics.cfdOverTime, (bucket) => {
       expect(bucket.backlogTodo).toBeGreaterThanOrEqual(0)
       expect(bucket.inProgress).toBeGreaterThanOrEqual(0)
       expect(bucket.inReview).toBeGreaterThanOrEqual(0)
       expect(bucket.done).toBeGreaterThanOrEqual(0)
+    })
+
+    // Done is cumulative — never decreases bucket over bucket.
+    for (let index = 1; index < metrics.cfdOverTime.length; index += 1) {
+      expect(metrics.cfdOverTime[index].done).toBeGreaterThanOrEqual(metrics.cfdOverTime[index - 1].done)
     }
 
-    // done is cumulative — never decreases bucket over bucket.
-    for (let i = 1; i < metrics.cfdOverTime.length; i++) {
-      expect(metrics.cfdOverTime[i].done).toBeGreaterThanOrEqual(metrics.cfdOverTime[i - 1].done)
-    }
-
-    // PROJ-377: buckets are now sampled at their *end* (clamped to until/now), not
-    // their start — the "Done" issue's claimedAt (since + 10s) already falls before
-    // the first bucket's end, so it reads as in_progress rather than backlog/todo.
+    /*
+     * PROJ-377: buckets are now sampled at their *end* (clamped to until/now), not
+     * their start — the "Done" issue's claimedAt (since + 10s) already falls before
+     * the first bucket's end, so it reads as in_progress rather than backlog/todo.
+     */
     const firstBucket = metrics.cfdOverTime[0]
     expect(firstBucket.backlogTodo).toBe(2)
     expect(firstBucket.inProgress).toBe(1)
@@ -555,112 +579,126 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(lastBucket.done).toBe(1)
   })
 
-  // PROJ-377: the current (still-partial) bucket must reflect state as of "now", not
-  // as of the bucket's start — previously an issue created and completed entirely
-  // within the current week's bucket read as all-zero because the sample instant (the
-  // bucket's start) predated the activity.
-  it('reflects a same-bucket create+complete burst in the current (partial) bucket', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  /*
+   * PROJ-377: the current (still-partial) bucket must reflect state as of "now", not
+   * as of the bucket's start — previously an issue created and completed entirely
+   * within the current week's bucket read as all-zero because the sample instant (the
+   * bucket's start) predated the activity.
+   */
+  test('reflects a same-bucket create+complete burst in the current (partial) bucket', async () => {
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
 
     const burstIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Created and finished this week',
       createdAt: now - 100,
+      title: 'Created and finished this week',
     })
     await stampFlowTimestamps(burstIssue.id, {
-      readyAt: now - 90,
       claimedAt: now - 60,
       doneAt: now - 10,
+      readyAt: now - 90,
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics?granularity=week`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?granularity=week`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     const currentBucket = metrics.cfdOverTime[metrics.cfdOverTime.length - 1]
     expect(currentBucket.done).toBe(1)
   })
 
-  it('computes time in progress (claimed -> next stage) for issues completing in the window', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('computes time in progress (claimed -> next stage) for issues completing in the window', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, stampReviewFields, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Progressed' })
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 400, doneAt: now, readyAt: now - 500 })
     await stampReviewFields(issue.id, { inReviewAt: now - 100 })
 
     const metrics = await getFlowMetrics()
 
     expect(metrics.timeInProgress.count).toBe(1)
-    expect(metrics.timeInProgress.avg).toBeCloseTo(300, 0) // claimed -400 -> in_review -100
+    // Claimed -400 -> in_review -100
+    expect(metrics.timeInProgress.avg).toBeCloseTo(300, 0)
   })
 
   // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
-  it('buckets arrival vs completion, reporting net = created - completed', async () => {
-    const WEEK = 7 * 86400
-    const now = Math.floor(Date.now() / 1000)
+  test('buckets arrival vs completion, reporting net = created - completed', async () => {
+    expect.hasAssertions()
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
+    const WEEK = 7 * 86_400
+    const now = currentEpochSeconds()
     const since = now - 2 * WEEK
     const until = now
 
     // Created this window, not yet done: counts as an arrival, not a completion.
-    await seedIssue(workspaceId, projectId, userId, { title: 'New arrival', createdAt: now - 100 })
+    await seedIssue(workspaceId, projectId, userId, { createdAt: now - 100, title: 'New arrival' })
 
     // Created before the window, completed inside it: counts as a completion only.
     const completedIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Completed',
       createdAt: now - 10 * WEEK,
+      title: 'Completed',
     })
     await stampFlowTimestamps(completedIssue.id, {
-      readyAt: now - 300,
       claimedAt: now - 200,
       doneAt: now - 50,
+      readyAt: now - 300,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
-    const totalCreated = metrics.arrivalVsCompletionOverTime.reduce((sum, b) => sum + b.created, 0)
-    const totalCompleted = metrics.arrivalVsCompletionOverTime.reduce((sum, b) => sum + b.completed, 0)
+    const totalCreated = metrics.arrivalVsCompletionOverTime.reduce((sum, bucket) => sum + bucket.created, 0)
+    const totalCompleted = metrics.arrivalVsCompletionOverTime.reduce((sum, bucket) => sum + bucket.completed, 0)
     expect(totalCreated).toBe(1)
     expect(totalCompleted).toBe(1)
-    for (const bucket of metrics.arrivalVsCompletionOverTime) {
+    Iterable.forEach(metrics.arrivalVsCompletionOverTime, (bucket) => {
       expect(bucket.net).toBe(bucket.created - bucket.completed)
-    }
+    })
   })
 
-  it('computes flow efficiency as lease-held time over lead time, distinct from autonomy ratio', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('computes flow efficiency as lease-held time over lead time, distinct from autonomy ratio', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, stampLease, userId, workspaceId } =
+      await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Queued then leased' })
-    // ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
-    await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 300, doneAt: now })
-    await stampLease(crypto.randomUUID(), issue.id, now - 300, now - 150) // 150s held
+    // Ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
+    await stampFlowTimestamps(issue.id, { claimedAt: now - 300, doneAt: now, readyAt: now - 500 })
+    // 150s held
+    await stampLease(crypto.randomUUID(), issue.id, now - 300, now - 150)
 
     const metrics = await getFlowMetrics()
 
     expect(metrics.flowEfficiency.count).toBe(1)
-    expect(metrics.flowEfficiency.avg).toBeCloseTo(150 / 500, 1) // held / lead time
-    expect(metrics.autonomyRatio.avg).toBeCloseTo(150 / 300, 1) // held / cycle time
+    // Held / lead time
+    expect(metrics.flowEfficiency.avg).toBeCloseTo(150 / 500, 1)
+    // Held / cycle time
+    expect(metrics.autonomyRatio.avg).toBeCloseTo(150 / 300, 1)
     expect(metrics.flowEfficiency.avg).toBeLessThan(metrics.autonomyRatio.avg ?? 0)
   })
 
-  it('includes an old still-open issue in the aging-WIP scatter', async () => {
-    const DAY = 86400
-    const now = Math.floor(Date.now() / 1000)
+  test('includes an old still-open issue in the aging-WIP scatter', async () => {
+    const { getFlowMetrics, projectId, stampFlowTimestamps, userId, workspaceId } = await seedFlowMetricsFixture()
+    const DAY = 86_400
+    const now = currentEpochSeconds()
 
     const oldInProgress = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Stuck in progress',
-      status: 'in_progress',
       createdAt: now - 30 * DAY,
+      status: 'in_progress',
+      title: 'Stuck in progress',
     })
     await stampFlowTimestamps(oldInProgress.id, { claimedAt: now - 20 * DAY })
 
     const inReview = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In review',
-      status: 'in_review',
       createdAt: now - 5 * DAY,
+      status: 'in_review',
+      title: 'In review',
     })
     await stampFlowTimestamps(inReview.id, { claimedAt: now - 2 * DAY })
 
@@ -669,19 +707,21 @@ describe('Flow metrics (PROJ-252)', () => {
 
     const metrics = await getFlowMetrics()
 
-    expect(metrics.agingWip.length).toBe(2)
-    const stuck = metrics.agingWip.find((a) => a.id === oldInProgress.id)
+    expect(metrics.agingWip).toHaveLength(2)
+    const stuck = metrics.agingWip.find((issue) => issue.id === oldInProgress.id)
     expect(stuck).toBeDefined()
     expect(stuck?.status).toBe('in_progress')
     expect(stuck?.ageSeconds).toBeCloseTo(20 * DAY, -2)
-    const reviewing = metrics.agingWip.find((a) => a.id === inReview.id)
+    const reviewing = metrics.agingWip.find((issue) => issue.id === inReview.id)
     expect(reviewing?.status).toBe('in_review')
   })
 
   // PROJ-331: throughput by task type — bug-share % trend, untyped grouped in (not dropped).
-  it('computes bug share per bucket, counting untyped issues toward total but not bugCount', async () => {
-    const DAY = 86400
-    const now = Math.floor(Date.now() / 1000)
+  test('computes bug share per bucket, counting untyped issues toward total but not bugCount', async () => {
+    expect.hasAssertions()
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
+    const DAY = 86_400
+    const now = currentEpochSeconds()
     const bugType = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const taskType = await seedTaskType(workspaceId, { key: 'task', name: 'Task' })
 
@@ -697,8 +737,10 @@ describe('Flow metrics (PROJ-252)', () => {
     })
     await stampFlowTimestamps(task1.id, { doneAt: now - 10 * DAY })
 
-    // Bucket B (recent): 1 bug + 1 untyped completed -> 50% bug share, untyped counts
-    // toward total but not bugCount.
+    /*
+     * Bucket B (recent): 1 bug + 1 untyped completed -> 50% bug share, untyped counts
+     * toward total but not bugCount.
+     */
     const bug2 = await seedIssue(workspaceId, projectId, userId, {
       title: 'Bug 2',
       typeId: bugType.id,
@@ -709,64 +751,64 @@ describe('Flow metrics (PROJ-252)', () => {
 
     const since = now - 11 * DAY
     const until = now
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=week`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
     expect(Array.isArray(metrics.bugShareOverTime)).toBe(true)
-    const nonEmptyBuckets = metrics.bugShareOverTime.filter((b) => b.total > 0)
-    expect(nonEmptyBuckets.length).toBe(2)
-    for (const bucket of nonEmptyBuckets) {
+    const nonEmptyBuckets = metrics.bugShareOverTime.filter((bucket) => bucket.total > 0)
+    expect(nonEmptyBuckets).toHaveLength(2)
+    Iterable.forEach(nonEmptyBuckets, (bucket) => {
       expect(bucket.total).toBe(2)
       expect(bucket.bugCount).toBe(1)
       expect(bucket.bugSharePercent).toBeCloseTo(0.5, 5)
-    }
+    })
 
-    const emptyBucket = metrics.bugShareOverTime.find((b) => b.total === 0)
-    if (emptyBucket) expect(emptyBucket.bugSharePercent).toBeNull()
+    const emptyBucket = metrics.bugShareOverTime.find((bucket) => bucket.total === 0)
+    if (emptyBucket) {
+      expect(emptyBucket.bugSharePercent).toBeNull()
+    }
     expect(metrics.bugTypeTracked).toBe(true)
   })
 
-  // PROJ-341: a workspace with no "bug"-keyed task type (renamed/deleted default) must
-  // produce a clearly-distinguishable state, not indistinguishable "0 bugs, tracked".
-  it("flags bugTypeTracked false when no 'bug'-keyed task type exists in the workspace", async () => {
-    const now = Math.floor(Date.now() / 1000)
+  /*
+   * PROJ-341: a workspace with no "bug"-keyed task type (renamed/deleted default) must
+   * produce a clearly-distinguishable state, not indistinguishable "0 bugs, tracked".
+   */
+  test("flags bugTypeTracked false when no 'bug'-keyed task type exists in the workspace", async () => {
+    const { projectId, slug, stampFlowTimestamps, token, userId, workspaceId } = await seedFlowMetricsFixture()
+    const now = currentEpochSeconds()
     await seedTaskType(workspaceId, { key: 'defect', name: 'Defect' })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Untracked' })
     await stampFlowTimestamps(issue.id, { doneAt: now })
 
-    const res = await SELF.fetch(
-      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86400}&until=${now}`,
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86_400}&until=${now}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.bugTypeTracked).toBe(false)
   })
 })
 
-// PROJ-334: factory health tiles — fault signals for the machinery itself, windowed by
-// when the fault EVENT happened (released_at/occurred_at), not by issue doneAt like the
-// distribution tiles above.
-describe('Factory health tiles (PROJ-334)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
+const seedFactoryHealthFixture = async function seedFactoryHealthFixture() {
+  const { projectId, slug, token, userId, workspaceId } = await seedProjectFixture({ role: 'owner' })
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
-  })
-
-  // Bypasses the claim/release APIs so tests can place events at an arbitrary
-  // timestamp, inside or outside the window under test.
-  async function seedLease(issueId: string, releaseReason: string | null, releasedAt: number | null) {
+  /*
+   * Bypasses the claim/release APIs so tests can place events at an arbitrary
+   * timestamp, inside or outside the window under test.
+   */
+  const seedLease = async function seedLease(
+    issueId: string,
+    releaseReason: string | null,
+    releasedAt: number | null,
+  ): Promise<void> {
     const agentSessionId = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO agent_sessions
 			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
@@ -782,8 +824,12 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  async function seedFileClaim(issueId: string, releaseReason: string | null, releasedAt: number | null) {
-    const now = Math.floor(Date.now() / 1000)
+  const seedFileClaim = async function seedFileClaim(
+    issueId: string,
+    releaseReason: string | null,
+    releasedAt: number | null,
+  ): Promise<void> {
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +
         'released_at, release_reason) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)',
@@ -792,7 +838,7 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  async function seedGateRejection(issueId: string, occurredAt: number) {
+  const seedGateRejection = async function seedGateRejection(issueId: string, occurredAt: number): Promise<void> {
     await env.DB.prepare(
       'INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)',
     )
@@ -800,7 +846,11 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  async function seedWipCapDenial(project: string, issueId: string, occurredAt: number) {
+  const seedWipCapDenial = async function seedWipCapDenial(
+    project: string,
+    issueId: string,
+    occurredAt: number,
+  ): Promise<void> {
     await env.DB.prepare(
       'INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, ' +
         'occurred_at) VALUES (?, ?, ?, ?, NULL, ?)',
@@ -809,19 +859,39 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  it('counts lease expiries, abandoned claims, and gate rejections within the window', async () => {
-    const DAY = 86400
-    const now = Math.floor(Date.now() / 1000)
+  return { projectId, seedFileClaim, seedGateRejection, seedLease, seedWipCapDenial, slug, token, userId, workspaceId }
+}
+
+/*
+ * PROJ-334: factory health tiles — fault signals for the machinery itself, windowed by
+ * when the fault EVENT happened (released_at/occurred_at), not by issue doneAt like the
+ * distribution tiles above.
+ */
+describe('factory health tiles (PROJ-334)', () => {
+  test('counts lease expiries, abandoned claims, and gate rejections within the window', async () => {
+    const {
+      projectId,
+      seedFileClaim,
+      seedGateRejection,
+      seedLease,
+      seedWipCapDenial,
+      slug,
+      token,
+      userId,
+      workspaceId,
+    } = await seedFactoryHealthFixture()
+    const DAY = 86_400
+    const now = currentEpochSeconds()
     const since = now - 3 * DAY
     const until = now
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Faulty' })
 
     // In window: counts.
-    await seedLease(issue.id, 'expired', now - 1 * DAY)
-    await seedFileClaim(issue.id, 'agent_ended', now - 1 * DAY)
-    await seedGateRejection(issue.id, now - 1 * DAY)
-    await seedWipCapDenial(projectId, issue.id, now - 1 * DAY)
+    await seedLease(issue.id, 'expired', now - DAY)
+    await seedFileClaim(issue.id, 'agent_ended', now - DAY)
+    await seedGateRejection(issue.id, now - DAY)
+    await seedWipCapDenial(projectId, issue.id, now - DAY)
 
     // Out of window: excluded.
     await seedLease(issue.id, 'expired', now - 10 * DAY)
@@ -829,30 +899,34 @@ describe('Factory health tiles (PROJ-334)', () => {
     await seedGateRejection(issue.id, now - 10 * DAY)
     await seedWipCapDenial(projectId, issue.id, now - 10 * DAY)
 
-    // Right reason but not a fault (deliberate release / reclaim by another agent) —
-    // excluded regardless of window.
-    await seedLease(issue.id, 'released', now - 1 * DAY)
-    await seedLease(issue.id, 'agent_ended', now - 1 * DAY)
-    await seedFileClaim(issue.id, 'released', now - 1 * DAY)
-    await seedFileClaim(issue.id, 'overridden', now - 1 * DAY)
+    /*
+     * Right reason but not a fault (deliberate release / reclaim by another agent) —
+     * excluded regardless of window.
+     */
+    await seedLease(issue.id, 'released', now - DAY)
+    await seedLease(issue.id, 'agent_ended', now - DAY)
+    await seedFileClaim(issue.id, 'released', now - DAY)
+    await seedFileClaim(issue.id, 'overridden', now - DAY)
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
 
-    expect(metrics.factoryHealth).toEqual({
-      leaseExpiries: 1,
+    expect(metrics.factoryHealth).toStrictEqual({
       abandonedClaims: 1,
       gateRejections: 1,
+      leaseExpiries: 1,
       wipCapPressure: 1,
     })
   })
 
-  it('scopes factory health counts to the requested project', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('scopes factory health counts to the requested project', async () => {
+    const { projectId, seedLease, seedWipCapDenial, slug, token, userId, workspaceId } =
+      await seedFactoryHealthFixture()
+    const now = currentEpochSeconds()
     const other = await seedProjectFixture({ role: 'owner' })
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'This project' })
@@ -871,28 +945,29 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
     await seedWipCapDenial(other.projectId, otherIssue.id, now)
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 100}&until=${now + 100}`,
       { headers: authHeaders(token, slug) },
     )
-    const metrics = (await res.json()) as FlowMetrics
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
     expect(metrics.factoryHealth.leaseExpiries).toBe(1)
     expect(metrics.factoryHealth.wipCapPressure).toBe(1)
   })
 
-  it('empty state: all counts are zero when nothing has faulted', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('empty state: all counts are zero when nothing has faulted', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedFactoryHealthFixture()
+    const now = currentEpochSeconds()
     await seedIssue(workspaceId, projectId, userId, { title: 'Healthy' })
 
-    const res = await SELF.fetch(
-      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86400}&until=${now}`,
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86_400}&until=${now}`,
       { headers: authHeaders(token, slug) },
     )
-    const metrics = (await res.json()) as FlowMetrics
-    expect(metrics.factoryHealth).toEqual({
-      leaseExpiries: 0,
+    const metrics = await readNativeJson(res, ApiResults.apiGetFlowMetrics)
+    expect(metrics.factoryHealth).toStrictEqual({
       abandonedClaims: 0,
       gateRejections: 0,
+      leaseExpiries: 0,
       wipCapPressure: 0,
     })
   })

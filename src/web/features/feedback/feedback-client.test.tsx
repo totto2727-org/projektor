@@ -1,30 +1,40 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { navigateFeature } from '../wiki/navigation'
-import { createFeedbackSource, markFeedbackReviewed, revokeFeedbackSource, rotateFeedbackSourceToken } from './actions'
-import FeedbackList, { type Feedback } from './FeedbackList'
-import FeedbackSourceDetail from './FeedbackSourceDetail'
-import FeedbackSourceSettings, { type FeedbackSource } from './FeedbackSourceSettings'
-import NewSourceModal from './NewSourceModal'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { navigateFeature } from '@/features/wiki/navigation.ts'
 
-vi.mock('../wiki/navigation', () => ({ navigateFeature: vi.fn() }))
+// @vitest-environment jsdom
+import type * as Actions from './actions.ts'
+import {
+  createFeedbackSource,
+  markFeedbackReviewed,
+  revokeFeedbackSource,
+  rotateFeedbackSourceToken,
+} from './actions.ts'
+import { FeedbackList } from './feedback-list.tsx'
+import type { Feedback } from './feedback-list.tsx'
+import { FeedbackSourceDetail } from './feedback-source-detail.tsx'
+import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
+import type { FeedbackSource } from './feedback-source-settings.tsx'
+import { NewSourceModal } from './new-source-modal.tsx'
+
+vi.mock(import('@/features/wiki/navigation.ts'), () => ({ navigateFeature: vi.fn<typeof navigateFeature>() }))
 
 vi.mock('./actions', () => ({
-  markFeedbackReviewed: vi.fn(),
-  revokeFeedbackSource: vi.fn(),
-  rotateFeedbackSourceToken: vi.fn(),
-  setFeedbackSourceActive: vi.fn(),
-  createFeedbackSource: vi.fn(),
-  convertFeedbackToIssue: vi.fn(),
-  markSelectedFeedbackReviewed: vi.fn(),
-  convertSelectedFeedbackToIssue: vi.fn(),
+  markFeedbackReviewed: vi.fn<typeof Actions.markFeedbackReviewed>(),
+  revokeFeedbackSource: vi.fn<typeof Actions.revokeFeedbackSource>(),
+  rotateFeedbackSourceToken: vi.fn<typeof Actions.rotateFeedbackSourceToken>(),
+  setFeedbackSourceActive: vi.fn<typeof Actions.setFeedbackSourceActive>(),
+  createFeedbackSource: vi.fn<typeof Actions.createFeedbackSource>(),
+  convertFeedbackToIssue: vi.fn<typeof Actions.convertFeedbackToIssue>(),
+  markSelectedFeedbackReviewed: vi.fn<typeof Actions.markSelectedFeedbackReviewed>(),
+  convertSelectedFeedbackToIssue: vi.fn<typeof Actions.convertSelectedFeedbackToIssue>(),
 }))
 const row: Feedback = {
   id: 'row',
   sourceId: 'source',
-  sourceName: null,
+  sourceName: JSON_NULL,
   rating: 5,
   ratingScale: 'five_star',
   body: 'Useful feedback',
@@ -32,47 +42,51 @@ const row: Feedback = {
   sourceUrl: 'https://example.test/page?screen=home',
   appVersion: 'v1',
   status: 'new',
-  linkedIssueId: null,
+  linkedIssueId: JSON_NULL,
   createdAt: 1,
 }
-afterEach(() => {
-  cleanup()
-  vi.clearAllMocks()
-  vi.unstubAllGlobals()
-})
 const source: FeedbackSource = {
   id: 'source',
   name: 'Customer feedback',
-  description: null,
+  description: JSON_NULL,
   isActive: true,
-  allowedOrigins: null,
+  allowedOrigins: JSON_NULL,
   tokenPreview: 'pk_...',
   createdAt: 1,
-  revokedAt: null,
+  revokedAt: JSON_NULL,
 }
-describe('Feedback hydrated original controls', () => {
-  it('creates a source through native action-state FormData and retains its one-time token across refresh', async () => {
+describe('feedback hydrated original controls', () => {
+  afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  test('creates a source through native action-state FormData and retains its one-time token across refresh', async () => {
     vi.mocked(createFeedbackSource).mockResolvedValue({
       ok: true,
       value: { id: 'source', token: 'new-token' },
     })
-    const view = render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
+    const view = render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn<() => void>()} />)
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'New source' } })
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Notes' } })
     const form = screen.getByRole('dialog', { name: 'New feedback source' }).querySelector('form')
-    if (!form) throw new Error('Missing native source form')
+    if (!form) {
+      throw new Error('Missing native source form')
+    }
     fireEvent.submit(form)
-    expect(await screen.findByText('new-token')).toBeTruthy()
+    await expect(screen.findByText('new-token')).resolves.toBeInstanceOf(Element)
     const [previous, data] = vi.mocked(createFeedbackSource).mock.calls[0]
     expect(previous).toBeNull()
     expect(data.get('workspaceSlug')).toBe('team')
     expect(data.get('projectId')).toBe('project')
     expect(data.get('name')).toBe('New source')
     expect(data.get('description')).toBe('Notes')
-    view.rerender(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
-    expect(screen.getByText('new-token')).toBeTruthy()
+    view.rerender(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn<() => void>()} />)
+    expect(screen.getByText('new-token')).toBeInstanceOf(Element)
   })
-  it('navigates status through the URL and waits for canonical server status props', async () => {
+
+  test('navigates status through the URL and waits for canonical server status props', async () => {
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => ({ matches: false })),
@@ -82,11 +96,11 @@ describe('Feedback hydrated original controls', () => {
     const option = await screen.findByRole('option', { name: 'Reviewed' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() =>
+    await waitFor(() => {
       expect(navigateFeature).toHaveBeenLastCalledWith(
         '/feedback/source?projectId=project&tab=items&workspace=team&status=reviewed',
-      ),
-    )
+      )
+    })
     expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('All')
     view.rerender(
       <FeedbackList
@@ -99,19 +113,23 @@ describe('Feedback hydrated original controls', () => {
     )
     expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('Reviewed')
   })
-  it('validates source configuration through TanStack before sending a semantic create action', async () => {
-    render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
+
+  test('validates source configuration through TanStack before sending a semantic create action', async () => {
+    render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn<() => void>()} />)
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'New source' } })
     fireEvent.change(screen.getByLabelText('Allowed origins (one per line, optional)'), {
       target: { value: 'a'.repeat(2001) },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create source' }))
-    expect(await screen.findByText('Enter at most 50 origins, each at most 2000 characters.')).toBeTruthy()
+    await expect(screen.findByText('Enter at most 50 origins, each at most 2000 characters.')).resolves.toBeInstanceOf(
+      Element,
+    )
     expect(screen.getByRole('button', { name: 'Create source' }).hasAttribute('disabled')).toBe(true)
     expect(createFeedbackSource).not.toHaveBeenCalled()
-    expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('New source')
+    expect(screen.getByLabelText<HTMLInputElement>('Name *').value).toBe('New source')
   })
-  it('preserves original Arrow/Home/End roving tab keyboard behavior', () => {
+
+  test('preserves original Arrow/Home/End roving tab keyboard behavior', () => {
     const view = render(
       <FeedbackSourceDetail
         workspaceSlug='team'
@@ -119,7 +137,7 @@ describe('Feedback hydrated original controls', () => {
         initialSource={source}
         initialSources={[source]}
         initialRows={[row]}
-        initialSummary={null}
+        initialSummary={JSON_NULL}
       />,
     )
     const items = screen.getByRole('tab', { name: 'Items' })
@@ -135,7 +153,7 @@ describe('Feedback hydrated original controls', () => {
         initialSource={source}
         initialSources={[source]}
         initialRows={[row]}
-        initialSummary={null}
+        initialSummary={JSON_NULL}
         initialTab='summary'
       />,
     )
@@ -146,20 +164,29 @@ describe('Feedback hydrated original controls', () => {
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
   })
-  it('does not revoke a source when its danger confirmation is cancelled', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<FeedbackSourceSettings workspaceSlug='team' projectId='project' source={source} onChanged={vi.fn()} />)
+
+  test('does not revoke a source when its danger confirmation is cancelled', () => {
+    vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
+    render(
+      <FeedbackSourceSettings
+        workspaceSlug='team'
+        projectId='project'
+        source={source}
+        onChanged={vi.fn<() => void>()}
+      />,
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Revoke source' }))
-    expect(window.confirm).toHaveBeenCalled()
+    expect(globalThis.confirm).toHaveBeenCalled()
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Rotate token' }))
-    expect(screen.getByText('Rotate? Old token dies.')).toBeTruthy()
+    expect(screen.getByText('Rotate? Old token dies.')).toBeInstanceOf(Element)
     fireEvent.click(screen.getByRole('button', { name: 'No' }))
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
   })
-  it('renders initial rows without client bootstrap and expands original URL context in both responsive trees', () => {
+
+  test('renders initial rows without client bootstrap and expands original URL context in both responsive trees', () => {
     render(<FeedbackList workspaceSlug='team' projectId='project' sourceId='source' initialRows={[row]} />)
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
@@ -169,7 +196,8 @@ describe('Feedback hydrated original controls', () => {
       'noopener noreferrer',
     )
   })
-  it('updates reviewed status optimistically and rolls back a failed mutation', async () => {
+
+  test('updates reviewed status optimistically and rolls back a failed mutation', async () => {
     let reject!: (cause: Error) => void
     vi.mocked(markFeedbackReviewed).mockImplementation(
       () =>
@@ -186,7 +214,8 @@ describe('Feedback hydrated original controls', () => {
     expect(screen.getAllByText('new').length).toBeGreaterThan(0)
     expect(screen.getByRole('alert').textContent).toContain('Denied')
   })
-  it('adopts refreshed row DTOs in-place', () => {
+
+  test('adopts refreshed row DTOs in-place', () => {
     const view = render(<FeedbackList workspaceSlug='team' projectId='project' sourceId='source' initialRows={[row]} />)
     view.rerender(
       <FeedbackList

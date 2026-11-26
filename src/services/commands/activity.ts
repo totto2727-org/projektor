@@ -1,8 +1,11 @@
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 
-import type { ServiceCtx } from './types'
+import type { ServiceCtx } from './types.ts'
 
-export async function recordActivity(
+export const recordActivity = async function recordActivity(
   ctx: ServiceCtx,
   opts: Readonly<{
     entityType: 'issue' | 'wiki_page' | 'project' | 'group'
@@ -12,14 +15,16 @@ export async function recordActivity(
   }>,
 ): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
-  await orm.insert(schema.activity).values({
-    id: crypto.randomUUID(),
-    workspaceId: ctx.workspaceId,
-    entityType: opts.entityType,
-    entityId: opts.entityId,
-    actorId: ctx.userId,
-    action: opts.action,
-    diff: opts.diff ?? null,
-    createdAt: Math.floor(Date.now() / 1000),
-  })
+  await orm.insert(schema.activity).values(
+    fieldsInOrder([
+      ['id', crypto.randomUUID()],
+      ['workspaceId', ctx.workspaceId],
+      ['entityType', opts.entityType],
+      ['entityId', opts.entityId],
+      ['actorId', ctx.userId],
+      ['action', opts.action],
+      ['diff', opts.diff ?? SQL_NULL],
+      ['createdAt', currentEpochSeconds()],
+    ]),
+  )
 }

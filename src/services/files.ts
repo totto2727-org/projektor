@@ -1,12 +1,17 @@
-import { type Effect, Schema } from 'effect'
+import { Iterable, Result, Schema } from 'effect'
+import type { Effect } from 'effect'
 
-import { ReviewTargetSchema, type ReviewStatus, type ReviewTarget } from '../contracts/review-targets'
-import { type DataQueryError, queryEffect } from './errors'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { ReviewTargetSchema } from '#contracts/review-targets.ts'
+import type { ReviewStatus, ReviewTarget } from '#contracts/review-targets.ts'
+
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 /** Trusted app-authored predicates, never request input. Aliases: a attachment, w linked page. */
 export interface AttachmentVisibility {
   sql: string
-  params: readonly unknown[]
+  params: Readonly<unknown[]>
 }
 export interface AttachmentQueryOptions {
   ownerVisibility?: AttachmentVisibility | null
@@ -46,7 +51,9 @@ interface AttachmentRow {
   wiki_page_title: string | null
   wiki_page_project_id: string | null
 }
-function toMetadata(row: AttachmentRow): AttachmentMetadata {
+const decodeReviewTarget = Schema.decodeUnknownResult(ReviewTargetSchema)
+
+const toMetadata = function toMetadata(row: AttachmentRow): AttachmentMetadata {
   return {
     id: row.id,
     kind: row.kind,
@@ -57,7 +64,7 @@ function toMetadata(row: AttachmentRow): AttachmentMetadata {
     createdAt: row.created_at,
     reviewStatus: row.review_status,
     wikiPage:
-      row.kind === 'wiki_ref' && row.wiki_page_id
+      row.kind === 'wiki_ref' && isNonEmptyText(row.wiki_page_id)
         ? {
             id: row.wiki_page_id,
             title: row.wiki_page_title,
@@ -67,13 +74,13 @@ function toMetadata(row: AttachmentRow): AttachmentMetadata {
         : null,
   }
 }
-function metadataQuery(
+const metadataQuery = function metadataQuery(
   db: D1Database,
   workspaceId: string,
   filter: string,
   values: unknown[],
   options: AttachmentQueryOptions,
-) {
+): D1PreparedStatement {
   const linked = options.linkedWikiVisibility
   const owner = options.ownerVisibility
   return db
@@ -87,8 +94,15 @@ function metadataQuery(
 		ORDER BY a.created_at ASC`)
     .bind(...(linked?.params ?? []), workspaceId, ...values, ...(owner?.params ?? []))
 }
-/** The caller supplies policy predicates. The query always retains tenant and entity scope. */
-export function listAttachments(
+/**
+ * The caller supplies policy predicates. The query always retains tenant and entity scope.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @param {AttachmentListOptions} options The owner entity and caller-supplied visibility predicates.
+ * @returns {Effect.Effect<AttachmentMetadata[], DataQueryError>} An effect that reads matching metadata in creation order.
+ */
+export const listAttachments = function listAttachments(
   db: D1Database,
   workspaceId: string,
   options: AttachmentListOptions,
@@ -101,10 +115,10 @@ export function listAttachments(
       [options.entityType, options.entityId],
       options,
     ).all<AttachmentRow>()
-    return (rows.results ?? []).map(toMetadata)
+    return (rows.results ?? []).map((row) => toMetadata(row))
   })
 }
-export function findAttachment(
+export const findAttachment = function findAttachment(
   db: D1Database,
   workspaceId: string,
   id: string,
@@ -116,11 +130,18 @@ export function findAttachment(
   })
 }
 
-/** Callers authorize the issue set first. Every query independently retains workspace and owner scope. */
-export function listIssueReviewTargets(
+/**
+ * Callers authorize the issue set first. Every query independently retains workspace and owner scope.
+ *
+ * @param {D1Database} db The D1 connection used for this query.
+ * @param {string} workspaceId The workspace identifier used in the request.
+ * @param {Readonly<string[]>} issueIds The issue IDs authorized by the caller.
+ * @returns {Effect.Effect<Map<string, ReviewTarget[]>, DataQueryError>} An effect that groups the selected review targets by issue ID.
+ */
+export const listIssueReviewTargets = function listIssueReviewTargets(
   db: D1Database,
   workspaceId: string,
-  issueIds: readonly string[],
+  issueIds: Readonly<string[]>,
 ): Effect.Effect<Map<string, ReviewTarget[]>, DataQueryError> {
   return queryEffect('listIssueReviewTargets', async () => {
     const targets = new Map<string, ReviewTarget[]>()
@@ -136,12 +157,12 @@ export function listIssueReviewTargets(
       ORDER BY CASE WHEN a.review_status = 'in_review' THEN 0 ELSE 1 END, a.created_at ASC, a.id ASC`)
         .bind(workspaceId, ...batch)
         .all<{ entity_id: string } & ReviewTarget>()
-      for (const row of rows.results ?? []) {
-        const target = Schema.decodeUnknownSync(ReviewTargetSchema)(row)
+      Iterable.forEach(rows.results ?? [], (row) => {
+        const target = Result.getOrThrow(decodeReviewTarget(row))
         const issueTargets = targets.get(row.entity_id) ?? []
         issueTargets.push(target)
         targets.set(row.entity_id, issueTargets)
-      }
+      })
     }
     return targets
   })

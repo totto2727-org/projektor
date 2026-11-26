@@ -1,9 +1,7 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import {
   createFeedbackSource,
   getFeedbackSource,
@@ -11,76 +9,76 @@ import {
   revokeFeedbackSource,
   rotateFeedbackSourceToken,
   updateFeedbackSource,
-} from '../services/feedback-sources'
-import { ctxFromHono } from '../services/types'
+} from '#api/services/feedback-sources.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
+import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const feedbackSourcesRouter = new Hono<HonoEnv>()
 
-router.post('/:id/feedback-sources', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const raw = await jsonBody(c)
+feedbackSourcesRouter.post('/:id/feedback-sources', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const raw = await jsonBody(httpContext)
   try {
-    return c.json(await createFeedbackSource(ctx, { ...raw, projectId }), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await createFeedbackSource(ctx, { ...raw, projectId }), HTTP_CREATED)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.get('/:id/feedback-sources', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
+feedbackSourcesRouter.get('/:id/feedback-sources', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
   try {
-    return c.json(await listFeedbackSources(ctx, { projectId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listFeedbackSources(ctx, { projectId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:id/feedback-sources/:sourceId', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const sourceId = c.req.param('sourceId')
-  const raw = await jsonBody(c)
+feedbackSourcesRouter.patch('/:id/feedback-sources/:sourceId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const sourceId = httpContext.req.param('sourceId')
+  const raw = await jsonBody(httpContext)
   try {
-    return c.json(await updateFeedbackSource(ctx, { ...raw, projectId, sourceId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateFeedbackSource(ctx, { ...raw, projectId, sourceId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:id/feedback-sources/:sourceId/rotate', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const sourceId = c.req.param('sourceId')
+feedbackSourcesRouter.post('/:id/feedback-sources/:sourceId/rotate', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const sourceId = httpContext.req.param('sourceId')
   try {
-    return c.json(await rotateFeedbackSourceToken(ctx, { projectId, sourceId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await rotateFeedbackSourceToken(ctx, { projectId, sourceId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:id/feedback-sources/:sourceId', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.param('id')
-  const sourceId = c.req.param('sourceId')
+feedbackSourcesRouter.delete('/:id/feedback-sources/:sourceId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.param('id')
+  const sourceId = httpContext.req.param('sourceId')
   try {
-    return c.json(await revokeFeedbackSource(ctx, { projectId, sourceId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await revokeFeedbackSource(ctx, { projectId, sourceId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-const lookupRouter = new Hono<HonoEnv>()
+export const feedbackSourceLookupRouter = new Hono<HonoEnv>()
 
-lookupRouter.get('/:sourceId', async (c) => {
-  const ctx = ctxFromHono(c)
-  const sourceId = c.req.param('sourceId')
+feedbackSourceLookupRouter.get('/:sourceId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const sourceId = httpContext.req.param('sourceId')
   try {
-    return c.json(await getFeedbackSource(ctx, { sourceId }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await getFeedbackSource(ctx, { sourceId }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { lookupRouter as feedbackSourceLookupRouter, router as feedbackSourcesRouter }

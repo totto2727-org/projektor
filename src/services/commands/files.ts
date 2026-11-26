@@ -1,7 +1,7 @@
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
-import * as attachmentData from '#services/files'
-
+import { BYTES_PER_GIBIBYTE, BYTES_PER_MEBIBYTE, MAX_UPLOAD_SIZE } from '#contracts/file-limits.ts'
 import {
   CreateLinkAttachmentSchema,
   DeleteAttachmentSchema,
@@ -9,56 +9,71 @@ import {
   ListAttachmentsSchema,
   RecordFileUploadSchema,
   SetAttachmentReviewStatusSchema,
-} from '../../contracts/inputs/files'
-import type { ReviewStatus } from '../../contracts/review-targets'
-import { wikiPagePath } from '../../contracts/urls'
-import { assertIssueAccess, canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access'
+} from '#contracts/inputs/files.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { wikiPagePath } from '#contracts/urls.ts'
+import * as attachmentData from '#services/files.ts'
+
+import { assertIssueAccess, canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access.ts'
 import {
   ForbiddenError,
   NotFoundError,
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from './errors'
-import type { ServiceCtx } from './types'
-import * as wikiService from './wiki'
+} from './errors.ts'
+import type { ServiceCtx } from './types.ts'
+import * as wikiService from './wiki.ts'
 
-// PROJ-425: attachments never checked ctx.role at all — a viewer could create/delete
-// them. Mirrors comments.ts's flat viewer guard rather than wiki.ts's per-project
-// requireWikiWrite: attachment entityIds aren't required to reference an existing
-// issue/wiki page row (they're free-floating metadata keyed by entity_type/entity_id),
-// so resolving a project to check per-project role isn't possible in general.
-function requireAttachmentWrite(ctx: ServiceCtx): void {
-  if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+/*
+ * PROJ-425: attachments never checked ctx.role at all — a viewer could create/delete
+ * them. Mirrors comments.ts's flat viewer guard rather than wiki.ts's per-project
+ * requireWikiWrite: attachment entityIds aren't required to reference an existing
+ * issue/wiki page row (they're free-floating metadata keyed by entity_type/entity_id),
+ * so resolving a project to check per-project role isn't possible in general.
+ */
+const requireAttachmentWrite = function requireAttachmentWrite(ctx: ServiceCtx): void {
+  if (ctx.role === 'viewer') {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 }
 
-// PROJ-639: nothing resolved an attachment to the project it hangs off, so project
-// visibility was never consulted on any attachment path. Workspace membership alone got
-// you the filename, size and *bytes* of every attachment in the workspace, including
-// those on issues and wiki pages in projects you hold no grant on.
-//
-// entity_id is deliberately not a foreign key (see requireAttachmentWrite), so it can
-// reference a row that does not exist. The guard is therefore "no resolvable owning row
-// is invisible" rather than "the owning row is visible": an unresolvable entity_id has no
-// project and so nothing to authorise, and stays workspace-scoped exactly as before.
-// Inverting that — requiring a visible owner — would make every free-floating attachment
-// vanish from its own uploader's view. Wiki pages with a null project_id are
-// workspace-level and visible to every member.
-//
-// Queries applying this must alias `attachments` as `a`. Returns null for workspace
-// owner/admin, who see every project.
-function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] } | null {
+/*
+ * PROJ-639: nothing resolved an attachment to the project it hangs off, so project
+ * visibility was never consulted on any attachment path. Workspace membership alone got
+ * you the filename, size and *bytes* of every attachment in the workspace, including
+ * those on issues and wiki pages in projects you hold no grant on.
+ *
+ * entity_id is deliberately not a foreign key (see requireAttachmentWrite), so it can
+ * reference a row that does not exist. The guard is therefore "no resolvable owning row
+ * is invisible" rather than "the owning row is visible": an unresolvable entity_id has no
+ * project and so nothing to authorise, and stays workspace-scoped exactly as before.
+ * Inverting that — requiring a visible owner — would make every free-floating attachment
+ * vanish from its own uploader's view. Wiki pages with a null project_id are
+ * workspace-level and visible to every member.
+ *
+ * Queries applying this must alias `attachments` as `a`. Returns null for workspace
+ * owner/admin, who see every project.
+ */
+const ownerVisibleFilter = function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] } | null {
   const issue = visibleProjectSqlFragment(ctx, 'i.project_id')
   const page = visibleProjectSqlFragment(ctx, 'p.project_id')
-  if (!issue || !page) return null
-  return {
-    sql: `NOT EXISTS (SELECT 1 FROM issues i
+  if (!issue || !page) {
+    return null
+  }
+  return fieldsInOrder([
+    [
+      'sql',
+      `NOT EXISTS (SELECT 1 FROM issues i
 		        WHERE a.entity_type = 'issue' AND i.id = a.entity_id AND NOT ${issue.sql})
 		      AND NOT EXISTS (SELECT 1 FROM wiki_pages p
 		        WHERE a.entity_type = 'wiki_page' AND p.id = a.entity_id
 		          AND p.project_id IS NOT NULL AND NOT ${page.sql})`,
-    params: [...issue.params, ...page.params],
-  }
+    ],
+    ['params', [...issue.params, ...page.params] satisfies unknown[]],
+  ])
 }
 
 /**
@@ -68,8 +83,12 @@ function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] }
  * attachment on an issue in a project you were never granted is the write-side half of
  * the same hole. An entity_id that resolves to nothing is left to the flat
  * `requireAttachmentWrite` guard, for the reason given above.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {'issue' | 'wiki_page'} entityType The kind of row that owns the attachment.
+ * @param {string} entityId The ID of the attachment's owning row.
  */
-async function assertEntityWritable(
+const assertEntityWritable = async function assertEntityWritable(
   ctx: ServiceCtx,
   entityType: 'issue' | 'wiki_page',
   entityId: string,
@@ -105,10 +124,12 @@ export interface AttachmentDto {
 // SVG is intentionally excluded (script execution risk).
 export const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
-export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024 // 50 MB
+export { MAX_UPLOAD_SIZE } from '#contracts/file-limits.ts'
 
-// file.type is supplied by the client and can be spoofed; this allowlist prevents accidental
-// or casual abuse but is not a hard security boundary on its own.
+/*
+ * File.type is supplied by the client and can be spoofed; this allowlist prevents accidental
+ * or casual abuse but is not a hard security boundary on its own.
+ */
 const ALLOWED_UPLOAD_TYPES = new Set([
   'image/png',
   'image/jpeg',
@@ -123,32 +144,42 @@ const ALLOWED_UPLOAD_TYPES = new Set([
   'application/json',
 ])
 
-function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
-  return {
-    id: r.id,
-    kind: r.kind,
-    filename: r.filename,
-    contentType: r.contentType,
-    size: r.size,
-    url: r.url,
-    createdAt: r.createdAt,
-    reviewStatus: r.reviewStatus,
-    wikiPage: r.wikiPage
-      ? { id: r.wikiPage.id, title: r.wikiPage.title, url: wikiPagePath(r.wikiPage.slug ?? '') }
-      : null,
-  }
+const toDto = function toDto(row: attachmentData.AttachmentMetadata): AttachmentDto {
+  return fieldsInOrder([
+    ['id', row.id],
+    ['kind', row.kind],
+    ['filename', row.filename],
+    ['contentType', row.contentType],
+    ['size', row.size],
+    ['url', row.url],
+    ['createdAt', row.createdAt],
+    ['reviewStatus', row.reviewStatus],
+    [
+      'wikiPage',
+      row.wikiPage
+        ? { id: row.wikiPage.id, title: row.wikiPage.title, url: wikiPagePath(row.wikiPage.slug ?? '') }
+        : null,
+    ],
+  ])
 }
 
-export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto[]> {
+export const listAttachments = async function listAttachments(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<AttachmentDto[]> {
   const parsed = ListAttachmentsSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { entityType, entityId } = parsed.data
 
-  // PROJ-311/PROJ-407: only join in wiki page details the caller is actually allowed to
-  // see (workspace-level pages, or project-scoped pages they have a grant on). A row
-  // referencing a page outside the caller's visibility joins to nothing, same as a
-  // deleted page — the row still lists as an unavailable wiki_ref rather than leaking
-  // the restricted page's title.
+  /*
+   * PROJ-311/PROJ-407: only join in wiki page details the caller is actually allowed to
+   * see (workspace-level pages, or project-scoped pages they have a grant on). A row
+   * referencing a page outside the caller's visibility joins to nothing, same as a
+   * deleted page — the row still lists as an unavailable wiki_ref rather than leaking
+   * the restricted page's title.
+   */
   const visible = visibleProjectSqlFragment(ctx, 'w.project_id')
   const owner = ownerVisibleFilter(ctx)
   const rows = await Effect.runPromise(
@@ -159,13 +190,24 @@ export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<
       ownerVisibility: owner,
     }),
   )
-  return rows.map(toDto)
+  return rows.map((row) => toDto(row))
 }
 
-/** Review selection requires a real writable issue in an active project, unlike legacy free-floating attachments. */
-export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+/**
+ * Review selection requires a real writable issue in an active project, unlike legacy free-floating attachments.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The issue ID, attachment ID and requested review status.
+ * @returns {Promise<{ok: true}>} A success marker after updating the attachment.
+ */
+export const setAttachmentReviewStatus = async function setAttachmentReviewStatus(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: true }> {
   const parsed = SetAttachmentReviewStatusSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { issueId, attachmentId, status } = parsed.data
   await assertIssueAccess(ctx, issueId, 'edit')
   const updated = await ctx.db
@@ -179,28 +221,34 @@ export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown)
     RETURNING id`)
     .bind(status, attachmentId, ctx.workspaceId, issueId)
     .first<{ id: string }>()
-  if (!updated) throw new NotFoundError('Review target not found')
+  if (!updated) {
+    throw new NotFoundError('Review target not found')
+  }
   return { ok: true }
 }
 
-export async function createLinkAttachment(
+export const createLinkAttachment = async function createLinkAttachment(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ id: string; kind: 'wiki_ref' | 'url' }> {
   const parsed = CreateLinkAttachmentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
-  const data = parsed.data
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
+  const { data } = parsed
 
   await assertEntityWritable(ctx, data.entityType, data.entityId)
 
   if (data.kind === 'wiki_ref') {
-    // PROJ-311: getWikiPage enforces project-grant visibility, not just existence —
-    // a page in a project the caller can't see 404s the same as a nonexistent one.
+    /*
+     * PROJ-311: getWikiPage enforces project-grant visibility, not just existence —
+     * a page in a project the caller can't see 404s the same as a nonexistent one.
+     */
     await wikiService.getWikiPage(ctx, data.wikiPageId)
   }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await ctx.db
     .prepare(
@@ -226,16 +274,19 @@ export async function createLinkAttachment(
   return { id, kind: data.kind }
 }
 
-// Resolve the per-workspace storage quota from env (STORAGE_QUOTA_BYTES), falling
-// back to the default for unset/invalid/non-positive values.
-const DEFAULT_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024 // 1 GiB per workspace
+/*
+ * Resolve the per-workspace storage quota from env (STORAGE_QUOTA_BYTES), falling
+ * back to the default for unset/invalid/non-positive values.
+ */
+// 1 GiB per workspace
+const DEFAULT_STORAGE_QUOTA_BYTES = BYTES_PER_GIBIBYTE
 
-export function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {
-  const n = Number(env.STORAGE_QUOTA_BYTES)
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_STORAGE_QUOTA_BYTES
+export const storageQuotaBytes = function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {
+  const quota = Number(env.STORAGE_QUOTA_BYTES)
+  return Number.isFinite(quota) && quota > 0 ? quota : DEFAULT_STORAGE_QUOTA_BYTES
 }
 
-async function workspaceStorageUsageBytes(ctx: ServiceCtx): Promise<number> {
+const workspaceStorageUsageBytes = async function workspaceStorageUsageBytes(ctx: ServiceCtx): Promise<number> {
   const row = await ctx.db
     .prepare('SELECT COALESCE(SUM(size), 0) AS total FROM attachments WHERE workspace_id = ?')
     .bind(ctx.workspaceId)
@@ -243,8 +294,13 @@ async function workspaceStorageUsageBytes(ctx: ServiceCtx): Promise<number> {
   return row?.total ?? 0
 }
 
-/** Validates size/type/quota for a would-be upload; throws the matching typed error. */
-export async function assertUploadAllowed(
+/**
+ * Validates size/type/quota for a would-be upload; throws the matching typed error.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Readonly<{size: number, contentType: string, quotaBytes?: number}>} params The file size, media type and optional byte quota.
+ */
+export const assertUploadAllowed = async function assertUploadAllowed(
   ctx: ServiceCtx,
   params: Readonly<{ size: number; contentType: string; quotaBytes?: number }>,
 ): Promise<void> {
@@ -258,13 +314,20 @@ export async function assertUploadAllowed(
   const quota = params.quotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES
   const bytesUsed = await workspaceStorageUsageBytes(ctx)
   if (bytesUsed + params.size > quota) {
-    const quotaMb = Math.round(quota / (1024 * 1024))
+    const quotaMb = Math.round(quota / BYTES_PER_MEBIBYTE)
     throw new PayloadTooLargeError(`Workspace storage quota exceeded (${quotaMb} MB)`)
   }
 }
 
-/** The shared command owns R2 bytes and compensates if metadata recording fails. */
-export async function uploadStoredAttachment(
+/**
+ * The shared command owns R2 bytes and compensates if metadata recording fails.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {Readonly<{file: File, entityType: 'issue' | 'wiki_page', entityId: string}>} input The file and its owning entity.
+ * @param {number} [quotaBytes] The workspace's configured storage quota in bytes.
+ * @returns {Promise<{id: string, filename: string, contentType: string, size: number}>} The saved file's public metadata.
+ */
+export const uploadStoredAttachment = async function uploadStoredAttachment(
   ctx: ServiceCtx,
   input: Readonly<{ file: File; entityType: 'issue' | 'wiki_page'; entityId: string }>,
   quotaBytes?: number,
@@ -288,7 +351,12 @@ export async function uploadStoredAttachment(
       },
       quotaBytes,
     )
-    return { id, filename: file.name, contentType, size: file.size }
+    return fieldsInOrder([
+      ['id', id],
+      ['filename', file.name],
+      ['contentType', contentType],
+      ['size', file.size],
+    ])
   } catch (error) {
     try {
       await ctx.r2.delete(r2Key)
@@ -299,36 +367,65 @@ export async function uploadStoredAttachment(
   }
 }
 
-/** Fully consume the object so callers do not retain an R2 handle across response delivery. */
-export async function getStoredAttachment(
+/**
+ * Fully consume the object so callers do not retain an R2 handle across response delivery.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} id The attachment ID in the caller's workspace.
+ * @returns {Promise<{body: ArrayBuffer, filename: string, contentType: string} | null>} The file bytes and metadata, or null when the stored object is missing.
+ */
+export const getStoredAttachment = async function getStoredAttachment(
   ctx: ServiceCtx,
   id: string,
 ): Promise<{ body: ArrayBuffer; filename: string; contentType: string } | null> {
   const metadata = await getAttachmentForDownload(ctx, id)
   const object = await ctx.r2.get(metadata.r2Key)
-  if (!object) return null
-  return { body: await object.arrayBuffer(), filename: metadata.filename, contentType: metadata.contentType }
+  if (!object) {
+    return null
+  }
+  return fieldsInOrder([
+    ['body', await object.arrayBuffer()],
+    ['filename', metadata.filename],
+    ['contentType', metadata.contentType],
+  ])
 }
 
-/** The shared deletion owns both storage and metadata cleanup. */
-export async function deleteStoredAttachment(ctx: ServiceCtx, id: string): Promise<void> {
+/**
+ * The shared deletion owns both storage and metadata cleanup.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} id The attachment ID in the caller's workspace.
+ */
+export const deleteStoredAttachment = async function deleteStoredAttachment(
+  ctx: ServiceCtx,
+  id: string,
+): Promise<void> {
   await deleteAttachment(ctx, { id })
 }
 
-/** Records metadata for a file already written to R2 by the shared upload command. */
+/**
+ * Records metadata for a file already written to R2 by the shared upload command.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The metadata of the file already stored in R2.
+ * @param {number} [quotaBytes] The quota to enforce on the final database write.
+ * @returns {Promise<{id: string}>} The recorded attachment ID.
+ */
 export async function recordUpload(
   ctx: ServiceCtx,
   input: unknown,
   quotaBytes = DEFAULT_STORAGE_QUOTA_BYTES,
 ): Promise<{ id: string }> {
   const parsed = RecordFileUploadSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { entityType, entityId, filename, contentType, size, r2Key } = parsed.data
 
   await assertEntityWritable(ctx, entityType, entityId)
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   // This final write, not the advisory preflight, serializes concurrent quota decisions.
   // A losing upload is compensated by uploadStoredAttachment before its error escapes.
@@ -357,13 +454,21 @@ export async function recordUpload(
     )
     .first<{ id: string }>()
   if (!recorded) {
-    throw new PayloadTooLargeError(`Workspace storage quota exceeded (${Math.round(quotaBytes / (1024 * 1024))} MB)`)
+    throw new PayloadTooLargeError(
+      `Workspace storage quota exceeded (${Math.round(quotaBytes / BYTES_PER_MEBIBYTE)} MB)`,
+    )
   }
 
   return { id }
 }
 
-/** Authorized metadata used by the shared R2 download command. */
+/**
+ * Authorized metadata used by the shared R2 download command.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {string} id The attachment ID in the caller's workspace.
+ * @returns {Promise<{r2Key: string, filename: string, contentType: string}>} The authorized storage key and response metadata.
+ */
 export async function getAttachmentForDownload(
   ctx: ServiceCtx,
   id: string,
@@ -378,14 +483,28 @@ export async function getAttachmentForDownload(
     .bind(id, ctx.workspaceId, ...(owner ? owner.params : []))
     .first<{ r2_key: string; filename: string; content_type: string }>()
 
-  if (!row) throw new NotFoundError('Not found')
-  return { r2Key: row.r2_key, filename: row.filename, contentType: row.content_type }
+  if (!row) {
+    throw new NotFoundError('Not found')
+  }
+  return fieldsInOrder([
+    ['r2Key', row.r2_key],
+    ['filename', row.filename],
+    ['contentType', row.content_type],
+  ])
 }
 
-/** Attachment metadata in the same shape `listAttachments` returns, for the MCP get_attachment tool. */
-export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto> {
+/**
+ * Attachment metadata in the same shape `listAttachments` returns, for the MCP get_attachment tool.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The request containing the attachment ID.
+ * @returns {Promise<AttachmentDto>} The visible attachment's metadata.
+ */
+export const getAttachment = async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto> {
   const parsed = GetAttachmentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
 
   const visible = visibleProjectSqlFragment(ctx, 'w.project_id')
   const owner = ownerVisibleFilter(ctx)
@@ -396,14 +515,24 @@ export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<At
     }),
   )
 
-  if (!row) throw new NotFoundError('Not found')
+  if (!row) {
+    throw new NotFoundError('Not found')
+  }
   return toDto(row)
 }
 
-/** Deletes bytes before metadata so a storage failure retains the authorized retry key. */
+/**
+ * Deletes bytes before metadata so a storage failure retains the authorized retry key.
+ *
+ * @param {ServiceCtx} ctx The caller and workspace database.
+ * @param {unknown} input The request containing the attachment ID.
+ * @returns {Promise<{r2Key: string}>} The storage key from the deleted attachment metadata.
+ */
 export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise<{ r2Key: string }> {
   const parsed = DeleteAttachmentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
 
   const owner = ownerVisibleFilter(ctx)
 
@@ -415,9 +544,13 @@ export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise
     .bind(parsed.data.id, ctx.workspaceId, ...(owner ? owner.params : []))
     .first<{ r2_key: string; entity_type: 'issue' | 'wiki_page'; entity_id: string }>()
 
-  if (!row) throw new NotFoundError('Not found')
+  if (!row) {
+    throw new NotFoundError('Not found')
+  }
   await assertEntityWritable(ctx, row.entity_type, row.entity_id)
-  if (row.r2_key) await ctx.r2.delete(row.r2_key)
+  if (row.r2_key) {
+    await ctx.r2.delete(row.r2_key)
+  }
 
   await ctx.db
     .prepare('DELETE FROM attachments WHERE id = ? AND workspace_id = ?')

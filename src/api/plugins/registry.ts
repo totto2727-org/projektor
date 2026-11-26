@@ -1,30 +1,29 @@
+import type { MCPTool } from '#api/mcp/types.ts'
 import type { Plugin as DomainPlugin } from '#types'
-
-import type { MCPTool } from '../mcp/types'
 
 type Plugin = Omit<DomainPlugin, 'mcpTools'> & { mcpTools?: MCPTool[] }
 
 class PluginRegistry {
   private plugins = new Map<string, Plugin>()
-  // workspaceId -> Set of pluginIds
+  // Workspace IDs map to sets of plugin IDs
   private workspacePlugins = new Map<string, Set<string>>()
 
-  register(plugin: Plugin) {
+  public register(plugin: Plugin): void {
     this.plugins.set(plugin.id, plugin)
   }
 
-  enableForWorkspace(workspaceId: string, pluginId: string) {
+  public enableForWorkspace(workspaceId: string, pluginId: string): void {
     const set = this.workspacePlugins.get(workspaceId) ?? new Set()
     set.add(pluginId)
     this.workspacePlugins.set(workspaceId, set)
   }
 
-  getToolsForWorkspace(workspaceId: string): MCPTool[] {
+  public getToolsForWorkspace(workspaceId: string): MCPTool[] {
     const ids = this.workspacePlugins.get(workspaceId) ?? new Set()
     return [...ids].flatMap((id) => this.plugins.get(id)?.mcpTools ?? [])
   }
 
-  getAll(): Plugin[] {
+  public getAll(): Plugin[] {
     return [...this.plugins.values()]
   }
 }

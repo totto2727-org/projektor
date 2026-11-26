@@ -1,9 +1,7 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import {
   addGroupMember,
   createGroup,
@@ -15,101 +13,108 @@ import {
   removeGroupMember,
   setGroupGrant,
   updateGroup,
-} from '../services/groups'
-import { ctxFromHono } from '../services/types'
+} from '#api/services/groups.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
+import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const groupsRouter = new Hono<HonoEnv>()
 
-router.get('/:slug/groups', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.get('/:slug/groups', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await listGroups(ctx))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listGroups(ctx))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:slug/groups', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.post('/:slug/groups', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await createGroup(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await createGroup(ctx, await jsonBody(httpContext)), HTTP_CREATED)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
 // Per-member group membership for the members-admin screen. Registered before
 // /:slug/groups/:groupId so "member-groups" isn't captured as a group id.
-router.get('/:slug/member-groups', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.get('/:slug/member-groups', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await listMemberGroups(ctx))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listMemberGroups(ctx))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.get('/:slug/groups/:groupId', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.get('/:slug/groups/:groupId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await getGroup(ctx, c.req.param('groupId')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await getGroup(ctx, httpContext.req.param('groupId')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:slug/groups/:groupId', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.patch('/:slug/groups/:groupId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await updateGroup(ctx, c.req.param('groupId'), await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateGroup(ctx, httpContext.req.param('groupId'), await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:slug/groups/:groupId', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.delete('/:slug/groups/:groupId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await deleteGroup(ctx, c.req.param('groupId')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await deleteGroup(ctx, httpContext.req.param('groupId')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/:slug/groups/:groupId/members', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.post('/:slug/groups/:groupId/members', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await addGroupMember(ctx, c.req.param('groupId'), await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(
+      await addGroupMember(ctx, httpContext.req.param('groupId'), await jsonBody(httpContext)),
+      HTTP_CREATED,
+    )
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:slug/groups/:groupId/members/:userId', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.delete('/:slug/groups/:groupId/members/:userId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await removeGroupMember(ctx, c.req.param('groupId'), c.req.param('userId')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(
+      await removeGroupMember(ctx, httpContext.req.param('groupId'), httpContext.req.param('userId')),
+    )
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.put('/:slug/groups/:groupId/grants', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.put('/:slug/groups/:groupId/grants', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await setGroupGrant(ctx, c.req.param('groupId'), await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await setGroupGrant(ctx, httpContext.req.param('groupId'), await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:slug/groups/:groupId/grants/:projectId', async (c) => {
-  const ctx = ctxFromHono(c)
+groupsRouter.delete('/:slug/groups/:groupId/grants/:projectId', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await removeGroupGrant(ctx, c.req.param('groupId'), c.req.param('projectId')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(
+      await removeGroupGrant(ctx, httpContext.req.param('groupId'), httpContext.req.param('projectId')),
+    )
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as groupsRouter }

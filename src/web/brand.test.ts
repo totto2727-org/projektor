@@ -1,15 +1,15 @@
-import { Effect } from 'effect'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { Iterable } from 'effect'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand'
-import type { RequestScope } from './server'
-import { testEnvironment } from './server/test/resources'
-import { createTestDatabase } from './test/database'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
+
+import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand.ts'
+import type { RequestScope } from './server/server-context.ts'
+import { testEnvironment } from './server/test/resources.ts'
+import { createTestDatabase } from './test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
 const workspace = { id: 'w', slug: 'beta', name: 'Beta', role: 'owner' as const }
 const request = new Request('https://front.example/?workspace=beta')
 const scope: RequestScope = {
@@ -18,7 +18,7 @@ const scope: RequestScope = {
   projects: [],
   selection: { kind: 'workspace', workspace },
 }
-function fixture() {
+const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite
@@ -39,8 +39,14 @@ function fixture() {
 }
 
 describe('server-rendered native brand', () => {
-  it('normalizes deployment bindings and derives a Unicode mark', () => {
-    expect(deploymentBrand({})).toEqual(defaultBrand)
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
+  test('normalizes deployment bindings and derives a Unicode mark', () => {
+    expect(deploymentBrand({})).toStrictEqual(defaultBrand)
     expect(
       deploymentBrand({
         BRAND_NAME: '  🐳 Team  ',
@@ -48,57 +54,61 @@ describe('server-rendered native brand', () => {
         BRAND_ON_ACCENT: ' ',
         BRAND_LOGO_URL: ' /logo.svg ',
       }),
-    ).toEqual({ name: '🐳 Team', mark: '🐳', accent: '#123456', onAccent: null, logoUrl: '/logo.svg' })
+    ).toStrictEqual({ accent: '#123456', logoUrl: '/logo.svg', mark: '🐳', name: '🐳 Team', onAccent: JSON_NULL })
     expect(deploymentBrand({ BRAND_NAME: 'Deploy', BRAND_MARK: '  xyz ' }).mark).toBe('x')
   })
 
-  it('layers only the explicitly resolved workspace over deployment bindings', async () => {
+  test('layers only the explicitly resolved workspace over deployment bindings', async () => {
     const { env } = fixture()
-    const brand = await Effect.runPromise(loadBrand(env, scope, request))
-    expect(brand).toEqual({
-      name: 'Beta',
-      mark: 'B',
+    const brand = await runTestEffect(loadBrand(env, scope, request))
+    expect(brand).toStrictEqual({
       accent: '#123456',
-      onAccent: '#ffffff',
       logoUrl: '/api/workspaces/beta/brand/logo',
+      mark: 'B',
+      name: 'Beta',
+      onAccent: '#ffffff',
     })
-    expect(brandStyles(brand)).toEqual({
-      '--light-accent': '#123456',
+    expect(brandStyles(brand)).toStrictEqual({
       '--dark-accent': '#123456',
-      '--light-on-accent': '#ffffff',
       '--dark-on-accent': '#ffffff',
+      '--light-accent': '#123456',
+      '--light-on-accent': '#ffffff',
     })
   })
 
-  it('does not look up a tenant on global or public pages', async () => {
+  test('does not look up a tenant on global or public pages', async () => {
     const { env, database } = fixture()
     database.sqlite.exec('DROP TABLE workspaces')
-    expect(await Effect.runPromise(loadBrand(env, null))).toEqual(deploymentBrand(env))
-    expect(await Effect.runPromise(loadBrand(env, { ...scope, selection: { kind: 'global' } }))).toEqual(
+    await expect(runTestEffect(loadBrand(env, null))).resolves.toStrictEqual(deploymentBrand(env))
+    await expect(runTestEffect(loadBrand(env, { ...scope, selection: { kind: 'global' } }))).resolves.toStrictEqual(
       deploymentBrand(env),
     )
   })
 
-  it('does not apply branding from unverified membership or mismatched workspace slug', async () => {
+  test('does not apply branding from unverified membership or mismatched workspace slug', async () => {
     const { env } = fixture()
-    expect(await Effect.runPromise(loadBrand(env, { ...scope, workspaces: [] }))).toEqual(deploymentBrand(env))
-    expect(
-      await Effect.runPromise(loadBrand(env, { ...scope, workspaces: [{ ...workspace, slug: 'other' }] })),
-    ).toEqual(deploymentBrand(env))
+    await expect(runTestEffect(loadBrand(env, { ...scope, workspaces: [] }))).resolves.toStrictEqual(
+      deploymentBrand(env),
+    )
+    await expect(
+      runTestEffect(loadBrand(env, { ...scope, workspaces: [{ ...workspace, slug: 'other' }] })),
+    ).resolves.toStrictEqual(deploymentBrand(env))
   })
 
-  it('keeps cosmetic database failures optional', async () => {
+  test('keeps cosmetic database failures optional', async () => {
     const { env, database } = fixture()
     database.sqlite.exec('DROP TABLE workspaces')
-    expect(await Effect.runPromise(loadBrand(env, scope, request))).toEqual(deploymentBrand(env))
+    await expect(runTestEffect(loadBrand(env, scope, request))).resolves.toStrictEqual(deploymentBrand(env))
   })
 
-  it('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
+  test('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
     const { env, database } = fixture()
-    expect((await Effect.runPromise(loadBrand(env, scope, request))).name).toBe('Beta')
+    const result = await runTestEffect(loadBrand(env, scope, request))
+    expect(result.name).toBe('Beta')
     database.sqlite
       .prepare('UPDATE workspaces SET brand = ? WHERE id = ?')
       .run(JSON.stringify({ displayName: 'Changed' }), 'w')
-    expect((await Effect.runPromise(loadBrand(env, scope, request))).name).toBe('Changed')
+    const resolvedValue = await runTestEffect(loadBrand(env, scope, request))
+    expect(resolvedValue.name).toBe('Changed')
   })
 })

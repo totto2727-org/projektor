@@ -1,1 +1,1 @@
-export * from '../../../contracts/web-schemas/feedback'
+export * from '#contracts/web-schemas/feedback.ts'

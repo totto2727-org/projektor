@@ -3,12 +3,13 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import { WorkerEntrypoint } from 'cloudflare:workers'
-import { Effect, Exit } from 'effect'
+import { Iterable, Predicate, Effect, Exit } from 'effect'
 
-import { isCoreEnvironment, type CoreEnvironment, type CoreEnvironmentSource } from '../../src/core/environment'
-import { makeCoreHandlersWithEnvironment } from '../../src/core/worker'
-import { resetAuthCachesForTests } from '../../src/services/authentication'
-import { Core as CoreIdentity } from '../../src/workers/identities'
+import { isCoreEnvironment } from '#core/environment.ts'
+import type { CoreEnvironment, CoreEnvironmentSource } from '#core/environment.ts'
+import { makeCoreHandlersWithEnvironment } from '#core/worker.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { Core as CoreIdentity } from '#worker-identities'
 
 // Test-only composition uses the same named domain handlers and official bridge.
 // Loopback props must be resolved during invocation, not from the SDK's shared build.
@@ -20,30 +21,58 @@ const fixtureEnvironmentSource: CoreEnvironmentSource = Effect.gen(function* () 
     ...resolved,
     invocation: { waitUntil: (promise: Promise<unknown>) => context.raw.waitUntil(promise) },
   }
-  if (!isCoreEnvironment(environment)) return yield* Effect.die(new Error('Invalid native fixture bindings'))
+  if (!isCoreEnvironment(environment)) {
+    return yield* Effect.die(new Error('Invalid native fixture bindings'))
+  }
   return instrumentEnvironment(environment, context.raw.props)
 })
 
 const fixtureRequest = new AsyncLocalStorage<unknown>()
 const nativeFetch = globalThis.fetch
-// Installed once in this test-only artifact. Async-local invocation settings,
-// rather than mutable global policy, select a fixture for the real HTTP client.
+
+const configuration = function configuration(props: unknown): Record<string, string | undefined> {
+  if (!Predicate.isObject(props)) {
+    throw new Error('Invalid native fixture configuration')
+  }
+  const result: Record<string, string | undefined> = {}
+  Iterable.forEach(Object.entries(props), ([key, value]) => {
+    if (value !== null && !Predicate.isString(value)) {
+      throw new Error(`Invalid fixture configuration: ${key}`)
+    }
+    if (key === 'FIXTURE_LIMITER_MODE') {
+      return
+    }
+    if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) {
+      return
+    }
+    result[key] = value ?? undefined
+  })
+  return result
+}
+/*
+ * Installed once in this test-only artifact. Async-local invocation settings,
+ * rather than mutable global policy, select a fixture for the real HTTP client.
+ */
 globalThis.fetch = async (input, init) => {
   const props = fixtureRequest.getStore()
   const settings = configuration(props ?? {})
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const url = Predicate.isString(input) ? input : input instanceof URL ? input.href : input.url
   if (
     url === `https://${settings.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs` &&
     (settings.FIXTURE_JWKS_BODY !== undefined || settings.FIXTURE_JWKS_MODE !== undefined)
   ) {
     observationFor(props).jwksFetches.push(url)
-    if (settings.FIXTURE_JWKS_MODE === 'reject') throw new Error('Fixture JWKS transport unavailable')
+    if (settings.FIXTURE_JWKS_MODE === 'reject') {
+      throw new Error('Fixture JWKS transport unavailable')
+    }
     return new Response(settings.FIXTURE_JWKS_BODY, { headers: { 'Content-Type': 'application/json' } })
   }
   return nativeFetch(input, init)
 }
 
-function withFixtureRequest<A, E>(effect: Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext>) {
+const withFixtureRequest = function withFixtureRequest<A, E>(
+  effect: Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext>,
+): Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext> {
   return Effect.gen(function* () {
     const env = yield* WorkerEnvironment
     const context = yield* WorkerExecutionContext
@@ -70,7 +99,9 @@ const FixtureCoreLive = CoreIdentity.make(
         new Proxy(handlers, {
           get(target, key, receiver): unknown {
             const method: unknown = Reflect.get(target, key, receiver)
-            if (key === 'fetch' || typeof method !== 'function') return method
+            if (key === 'fetch' || !Predicate.isFunction(method)) {
+              return method
+            }
             return (...args: unknown[]) => {
               const invocation = Reflect.apply(method, target, args) as Effect.Effect<
                 unknown,
@@ -95,16 +126,14 @@ const FixtureCore = makeWorkerBridge(WorkerEntrypoint, {
   stack: { name: 'projektor-native', stage: 'test' },
 })
 
-export interface FixtureStatement {
-  readonly sql: string
-  readonly params: unknown[]
-}
+export type FixtureStatement = Readonly<{ sql: string; params: unknown[] }>
 
-export interface FixtureQuery extends FixtureStatement {
-  readonly method: 'all' | 'run' | 'first' | 'raw'
-  readonly column?: string
-  readonly options?: { readonly columnNames?: boolean }
-}
+export type FixtureQuery = FixtureStatement &
+  Readonly<{
+    method: 'all' | 'run' | 'first' | 'raw'
+    column?: string
+    options?: Readonly<{ columnNames?: boolean }>
+  }>
 
 export type FixtureConfiguration = Readonly<Record<string, string | null>>
 
@@ -141,63 +170,74 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
   const observation = observationFor(props)
   const settings = configuration(props ?? {})
   const rejectDelete = settings.FIXTURE_CACHE_DELETE_MODE === 'reject'
-  const matches = (name: string, prefix: string | undefined) =>
-    prefix !== undefined && (name === prefix || name.startsWith(`${prefix}:`))
+  const matches = (name: string, prefix: string | undefined): boolean =>
+    Predicate.isNotNullish(prefix) && (name === prefix || name.startsWith(`${prefix}:`))
   return {
     ...env,
     KV: new Proxy(env.KV, {
       get(target, key): unknown {
-        if (key === 'get')
+        if (key === 'get') {
           return (...args: unknown[]) => {
             const name = args[0]
-            if (typeof name === 'string') {
+            if (Predicate.isString(name)) {
               observation.authCacheGets.push(name)
-              if (matches(name, settings.FIXTURE_AUTH_KV_GET_FAILURE))
+              if (matches(name, settings.FIXTURE_AUTH_KV_GET_FAILURE)) {
                 return Promise.reject(new Error('Fixture auth KV read unavailable'))
+              }
             }
             const get: unknown = Reflect.get(target, 'get')
-            if (typeof get !== 'function') throw new Error('Missing native KV get')
+            if (!Predicate.isFunction(get)) {
+              throw new Error('Missing native KV get')
+            }
             return Reflect.apply(get, target, args)
           }
-        if (key === 'put')
+        }
+        if (key === 'put') {
           return (...args: Parameters<typeof target.put>) => {
             observation.authCachePuts.push(args[0])
-            if (matches(args[0], settings.FIXTURE_AUTH_KV_PUT_FAILURE))
+            if (matches(args[0], settings.FIXTURE_AUTH_KV_PUT_FAILURE)) {
               return Promise.reject(new Error('Fixture auth KV write unavailable'))
+            }
             return target.put(...args)
           }
-        if (key === 'delete')
+        }
+        if (key === 'delete') {
           return async (name: string) => {
             observation.cacheDeletes.push(name)
-            if (rejectDelete) throw new Error('10048: your account has reached the free usage limit')
+            if (rejectDelete) {
+              throw new Error('10048: your account has reached the free usage limit')
+            }
             return target.delete(name)
           }
+        }
         const value: unknown = Reflect.get(target, key)
-        return typeof value === 'function' ? value.bind(target) : value
+        return Predicate.isFunction(value) ? value.bind(target) : value
       },
     }),
     WORKSPACE_HUB:
       env.WORKSPACE_HUB &&
       new Proxy(env.WORKSPACE_HUB, {
         get(target, key): unknown {
-          if (key === 'get')
+          if (key === 'get') {
             return (...args: Parameters<typeof target.get>) => {
               const stub = target.get(...args)
               return new Proxy(stub, {
                 get(inner, member): unknown {
-                  if (member === 'fetch')
+                  if (member === 'fetch') {
                     return async (...fetchArgs: Parameters<typeof inner.fetch>) => {
                       const request = new Request(...fetchArgs)
                       observation.broadcasts.push({ url: request.url, body: await request.clone().text() })
                       return inner.fetch(request)
                     }
+                  }
                   const value: unknown = Reflect.get(inner, member)
-                  return typeof value === 'function' ? value.bind(inner) : value
+                  return Predicate.isFunction(value) ? value.bind(inner) : value
                 },
               })
             }
+          }
           const value: unknown = Reflect.get(target, key)
-          return typeof value === 'function' ? value.bind(target) : value
+          return Predicate.isFunction(value) ? value.bind(target) : value
         },
       }),
   }
@@ -205,9 +245,14 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
 
 const fixtureLimiterCalls = new Map<string, number>()
 
-function fixtureLimiterNamespace(epoch: string, mode: 'reject' | 'hang'): NonNullable<CoreEnvironment['RATE_LIMITER']> {
-  // Only the native test artifact injects failures. The real Core policy still
-  // runs, and this counter observes each actual attempt from that policy.
+const fixtureLimiterNamespace = function fixtureLimiterNamespace(
+  epoch: string,
+  mode: 'reject' | 'hang',
+): NonNullable<CoreEnvironment['RATE_LIMITER']> {
+  /*
+   * Only the native test artifact injects failures. The real Core policy still
+   * runs, and this counter observes each actual attempt from that policy.
+   */
   return {
     idFromName: (name: string) => name,
     get: () => ({
@@ -221,21 +266,7 @@ function fixtureLimiterNamespace(epoch: string, mode: 'reject' | 'hang'): NonNul
   } as unknown as NonNullable<CoreEnvironment['RATE_LIMITER']>
 }
 
-function configuration(props: unknown): Record<string, string | undefined> {
-  if (props === null || typeof props !== 'object' || Array.isArray(props)) {
-    throw new Error('Invalid native fixture configuration')
-  }
-  const result: Record<string, string | undefined> = {}
-  for (const [key, value] of Object.entries(props)) {
-    if (value !== null && typeof value !== 'string') throw new Error(`Invalid fixture configuration: ${key}`)
-    if (key === 'FIXTURE_LIMITER_MODE') continue
-    if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) continue
-    result[key] = value === null ? undefined : value
-  }
-  return result
-}
-
-function objectMetadata(object: R2Object) {
+const objectMetadata = function objectMetadata(object: R2Object) {
   return {
     key: object.key,
     version: object.version,
@@ -258,41 +289,46 @@ function objectMetadata(object: R2Object) {
 }
 
 /** Only this native-test artifact exports fixture storage operations, never production Core. */
+// oxlint-disable-next-line import/no-default-export -- Workerd loads the native test Core service class from the default export.
 export default class NativeFixtureCore extends FixtureCore {
-  declare readonly env: CoreEnvironment
-  fixtureEnvironment() {
+  declare public readonly env: CoreEnvironment
+  public fixtureEnvironment() {
     return {
-      database: typeof this.env.DB.prepare === 'function',
-      cache: typeof this.env.KV.get === 'function',
-      files: typeof this.env.R2.get === 'function',
+      database: Predicate.isFunction(this.env.DB.prepare),
+      cache: Predicate.isFunction(this.env.KV.get),
+      files: Predicate.isFunction(this.env.R2.get),
       devEmail: this.env.DEV_USER_EMAIL ?? null,
       brandName: this.env.BRAND_NAME ?? null,
     }
   }
 
-  async fixtureD1(query: FixtureQuery): Promise<unknown> {
+  public async fixtureD1(query: FixtureQuery): Promise<unknown> {
     const statement = this.env.DB.prepare(query.sql).bind(...query.params)
     switch (query.method) {
-      case 'all':
+      case 'all': {
         return statement.all()
-      case 'run':
+      }
+      case 'run': {
         return statement.run()
-      case 'first':
-        return query.column === undefined ? statement.first() : statement.first(query.column)
-      case 'raw':
-        return query.options?.columnNames ? statement.raw({ columnNames: true }) : statement.raw()
+      }
+      case 'first': {
+        return Predicate.isNullish(query.column) ? statement.first() : statement.first(query.column)
+      }
+      case 'raw': {
+        return query.options?.columnNames === true ? statement.raw({ columnNames: true }) : statement.raw()
+      }
     }
   }
 
-  async fixtureD1Batch(statements: readonly FixtureStatement[]): Promise<D1Result[]> {
+  public async fixtureD1Batch(statements: Readonly<FixtureStatement[]>): Promise<D1Result[]> {
     return this.env.DB.batch(statements.map(({ sql, params }) => this.env.DB.prepare(sql).bind(...params)))
   }
 
-  async fixtureD1Exec(sql: string): Promise<D1ExecResult> {
+  public async fixtureD1Exec(sql: string): Promise<D1ExecResult> {
     return this.env.DB.exec(sql)
   }
 
-  async fixtureKV(
+  public async fixtureKV(
     namespace: 'KV' | 'OAUTH_KV',
     method: 'get' | 'getWithMetadata' | 'put' | 'delete' | 'list',
     args: unknown[],
@@ -301,34 +337,43 @@ export default class NativeFixtureCore extends FixtureCore {
     return Reflect.apply(kv[method], kv, args)
   }
 
-  async fixtureR2(method: 'get' | 'head' | 'put' | 'delete' | 'list', args: unknown[]): Promise<unknown> {
+  public async fixtureR2(method: 'get' | 'head' | 'put' | 'delete' | 'list', args: unknown[]): Promise<unknown> {
     const bucket = this.env.R2
-    if (method === 'delete') return Reflect.apply(bucket[method], bucket, args)
+    if (method === 'delete') {
+      return Reflect.apply(bucket[method], bucket, args)
+    }
     if (method === 'list') {
       const listed: R2Objects = await Reflect.apply(bucket[method], bucket, args)
       return { ...listed, objects: listed.objects.map(objectMetadata) }
     }
     const object: R2Object | R2ObjectBody | null = await Reflect.apply(bucket[method], bucket, args)
-    if (!object) return null
+    if (!object) {
+      return null
+    }
     return {
       ...objectMetadata(object),
       ...('body' in object ? { body: object.body, bodyUsed: object.bodyUsed } : {}),
     }
   }
 
-  /** A native loopback binding keeps fixture policy request-local, without a custom RPC codec. */
-  fixtureSession(settings: FixtureConfiguration) {
+  /**
+   * A native loopback binding keeps fixture policy request-local, without a custom RPC codec.
+   *
+   * @param {FixtureConfiguration} settings The storage and policy settings isolated to this fixture session.
+   * @returns {Fetcher} The native session binding configured with the supplied settings.
+   */
+  public fixtureSession(settings: FixtureConfiguration) {
     const exports = this.ctx.exports as unknown as {
       Session: (options: { props: FixtureConfiguration }) => Fetcher
     }
     return exports.Session({ props: settings })
   }
 
-  fixtureResetAuthCaches(): void {
+  public fixtureResetAuthCaches(): void {
     resetAuthCachesForTests()
   }
 
-  fixtureObservations(epoch: string): FixtureObservations {
+  public fixtureObservations(epoch: string): FixtureObservations {
     return (
       observations.get(epoch) ?? {
         authenticateCalls: 0,
@@ -341,11 +386,11 @@ export default class NativeFixtureCore extends FixtureCore {
     )
   }
 
-  fixtureResetObservations(epoch: string): void {
+  public fixtureResetObservations(epoch: string): void {
     observations.delete(epoch)
   }
 
-  fixtureLimiterCalls(epoch: string): number {
+  public fixtureLimiterCalls(epoch: string): number {
     return fixtureLimiterCalls.get(epoch) ?? 0
   }
 }
@@ -353,12 +398,10 @@ export default class NativeFixtureCore extends FixtureCore {
 function resolveFixtureEnvironment(props: unknown, env: object) {
   const settings = configuration(props ?? {})
   const mode: unknown =
-    typeof props === 'object' && props !== null && 'FIXTURE_LIMITER_MODE' in props
-      ? props.FIXTURE_LIMITER_MODE
-      : undefined
+    Predicate.isObjectOrArray(props) && 'FIXTURE_LIMITER_MODE' in props ? props.FIXTURE_LIMITER_MODE : undefined
   if (
     mode !== undefined &&
-    mode !== null &&
+    Predicate.isNotNullish(mode) &&
     mode !== 'native' &&
     mode !== 'absent' &&
     mode !== 'reject' &&
@@ -380,9 +423,11 @@ function resolveFixtureEnvironment(props: unknown, env: object) {
 
 /** Same official bridge and handlers, with invocation-local fixture settings. */
 export class Session extends NativeFixtureCore {
-  constructor(context: ExecutionContext, env: CoreEnvironment) {
+  public constructor(context: ExecutionContext, env: CoreEnvironment) {
     const resolved = resolveFixtureEnvironment(context.props, env)
-    if (!isCoreEnvironment(resolved)) throw new Error('Invalid native fixture bindings')
+    if (!isCoreEnvironment(resolved)) {
+      throw new Error('Invalid native fixture bindings')
+    }
     super(context, resolved)
   }
 }

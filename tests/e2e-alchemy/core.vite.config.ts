@@ -3,19 +3,29 @@ import { fileURLToPath } from 'node:url'
 
 import cloudflare from '@alchemy.run/cloudflare-runtime/vite'
 import { readD1Migrations } from '@cloudflare/vitest-plugin'
-import { defineConfig, type UserConfig } from 'vite-plus'
+import { defineConfig } from 'vite-plus'
+import type { UserConfig } from 'vite-plus'
 
-import { deployment } from '../../worker-graph'
-import { coreWorkerOptions } from './api-host'
+import { deployment } from '#worker-graph'
 
-/** Compile official-parser migration records into the acceptance-only Core artifact. */
-export async function makeCoreFixtureConfig(main: string, outDir: string): Promise<UserConfig> {
-  const migrations = (await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))).map(
-    (migration) => ({
-      ...migration,
-      hash: createHash('sha256').update(JSON.stringify(migration.queries)).digest('hex'),
-    }),
-  )
+import { coreWorkerOptions } from './api-host.ts'
+
+/**
+ * Compile official-parser migration records into the acceptance-only Core artifact.
+ *
+ * @param {string} main - The path to the Core fixture entry module.
+ * @param {string} outDir - The output directory for the Core fixture build.
+ * @returns {Promise<UserConfig>} The Vite configuration for the Core fixture build.
+ */
+export const makeCoreFixtureConfig = async function makeCoreFixtureConfig(
+  main: string,
+  outDir: string,
+): Promise<UserConfig> {
+  const migrationsResult = await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))
+  const migrations = migrationsResult.map((migration) => ({
+    ...migration,
+    hash: createHash('sha256').update(JSON.stringify(migration.queries)).digest('hex'),
+  }))
   return {
     root: fileURLToPath(new URL('.', import.meta.url)),
     publicDir: false,
@@ -44,7 +54,10 @@ export async function makeCoreFixtureConfig(main: string, outDir: string): Promi
   }
 }
 
+// oxlint-disable-next-line import/no-default-export -- Vite loads the Core build configuration from the default export.
 export default defineConfig(async (environment) => {
-  if (environment.isPreview) throw new Error('Core runs only inside the single three-Worker acceptance preview.')
+  if (environment.isPreview === true) {
+    throw new Error('Core runs only inside the single three-Worker acceptance preview.')
+  }
   return makeCoreFixtureConfig('./core.worker.ts', 'core-dist')
 })

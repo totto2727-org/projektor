@@ -37,7 +37,7 @@ export interface ProjectListOptions {
  */
 export interface ProjectSummaryVisibility {
   sql: string
-  bindings: readonly string[]
+  bindings: Readonly<string[]>
 }
 
 export interface WorkspaceMembership {

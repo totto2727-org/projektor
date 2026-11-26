@@ -1,11 +1,11 @@
 import { ALCHEMY_DEV, ALCHEMY_PHASE, RemovalPolicy } from 'alchemy'
 import { AdoptPolicy, adopt } from 'alchemy/AdoptPolicy'
 import * as Cloudflare from 'alchemy/Cloudflare'
-import { type Worker, type WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
+import type { Worker, WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import * as Output from 'alchemy/Output'
 import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
 
-import { deployment } from './worker-graph'
+import { deployment } from './worker-graph.ts'
 
 export const localDevelopment = {
   userEmail: 'dev@projektor.local',
@@ -20,7 +20,7 @@ const commonApplicationEnvironment = {
   AUTO_JOIN_ROLE: 'none',
 }
 
-export const rateLimiterReference = () =>
+export const rateLimiterReference = (): Cloudflare.DurableObjectLike<unknown> =>
   Cloudflare.DurableObject('RateLimiter', {
     className: 'RateLimiter',
     // Preserve the deployed namespace without a Core -> Api -> Core resource cycle.
@@ -34,13 +34,13 @@ export const LocalDatabase = Cloudflare.D1.Database('LocalDatabase', {
 
 export class DeploymentEnvironment extends Context.Service<
   DeploymentEnvironment,
-  {
-    readonly apiEnv: WorkerBindingProps
-    readonly frontendEnv: WorkerBindingProps
-    readonly coreEnv: WorkerBindingProps
-    readonly bindApi: (api: Worker) => Effect.Effect<void>
-    readonly bindCore: (core: Worker) => Effect.Effect<void>
-  }
+  Readonly<{
+    apiEnv: WorkerBindingProps
+    frontendEnv: WorkerBindingProps
+    coreEnv: WorkerBindingProps
+    bindApi: (api: Worker) => Effect.Effect<void>
+    bindCore: (core: Worker) => Effect.Effect<void>
+  }>
 >()('projektor/DeploymentEnvironment') {}
 
 /** Development storage is registered once, with only protocol OAuth KV shared with API. */
@@ -92,9 +92,9 @@ export const ProductionLayer = Layer.mergeAll(
       const secretEnv: WorkerBindingProps = Option.isSome(secret) ? { JWT_SECRET: secret.value } : {}
       const sharedEnvironment = {
         ...commonApplicationEnvironment,
-        // databaseId is stable and resolves before migrations. This nonstable output
-        // gates every Worker on completed D1 reconciliation, even with unchanged Core.
-        ENVIRONMENT: Output.map(database.migrationsHashes, () => 'production'),
+        /* The databaseId value is stable and resolves before migrations. This nonstable output
+         * gates every Worker on completed D1 reconciliation, even with unchanged Core. */
+        ENVIRONMENT: Output.map(() => 'production')(database.migrationsHashes),
         ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
       }
       return {
@@ -112,7 +112,7 @@ export const ProductionLayer = Layer.mergeAll(
             lifecycleRules: [
               {
                 id: 'Default Multipart Abort Rule',
-                abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604800 } },
+                abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604_800 } },
               },
             ],
           }),
@@ -150,8 +150,10 @@ export type EnvironmentLayer = Layer.Layer<
 
 export const DeploymentLayer = Layer.unwrap(
   Effect.gen(function* () {
-    const layer: EnvironmentLayer =
-      (yield* ALCHEMY_PHASE) === 'runtime' ? RuntimeLayer : (yield* ALCHEMY_DEV) ? LocalLayer : ProductionLayer
+    if ((yield* ALCHEMY_PHASE) === 'runtime') {
+      return RuntimeLayer
+    }
+    const layer: EnvironmentLayer = (yield* ALCHEMY_DEV) ? LocalLayer : ProductionLayer
     return layer
   }),
 )

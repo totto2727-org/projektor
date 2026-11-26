@@ -7,6 +7,10 @@
 公式の設定変換を適用した比較では、生成コンポーネントの JSX 構造・クラス文字列・処理に、それ以外の差分は検出されなかった。
 ツールチェーン更新後の `chart.tsx` には、型付き lint が要求する文字列補間3箇所の `String(...)` 明示化だけが追加されている。
 これは従来の文字列補間と同じ変換であり、色・構造・Chart の処理を差し替える製品固有の変更ではない。
+共有 lint preset への移行では、生成 UI 23 ファイルの公開名を保ち、宣言側でのエクスポートと戻り値の型を明示した。Input、Label、Skeleton、Textarea は競合する関数形式ルールに対して宣言行の例外を使う。呼び出し元からの DOM 属性やイベントの転送、Base UI Input のクラス指定にも、該当する属性行に理由を記載した。Label は `htmlFor` と子要素を明示的に渡し、フォームコントロールとの関連付けを保つ。 Checkbox と Separator にも宣言行と属性行だけの例外を使い、Base UI に既存のスタイル、状態、属性、イベントを転送する。
+他の生成コンポーネントには、関数式を求める一般ルールと関数宣言を求める React ルールが競合する箇所がある。該当行に限って React の形式ルールを例外とし、既存の関数式を維持する。
+Chart、Select、Sidebar にある名前付きコンポーネントの関数宣言にも同じ競合がある。該当する宣言行で一般ルールを例外とし、レジストリ由来の JavaScript を維持する。
+Chart、Dialog、DropdownMenu、Select、Sheet、Sidebar、Tooltip は、既存の JSX を描画関数に切り出して共有 preset の深さ制限に合わせた。関数を展開した出力を比較し、要素、属性、子要素の順序の一致を確認した。Tooltip の Arrow は同じ属性に局所例外を適用する。
 見た目や既存画面との互換性の調整は、主に生成物の外側のテーマ、ラッパー、画面構成に置いている。
 「アプリの表示が公式デモと同じ」という意味ではない。
 
@@ -40,10 +44,10 @@
 | `checkbox`, `dialog`, `dropdown-menu`, `empty`, `field`                | `cn` の import 接続のみ                                                             |
 | `input`, `label`, `popover`, `select`, `separator`                     | `cn` の import 接続のみ                                                             |
 | `sheet`, `sidebar`, `skeleton`, `table`, `tabs`, `textarea`, `tooltip` | `cn` の import 接続のみ                                                             |
-| `chart`                                                                | 独自ロジック変更なし。`cn` パッケージを直接 import。文字列補間3箇所の lint 対応のみ |
+| `chart`                                                                | 独自ロジック変更なし。`cn` パッケージを直接 import。型付き lint と JSX の深さに対応 |
 | `generated.test`                                                       | 公式生成物ではない。アプリの SSR、フォーム、クラス結合、設定の統合テスト            |
 
-生成 hook は [`src/web/hooks/use-mobile.ts`](src/web/hooks/use-mobile.ts) の **1 ファイル**で、768px の判定と `matchMedia` の購読を含めて公式結果と一致する。
+生成 hook は [`src/web/hooks/use-mobile.ts`](src/web/hooks/use-mobile.ts) の **1 ファイル**。共有 lint preset に合わせて型とグローバル参照を明示し、768px の判定、`matchMedia` の購読、初回描画後の幅の同期は公式実装の動作を維持している。
 UI と hook を合わせた公式由来ソースは **24 ファイル**、独自テストを含めた対象総数は **25 ファイル**。
 
 ### 残すべき import 接続
@@ -55,15 +59,15 @@ UI と hook を合わせた公式由来ソースは **24 ファイル**、独自
 
 ## 生成物の外側で維持する調整
 
-| 所在                                              | プロジェクト側の責務                                                                                                                                                                                                                                                 |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/web/styles/shadcn.css`                       | Tailwind/shadcn の基盤に既存テーマを接続。dark variant に `.dark` と `[data-theme="dark"]` の両方を認識させ、`--font-sans` を既存 font token に、heading を sans に接続                                                                                              |
-| 同 CSS の色接続                                   | `--background` → `--bg`、foreground → `--text`、card/popover/secondary/muted → `--surface`、primary/ring/sidebar-primary → `--accent`、destructive → `--danger-text`、sidebar → `--nav-bg` 等。`--color-accent` は `--secondary` に接続して製品の強調色 token と分離 |
-| `src/web/styles/app.css`, `tokens.css`            | `shadcn.css` → `tokens.css` → `global.css` の import 順、IBM Plex Sans、製品の明暗色、ページ gutter、端まで広がる ProjectNav、Wiki の内側 padding を維持                                                                                                             |
-| `src/web/components/Shell.tsx`, `ProjectNav.tsx`  | 生成 Sidebar/Tabs 等の組み合わせ、製品ナビゲーション、テーマの border token による区切り                                                                                                                                                                             |
-| `src/web/features/planning/flow-charts.tsx`       | 公式 Chart を使う7種類の Recharts 構成。Throughput、CFD、Bug share、Review latency、WIP、Arrival vs completion、Aging WIP を提供。ラベル、token 色、UTC 日付、duration/percent、空状態はアプリが指定                                                                 |
-| `src/web/features/projects/ProjectFlowCharts.tsx` | planning と同じ Throughput/CFD を再利用し、Overview と Metrics の描画・生の件数の意味を共有                                                                                                                                                                          |
-| Wiki の Markdown 境界                             | Comark の動的 Markdown、安全性、全幅 table と描画境界内の overflow は画面側の責務。生成 `table.tsx` の改変ではない                                                                                                                                                   |
+| 所在                                                | プロジェクト側の責務                                                                                                                                                                                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/web/styles/shadcn.css`                         | Tailwind/shadcn の基盤に既存テーマを接続。dark variant に `.dark` と `[data-theme="dark"]` の両方を認識させ、`--font-sans` を既存 font token に、heading を sans に接続                                                                                              |
+| 同 CSS の色接続                                     | `--background` → `--bg`、foreground → `--text`、card/popover/secondary/muted → `--surface`、primary/ring/sidebar-primary → `--accent`、destructive → `--danger-text`、sidebar → `--nav-bg` 等。`--color-accent` は `--secondary` に接続して製品の強調色 token と分離 |
+| `src/web/styles/app.css`, `tokens.css`              | `shadcn.css` → `tokens.css` → `global.css` の import 順、IBM Plex Sans、製品の明暗色、ページ gutter、端まで広がる ProjectNav、Wiki の内側 padding を維持                                                                                                             |
+| `src/web/components/shell.tsx`, `ProjectNav.tsx`    | 生成 Sidebar/Tabs 等の組み合わせ、製品ナビゲーション、テーマの border token による区切り                                                                                                                                                                             |
+| `src/web/features/planning/flow-charts.tsx`         | 公式 Chart を使う7種類の Recharts 構成。Throughput、CFD、Bug share、Review latency、WIP、Arrival vs completion、Aging WIP を提供。ラベル、token 色、UTC 日付、duration/percent、空状態はアプリが指定                                                                 |
+| `src/web/features/projects/project-flow-charts.tsx` | planning と同じ Throughput/CFD を再利用し、Overview と Metrics の描画・生の件数の意味を共有                                                                                                                                                                          |
+| Wiki の Markdown 境界                               | Comark の動的 Markdown、安全性、全幅 table と描画境界内の overflow は画面側の責務。生成 `table.tsx` の改変ではない                                                                                                                                                   |
 
 CSS はローカルの接続コードを読んで責務を分類したもので、過去の公式初期化 CSS との完全一致を証明したものではない。
 Chart の公式 `THEMES` は `.dark` のままであるが、現在のアプリは色を `var(--accent)`、`var(--text-muted)`、`var(--chart-seq-*)` 等として渡している。
@@ -77,15 +81,15 @@ WIP は数値の time 軸、Aging WIP は ID 由来の安定した jitter と p5
 `src/web/components/ui/` には **10 ソース + `adapters.test.tsx`** がある。
 これらは公式レジストリの生成対象ではなく、既存 API を維持するアプリコード。
 
-| ラッパー                      | 維持する振る舞い                                                                                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Button.tsx`                  | `primary`/`danger` を公式 variant に変換。`class`、anchor/span、既定 `type="button"` を維持                                                                                           |
-| `Badge.tsx`, `Card.tsx`       | outline badge と呼び出し側の色、カードの padding・リンク・hover を構成                                                                                                                |
-| `Dialog.tsx`                  | `open`/`onClose`、隠し title、内容の高さ・幅・scroll を構成。modal 制御は Base UI                                                                                                     |
-| `Field.tsx`, `Input.tsx`      | label/help/error/required、`class` と `inputRef` を公式部品へ接続。Input ファイルは Textarea も提供                                                                                   |
-| `Select.tsx`                  | options/value/onChange を接続し、表示 label・整列・大文字化を構成。独自 dropdown state は持たない                                                                                     |
-| `Table.tsx`, `EmptyState.tsx` | 既存名・muted cell・border token、空状態の title/description/action/icon を構成                                                                                                       |
-| `Popover.tsx`                 | 座標指定と caller 管理の表示状態を維持。生成 root と Base UI の Portal/Positioner/Popup を直接組み合わせ、focus の自動移動を無効化。生成 Content が座標 anchor を渡せないための互換層 |
+| ラッパー                       | 維持する振る舞い                                                                                                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `button.tsx`                   | `primary`/`danger` を公式 variant に変換。`class`、anchor/span、既定 `type="button"` を維持                                                                                           |
+| `badge.tsx`, `card.tsx`        | outline badge と呼び出し側の色、カードの padding・リンク・hover を構成                                                                                                                |
+| `dialog.tsx`                   | `open`/`onClose`、隠し title、内容の高さ・幅・scroll を構成。modal 制御は Base UI                                                                                                     |
+| `field.tsx`, `input.tsx`       | label/help/error/required、`class` と `inputRef` を公式部品へ接続。Input ファイルは Textarea も提供                                                                                   |
+| `select.tsx`                   | options/value/onChange を接続し、表示 label・整列・大文字化を構成。独自 dropdown state は持たない                                                                                     |
+| `table.tsx`, `empty-state.tsx` | 既存名・muted cell・border token、空状態の title/description/action/icon を構成                                                                                                       |
+| `popover.tsx`                  | 座標指定と caller 管理の表示状態を維持。生成 root と Base UI の Portal/Positioner/Popup を直接組み合わせ、focus の自動移動を無効化。生成 Content が座標 anchor を渡せないための互換層 |
 
 ## 安全な更新手順
 

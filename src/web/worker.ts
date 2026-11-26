@@ -1,26 +1,30 @@
 import { makeApplicationHttpEffect } from '@effront/alchemy/cloudflare/application'
 import { Request as WorkerRequest } from 'alchemy/Cloudflare/Workers'
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 
-import { transferCoreBinary } from './core-binary'
-import type application from './entry.effront'
-import { downloadFile } from './file-download'
-import { RequestServices, RequestServicesLive } from './request'
-import { ScopeError } from './server/errors'
-import { sessionNavigation } from './session-navigation'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 
-function logoResponse(request: Request) {
+import { transferCoreBinary } from './core-binary.ts'
+import type application from './entry.effront'
+import { downloadFile } from './file-download.ts'
+import { RequestServices, RequestServicesLive } from './request.ts'
+import { ScopeError } from './server/errors.ts'
+import { sessionNavigation } from './session-navigation.ts'
+
+const logoResponse = function logoResponse(request: Request) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
-    const pathname = new URL(request.url).pathname
-    const publicLogo = /^\/api\/share\/([^/]+)\/logo$/.exec(pathname)
-    const workspaceLogo = /^\/api\/workspaces\/([^/]+)\/brand\/logo$/.exec(pathname)
-    const value = publicLogo?.[1] ?? workspaceLogo?.[1]
-    if (!value) return yield* new ScopeError(404, 'Not found')
+    const { pathname } = new URL(request.url)
+    const publicLogo = /^\/api\/share\/(?<token>[^/]+)\/logo$/u.exec(pathname)
+    const workspaceLogo = /^\/api\/workspaces\/(?<workspace>[^/]+)\/brand\/logo$/u.exec(pathname)
+    const value = publicLogo?.groups?.token ?? workspaceLogo?.groups?.workspace
+    if (Predicate.isNullish(value) || String.isEmpty(value)) {
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Not found')
+    }
     const selector = yield* Effect.try({
+      catch: () => new ScopeError(HTTP_BAD_REQUEST, 'Invalid logo address.'),
       try: () => decodeURIComponent(value),
-      catch: () => new ScopeError(400, 'Invalid logo address.'),
     })
     const path = publicLogo
       ? `/share-logo/${encodeURIComponent(selector)}`
@@ -30,7 +34,7 @@ function logoResponse(request: Request) {
             Effect.flatMap((scope) =>
               scope.selection.kind === 'workspace' || scope.selection.kind === 'project'
                 ? Effect.succeed(`/workspace-logo?workspaceId=${encodeURIComponent(scope.selection.workspace.id)}`)
-                : Effect.fail(new ScopeError(403, 'Selected workspace is not accessible.')),
+                : Effect.fail(new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')),
             ),
           )
     const object = yield* transferCoreBinary(path, { method: request.method })
@@ -39,33 +43,44 @@ function logoResponse(request: Request) {
       'cache-control': 'private, no-store',
       'x-content-type-options': 'nosniff',
     }
-    if (request.method === 'HEAD') return HttpServerResponse.empty({ headers })
+    if (request.method === 'HEAD') {
+      return HttpServerResponse.empty({ headers })
+    }
     return HttpServerResponse.fromWeb(new Response(object.body, { headers }))
   })
 }
 
-/** Runtime behavior lives here, independently of deployment resources and environments. */
+/**
+ * Runtime behavior lives here, independently of deployment resources and environments.
+ *
+ * @returns {ReturnType<typeof makeWebWorker>} An effect that creates the Web fetch handler with session, file, and application routing.
+ */
 export const makeWebWorker = () =>
   Effect.gen(function* () {
     const applicationHttpEffect = yield* makeApplicationHttpEffect<typeof application>()
     const fetch = Effect.gen(function* () {
       const request = yield* WorkerRequest
       const url = new URL(request.url)
-      if (url.pathname === '/auth/session') return yield* sessionNavigation(request)
+      if (url.pathname === '/auth/session') {
+        return yield* sessionNavigation(request)
+      }
       if (url.pathname === '/auth/login') {
-        if (request.method !== 'GET' && request.method !== 'HEAD')
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
           return HttpServerResponse.empty({ status: 405, headers: { allow: 'GET, HEAD' } })
+        }
         const requested = url.searchParams.get('redirect_url') ?? '/'
         const destination = new URL(requested.startsWith('/') ? requested : '/', url.origin)
         const location =
           destination.origin === url.origin ? `${destination.pathname}${destination.search}${destination.hash}` : '/'
         return HttpServerResponse.redirect(location, { status: 302, headers: { 'cache-control': 'private, no-store' } })
       }
-      if (/^\/api\/files\/[^/]+$/.test(url.pathname))
+      if (/^\/api\/files\/[^/]+$/u.test(url.pathname)) {
         return yield* downloadFile(request).pipe(Effect.provide(RequestServicesLive))
-      if (/^\/api\/(?:share\/[^/]+\/logo|workspaces\/[^/]+\/brand\/logo)$/.test(url.pathname)) {
-        if (request.method !== 'GET' && request.method !== 'HEAD')
+      }
+      if (/^\/api\/(?:share\/[^/]+\/logo|workspaces\/[^/]+\/brand\/logo)$/u.test(url.pathname)) {
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
           return HttpServerResponse.empty({ status: 405, headers: { allow: 'GET, HEAD' } })
+        }
         return yield* logoResponse(request).pipe(Effect.provide(RequestServicesLive))
       }
       return yield* applicationHttpEffect

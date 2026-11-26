@@ -1,11 +1,15 @@
 import type { D1Database } from '@cloudflare/workers-types'
-import { type Column, type SQL, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
+import type { Column, SQL } from 'drizzle-orm'
+import { Predicate } from 'effect'
 
+import { ApiError } from '#contracts/errors.ts'
+import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { requireDataWorkspace } from '#contracts/web-data.ts'
 import type { ProjectSummaryVisibility } from '#services'
 
-import { ApiError } from '../../contracts/errors'
-import { requireDataWorkspace } from '../../contracts/web-data'
-import type { RequestScope } from './scope'
+import type { RequestScope, WorkspaceMembership } from './scope.ts'
 
 export {
   authorizeDataEntity,
@@ -14,32 +18,42 @@ export {
   requireBrowserDataRequest,
   requireDataProject,
   requireDataWorkspace,
-} from '../../contracts/web-data'
+} from '#contracts/web-data.ts'
 
-export function projectSummaryVisibility(userId: string): ProjectSummaryVisibility {
-  return {
-    sql: `wm.role IN ('owner','admin') OR EXISTS (
+export const projectSummaryVisibility = function projectSummaryVisibility(userId: string): ProjectSummaryVisibility {
+  return fieldsInOrder([
+    [
+      'sql',
+      `wm.role IN ('owner','admin') OR EXISTS (
       SELECT 1 FROM user_group_members ugm
       JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id
       WHERE ugm.user_id = ? AND gpg.project_id = p.id)`,
-    bindings: [userId],
-  }
+    ],
+    ['bindings', [userId]],
+  ])
 }
 
-export function requireDataDatabase(db: D1Database): D1Database {
-  if (!db || typeof db.prepare !== 'function') {
-    throw new ApiError('configuration', 500, 'The application database is not configured.')
+const hasPrepareMethod = function hasPrepareMethod(value: unknown): boolean {
+  const present = Boolean(value)
+  return present && Predicate.isFunction(Reflect.get(new Object(value), 'prepare', value))
+}
+
+export const requireDataDatabase = function requireDataDatabase(db: D1Database): D1Database {
+  if (!hasPrepareMethod(db)) {
+    throw new ApiError('configuration', HTTP_INTERNAL_SERVER_ERROR, 'The application database is not configured.')
   }
   return db
 }
 
-export function visibleProjectPredicate(
+export const visibleProjectPredicate = function visibleProjectPredicate(
   scope: RequestScope,
   workspaceId: string,
   projectColumn: Column | SQL,
 ): SQL | undefined {
   const workspace = requireDataWorkspace(scope, workspaceId)
-  if (workspace.role === 'owner' || workspace.role === 'admin') return undefined
+  if (workspace.role === 'owner' || workspace.role === 'admin') {
+    return undefined
+  }
   return sql`EXISTS (
     SELECT 1 FROM user_group_members ugm
     JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id
@@ -47,14 +61,30 @@ export function visibleProjectPredicate(
   )`
 }
 
-export function makeDataContext(services: { readonly db: D1Database }, scope: RequestScope, workspaceId?: string) {
+interface DataContext {
+  db: D1Database
+  scope: RequestScope
+  workspace: WorkspaceMembership
+  workspaceId: string
+  userId: string
+  visibility: (projectColumn: Column | SQL) => SQL | undefined
+}
+
+export const makeDataContext = function makeDataContext(
+  services: Readonly<{ db: D1Database }>,
+  scope: RequestScope,
+  workspaceId?: string,
+): DataContext {
   const workspace = requireDataWorkspace(scope, workspaceId)
-  return {
-    db: requireDataDatabase(services.db),
-    scope,
-    workspace,
-    workspaceId: workspace.id,
-    userId: scope.user.id,
-    visibility: (projectColumn: Column | SQL) => visibleProjectPredicate(scope, workspace.id, projectColumn),
-  }
+  return fieldsInOrder([
+    ['db', requireDataDatabase(services.db)],
+    ['scope', scope],
+    ['workspace', workspace],
+    ['workspaceId', workspace.id],
+    ['userId', scope.user.id],
+    [
+      'visibility',
+      (projectColumn: Column | SQL): SQL | undefined => visibleProjectPredicate(scope, workspace.id, projectColumn),
+    ],
+  ])
 }

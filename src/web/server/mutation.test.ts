@@ -1,21 +1,22 @@
-import { Effect } from 'effect'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { assertSameOriginMutation, checkSameOriginMutation } from './mutation'
+import { runTestEffect } from '#tests/run-effect.ts'
+
+import { assertSameOriginMutation, checkSameOriginMutation } from './mutation.ts'
 
 const url = 'https://front.example.test/_effront/mutation'
 
 describe('native browser mutation origin policy', () => {
-  it.each(['POST', 'PUT', 'PATCH', 'DELETE'])('allows explicit same-origin %s requests', async (method) => {
+  test.each(['POST', 'PUT', 'PATCH', 'DELETE'])('allows explicit same-origin %s requests', async (method) => {
     const request = new Request(url, {
       method,
       headers: { origin: 'https://front.example.test', 'sec-fetch-site': 'same-origin' },
     })
     expect(() => assertSameOriginMutation(request)).not.toThrow()
-    await expect(Effect.runPromise(checkSameOriginMutation(request))).resolves.toBeUndefined()
+    await expect(runTestEffect(checkSameOriginMutation(request))).resolves.toBeUndefined()
   })
 
-  it.each([
+  test.each([
     ['missing origin', 'POST', {}],
     ['cross-origin', 'POST', { origin: 'https://evil.example.test' }],
     ['different scheme', 'POST', { origin: 'http://front.example.test' }],
@@ -25,14 +26,14 @@ describe('native browser mutation origin policy', () => {
     ['cross-site fetch metadata', 'POST', { origin: 'https://front.example.test', 'sec-fetch-site': 'cross-site' }],
     ['read method GET', 'GET', { origin: 'https://front.example.test' }],
     ['read method HEAD', 'HEAD', { origin: 'https://front.example.test' }],
-  ] satisfies readonly (readonly [string, string, HeadersInit])[])('rejects %s', async (_label, method, headers) => {
+  ] satisfies Readonly<Readonly<[string, string, HeadersInit]>[]>)('rejects %s', async (_label, method, headers) => {
     const request = new Request(url, { method, headers })
     expect(() => assertSameOriginMutation(request)).toThrow('A same-origin mutation request is required.')
-    await expect(Effect.runPromise(checkSameOriginMutation(request))).rejects.toMatchObject({
+    await expect(runTestEffect(checkSameOriginMutation(request))).rejects.toMatchObject({
       _tag: 'ApiError',
       kind: 'request',
-      status: 403,
       message: 'A same-origin mutation request is required.',
+      status: 403,
     })
   })
 })

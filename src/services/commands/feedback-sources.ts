@@ -1,6 +1,5 @@
-import { Effect } from 'effect'
-
-import * as feedbackQueries from '#services/feedback'
+import { Predicate, Effect, String } from 'effect'
+import { flattenError } from 'zod'
 
 import {
   CreateFeedbackSourceSchema,
@@ -9,10 +8,19 @@ import {
   RevokeFeedbackSourceSchema,
   RotateFeedbackSourceSchema,
   UpdateFeedbackSourceSchema,
-} from '../../contracts/inputs/feedback'
-import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+} from '#contracts/inputs/feedback.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import * as feedbackQueries from '#services/feedback.ts'
+
+import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
+
+const ACTIVE_SOURCE_FLAG = 1
+const INACTIVE_SOURCE_FLAG = 0
+const TOKEN_PREVIEW_LENGTH = 12
 
 export interface FeedbackSourceView {
   id: string
@@ -29,15 +37,13 @@ export interface FeedbackSourceDetailView extends FeedbackSourceView {
   projectId: string
 }
 
-async function sha256hex(input: string): Promise<string> {
+const sha256hex = async function sha256hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-function newRawToken(): string {
-  return `fbk_${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`
+const newRawToken = function newRawToken(): string {
+  return `fbk_${crypto.randomUUID().replaceAll('-', '')}${crypto.randomUUID().replaceAll('-', '')}`
 }
 
 interface SourceRow {
@@ -52,15 +58,21 @@ interface SourceRow {
   revoked_at: number | null
 }
 
-// Resolve a source scoped to the workspace (404 before any role check). Management
-// ops take a sourceId; when projectId is also given (REST routes always pass the
-// URL path's projectId) the source must belong to that project too, so a source
-// from project A can't be mutated via project B's path in the same workspace. MCP
-// tools omit projectId and stay workspace-scoped, matching their existing contract.
-async function requireSource(ctx: ServiceCtx, sourceId: string, projectId?: string): Promise<SourceRow> {
+/*
+ * Resolve a source scoped to the workspace (404 before any role check). Management
+ * ops take a sourceId; when projectId is also given (REST routes always pass the
+ * URL path's projectId) the source must belong to that project too, so a source
+ * from project A can't be mutated via project B's path in the same workspace. MCP
+ * tools omit projectId and stay workspace-scoped, matching their existing contract.
+ */
+const requireSource = async function requireSource(
+  ctx: ServiceCtx,
+  sourceId: string,
+  projectId?: string,
+): Promise<SourceRow> {
   const clauses = ['id = ?', 'workspace_id = ?']
   const binds: unknown[] = [sourceId, ctx.workspaceId]
-  if (projectId !== undefined) {
+  if (Predicate.isNotNullish(projectId)) {
     clauses.push('project_id = ?')
     binds.push(projectId)
   }
@@ -71,22 +83,31 @@ async function requireSource(ctx: ServiceCtx, sourceId: string, projectId?: stri
     )
     .bind(...binds)
     .first<SourceRow>()
-  if (!row) throw new NotFoundError('Feedback source not found')
+  if (!row) {
+    throw new NotFoundError('Feedback source not found')
+  }
   return row
 }
 
-export async function createFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ id: string; token: string }> {
+export const createFeedbackSource = async function createFeedbackSource(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ id: string; token: string }> {
   const parsed = CreateFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { projectId, name, description, allowedOrigins } = parsed.data
 
   await requireProjectInWorkspace(ctx, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 
   const token = newRawToken()
   const tokenHash = await sha256hex(token)
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await ctx.db
     .prepare(
@@ -101,8 +122,8 @@ export async function createFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
       ctx.workspaceId,
       projectId,
       name,
-      description ?? null,
-      allowedOrigins ? JSON.stringify(allowedOrigins) : null,
+      description ?? SQL_NULL,
+      allowedOrigins ? JSON.stringify(allowedOrigins) : SQL_NULL,
       ctx.userId,
       now,
     )
@@ -111,66 +132,91 @@ export async function createFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
   return { id, token }
 }
 
-export async function listFeedbackSources(ctx: ServiceCtx, input: unknown): Promise<FeedbackSourceView[]> {
+export const listFeedbackSources = async function listFeedbackSources(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<FeedbackSourceView[]> {
   const parsed = ListFeedbackSourcesSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { projectId } = parsed.data
 
   await requireProjectInWorkspace(ctx, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 
   const results = await Effect.runPromise(feedbackQueries.listFeedbackSources(ctx.db, ctx.workspaceId, { projectId }))
 
-  return (results ?? []).map((r) => ({
-    id: r.id,
-    name: r.name,
-    description: r.description,
-    isActive: r.is_active === 1,
-    allowedOrigins: r.allowed_origins ? (JSON.parse(r.allowed_origins) as string[]) : null,
-    tokenPreview: `${r.token_hash.slice(0, 12)}…`,
-    createdAt: r.created_at,
-    revokedAt: r.revoked_at,
+  return (results ?? []).map((result) => ({
+    id: result.id,
+    name: result.name,
+    description: result.description,
+    isActive: result.is_active === ACTIVE_SOURCE_FLAG,
+    allowedOrigins: isNonEmptyText(result.allowed_origins) ? (JSON.parse(result.allowed_origins) as string[]) : null,
+    tokenPreview: `${String.takeLeft(result.token_hash, TOKEN_PREVIEW_LENGTH)}…`,
+    createdAt: result.created_at,
+    revokedAt: result.revoked_at,
   }))
 }
 
-export async function getFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<FeedbackSourceDetailView> {
+export const getFeedbackSource = async function getFeedbackSource(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<FeedbackSourceDetailView> {
   const parsed = GetFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
 
   const row = await Effect.runPromise(
     feedbackQueries.findFeedbackSourceById(ctx.db, ctx.workspaceId, parsed.data.sourceId),
   )
-  if (!row) throw new NotFoundError('Feedback source not found')
+  if (!row) {
+    throw new NotFoundError('Feedback source not found')
+  }
   await assertProjectAccess(ctx, row.project_id, 'read', {
     notFoundMessage: 'Feedback source not found',
     projectLoadedFromWorkspaceRow: true,
   })
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
   return {
     id: row.id,
     projectId: row.project_id,
     name: row.name,
     description: row.description,
-    isActive: row.is_active === 1,
-    allowedOrigins: row.allowed_origins ? (JSON.parse(row.allowed_origins) as string[]) : null,
-    tokenPreview: `${row.token_hash.slice(0, 12)}…`,
+    isActive: row.is_active === ACTIVE_SOURCE_FLAG,
+    allowedOrigins: isNonEmptyText(row.allowed_origins) ? (JSON.parse(row.allowed_origins) as string[]) : null,
+    tokenPreview: `${String.takeLeft(row.token_hash, TOKEN_PREVIEW_LENGTH)}…`,
     createdAt: row.created_at,
     revokedAt: row.revoked_at,
   }
 }
 
-export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+export const updateFeedbackSource = async function updateFeedbackSource(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: true }> {
   const parsed = UpdateFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { sourceId, projectId, name, description, isActive } = parsed.data
 
   const source = await requireSource(ctx, sourceId, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
-  if (source.revoked_at !== null) throw new ConflictError('Feedback source is revoked')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
+  if (Predicate.isNotNullish(source.revoked_at)) {
+    throw new ConflictError('Feedback source is revoked')
+  }
 
   const sets: string[] = []
   const binds: unknown[] = []
-  if (name !== undefined) {
+  if (Predicate.isNotNullish(name)) {
     sets.push('name = ?')
     binds.push(name)
   }
@@ -178,9 +224,9 @@ export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
     sets.push('description = ?')
     binds.push(description)
   }
-  if (isActive !== undefined) {
+  if (Predicate.isNotNullish(isActive)) {
     sets.push('is_active = ?')
-    binds.push(isActive ? 1 : 0)
+    binds.push(isActive ? ACTIVE_SOURCE_FLAG : INACTIVE_SOURCE_FLAG)
   }
   binds.push(sourceId, ctx.workspaceId)
 
@@ -192,14 +238,23 @@ export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
   return { ok: true }
 }
 
-export async function rotateFeedbackSourceToken(ctx: ServiceCtx, input: unknown): Promise<{ token: string }> {
+export const rotateFeedbackSourceToken = async function rotateFeedbackSourceToken(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ token: string }> {
   const parsed = RotateFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { sourceId, projectId } = parsed.data
 
   const source = await requireSource(ctx, sourceId, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
-  if (source.revoked_at !== null) throw new ConflictError('Feedback source is revoked')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
+  if (Predicate.isNotNullish(source.revoked_at)) {
+    throw new ConflictError('Feedback source is revoked')
+  }
 
   const token = newRawToken()
   const tokenHash = await sha256hex(token)
@@ -211,15 +266,22 @@ export async function rotateFeedbackSourceToken(ctx: ServiceCtx, input: unknown)
   return { token }
 }
 
-export async function revokeFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+export const revokeFeedbackSource = async function revokeFeedbackSource(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: true }> {
   const parsed = RevokeFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(flattenError(parsed.error))
+  }
   const { sourceId, projectId } = parsed.data
 
   await requireSource(ctx, sourceId, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await ctx.db
     .prepare('UPDATE feedback_sources SET revoked_at = ? WHERE id = ? AND workspace_id = ?')
     .bind(now, sourceId, ctx.workspaceId)

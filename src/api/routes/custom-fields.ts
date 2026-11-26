@@ -1,54 +1,52 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import {
   createCustomFieldDef,
   deleteCustomFieldDef,
   listCustomFieldDefs,
   updateCustomFieldDef,
-} from '../services/custom-fields'
-import { ctxFromHono } from '../services/types'
+} from '#api/services/custom-fields.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
+import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const customFieldsRouter = new Hono<HonoEnv>()
 
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
-  const projectId = c.req.query('projectId')
+customFieldsRouter.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const projectId = httpContext.req.query('projectId')
   try {
-    return c.json(await listCustomFieldDefs(ctx, projectId))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listCustomFieldDefs(ctx, projectId))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/', async (c) => {
-  const ctx = ctxFromHono(c)
+customFieldsRouter.post('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await createCustomFieldDef(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await createCustomFieldDef(ctx, await jsonBody(httpContext)), HTTP_CREATED)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.patch('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+customFieldsRouter.patch('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await updateCustomFieldDef(ctx, c.req.param('id'), await jsonBody(c)))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await updateCustomFieldDef(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.delete('/:id', async (c) => {
-  const ctx = ctxFromHono(c)
+customFieldsRouter.delete('/:id', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await deleteCustomFieldDef(ctx, c.req.param('id')))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await deleteCustomFieldDef(ctx, httpContext.req.param('id')))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as customFieldsRouter }

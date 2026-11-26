@@ -2,18 +2,18 @@ import { asc, eq } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
 
-export function listTaskStatuses(db: D1Database, workspaceId: string) {
+export const listTaskStatuses = function listTaskStatuses(db: D1Database, workspaceId: string) {
   return queryEffect('listTaskStatuses', async () => {
     const rows = await drizzle(db, { schema })
       .select()
       .from(schema.taskStatuses)
       .where(eq(schema.taskStatuses.workspaceId, workspaceId))
       .orderBy(asc(schema.taskStatuses.position), asc(schema.taskStatuses.name))
-    return rows.map(({ isDefault, isReviewStep, workspaceId, ...rest }) => ({
+    return rows.map(({ isDefault, isReviewStep, workspaceId: rowWorkspaceId, ...rest }) => ({
       ...rest,
-      workspace_id: workspaceId,
+      workspace_id: rowWorkspaceId,
       is_default: isDefault,
       is_review_step: isReviewStep,
     }))

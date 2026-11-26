@@ -1,24 +1,21 @@
 import { Hono } from 'hono'
 
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { listIssueLeases } from '#api/services/issue-leases.ts'
+import { ctxFromHono } from '#api/services/types.ts'
 import type { HonoEnv } from '#types'
 
-import { serviceErrToResponse } from '../http/error-adapter'
-import { listIssueLeases } from '../services/issue-leases'
-import { ctxFromHono } from '../services/types'
-
-const router = new Hono<HonoEnv>()
+export const issueLeasesRouter = new Hono<HonoEnv>()
 
 // PROJ-932: workspace-wide REST parity for MCP's list_issue_leases. GET /api/issues/:id/leases
 // (routes/issues.ts) stays as the single-issue view; this is the equivalent of
 // /api/file-claims and /api/agents for leases.
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
-  const { issueId, agentId, projectId, includeStale } = c.req.query()
+issueLeasesRouter.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const { issueId, agentId, projectId, includeStale } = httpContext.req.query()
   try {
-    return c.json(await listIssueLeases(ctx, { issueId, agentId, projectId, includeStale }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listIssueLeases(ctx, { issueId, agentId, projectId, includeStale }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as issueLeasesRouter }

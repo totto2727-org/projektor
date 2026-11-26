@@ -1,27 +1,28 @@
-import { Effect } from 'effect'
+import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { testEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
-import { DEFAULT_BRAND, layerBrand } from './brand'
-import { renderShare as renderShareEffect } from './server'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
+import { testEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-const renderShare = (...args: Parameters<typeof renderShareEffect>) => Effect.runPromise(renderShareEffect(...args))
+import { DEFAULT_BRAND, layerBrand } from './brand.ts'
+import { renderShare as renderShareEffect } from './server.tsx'
+
+const renderShare = (...args: Parameters<typeof renderShareEffect>) => runTestEffect(renderShareEffect(...args))
 const workspaceBrand = {
   displayName: 'Acme',
   accent: '#123456',
   onAccent: '#ffffff',
   fontFamily: 'serif',
   fontUrl: 'https://example.com/fonts.css',
-  logoUrl: null,
+  logoUrl: JSON_NULL,
 }
 const body = '## Details\n\nComplete **SSR body**.\n\n<script>evil()</script>\n\n```mermaid\ngraph TD; A-->B\n```'
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
-async function fixture() {
+const fixture = async function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
@@ -37,22 +38,28 @@ async function fixture() {
   database.sqlite.prepare("UPDATE issues SET body = ? WHERE id = 'issue'").run(body)
   database.sqlite.prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'").run(JSON.stringify(workspaceBrand))
   const token = 'public-token'
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   database.sqlite
     .prepare(
       'INSERT INTO share_tokens (id,issue_id,workspace_id,created_by,expires_at,created_at) VALUES (?,?,?,?,?,?)',
     )
-    .run(hash, 'issue', 'workspace', 'user', Math.floor(Date.now() / 1000) + 86400, 1)
+    .run(hash, 'issue', 'workspace', 'user', currentEpochSeconds() + 86_400, 1)
   return { ...database, token, env: testEnvironment(database.db) }
 }
 describe('public Share SSR', () => {
-  it('reads the public token without browser credentials and renders the exact sanitized DTO and workspace branding', async () => {
-    const test = await fixture()
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
+  test('reads the public token without browser credentials and renders the exact sanitized DTO and workspace branding', async () => {
+    const testFixture = await fixture()
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Public share must not use HTTP'))
     const html = renderToStaticMarkup(
-      await renderShare(test.env, null, new URL('https://app.test/share/view?token=public-token')),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/view?token=public-token')),
     )
     expect(fetch).not.toHaveBeenCalled()
     expect(html).toContain('Complete <strong>SSR body</strong>.')
@@ -66,80 +73,107 @@ describe('public Share SSR', () => {
     expect(html).not.toContain('Private value')
     expect(html).not.toContain('Internal secret')
   })
-  it('does not bootstrap a missing token and renders expired/not-found links', async () => {
-    const test = await fixture()
-    const prepare = vi.spyOn(test.db, 'prepare')
-    const missing = renderToStaticMarkup(await renderShare(test.env, null, new URL('https://app.test/share/view')))
+
+  test('does not bootstrap a missing token and renders expired/not-found links', async () => {
+    const testFixture = await fixture()
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
+    const missing = renderToStaticMarkup(
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/view')),
+    )
     expect(prepare).not.toHaveBeenCalled()
     expect(missing).toContain('Link not found or expired')
-    test.sqlite.exec('UPDATE share_tokens SET expires_at = 1')
+    testFixture.sqlite.exec('UPDATE share_tokens SET expires_at = 1')
     const expired = renderToStaticMarkup(
-      await renderShare(test.env, null, new URL('https://app.test/share/token'), { token: test.token }),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token'), {
+        token: testFixture.token,
+      }),
     )
     expect(expired).toContain('Link not found or expired')
     const unknown = renderToStaticMarkup(
-      await renderShare(test.env, null, new URL('https://app.test/share/unknown'), { token: 'unknown' }),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/unknown'), { token: 'unknown' }),
     )
     expect(unknown).toContain('Link not found or expired')
   })
-  it.each(['archive', 'membership', 'grant', 'issue', 'token'] as const)(
+
+  test.each(['archive', 'membership', 'grant', 'issue', 'token'] as const)(
     'rechecks live token visibility after %s removal',
     async (change) => {
-      const test = await fixture()
-      if (change === 'archive') test.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id = 'project'")
-      if (change === 'membership') test.sqlite.exec('DELETE FROM workspace_members')
-      if (change === 'grant') test.sqlite.exec("UPDATE workspace_members SET role = 'member'")
-      if (change === 'issue') test.sqlite.exec('DELETE FROM issues')
-      if (change === 'token') test.sqlite.exec('DELETE FROM share_tokens')
+      const testFixture = await fixture()
+      if (change === 'archive') {
+        testFixture.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id = 'project'")
+      }
+      if (change === 'membership') {
+        testFixture.sqlite.exec('DELETE FROM workspace_members')
+      }
+      if (change === 'grant') {
+        testFixture.sqlite.exec("UPDATE workspace_members SET role = 'member'")
+      }
+      if (change === 'issue') {
+        testFixture.sqlite.exec('DELETE FROM issues')
+      }
+      if (change === 'token') {
+        testFixture.sqlite.exec('DELETE FROM share_tokens')
+      }
       const html = renderToStaticMarkup(
-        await renderShare(test.env, null, new URL('https://app.test/share/view?token=ignored'), { token: test.token }),
+        await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/view?token=ignored'), {
+          token: testFixture.token,
+        }),
       )
       expect(html).toContain('Link not found or expired')
       expect(html).not.toContain('Public issue')
     },
   )
-  it('preserves typed database failures for the root error boundary without leaking diagnostics', async () => {
-    const test = await fixture()
-    vi.spyOn(test.db, 'prepare').mockImplementationOnce(() => {
+
+  test('preserves typed database failures for the root error boundary without leaking diagnostics', async () => {
+    const testFixture = await fixture()
+    vi.spyOn(testFixture.db, 'prepare').mockImplementationOnce(() => {
       throw new Error('Sensitive driver details')
     })
     await expect(
-      renderShare(test.env, null, new URL('https://app.test/share/token?token=ignored'), { token: test.token }),
-    ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'An unexpected error occurred.' })
+      renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token?token=ignored'), {
+        token: testFixture.token,
+      }),
+    ).rejects.toMatchObject({ kind: 'request', message: 'An unexpected error occurred.', status: 500 })
   })
-  it('layers null workspace fields over native deployment defaults', async () => {
-    expect(layerBrand(DEFAULT_BRAND, { ...workspaceBrand, displayName: null, accent: null, logoUrl: null }).name).toBe(
-      'Projektor',
-    )
-    const test = await fixture()
-    test.sqlite.prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'").run('{}')
+
+  test('layers null workspace fields over native deployment defaults', async () => {
+    expect(
+      layerBrand(DEFAULT_BRAND, { ...workspaceBrand, displayName: JSON_NULL, accent: JSON_NULL, logoUrl: JSON_NULL })
+        .name,
+    ).toBe('Projektor')
+    const testFixture = await fixture()
+    testFixture.sqlite.prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'").run('{}')
     const html = renderToStaticMarkup(
       await renderShare(
-        { ...test.env, BRAND_NAME: 'Custom Deployment', BRAND_ACCENT: '#abcdef' },
-        null,
+        { ...testFixture.env, BRAND_NAME: 'Custom Deployment', BRAND_ACCENT: '#abcdef' },
+        JSON_NULL,
         new URL('https://app.test/share/token'),
-        { token: test.token },
+        { token: testFixture.token },
       ),
     )
     expect(html).toContain('Shared Issue - Custom Deployment')
     expect(html).toContain('--accent:#abcdef')
   })
-  it('keeps token-scoped public logo URLs in the shared DTO rather than private workspace branding paths', async () => {
-    const test = await fixture()
-    test.sqlite
+
+  test('keeps token-scoped public logo URLs in the shared DTO rather than private workspace branding paths', async () => {
+    const testFixture = await fixture()
+    testFixture.sqlite
       .prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'")
       .run(JSON.stringify({ ...workspaceBrand, logoR2Key: 'workspace/workspace/brand/logo.svg' }))
     const html = renderToStaticMarkup(
-      await renderShare(test.env, null, new URL('https://app.test/share/token'), { token: test.token }),
+      await renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token'), {
+        token: testFixture.token,
+      }),
     )
-    expect(html).toContain(`/api/share/${test.token}/logo`)
+    expect(html).toContain(`/api/share/${testFixture.token}/logo`)
     expect(html).not.toContain('/api/workspaces/acme/brand/logo')
   })
-  it('rejects malformed public DTOs with operation-owned decoding', async () => {
-    const test = await fixture()
-    test.sqlite.exec("UPDATE issues SET created_at = 'not-a-number' WHERE id = 'issue'")
+
+  test('rejects malformed public DTOs with operation-owned decoding', async () => {
+    const testFixture = await fixture()
+    testFixture.sqlite.exec("UPDATE issues SET created_at = 'not-a-number' WHERE id = 'issue'")
     await expect(
-      renderShare(test.env, null, new URL('https://app.test/share/token'), { token: test.token }),
-    ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'An unexpected error occurred.' })
+      renderShare(testFixture.env, JSON_NULL, new URL('https://app.test/share/token'), { token: testFixture.token }),
+    ).rejects.toMatchObject({ kind: 'request', message: 'An unexpected error occurred.', status: 500 })
   })
 })

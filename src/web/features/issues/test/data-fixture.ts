@@ -1,16 +1,22 @@
 import { Effect } from 'effect'
 import { vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
+import { makeRequestServices, RequestServices } from '@/request.ts'
+import { testEnvironment } from '@/server/test/resources.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { makeRequestServices, RequestServices } from '../../../request'
-import { testEnvironment } from '../../../server/test/resources'
-import { createTestDatabase } from '../../../test/database'
-import { project, scope, secondProject, workspace } from './fixtures'
+import { project, scope, secondProject, workspace } from './fixtures.ts'
 
-/** Actual migrated relational database and native SQLite FTS5, never a HTTP-shaped read fake. */
-export function issueDataFixture() {
+/**
+ * Actual migrated relational database and native SQLite FTS5, never a HTTP-shaped read fake.
+ *
+ * @returns {ReturnType<typeof issueDataFixture>} The migrated database, issue seed helper, native request services, and invalidation log.
+ */
+export const issueDataFixture = function issueDataFixture() {
   resetAuthCachesForTests()
   resetProvisioningCacheForTests()
   const database = createTestDatabase()
@@ -31,7 +37,7 @@ export function issueDataFixture() {
 		CREATE VIRTUAL TABLE issues_fts USING fts5(issue_id UNINDEXED, workspace_id UNINDEXED, title, body);
 		CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags);
 	`)
-  function insertIssue(values: {
+  const insertIssue = function insertIssue(values: {
     id: string
     number?: number
     projectId?: string
@@ -46,7 +52,7 @@ export function issueDataFixture() {
     priority?: string
     completedAt?: number | null
     updatedAt?: number
-  }) {
+  }): void {
     const workspaceId = values.workspaceId ?? workspace.id
     const title = values.title ?? 'Original issue'
     const body = values.body ?? '**Original description**'
@@ -62,38 +68,38 @@ export function issueDataFixture() {
         title,
         body,
         values.priority ?? 'medium',
-        values.assigneeId ?? null,
-        values.parentId ?? null,
-        values.typeId ?? null,
-        workspaceId === workspace.id ? (values.statusId ?? 'todo') : null,
+        values.assigneeId ?? SQL_NULL,
+        values.parentId ?? SQL_NULL,
+        values.typeId ?? SQL_NULL,
+        workspaceId === workspace.id ? (values.statusId ?? 'todo') : SQL_NULL,
         values.createdAt ?? 1,
         values.updatedAt ?? 1,
-        values.completedAt ?? null,
+        values.completedAt ?? SQL_NULL,
       )
     sqlite
       .prepare('INSERT INTO issues_fts (issue_id,workspace_id,title,body) VALUES (?,?,?,?)')
       .run(values.id, workspaceId, title, body)
   }
-  insertIssue({ id: 'issue-a', assigneeId: scope.user.id })
+  insertIssue({ assigneeId: scope.user.id, id: 'issue-a' })
   insertIssue({
+    createdAt: 2,
     id: 'issue-b',
     projectId: secondProject.id,
     title: 'Second project issue',
-    createdAt: 2,
   })
   insertIssue({
+    createdAt: 3,
     id: 'hidden-issue',
     projectId: 'hidden-project',
     title: 'Hidden secret',
-    createdAt: 3,
   })
   insertIssue({
-    id: 'other-issue',
-    projectId: 'other-project',
-    workspaceId: 'workspace-b',
-    title: 'Other membership issue',
     assigneeId: scope.user.id,
     createdAt: 4,
+    id: 'other-issue',
+    projectId: 'other-project',
+    title: 'Other membership issue',
+    workspaceId: 'workspace-b',
   })
   sqlite.exec(`
 		INSERT INTO custom_field_values (issue_id,field_id,value) VALUES ('issue-a','points','3');
@@ -108,7 +114,7 @@ export function issueDataFixture() {
   const request = new Request('https://front.test/issues?workspace=workspace')
   const invalidated = vi.fn()
   const env = testEnvironment(db, 'user@example.test')
-  function services() {
+  const services = function services() {
     return makeRequestServices(request, env).pipe(
       Effect.map((native) => ({
         ...native,
@@ -116,8 +122,8 @@ export function issueDataFixture() {
       })),
     )
   }
-  function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
-    return Effect.runPromise(
+  const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>): Promise<A> {
+    return runTestEffect(
       Effect.gen(function* () {
         const native = yield* services()
         yield* native.scope()

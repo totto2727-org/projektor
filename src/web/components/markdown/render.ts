@@ -3,29 +3,55 @@ import footnotes from '@comark/html/plugins/footnotes'
 import math, { Math as MathComponent } from '@comark/html/plugins/math'
 import mermaid, { Mermaid } from '@comark/html/plugins/mermaid'
 import shiki from '@comark/html/plugins/shiki'
-import toc, { type TocLink } from '@comark/html/plugins/toc'
-import { createMarkdownParser, type ComarkPlugin } from 'comark'
+import toc from '@comark/html/plugins/toc'
+import type { TocLink } from '@comark/html/plugins/toc'
+import { createMarkdownParser } from 'comark'
+import type { ComarkPlugin } from 'comark'
+import { String, Predicate, Iterable } from 'effect'
 import sanitizeHtml from 'sanitize-html'
 import githubDark from 'shiki/themes/github-dark.mjs'
 import githubLight from 'shiki/themes/github-light.mjs'
 
-export interface MarkdownHeading {
-  readonly id: string
-  readonly level: number
-  readonly text: string
-}
-export interface RenderedMarkdown {
-  readonly html: string
-  readonly toc: ReadonlyArray<MarkdownHeading>
-}
-export interface MarkdownOptions {
-  readonly pages?: ReadonlyArray<{ title: string; slug: string }>
-  readonly workspaceSlug?: string
-  readonly projectId?: string
+const OPEN_NESTING = 1
+const CLOSE_NESTING = -1
+const NO_NESTING = 0
+const INITIAL_LINK_DEPTH = 0
+const WIKI_LINK_PREFIX = '[['
+
+const wikiLinkNesting = function wikiLinkNesting(
+  token: Readonly<{ type: string }>,
+): typeof OPEN_NESTING | typeof CLOSE_NESTING | typeof NO_NESTING {
+  if (token.type === 'link_open') {
+    return OPEN_NESTING
+  }
+  if (token.type === 'link_close') {
+    return CLOSE_NESTING
+  }
+  return NO_NESTING
 }
 
-/** Final allowlist applies equally to authored HTML and plugin-generated HTML/SVG. */
-export function sanitizeMarkdownHtml(html: string): string {
+export type MarkdownHeading = Readonly<{
+  id: string
+  level: number
+  text: string
+}>
+export type RenderedMarkdown = Readonly<{
+  html: string
+  toc: Readonly<MarkdownHeading[]>
+}>
+export type MarkdownOptions = Readonly<{
+  pages?: Readonly<{ title: string; slug: string }[]>
+  workspaceSlug?: string
+  projectId?: string
+}>
+
+/**
+ * Final allowlist applies equally to authored HTML and plugin-generated HTML/SVG.
+ *
+ * @param {string} html The HTML produced from authored Markdown and its rendering plugins.
+ * @returns {string} The HTML after the Markdown output allowlist is applied.
+ */
+export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
       ...sanitizeHtml.defaults.allowedTags,
@@ -84,19 +110,19 @@ export function sanitizeMarkdownHtml(html: string): string {
     parser: { lowerCaseTags: false, lowerCaseAttributeNames: false },
     allowedStyles: {
       '*': {
-        color: [/^#[\da-f]{3,8}$/i],
-        'background-color': [/^#[\da-f]{3,8}$/i],
-        '--shiki-light': [/^#[\da-f]{3,8}$/i],
-        '--shiki-dark': [/^#[\da-f]{3,8}$/i],
+        color: [/^#[\da-f]{3,8}$/iu],
+        'background-color': [/^#[\da-f]{3,8}$/iu],
+        '--shiki-light': [/^#[\da-f]{3,8}$/iu],
+        '--shiki-dark': [/^#[\da-f]{3,8}$/iu],
         ...Object.fromEntries(
           ['--bg', '--fg', '--line', '--accent', '--muted', '--surface', '--border'].map((property) => [
             property,
-            [/^#[\da-f]{3,8}$/i],
+            [/^#[\da-f]{3,8}$/iu],
           ]),
         ),
-        'font-style': [/^(normal|italic)$/],
-        'font-weight': [/^(normal|bold|[1-9]00)$/],
-        'text-decoration': [/^(none|underline|line-through)$/],
+        'font-style': [/^(?:normal|italic)$/u],
+        'font-weight': [/^(?:normal|bold|[1-9]00)$/u],
+        'text-decoration': [/^(?:none|underline|line-through)$/u],
         ...Object.fromEntries(
           [
             'height',
@@ -110,19 +136,26 @@ export function sanitizeMarkdownHtml(html: string): string {
             'padding-left',
             'vertical-align',
             'border-bottom-width',
-          ].map((property) => [property, [/^-?\d*(?:\.\d+)?(?:em|ex|px|%)$/]]),
+          ].map((property) => [property, [/^-?\d*(?:\.\d+)?(?:em|ex|px|%)$/u]]),
         ),
       },
     },
     transformTags: {
       '*': (tagName, attribs) => {
-        for (const key of ['fill', 'stroke']) {
+        Iterable.forEach(['fill', 'stroke'], (key) => {
           const paint = attribs[key]
-          if (paint && !/^(?:[a-z]+|#[\da-f]{3,8}|var\(--[\w-]+\)|url\(#[\w-]+\))$/i.test(paint)) delete attribs[key]
-        }
-        for (const key of ['marker-end', 'marker-start']) {
-          if (attribs[key] && !/^(?:none|url\(#[\w-]+\))$/.test(attribs[key])) delete attribs[key]
-        }
+          if (
+            paint &&
+            !/^(?:[a-zA-Z]+|#[\da-fA-F]{3,8}|[vV][aA][rR]\(--[\w-]+\)|[uU][rR][lL]\(#[\w-]+\))$/u.test(paint)
+          ) {
+            delete attribs[key]
+          }
+        })
+        Iterable.forEach(['marker-end', 'marker-start'], (key) => {
+          if (attribs[key] && !/^(?:none|url\(#[\w-]+\))$/u.test(attribs[key])) {
+            delete attribs[key]
+          }
+        })
         if (tagName === 'input') {
           attribs.type = 'checkbox'
           attribs.disabled = ''
@@ -133,14 +166,19 @@ export function sanitizeMarkdownHtml(html: string): string {
   })
 }
 
-function wikiLinks(options: MarkdownOptions): ComarkPlugin {
-  const fold = (title: string) => title.normalize('NFC').toLowerCase()
+const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
+  const fold = (title: string): string => title.normalize('NFC').toLowerCase()
   const pages = new Map(options.pages?.map((page) => [fold(page.title), page.slug]))
-  const scoped = (path: string) => {
+  const scoped = (path: string): string => {
     const url = new URL(path, 'https://wiki.invalid')
-    if (options.workspaceSlug) url.searchParams.set('workspace', options.workspaceSlug)
-    if (options.projectId) url.searchParams.set('projectId', options.projectId)
-    else if (options.workspaceSlug) url.searchParams.set('scope', 'workspace')
+    if (options.workspaceSlug) {
+      url.searchParams.set('workspace', options.workspaceSlug)
+    }
+    if (options.projectId) {
+      url.searchParams.set('projectId', options.projectId)
+    } else if (options.workspaceSlug) {
+      url.searchParams.set('scope', 'workspace')
+    }
     return `${url.pathname}${url.search}${url.hash}`
   }
   return {
@@ -150,34 +188,43 @@ function wikiLinks(options: MarkdownOptions): ComarkPlugin {
         md.inline.ruler.before('link', 'projektor_wiki_link', (state, silent) => {
           if (
             !options.pages ||
-            state.tokens.reduce(
-              (depth, token) => depth + (token.type === 'link_open' ? 1 : token.type === 'link_close' ? -1 : 0),
-              0,
-            ) > 0 ||
-            state.src.slice(state.pos, state.pos + 2) !== '[['
-          )
+            state.tokens.reduce((depth, token) => depth + wikiLinkNesting(token), INITIAL_LINK_DEPTH) >
+              INITIAL_LINK_DEPTH ||
+            state.src.slice(state.pos, state.pos + WIKI_LINK_PREFIX.length) !== WIKI_LINK_PREFIX
+          ) {
             return false
-          const match = /^\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/.exec(state.src.slice(state.pos, state.posMax))
-          if (!match) return false
+          }
+          const match = /^\[\[(?<title>[^\]|]+?)(?:\|(?<label>[^\]]+?))?\]\]/u.exec(
+            state.src.slice(state.pos, state.posMax),
+          )
+          if (!match) {
+            return false
+          }
           if (!silent) {
-            const title = match[1].trim()
-            const label = match[2]?.trim() ?? title
+            const parts: Record<string, string | undefined> | undefined = match.groups
+            const title = parts?.title?.trim() ?? ''
+            const label = parts?.label?.trim() ?? title
             const slug = pages.get(fold(title))
-            if (!slug) {
-              state.push('mdc_inline_span', 'span', 1)
-              state.push('text', '', 0).content = `${label} `
+            if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
+              state.push('mdc_inline_span', 'span', OPEN_NESTING)
+              state.push('text', '', NO_NESTING).content = `${label} `
             }
             state
-              .push('link_open', 'a', 1)
+              .push('link_open', 'a', OPEN_NESTING)
               .attrSet(
                 'href',
-                scoped(slug ? `/wiki/${encodeURIComponent(slug)}` : `/wiki?createTitle=${encodeURIComponent(title)}`),
+                scoped(
+                  Predicate.isNotNullish(slug) && String.isNonEmpty(slug)
+                    ? `/wiki/${encodeURIComponent(slug)}`
+                    : `/wiki?createTitle=${encodeURIComponent(title)}`,
+                ),
               )
-            state.push('text', '', 0).content = slug ? label : '+'
-            state.push('link_close', 'a', -1)
-            if (!slug) {
-              state.push('mdc_inline_span', 'span', -1)
-              state.push('mdc_inline_props', '', 0).attrSet('class', 'wiki-link-broken')
+            state.push('text', '', NO_NESTING).content =
+              Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? label : '+'
+            state.push('link_close', 'a', CLOSE_NESTING)
+            if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
+              state.push('mdc_inline_span', 'span', CLOSE_NESTING)
+              state.push('mdc_inline_props', '', NO_NESTING).attrSet('class', 'wiki-link-broken')
             }
           }
           state.pos += match[0].length
@@ -188,8 +235,14 @@ function wikiLinks(options: MarkdownOptions): ComarkPlugin {
   }
 }
 
-/** Runtime rendering, not an Effront build-time Markdown resource. Parser defaults stay enabled. */
-export async function renderMarkdownDocument(
+/**
+ * Runtime rendering, not an Effront build-time Markdown resource. Parser defaults stay enabled.
+ *
+ * @param {string} markdown The Markdown document to parse and render.
+ * @param {MarkdownOptions} options The optional Wiki page catalog and scope used for links.
+ * @returns {Promise<RenderedMarkdown>} The sanitized HTML and the flattened table of contents.
+ */
+export const renderMarkdownDocument = async function renderMarkdownDocument(
   markdown: string,
   options: MarkdownOptions = {},
 ): Promise<RenderedMarkdown> {

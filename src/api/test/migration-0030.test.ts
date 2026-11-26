@@ -1,46 +1,55 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { String } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import m0030 from '../../../migrations/0030_backfill_review_timestamp.sql?raw'
-import { env } from './fixture-api'
-import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers'
+import { currentEpochSeconds } from '#contracts/time.ts'
+import m0030 from '#migrations/0030_backfill_review_timestamp.sql?raw'
 
-// PROJ-328: 0030 backfills in_review_at (added by 0029) for issues that were already
-// sitting in a review status before 0029 landed — see the migration file for why it's
-// deliberately narrower than 0026's claimed_at/ready_at backfill.
+import { env } from './fixture-api.ts'
+import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
-function splitStatements(sql: string): string[] {
+/*
+ * PROJ-328: 0030 backfills in_review_at (added by 0029) for issues that were already
+ * sitting in a review status before 0029 landed — see the migration file for why it's
+ * deliberately narrower than 0026's claimed_at/ready_at backfill.
+ */
+
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
-    .replace(/--[^\n]*/g, '')
+    .replaceAll(/--[^\n]*/gu, '')
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+    .map((statement) => statement.trim())
+    .filter((statement) => String.isNonEmpty(statement))
 }
 
-async function runMigration0030() {
+const runMigration0030 = async function runMigration0030(): Promise<void> {
   for (const stmt of splitStatements(m0030)) {
     await env.DB.prepare(stmt).run()
   }
 }
 
 describe('0030 backfill in_review_at', () => {
-  let workspaceId: string
-  let projectId: string
-  let userId: string
+  type TestData = Readonly<{
+    projectId: string
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const ws = await seedWorkspace()
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const project = await seedProject(ws.id)
-    workspaceId = ws.id
-    projectId = project.id
-    userId = user.id
-  })
+    const workspaceId = ws.id
+    const projectId = project.id
+    const userId = user.id
+    return { projectId, userId, workspaceId }
+  }
 
-  it('backfills in_review_at from claimed_at for an issue currently in a review status', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('backfills in_review_at from claimed_at for an issue currently in a review status', async () => {
+    const { projectId, userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In review',
       status: 'in_review',
+      title: 'In review',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ? WHERE id = ?')
       .bind(now - 100, issue.id)
@@ -54,11 +63,12 @@ describe('0030 backfill in_review_at', () => {
     expect(row?.in_review_at).toBe(now - 100)
   })
 
-  it('does not backfill a done issue that never carried a review status (no signal to guess from)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('does not backfill a done issue that never carried a review status (no signal to guess from)', async () => {
+    const { projectId, userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Closed without review',
       status: 'done',
+      title: 'Closed without review',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ?, done_at = ? WHERE id = ?')
       .bind(now - 200, now, issue.id)
@@ -72,11 +82,12 @@ describe('0030 backfill in_review_at', () => {
     expect(row?.in_review_at).toBeNull()
   })
 
-  it('does not overwrite an already-stamped in_review_at', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('does not overwrite an already-stamped in_review_at', async () => {
+    const { projectId, userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Already stamped',
       status: 'in_review',
+      title: 'Already stamped',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ?, in_review_at = ? WHERE id = ?')
       .bind(now - 300, now - 50, issue.id)
@@ -90,11 +101,12 @@ describe('0030 backfill in_review_at', () => {
     expect(row?.in_review_at).toBe(now - 50)
   })
 
-  it('is idempotent — re-running changes nothing', async () => {
-    const now = Math.floor(Date.now() / 1000)
+  test('is idempotent — re-running changes nothing', async () => {
+    const { projectId, userId, workspaceId } = await seedTestData()
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In review',
       status: 'in_review',
+      title: 'In review',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ? WHERE id = ?')
       .bind(now - 100, issue.id)

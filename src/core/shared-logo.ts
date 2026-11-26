@@ -1,25 +1,42 @@
-import { getSharedLogo } from '#commands/share'
+import { getSharedLogo } from '#commands/share.ts'
+import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 
-import { coreFailure, CorePublicError } from './contract'
-import { publicDomainFailure } from './domain-errors'
-import type { CoreEnvironment } from './environment'
+import { coreFailure, CorePublicError } from './contract.ts'
+import { publicDomainFailure } from './domain-errors.ts'
+import type { CoreEnvironment } from './environment.ts'
 
-/** Public share tokens are authorized by the domain operation, never by browser claims. */
-export async function handleSharedLogoRequest(request: Request, env: CoreEnvironment): Promise<Response | undefined> {
-  const match = /^\/share-logo\/([^/]+)$/.exec(new URL(request.url).pathname)
-  if (!match) return undefined
-  if (request.method !== 'GET' && request.method !== 'HEAD')
-    return new Response(null, { status: 405, headers: { allow: 'GET, HEAD' } })
+/**
+ * Public share tokens are authorized by the domain operation, never by browser claims.
+ *
+ * @param {Request} request The internal fetch request with the share token in its path.
+ * @param {CoreEnvironment} env The Core bindings for the shared issue record and logo storage.
+ * @returns {Promise<Response | undefined>} A logo or public error response. An unrelated path resolves to undefined.
+ */
+export const handleSharedLogoRequest = async function handleSharedLogoRequest(
+  request: Request,
+  env: CoreEnvironment,
+): Promise<Response | undefined> {
+  const groups = /^\/share-logo\/(?<token>[^/]+)$/u.exec(new URL(request.url).pathname)?.groups
+  if (!groups) {
+    return undefined
+  }
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new Response(undefined, { headers: { allow: 'GET, HEAD' }, status: 405 })
+  }
   try {
     let token: string
     try {
-      token = decodeURIComponent(match[1])
+      token = decodeURIComponent(groups.token)
     } catch {
-      throw coreFailure(400, 'Invalid logo address.')
+      throw coreFailure(HTTP_BAD_REQUEST, 'Invalid logo address.')
     }
     const object = await getSharedLogo(env.DB, env.R2, token)
-    if (!object) throw coreFailure(404, 'No logo set')
-    if (request.method === 'HEAD') await object.body.cancel()
+    if (!object) {
+      throw coreFailure(HTTP_NOT_FOUND, 'No logo set')
+    }
+    if (request.method === 'HEAD') {
+      await object.body.cancel()
+    }
     return new Response(request.method === 'HEAD' ? null : object.body, {
       headers: {
         'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
@@ -27,14 +44,18 @@ export async function handleSharedLogoRequest(request: Request, env: CoreEnviron
         'x-content-type-options': 'nosniff',
       },
     })
-  } catch (cause) {
-    const selected = publicDomainFailure(cause)
-    const problem = selected instanceof CorePublicError ? selected : coreFailure(500, 'An unexpected error occurred.')
-    if (!(selected instanceof CorePublicError))
-      console.error('[core]', { operation: 'shareLogo', occurrenceId: problem.occurrenceId, cause })
+  } catch (error) {
+    const selected = publicDomainFailure(error)
+    const problem =
+      selected instanceof CorePublicError
+        ? selected
+        : coreFailure(HTTP_INTERNAL_SERVER_ERROR, 'An unexpected error occurred.')
+    if (!(selected instanceof CorePublicError)) {
+      console.error('[core]', { operation: 'shareLogo', occurrenceId: problem.occurrenceId, cause: error })
+    }
     return Response.json(
       { error: problem.message, occurrenceId: problem.occurrenceId },
-      { status: problem.status, headers: { 'cache-control': 'private, no-store' } },
+      { headers: { 'cache-control': 'private, no-store' }, status: problem.status },
     )
   }
 }

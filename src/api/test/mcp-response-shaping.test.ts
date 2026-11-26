@@ -1,16 +1,34 @@
-// PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
-// one `{items, next}` pagination shape, and a hard per-result size cap.
+import { Schema, String, Predicate, Iterable } from 'effect'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { capPage, shapeIssue, splitShapeOpts, toPage } from '#api/mcp/serialize.ts'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+/*
+ * PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
+ * one `{items, next}` pagination shape, and a hard per-result size cap.
+ */
+import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { runIndexedInOrder, runInOrder } from '#tests/run-effect.ts'
 
-import { capPage, shapeIssue, splitShapeOpts, toPage } from '../mcp/serialize'
-import { env } from './fixture-api'
-import { seedIssue, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedIssue, seedProjectFixture } from './helpers.ts'
+import { fetchNativeMcpTool } from './native-fetch.ts'
+import type { McpToolRequest } from './native-fetch.ts'
+import {
+  ItemsResponse,
+  JsonRecordResponse,
+  McpRpcResponse,
+  MessageBodiesResponse,
+  RpcTextResponse,
+  SlugResponse,
+  parseNativeMcpText,
+  readNativeJson,
+  readNativeMcpResultText,
+} from './response-json.ts'
 
-type Rpc = { result?: { content?: Array<{ text: string }>; isError?: boolean } }
-
-describe('PROJ-891: serializer (unit)', () => {
+describe('covers PROJ-891: serializer (unit)', () => {
   const raw = {
     id: 'i1',
     workspace_id: 'w',
@@ -20,9 +38,9 @@ describe('PROJ-891: serializer (unit)', () => {
     status: 'todo',
     priority: 'high',
     labels: '["a","b"]',
-    parent_id: null,
-    assignee_id: null,
-    assignee_name: null,
+    parent_id: SQL_NULL,
+    assignee_id: SQL_NULL,
+    assignee_name: SQL_NULL,
     type_id: 't',
     type_key: 'bug',
     type_name: 'Bug',
@@ -31,10 +49,10 @@ describe('PROJ-891: serializer (unit)', () => {
     status_name: 'Todo',
     status_category: 'todo',
     created_by_id: 'u',
-    author_kind: null,
+    author_kind: SQL_NULL,
     needs_audit: false,
-    completed_at: null,
-    sprint_id: null,
+    completed_at: SQL_NULL,
+    sprint_id: SQL_NULL,
     created_at: 1,
     updated_at: 2,
     project_key: 'PROJ',
@@ -43,75 +61,88 @@ describe('PROJ-891: serializer (unit)', () => {
     customFields: [],
   }
 
-  it('full view drops nulls, empty arrays, false defaults and internal ids; parses labels; adds ref/type', () => {
+  test('full view drops nulls, empty arrays, false defaults and internal ids; parses labels; adds ref/type', () => {
+    expect.hasAssertions()
     const out = shapeIssue(raw, {})
     expect(out.ref).toBe('PROJ-7')
     expect(out.type).toBe('bug')
-    expect(out.labels).toEqual(['a', 'b'])
-    for (const k of [
-      'workspace_id',
-      'project_id',
-      'type_id',
-      'status_id',
-      'created_by_id',
-      'project_key',
-      'project_name',
-      'type_key',
-      'type_name',
-      'status_key',
-      'status_name',
-      'parent_id',
-      'assignee_id',
-      'needs_audit',
-      'links',
-      'customFields',
-      'sprint_id',
-      'completed_at',
-    ]) {
-      expect(out, k).not.toHaveProperty(k)
-    }
+    expect(out.labels).toStrictEqual(['a', 'b'])
+    Iterable.forEach(
+      [
+        'workspace_id',
+        'project_id',
+        'type_id',
+        'status_id',
+        'created_by_id',
+        'project_key',
+        'project_name',
+        'type_key',
+        'type_name',
+        'status_key',
+        'status_name',
+        'parent_id',
+        'assignee_id',
+        'needs_audit',
+        'links',
+        'customFields',
+        'sprint_id',
+        'completed_at',
+      ],
+      (field) => {
+        expect(out, field).not.toHaveProperty(field)
+      },
+    )
     expect(out.status).toBe('todo')
     expect(out.priority).toBe('high')
   })
 
-  it('summary view is {ref,title,status,priority,type,parent?,assignee?,updated}', () => {
-    expect(shapeIssue(raw, { view: 'summary' })).toEqual({
-      ref: 'PROJ-7',
-      title: 'T',
-      status: 'todo',
+  test('summary view is {ref,title,status,priority,type,parent?,assignee?,updated}', () => {
+    expect(shapeIssue(raw, { view: 'summary' })).toStrictEqual({
       priority: 'high',
+      ref: 'PROJ-7',
+      status: 'todo',
+      title: 'T',
       type: 'bug',
       updated: 2,
     })
     expect(shapeIssue({ ...raw, parent_id: 'P', assignee_name: 'Ann' }, { view: 'summary' })).toMatchObject({
-      parent: 'P',
       assignee: 'Ann',
+      parent: 'P',
     })
   })
 
-  it('verbose returns the raw row; fields picks (incl. derived ref) with null for absent values', () => {
+  test('verbose returns the raw row; fields picks (incl. derived ref) with null for absent values', () => {
     expect(shapeIssue(raw, { verbose: true })).toBe(raw)
-    expect(shapeIssue(raw, { fields: ['ref', 'assignee_id', 'updated'] })).toEqual({
+    expect(shapeIssue(raw, { fields: ['ref', 'assignee_id', 'updated'] })).toStrictEqual({
+      assignee_id: JSON_NULL,
       ref: 'PROJ-7',
-      assignee_id: null,
       updated: 2,
     })
   })
 
-  it('fields accepts a comma-separated string and rejects unknown names', () => {
-    expect(splitShapeOpts({ fields: 'ref, title' }).fields).toEqual(['ref', 'title'])
-    expect(() => splitShapeOpts({ fields: 'ref,nope' })).toThrow()
-    expect(() => splitShapeOpts({ view: 'tiny' })).toThrow()
+  test('fields accepts a comma-separated string and rejects unknown names', () => {
+    expect(splitShapeOpts({ fields: 'ref, title' }).fields).toStrictEqual(['ref', 'title'])
+    const invalidOption: unknown = expect.stringContaining('Invalid option')
+    const invalidFields: unknown = expect.objectContaining({
+      issues: { fieldErrors: { fields: [invalidOption] }, formErrors: [] },
+      message: 'Validation failed',
+    })
+    const invalidView: unknown = expect.objectContaining({
+      issues: { fieldErrors: { view: [invalidOption] }, formErrors: [] },
+      message: 'Validation failed',
+    })
+    expect(() => splitShapeOpts({ fields: 'ref,nope' })).toThrow(invalidFields)
+    expect(() => splitShapeOpts({ view: 'tiny' })).toThrow(invalidView)
   })
 
-  it('toPage omits next when there is no further page', () => {
-    expect(toPage([1])).toEqual({ items: [1] })
-    expect(toPage([1], 5)).toEqual({ items: [1], next: '5' })
+  test('toPage omits next when there is no further page', () => {
+    expect(toPage([1])).toStrictEqual({ items: [1] })
+    expect(toPage([1], 5)).toStrictEqual({ items: [1], next: '5' })
   })
 
-  it('capPage keeps valid JSON under the cap, marks truncated, and resumes from the last kept item', () => {
-    const items = Array.from({ length: 50 }, (_, i) => ({ n: i, pad: 'x'.repeat(100) }))
-    const out = capPage(toPage(items, 'orig'), { max: 1000, cursorOf: (i) => `c${i}` })
+  test('capPage keeps valid JSON under the cap, marks truncated, and resumes from the last kept item', () => {
+    const items = Array.from({ length: 50 }, (_value, index) => ({ n: index, pad: 'x'.repeat(100) }))
+    const out = capPage(toPage(items, 'orig'), { max: 1000, cursorOf: (index) => `c${index}` })
     const text = JSON.stringify(out)
     expect(text.length).toBeLessThanOrEqual(1000)
     expect(() => JSON.parse(text)).not.toThrow()
@@ -121,7 +152,7 @@ describe('PROJ-891: serializer (unit)', () => {
     expect(out.next).toBe(`c${out.items.length - 1}`)
   })
 
-  it('capPage without a cursor drops any stale next and hints at limit; small pages pass through', () => {
+  test('capPage without a cursor drops any stale next and hints at limit; small pages pass through', () => {
     const items = Array.from({ length: 50 }, () => ({ pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'would-skip-items'), { max: 1000 })
     expect(out.truncated).toBe(true)
@@ -133,23 +164,23 @@ describe('PROJ-891: serializer (unit)', () => {
   })
 })
 
-describe('PROJ-891 review fixes (unit)', () => {
-  it('capPage backs off to a cut the tool allows (no splitting a shared timestamp)', () => {
+describe('covers PROJ-891 review fixes (unit)', () => {
+  test('capPage backs off to a cut the tool allows (no splitting a shared timestamp)', () => {
     const ts = [1, 1, 2, 2, 2, 3, 3, 4]
-    const items = ts.map((t) => ({ t, pad: 'x'.repeat(100) }))
+    const items = ts.map((timestamp) => ({ t: timestamp, pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'orig'), {
       max: 600,
-      cursorOf: (i) => String(items[i].t),
+      cursorOf: (index) => globalThis.String(items[index].t),
       canCutAt: (kept) => items[kept - 1].t !== items[kept]?.t,
     })
     expect(out.truncated).toBe(true)
     const last = out.items[out.items.length - 1].t
-    // nothing sharing the cursor's second was left behind
-    expect(items.slice(out.items.length).every((i) => i.t > last)).toBe(true)
-    expect(out.next).toBe(String(last))
+    // Nothing sharing the cursor's second was left behind
+    expect(items.slice(out.items.length).every((item) => item.t > last)).toBe(true)
+    expect(out.next).toBe(globalThis.String(last))
   })
 
-  it('capPage returns the whole page rather than skip items when no safe cut exists', () => {
+  test('capPage returns the whole page rather than skip items when no safe cut exists', () => {
     const items = Array.from({ length: 30 }, () => ({ t: 5, pad: 'x'.repeat(100) }))
     const page = toPage(items, 'orig')
     const out = capPage(page, {
@@ -160,19 +191,48 @@ describe('PROJ-891 review fixes (unit)', () => {
     expect(out).toBe(page)
   })
 
-  it('capPage leaves an empty page alone', () => {
+  test('capPage leaves an empty page alone', () => {
     const empty = toPage([])
     expect(capPage(empty)).toBe(empty)
   })
 
-  it('full view keeps a custom status_key that differs from the legacy status', () => {
+  test('full view keeps a custom status_key that differs from the legacy status', () => {
     const base = { title: 'T', status: 'in_progress', project_key: 'P', number: 1 }
     expect(shapeIssue({ ...base, status_key: 'qa' }, {}).status_key).toBe('qa')
     expect(shapeIssue({ ...base, status_key: 'in_progress' }, {})).not.toHaveProperty('status_key')
   })
 })
 
-describe('PROJ-891: MCP tools', () => {
+interface ResponseShapingTestContext {
+  fixture: Awaited<ReturnType<typeof seedProjectFixture>>
+}
+
+type ResponseShapingAuth = Pick<ResponseShapingTestContext['fixture'], 'token' | 'workspaceId'>
+
+const IssueCursorPage = Schema.Struct({
+  items: Schema.Array(JsonRecordResponse).pipe(Schema.mutable),
+  next: Schema.optional(Schema.String),
+})
+const CursorPage = Schema.Struct({ ...ItemsResponse.fields, next: Schema.optional(Schema.String) })
+const RequiredCursorPage = Schema.Struct({ ...ItemsResponse.fields, next: Schema.String })
+const TruncatedPage = Schema.Struct({ ...ItemsResponse.fields, truncated: Schema.optional(Schema.Boolean) })
+const WikiSectionResult = Schema.Struct({ contentTruncated: Schema.optional(Schema.Boolean) })
+
+const tool = async function tool<S extends Schema.Constraint>(
+  { token, workspaceId }: ResponseShapingAuth,
+  params: McpToolRequest,
+  shape: S,
+): Promise<S['Type']> {
+  const response = await fetchNativeMcpTool(workspaceId, params, {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  })
+  const body = await readNativeJson(response, McpRpcResponse)
+  expect(body.result?.isError, JSON.stringify(body)).toBeUndefined()
+  return parseNativeMcpText(body.result?.content?.[0].text ?? 'null', shape)
+}
+
+describe('covers PROJ-891: MCP tools', () => {
   const prevApiMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
     env.RATE_LIMIT_API_MAX = '1000'
@@ -181,189 +241,244 @@ describe('PROJ-891: MCP tools', () => {
     env.RATE_LIMIT_API_MAX = prevApiMax
   })
 
-  let f: Awaited<ReturnType<typeof seedProjectFixture>>
-  beforeEach(async () => {
-    f = await seedProjectFixture()
+  beforeEach<ResponseShapingTestContext>(async (context) => {
+    context.fixture = await seedProjectFixture()
   })
 
-  async function tool<T = Record<string, unknown>>(name: string, args: Record<string, unknown> = {}): Promise<T> {
-    const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name, arguments: args },
-      }),
-    })
-    const body = (await res.json()) as Rpc
-    expect(body.result?.isError, JSON.stringify(body)).toBeUndefined()
-    return JSON.parse(body.result?.content?.[0].text ?? 'null') as T
-  }
-
-  it('list_issues: summary view, {items,next} pagination, and cursor continuation', async () => {
-    for (let i = 0; i < 3; i++) {
-      await seedIssue(f.workspaceId, f.projectId, f.userId, {
-        title: `Item ${i}`,
-        createdAt: 1_000 + i,
+  test<ResponseShapingTestContext>('list_issues: summary view, {items,next} pagination, and cursor continuation', async ({
+    fixture,
+  }) => {
+    await runIndexedInOrder(3, async (index): Promise<void> => {
+      await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
+        title: `Item ${index}`,
+        createdAt: 1000 + index,
       })
-    }
-    const first = await tool<{ items: Array<Record<string, unknown>>; next?: string }>('list_issues', {
-      view: 'summary',
-      limit: 2,
     })
+    const first = await tool(
+      fixture,
+      {
+        arguments: { limit: 2, view: 'summary' },
+        name: 'list_issues',
+      },
+      IssueCursorPage,
+    )
     expect(first.items).toHaveLength(2)
     expect(first.next).toBeTypeOf('string')
     expect(first).not.toHaveProperty('nextCursor')
-    expect(Object.keys(first.items[0]).sort()).toEqual(['priority', 'ref', 'status', 'title', 'updated'].sort())
+    expect(Object.keys(first.items[0]).toSorted()).toStrictEqual(
+      ['priority', 'ref', 'status', 'title', 'updated'].toSorted(),
+    )
 
-    const second = await tool<{ items: Array<Record<string, unknown>>; next?: string }>('list_issues', {
-      view: 'summary',
-      limit: 2,
-      cursor: first.next,
-    })
+    const second = await tool(
+      fixture,
+      {
+        arguments: { cursor: first.next, limit: 2, view: 'summary' },
+        name: 'list_issues',
+      },
+      IssueCursorPage,
+    )
     expect(second.items).toHaveLength(1)
     expect(second.next).toBeUndefined()
-    const refs = [...first.items, ...second.items].map((i) => i.ref)
+    const refs = [...first.items, ...second.items].map((issue) => issue.ref)
     expect(new Set(refs).size).toBe(3)
   })
 
-  it('get_issue full view has ref, an array of labels and no internal ids', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Shaped' })
-    const got = await tool('get_issue', { id: issue.id })
-    expect(got.ref).toMatch(/-\d+$/)
+  test<ResponseShapingTestContext>('get_issue full view has ref, an array of labels and no internal ids', async ({
+    fixture,
+  }) => {
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Shaped' })
+    const got = await tool(fixture, { arguments: { id: issue.id }, name: 'get_issue' }, JsonRecordResponse)
+    expect(got.ref).toMatch(/-\d+$/u)
     expect(got).not.toHaveProperty('workspace_id')
     expect(got).not.toHaveProperty('project_id')
     expect(got).not.toHaveProperty('created_by_id')
-    expect(got).not.toHaveProperty('labels') // none set → dropped
+    // None set → dropped
+    expect(got).not.toHaveProperty('labels')
   })
 
-  it('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
+  test<ResponseShapingTestContext>('list_issues: a page over the cap is cut with truncated:true and resumes via next', async ({
+    fixture,
+  }) => {
     const pad = 'y'.repeat(400)
-    for (let i = 0; i < 60; i++) {
-      await seedIssue(f.workspaceId, f.projectId, f.userId, {
-        title: `${pad} ${i}`,
-        createdAt: 2_000 + i,
+    await runIndexedInOrder(60, async (index): Promise<void> => {
+      await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
+        title: `${pad} ${index}`,
+        createdAt: 2000 + index,
       })
-    }
+    })
     const seen = new Set<string>()
     let cursor: string | undefined
     let truncatedPages = 0
-    for (let guard = 0; guard < 10; guard++) {
-      const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'list_issues', arguments: { limit: 60, ...(cursor ? { cursor } : {}) } },
-        }),
-      })
-      const text = ((await res.json()) as Rpc).result?.content?.[0].text ?? ''
-      expect(text.length).toBeLessThanOrEqual(20_000)
-      const page = JSON.parse(text) as {
-        items: Array<{ ref: string }>
-        next?: string
-        truncated?: boolean
+    const issuePage = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ ref: Schema.String })),
+      next: Schema.optional(Schema.String),
+      truncated: Schema.optional(Schema.Boolean),
+    })
+    for (let guard = 0; guard < 10; guard += 1) {
+      const args = {
+        limit: 60,
+        ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { cursor } : {}),
       }
-      if (page.truncated) truncatedPages++
-      for (const i of page.items) seen.add(i.ref)
-      if (!page.next) break
+      const res = await fetchNativeMcpTool(
+        fixture.workspaceId,
+        { arguments: args, name: 'list_issues' },
+        { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
+      )
+      const reply = await readNativeJson(res, RpcTextResponse)
+      const text = readNativeMcpResultText(reply.result)
+      expect(text.length).toBeLessThanOrEqual(20_000)
+      const page = parseNativeMcpText(text, issuePage)
+      if (page.truncated === true) {
+        truncatedPages += 1
+      }
+      Iterable.forEach(page.items, (item) => {
+        seen.add(item.ref)
+      })
+      if (!isNonEmptyText(page.next)) {
+        break
+      }
       cursor = page.next
     }
     expect(truncatedPages).toBeGreaterThan(0)
-    expect(seen.size).toBe(60) // nothing skipped, nothing repeated
+    // Nothing skipped, nothing repeated
+    expect(seen.size).toBe(60)
   })
 
-  it('list_comments and list_project_activity return {items}', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Talky' })
-    await tool('add_comment', { issueId: issue.id, body: 'hi' })
-    const comments = await tool<{ items: Array<{ body: string }> }>('list_comments', {
-      issueId: issue.id,
-    })
-    expect(comments.items.map((c) => c.body)).toEqual(['hi'])
-    const activity = await tool<{ items: unknown[] }>('list_project_activity', {
-      projectId: f.projectId,
-    })
+  test<ResponseShapingTestContext>('list_comments and list_project_activity return {items}', async ({ fixture }) => {
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Talky' })
+    await tool(fixture, { arguments: { body: 'hi', issueId: issue.id }, name: 'add_comment' }, Schema.Unknown)
+    const comments = await tool(
+      fixture,
+      {
+        arguments: {
+          issueId: issue.id,
+        },
+        name: 'list_comments',
+      },
+      MessageBodiesResponse,
+    )
+    expect(comments.items.map((item) => item.body)).toStrictEqual(['hi'])
+    const activity = await tool(
+      fixture,
+      {
+        arguments: {
+          projectId: fixture.projectId,
+        },
+        name: 'list_project_activity',
+      },
+      ItemsResponse,
+    )
     expect(Array.isArray(activity.items)).toBe(true)
   })
 
-  it('search_wiki and list_wiki_changes page with next/cursor', async () => {
-    for (const t of ['Alpha Guide', 'Alpha Notes', 'Alpha Ideas']) {
-      await tool('create_wiki_page', { title: t, content: 'alpha content' })
-    }
-    const p1 = await tool<{ items: unknown[]; next?: string }>('search_wiki', {
-      query: 'alpha',
-      limit: 2,
+  test<ResponseShapingTestContext>('search_wiki and list_wiki_changes page with next/cursor', async ({ fixture }) => {
+    await runInOrder(['Alpha Guide', 'Alpha Notes', 'Alpha Ideas'], async (pageTitle): Promise<void> => {
+      await tool(
+        fixture,
+        { arguments: { content: 'alpha content', title: pageTitle }, name: 'create_wiki_page' },
+        Schema.Unknown,
+      )
     })
+    const p1 = await tool(fixture, { arguments: { limit: 2, query: 'alpha' }, name: 'search_wiki' }, CursorPage)
     expect(p1.items).toHaveLength(2)
     expect(p1.next).toBe('2')
-    const p2 = await tool<{ items: unknown[]; next?: string }>('search_wiki', {
-      query: 'alpha',
-      limit: 2,
-      cursor: p1.next,
-    })
+    const p2 = await tool(
+      fixture,
+      { arguments: { cursor: p1.next, limit: 2, query: 'alpha' }, name: 'search_wiki' },
+      CursorPage,
+    )
     expect(p2.items).toHaveLength(1)
     expect(p2.next).toBeUndefined()
 
-    const changes = await tool<{ items: unknown[]; next: string }>('list_wiki_changes', {
-      since: 0,
-    })
+    const changes = await tool(fixture, { arguments: { since: 0 }, name: 'list_wiki_changes' }, RequiredCursorPage)
     expect(changes.items.length).toBeGreaterThanOrEqual(3)
-    const again = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
-      cursor: changes.next,
-    })
-    expect(again.items).toEqual([])
+    const again = await tool(fixture, { arguments: { cursor: changes.next }, name: 'list_wiki_changes' }, CursorPage)
+    expect(again.items).toStrictEqual([])
   })
 
-  it('wiki_tree returns {items}', async () => {
-    await tool('create_wiki_page', { title: 'Root', content: 'x' })
-    const tree = await tool<{ items: unknown[] }>('wiki_tree', {})
+  test<ResponseShapingTestContext>('wiki_tree returns {items}', async ({ fixture }) => {
+    await tool(fixture, { arguments: { content: 'x', title: 'Root' }, name: 'create_wiki_page' }, Schema.Unknown)
+    const tree = await tool(fixture, { arguments: {}, name: 'wiki_tree' }, ItemsResponse)
     expect(tree.items.length).toBeGreaterThan(0)
   })
-  it('list_comments is never cut: every comment is returned', async () => {
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Chatty' })
-    for (let i = 0; i < 30; i++) {
-      await tool('add_comment', { issueId: issue.id, body: `${i} ${'c'.repeat(1000)}` })
-    }
-    const res = await tool<{ items: unknown[]; truncated?: boolean }>('list_comments', {
-      issueId: issue.id,
+
+  test<ResponseShapingTestContext>('list_comments is never cut: every comment is returned', async ({ fixture }) => {
+    const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, { title: 'Chatty' })
+    await runIndexedInOrder(30, async (index): Promise<void> => {
+      await tool(
+        fixture,
+        { arguments: { body: `${index} ${'c'.repeat(1000)}`, issueId: issue.id }, name: 'add_comment' },
+        Schema.Unknown,
+      )
     })
+    const res = await tool(
+      fixture,
+      {
+        arguments: {
+          issueId: issue.id,
+        },
+        name: 'list_comments',
+      },
+      TruncatedPage,
+    )
     expect(res.items).toHaveLength(30)
     expect(res.truncated).toBeUndefined()
   })
 
-  it('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async () => {
-    await tool('create_wiki_page', { title: 'Some Page', content: 'x' })
-    const future = Math.floor(Date.now() / 1000) + 3600
-    const none = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
-      since: future,
-    })
-    expect(none.items).toEqual([])
+  test<ResponseShapingTestContext>('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async ({
+    fixture,
+  }) => {
+    await tool(fixture, { arguments: { content: 'x', title: 'Some Page' }, name: 'create_wiki_page' }, Schema.Unknown)
+    const future = currentEpochSeconds() + 3600
+    const none = await tool(
+      fixture,
+      {
+        arguments: {
+          since: future,
+        },
+        name: 'list_wiki_changes',
+      },
+      CursorPage,
+    )
+    expect(none.items).toStrictEqual([])
     expect(none).not.toHaveProperty('next')
 
-    const empty = await tool<{ items: unknown[] }>('list_wiki_changes', {
-      since: future,
-      cursor: '',
-    })
-    expect(empty.items).toEqual([])
+    const empty = await tool(
+      fixture,
+      {
+        arguments: { cursor: '', since: future },
+        name: 'list_wiki_changes',
+      },
+      ItemsResponse,
+    )
+    expect(empty.items).toStrictEqual([])
   })
 
-  it('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async () => {
-    const slug = (
-      await tool<{ slug: string }>('create_wiki_page', {
-        title: 'Sect Page',
-        content: '# A\nalpha\n## B\nbeta\n',
-      })
-    ).slug
-    const changes = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
-      since: 0,
-    })
+  test<ResponseShapingTestContext>('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async ({
+    fixture,
+  }) => {
+    const result = await tool(
+      fixture,
+      {
+        arguments: { content: '# A\nalpha\n## B\nbeta\n', title: 'Sect Page' },
+        name: 'create_wiki_page',
+      },
+      SlugResponse,
+    )
+    const { slug } = result
+    const changes = await tool(
+      fixture,
+      {
+        arguments: {
+          since: 0,
+        },
+        name: 'list_wiki_changes',
+      },
+      CursorPage,
+    )
     expect(changes.items.length).toBeGreaterThan(0)
     expect(changes.next).toBeTypeOf('string')
-    const sec = await tool<{ contentTruncated?: boolean }>('get_wiki_page', { slug, section: 'B' })
+    const sec = await tool(fixture, { arguments: { section: 'B', slug }, name: 'get_wiki_page' }, WikiSectionResult)
     expect(sec.contentTruncated).toBe(true)
   })
 })

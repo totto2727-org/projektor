@@ -1,8 +1,12 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '#contracts/api-results.ts'
+import type { CoreRpcShape } from '#core/contract.ts'
 
-export function getFlowMetrics(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetFlowMetrics']>) {
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
+
+export const getFlowMetrics = async function getFlowMetrics(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiGetFlowMetrics']>
+): Promise<typeof ApiResults.apiGetFlowMetrics.Type> {
   return apiReply(ApiResults.apiGetFlowMetrics, ctx.core.apiGetFlowMetrics(ctx.actor, ctx.workspaceId, ...args))
 }

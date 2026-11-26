@@ -1,25 +1,22 @@
-import { Effect, Schema } from 'effect'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { Iterable, Effect, Schema } from 'effect'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { resetAuthCachesForTests } from '#services/authentication'
+import { ApiUserBootstrap } from '#contracts/api-auth.ts'
+import { ApiConsentWorkspace, ApiRealtimeSnapshot } from '#contracts/api-public.ts'
+import { ApiResults } from '#contracts/api-results.ts'
+import type { CoreActor } from '#core/authorization.ts'
+import { decodeCoreReply } from '#core/client.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { ApiUserBootstrap } from '../../contracts/api-auth'
-import { ApiConsentWorkspace, ApiRealtimeSnapshot } from '../../contracts/api-public'
-import { ApiResults } from '../../contracts/api-results'
-import { createTestDatabase } from '../../web/test/database'
-import type { CoreActor } from '../authorization'
-import { decodeCoreReply } from '../client'
-import type { CoreEnvironment } from '../environment'
-import { makeApiIdentityHandlers } from './identity-operations'
-import { makeApiPublicHandlers } from './public-operations'
+import { makeApiIdentityHandlers } from './identity-operations.ts'
+import { makeApiPublicHandlers } from './public-operations.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-  resetAuthCachesForTests()
-})
 
-async function fixture() {
+const fixture = async function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
@@ -28,7 +25,7 @@ async function fixture() {
     INSERT INTO workspace_members(workspace_id,user_id,role,joined_at) VALUES('w','u','owner',1),('other','u','owner',1);
   `)
   const bearer = 'pk_api-boundary-regression'
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer))))
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer)))]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   database.sqlite
@@ -37,7 +34,12 @@ async function fixture() {
     .run(hash)
   const env = {
     DB: database.db,
-    KV: { get: async () => null, put: async () => undefined },
+    KV: {
+      get: async () => null,
+      put: async (): Promise<void> => {
+        // This fixture models a missing KV entry and discards writes.
+      },
+    },
     R2: {},
     ENVIRONMENT: 'production',
     CF_ACCESS_TEAM_DOMAIN: '',
@@ -48,75 +50,103 @@ async function fixture() {
   const handlers = { ...makeApiIdentityHandlers(source), ...makeApiPublicHandlers(source) }
   return { ...database, actor, env, handlers }
 }
-function reply<S extends Schema.Top & { readonly DecodingServices: never }>(
+const reply = function reply<S extends Schema.Top & Readonly<{ DecodingServices: never }>>(
   schema: S,
   invocation: Effect.Effect<string>,
 ) {
-  return Effect.runPromise(decodeCoreReply(schema, invocation))
+  return runTestEffect(decodeCoreReply(schema, invocation))
 }
 
-describe('API Core authorization and presentation boundaries', () => {
-  it('filters both workspace catalogs and auth bootstrap by the original credential audience', async () => {
-    const f = await fixture()
-    const workspaces = await reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))
-    expect(workspaces.map((workspace) => workspace.id)).toEqual(['w'])
+describe('covers API Core authorization and presentation boundaries', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+    resetAuthCachesForTests()
+  })
+
+  test('filters both workspace catalogs and auth bootstrap by the original credential audience', async () => {
+    const testFixture = await fixture()
+    const workspaces = await reply(
+      ApiResults.apiListWorkspaces,
+      testFixture.handlers.apiListWorkspaces(testFixture.actor),
+    )
+    expect(workspaces.map((workspace) => workspace.id)).toStrictEqual(['w'])
     expect(workspaces[0]).toHaveProperty('createdAt')
-    const bootstrap = await reply(ApiUserBootstrap, f.handlers.apiUserBootstrap(f.actor))
-    expect(bootstrap.workspaces.map((workspace) => workspace.id)).toEqual(['w'])
+    const bootstrap = await reply(ApiUserBootstrap, testFixture.handlers.apiUserBootstrap(testFixture.actor))
+    expect(bootstrap.workspaces.map((workspace) => workspace.id)).toStrictEqual(['w'])
   })
 
-  it('does not let a workspace credential mint an unconfined workspace', async () => {
-    const f = await fixture()
+  test('does not let a workspace credential mint an unconfined workspace', async () => {
+    const testFixture = await fixture()
     await expect(
-      reply(ApiResults.apiCreateWorkspace, f.handlers.apiCreateWorkspace(f.actor, { name: 'New', slug: 'new' })),
+      reply(
+        ApiResults.apiCreateWorkspace,
+        testFixture.handlers.apiCreateWorkspace(testFixture.actor, { name: 'New', slug: 'new' }),
+      ),
     ).rejects.toMatchObject({ status: 403 })
-    expect(f.sqlite.prepare("SELECT id FROM workspaces WHERE slug='new'").get()).toBeUndefined()
+    expect(testFixture.sqlite.prepare("SELECT id FROM workspaces WHERE slug='new'").get()).toBeUndefined()
   })
 
-  it('enforces read capability independently on global catalogs and auth bootstrap', async () => {
-    const f = await fixture()
-    f.sqlite.exec("UPDATE api_tokens SET scopes='[]' WHERE id='token'")
-    await expect(reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))).rejects.toMatchObject({
+  test('enforces read capability independently on global catalogs and auth bootstrap', async () => {
+    const testFixture = await fixture()
+    testFixture.sqlite.exec("UPDATE api_tokens SET scopes='[]' WHERE id='token'")
+    await expect(
+      reply(ApiResults.apiListWorkspaces, testFixture.handlers.apiListWorkspaces(testFixture.actor)),
+    ).rejects.toMatchObject({
       status: 403,
     })
-    await expect(reply(ApiUserBootstrap, f.handlers.apiUserBootstrap(f.actor))).rejects.toMatchObject({
+    await expect(
+      reply(ApiUserBootstrap, testFixture.handlers.apiUserBootstrap(testFixture.actor)),
+    ).rejects.toMatchObject({
       status: 403,
     })
   })
 
-  it('authenticates before revealing whether a target workspace exists', async () => {
-    const f = await fixture()
-    const unauthorized = { ...f.actor, bearer: 'invalid' }
-    for (const value of ['w', 'missing']) {
+  test('authenticates before revealing whether a target workspace exists', async () => {
+    expect.hasAssertions()
+    const testFixture = await fixture()
+    const unauthorized = { ...testFixture.actor, bearer: 'invalid' }
+    await runInOrder(['w', 'missing'], async (value): Promise<void> => {
       await expect(
-        reply(Schema.Unknown, f.handlers.apiResolveWorkspace(unauthorized, { kind: 'id', value })),
+        reply(Schema.Unknown, testFixture.handlers.apiResolveWorkspace(unauthorized, { kind: 'id', value })),
       ).rejects.toMatchObject({ status: 401 })
-    }
+    })
   })
 
-  it('does not authorize OAuth consent with an API token even when its owner is a workspace owner', async () => {
-    const f = await fixture()
-    await expect(reply(ApiConsentWorkspace, f.handlers.apiConsentWorkspace(f.actor, 'w'))).rejects.toMatchObject({
+  test('does not authorize OAuth consent with an API token even when its owner is a workspace owner', async () => {
+    const testFixture = await fixture()
+    await expect(
+      reply(ApiConsentWorkspace, testFixture.handlers.apiConsentWorkspace(testFixture.actor, 'w')),
+    ).rejects.toMatchObject({
       status: 403,
     })
   })
 
-  it('rechecks live socket membership and credential revocation on every visibility request', async () => {
-    const f = await fixture()
-    expect(await reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).toMatchObject({
-      userId: 'u',
+  test('rechecks live socket membership and credential revocation on every visibility request', async () => {
+    const testFixture = await fixture()
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).resolves.toMatchObject({
       role: 'owner',
+      userId: 'u',
     })
-    f.sqlite.exec("UPDATE workspace_members SET role='viewer' WHERE workspace_id='w'")
-    expect(await reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).toMatchObject({
+    testFixture.sqlite.exec("UPDATE workspace_members SET role='viewer' WHERE workspace_id='w'")
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).resolves.toMatchObject({
       role: 'viewer',
     })
-    f.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")
-    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).rejects.toMatchObject({
+    testFixture.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).rejects.toMatchObject({
       status: 403,
     })
-    f.sqlite.exec("DELETE FROM api_tokens WHERE id='token'")
-    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).rejects.toMatchObject({
+    testFixture.sqlite.exec("DELETE FROM api_tokens WHERE id='token'")
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).rejects.toMatchObject({
       status: 401,
     })
   })

@@ -1,9 +1,10 @@
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEntrypoint } from 'cloudflare:workers'
+import { Iterable, Predicate } from 'effect'
 import migrations from 'virtual:fixture-migrations'
 import entrypoint from 'virtual:production-core-entrypoint'
 
-import type { CoreEnvironment } from '../../src/core/environment'
+import type { CoreEnvironment } from '#core/environment.ts'
 
 // Use the configured production module's default export, just like Alchemy's bundler.
 const NativeCore = makeWorkerBridge(WorkerEntrypoint, {
@@ -14,9 +15,10 @@ const NativeCore = makeWorkerBridge(WorkerEntrypoint, {
 let initializing: Promise<{ migrations: number }> | undefined
 
 /** Acceptance-only entrypoint. Production Core never imports or applies migrations. */
+// oxlint-disable-next-line import/no-default-export -- Workerd loads the test Core service class from the default export.
 export default class FixtureCore extends NativeCore {
-  declare readonly env: CoreEnvironment
-  async initializeFixture(): Promise<{ migrations: number }> {
+  declare public readonly env: CoreEnvironment
+  public async initializeFixture(): Promise<{ migrations: number }> {
     initializing ??= this.applyFixtureMigrations().catch((error: unknown) => {
       initializing = undefined
       throw error
@@ -24,8 +26,12 @@ export default class FixtureCore extends NativeCore {
     return initializing
   }
 
-  /** Re-enter migration application without resetting the database or its ledger. */
-  async reinitializeFixture(): Promise<{ migrations: number }> {
+  /**
+   * Re-enter migration application without resetting the database or its ledger.
+   *
+   * @returns {Promise<{ migrations: number }>} The reported migration count after checking the existing fixture database again.
+   */
+  public async reinitializeFixture(): Promise<{ migrations: number }> {
     await this.initializeFixture()
     return this.applyFixtureMigrations()
   }
@@ -40,13 +46,17 @@ export default class FixtureCore extends NativeCore {
       .all<{ name: string; hash: string }>()
     const history = new Map(applied.results.map((row) => [row.name, row.hash]))
     const known = new Set(migrations.map((migration) => migration.name))
-    for (const name of history.keys()) {
-      if (!known.has(name)) throw new Error(`Unknown fixture migration history: ${name}`)
-    }
+    Iterable.forEach(history.keys(), (name) => {
+      if (!known.has(name)) {
+        throw new Error(`Unknown fixture migration history: ${name}`)
+      }
+    })
     for (const migration of migrations) {
       const previous = history.get(migration.name)
-      if (previous !== undefined) {
-        if (previous !== migration.hash) throw new Error(`Changed fixture migration history: ${migration.name}`)
+      if (Predicate.isNotNullish(previous)) {
+        if (previous !== migration.hash) {
+          throw new Error(`Changed fixture migration history: ${migration.name}`)
+        }
         continue
       }
       // D1 batches commit each migration and its ledger row together or roll both back.

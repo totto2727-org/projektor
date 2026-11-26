@@ -1,12 +1,15 @@
-// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-import {
-  type ClientRegistrationCallbackOptions,
-  getOAuthApi,
-  type OAuthHelpers,
-  type OAuthProviderOptions,
+import { getOAuthApi } from '@cloudflare/workers-oauth-provider'
+import type {
+  ClientRegistrationCallbackOptions,
+  OAuthHelpers,
+  OAuthProviderOptions,
 } from '@cloudflare/workers-oauth-provider'
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+import { Predicate } from 'effect'
 
-import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes'
+import { hasSingleItem } from '#contracts/item-count.ts'
+
+import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
 export const TOKEN_ENDPOINT = '/oauth/token'
 export const AUTHORIZE_ENDPOINT = '/oauth/authorize'
@@ -17,10 +20,12 @@ export interface OAuthEnvironment {
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-function validateNativeClient({ clientMetadata }: ClientRegistrationCallbackOptions) {
+const validateNativeClient = function validateNativeClient({
+  clientMetadata,
+}: ClientRegistrationCallbackOptions): { description: string } | undefined {
   const redirects = clientMetadata.redirect_uris
-  const redirect = Array.isArray(redirects) && redirects.length === 1 ? redirects[0] : undefined
-  if (clientMetadata.token_endpoint_auth_method === 'none' && typeof redirect === 'string' && URL.canParse(redirect)) {
+  const redirect = Array.isArray(redirects) && hasSingleItem(redirects) ? redirects[0] : undefined
+  if (clientMetadata.token_endpoint_auth_method === 'none' && Predicate.isString(redirect) && URL.canParse(redirect)) {
     const url = new URL(redirect)
     if (
       url.protocol === 'http:' &&
@@ -28,14 +33,22 @@ function validateNativeClient({ clientMetadata }: ClientRegistrationCallbackOpti
       !url.username &&
       !url.password &&
       !redirect.includes('#')
-    )
+    ) {
       return
+    }
   }
   return { description: 'Dynamic registration requires a public client with one HTTP loopback IP redirect URI.' }
 }
 
-/** Shared provider protocol configuration contains no application storage or authority. */
-export function providerOptions<E extends OAuthEnvironment>(app: ExportedHandler<E>): OAuthProviderOptions<E> {
+/**
+ * Define the routes and protocol options shared by the OAuth provider's entry points.
+ *
+ * @param {ExportedHandler<E>} app The Worker handler for API and fallback requests.
+ * @returns {OAuthProviderOptions<E>} The endpoint, registration and scope settings for that handler.
+ */
+export const providerOptions = function providerOptions<E extends OAuthEnvironment>(
+  app: ExportedHandler<E>,
+): OAuthProviderOptions<E> {
   return {
     apiRoute: '/mcp/',
     apiHandler: app as OAuthProviderOptions<E>['apiHandler'],
@@ -52,7 +65,12 @@ export function providerOptions<E extends OAuthEnvironment>(app: ExportedHandler
 
 const UNUSED_HANDLER: ExportedHandler<OAuthEnvironment> = { fetch: () => new Response('Not found', { status: 404 }) }
 
-/** Credential lifecycle is delegated to the official provider and its dedicated KV. */
-export function oauthApi(env: OAuthEnvironment): OAuthHelpers {
+/**
+ * Delegate the credential lifecycle to the OAuth provider and its dedicated KV namespace.
+ *
+ * @param {OAuthEnvironment} env The environment containing the credential namespace binding.
+ * @returns {OAuthHelpers} The provider's operations for managing OAuth clients and grants.
+ */
+export const oauthApi = function oauthApi(env: OAuthEnvironment): OAuthHelpers {
   return getOAuthApi(providerOptions(UNUSED_HANDLER), env)
 }

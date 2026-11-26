@@ -1,11 +1,13 @@
-import { Effect, Schema } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { Iterable, Effect, Schema } from 'effect'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { loadMigrations } from '#db/test/helpers'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
+import { runTestEffect, runInOrder } from '#tests/run-effect.ts'
+import { sqliteRowFields, sqliteRowsFields } from '#tests/sqlite-records.ts'
+import { RequestServices } from '@/request.ts'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import { createTestResources, testEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
 import {
   createWikiPage,
   deleteWikiAttachment,
@@ -22,109 +24,56 @@ import {
   saveWikiPage,
   trashWikiPage,
   verifyWikiPage,
-} from './actions'
+} from './actions.ts'
+import { createWikiActionEnvironment } from './test/action-environment.ts'
+import type { WikiActionDatabase, WikiActionOptions } from './test/action-environment.ts'
 
-type Definition = {
+const wikiPageInput = function wikiPageInput(
+  workspaceSlug: string,
+  slug: string,
+): { slug: string; workspaceSlug: string } {
+  return fieldsInOrder([
+    ['workspaceSlug', workspaceSlug],
+    ['slug', slug],
+  ])
+}
+
+interface Definition {
   input: Schema.Decoder<unknown>
   handler: (input: never) => Effect.Effect<unknown, unknown, RequestServices>
 }
 const definitions = vi.hoisted(() => new Map<unknown, Definition>())
-vi.mock('@effront/core/workers', async () => {
-  const { Effect } = await import('effect')
-  return { getWorkersRequestContext: () => Effect.die('No Workers runtime in handler unit tests') }
+vi.mock(import('@effront/core/workers'), async () => {
+  const { Effect: fixtureEffect } = await import('effect')
+  return { getWorkersRequestContext: () => fixtureEffect.die('No Workers runtime in handler unit tests') }
 })
 vi.mock('../../effront', () => ({
   EFFRONT: {
     ServerFn: {
       make: (definition: Definition) => {
-        const operation = () => undefined
+        const operation = (): undefined => undefined
         definitions.set(operation, definition)
         return operation
       },
     },
   },
 }))
-const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
-async function fixture(
-  options: {
-    origin?: string
-    pageProject?: string
-    inaccessible?: boolean
-    archived?: boolean
-    role?: 'owner' | 'admin' | 'member' | 'viewer'
-    granted?: boolean
-    auth?: 'dev' | 'public' | 'pk'
-  } = {},
-) {
-  const database = createTestDatabase()
-  databases.push(database)
-  // The shared relational fixture skips FTS-dependent migrations for portability.
-  // Wiki commands exercise real FTS5 here using those exact maintained statements.
-  for (const migration of loadMigrations()) {
-    for (const statement of migration.replace(/--[^\n]*/g, '').split(';')) {
-      if (/\bwiki_fts(?:_new)?\b/i.test(statement)) database.sqlite.exec(statement)
-    }
-  }
-  database.sqlite.exec(`
-    INSERT INTO workspaces (id,name,slug,created_at) VALUES ('workspace','Team','team',1),('foreign-workspace','Foreign','foreign',1);
-    INSERT INTO users (id,email,name,created_at) VALUES ('user','alice@example.test','Alice',1),('other-user','other@example.test','Other',1);
-    INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('workspace','user','member',1);
-    INSERT INTO projects (id,workspace_id,name,key,slug,created_at,updated_at) VALUES ('00000000-0000-4000-8000-000000000002','workspace','Source','SRC','source',1,1);
-    INSERT INTO wiki_pages (id,workspace_id,slug,title,content,created_by_id,updated_by_id,created_at,updated_at) VALUES
-      ('00000000-0000-4000-8000-000000000001','workspace','guide','Guide','Body','user','user',1,1),('foreign-page','foreign-workspace','guide','Foreign Guide','Secret','user','user',1,1);
-    INSERT INTO wiki_revisions (id,page_id,content,author_id,created_at) VALUES ('revision','00000000-0000-4000-8000-000000000001','Body','user',1),('foreign-revision','foreign-page','Secret','user',1);
-  `)
-  if (options.pageProject)
-    database.sqlite
-      .prepare("UPDATE wiki_pages SET project_id = ? WHERE id = '00000000-0000-4000-8000-000000000001'")
-      .run(options.pageProject)
-  if (options.archived)
-    database.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id = '00000000-0000-4000-8000-000000000002'")
-  if (options.role)
-    database.sqlite.prepare("UPDATE workspace_members SET role = ? WHERE user_id = 'user'").run(options.role)
-  if (options.granted || (options.pageProject && !options.archived && !options.inaccessible))
-    database.sqlite.exec(`
-      INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('group','workspace','Readers',1);
-      INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('group','user','user',1);
-      INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('group','00000000-0000-4000-8000-000000000002','member');
-    `)
-  const resources = createTestResources()
-  const invalidate = vi.fn()
-  const request = new Request('https://app.test/_effront/function', {
-    method: 'POST',
-    headers: { Origin: options.origin ?? 'https://app.test' },
-  })
-  const native = await Effect.runPromise(
-    makeRequestServices(
-      request,
-      testEnvironment(database.db, 'alice@example.test', {
-        KV: resources.kv,
-        R2: resources.r2,
-        OAUTH_KV: resources.oauthKv,
-      }),
-    ),
-  )
-  const services = {
-    ...native,
-    scope: (selection?: Parameters<typeof native.scope>[0]) =>
-      native
-        .scope(selection)
-        .pipe(
-          Effect.map((scope) =>
-            options.auth && options.auth !== 'dev'
-              ? { ...scope, auth: { kind: 'human' as const, method: options.auth } }
-              : scope,
-          ),
-        ),
-    invalidate: native.invalidate.pipe(Effect.andThen(Effect.sync(invalidate))),
-  }
-  function run(operation: unknown, input: unknown) {
+const readGuideContent = function readGuideContent(
+  sqlite: WikiActionDatabase['sqlite'],
+): ReturnType<typeof sqliteRowFields> {
+  const row = sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get()
+  return sqliteRowFields(row)
+}
+
+const databases: WikiActionDatabase[] = []
+const fixture = async function fixture(options: WikiActionOptions = {}) {
+  const { database, invalidate, resources, services } = await createWikiActionEnvironment(databases, options)
+  const run = function run(operation: unknown, input: unknown): Promise<unknown> {
     const definition = definitions.get(operation)
-    if (!definition) throw new Error('Missing operation definition')
-    return Effect.runPromise(
+    if (!definition) {
+      throw new Error('Missing operation definition')
+    }
+    return runTestEffect(
       Schema.decodeUnknownEffect(definition.input)(input).pipe(
         Effect.flatMap((value) => definition.handler(value as never)),
         Effect.provideService(RequestServices, services),
@@ -133,468 +82,526 @@ async function fixture(
   }
   return { run, invalidate, sqlite: database.sqlite, resources }
 }
-describe('Wiki semantic ServerFn contracts', () => {
-  it('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
-    const test = await fixture()
+describe('wiki semantic ServerFn contracts', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
+  test('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
+    expect.hasAssertions()
+    const { run, sqlite } = await fixture()
     await expect(
-      test.run(saveWikiDraft, { workspaceSlug: 'team', slug: 'guide', title: 'Missing token', content: 'No write' }),
-    ).rejects.toThrow()
-    expect(test.sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get()).toEqual({ count: 0 })
-    expect(await test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
+      run(saveWikiDraft, { ...wikiPageInput('team', 'guide'), content: 'No write', title: 'Missing token' }),
+    ).rejects.toThrow('["expectedDraftRevision"]')
+    expect(sqliteRowFields(sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get())).toStrictEqual({
+      count: 0,
+    })
+    await expect(run(getWikiDraftState, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
-      value: { draft: null, revision: null },
+      value: { draft: JSON_NULL, revision: JSON_NULL },
     })
-    await test.run(saveWikiDraft, {
-      workspaceSlug: 'team',
-      slug: 'guide',
-      title: 'Newer',
+    await run(saveWikiDraft, {
+      ...wikiPageInput('team', 'guide'),
       content: 'Keep B',
-      expectedDraftRevision: null,
+      expectedDraftRevision: JSON_NULL,
+      title: 'Newer',
     })
-    const head = test.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision
-    for (const operation of [saveWikiDraft, discardWikiDraft, saveWikiPage]) {
-      expect(
-        await test.run(operation, {
-          workspaceSlug: 'team',
-          slug: 'guide',
-          title: 'Stale',
-          content: 'Late A',
+    const head = sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision
+    await runInOrder([saveWikiDraft, discardWikiDraft, saveWikiPage], async (operation): Promise<void> => {
+      await expect(
+        run(operation, {
+          ...wikiPageInput('team', 'guide'),
           baseRevisionId: 'revision',
-          expectedDraftRevision: null,
+          content: 'Late A',
+          expectedDraftRevision: JSON_NULL,
+          title: 'Stale',
         }),
-      ).toMatchObject({ ok: false, status: 409 })
-    }
-    expect(await test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+      ).resolves.toMatchObject({ ok: false, status: 409 })
+    })
+    await expect(run(getWikiDraftState, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
       value: { revision: head, draft: { content: 'Keep B' } },
     })
     expect(
-      test.sqlite
-        .prepare('SELECT content FROM wiki_pages WHERE slug = ? AND workspace_id = ?')
-        .get('guide', 'workspace'),
-    ).toEqual({ content: 'Body' })
+      sqliteRowFields(
+        sqlite.prepare('SELECT content FROM wiki_pages WHERE slug = ? AND workspace_id = ?').get('guide', 'workspace'),
+      ),
+    ).toStrictEqual({ content: 'Body' })
   })
-  it.each(['owner', 'admin', 'member'] as const)(
+
+  test.each(['owner', 'admin', 'member'] as const)(
     'reads archived project pages, revisions and personal drafts from a workspace-only selector for %s',
     async (role) => {
-      const test = await fixture({
+      const testFixture = await fixture({
         pageProject: '00000000-0000-4000-8000-000000000002',
         archived: true,
         role,
         granted: role === 'member',
       })
-      expect(await test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+      await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
         ok: true,
         value: { id: '00000000-0000-4000-8000-000000000001', project_id: '00000000-0000-4000-8000-000000000002' },
       })
-      expect(
-        await test.run(getWikiRevisionDiff, {
-          workspaceSlug: 'team',
-          slug: 'guide',
-          revisionId: 'revision',
-        }),
-      ).toMatchObject({ ok: true, value: { diff: expect.any(String) } })
-      expect(await test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
+      await expect(
+        testFixture.run(getWikiRevisionDiff, { ...wikiPageInput('team', 'guide'), revisionId: 'revision' }),
+      ).resolves.toMatchObject({ ok: true, value: { diff: expect.any(String) } })
+      await expect(testFixture.run(getWikiDraft, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
         ok: true,
-        value: null,
+        value: JSON_NULL,
       })
-      expect(test.sqlite.prepare('SELECT COUNT(*) AS count FROM wiki_pages').get()).toEqual({ count: 2 })
-      expect(test.invalidate).not.toHaveBeenCalled()
+      expect(
+        sqliteRowFields(testFixture.sqlite.prepare('SELECT COUNT(*) AS count FROM wiki_pages').get()),
+      ).toStrictEqual({
+        count: 2,
+      })
+      expect(testFixture.invalidate).not.toHaveBeenCalled()
     },
   )
-  it("does not grant an archived project's page or revision to an ungranted member", async () => {
-    const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', archived: true })
-    for (const operation of [getWikiPage, getWikiDraft, getWikiRevisionDiff]) {
-      expect(await test.run(operation, { workspaceSlug: 'team', slug: 'guide', revisionId: 'revision' })).toMatchObject(
-        { ok: false, status: 404 },
-      )
-    }
+
+  test("does not grant an archived project's page or revision to an ungranted member", async () => {
+    expect.hasAssertions()
+    const testFixture = await fixture({ archived: true, pageProject: '00000000-0000-4000-8000-000000000002' })
+    await runInOrder([getWikiPage, getWikiDraft, getWikiRevisionDiff], async (operation): Promise<void> => {
+      await expect(
+        testFixture.run(operation, { ...wikiPageInput('team', 'guide'), revisionId: 'revision' }),
+      ).resolves.toMatchObject({ ok: false, status: 404 })
+    })
   })
-  it('rejects cross-origin writes before any backend request and invalidates failed mutation scope', async () => {
-    const test = await fixture({ origin: 'https://attacker.test' })
-    expect(
-      await test.run(saveWikiPage, {
-        expectedDraftRevision: null,
-        workspaceSlug: 'team',
-        slug: 'guide',
-        title: 'Draft',
-        content: 'Body',
+
+  test('rejects cross-origin writes before any backend request and invalidates failed mutation scope', async () => {
+    const testFixture = await fixture({ origin: 'https://attacker.test' })
+    await expect(
+      testFixture.run(saveWikiPage, {
         baseRevisionId: 'revision',
-      }),
-    ).toEqual({ ok: false, status: 403, message: expect.any(String) })
-    expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
-      title: 'Guide',
-      content: 'Body',
-    })
-    expect(test.invalidate).toHaveBeenCalledTimes(1)
-  })
-  it('rejects an unauthorized workspace before constructing a backend mutation', async () => {
-    const test = await fixture()
-    expect(
-      await test.run(saveWikiPage, {
-        expectedDraftRevision: null,
-        workspaceSlug: 'other',
+        content: 'Body',
+        expectedDraftRevision: JSON_NULL,
         slug: 'guide',
         title: 'Draft',
-        content: 'Body',
+        workspaceSlug: 'team',
       }),
-    ).toEqual({ ok: false, status: 403, message: expect.any(String) })
+    ).resolves.toStrictEqual({ message: expect.any(String), ok: false, status: 403 })
     expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
-      title: 'Guide',
+      sqliteRowFields(
+        testFixture.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
+      title: 'Guide',
+    })
+    expect(testFixture.invalidate).toHaveBeenCalledOnce()
+  })
+
+  test('rejects an unauthorized workspace before constructing a backend mutation', async () => {
+    const testFixture = await fixture()
+    await expect(
+      testFixture.run(saveWikiPage, {
+        content: 'Body',
+        expectedDraftRevision: JSON_NULL,
+        slug: 'guide',
+        title: 'Draft',
+        workspaceSlug: 'other',
+      }),
+    ).resolves.toStrictEqual({ message: expect.any(String), ok: false, status: 403 })
+    expect(
+      sqliteRowFields(
+        testFixture.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
+      content: 'Body',
+      title: 'Guide',
     })
   })
-  it('keeps 409 conflict revision/diff details and does not clear a personal draft after failed save', async () => {
-    const test = await fixture()
-    test.sqlite.exec(`
+
+  test('keeps 409 conflict revision/diff details and does not clear a personal draft after failed save', async () => {
+    const testFixture = await fixture()
+    testFixture.sqlite.exec(`
       INSERT INTO wiki_revisions (id,page_id,content,author_id,created_at) VALUES ('latest','00000000-0000-4000-8000-000000000001','Body','user',2);
       UPDATE wiki_pages SET content = 'Concurrent edit' WHERE id = '00000000-0000-4000-8000-000000000001';
       INSERT INTO wiki_drafts (id,workspace_id,user_id,page_id,title,content,base_revision_id,updated_at) VALUES ('mine','workspace','user','00000000-0000-4000-8000-000000000001','My title','Mine','revision',2);
     `)
-    expect(
-      await test.run(saveWikiPage, {
-        expectedDraftRevision: null,
-        workspaceSlug: 'team',
+    await expect(
+      testFixture.run(saveWikiPage, {
+        baseRevisionId: 'revision',
+        content: 'Mine',
+        expectedDraftRevision: JSON_NULL,
         slug: 'guide',
         title: 'My title',
-        content: 'Mine',
-        baseRevisionId: 'revision',
+        workspaceSlug: 'team',
       }),
-    ).toEqual({
+    ).resolves.toStrictEqual({
+      details: { currentRevisionId: 'latest', diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Concurrent edit' },
+      message: 'Wiki page has been modified since baseRevisionId; rebase and retry',
       ok: false,
       status: 409,
-      message: 'Wiki page has been modified since baseRevisionId; rebase and retry',
-      details: { currentRevisionId: 'latest', diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Concurrent edit' },
     })
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({
+    expect(readGuideContent(testFixture.sqlite)).toStrictEqual({
       content: 'Concurrent edit',
     })
-    expect(test.sqlite.prepare("SELECT content FROM wiki_drafts WHERE id = 'mine'").get()).toEqual({ content: 'Mine' })
-    expect(test.invalidate).toHaveBeenCalledTimes(1)
+    expect(
+      sqliteRowFields(testFixture.sqlite.prepare("SELECT content FROM wiki_drafts WHERE id = 'mine'").get()),
+    ).toStrictEqual({ content: 'Mine' })
+    expect(testFixture.invalidate).toHaveBeenCalledOnce()
   })
-  it('reads a draft without invalidating and resolves the explicit authorized workspace', async () => {
-    const test = await fixture()
-    expect(await test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
+
+  test('reads a draft without invalidating and resolves the explicit authorized workspace', async () => {
+    const testFixture = await fixture()
+    await expect(testFixture.run(getWikiDraft, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
-      value: null,
+      value: JSON_NULL,
     })
-    expect(test.invalidate).not.toHaveBeenCalled()
+    expect(testFixture.invalidate).not.toHaveBeenCalled()
   })
-  it('duplicates server-authorized content and preserves the source entity project', async () => {
-    const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002' })
-    expect(await test.run(duplicateWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
+
+  test('duplicates server-authorized content and preserves the source entity project', async () => {
+    const testFixture = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002' })
+    await expect(testFixture.run(duplicateWikiPage, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
-      value: { id: expect.any(String), slug: expect.stringMatching(/^guide-copy-/) },
+      value: { id: expect.any(String), slug: expect.stringMatching(/^guide-copy-/u) },
     })
     expect(
-      test.sqlite
-        .prepare("SELECT title, content, project_id, parent_id FROM wiki_pages WHERE slug LIKE 'guide-copy-%'")
-        .get(),
-    ).toEqual({
-      title: 'Guide (copy)',
+      sqliteRowFields(
+        testFixture.sqlite
+          .prepare("SELECT title, content, project_id, parent_id FROM wiki_pages WHERE slug LIKE 'guide-copy-%'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
+      parent_id: SQL_NULL,
       project_id: '00000000-0000-4000-8000-000000000002',
-      parent_id: null,
+      title: 'Guide (copy)',
     })
-    expect(test.invalidate).toHaveBeenCalledTimes(1)
+    expect(testFixture.invalidate).toHaveBeenCalledOnce()
   })
-  it("reads the actual page DTO/revision pointer and only the current user's draft directly", async () => {
-    const test = await fixture()
-    expect(await test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+
+  test("reads the actual page DTO/revision pointer and only the current user's draft directly", async () => {
+    const testFixture = await fixture()
+    await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
-      value: { id: '00000000-0000-4000-8000-000000000001', content: 'Body', revisionId: 'revision', freshness: null },
+      value: {
+        content: 'Body',
+        freshness: JSON_NULL,
+        id: '00000000-0000-4000-8000-000000000001',
+        revisionId: 'revision',
+      },
     })
-    test.sqlite.exec(
+    testFixture.sqlite.exec(
       `INSERT INTO wiki_drafts (id,workspace_id,user_id,page_id,title,content,base_revision_id,updated_at) VALUES ('mine','workspace','user','00000000-0000-4000-8000-000000000001','Mine','Personal','revision',2),('theirs','workspace','other-user','00000000-0000-4000-8000-000000000001','Secret','Private','revision',3)`,
     )
-    expect(await test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
+    await expect(testFixture.run(getWikiDraft, wikiPageInput('team', 'guide'))).resolves.toStrictEqual({
       ok: true,
-      value: { title: 'Mine', content: 'Personal', baseRevisionId: 'revision', updatedAt: 2 },
+      value: { baseRevisionId: 'revision', content: 'Personal', title: 'Mine', updatedAt: 2 },
     })
-    expect(test.invalidate).not.toHaveBeenCalled()
+    expect(testFixture.invalidate).not.toHaveBeenCalled()
   })
-  it('re-authorizes the actual entity project rather than trusting a page selector', async () => {
-    const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
-    for (const operation of [getWikiPage, getWikiDraft, duplicateWikiPage])
-      expect(await test.run(operation, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+
+  test('re-authorizes the actual entity project rather than trusting a page selector', async () => {
+    expect.hasAssertions()
+    const testFixture = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
+    await runInOrder([getWikiPage, getWikiDraft, duplicateWikiPage], async (operation): Promise<void> => {
+      await expect(testFixture.run(operation, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
         ok: false,
         status: 404,
       })
+    })
     expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
-      title: 'Guide',
+      sqliteRowFields(
+        testFixture.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
+      title: 'Guide',
     })
   })
-  it('binds revision diffs and restore reads to the authorized page and workspace', async () => {
-    const test = await fixture()
-    test.sqlite.exec("UPDATE wiki_pages SET content = 'Current' WHERE id = '00000000-0000-4000-8000-000000000001'")
-    expect(
-      await test.run(getWikiRevisionDiff, {
-        workspaceSlug: 'team',
-        slug: 'guide',
-        revisionId: 'revision',
-      }),
-    ).toEqual({
+
+  test('binds revision diffs and restore reads to the authorized page and workspace', async () => {
+    expect.hasAssertions()
+    const testFixture = await fixture()
+    testFixture.sqlite.exec(
+      "UPDATE wiki_pages SET content = 'Current' WHERE id = '00000000-0000-4000-8000-000000000001'",
+    )
+    await expect(
+      testFixture.run(getWikiRevisionDiff, { ...wikiPageInput('team', 'guide'), revisionId: 'revision' }),
+    ).resolves.toStrictEqual({
       ok: true,
       value: { diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Current' },
     })
-    for (const operation of [getWikiRevisionDiff, restoreWikiRevision])
-      expect(
-        await test.run(operation, {
-          workspaceSlug: 'team',
-          slug: 'guide',
-          revisionId: 'foreign-revision',
+    await runInOrder([getWikiRevisionDiff, restoreWikiRevision], async (operation): Promise<void> => {
+      await expect(
+        testFixture.run(operation, {
+          ...wikiPageInput('team', 'guide'),
           baseRevisionId: 'revision',
+          revisionId: 'foreign-revision',
         }),
-      ).toMatchObject({ ok: false, status: 404 })
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({
+      ).resolves.toMatchObject({ ok: false, status: 404 })
+    })
+    expect(readGuideContent(testFixture.sqlite)).toStrictEqual({
       content: 'Current',
     })
-    expect(
-      await test.run(restoreWikiRevision, {
-        workspaceSlug: 'team',
-        slug: 'guide',
-        revisionId: 'revision',
+    await expect(
+      testFixture.run(restoreWikiRevision, {
+        ...wikiPageInput('team', 'guide'),
         baseRevisionId: 'revision',
+        revisionId: 'revision',
       }),
-    ).toEqual({ ok: true, value: { ok: true } })
+    ).resolves.toStrictEqual({ ok: true, value: { ok: true } })
+    expect(readGuideContent(testFixture.sqlite)).toStrictEqual({ content: 'Body' })
     expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({ content: 'Body' })
-    expect(
-      test.sqlite
-        .prepare(
-          "SELECT summary FROM wiki_revisions WHERE page_id = '00000000-0000-4000-8000-000000000001' ORDER BY rowid DESC LIMIT 1",
-        )
-        .get(),
-    ).toEqual({
+      sqliteRowFields(
+        testFixture.sqlite
+          .prepare(
+            "SELECT summary FROM wiki_revisions WHERE page_id = '00000000-0000-4000-8000-000000000001' ORDER BY rowid DESC LIMIT 1",
+          )
+          .get(),
+      ),
+    ).toStrictEqual({
       summary: 'Restored from revision dated 1970-01-01T00:00:01.000Z',
     })
   })
-  it.each([
-    [createWikiPage, { title: 'New', slug: 'new-page' }],
+
+  test.each([
+    [createWikiPage, { slug: 'new-page', title: 'New' }],
     [duplicateWikiPage, { slug: 'guide' }],
     [
       saveWikiPage,
-      { expectedDraftRevision: null, slug: 'guide', title: 'New', content: 'New', baseRevisionId: 'revision' },
+      { baseRevisionId: 'revision', content: 'New', expectedDraftRevision: JSON_NULL, slug: 'guide', title: 'New' },
     ],
-    [saveWikiDraft, { expectedDraftRevision: null, slug: 'guide', title: 'Draft', content: 'Draft' }],
-    [discardWikiDraft, { expectedDraftRevision: null, slug: 'guide' }],
-    [moveWikiPage, { slug: 'guide', parentId: null }],
+    [saveWikiDraft, { content: 'Draft', expectedDraftRevision: JSON_NULL, slug: 'guide', title: 'Draft' }],
+    [discardWikiDraft, { expectedDraftRevision: JSON_NULL, slug: 'guide' }],
+    [moveWikiPage, { parentId: JSON_NULL, slug: 'guide' }],
     [verifyWikiPage, { slug: 'guide' }],
     [trashWikiPage, { slug: 'guide' }],
     [restoreTrashedWikiPage, { pageId: '00000000-0000-4000-8000-000000000001' }],
-    [restoreWikiRevision, { slug: 'guide', revisionId: 'revision', baseRevisionId: 'revision' }],
+    [restoreWikiRevision, { baseRevisionId: 'revision', revisionId: 'revision', slug: 'guide' }],
     [deleteWikiAttachment, { attachmentId: 'attachment' }],
   ])('checks same-origin before the explicit command and invalidates failures %#', async (operation, input) => {
-    const test = await fixture({ origin: 'https://attacker.test' })
-    expect(await test.run(operation, { workspaceSlug: 'team', ...input })).toMatchObject({ ok: false, status: 403 })
+    const testFixture = await fixture({ origin: 'https://attacker.test' })
+    await expect(testFixture.run(operation, { workspaceSlug: 'team', ...input })).resolves.toMatchObject({
+      ok: false,
+      status: 403,
+    })
     expect(
-      test.sqlite
-        .prepare(
-          "SELECT title, content, deleted_at, version FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'",
-        )
-        .get(),
-    ).toEqual({ title: 'Guide', content: 'Body', deleted_at: null, version: 0 })
-    expect(test.invalidate).toHaveBeenCalledTimes(1)
+      sqliteRowFields(
+        testFixture.sqlite
+          .prepare(
+            "SELECT title, content, deleted_at, version FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'",
+          )
+          .get(),
+      ),
+    ).toStrictEqual({ content: 'Body', deleted_at: SQL_NULL, title: 'Guide', version: 0 })
+    expect(testFixture.invalidate).toHaveBeenCalledOnce()
   })
-  it.each(['public', 'pk'] as const)('does not grant browser mutation capabilities to %s principals', async (auth) => {
-    const test = await fixture({ auth })
-    expect(
-      await test.run(saveWikiPage, {
-        expectedDraftRevision: null,
-        workspaceSlug: 'team',
-        slug: 'guide',
-        title: 'New',
-        content: 'New',
-      }),
-    ).toMatchObject({ ok: false, status: 403 })
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({ content: 'Body' })
-  })
-  it('publishes canonical content through real commands and clears only the current user draft', async () => {
-    const test = await fixture()
+
+  test.each(['public', 'pk'] as const)(
+    'does not grant browser mutation capabilities to %s principals',
+    async (auth) => {
+      const testFixture = await fixture({ auth })
+      await expect(
+        testFixture.run(saveWikiPage, {
+          content: 'New',
+          expectedDraftRevision: JSON_NULL,
+          slug: 'guide',
+          title: 'New',
+          workspaceSlug: 'team',
+        }),
+      ).resolves.toMatchObject({ ok: false, status: 403 })
+      expect(readGuideContent(testFixture.sqlite)).toStrictEqual({ content: 'Body' })
+    },
+  )
+
+  test('publishes canonical content through real commands and clears only the current user draft', async () => {
+    const testFixture = await fixture()
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Wiki must not use HTTP'))
-    expect(
-      await test.run(saveWikiDraft, {
-        expectedDraftRevision: null,
-        workspaceSlug: 'team',
+    await expect(
+      testFixture.run(saveWikiDraft, {
+        baseRevisionId: 'revision',
+        content: 'Mine',
+        expectedDraftRevision: JSON_NULL,
         slug: 'guide',
         title: 'Draft',
-        content: 'Mine',
-        baseRevisionId: 'revision',
+        workspaceSlug: 'team',
       }),
-    ).toMatchObject({
+    ).resolves.toMatchObject({
       ok: true,
       value: { ok: true, pageId: '00000000-0000-4000-8000-000000000001', updatedAt: expect.any(Number) },
     })
-    test.sqlite.exec(
+    testFixture.sqlite.exec(
       "INSERT INTO wiki_drafts (id,workspace_id,user_id,page_id,title,content,base_revision_id,updated_at) VALUES ('theirs','workspace','other-user','00000000-0000-4000-8000-000000000001','Secret','Private','revision',3)",
     )
-    expect(
-      await test.run(saveWikiPage, {
-        expectedDraftRevision: test.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision,
+    await expect(
+      testFixture.run(saveWikiPage, {
+        expectedDraftRevision: testFixture.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Published',
         content: '## Canonical\n\n**Body**',
         baseRevisionId: 'revision',
       }),
-    ).toEqual({ ok: true, value: { ok: true, draftRevision: expect.any(String) } })
-    expect(await test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+    ).resolves.toEqual({ ok: true, value: { draftRevision: expect.any(String), ok: true } })
+    await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
-      value: { title: 'Published', content: '## Canonical\n\n**Body**', revisionId: expect.any(String) },
+      value: { content: '## Canonical\n\n**Body**', revisionId: expect.any(String), title: 'Published' },
     })
-    expect(test.sqlite.prepare('SELECT user_id, content FROM wiki_drafts').all()).toEqual([
-      { user_id: 'other-user', content: 'Private' },
-    ])
+    expect(
+      sqliteRowsFields(testFixture.sqlite.prepare('SELECT user_id, content FROM wiki_drafts').all()),
+    ).toStrictEqual([{ content: 'Private', user_id: 'other-user' }])
     expect(fetch).not.toHaveBeenCalled()
-    expect(test.invalidate).toHaveBeenCalledTimes(2)
+    expect(testFixture.invalidate).toHaveBeenCalledTimes(2)
   })
-  it('moves, verifies, cascades trash and restores real wiki records', async () => {
-    const test = await fixture({ role: 'owner' })
-    expect(
-      await test.run(createWikiPage, {
-        workspaceSlug: 'team',
-        title: 'Child',
-        slug: 'child',
-        parentId: '00000000-0000-4000-8000-000000000001',
+
+  test('moves, verifies, cascades trash and restores real wiki records', async () => {
+    const testFixture = await fixture({ role: 'owner' })
+    await expect(
+      testFixture.run(createWikiPage, {
         content: 'Child body',
+        parentId: '00000000-0000-4000-8000-000000000001',
+        slug: 'child',
+        title: 'Child',
+        workspaceSlug: 'team',
       }),
-    ).toMatchObject({ ok: true, value: { id: expect.any(String), slug: 'child' } })
-    expect(await test.run(moveWikiPage, { workspaceSlug: 'team', slug: 'child', parentId: null })).toEqual({
+    ).resolves.toMatchObject({ ok: true, value: { id: expect.any(String), slug: 'child' } })
+    await expect(
+      testFixture.run(moveWikiPage, { ...wikiPageInput('team', 'child'), parentId: JSON_NULL }),
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
-    expect(test.sqlite.prepare("SELECT parent_id FROM wiki_pages WHERE slug = 'child'").get()).toEqual({
-      parent_id: null,
-    })
     expect(
-      await test.run(moveWikiPage, {
-        workspaceSlug: 'team',
-        slug: 'child',
+      sqliteRowFields(testFixture.sqlite.prepare("SELECT parent_id FROM wiki_pages WHERE slug = 'child'").get()),
+    ).toStrictEqual({
+      parent_id: SQL_NULL,
+    })
+    await expect(
+      testFixture.run(moveWikiPage, {
+        ...wikiPageInput('team', 'child'),
         parentId: '00000000-0000-4000-8000-000000000001',
       }),
-    ).toEqual({
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
-    expect(await test.run(verifyWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+    await expect(testFixture.run(verifyWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
-      value: { ok: true, verifiedBy: 'alice@example.test', verifiedAt: expect.any(Number) },
+      value: { ok: true, verifiedAt: expect.any(Number), verifiedBy: 'alice@example.test' },
     })
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({
+    expect(readGuideContent(testFixture.sqlite)).toStrictEqual({
       content: expect.stringContaining('verified_by: alice@example.test'),
     })
-    expect(await test.run(trashWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+    await expect(testFixture.run(trashWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: true,
-      value: { ok: true, deletedCount: 2 },
+      value: { deletedCount: 2, ok: true },
     })
-    expect(await test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+    await expect(testFixture.run(getWikiPage, wikiPageInput('team', 'guide'))).resolves.toMatchObject({
       ok: false,
       status: 404,
     })
-    expect(
-      await test.run(restoreTrashedWikiPage, { workspaceSlug: 'team', pageId: '00000000-0000-4000-8000-000000000001' }),
-    ).toMatchObject({
+    await expect(
+      testFixture.run(restoreTrashedWikiPage, {
+        pageId: '00000000-0000-4000-8000-000000000001',
+        workspaceSlug: 'team',
+      }),
+    ).resolves.toMatchObject({
       ok: true,
-      value: { ok: true, id: '00000000-0000-4000-8000-000000000001', slug: 'guide', restoredCount: 2 },
+      value: { id: '00000000-0000-4000-8000-000000000001', ok: true, restoredCount: 2, slug: 'guide' },
     })
   })
-  it('enforces actual mutation project permissions and workspace selectors', async () => {
-    const hidden = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
-    expect(
-      await hidden.run(saveWikiPage, {
-        expectedDraftRevision: null,
-        workspaceSlug: 'team',
+
+  test('enforces actual mutation project permissions and workspace selectors', async () => {
+    const hidden = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
+    await expect(
+      hidden.run(saveWikiPage, {
+        content: 'Hidden',
+        expectedDraftRevision: JSON_NULL,
         slug: 'guide',
         title: 'Hidden',
-        content: 'Hidden',
-      }),
-    ).toMatchObject({ ok: false, status: 404 })
-    expect(
-      await hidden.run(createWikiPage, {
         workspaceSlug: 'team',
+      }),
+    ).resolves.toMatchObject({ ok: false, status: 404 })
+    await expect(
+      hidden.run(createWikiPage, {
         projectId: '00000000-0000-4000-8000-000000000002',
         slug: 'new-page',
         title: 'New',
-      }),
-    ).toMatchObject({ ok: false, status: 404 })
-    const viewer = await fixture({ role: 'viewer' })
-    expect(
-      await viewer.run(saveWikiPage, {
-        expectedDraftRevision: null,
         workspaceSlug: 'team',
+      }),
+    ).resolves.toMatchObject({ ok: false, status: 404 })
+    const viewer = await fixture({ role: 'viewer' })
+    await expect(
+      viewer.run(saveWikiPage, {
+        content: 'New',
+        expectedDraftRevision: JSON_NULL,
         slug: 'guide',
         title: 'New',
-        content: 'New',
+        workspaceSlug: 'team',
       }),
-    ).toMatchObject({ ok: false, status: 403 })
+    ).resolves.toMatchObject({ ok: false, status: 403 })
   })
-  it('deletes visible attachment metadata and native R2 objects while hiding foreign and ungranted owners', async () => {
-    const test = await fixture()
-    test.sqlite.exec(
+
+  test('deletes visible attachment metadata and native R2 objects while hiding foreign and ungranted owners', async () => {
+    const testFixture = await fixture()
+    testFixture.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('mine','workspace','objects/mine','mine.txt','text/plain',4,'wiki_page','00000000-0000-4000-8000-000000000001','user',1),('foreign','foreign-workspace','objects/foreign','foreign.txt','text/plain',4,'wiki_page','foreign-page','user',1)",
     )
-    const remove = vi.spyOn(test.resources.r2, 'delete')
-    expect(await test.run(deleteWikiAttachment, { workspaceSlug: 'team', attachmentId: 'foreign' })).toMatchObject({
+    const remove = vi.spyOn(testFixture.resources.r2, 'delete')
+    await expect(
+      testFixture.run(deleteWikiAttachment, { attachmentId: 'foreign', workspaceSlug: 'team' }),
+    ).resolves.toMatchObject({
       ok: false,
       status: 404,
     })
     expect(remove).not.toHaveBeenCalled()
-    expect(await test.run(deleteWikiAttachment, { workspaceSlug: 'team', attachmentId: 'mine' })).toEqual({
+    await expect(
+      testFixture.run(deleteWikiAttachment, { attachmentId: 'mine', workspaceSlug: 'team' }),
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
     expect(remove).toHaveBeenCalledWith('objects/mine')
-    expect(test.sqlite.prepare('SELECT id FROM attachments').all()).toEqual([{ id: 'foreign' }])
-    const hidden = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
+    expect(sqliteRowsFields(testFixture.sqlite.prepare('SELECT id FROM attachments').all())).toStrictEqual([
+      { id: 'foreign' },
+    ])
+    const hidden = await fixture({ inaccessible: true, pageProject: '00000000-0000-4000-8000-000000000002' })
     hidden.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('hidden','workspace','objects/hidden','hidden.txt','text/plain',4,'wiki_page','00000000-0000-4000-8000-000000000001','user',1)",
     )
-    expect(await hidden.run(deleteWikiAttachment, { workspaceSlug: 'team', attachmentId: 'hidden' })).toMatchObject({
+    await expect(
+      hidden.run(deleteWikiAttachment, { attachmentId: 'hidden', workspaceSlug: 'team' }),
+    ).resolves.toMatchObject({
       ok: false,
       status: 404,
     })
-    expect(hidden.sqlite.prepare('SELECT id FROM attachments').all()).toEqual([{ id: 'hidden' }])
+    expect(sqliteRowsFields(hidden.sqlite.prepare('SELECT id FROM attachments').all())).toStrictEqual([
+      { id: 'hidden' },
+    ])
   })
-  it('rejects mutually-exclusive template/content before reaching the request handler', async () => {
-    const test = await fixture()
+
+  test('rejects mutually-exclusive template/content before reaching the request handler', async () => {
+    const testFixture = await fixture()
     await expect(
-      test.run(createWikiPage, {
-        workspaceSlug: 'team',
-        title: 'Guide',
-        slug: 'guide',
+      testFixture.run(createWikiPage, {
         content: 'Body',
+        slug: 'guide',
         templateSlug: 'template',
+        title: 'Guide',
+        workspaceSlug: 'team',
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow('Choose template or content, not both.')
     expect(
-      test.sqlite
-        .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
-        .get(),
-    ).toEqual({
-      title: 'Guide',
+      sqliteRowFields(
+        testFixture.sqlite
+          .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
+          .get(),
+      ),
+    ).toStrictEqual({
       content: 'Body',
+      title: 'Guide',
     })
   })
 })

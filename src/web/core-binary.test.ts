@@ -1,25 +1,31 @@
 import { Effect } from 'effect'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { CORE_ACTOR_HEADER } from '../core/contract'
-import { transferCoreBinary } from './core-binary'
-import { makeRequestServices, RequestServices } from './request'
+import { CORE_ACTOR_HEADER } from '#core/contract.ts'
+import { runTestEffect } from '#tests/run-effect.ts'
 
-function execute(request: Request, fetch: (request: Request) => Promise<Response>) {
+import { transferCoreBinary } from './core-binary.ts'
+import { makeRequestServices, RequestServices } from './request.ts'
+import type { ApiError } from './server/errors.ts'
+
+const execute = function execute(
+  request: Request,
+  fetch: (request: Request) => Promise<Response>,
+): Effect.Effect<Response, ApiError> {
   return Effect.gen(function* () {
     const services = yield* makeRequestServices(request, { CORE: { fetch }, ENVIRONMENT: 'production' })
     return yield* transferCoreBinary('/files/a?workspaceId=w').pipe(Effect.provideService(RequestServices, services))
   })
 }
 
-describe('Web same-binding binary transport', () => {
-  it('preserves response streams and forwards only raw Access proof, never claimed identity headers', async () => {
+describe('web same-binding binary transport', () => {
+  test('preserves response streams and forwards only raw Access proof, never claimed identity headers', async () => {
     const stream = new ReadableStream<Uint8Array>()
     const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => new Response(stream))
     const incoming = new Request('https://front.test/api/files/a', {
       headers: { cookie: 'other=value; CF_Authorization=verified.jwt', 'x-user-id': 'forged' },
     })
-    const response = await Effect.runPromise(execute(incoming, fetch))
+    const response = await runTestEffect(execute(incoming, fetch))
     expect(response.body).toBe(stream)
     expect(fetch).toHaveBeenCalledOnce()
     const forwarded = fetch.mock.calls[0]?.[0]
@@ -30,27 +36,27 @@ describe('Web same-binding binary transport', () => {
     )
   })
 
-  it('retains original request cancellation on the native binding request', async () => {
+  test('retains original request cancellation on the native binding request', async () => {
     const abort = new AbortController()
     const incoming = new Request('https://front.test/api/files/a', { signal: abort.signal })
-    const fetch = vi.fn(async (request: Request) => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async (request: Request) => {
       abort.abort('disconnected')
       expect(request.signal.aborted).toBe(true)
-      return new Response(null)
+      return new Response()
     })
-    await Effect.runPromise(execute(incoming, fetch))
+    await runTestEffect(execute(incoming, fetch))
   })
 
-  it('does not expose transport diagnostics or malformed failure response contents', async () => {
+  test('does not expose transport diagnostics or malformed failure response contents', async () => {
     const incoming = new Request('https://front.test/api/files/a')
-    const failure = await Effect.runPromise(
+    const failure = await runTestEffect(
       execute(incoming, async () => {
         throw new Error('private driver diagnostic')
       }).pipe(Effect.flip),
     )
     expect(failure.status).toBe(502)
     expect(failure.message).not.toContain('private driver')
-    const malformed = await Effect.runPromise(
+    const malformed = await runTestEffect(
       execute(incoming, async () => new Response('private SQL diagnostic', { status: 500 })).pipe(Effect.flip),
     )
     expect(malformed.status).toBe(500)

@@ -2,7 +2,9 @@
 
 import { mergeProps } from '@base-ui/react/merge-props'
 import { useRender } from '@base-ui/react/use-render'
-import { cva, type VariantProps } from 'class-variance-authority'
+import { cva } from 'class-variance-authority'
+import type { VariantProps } from 'class-variance-authority'
+import { Predicate } from 'effect'
 import { PanelLeftIcon } from 'lucide-react'
 import * as React from 'react'
 
@@ -17,6 +19,9 @@ import { useIsMobile } from '@/hooks/use-mobile'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+import { SidebarContext, useSidebar } from './sidebar-context.ts'
+import type { SidebarContextProps } from './sidebar-context.ts'
+
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = '16rem'
@@ -24,28 +29,8 @@ const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 
-type SidebarContextProps = {
-  state: 'expanded' | 'collapsed'
-  open: boolean
-  setOpen: (open: boolean) => void
-  openMobile: boolean
-  setOpenMobile: (open: boolean) => void
-  isMobile: boolean
-  toggleSidebar: () => void
-}
-
-const SidebarContext = React.createContext<SidebarContextProps | null>(null)
-
-function useSidebar() {
-  const context = React.useContext(SidebarContext)
-  if (!context) {
-    throw new Error('useSidebar must be used within a SidebarProvider.')
-  }
-
-  return context
-}
-
-function SidebarProvider({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarProvider({
   defaultOpen = true,
   open: openProp,
   onOpenChange: setOpenProp,
@@ -57,7 +42,7 @@ function SidebarProvider({
   defaultOpen?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
-}) {
+}): React.JSX.Element {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
 
@@ -67,7 +52,7 @@ function SidebarProvider({
   const open = openProp ?? _open
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === 'function' ? value(open) : value
+      const openState = Predicate.isFunction(value) ? value(open) : value
       if (setOpenProp) {
         setOpenProp(openState)
       } else {
@@ -82,20 +67,20 @@ function SidebarProvider({
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
+    return isMobile ? setOpenMobile((currentOpen) => !currentOpen) : setOpen((currentOpen) => !currentOpen)
   }, [isMobile, setOpen, setOpenMobile])
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
         toggleSidebar()
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    globalThis.addEventListener('keydown', handleKeyDown)
+    return () => globalThis.removeEventListener('keydown', handleKeyDown)
   }, [toggleSidebar])
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
@@ -127,6 +112,7 @@ function SidebarProvider({
           } as React.CSSProperties
         }
         className={cn('group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar', className)}
+        // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
         {...props}
       >
         {children}
@@ -135,7 +121,15 @@ function SidebarProvider({
   )
 }
 
-function Sidebar({
+const renderSidebarMobileHeading = (): React.JSX.Element => (
+  <SheetHeader className='sr-only'>
+    <SheetTitle>Sidebar</SheetTitle>
+    <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+  </SheetHeader>
+)
+
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function Sidebar({
   side = 'left',
   variant = 'sidebar',
   collapsible = 'offcanvas',
@@ -147,7 +141,7 @@ function Sidebar({
   side?: 'left' | 'right'
   variant?: 'sidebar' | 'floating' | 'inset'
   collapsible?: 'offcanvas' | 'icon' | 'none'
-}) {
+}): React.JSX.Element {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
   if (collapsible === 'none') {
@@ -155,6 +149,7 @@ function Sidebar({
       <div
         data-slot='sidebar'
         className={cn('flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground', className)}
+        // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
         {...props}
       >
         {children}
@@ -164,6 +159,7 @@ function Sidebar({
 
   if (isMobile) {
     return (
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Sheet.
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
           dir={dir}
@@ -178,10 +174,7 @@ function Sidebar({
           }
           side={side}
         >
-          <SheetHeader className='sr-only'>
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
+          {renderSidebarMobileHeading()}
           <div className='flex h-full w-full flex-col'>{children}</div>
         </SheetContent>
       </Sheet>
@@ -220,6 +213,7 @@ function Sidebar({
             : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
           className,
         )}
+        // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
         {...props}
       >
         <div
@@ -234,7 +228,12 @@ function Sidebar({
   )
 }
 
-function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarTrigger({
+  className,
+  onClick,
+  ...props
+}: React.ComponentProps<typeof Button>): React.JSX.Element {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -248,6 +247,7 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
         onClick?.(event)
         toggleSidebar()
       }}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Button.
       {...props}
     >
       <PanelLeftIcon />
@@ -256,7 +256,8 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
   )
 }
 
-function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarRail({ className, ...props }: React.ComponentProps<'button'>): React.JSX.Element {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -276,12 +277,14 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
         '[[data-side=right][data-collapsible=offcanvas]_&]:-left-2',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native button attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarInset({ className, ...props }: React.ComponentProps<'main'>): React.JSX.Element {
   return (
     <main
       data-slot='sidebar-inset'
@@ -289,56 +292,66 @@ function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
         'relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native main attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input>): React.JSX.Element {
   return (
     <Input
       data-slot='sidebar-input'
       data-sidebar='input'
       className={cn('h-8 w-full bg-background shadow-none', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Input.
       {...props}
     />
   )
 }
 
-function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='sidebar-header'
       data-sidebar='header'
       className={cn('flex flex-col gap-2 p-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='sidebar-footer'
       data-sidebar='footer'
       className={cn('flex flex-col gap-2 p-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarSeparator({ className, ...props }: React.ComponentProps<typeof Separator>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarSeparator({ className, ...props }: React.ComponentProps<typeof Separator>): React.JSX.Element {
   return (
     <Separator
       data-slot='sidebar-separator'
       data-sidebar='separator'
       className={cn('mx-2 w-auto bg-sidebar-border', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Forward the caller's element attributes, accessibility props and handlers through Separator.
       {...props}
     />
   )
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarContent({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='sidebar-content'
@@ -347,27 +360,30 @@ function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
         'no-scrollbar flex min-h-0 flex-1 flex-col gap-0 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='sidebar-group'
       data-sidebar='group'
       className={cn('relative flex w-full min-w-0 flex-col p-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarGroupLabel({
+export const SidebarGroupLabel = function SidebarGroupLabel({
   className,
   render,
   ...props
-}: useRender.ComponentProps<'div'> & React.ComponentProps<'div'>) {
+}: useRender.ComponentProps<'div'> & React.ComponentProps<'div'>): React.ReactElement {
   return useRender({
     defaultTagName: 'div',
     props: mergeProps<'div'>(
@@ -387,11 +403,11 @@ function SidebarGroupLabel({
   })
 }
 
-function SidebarGroupAction({
+export const SidebarGroupAction = function SidebarGroupAction({
   className,
   render,
   ...props
-}: useRender.ComponentProps<'button'> & React.ComponentProps<'button'>) {
+}: useRender.ComponentProps<'button'> & React.ComponentProps<'button'>): React.ReactElement {
   return useRender({
     defaultTagName: 'button',
     props: mergeProps<'button'>(
@@ -411,34 +427,40 @@ function SidebarGroupAction({
   })
 }
 
-function SidebarGroupContent({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarGroupContent({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='sidebar-group-content'
       data-sidebar='group-content'
       className={cn('w-full text-sm', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarMenu({ className, ...props }: React.ComponentProps<'ul'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarMenu({ className, ...props }: React.ComponentProps<'ul'>): React.JSX.Element {
   return (
     <ul
       data-slot='sidebar-menu'
       data-sidebar='menu'
       className={cn('flex w-full min-w-0 flex-col gap-0', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native ul attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>): React.JSX.Element {
   return (
     <li
       data-slot='sidebar-menu-item'
       data-sidebar='menu-item'
       className={cn('group/menu-item relative', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native li attributes and events.
       {...props}
     />
   )
@@ -466,7 +488,8 @@ const sidebarMenuButtonVariants = cva(
   },
 )
 
-function SidebarMenuButton({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarMenuButton({
   render,
   isActive = false,
   variant = 'default',
@@ -478,7 +501,7 @@ function SidebarMenuButton({
   React.ComponentProps<'button'> & {
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
-  } & VariantProps<typeof sidebarMenuButtonVariants>) {
+  } & VariantProps<typeof sidebarMenuButtonVariants>): React.JSX.Element {
   const { isMobile, state } = useSidebar()
   const comp = useRender({
     defaultTagName: 'button',
@@ -501,7 +524,7 @@ function SidebarMenuButton({
     return comp
   }
 
-  if (typeof tooltip === 'string') {
+  if (Predicate.isString(tooltip)) {
     tooltip = {
       children: tooltip,
     }
@@ -510,12 +533,13 @@ function SidebarMenuButton({
   return (
     <Tooltip>
       {comp}
+      {/* oxlint-disable-next-line react/jsx-props-no-spreading -- Keep the caller's TooltipContent placement, visibility and attributes after the sidebar defaults. */}
       <TooltipContent side='right' align='center' hidden={state !== 'collapsed' || isMobile} {...tooltip} />
     </Tooltip>
   )
 }
 
-function SidebarMenuAction({
+export const SidebarMenuAction = function SidebarMenuAction({
   className,
   render,
   showOnHover = false,
@@ -523,7 +547,7 @@ function SidebarMenuAction({
 }: useRender.ComponentProps<'button'> &
   React.ComponentProps<'button'> & {
     showOnHover?: boolean
-  }) {
+  }): React.ReactElement {
   return useRender({
     defaultTagName: 'button',
     props: mergeProps<'button'>(
@@ -545,7 +569,8 @@ function SidebarMenuAction({
   })
 }
 
-function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='sidebar-menu-badge'
@@ -554,18 +579,20 @@ function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'div'>) 
         'pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarMenuSkeleton({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarMenuSkeleton({
   className,
   showIcon = false,
   ...props
 }: React.ComponentProps<'div'> & {
   showIcon?: boolean
-}) {
+}): React.JSX.Element {
   // Random width between 50 to 90%.
   const [width] = React.useState(() => {
     return `${Math.floor(Math.random() * 40) + 50}%`
@@ -576,6 +603,7 @@ function SidebarMenuSkeleton({
       data-slot='sidebar-menu-skeleton'
       data-sidebar='menu-skeleton'
       className={cn('flex h-8 items-center gap-2 rounded-md px-2', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     >
       {showIcon && <Skeleton className='size-4 rounded-md' data-sidebar='menu-skeleton-icon' />}
@@ -592,7 +620,8 @@ function SidebarMenuSkeleton({
   )
 }
 
-function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul'>): React.JSX.Element {
   return (
     <ul
       data-slot='sidebar-menu-sub'
@@ -601,23 +630,26 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul'>) {
         'mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5 group-data-[collapsible=icon]:hidden',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native ul attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<'li'>) {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<'li'>): React.JSX.Element {
   return (
     <li
       data-slot='sidebar-menu-sub-item'
       data-sidebar='menu-sub-item'
       className={cn('group/menu-sub-item relative', className)}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native li attributes and events.
       {...props}
     />
   )
 }
 
-function SidebarMenuSubButton({
+export const SidebarMenuSubButton = function SidebarMenuSubButton({
   render,
   size = 'md',
   isActive = false,
@@ -627,7 +659,7 @@ function SidebarMenuSubButton({
   React.ComponentProps<'a'> & {
     size?: 'sm' | 'md'
     isActive?: boolean
-  }) {
+  }): React.ReactElement {
   return useRender({
     defaultTagName: 'a',
     props: mergeProps<'a'>(
@@ -647,31 +679,4 @@ function SidebarMenuSubButton({
       active: isActive,
     },
   })
-}
-
-export {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInput,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSkeleton,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarSeparator,
-  SidebarTrigger,
-  useSidebar,
 }

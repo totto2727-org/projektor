@@ -1,12 +1,13 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '#contracts/api-results.ts'
+import type { CoreRpcShape } from '#core/contract.ts'
 
-export function listProjectActivity(
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
+
+export const listProjectActivity = async function listProjectActivity(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListProjectActivity']>
-) {
+): Promise<typeof ApiResults.apiListProjectActivity.Type> {
   return apiReply(
     ApiResults.apiListProjectActivity,
     ctx.core.apiListProjectActivity(ctx.actor, ctx.workspaceId, ...args),

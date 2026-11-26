@@ -1,38 +1,38 @@
 import { Effect, Schema } from 'effect'
 
-import { brandStyles, loadBrand } from './brand'
-import { Shell } from './components/Shell'
-import { EFFRONT } from './effront'
-import { renderFeedback, renderFeedbackDetail } from './features/feedback/server'
-import { renderEpics, renderIssue, renderIssues, renderMyIssues } from './features/issues/server'
-import { renderMetrics, renderSprints } from './features/planning/server'
-import { renderHelp, renderOverview, renderProjects } from './features/projects/server'
-import { renderGroups, renderTokens } from './features/settings/server'
-import { renderShare } from './features/share/server'
-import { renderWiki } from './features/wiki/server'
-import { pageRenderer } from './page'
-import { RequestServices, RequestServicesLive } from './request'
+import { brandStyles, loadBrand } from './brand.ts'
+import { Shell } from './components/shell.tsx'
+import { EFFRONT } from './effront.ts'
+import { renderFeedback, renderFeedbackDetail } from './features/feedback/server.tsx'
+import { renderEpics, renderIssue, renderIssues, renderMyIssues } from './features/issues/server.tsx'
+import { renderMetrics, renderSprints } from './features/planning/server.tsx'
+import { renderHelp, renderOverview, renderProjects } from './features/projects/server.tsx'
+import { renderGroups, renderTokens } from './features/settings/server.tsx'
+import { renderShare } from './features/share/server.tsx'
+import { renderWiki } from './features/wiki/server.tsx'
+import { pageRenderer } from './page.tsx'
+import { RequestServices, RequestServicesLive } from './request.ts'
 
-// safe-ls: only cosmetic preferences, synchronously applied before the stylesheet can paint.
+// Safe-ls: only cosmetic preferences, synchronously applied before the stylesheet can paint.
 // No tenant or identity data is kept in localStorage and no router lifecycle is installed.
 const cosmeticPrefs = `(function(){try{var p=JSON.parse(localStorage.getItem('prefs')||'null')||{},t=p.theme||localStorage.getItem('theme'),r=document.documentElement;if(t==='light'||t==='dark')r.dataset.theme=t;else r.removeAttribute('data-theme');r.dataset.density=p.density==='compact'?'compact':'comfortable';r.dataset.sidebar=p.sidebar==='collapsed'?'collapsed':'expanded'}catch(e){}})();`
 
-function pageTitle(pathname: string) {
-  const path = pathname.replace(/\/$/, '') || '/'
+const pageTitle = function pageTitle(pathname: string): string {
+  const path = pathname.replace(/\/$/u, '') || '/'
   const titles: Record<string, string> = {
     '/': 'Projects',
+    '/epics': 'Epics',
+    '/feedback': 'Feedback',
     '/help': 'Help',
-    '/my-issues': 'My Issues',
     '/issues': 'Issues',
     '/issues/view': 'Issue',
-    '/epics': 'Epics',
-    '/sprints': 'Sprints',
     '/metrics': 'Metrics',
-    '/wiki': 'Wiki',
-    '/wiki/view': 'Wiki',
-    '/feedback': 'Feedback',
+    '/my-issues': 'My Issues',
     '/settings/groups': 'Groups',
     '/settings/tokens': 'Connect Agent',
+    '/sprints': 'Sprints',
+    '/wiki': 'Wiki',
+    '/wiki/view': 'Wiki',
   }
   return `${titles[path] ?? (path.startsWith('/projects/view') ? 'Overview' : path.startsWith('/share/') ? 'Shared Issue' : 'Projektor')} · Projektor`
 }
@@ -41,7 +41,7 @@ const RootLayout = EFFRONT.Layout.make({
   render: ({ children }) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
-      const publicRoute = /^\/share(?:\/|$)/.test(services.url.pathname) || /^\/help\/?$/.test(services.url.pathname)
+      const publicRoute = /^\/share(?:\/|$)/u.test(services.url.pathname) || /^\/help\/?$/u.test(services.url.pathname)
       const scope = publicRoute ? null : yield* services.scope()
       const brand = yield* loadBrand(services.env, scope, services.request)
       return (
@@ -58,6 +58,7 @@ const RootLayout = EFFRONT.Layout.make({
               href={brand.logoUrl ?? '/favicon.svg'}
             />
             <link rel='apple-touch-icon' href={brand.logoUrl ?? '/icon-192.png'} />
+            {/* oxlint-disable-next-line rules/no-jsx-script-tag -- Apply stored cosmetic preferences before the first paint and hydration. */}
             <script>{cosmeticPrefs}</script>
             <link
               rel='preload'
@@ -66,7 +67,7 @@ const RootLayout = EFFRONT.Layout.make({
               type='font/woff2'
               crossOrigin='anonymous'
             />
-            <title>{pageTitle(services.url.pathname).replace(/Projektor/g, brand.name)}</title>
+            <title>{pageTitle(services.url.pathname).replaceAll('Projektor', brand.name)}</title>
           </head>
           <body>
             <Shell
@@ -188,6 +189,7 @@ const routes = EFFRONT.Routes.make({ layout: RootLayout })
       ),
   )
 
+// oxlint-disable-next-line import/no-default-export -- Effront loads the application from the configured module default export.
 export default EFFRONT.make({
   routes,
   layer: RequestServicesLive,

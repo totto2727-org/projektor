@@ -1,33 +1,43 @@
-import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { Schema } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { visibleProjectIds } from '#commands/access'
+import { visibleProjectIds } from '#commands/access.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { IdResponse, KeyListResponse, readNativeJson } from './response-json.ts'
 
-// PROJ-311: group-based project access. Authorization lives entirely in projektor:
-// access is default-deny, granted per (project, role) through a group the user
-// belongs to. Workspace owner/admin bypass groups and see everything.
+/*
+ * PROJ-311: group-based project access. Authorization lives entirely in projektor:
+ * access is default-deny, granted per (project, role) through a group the user
+ * belongs to. Workspace owner/admin bypass groups and see everything.
+ */
 
-async function listProjects(token: string, slug: string) {
-  const res = await SELF.fetch('http://localhost/api/projects', {
+const listProjects = async function listProjects(
+  token: string,
+  slug: string,
+): Promise<{ status: number; body: { key: string }[] }> {
+  const res = await fetchNativeApi('http://localhost/api/projects', {
     headers: authHeaders(token, slug),
   })
-  return { status: res.status, body: (await res.json()) as Array<{ key: string }> }
+  const { status } = res
+  const body = await readNativeJson(res, KeyListResponse)
+  return { body, status }
 }
 
-async function listIssues(token: string, slug: string) {
-  const res = await SELF.fetch('http://localhost/api/issues', {
+const listIssues = async function listIssues(token: string, slug: string): Promise<{ items: { id: string }[] }> {
+  const res = await fetchNativeApi('http://localhost/api/issues', {
     headers: authHeaders(token, slug),
   })
-  return (await res.json()) as { items: Array<{ id: string }> }
+  const resShape = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable) })
+  return readNativeJson(res, resShape)
 }
 
-describe('PROJ-311 group-based project access', () => {
-  it("a new member with no groups sees an empty 'pending' state", async () => {
+describe('covers PROJ-311 group-based project access', () => {
+  test("a new member with no groups sees an empty 'pending' state", async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     await seedProject(roles.workspace.id, 'HID')
 
     const projects = await listProjects(roles.member.token, slug)
@@ -38,113 +48,129 @@ describe('PROJ-311 group-based project access', () => {
     expect(issues.items).toHaveLength(0)
   })
 
-  it('owner and admin see every project regardless of groups', async () => {
+  test('owner and admin see every project regardless of groups', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     await seedProject(roles.workspace.id, 'P1')
     await seedProject(roles.workspace.id, 'P2')
 
     const owned = await listProjects(roles.owner.token, slug)
-    expect(owned.body.map((p) => p.key).sort()).toEqual(['P1', 'P2'])
+    expect(owned.body.map((project) => project.key).toSorted()).toStrictEqual(['P1', 'P2'])
   })
 
-  it('a grant makes exactly one project visible; others stay hidden', async () => {
+  test('a grant makes exactly one project visible; others stay hidden', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const granted = await seedProject(roles.workspace.id, 'SEEN')
     await seedProject(roles.workspace.id, 'UNSEEN')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, granted.id, 'member')
 
     const projects = await listProjects(roles.member.token, slug)
-    expect(projects.body.map((p) => p.key)).toEqual(['SEEN'])
+    expect(projects.body.map((project) => project.key)).toStrictEqual(['SEEN'])
   })
 
-  it('a direct fetch of an ungranted project or issue 404s (existence hidden)', async () => {
+  test('a direct fetch of an ungranted project or issue 404s (existence hidden)', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'SECRET')
     const issue = await seedIssue(roles.workspace.id, project.id, roles.owner.user.id)
 
-    const projRes = await SELF.fetch(`http://localhost/api/projects/${project.id}`, {
+    const projRes = await fetchNativeApi(`http://localhost/api/projects/${project.id}`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(projRes.status).toBe(404)
 
-    const issueRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const issueRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(issueRes.status).toBe(404)
   })
 
-  it('granting then revoking flips visibility on the very next request', async () => {
+  test('granting then revoking flips visibility on the very next request', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'TOGGLE')
     const { groupId } = await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toEqual(['TOGGLE'])
+    const resolvedValue = await listProjects(roles.member.token, slug)
+    expect(resolvedValue.body.map((selectedProject) => selectedProject.key)).toStrictEqual(['TOGGLE'])
 
-    // Admin removes the member from the group; access is per-request, so the next
-    // call reflects it immediately with no session state to invalidate.
-    const del = await SELF.fetch(
+    /*
+     * Admin removes the member from the group; access is per-request, so the next
+     * call reflects it immediately with no session state to invalidate.
+     */
+    const del = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/groups/${groupId}/members/${roles.member.user.id}`,
-      { method: 'DELETE', headers: authHeaders(roles.owner.token, slug) },
+      { headers: authHeaders(roles.owner.token, slug), method: 'DELETE' },
     )
     expect(del.status).toBe(200)
 
-    expect((await listProjects(roles.member.token, slug)).body).toHaveLength(0)
+    const result = await listProjects(roles.member.token, slug)
+    expect(result.body).toHaveLength(0)
   })
 
-  it('membership in two groups yields the strongest granted role', async () => {
+  test('membership in two groups yields the strongest granted role', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'MULTI')
-    // A viewer grant and a member grant on the same project via two groups: the
-    // effective role is the stronger one, so writes are allowed.
+    /*
+     * A viewer grant and a member grant on the same project via two groups: the
+     * effective role is the stronger one, so writes are allowed.
+     */
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Written by member grant' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, slug),
+        JSON.stringify({ projectId: project.id, title: 'Written by member grant' }),
+      ),
+    )
     expect(res.status).toBe(201)
   })
 
-  it('a viewer grant is read-only: the project is visible but writes are refused', async () => {
+  test('a viewer grant is read-only: the project is visible but writes are refused', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'RO')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
 
     // Visible in the list...
-    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toEqual(['RO'])
+    const result = await listProjects(roles.member.token, slug)
+    expect(result.body.map((selectedProject) => selectedProject.key)).toStrictEqual(['RO'])
 
     // ...but a write is a 403, not a 404 (existence is not hidden once granted).
-    const res = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Should be refused' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, slug),
+        JSON.stringify({ projectId: project.id, title: 'Should be refused' }),
+      ),
+    )
     expect(res.status).toBe(403)
   })
 
-  it('a member grant allows creating and reading issues in that project', async () => {
+  test('a member grant allows creating and reading issues in that project', async () => {
     const roles = await seedWorkspaceRoles()
-    const slug = roles.workspace.slug
+    const { slug } = roles.workspace
     const project = await seedProject(roles.workspace.id, 'WORK')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    const createRes = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(roles.member.token, slug),
-      body: JSON.stringify({ projectId: project.id, title: 'Member task' }),
-    })
+    const createRes = await fetchNativeApi(
+      'http://localhost/api/issues',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(roles.member.token, slug),
+        JSON.stringify({ projectId: project.id, title: 'Member task' }),
+      ),
+    )
     expect(createRes.status).toBe(201)
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(getRes.status).toBe(200)
@@ -152,7 +178,7 @@ describe('PROJ-311 group-based project access', () => {
 })
 
 describe('visibleProjectIds helper', () => {
-  it('returns every project for owner and admin', async () => {
+  test('returns every project for owner and admin', async () => {
     const roles = await seedWorkspaceRoles()
     const p1 = await seedProject(roles.workspace.id, 'P1')
     const p2 = await seedProject(roles.workspace.id, 'P2')
@@ -167,13 +193,14 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ownerCtx)
-    expect(ids.sort()).toEqual([p1.id, p2.id].sort())
+    expect(ids.toSorted()).toStrictEqual([p1.id, p2.id].toSorted())
 
     const adminCtx = { ...ownerCtx, userId: roles.owner.user.id, role: 'admin' as const }
-    expect((await visibleProjectIds(adminCtx)).sort()).toEqual([p1.id, p2.id].sort())
+    const result = await visibleProjectIds(adminCtx)
+    expect(result.toSorted()).toStrictEqual([p1.id, p2.id].toSorted())
   })
 
-  it('returns only granted projects for a non-admin member', async () => {
+  test('returns only granted projects for a non-admin member', async () => {
     const roles = await seedWorkspaceRoles()
     const granted = await seedProject(roles.workspace.id, 'SEEN')
     await seedProject(roles.workspace.id, 'HID')
@@ -189,10 +216,10 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ctx)
-    expect(ids).toEqual([granted.id])
+    expect(ids).toStrictEqual([granted.id])
   })
 
-  it('returns an empty list for a member with no grants', async () => {
+  test('returns an empty list for a member with no grants', async () => {
     const roles = await seedWorkspaceRoles()
     await seedProject(roles.workspace.id, 'LONE')
 
@@ -206,6 +233,6 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ctx)
-    expect(ids).toEqual([])
+    expect(ids).toStrictEqual([])
   })
 })

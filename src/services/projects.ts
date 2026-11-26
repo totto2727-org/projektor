@@ -3,11 +3,12 @@ import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
-import type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types'
-export type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
+import type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types.ts'
+export type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types.ts'
 
-export function listProjects(
+export const listProjects = function listProjects(
   db: D1Database,
   workspaceId: string,
   opts: ProjectListOptions = {},
@@ -15,8 +16,12 @@ export function listProjects(
   return queryEffect('listProjects', () => {
     const orm = drizzle(db, { schema })
     const conditions = [eq(schema.projects.workspaceId, workspaceId)]
-    if (opts.visibility) conditions.push(opts.visibility)
-    if (!opts.includeArchived) conditions.push(isNull(schema.projects.archivedAt))
+    if (opts.visibility) {
+      conditions.push(opts.visibility)
+    }
+    if (opts.includeArchived !== true) {
+      conditions.push(isNull(schema.projects.archivedAt))
+    }
     return orm
       .select()
       .from(schema.projects)
@@ -25,7 +30,7 @@ export function listProjects(
   })
 }
 
-export function findProjectById(
+export const findProjectById = function findProjectById(
   db: D1Database,
   workspaceId: string,
   id: string,
@@ -39,7 +44,7 @@ export function findProjectById(
   )
 }
 
-export function findProjectBySlug(
+export const findProjectBySlug = function findProjectBySlug(
   db: D1Database,
   workspaceId: string,
   slug: string,
@@ -53,7 +58,7 @@ export function findProjectBySlug(
   )
 }
 
-export function findProjectIdByKey(
+export const findProjectIdByKey = function findProjectIdByKey(
   db: D1Database,
   workspaceId: string,
   key: string,
@@ -67,7 +72,7 @@ export function findProjectIdByKey(
   )
 }
 
-export function listProjectSummaries(
+export const listProjectSummaries = function listProjectSummaries(
   db: D1Database,
   userId: string,
   visibility: ProjectSummaryVisibility,

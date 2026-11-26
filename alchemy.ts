@@ -1,9 +1,9 @@
 import { Effect } from 'effect'
 
-import { DeploymentEnvironment } from './worker-environment'
-import { Api } from './workers/api'
-import { Core } from './workers/core'
-import { Frontend } from './workers/frontend'
+import { DeploymentEnvironment } from './worker-environment.ts'
+import { Api } from './workers/api.ts'
+import { Core } from './workers/core.ts'
+import { Frontend } from './workers/frontend.ts'
 
 export const WorkerResources = Effect.gen(function* () {
   const core = yield* Core

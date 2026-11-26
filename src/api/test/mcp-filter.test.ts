@@ -1,24 +1,27 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Iterable, Schema } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '../mcp/catalog'
-import { authHeaders, type JsonRpcError, type JsonRpcResult, seedFixture } from './helpers'
+import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '#api/mcp/catalog.ts'
 
-async function mcpFetch(
+import { authHeaders, seedFixture } from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
+
+const mcpFetch = async function mcpFetch(
   workspaceId: string,
   method: string,
   params: unknown,
   headers: Record<string, string>,
   query = '',
 ): Promise<Response> {
-  return SELF.fetch(`http://localhost/mcp/${workspaceId}${query}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
+  return fetchNativeApi(
+    `http://localhost/mcp/${workspaceId}${query}`,
+    requestOptionsWithBody('POST', headers, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })),
+  )
 }
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   method: string,
   params: unknown,
@@ -29,133 +32,148 @@ async function mcpCall<T>(
   return res.json()
 }
 
-describe('MCP tools/list domain filtering (PROJ-716)', () => {
-  let workspaceId: string
-  let headers: Record<string, string>
+describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
+  type TestData = Readonly<{
+    headers: Record<string, string>
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    workspaceId = fixture.workspace.id
-    headers = authHeaders(fixture.token, fixture.workspace.slug)
-  })
+    const workspaceId = fixture.workspace.id
+    const headers = authHeaders(fixture.token, fixture.workspace.slug)
+    return { headers, workspaceId }
+  }
 
-  it('no domains param returns the full unfiltered catalog', async () => {
-    const res = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test('no domains param returns the full unfiltered catalog', async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    expect(res.result.tools.length).toBe(TOOL_COUNT)
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    expect(res.result.tools).toHaveLength(TOOL_COUNT)
   })
 
-  it("filters to the requested domain's tools only", async () => {
-    const res = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test("filters to the requested domain's tools only", async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=issues',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    const names = res.result.tools.map((t) => t.name)
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    const names = res.result.tools.map((tool) => tool.name)
     expect(names).toContain('get_issue')
     expect(names).toContain('list_issues')
     expect(names).not.toContain('get_wiki_page')
     expect(names.length).toBeLessThan(TOOL_COUNT)
   })
 
-  it('unions tools across multiple requested domains', async () => {
-    const res = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test('unions tools across multiple requested domains', async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=issues,wiki',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    const names = res.result.tools.map((t) => t.name)
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    const names = res.result.tools.map((tool) => tool.name)
     expect(names).toContain('get_issue')
     expect(names).toContain('get_wiki_page')
   })
 
-  it('dedupes repeated slugs and ignores order', async () => {
-    const dupRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test('dedupes repeated slugs and ignores order', async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const dupRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=issues,issues,issues',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    const straightRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    const straightRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=issues',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    expect(dupRes.result.tools.map((t) => t.name).sort()).toEqual(straightRes.result.tools.map((t) => t.name).sort())
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    expect(dupRes.result.tools.map((tool) => tool.name).toSorted()).toStrictEqual(
+      straightRes.result.tools.map((tool) => tool.name).toSorted(),
+    )
 
-    const forwardRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
+    const forwardRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=issues,wiki',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    const reversedRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    const reversedRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=wiki,issues',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    expect(forwardRes.result.tools.map((t) => t.name).sort()).toEqual(
-      reversedRes.result.tools.map((t) => t.name).sort(),
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    expect(forwardRes.result.tools.map((tool) => tool.name).toSorted()).toStrictEqual(
+      reversedRes.result.tools.map((tool) => tool.name).toSorted(),
     )
   })
 
-  it('unknown domain slug returns 400 naming valid domains, never a silent full catalog', async () => {
+  test('unknown domain slug returns 400 naming valid domains, never a silent full catalog', async () => {
+    expect.hasAssertions()
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'tools/list', {}, headers, '?domains=not-a-domain')
     expect(res.status).toBe(400)
-    const body = (await res.json()) as JsonRpcError
+    const errorBody = Schema.Struct({ error: Schema.Struct({ message: Schema.String }) })
+    const body = await readNativeJson(res, errorBody)
     expect(body.error.message).toContain('not-a-domain')
-    for (const slug of TOOL_DOMAIN_SLUGS) {
+    Iterable.forEach(TOOL_DOMAIN_SLUGS, (slug) => {
       expect(body.error.message).toContain(slug)
-    }
+    })
   })
 
-  it('one unknown slug among valid ones still 400s (fail closed)', async () => {
+  test('one unknown slug among valid ones still 400s (fail closed)', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'tools/list', {}, headers, '?domains=issues,bogus-domain')
     expect(res.status).toBe(400)
   })
 
-  it('blank domains param behaves like no filter', async () => {
-    const res = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test('blank domains param behaves like no filter', async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    expect(res.result.tools.length).toBe(TOOL_COUNT)
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    expect(res.result.tools).toHaveLength(TOOL_COUNT)
   })
 
-  it('tools/call still serves a tool that was filtered out of the listing', async () => {
-    const listRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test('tools/call still serves a tool that was filtered out of the listing', async () => {
+    const { headers, workspaceId } = await seedTestData()
+    const listRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=issues',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    expect(listRes.result.tools.map((t) => t.name)).not.toContain('get_wiki_page')
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    expect(listRes.result.tools.map((tool) => tool.name)).not.toContain('get_wiki_page')
 
-    const callRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const callRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
-      { name: 'search_wiki', arguments: { query: '' } },
+      { arguments: { query: '' }, name: 'search_wiki' },
       headers,
       '?domains=issues',
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     expect(callRes.result.content[0].text).toBeDefined()
   })
 })

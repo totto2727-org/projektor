@@ -1,31 +1,29 @@
 import { Hono } from 'hono'
 
+import { jsonBody } from '#api/http/body.ts'
+import { serviceErrToResponse } from '#api/http/error-adapter.ts'
+import { listMessages, postMessage } from '#api/services/agent-messages.ts'
+import { ctxFromHono } from '#api/services/types.ts'
+import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { listMessages, postMessage } from '../services/agent-messages'
-import { ctxFromHono } from '../services/types'
+export const agentMessagesRouter = new Hono<HonoEnv>()
 
-const router = new Hono<HonoEnv>()
-
-router.get('/', async (c) => {
-  const ctx = ctxFromHono(c)
-  const { scope, cursor, limit } = c.req.query()
+agentMessagesRouter.get('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
+  const { scope, cursor, limit } = httpContext.req.query()
   try {
-    return c.json(await listMessages(ctx, { scope, cursor, limit }))
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await listMessages(ctx, { scope, cursor, limit }))
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.post('/', async (c) => {
-  const ctx = ctxFromHono(c)
+agentMessagesRouter.post('/', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
-    return c.json(await postMessage(ctx, await jsonBody(c)), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
+    return httpContext.json(await postMessage(ctx, await jsonBody(httpContext)), HTTP_CREATED)
+  } catch (caughtError) {
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as agentMessagesRouter }

@@ -1,65 +1,83 @@
 import { Effect } from 'effect'
 
-import { visibleProjectIds } from '#commands/access'
-import { submitFeedback } from '#commands/feedback'
-import { lookupConsentWorkspace } from '#commands/oauth'
-import { getSharedIssue } from '#commands/share'
-
+import { visibleProjectIds } from '#commands/access.ts'
+import { submitFeedback } from '#commands/feedback.ts'
+import { lookupConsentWorkspace } from '#commands/oauth.ts'
+import { getSharedIssue } from '#commands/share.ts'
 import {
   ApiConsentWorkspace,
   ApiRealtimeSnapshot,
   ApiSharedIssue,
   ApiSubmittedFeedback,
-} from '../../contracts/api-public'
-import { type CoreActor, requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization'
-import { coreFailure, coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
+} from '#contracts/api-public.ts'
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
+import type { CoreActor } from '#core/authorization.ts'
+import type { CoreReply } from '#core/contract.ts'
+import { coreFailure, coreReply } from '#core/contract.ts'
+import { publicDomainFailure } from '#core/domain-errors.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
 
-/** Public credentials are resolved here, never treated as preauthenticated adapter IDs. */
-export function makeApiPublicHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
-  function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
+interface ApiPublicHandlers<R> {
+  apiConsentWorkspace: (actor: CoreActor, workspaceId: string) => CoreReply<R>
+  apiSubmitFeedback: (token: string, body: unknown, origin: string | null) => CoreReply<R>
+  apiGetSharedIssue: (token: string) => CoreReply<R>
+  apiRealtimeSnapshot: (actor: CoreActor, workspaceId: string) => CoreReply<R>
+}
+
+/**
+ * Public credentials are resolved here, never treated as preauthenticated adapter IDs.
+ *
+ * @param {Effect.Effect<CoreEnvironment, never, R>} envSource An effect that resolves the private Core bindings for each call.
+ * @returns {ApiPublicHandlers<R>} The named handlers for consent, feedback, shared issues, and realtime access.
+ */
+export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
+  envSource: Effect.Effect<CoreEnvironment, never, R>,
+): ApiPublicHandlers<R> {
+  const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>): Effect.Effect<A, unknown, R> {
     return Effect.flatMap(envSource, (env) =>
-      Effect.tryPromise({ try: () => operation(env), catch: publicDomainFailure }),
+      Effect.tryPromise({ catch: publicDomainFailure, try: () => operation(env) }),
     )
   }
   return {
-    apiConsentWorkspace: (actor: CoreActor, workspaceId: string) =>
+    apiConsentWorkspace: (actor: CoreActor, workspaceId: string): CoreReply<R> =>
       coreReply(
         'apiConsentWorkspace',
         ApiConsentWorkspace,
         attempt(async (env) => {
           const principal = await resolveCorePrincipal(actor, env)
           requireCoreCapability(principal, 'read')
-          if (principal.auth.kind !== 'human' || !['access', 'dev'].includes(principal.auth.method))
-            throw coreFailure(403, 'Connector authorization requires a signed-in browser session')
+          if (principal.auth.kind !== 'human' || !['access', 'dev'].includes(principal.auth.method)) {
+            throw coreFailure(HTTP_FORBIDDEN, 'Connector authorization requires a signed-in browser session')
+          }
           return lookupConsentWorkspace(env.DB, principal.user.id, workspaceId)
         }),
       ),
-    apiSubmitFeedback: (token: string, body: unknown, origin: string | null) =>
+    apiSubmitFeedback: (token: string, body: unknown, origin: string | null): CoreReply<R> =>
       coreReply(
         'apiSubmitFeedback',
         ApiSubmittedFeedback,
         attempt((env) => submitFeedback(env.DB, token, body, origin)),
       ),
-    apiGetSharedIssue: (token: string) =>
+    apiGetSharedIssue: (token: string): CoreReply<R> =>
       coreReply(
         'apiGetSharedIssue',
         ApiSharedIssue,
         attempt((env) => getSharedIssue(env.DB, token)),
       ),
-    apiRealtimeSnapshot: (actor: CoreActor, workspaceId: string) =>
+    apiRealtimeSnapshot: (actor: CoreActor, workspaceId: string): CoreReply<R> =>
       coreReply(
         'apiRealtimeSnapshot',
         ApiRealtimeSnapshot,
         attempt(async (env) => {
           const ctx = await resolveCoreServiceCtx(actor, workspaceId, 'read', env)
-          return {
-            userId: ctx.userId,
-            workspaceId: ctx.workspaceId,
-            role: ctx.role ?? 'viewer',
-            visibleProjectIds: await visibleProjectIds(ctx),
-          }
+          return fieldsInOrder([
+            ['userId', ctx.userId],
+            ['workspaceId', ctx.workspaceId],
+            ['role', ctx.role ?? 'viewer'],
+            ['visibleProjectIds', await visibleProjectIds(ctx)],
+          ])
         }),
       ),
   }

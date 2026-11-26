@@ -1,39 +1,40 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '#contracts/api-results.ts'
+import type { CoreRpcShape } from '#core/contract.ts'
 
-export function listCustomFieldDefs(
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
+
+export const listCustomFieldDefs = async function listCustomFieldDefs(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListCustomFieldDefs']>
-) {
+): Promise<typeof ApiResults.apiListCustomFieldDefs.Type> {
   return apiReply(
     ApiResults.apiListCustomFieldDefs,
     ctx.core.apiListCustomFieldDefs(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function createCustomFieldDef(
+export const createCustomFieldDef = async function createCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateCustomFieldDef']>
-) {
+): Promise<typeof ApiResults.apiCreateCustomFieldDef.Type> {
   return apiReply(
     ApiResults.apiCreateCustomFieldDef,
     ctx.core.apiCreateCustomFieldDef(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function updateCustomFieldDef(
+export const updateCustomFieldDef = async function updateCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiUpdateCustomFieldDef']>
-) {
+): Promise<typeof ApiResults.apiUpdateCustomFieldDef.Type> {
   return apiReply(
     ApiResults.apiUpdateCustomFieldDef,
     ctx.core.apiUpdateCustomFieldDef(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function deleteCustomFieldDef(
+export const deleteCustomFieldDef = async function deleteCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiDeleteCustomFieldDef']>
-) {
+): Promise<typeof ApiResults.apiDeleteCustomFieldDef.Type> {
   return apiReply(
     ApiResults.apiDeleteCustomFieldDef,
     ctx.core.apiDeleteCustomFieldDef(ctx.actor, ctx.workspaceId, ...args),

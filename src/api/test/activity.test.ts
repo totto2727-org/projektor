@@ -1,61 +1,57 @@
-import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { assert, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedProjectFixture } from './helpers'
+import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 
-describe('Activity audit log', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, projectId } = await seedProjectFixture())
-  })
+interface ActivityRow {
+  entity_type: string
+  action: string
+  actor_id: string | null
+  diff: string | null
+  workspace_id: string
+}
 
-  async function activityForEntity(entityId: string) {
+describe('activity audit log', () => {
+  const activityForEntity = async function activityForEntity(entityId: string): Promise<ActivityRow[]> {
     const { results } = await env.DB.prepare('SELECT * FROM activity WHERE entity_id = ? ORDER BY created_at ASC')
       .bind(entityId)
-      .all<{
-        entity_type: string
-        action: string
-        actor_id: string | null
-        diff: string | null
-        workspace_id: string
-      }>()
+      .all<ActivityRow>()
     return results
   }
 
-  it('records a created row when an issue is created', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
+  test('records a created row when an issue is created', async () => {
+    const { projectId, slug, token, workspaceId } = await seedProjectFixture()
+    const res = await fetchNativeApi('http://localhost/api/issues', {
+      body: JSON.stringify({ priority: 'high', projectId, title: 'Activity test issue' }),
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Activity test issue', priority: 'high' }),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
-    expect(rows[0].entity_type).toBe('issue')
-    expect(rows[0].action).toBe('created')
-    expect(rows[0].workspace_id).toBe(workspaceId)
-    expect(rows[0].actor_id).toBeTruthy()
+    expect(rows[0]).toMatchObject({ action: 'created', entity_type: 'issue', workspace_id: workspaceId })
+    expect(isNonEmptyText(rows[0].actor_id)).toBe(true)
   })
 
-  it('records an updated row with diff when an issue is updated', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/issues', {
-      method: 'POST',
-      headers: authHeaders(token, slug),
+  test('records an updated row with diff when an issue is updated', async () => {
+    const { projectId, slug, token } = await seedProjectFixture()
+    const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Before update' }),
-    })
-    const { id } = (await createRes.json()) as { id: string }
-
-    const patchRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
-      method: 'PATCH',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ status: 'in_progress', priority: 'high' }),
+      method: 'POST',
+    })
+    const { id } = await readNativeJson(createRes, IdResponse)
+
+    const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
+      body: JSON.stringify({ priority: 'high', status: 'in_progress' }),
+      headers: authHeaders(token, slug),
+      method: 'PATCH',
     })
     expect(patchRes.status).toBe(200)
 
@@ -63,40 +59,43 @@ describe('Activity audit log', () => {
     expect(rows).toHaveLength(2)
     const updateRow = rows[1]
     expect(updateRow.action).toBe('updated')
-    const diff = JSON.parse(updateRow.diff!)
-    expect(diff.status).toBe('in_progress')
-    expect(diff.priority).toBe('high')
+    const { diff } = updateRow
+    assert.isNotNull(diff)
+    expect(JSON.parse(diff)).toMatchObject({ priority: 'high', status: 'in_progress' })
   })
 
-  it('records a created row when a wiki page is created', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
-      method: 'POST',
+  test('records a created row when a wiki page is created', async () => {
+    const { slug, token } = await seedProjectFixture()
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
+      body: JSON.stringify({ content: 'hello', title: 'Activity Wiki Page' }),
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Activity Wiki Page', content: 'hello' }),
+      method: 'POST',
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
-    expect(rows[0].entity_type).toBe('wiki_page')
-    expect(rows[0].action).toBe('created')
+    expect(rows[0]).toMatchObject({ action: 'created', entity_type: 'wiki_page' })
   })
 
-  it('records a created row when a project is created', async () => {
-    // createProject requires owner or admin role
+  test('records a created row when a project is created', async () => {
+    await seedProjectFixture()
+    // The createProject operation requires owner or admin role
     const ownerFixture = await seedFixture({ role: 'owner' })
-    const res = await SELF.fetch('http://localhost/api/projects', {
-      method: 'POST',
-      headers: authHeaders(ownerFixture.token, ownerFixture.workspace.slug),
-      body: JSON.stringify({ name: 'Activity Project', key: 'ACTV' }),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/projects',
+      requestOptionsWithBody(
+        'POST',
+        authHeaders(ownerFixture.token, ownerFixture.workspace.slug),
+        JSON.stringify({ key: 'ACTV', name: 'Activity Project' }),
+      ),
+    )
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
-    expect(rows[0].entity_type).toBe('project')
-    expect(rows[0].action).toBe('created')
+    expect(rows[0]).toMatchObject({ action: 'created', entity_type: 'project' })
   })
 })

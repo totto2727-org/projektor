@@ -1,20 +1,22 @@
-import { Effect } from 'effect'
+import { Predicate, Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 import type { ReactNode } from 'react'
 
-import { RuntimeProvider } from './client/runtime'
-import { ProjectNav } from './components/ProjectNav'
-import { EFFRONT } from './effront'
 import {
-  getRouteParams,
-  type Env,
-  type PageFailure,
-  type PreparedView,
-  RequestServices,
-  type RouteParams,
-} from './request'
-import { ScopeSelection } from './selection'
-import type { RequestScope, ScopeOptions } from './server'
+  HTTP_BAD_REQUEST,
+  HTTP_FORBIDDEN,
+  HTTP_NOT_FOUND,
+  HTTP_UNAUTHORIZED,
+  HTTP_UNPROCESSABLE_CONTENT,
+} from '#contracts/http-status.ts'
+
+import { RuntimeProvider } from './client/runtime.tsx'
+import { ProjectNav } from './components/project-nav.tsx'
+import { EFFRONT } from './effront.ts'
+import { getRouteParams, RequestServices } from './request.ts'
+import type { Env, PageFailure, PreparedView, RouteParams } from './request.ts'
+import { ScopeSelection } from './selection.tsx'
+import type { RequestScope, ScopeOptions } from './server/server-context.ts'
 
 export type RouteRenderer = (
   scope: RequestScope,
@@ -28,18 +30,18 @@ export type PublicRenderer = (
   params: RouteParams,
 ) => Effect.Effect<ReactNode, PageFailure, RequestServices>
 
-function errorResponse(error: PageFailure) {
-  const status = error.status
+const errorResponse = function errorResponse(error: PageFailure): HttpServerResponse.HttpServerResponse {
+  const { status } = error
   const message =
-    status === 401
+    status === HTTP_UNAUTHORIZED
       ? 'Your session has expired. Refresh this page to sign in.'
-      : status === 403
+      : status === HTTP_FORBIDDEN
         ? 'You do not have access to this workspace or project.'
-        : status === 404
+        : status === HTTP_NOT_FOUND
           ? 'The requested page was not found.'
-          : status === 422
+          : status === HTTP_UNPROCESSABLE_CONTENT
             ? 'This view exceeds its supported data range. Narrow the date or issue filters, or use the paginated issue list.'
-            : status === 400
+            : status === HTTP_BAD_REQUEST
               ? 'The page address is invalid.'
               : 'The page is temporarily unavailable. Please try again.'
   return HttpServerResponse.text(
@@ -52,17 +54,23 @@ function errorResponse(error: PageFailure) {
   )
 }
 
-/** Prepare typed initial data before HTTP streaming, preserving denial/error statuses. */
-export function pageRenderer(
+/**
+ * Prepare typed initial data before HTTP streaming, preserving denial/error statuses.
+ *
+ * @param {RouteRenderer | PublicRenderer} render The scoped or public route renderer that supplies the page content.
+ * @param {ScopeOptions & { public?: boolean; projectNav?: boolean }} options Route scope requirements and public-page or project-navigation settings.
+ * @returns {ReturnType<typeof pageRenderer>} The Effront page factory and the request-local render effect.
+ */
+export const pageRenderer = function pageRenderer(
   render: RouteRenderer | PublicRenderer,
   options: ScopeOptions & { public?: boolean; projectNav?: boolean } = {},
 ) {
   const view: PreparedView = Effect.gen(function* () {
     const services = yield* RequestServices
     const params = yield* getRouteParams
-    const scope = options.public ? null : yield* services.scope(options)
+    const scope = options.public === true ? null : yield* services.scope(options)
     let content: ReactNode
-    if (scope === null) {
+    if (Predicate.isNullish(scope)) {
       content = yield* (render as PublicRenderer)(services.env, null, services.url, params)
     } else if (scope.selection.kind === 'selection-required') {
       content = <ScopeSelection scope={scope} url={services.url} />
@@ -86,9 +94,13 @@ export function pageRenderer(
     Effect.gen(function* () {
       const { request } = yield* RequestServices
       // Mutate first, then refresh. A POST must never preload stale primary data.
-      if (request.method !== 'GET' && request.method !== 'HEAD') return yield* httpEffect
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return yield* httpEffect
+      }
       const prepared = yield* prepare.pipe(Effect.result)
-      if (prepared._tag === 'Failure') return errorResponse(prepared.failure)
+      if (prepared._tag === 'Failure') {
+        return errorResponse(prepared.failure)
+      }
       return yield* httpEffect
     }),
   )

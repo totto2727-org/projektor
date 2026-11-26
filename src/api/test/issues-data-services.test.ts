@@ -1,17 +1,17 @@
-import { SELF } from 'cloudflare:test'
 import { eq } from 'drizzle-orm'
-import { Effect } from 'effect'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { Predicate, Schema } from 'effect'
+import { assert, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
-import { listComments } from '#services/comments'
-import { batchLoadCustomFields, listCustomFieldDefs } from '#services/custom-fields'
-import { listLinksForIssue } from '#services/issue-links'
-import * as queries from '#services/issues'
-import { listTaskStatuses } from '#services/task-statuses'
-import { listTaskTypes } from '#services/task-types'
+import { listComments } from '#services/comments.ts'
+import { batchLoadCustomFields, listCustomFieldDefs } from '#services/custom-fields.ts'
+import { listLinksForIssue } from '#services/issue-links.ts'
+import * as queries from '#services/issues.ts'
+import { listTaskStatuses } from '#services/task-statuses.ts'
+import { listTaskTypes } from '#services/task-types.ts'
+import { runIndexedInOrder, runTestEffect } from '#tests/run-effect.ts'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedComment,
@@ -22,21 +22,27 @@ import {
   seedProject,
   seedTaskStatus,
   seedTaskType,
-} from './helpers'
+} from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
-describe('Shared issue queries over the API D1 pool', () => {
+const isJsonRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown))
+
+describe('shared issue queries over the API D1 pool', () => {
   let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
   beforeEach(async () => {
     fixture = await seedProjectFixture({ role: 'owner' })
   })
-  async function api(path: string) {
-    const response = await SELF.fetch(`http://localhost/api/${path}`, {
+  const api = async function api(path: string): Promise<Record<string, unknown>> {
+    const response = await fetchNativeApi(`http://localhost/api/${path}`, {
       headers: authHeaders(fixture.token, fixture.slug),
     })
     expect(response.status).toBe(200)
-    return response.json() as Promise<Record<string, unknown>>
+    const body: unknown = await response.json()
+    assert(isJsonRecord(body))
+    return body
   }
-  it('preserves single row keys, JSON labels, joined nulls and extras without adding assignee_name', async () => {
+
+  test('preserves single row keys, JSON labels, joined nulls and extras without adding assignee_name', async () => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       assigneeId: fixture.userId,
     })
@@ -50,38 +56,42 @@ describe('Shared issue queries over the API D1 pool', () => {
       parentId: issue.id,
       status: 'cancelled',
     })
-    const row = await Effect.runPromise(queries.getIssue(env.DB, fixture.workspaceId, { ref: `PROJ-0${issue.number}` }))
+    const row = await runTestEffect(queries.getIssue(env.DB, fixture.workspaceId, { ref: `PROJ-0${issue.number}` }))
     expect(row).not.toHaveProperty('assignee_name')
     expect(row?.labels).toBe('[]')
     expect(row?.status_name).toBeNull()
-    const extras = await Effect.runPromise(queries.getIssueExtras(env.DB, fixture.workspaceId, issue.id))
-    expect(extras.rollup).toEqual({
-      total: 2,
-      byStatus: { done: 1, cancelled: 1 },
+    const extras = await runTestEffect(queries.getIssueExtras(env.DB, fixture.workspaceId, issue.id))
+    expect(extras.rollup).toStrictEqual({
+      byStatus: { cancelled: 1, done: 1 },
       done: 2,
       remaining: 0,
+      total: 2,
     })
     const result = await api(`issues/${issue.id}`)
     const { url, links, ...actual } = result
-    expect(typeof url).toBe('string')
-    expect(links).toEqual([])
-    expect(actual).toEqual({ ...row, ...extras })
+    expect(url).toSatisfy(Predicate.isString)
+    expect(links).toStrictEqual([])
+    expect(actual).toStrictEqual({ ...row, ...extras })
   })
-  it('keeps cursor tie-breaking, first-page totals, optional body/rollups and assignee metadata', async () => {
-    for (let i = 0; i < 3; i++)
+
+  test('keeps cursor tie-breaking, first-page totals, optional body/rollups and assignee metadata', async () => {
+    await runIndexedInOrder(3, async (): Promise<void> => {
       await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
         createdAt: 100,
         assigneeId: fixture.userId,
       })
-    const page = await Effect.runPromise(
+    })
+    const page = await runTestEffect(
       queries.listIssues(env.DB, fixture.workspaceId, { limit: 2, includeRollups: true }),
     )
     expect(page.total).toBe(3)
     expect(page.items[0]).not.toHaveProperty('body')
     expect(page.items[0].assignee_name).toBe('Test User')
-    expect(page.items[0].rollup).toEqual({ total: 0, byStatus: {}, done: 0, remaining: 0 })
-    const [createdAt, id] = page.nextCursor!.split(':')
-    const next = await Effect.runPromise(
+    expect(page.items[0].rollup).toStrictEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
+    const { nextCursor } = page
+    assert.isNotNull(nextCursor)
+    const [createdAt, id] = nextCursor.split(':')
+    const next = await runTestEffect(
       queries.listIssues(env.DB, fixture.workspaceId, {
         limit: 2,
         cursor: { createdAt: Number(createdAt), id },
@@ -91,22 +101,23 @@ describe('Shared issue queries over the API D1 pool', () => {
     expect(next.total).toBeNull()
     expect(next.items).toHaveLength(1)
     expect(next.items[0]).toHaveProperty('body', '')
-    expect(new Set([...page.items, ...next.items].map((r) => r.id)).size).toBe(3)
+    expect(new Set([...page.items, ...next.items].map((issue) => issue.id)).size).toBe(3)
     const actual = await api('issues?limit=2&includeRollups=1')
     expect({
       ...actual,
       items: (actual.items as Record<string, unknown>[]).map(({ url: _url, ...row }) => row),
-    }).toEqual(page)
+    }).toStrictEqual(page)
   })
-  it('takes app-supplied visibility and applies numeric custom-field filters without owning authorization', async () => {
+
+  test('takes app-supplied visibility and applies numeric custom-field filters without owning authorization', async () => {
     const visible = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const hiddenProject = await seedProject(fixture.workspaceId, 'HIDDEN')
     await seedIssue(fixture.workspaceId, hiddenProject.id, fixture.userId)
     const field = await seedCustomFieldDef(fixture.workspaceId, { key: 'size', type: 'number' })
     await seedCustomFieldValue(visible.id, field.id, '10')
-    const definition = await Effect.runPromise(queries.findIssueCustomField(env.DB, fixture.workspaceId, 'size'))
+    const definition = await runTestEffect(queries.findIssueCustomField(env.DB, fixture.workspaceId, 'size'))
     expect(definition?.id).toBe(field.id)
-    const page = await Effect.runPromise(
+    const page = await runTestEffect(
       queries.listIssues(
         env.DB,
         fixture.workspaceId,
@@ -114,40 +125,45 @@ describe('Shared issue queries over the API D1 pool', () => {
         eq(schema.issues.projectId, fixture.projectId),
       ),
     )
-    expect(page.items.map((r) => r.id)).toEqual([visible.id])
-    expect(await Effect.runPromise(queries.findIssueCustomField(env.DB, fixture.workspaceId, 'missing'))).toBeNull()
+    expect(page.items.map((item) => item.id)).toStrictEqual([visible.id])
+    await expect(
+      runTestEffect(queries.findIssueCustomField(env.DB, fixture.workspaceId, 'missing')),
+    ).resolves.toBeNull()
   })
-  it('preserves batch order, padded refs, deduplication and caller identifiers for missing rows', async () => {
+
+  test('preserves batch order, padded refs, deduplication and caller identifiers for missing rows', async () => {
     const first = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const second = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
-    const page = await Effect.runPromise(
+    const page = await runTestEffect(
       queries.getIssuesBatch(env.DB, fixture.workspaceId, {
         refs: [`PROJ-0${second.number}`, 'PROJ-999'],
         ids: [first.id, second.id, 'missing'],
       }),
     )
-    expect(page.items.map((r) => r.id)).toEqual([second.id, first.id])
-    expect(page.missing).toEqual(['PROJ-999', 'missing'])
+    expect(page.items.map((item) => item.id)).toStrictEqual([second.id, first.id])
+    expect(page.missing).toStrictEqual(['PROJ-999', 'missing'])
     expect(page.items[0]).not.toHaveProperty('body')
     const actual = await api(`issues/batch?refs=PROJ-0${second.number},PROJ-999&ids=${first.id},${second.id},missing`)
     expect({
       ...actual,
       items: (actual.items as Record<string, unknown>[]).map(({ url: _url, ...row }) => row),
-    }).toEqual(page)
+    }).toStrictEqual(page)
   })
-  it('scopes single rows, comments, fields and links to the workspace independently', async () => {
+
+  test('scopes single rows, comments, fields and links to the workspace independently', async () => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     await seedComment(issue.id, fixture.userId, 'Shared comment')
     const other = await seedProjectFixture({ role: 'owner' })
-    expect(await Effect.runPromise(queries.getIssue(env.DB, other.workspaceId, { id: issue.id }))).toBeNull()
-    expect(await Effect.runPromise(listComments(env.DB, other.workspaceId, issue.id))).toEqual([])
-    expect(await Effect.runPromise(listLinksForIssue(env.DB, other.workspaceId, issue.id))).toEqual([])
-    expect(await Effect.runPromise(batchLoadCustomFields(env.DB, other.workspaceId, [issue.id]))).toEqual({})
-    const rows = await Effect.runPromise(listComments(env.DB, fixture.workspaceId, issue.id))
+    await expect(runTestEffect(queries.getIssue(env.DB, other.workspaceId, { id: issue.id }))).resolves.toBeNull()
+    await expect(runTestEffect(listComments(env.DB, other.workspaceId, issue.id))).resolves.toStrictEqual([])
+    await expect(runTestEffect(listLinksForIssue(env.DB, other.workspaceId, issue.id))).resolves.toStrictEqual([])
+    await expect(runTestEffect(batchLoadCustomFields(env.DB, other.workspaceId, [issue.id]))).resolves.toStrictEqual({})
+    const rows = await runTestEffect(listComments(env.DB, fixture.workspaceId, issue.id))
     const actual = await api(`issues/${issue.id}/comments`)
-    expect(actual).toEqual(rows)
+    expect(actual).toStrictEqual(rows)
   })
-  it('preserves directional links and taxonomy/definition data conversion', async () => {
+
+  test('preserves directional links and taxonomy/definition data conversion', async () => {
     const source = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const target = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     await env.DB.prepare(
@@ -155,37 +171,40 @@ describe('Shared issue queries over the API D1 pool', () => {
     )
       .bind(crypto.randomUUID(), fixture.workspaceId, source.id, target.id, 'blocks', fixture.userId, 1)
       .run()
-    const links = await Effect.runPromise(listLinksForIssue(env.DB, fixture.workspaceId, target.id))
+    const links = await runTestEffect(listLinksForIssue(env.DB, fixture.workspaceId, target.id))
     expect(links[0]).toMatchObject({
       type: 'blocked_by',
       linkedIssueId: source.id,
       linkedIssueProjectKey: 'PROJ',
     })
-    expect(await api(`issues/${target.id}/links`)).toEqual(links)
+    await expect(api(`issues/${target.id}/links`)).resolves.toStrictEqual(links)
     await seedTaskStatus(fixture.workspaceId)
     await seedTaskType(fixture.workspaceId)
     await seedCustomFieldDef(fixture.workspaceId, {
       key: 'choice',
-      type: 'select',
       options: ['A', 'B'],
+      type: 'select',
     })
-    expect(await api('task-statuses')).toEqual(await Effect.runPromise(listTaskStatuses(env.DB, fixture.workspaceId)))
-    expect(await api('task-types')).toEqual(await Effect.runPromise(listTaskTypes(env.DB, fixture.workspaceId)))
-    expect(await api('custom-fields')).toEqual(
-      await Effect.runPromise(listCustomFieldDefs(env.DB, fixture.workspaceId)),
+    await expect(api('task-statuses')).resolves.toStrictEqual(
+      await runTestEffect(listTaskStatuses(env.DB, fixture.workspaceId)),
+    )
+    await expect(api('task-types')).resolves.toStrictEqual(
+      await runTestEffect(listTaskTypes(env.DB, fixture.workspaceId)),
+    )
+    await expect(api('custom-fields')).resolves.toStrictEqual(
+      await runTestEffect(listCustomFieldDefs(env.DB, fixture.workspaceId)),
     )
   })
-  it('uses literal FTS sanitization and unchanged search result keys', async () => {
+
+  test('uses literal FTS sanitization and unchanged search result keys', async () => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       title: 'needle issue',
     })
     await env.DB.prepare('INSERT INTO issues_fts(issue_id,workspace_id,title,body) VALUES (?,?,?,?)')
       .bind(issue.id, fixture.workspaceId, 'needle issue', '')
       .run()
-    const rows = await Effect.runPromise(
-      queries.searchIssues(env.DB, fixture.workspaceId, { query: 'needle', limit: 20 }),
-    )
-    expect(rows[0]).toEqual({
+    const rows = await runTestEffect(queries.searchIssues(env.DB, fixture.workspaceId, { query: 'needle', limit: 20 }))
+    expect(rows[0]).toStrictEqual({
       id: issue.id,
       number: issue.number,
       title: 'needle issue',
@@ -195,12 +214,12 @@ describe('Shared issue queries over the API D1 pool', () => {
       project_key: 'PROJ',
       project_name: 'Test Project',
     })
-    expect(await api('issues/search?q=needle')).toEqual(rows)
-    expect(
-      await Effect.runPromise(queries.searchIssues(env.DB, fixture.workspaceId, { query: '***', limit: 20 })),
-    ).toEqual([])
-    expect(
-      await Effect.runPromise(queries.searchIssues(env.DB, fixture.workspaceId, { query: 'needle OR', limit: 20 })),
-    ).toEqual([])
+    await expect(api('issues/search?q=needle')).resolves.toStrictEqual(rows)
+    await expect(
+      runTestEffect(queries.searchIssues(env.DB, fixture.workspaceId, { query: '***', limit: 20 })),
+    ).resolves.toStrictEqual([])
+    await expect(
+      runTestEffect(queries.searchIssues(env.DB, fixture.workspaceId, { query: 'needle OR', limit: 20 })),
+    ).resolves.toStrictEqual([])
   })
 })

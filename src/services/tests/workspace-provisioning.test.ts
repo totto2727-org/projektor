@@ -1,16 +1,13 @@
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { Iterable } from 'effect'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { seedDefaultCustomFields } from '#commands/custom-fields'
-import { createWorkspace } from '#commands/workspaces'
-
-import { createTestDatabase } from '../../web/test/database'
+import { seedDefaultCustomFields } from '#commands/custom-fields.ts'
+import { createWorkspace } from '#commands/workspaces.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
 
-function fixture() {
+const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   // The node fixture omits FTS5. This mirror checks provisioning writes, not search behavior.
@@ -20,13 +17,17 @@ function fixture() {
   // Model D1 batch atomicity explicitly: the general node fixture uses Promise.all.
   const db = new Proxy(database.db, {
     get(target, key) {
-      if (key !== 'batch') return Reflect.get(target, key)
+      if (key !== 'batch') {
+        return Reflect.get(target, key)
+      }
       return async (statements: D1PreparedStatement[]) => {
-        batches++
+        batches += 1
         database.sqlite.exec('BEGIN')
         try {
           const results = []
-          for (const statement of statements) results.push(await statement.all())
+          for (const statement of statements) {
+            results.push(await statement.all())
+          }
           database.sqlite.exec('COMMIT')
           return results
         } catch (error) {
@@ -41,53 +42,67 @@ function fixture() {
 }
 
 describe('atomic workspace provisioning', () => {
-  it('creates ownership and complete default configuration in one batch', async () => {
-    const f = fixture()
-    const workspace = await createWorkspace(f.db, 'u', { name: 'Workspace', slug: 'workspace' })
-    expect(f.batches()).toBe(1)
-    expect(f.count('workspaces')).toBe(1)
-    expect(
-      f.sqlite.prepare('SELECT user_id,role FROM workspace_members WHERE workspace_id=?').get(workspace.id),
-    ).toMatchObject({ user_id: 'u', role: 'owner' })
-    expect(f.count('task_types')).toBe(4)
-    expect(f.count('task_statuses')).toBe(6)
-    expect(f.count('custom_field_definitions')).toBe(1)
-    expect(f.count('wiki_pages')).toBe(4)
-    expect(f.count('wiki_fts')).toBe(1)
-    await seedDefaultCustomFields(f.db, workspace.id)
-    await seedDefaultCustomFields(f.db, workspace.id)
-    expect(f.count('custom_field_definitions')).toBe(1)
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
   })
 
-  it('rolls back every earlier seed when a late wiki template fails and permits retry', async () => {
-    const f = fixture()
-    f.sqlite.exec(`CREATE TRIGGER fail_template BEFORE INSERT ON wiki_pages WHEN NEW.is_template=1
+  test('creates ownership and complete default configuration in one batch', async () => {
+    const testFixture = fixture()
+    const workspace = await createWorkspace(testFixture.db, 'u', { name: 'Workspace', slug: 'workspace' })
+    expect(testFixture.batches()).toBe(1)
+    expect(testFixture.count('workspaces')).toBe(1)
+    expect(
+      testFixture.sqlite.prepare('SELECT user_id,role FROM workspace_members WHERE workspace_id=?').get(workspace.id),
+    ).toMatchObject({ role: 'owner', user_id: 'u' })
+    expect(testFixture.count('task_types')).toBe(4)
+    expect(testFixture.count('task_statuses')).toBe(6)
+    expect(testFixture.count('custom_field_definitions')).toBe(1)
+    expect(testFixture.count('wiki_pages')).toBe(4)
+    expect(testFixture.count('wiki_fts')).toBe(1)
+    await seedDefaultCustomFields(testFixture.db, workspace.id)
+    await seedDefaultCustomFields(testFixture.db, workspace.id)
+    expect(testFixture.count('custom_field_definitions')).toBe(1)
+  })
+
+  test('rolls back every earlier seed when a late wiki template fails and permits retry', async () => {
+    expect.hasAssertions()
+    const testFixture = fixture()
+    testFixture.sqlite.exec(`CREATE TRIGGER fail_template BEFORE INSERT ON wiki_pages WHEN NEW.is_template=1
       BEGIN SELECT RAISE(ABORT,'template failure'); END;`)
-    await expect(createWorkspace(f.db, 'u', { name: 'Workspace', slug: 'workspace' })).rejects.toThrow(
+    await expect(createWorkspace(testFixture.db, 'u', { name: 'Workspace', slug: 'workspace' })).rejects.toThrow(
       'template failure',
     )
-    for (const table of [
-      'workspaces',
-      'workspace_members',
-      'task_types',
-      'task_statuses',
-      'custom_field_definitions',
-      'wiki_pages',
-      'wiki_fts',
-    ]) {
-      expect(f.count(table), table).toBe(0)
-    }
-    f.sqlite.exec('DROP TRIGGER fail_template')
-    await expect(createWorkspace(f.db, 'u', { name: 'Workspace', slug: 'workspace' })).resolves.toMatchObject({
-      slug: 'workspace',
-    })
-    expect(f.count('workspaces')).toBe(1)
+    Iterable.forEach(
+      [
+        'workspaces',
+        'workspace_members',
+        'task_types',
+        'task_statuses',
+        'custom_field_definitions',
+        'wiki_pages',
+        'wiki_fts',
+      ],
+      (table) => {
+        expect(testFixture.count(table), table).toBe(0)
+      },
+    )
+    testFixture.sqlite.exec('DROP TRIGGER fail_template')
+    await expect(createWorkspace(testFixture.db, 'u', { name: 'Workspace', slug: 'workspace' })).resolves.toMatchObject(
+      {
+        slug: 'workspace',
+      },
+    )
+    expect(testFixture.count('workspaces')).toBe(1)
   })
 
-  it('does not leave a tenant when its owner does not exist', async () => {
-    const f = fixture()
-    await expect(createWorkspace(f.db, 'missing', { name: 'Workspace', slug: 'workspace' })).rejects.toThrow()
-    expect(f.count('workspaces')).toBe(0)
-    expect(f.count('workspace_members')).toBe(0)
+  test('does not leave a tenant when its owner does not exist', async () => {
+    const testFixture = fixture()
+    await expect(createWorkspace(testFixture.db, 'missing', { name: 'Workspace', slug: 'workspace' })).rejects.toThrow(
+      'FOREIGN KEY constraint failed',
+    )
+    expect(testFixture.count('workspaces')).toBe(0)
+    expect(testFixture.count('workspace_members')).toBe(0)
   })
 })

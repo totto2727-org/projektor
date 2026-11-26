@@ -1,21 +1,35 @@
 import { Effect, Schema, Stream } from 'effect'
 import { HttpServerRequest, HttpServerResponse, UrlParams } from 'effect/http'
 
-import { ApiError, checkSameOriginMutation } from './server'
+import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+
+import { ApiError, checkSameOriginMutation } from './server/server-context.ts'
 
 const SessionForm = Schema.Struct({
   action: Schema.Literals(['login', 'logout']),
   redirect_url: Schema.optional(Schema.String),
 })
 
-/** Native POST forms bypass Flight and discard the previous identity's JS runtime. */
-export function sessionNavigation(request: Request) {
+const decodeSessionForm = Schema.decodeUnknownEffect(SessionForm)
+
+/**
+ * Native POST forms bypass Flight and discard the previous identity's JS runtime.
+ *
+ * @param {Request} request The native browser POST carrying the session navigation form.
+ * @returns {Effect.Effect<HttpServerResponse.HttpServerResponse, ApiError>} An effect that returns the login or logout redirect or the corresponding request error.
+ */
+export const sessionNavigation = function sessionNavigation(
+  request: Request,
+): Effect.Effect<HttpServerResponse.HttpServerResponse, ApiError> {
   return Effect.gen(function* () {
     const incoming = HttpServerRequest.fromWeb(request)
-    if (incoming.method !== 'POST') return HttpServerResponse.empty({ status: 405, headers: { allow: 'POST' } })
+    if (incoming.method !== 'POST') {
+      return HttpServerResponse.empty({ status: 405, headers: { allow: 'POST' } })
+    }
     yield* checkSameOriginMutation(request)
-    if (incoming.headers['content-type']?.split(';', 1)[0] !== 'application/x-www-form-urlencoded')
-      return yield* new ApiError('request', 400, 'A session navigation form is required.')
+    if (incoming.headers['content-type']?.split(';', 1)[0] !== 'application/x-www-form-urlencoded') {
+      return yield* new ApiError('request', HTTP_BAD_REQUEST, 'A session navigation form is required.')
+    }
     // The Web adapter's text/form accessors do not enforce MaxBodySize in rc.116.
     const text = yield* incoming.stream.pipe(
       Stream.mapAccumEffect(
@@ -23,26 +37,27 @@ export function sessionNavigation(request: Request) {
         (size, chunk) => {
           const next = size + chunk.byteLength
           return next > 8192
-            ? Effect.fail(new ApiError('request', 400, 'The session navigation form is too large.'))
+            ? Effect.fail(new ApiError('request', HTTP_BAD_REQUEST, 'The session navigation form is too large.'))
             : Effect.succeed([next, [chunk]] as const)
         },
       ),
       Stream.decodeText(),
       Stream.mkString,
-      Effect.mapError(() => new ApiError('request', 400, 'Invalid session navigation form.')),
+      Effect.mapError(() => new ApiError('request', HTTP_BAD_REQUEST, 'Invalid session navigation form.')),
     )
-    const form = yield* Schema.decodeUnknownEffect(SessionForm)(
-      UrlParams.toRecord(UrlParams.fromInput(new URLSearchParams(text))),
-    ).pipe(Effect.mapError(() => new ApiError('request', 400, 'Invalid session navigation form.')))
+    const form = yield* decodeSessionForm(UrlParams.toRecord(UrlParams.fromInput(new URLSearchParams(text)))).pipe(
+      Effect.mapError(() => new ApiError('request', HTTP_BAD_REQUEST, 'Invalid session navigation form.')),
+    )
     let location = '/cdn-cgi/access/logout'
     if (form.action === 'login') {
-      const origin = new URL(request.url).origin
+      const { origin } = new URL(request.url)
       const destination = yield* Effect.try({
+        catch: () => new ApiError('request', HTTP_BAD_REQUEST, 'A local session redirect is required.'),
         try: () => new URL(form.redirect_url ?? '/', origin),
-        catch: () => new ApiError('request', 400, 'A local session redirect is required.'),
       })
-      if (destination.origin !== origin)
-        return yield* new ApiError('request', 400, 'A local session redirect is required.')
+      if (destination.origin !== origin) {
+        return yield* new ApiError('request', HTTP_BAD_REQUEST, 'A local session redirect is required.')
+      }
       location = `/auth/login?${new URLSearchParams({ redirect_url: `${destination.pathname}${destination.search}${destination.hash}` })}`
     }
     return HttpServerResponse.redirect(location, {

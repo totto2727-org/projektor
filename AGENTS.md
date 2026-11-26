@@ -9,7 +9,9 @@ The private Core Worker owns shared domain operations, persistent authorization,
 API and Web call Core directly through native service bindings, never through each other's public URLs.
 `src/services` and `src/db` are Core implementation modules, not published packages or adapter capabilities.
 `src/db` contains the schema, `migrations/` the maintained SQL migrations, and `src/types` the shared internal types.
-Private `#db`, `#services`, `#commands`, `#types` and `#plugin-sdk` imports resolve inside this project.
+Private package imports name application boundaries such as `#api`, `#contracts`, `#core`, `#db`, `#services` and `#commands`.
+Web source uses the existing `@/` alias for cross-directory imports within Web.
+Test support imports archived migration SQL through `#migrations` and shared test modules through `#tests`.
 Do not recreate workspace packages, a separate infra project, Turbo, Biome or Lefthook.
 
 ## Commands
@@ -119,7 +121,7 @@ A successful CI run or read-only plan does not prove production schema readiness
 Worker declarations resolve dependencies and dynamic imports only; Web routing and response behavior belong in `src/web/worker.ts`.
 API, Frontend and Core declare their `main` in `worker-graph.ts`; Alchemy, the Frontend Vite plugin and browser acceptance consume those same entries rather than duplicating runtime paths.
 Frontend and Core default-export their own runtime resource with DeploymentLayer in the same module as its declaration; the stack imports their unprovided named resources so explicit environment Layer overrides still work.
-API retains its native HTTP default and Durable Object exports in `src/api/index.ts`; converting it to an Effect runtime is not required for consistency.
+API retains its native HTTP default and Durable Object exports in `src/api/worker.ts`; converting it to an Effect runtime is not required for consistency.
 `alchemy.ts` has no runtime default export and must not be used as a Worker main.
 The native acceptance API and Core resolve their configured production modules before applying test-only fixture wrappers.
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
@@ -210,6 +212,8 @@ Scope Vitest projects with source directory globs instead of file lists or test 
 Keep native Worker tests under `src/api/test` and `tests/native-workers`, and keep API tests that require Node under `src/api/test-node`.
 The root Vite+ config uses `@totto2727/gitignore-patterns` filesystem snapshots for formatting and lint exclusions; the frontend acceptance config inherits those settings, while the standalone build-only API config needs no check settings.
 TypeScript inherits the template's strictest and node-ts presets, with Vite's bundled module resolution, React JSX, Worker runtime types and aliases.
+Use explicit TypeScript extensions in relative imports and private package subpaths.
+The compiler checks those paths without emitting files, so the root configuration allows TypeScript import extensions and leaves path rewriting to the bundler.
 Use directory-level TypeScript `include` globs for maintained `.ts` and `.tsx` files rather than listing individual files.
 The existing application/SDK contracts retain three explicit compatibility settings: exact optional properties, indexed-property syntax and unchecked index access are not additionally tightened in this toolchain migration; standard strict checking and the other preset checks remain enabled.
 Parameter properties are expanded to ordinary declarations and assignments for the template's erasable-syntax setting without changing their runtime values or error protocol.

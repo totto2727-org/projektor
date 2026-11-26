@@ -1,24 +1,36 @@
 import { Effect } from 'effect'
 
-import { ApiError } from './errors'
+import { ApiError } from './errors.ts'
+import { HTTP_FORBIDDEN } from './http-status.ts'
 
-/** Native browser mutations require an explicit same-origin request. */
-export function assertSameOriginMutation(request: Request): void {
+/**
+ * Native browser mutations require an explicit same-origin request.
+ *
+ * @param {Request} request The browser request to check.
+ */
+export const assertSameOriginMutation = function assertSameOriginMutation(request: Request): void {
   if (
     request.method === 'GET' ||
     request.method === 'HEAD' ||
     request.headers.get('origin') !== new URL(request.url).origin ||
     request.headers.get('sec-fetch-site') === 'cross-site'
-  )
-    throw new ApiError('request', 403, 'A same-origin mutation request is required.')
+  ) {
+    throw new ApiError('request', HTTP_FORBIDDEN, 'A same-origin mutation request is required.')
+  }
 }
 
-export function checkSameOriginMutation(request: Request): Effect.Effect<void, ApiError> {
+export const checkSameOriginMutation = function checkSameOriginMutation(
+  request: Request,
+): Effect.Effect<void, ApiError> {
   return Effect.try({
-    try: () => assertSameOriginMutation(request),
     catch: (error) => {
-      if (error instanceof ApiError) return error
+      if (error instanceof ApiError) {
+        return error
+      }
       throw error
+    },
+    try: () => {
+      assertSameOriginMutation(request)
     },
   })
 }

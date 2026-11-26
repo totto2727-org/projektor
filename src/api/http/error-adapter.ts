@@ -1,8 +1,7 @@
+import { Predicate } from 'effect'
 import type { Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { CorePublicError } from 'projektor/core-client'
-
-import type { HonoEnv } from '#types'
 
 import {
   ConflictError,
@@ -11,35 +10,53 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '../../contracts/errors'
+} from '#contracts/errors.ts'
+import {
+  HTTP_BAD_REQUEST,
+  HTTP_CONFLICT,
+  HTTP_FORBIDDEN,
+  HTTP_NOT_FOUND,
+  HTTP_PAYLOAD_TOO_LARGE,
+  HTTP_UNSUPPORTED_MEDIA_TYPE,
+} from '#contracts/http-status.ts'
+import type { HonoEnv } from '#types'
 
-export function serviceErrToResponse(c: Context<HonoEnv>, err: unknown) {
+export const serviceErrToResponse = function serviceErrToResponse(httpContext: Context<HonoEnv>, err: unknown) {
   if (err instanceof CorePublicError) {
-    if (err.retryAfter !== undefined) c.header('Retry-After', String(err.retryAfter))
-    const error = err.kind === 'validation' && err.details !== undefined ? err.details : err.message
-    return c.json({ error, ...(err.kind === 'validation' ? {} : err.details) }, err.status as ContentfulStatusCode)
+    if (Predicate.isNotNullish(err.retryAfter)) {
+      httpContext.header('Retry-After', String(err.retryAfter))
+    }
+    const error = err.kind === 'validation' && Predicate.isNotNullish(err.details) ? err.details : err.message
+    return httpContext.json(
+      { error, ...(err.kind === 'validation' ? {} : err.details) },
+      err.status as ContentfulStatusCode,
+    )
   }
   if (err instanceof ValidationError) {
-    return c.json({ error: err.issues }, 400)
+    return httpContext.json({ error: err.issues }, HTTP_BAD_REQUEST)
   }
   if (err instanceof NotFoundError) {
-    // PROJ-490: structured not-found details (e.g. patch_wiki_page's currentHeadings)
-    // are spread alongside `error`, same convention as ConflictError below.
-    return c.json({ error: err.message, ...err.details }, 404)
+    /*
+     * PROJ-490: structured not-found details (e.g. patch_wiki_page's currentHeadings)
+     * are spread alongside `error`, same convention as ConflictError below.
+     */
+    return httpContext.json({ error: err.message, ...err.details }, HTTP_NOT_FOUND)
   }
   if (err instanceof ForbiddenError) {
-    return c.json({ error: err.message }, 403)
+    return httpContext.json({ error: err.message }, HTTP_FORBIDDEN)
   }
   if (err instanceof ConflictError) {
-    // PROJ-484: structured conflicts (e.g. wiki's currentRevisionId + diff) are
-    // spread alongside `error` so REST callers get them as plain top-level fields.
-    return c.json({ error: err.message, ...err.details }, 409)
+    /*
+     * PROJ-484: structured conflicts (e.g. wiki's currentRevisionId + diff) are
+     * spread alongside `error` so REST callers get them as plain top-level fields.
+     */
+    return httpContext.json({ error: err.message, ...err.details }, HTTP_CONFLICT)
   }
   if (err instanceof PayloadTooLargeError) {
-    return c.json({ error: err.message }, 413)
+    return httpContext.json({ error: err.message }, HTTP_PAYLOAD_TOO_LARGE)
   }
   if (err instanceof UnsupportedMediaTypeError) {
-    return c.json({ error: err.message }, 415)
+    return httpContext.json({ error: err.message }, HTTP_UNSUPPORTED_MEDIA_TYPE)
   }
   throw err
 }

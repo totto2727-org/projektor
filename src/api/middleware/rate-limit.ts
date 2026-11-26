@@ -1,48 +1,61 @@
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 import type { Context, Next } from 'hono'
-import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { makeCoreClient } from 'projektor/core-client'
 
+import { apiReply } from '#api/services/reply.ts'
+import { HTTP_TOO_MANY_REQUESTS } from '#contracts/http-status.ts'
+import { RateLimitResult, rateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
 import type { ApiEnv, HonoEnv } from '#types'
 
-import { RateLimitResult, rateLimitTestPolicy } from '../../contracts/request-rate-limit'
+export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
 
-export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../../contracts/request-rate-limit'
-
-/** Auth failures share the same Core-owned counter backend as normal requests. */
-export function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): Promise<number> {
-  return Effect.runPromise(
-    decodeCoreReply(
-      Schema.Number,
-      makeCoreClient(env.CORE).apiBumpRateCounter({
-        key,
-        windowSecs,
-        testPolicy: rateLimitTestPolicy(env),
-      }),
-    ),
+/**
+ * Auth failures share the same Core-owned counter backend as normal requests.
+ *
+ * @param {ApiEnv} env The API bindings and optional test policy.
+ * @param {string} key The counter key for the request category.
+ * @param {number} windowSecs The fixed window length in seconds.
+ * @returns {Promise<number>} The count after Core increments the current window.
+ */
+export const bumpRateCounter = function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): Promise<number> {
+  return apiReply(
+    Schema.Number,
+    makeCoreClient(env.CORE).apiBumpRateCounter({
+      key,
+      windowSecs,
+      testPolicy: rateLimitTestPolicy(env),
+    }),
   )
 }
 
-/** HTTP response shaping stays at the API boundary, policy and storage do not. */
-export async function rateLimitMiddleware(c: Context<HonoEnv>, next: Next): Promise<Response | undefined> {
+/**
+ * HTTP response shaping stays at the API boundary, policy and storage do not.
+ *
+ * @param {Context<HonoEnv>} httpContext The request and API bindings.
+ * @param {Next} next The next handler for an allowed request.
+ * @returns {Promise<Response | undefined>} The rejection response when limited, or undefined after continuing.
+ */
+export const rateLimitMiddleware = async function rateLimitMiddleware(
+  httpContext: Context<HonoEnv>,
+  next: Next,
+): Promise<Response | undefined> {
   let limited: typeof RateLimitResult.Type = null
   try {
-    limited = await Effect.runPromise(
-      decodeCoreReply(
-        RateLimitResult,
-        makeCoreClient(c.env.CORE).apiCheckRateLimit({
-          authorization: c.req.header('Authorization'),
-          ip: c.req.header('CF-Connecting-IP'),
-          testPolicy: rateLimitTestPolicy(c.env),
-        }),
-      ),
+    limited = await apiReply(
+      RateLimitResult,
+      makeCoreClient(httpContext.env.CORE).apiCheckRateLimit({
+        authorization: httpContext.req.header('Authorization'),
+        ip: httpContext.req.header('CF-Connecting-IP'),
+        testPolicy: rateLimitTestPolicy(httpContext.env),
+      }),
     )
   } catch {
     // Preserve fail-open outage policy without logging credentials or remote diagnostics.
     console.error('Core rate-limit service unavailable, failing open')
   }
   if (limited) {
-    c.header('Retry-After', String(limited.retryAfter))
-    return c.json({ error: 'Too Many Requests' }, 429)
+    httpContext.header('Retry-After', String(limited.retryAfter))
+    return httpContext.json({ error: 'Too Many Requests' }, HTTP_TOO_MANY_REQUESTS)
   }
   await next()
   return undefined

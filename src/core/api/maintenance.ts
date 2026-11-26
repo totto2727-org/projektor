@@ -1,18 +1,31 @@
-import type { ServiceCtx } from '#commands/types'
-import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki'
+import { String, Array, Predicate, Schema } from 'effect'
 
-import type { CoreEnvironment } from '../environment'
-import { purgeOAuthPage } from './oauth-purge'
+import type { ServiceCtx } from '#commands/types.ts'
+import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
+import type { CoreEnvironment } from '#core/environment.ts'
+
+import { purgeOAuthPage } from './oauth-purge.ts'
 
 const FTS_DEDUPE_ONCE_KV_KEY = 'maint:fts-dedupe-0065'
 const RETENTION_CHUNK_SIZE = 500
 const RETENTION_MAX_CHUNKS_PER_CATEGORY = 20
+const NO_ROWS_DELETED = 0
+const RETENTION_CHUNKS_PER_STEP = 1
+const DEFAULT_WIKI_NOTIFICATION_RETENTION_DAYS = 90
+const DEFAULT_AGENT_SESSION_RETENTION_DAYS = 90
+const DEFAULT_ACTIVITY_RETENTION_DAYS = 365
 const WIKI_TRASH_PURGE_CURSOR_KV_KEY = 'cron:wiki-trash-purge:cursor'
 const WIKI_TRASH_SUBREQUEST_BUDGET = 100
 const WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE = 45
+const WikiTrashCursor = Schema.Struct({ workspaceIds: Schema.Array(Schema.Unknown) })
 
-/** Existing maintenance budgets and continuation policy, now executed inside Core. */
-export async function runMaintenance(env: CoreEnvironment): Promise<void> {
+/**
+ * Run Core maintenance with the existing budgets and continuation policy.
+ *
+ * @param {CoreEnvironment} env Core bindings used by the scheduled jobs.
+ */
+export const runMaintenance = async function runMaintenance(env: CoreEnvironment): Promise<void> {
   await Promise.all([
     purgeAllWorkspacesExpiredWikiPages(env),
     purgeExpiredOAuthData(env),
@@ -23,7 +36,9 @@ export async function runMaintenance(env: CoreEnvironment): Promise<void> {
 
 export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
   try {
-    if (await env.KV.get(FTS_DEDUPE_ONCE_KV_KEY)) return
+    if (await env.KV.get(FTS_DEDUPE_ONCE_KV_KEY)) {
+      return
+    }
     await env.DB.prepare(`UPDATE OR IGNORE wiki_pages SET search_rowid = (
       SELECT MAX(rowid) FROM wiki_fts WHERE page_id = wiki_pages.id) WHERE search_rowid IS NULL`).run()
     const result = await env.DB.prepare(
@@ -36,23 +51,38 @@ export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
   }
 }
 
-function retentionCutoff(raw: string | undefined, defaultDays: number): number {
-  const days = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN
-  return Math.floor(Date.now() / 1000) - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86400
+const retentionCutoff = function retentionCutoff(raw: string | undefined, defaultDays: number): number {
+  const days = Predicate.isString(raw) && String.isNonEmpty(raw.trim()) ? Number(raw) : Number.NaN
+  return currentEpochSeconds() - (Number.isFinite(days) && days > 0 ? days : defaultDays) * SECONDS_PER_DAY
 }
 
-async function deleteExpiredInChunks(db: D1Database, table: string, whereSql: string, params: readonly unknown[]) {
-  let totalDeleted = 0
-  for (let index = 0; index < RETENTION_MAX_CHUNKS_PER_CATEGORY; index++) {
-    const result = await db
-      .prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${whereSql} LIMIT ?)`)
-      .bind(...params, RETENTION_CHUNK_SIZE)
-      .run()
-    const changes = result.meta.changes ?? 0
-    totalDeleted += changes
-    if (changes < RETENTION_CHUNK_SIZE) break
+type RetentionTarget = Readonly<{
+  params: Readonly<unknown[]>
+  table: string
+  whereSql: string
+}>
+
+type RetentionProgress = Readonly<{ chunksRemaining: number; totalDeleted: number }>
+
+const deleteExpiredInChunks = async function deleteExpiredInChunks(
+  db: D1Database,
+  target: RetentionTarget,
+  progress: RetentionProgress = { chunksRemaining: RETENTION_MAX_CHUNKS_PER_CATEGORY, totalDeleted: NO_ROWS_DELETED },
+): Promise<number> {
+  const { params, table, whereSql } = target
+  const result = await db
+    .prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${whereSql} LIMIT ?)`)
+    .bind(...params, RETENTION_CHUNK_SIZE)
+    .run()
+  const changes = result.meta.changes ?? NO_ROWS_DELETED
+  const totalDeleted = progress.totalDeleted + changes
+  if (changes < RETENTION_CHUNK_SIZE || progress.chunksRemaining === RETENTION_CHUNKS_PER_STEP) {
+    return totalDeleted
   }
-  return totalDeleted
+  return deleteExpiredInChunks(db, target, {
+    chunksRemaining: progress.chunksRemaining - RETENTION_CHUNKS_PER_STEP,
+    totalDeleted,
+  })
 }
 
 export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<void> {
@@ -63,7 +93,7 @@ export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<v
       name: 'wiki_notifications',
       table: 'wiki_notifications',
       whereSql: 'created_at < ?',
-      params: [retentionCutoff(env.WIKI_NOTIFICATION_RETENTION_DAYS, 90)],
+      params: [retentionCutoff(env.WIKI_NOTIFICATION_RETENTION_DAYS, DEFAULT_WIKI_NOTIFICATION_RETENTION_DAYS)],
     },
     {
       name: 'agent_sessions',
@@ -71,13 +101,13 @@ export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<v
       // Released leases remain indefinitely because historical flow metrics consume them.
       whereSql: `status = 'ended' AND ended_at IS NOT NULL AND ended_at < ?
         AND NOT EXISTS (SELECT 1 FROM issue_leases l WHERE l.agent_session_id = agent_sessions.id)`,
-      params: [retentionCutoff(env.AGENT_SESSION_RETENTION_DAYS, 90)],
+      params: [retentionCutoff(env.AGENT_SESSION_RETENTION_DAYS, DEFAULT_AGENT_SESSION_RETENTION_DAYS)],
     },
     {
       name: 'activity',
       table: 'activity',
       whereSql: 'created_at < ?',
-      params: [retentionCutoff(env.ACTIVITY_RETENTION_DAYS, 365)],
+      params: [retentionCutoff(env.ACTIVITY_RETENTION_DAYS, DEFAULT_ACTIVITY_RETENTION_DAYS)],
     },
   ]
   for (const category of categories) {
@@ -94,7 +124,7 @@ export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<v
           ].map((sql) => env.DB.prepare(sql).bind(...category.params)),
         )
       }
-      counts[category.name] = await deleteExpiredInChunks(env.DB, category.table, category.whereSql, category.params)
+      counts[category.name] = await deleteExpiredInChunks(env.DB, category)
     } catch (error) {
       failures.push(category.name)
       console.error('scheduled retention purge failed', { category: category.name, error })
@@ -107,7 +137,7 @@ export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void>
   try {
     const [{ OAuthProvider }, { providerOptions }] = await Promise.all([
       import('@cloudflare/workers-oauth-provider'),
-      import('../../contracts/oauth-provider'),
+      import('#contracts/oauth-provider.ts'),
     ])
     const oauthProvider = new OAuthProvider(
       providerOptions<Pick<CoreEnvironment, 'OAUTH_KV'>>({
@@ -128,7 +158,13 @@ export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void>
   }
 }
 
-function createSubrequestBudget(limit: number) {
+interface SubrequestBudget {
+  spend: (count?: number) => void
+  remaining: () => number
+  used: () => number
+}
+
+const createSubrequestBudget = function createSubrequestBudget(limit: number): SubrequestBudget {
   let used = 0
   return {
     spend: (count = 1) => {
@@ -138,55 +174,66 @@ function createSubrequestBudget(limit: number) {
     used: () => used,
   }
 }
-type SubrequestBudget = ReturnType<typeof createSubrequestBudget>
 
-/** Count real D1 calls without altering native prepare/bind/batch behavior. */
-function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database {
+/**
+ * Count database requests as they execute.
+ *
+ * @param {D1Database} db Native D1 binding used for the maintenance work.
+ * @param {SubrequestBudget} budget Counter shared by the current purge run.
+ * @returns {D1Database} A D1 wrapper that preserves native preparation, binding and execution.
+ */
+const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database {
   const reads = new Set(['all', 'first', 'raw', 'run'])
   return new Proxy(db, {
-    get(target, property, receiver) {
-      if (property === 'prepare')
+    get(target, property, receiver): unknown {
+      if (property === 'prepare') {
         return (sql: string) => {
           const statement = Reflect.get(target, 'prepare', receiver).call(target, sql)
           return new Proxy(statement, {
-            get(statementTarget, statementProperty, statementReceiver) {
-              if (statementProperty === 'bind')
+            get(statementTarget, statementProperty, statementReceiver): unknown {
+              if (statementProperty === 'bind') {
                 return (...args: unknown[]) => {
                   const bound = Reflect.get(statementTarget, 'bind', statementReceiver).call(statementTarget, ...args)
                   return new Proxy(bound, {
                     get(boundTarget, boundProperty, boundReceiver) {
                       const original = Reflect.get(boundTarget, boundProperty, boundReceiver)
-                      if (typeof boundProperty === 'string' && reads.has(boundProperty))
+                      if (Predicate.isString(boundProperty) && reads.has(boundProperty)) {
                         return async (...values: unknown[]) => {
                           budget.spend()
                           return original.apply(boundTarget, values)
                         }
-                      return typeof original === 'function' ? original.bind(boundTarget) : original
+                      }
+                      return Predicate.isFunction(original) ? original.bind(boundTarget) : original
                     },
                   })
                 }
-              const original = Reflect.get(statementTarget, statementProperty, statementReceiver)
-              return typeof original === 'function' ? original.bind(statementTarget) : original
+              }
+              const original: unknown = Reflect.get(statementTarget, statementProperty, statementReceiver)
+              return Predicate.isFunction(original) ? original.bind(statementTarget) : original
             },
           })
         }
-      if (property === 'batch')
+      }
+      if (property === 'batch') {
         return async (statements: D1PreparedStatement[]) => {
           budget.spend()
           return Reflect.get(target, 'batch', receiver).call(target, statements)
         }
-      const original = Reflect.get(target, property, receiver)
-      return typeof original === 'function' ? original.bind(target) : original
+      }
+      const original: unknown = Reflect.get(target, property, receiver)
+      return Predicate.isFunction(original) ? original.bind(target) : original
     },
   })
 }
 
-function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudget): T {
+const wrapCallsWithBudget = function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudget): T {
   return new Proxy(target, {
-    get(object, property, receiver) {
-      const original = Reflect.get(object, property, receiver)
-      if (typeof original !== 'function') return original
-      return (...args: unknown[]) => {
+    get(object, property, receiver): unknown {
+      const original: unknown = Reflect.get(object, property, receiver)
+      if (!Predicate.isFunction(original)) {
+        return original
+      }
+      return (...args: unknown[]): unknown => {
         budget.spend()
         return original.apply(object, args)
       }
@@ -194,16 +241,19 @@ function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudg
   })
 }
 
-async function loadCursor(kv: KVNamespace): Promise<string[] | null> {
+const loadCursor = async function loadCursor(kv: KVNamespace): Promise<string[] | undefined> {
   const raw = await kv.get(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
-  if (!raw) return null
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
+    return undefined
+  }
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object' || !('workspaceIds' in parsed) || !Array.isArray(parsed.workspaceIds))
-      return null
-    return parsed.workspaceIds.filter((id): id is string => typeof id === 'string')
+    if (!Schema.is(WikiTrashCursor)(parsed)) {
+      return undefined
+    }
+    return parsed.workspaceIds.filter(Predicate.isString)
   } catch {
-    return null
+    return undefined
   }
 }
 
@@ -213,17 +263,20 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
   const cursor = await loadCursor(kv)
   const { results } = await wrapD1WithBudget(env.DB, budget)
     .prepare('SELECT DISTINCT workspace_id AS id FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?')
-    .bind(Math.floor(Date.now() / 1000) - WIKI_TRASH_RETENTION_SECONDS)
+    .bind(currentEpochSeconds() - WIKI_TRASH_RETENTION_SECONDS)
     .all<{ id: string }>()
   const remaining = [...new Set([...(cursor ?? []), ...(results ?? []).map((row) => row.id)])]
   let purged = 0
   let failed = 0
   const failedThisRun = new Set<string>()
-  while (remaining.length > 0 && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
-    const id = remaining[0]
+  while (Array.isArrayNonEmpty(remaining) && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
+    const [id] = remaining
     if (failedThisRun.has(id)) {
-      if (remaining.every((workspace) => failedThisRun.has(workspace))) break
-      remaining.push(remaining.shift()!)
+      if (remaining.every((workspace) => failedThisRun.has(workspace))) {
+        break
+      }
+      remaining.shift()
+      remaining.push(id)
       continue
     }
     const usedBefore = budget.used()
@@ -238,18 +291,28 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
     try {
       const result = await purgeExpiredWikiPages(ctx)
       purged++
-      if (result.moreExpired) remaining.push(remaining.shift()!)
-      else remaining.shift()
+      if (result.moreExpired) {
+        remaining.shift()
+        remaining.push(id)
+      } else {
+        remaining.shift()
+      }
     } catch (error) {
       failed++
       failedThisRun.add(id)
       console.error('scheduled wiki trash purge failed for one workspace', { workspaceId: id, error })
-      remaining.push(remaining.shift()!)
+      remaining.shift()
+      remaining.push(id)
     }
-    if (budget.used() === usedBefore) break
+    if (budget.used() === usedBefore) {
+      break
+    }
   }
-  if (remaining.length === 0) await kv.delete(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
-  else await kv.put(WIKI_TRASH_PURGE_CURSOR_KV_KEY, JSON.stringify({ workspaceIds: remaining }))
+  if (Array.isArrayEmpty(remaining)) {
+    await kv.delete(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
+  } else {
+    await kv.put(WIKI_TRASH_PURGE_CURSOR_KV_KEY, JSON.stringify({ workspaceIds: remaining }))
+  }
   console.log('scheduled wiki trash purge complete', {
     purgedWorkspaces: purged,
     failedWorkspaces: failed,

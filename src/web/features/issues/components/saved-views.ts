@@ -1,14 +1,17 @@
-// Saved views (PROJ-141, hardened in PROJ-208).
-//
-// A saved view is a named combination of issue-list filters. Entity-bearing
-// preferences are kept in user/workspace/project-scoped sessionStorage, never
-// localStorage, and are applied only through explicit canonical URL navigation.
-//
-// This module is the pure, testable core: capture the current filters into a
-// view, normalise/parse stored payloads defensively (older views may be missing
-// fields), apply a view back to filter state, and compare filters for the
-// "active view" indicator. The IssueList island wires these to component state.
+/*
+ * Saved views (PROJ-141, hardened in PROJ-208).
+ *
+ * A saved view is a named combination of issue-list filters. Entity-bearing
+ * preferences are kept in user/workspace/project-scoped sessionStorage, never
+ * localStorage, and are applied only through explicit canonical URL navigation.
+ *
+ * This module is the pure, testable core: capture the current filters into a
+ * view, normalise/parse stored payloads defensively (older views may be missing
+ * fields), apply a view back to filter state, and compare filters for the
+ * "active view" indicator. The IssueList island wires these to component state.
+ */
 
+import { Iterable, String, Predicate } from 'effect'
 export interface SavedViewFilters {
   statuses: string[]
   priorities: string[]
@@ -31,7 +34,7 @@ export interface SavedView {
   filters: SavedViewFilters
 }
 
-export function viewsStorageKey(project: string): string {
+export const viewsStorageKey = function viewsStorageKey(project: string): string {
   return `issue-views-${project || 'all'}`
 }
 
@@ -40,79 +43,118 @@ export function viewsStorageKey(project: string): string {
  * complete SavedViewFilters. Missing fields fall back to the empty default, so
  * a view saved before a new filter existed (e.g. hideEpics) still applies
  * cleanly instead of writing `undefined` into filter state.
+ *
+ * @param {Partial<SavedViewFilters> | null | undefined} raw The stored filter fields, which can be missing.
+ * @returns {SavedViewFilters} The complete filters with defaults for missing fields.
  */
-function normalizeFilters(raw: Partial<SavedViewFilters> | null | undefined): SavedViewFilters {
-  const r = (raw ?? {}) as Partial<SavedViewFilters>
-  const strings = (v: unknown): string[] =>
-    Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []
-  const str = (v: unknown): string => (typeof v === 'string' ? v : '')
+const normalizeFilters = function normalizeFilters(
+  raw: Partial<SavedViewFilters> | null | undefined,
+): SavedViewFilters {
+  const filters = raw ?? {}
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => Predicate.isString(item)) : []
+  const str = (value: unknown): string => (Predicate.isString(value) ? value : '')
   return {
-    statuses: strings(r.statuses),
-    priorities: strings(r.priorities),
-    project: str(r.project),
-    type: str(r.type),
-    epicId: str(r.epicId),
-    sprintId: str(r.sprintId),
-    hideEpics: r.hideEpics === true,
-    dateField: str(r.dateField),
-    dateFrom: str(r.dateFrom),
-    dateTo: str(r.dateTo),
+    statuses: strings(filters.statuses),
+    priorities: strings(filters.priorities),
+    project: str(filters.project),
+    type: str(filters.type),
+    epicId: str(filters.epicId),
+    sprintId: str(filters.sprintId),
+    hideEpics: filters.hideEpics === true,
+    dateField: str(filters.dateField),
+    dateFrom: str(filters.dateFrom),
+    dateTo: str(filters.dateTo),
   }
 }
 
-export function captureView(name: string, filters: SavedViewFilters): SavedView {
+export const captureView = function captureView(name: string, filters: SavedViewFilters): SavedView {
   return { name, filters: normalizeFilters(filters) }
 }
 
-/** Parse the sessionStorage payload, dropping anything malformed or unnamed. */
-export function parseSavedViews(raw: string | null): SavedView[] {
-  if (!raw) return []
+/**
+ * Parse the sessionStorage payload, dropping anything malformed or unnamed.
+ *
+ * @param {string | null} raw The saved-views payload from sessionStorage.
+ * @returns {SavedView[]} The valid named views with normalized filters.
+ */
+export const parseSavedViews = function parseSavedViews(raw: string | null): SavedView[] {
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
+    return []
+  }
   let data: unknown
   try {
     data = JSON.parse(raw)
   } catch {
     return []
   }
-  if (!Array.isArray(data)) return []
+  if (!Array.isArray(data)) {
+    return []
+  }
   const out: SavedView[] = []
-  for (const v of data) {
-    if (typeof v !== 'object' || v === null) continue
-    const name = (v as { name?: unknown }).name
-    if (typeof name !== 'string' || name.length === 0) continue
+  Iterable.forEach(data, (candidate) => {
+    if (!Predicate.isObjectOrArray(candidate)) {
+      return
+    }
+    const { name } = candidate as { name?: unknown }
+    if (!Predicate.isString(name) || String.isEmpty(name)) {
+      return
+    }
     out.push({
       name,
-      filters: normalizeFilters((v as { filters?: Partial<SavedViewFilters> }).filters),
+      filters: normalizeFilters((candidate as { filters?: Partial<SavedViewFilters> }).filters),
     })
-  }
+  })
   return out
 }
 
-/** Insert or replace a view by name (names are unique within a bucket). */
-export function upsertView(views: readonly SavedView[], view: SavedView): SavedView[] {
-  return [...views.filter((v) => v.name !== view.name), view]
+/**
+ * Insert or replace a view by name (names are unique within a bucket).
+ *
+ * @param {Readonly<SavedView[]>} views The existing views in the storage bucket.
+ * @param {SavedView} view The view to save.
+ * @returns {SavedView[]} A new list with the saved view at the end.
+ */
+export const upsertView = function upsertView(views: Readonly<SavedView[]>, view: SavedView): SavedView[] {
+  return [...views.filter((selectedView) => selectedView.name !== view.name), view]
 }
 
-export function removeView(views: readonly SavedView[], name: string): SavedView[] {
-  return views.filter((v) => v.name !== name)
+export const removeView = function removeView(views: Readonly<SavedView[]>, name: string): SavedView[] {
+  return views.filter((view) => view.name !== name)
 }
 
-/** Order-insensitive equality for the two list-valued filters. */
-function sameSet(a: readonly string[], b: readonly string[]): boolean {
-  return JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
+/**
+ * Order-insensitive equality for the two list-valued filters.
+ *
+ * @param {Readonly<string[]>} left The first list of selected filter values.
+ * @param {Readonly<string[]>} right The second list of selected filter values.
+ * @returns {boolean} Whether the two lists contain the same values and multiplicities.
+ */
+const sameSet = function sameSet(left: Readonly<string[]>, right: Readonly<string[]>): boolean {
+  return JSON.stringify([...left].toSorted()) === JSON.stringify([...right].toSorted())
 }
 
-/** True when two filter sets are equivalent (drives the active-view indicator). */
-export function filtersMatch(a: SavedViewFilters, b: SavedViewFilters): boolean {
+/**
+ * True when two filter sets are equivalent (drives the active-view indicator).
+ *
+ * @param {SavedViewFilters} filters The current issue-list filters.
+ * @param {SavedViewFilters} selectedFilters The filters stored in the selected view.
+ * @returns {boolean} Whether both sets of filters produce the same selection.
+ */
+export const filtersMatch = function filtersMatch(
+  filters: SavedViewFilters,
+  selectedFilters: SavedViewFilters,
+): boolean {
   return (
-    sameSet(a.statuses, b.statuses) &&
-    sameSet(a.priorities, b.priorities) &&
-    a.project === b.project &&
-    a.type === b.type &&
-    a.epicId === b.epicId &&
-    a.sprintId === b.sprintId &&
-    a.hideEpics === b.hideEpics &&
-    a.dateField === b.dateField &&
-    a.dateFrom === b.dateFrom &&
-    a.dateTo === b.dateTo
+    sameSet(filters.statuses, selectedFilters.statuses) &&
+    sameSet(filters.priorities, selectedFilters.priorities) &&
+    filters.project === selectedFilters.project &&
+    filters.type === selectedFilters.type &&
+    filters.epicId === selectedFilters.epicId &&
+    filters.sprintId === selectedFilters.sprintId &&
+    filters.hideEpics === selectedFilters.hideEpics &&
+    filters.dateField === selectedFilters.dateField &&
+    filters.dateFrom === selectedFilters.dateFrom &&
+    filters.dateTo === selectedFilters.dateTo
   )
 }

@@ -1,13 +1,15 @@
 import { Effect, Schema } from 'effect'
+import type { Types } from 'effect'
 
-import type { ReviewFilter } from '../../../contracts/review-targets'
-import { browserRequest, coreResult } from '../../core'
-import { RequestServices } from '../../request'
-import { dataError } from '../../server/data-context'
-import { ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { SprintSchema } from '../planning/schemas'
-import { SearchResultsSchema, WikiSearchResultsSchema } from './action-schemas'
+import type { ReviewFilter } from '#contracts/review-targets.ts'
+import { browserRequest, coreResult } from '@/core.ts'
+import { SprintSchema } from '@/features/planning/schemas.ts'
+import { RequestServices } from '@/request.ts'
+import type { PageFailure } from '@/request.ts'
+import { dataError } from '@/server/data-context.ts'
+import { ScopeError } from '@/server/errors.ts'
+
+import { SearchResultsSchema, WikiSearchResultsSchema } from './action-schemas.ts'
 import {
   AttachmentsSchema,
   CommentsSchema,
@@ -24,13 +26,22 @@ import {
   normalizeLinks,
   normalizeStatuses,
   normalizeTaskTypes,
-} from './types'
+} from './types.ts'
+import type { Attachment, Comment, Issue, IssueLink, IssuePage, Status, TaskType } from './types.ts'
 
-export function checked<A>(read: () => A) {
-  return Effect.try({ try: read, catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)) })
+type IssueRead<A> = Effect.Effect<A, PageFailure, RequestServices>
+type IssueSearchResult = Types.Mutable<(typeof SearchResultsSchema.Type)[number]>
+type WikiAttachmentSearchResult = Types.Mutable<(typeof WikiSearchResultsSchema.Type)[number]>
+
+export const checked = function checked<A>(read: () => A): Effect.Effect<A, PageFailure> {
+  return Effect.try({ catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)), try: read })
 }
 
-export function readDataIssue(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataIssue = function readDataIssue(
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<Issue> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -39,7 +50,10 @@ export function readDataIssue(_scope: RequestScope, workspaceId: string, identif
     ).pipe(Effect.map(normalizeIssue))
   })
 }
-export function readDataIssuePage(_scope: RequestScope, workspaceId: string, params: URLSearchParams) {
+export const readDataIssuePage = function readDataIssuePage(
+  workspaceId: string,
+  params: URLSearchParams,
+): IssueRead<IssuePage> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -48,13 +62,16 @@ export function readDataIssuePage(_scope: RequestScope, workspaceId: string, par
     ).pipe(Effect.map(normalizeIssuePage))
   })
 }
-export function searchDataIssues(
-  _scope: RequestScope,
+interface IssueSearchFilters {
+  projectId?: string
+  review?: ReviewFilter
+}
+
+export const searchDataIssues = function searchDataIssues(
   workspaceId: string,
   query: string,
-  projectId?: string,
-  review?: ReviewFilter,
-) {
+  { projectId, review }: IssueSearchFilters = {},
+): IssueRead<IssueSearchResult[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -63,7 +80,11 @@ export function searchDataIssues(
     ).pipe(Effect.map((rows) => rows.map((row) => ({ ...row }))))
   })
 }
-export function readDataComments(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataComments = function readDataComments(
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<Comment[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -72,7 +93,11 @@ export function readDataComments(_scope: RequestScope, workspaceId: string, iden
     ).pipe(Effect.map(normalizeComments))
   })
 }
-export function readDataLinks(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataLinks = function readDataLinks(
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<IssueLink[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -81,7 +106,11 @@ export function readDataLinks(_scope: RequestScope, workspaceId: string, identif
     ).pipe(Effect.map(normalizeLinks))
   })
 }
-export function readDataAttachments(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataAttachments = function readDataAttachments(
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+): IssueRead<Attachment[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -90,7 +119,10 @@ export function readDataAttachments(_scope: RequestScope, workspaceId: string, i
     ).pipe(Effect.map(normalizeAttachments))
   })
 }
-export function searchDataWikiAttachments(_scope: RequestScope, workspaceId: string, query: string) {
+export const searchDataWikiAttachments = function searchDataWikiAttachments(
+  workspaceId: string,
+  query: string,
+): IssueRead<WikiAttachmentSearchResult[]> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -99,7 +131,9 @@ export function searchDataWikiAttachments(_scope: RequestScope, workspaceId: str
     ).pipe(Effect.map((rows) => rows.map((row) => ({ ...row }))))
   })
 }
-export function readIssueLookups(workspaceId: string) {
+export const readIssueLookups = function readIssueLookups(
+  workspaceId: string,
+): IssueRead<{ statuses: Status[]; taskTypes: TaskType[] }> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -113,7 +147,9 @@ export function readIssueLookups(workspaceId: string) {
     )
   })
 }
-export function readIssueMembers(workspaceId: string) {
+export const readIssueMembers = function readIssueMembers(
+  workspaceId: string,
+): IssueRead<Readonly<(typeof MemberSchema.Type)[]>> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -122,7 +158,10 @@ export function readIssueMembers(workspaceId: string) {
     )
   })
 }
-export function readSprints(workspaceId: string, projectId: string) {
+export const readSprints = function readSprints(
+  workspaceId: string,
+  projectId: string,
+): IssueRead<Readonly<(typeof SprintSchema.Type)[]>> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -131,7 +170,10 @@ export function readSprints(workspaceId: string, projectId: string) {
     )
   })
 }
-export function readSprint(workspaceId: string, sprintId: string) {
+export const readSprint = function readSprint(
+  workspaceId: string,
+  sprintId: string,
+): IssueRead<typeof SprintSchema.Type> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(

@@ -1,4 +1,5 @@
-import { cva, type VariantProps } from 'class-variance-authority'
+import { cva } from 'class-variance-authority'
+import type { VariantProps } from 'class-variance-authority'
 import * as React from 'react'
 
 // Projektor customization: route class merging through the configured app utility alias.
@@ -21,11 +22,18 @@ const alertVariants = cva(
   },
 )
 
-function Alert({ className, variant, ...props }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const Alert = function Alert({
+  className,
+  variant,
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
   return <div data-slot='alert' role='alert' className={cn(alertVariants({ variant }), className)} {...props} />
 }
 
-function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AlertTitle = function AlertTitle({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='alert-title'
@@ -33,12 +41,17 @@ function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
         'font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AlertDescription = function AlertDescription({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='alert-description'
@@ -46,13 +59,17 @@ function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) 
         'text-sm text-balance text-muted-foreground md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4',
         className,
       )}
+      // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
       {...props}
     />
   )
 }
 
-function AlertAction({ className, ...props }: React.ComponentProps<'div'>) {
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
+export const AlertAction = function AlertAction({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
+  // oxlint-disable-next-line react/jsx-props-no-spreading -- Preserve the caller's native div attributes and events.
   return <div data-slot='alert-action' className={cn('absolute top-2 right-2', className)} {...props} />
 }
-
-export { Alert, AlertTitle, AlertDescription, AlertAction }

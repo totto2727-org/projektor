@@ -1,3 +1,4 @@
+import { Predicate, String } from 'effect'
 import { z } from 'zod'
 
 /**
@@ -17,53 +18,76 @@ export type Capability = 'read' | 'write'
  * - "*" grants everything.
  * - "write" implies "read" (you can read what you can write).
  * - Unknown/legacy scope strings grant nothing (fail-closed).
+ *
+ * @param {readonly string[]} scopes The token's stored scopes.
+ * @param {Capability} required The capability the operation requires.
+ * @returns {boolean} Whether the token grants the capability.
  */
-export function tokenAllows(scopes: readonly string[], required: Capability): boolean {
-  if (scopes.includes('*')) return true
-  if (required === 'write') return scopes.includes('write')
+export const tokenAllows = function tokenAllows(scopes: Readonly<string[]>, required: Capability): boolean {
+  if (scopes.includes('*')) {
+    return true
+  }
+  if (required === 'write') {
+    return scopes.includes('write')
+  }
   return scopes.includes('read') || scopes.includes('write')
 }
 
 /**
  * REST capability implied by an HTTP method: safe methods read, everything
  * else writes. (Searches are GET, so they classify as reads.)
+ *
+ * @param {string} method The request's HTTP method.
+ * @returns {Capability} The required capability.
  */
-export function capabilityForMethod(method: string): Capability {
-  const m = method.toUpperCase()
-  return m === 'GET' || m === 'HEAD' || m === 'OPTIONS' ? 'read' : 'write'
+export const capabilityForMethod = function capabilityForMethod(method: string): Capability {
+  const normalizedMethod = method.toUpperCase()
+  return normalizedMethod === 'GET' || normalizedMethod === 'HEAD' || normalizedMethod === 'OPTIONS' ? 'read' : 'write'
 }
 
 /**
  * Capability an MCP tool requires, by name convention. The read tools are the
  * list_/get_/search_ family (plus wiki_tree); everything else is treated as a
  * write. Fail-closed: a new tool without a read prefix needs the write scope.
+ *
+ * @param {string} name The public MCP tool name.
+ * @returns {Capability} The required capability.
  */
-export function capabilityForMcpTool(name: string): Capability {
+export const capabilityForMcpTool = function capabilityForMcpTool(name: string): Capability {
   if (name.startsWith('list_') || name.startsWith('get_') || name.startsWith('search_') || name === 'wiki_tree') {
     return 'read'
   }
   return 'write'
 }
 
+const LEGACY_SCOPE_LIST = /^\s*\[(?<items>.*)\]\s*$/u
+
 /**
  * Parse the `scopes` column into a string[]. Current code stores it as a JSON
  * array; some early rows stored an unquoted bracketed list (e.g. "[read,write]",
  * not valid JSON). Both are accepted so legacy tokens keep working. Anything
  * else fails closed to [] (which tokenAllows() then treats as "grants nothing").
+ *
+ * @param {string | null | undefined} raw The stored scopes column.
+ * @returns {string[]} The string entries of the stored scope list.
  */
-export function parseScopes(raw: string | null | undefined): string[] {
-  if (!raw) return []
+export const parseScopes = function parseScopes(raw: string | null | undefined): string[] {
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
+    return []
+  }
   try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : []
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((scope) => Predicate.isString(scope)) : []
   } catch {
     // Legacy fallback: only an unquoted bracketed list like "[read,write]".
-    const m = raw.match(/^\s*\[(.*)\]\s*$/)
-    if (!m) return []
-    return m[1]
+    const items = LEGACY_SCOPE_LIST.exec(raw)?.groups?.items
+    if (Predicate.isNullish(items)) {
+      return []
+    }
+    return items
       .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
+      .map((scope) => scope.trim())
+      .filter((scope) => String.isNonEmpty(scope))
   }
 }
 
@@ -96,9 +120,17 @@ export const OAUTH_SCOPES_SUPPORTED = [OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE] as c
  * Map an OAuth wire scope to the capability it grants, or null if it is not one
  * we issue. Fail-closed, same as tokenAllows(): an unrecognized scope grants
  * nothing rather than being silently treated as read.
+ *
+ * @param {string} scope The scope supplied by the OAuth provider.
+ * @returns {Capability | null} The granted capability or the existing null sentinel.
  */
-export function capabilityForOAuthScope(scope: string): Capability | null {
-  if (scope === OAUTH_SCOPE_READ) return 'read'
-  if (scope === OAUTH_SCOPE_WRITE) return 'write'
+export const capabilityForOAuthScope = function capabilityForOAuthScope(scope: string): Capability | null {
+  if (scope === OAUTH_SCOPE_READ) {
+    return 'read'
+  }
+  if (scope === OAUTH_SCOPE_WRITE) {
+    return 'write'
+  }
+  // oxlint-disable-next-line unicorn/no-null -- Existing OAuth scope callers and compatibility tests use null for unrecognized scopes.
   return null
 }

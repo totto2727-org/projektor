@@ -1,17 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { Iterable } from 'effect'
+import { afterEach, assert, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createShareToken } from '#commands/share'
+import { createShareToken } from '#commands/share.ts'
+import { createTestDatabase } from '@/test/database.ts'
 
-import { createTestDatabase } from '../web/test/database'
-import type { CoreEnvironment } from './environment'
-import { handleSharedLogoRequest } from './shared-logo'
+import type { CoreEnvironment } from './environment.ts'
+import { handleSharedLogoRequest } from './shared-logo.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
 
-async function fixture() {
+const fixture = async function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
@@ -23,12 +21,12 @@ async function fixture() {
       VALUES ('i','w','p',1,'Issue','backlog','medium','u',1,1);
   `)
   const bytes = new Uint8Array([0, 255, 7, 128])
-  const cancel = vi.fn()
-  const buffer = vi.fn(() => {
+  const cancel = vi.fn<(reason?: unknown) => void>()
+  const buffer = vi.fn<() => never>(() => {
     throw new Error('Logo transfer must not buffer bytes')
   })
-  const get = vi.fn(async () => ({
-    body: new ReadableStream({
+  const get = vi.fn<() => Promise<Pick<R2ObjectBody, 'body' | 'arrayBuffer' | 'httpMetadata'>>>(async () => ({
+    body: new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(bytes)
       },
@@ -42,45 +40,61 @@ async function fixture() {
     { db: env.DB, kv: env.KV, r2: env.R2, workspaceId: 'w', userId: 'u', role: 'owner' },
     'i',
   )
-  const request = (method = 'GET') => new Request(`https://core.internal/share-logo/${token}`, { method })
+  const request = (method = 'GET'): Request<unknown, CfProperties> =>
+    new Request(`https://core.internal/share-logo/${token}`, { method })
   return { ...database, env, request, bytes, get, cancel, buffer }
 }
 
-describe('Core shared logo binary delivery', () => {
-  it('streams the exact body and forwards cancellation without buffering', async () => {
-    const f = await fixture()
-    const response = await handleSharedLogoRequest(f.request(), f.env)
-    expect(response?.status).toBe(200)
-    expect(response?.headers.get('content-type')).toBe('image/png')
-    const reader = response!.body!.getReader()
-    expect((await reader.read()).value).toEqual(f.bytes)
+describe('core shared logo binary delivery', () => {
+  afterEach(() => {
+    Iterable.forEach(databases.splice(0), (database) => {
+      database.close()
+    })
+  })
+
+  test('streams the exact body and forwards cancellation without buffering', async () => {
+    const testFixture = await fixture()
+    const response = await handleSharedLogoRequest(testFixture.request(), testFixture.env)
+    assert.exists(response)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('image/png')
+    const { body } = response
+    assert.exists(body)
+    const reader = body.getReader()
+    const result = await reader.read()
+    expect(result.value).toStrictEqual(testFixture.bytes)
     await reader.cancel('disconnected')
-    expect(f.cancel).toHaveBeenCalledWith('disconnected')
-    expect(f.buffer).not.toHaveBeenCalled()
+    expect(testFixture.cancel).toHaveBeenCalledWith('disconnected')
+    expect(testFixture.buffer).not.toHaveBeenCalled()
   })
 
-  it('rechecks the share creator membership before touching storage', async () => {
-    const f = await fixture()
-    f.sqlite.exec('DELETE FROM workspace_members')
-    expect((await handleSharedLogoRequest(f.request(), f.env))?.status).toBe(404)
-    expect(f.get).not.toHaveBeenCalled()
+  test('rechecks the share creator membership before touching storage', async () => {
+    const testFixture = await fixture()
+    testFixture.sqlite.exec('DELETE FROM workspace_members')
+    const resolvedValue = await handleSharedLogoRequest(testFixture.request(), testFixture.env)
+    expect(resolvedValue?.status).toBe(404)
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
-  it('closes the authorized logo stream on HEAD without buffering it', async () => {
-    const f = await fixture()
-    const response = await handleSharedLogoRequest(f.request('HEAD'), f.env)
+  test('closes the authorized logo stream on HEAD without buffering it', async () => {
+    const testFixture = await fixture()
+    const response = await handleSharedLogoRequest(testFixture.request('HEAD'), testFixture.env)
     expect(response?.status).toBe(200)
     expect(response?.body).toBeNull()
-    expect(f.cancel).toHaveBeenCalledOnce()
-    expect(f.buffer).not.toHaveBeenCalled()
+    expect(testFixture.cancel).toHaveBeenCalledOnce()
+    expect(testFixture.buffer).not.toHaveBeenCalled()
   })
 
-  it('refuses revoked or archived share sources and unsupported methods', async () => {
-    const f = await fixture()
-    f.sqlite.exec('UPDATE projects SET archived_at = 2')
-    expect((await handleSharedLogoRequest(f.request(), f.env))?.status).toBe(404)
-    expect((await handleSharedLogoRequest(f.request('POST'), f.env))?.status).toBe(405)
-    expect(await handleSharedLogoRequest(new Request('https://core.internal/unrelated'), f.env)).toBeUndefined()
-    expect(f.get).not.toHaveBeenCalled()
+  test('refuses revoked or archived share sources and unsupported methods', async () => {
+    const testFixture = await fixture()
+    testFixture.sqlite.exec('UPDATE projects SET archived_at = 2')
+    const result = await handleSharedLogoRequest(testFixture.request(), testFixture.env)
+    expect(result?.status).toBe(404)
+    const resolvedValue = await handleSharedLogoRequest(testFixture.request('POST'), testFixture.env)
+    expect(resolvedValue?.status).toBe(405)
+    await expect(
+      handleSharedLogoRequest(new Request('https://core.internal/unrelated'), testFixture.env),
+    ).resolves.toBeUndefined()
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 })

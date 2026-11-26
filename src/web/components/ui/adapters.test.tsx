@@ -1,23 +1,40 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRef } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import type { JSX } from 'react'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { Badge } from './Badge'
-import { Button } from './Button'
-import { Card } from './Card'
-import { Dialog } from './Dialog'
-import { EmptyState } from './EmptyState'
-import { Field } from './Field'
-import { Input, Textarea } from './Input'
-import { Popover, Portal } from './Popover'
-import Select from './Select'
-import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './Table'
+import { Badge } from './badge.tsx'
+import { Button } from './button.tsx'
+import { Card } from './card.tsx'
+import { Dialog } from './dialog.tsx'
+import { EmptyState } from './empty-state.tsx'
+import { Field } from './field.tsx'
+import { Input, Textarea } from './input.tsx'
+import { Popover, Portal } from './popover.tsx'
+import { Select } from './select.tsx'
+import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './table.tsx'
 
-afterEach(cleanup)
+const renderTableAdapterHead = (): JSX.Element => (
+  <TableHead>
+    <TableRow>
+      <TableHeader>Name</TableHeader>
+    </TableRow>
+  </TableHead>
+)
+
+const renderTableAdapterBody = (): JSX.Element => (
+  <TableBody>
+    <TableRow data-testid='row'>
+      <TableCell muted>Issue</TableCell>
+    </TableRow>
+  </TableBody>
+)
 
 describe('generated UI compatibility adapters', () => {
-  it('keeps button, native form, anchor and noninteractive span modes', () => {
+  afterEach(cleanup)
+
+  test('keeps button, native form, anchor and noninteractive span modes', () => {
     render(
       <>
         <Button class='old' className='new'>
@@ -47,7 +64,7 @@ describe('generated UI compatibility adapters', () => {
     expect(screen.getByText('Label').hasAttribute('role')).toBe(false)
   })
 
-  it('preserves labels, native input names, refs and help/error precedence', () => {
+  test('preserves labels, native input names, refs and help/error precedence', () => {
     const inputRef = createRef<HTMLInputElement>()
     const textRef = createRef<HTMLTextAreaElement>()
     render(
@@ -66,13 +83,13 @@ describe('generated UI compatibility adapters', () => {
     expect(inputRef.current?.classList.contains('old')).toBe(true)
     expect(inputRef.current?.classList.contains('new')).toBe(true)
     expect(screen.getByRole('textbox', { name: 'Notes' })).toBe(textRef.current)
-    expect(screen.getByText('Helpful')).toBeTruthy()
+    expect(screen.getByText('Helpful')).toBeInstanceOf(Element)
     expect(screen.queryByText('Fallback')).toBeNull()
     expect(screen.getByRole('alert').textContent).toBe('Required')
     expect(screen.queryByText('Hidden')).toBeNull()
   })
 
-  it('uses generated structural primitives and retains legacy table header alias', () => {
+  test('uses generated structural primitives and retains legacy table header alias', () => {
     render(
       <>
         <Badge style={{ color: 'red' }} class='old' className='new'>
@@ -88,33 +105,26 @@ describe('generated UI compatibility adapters', () => {
           action={<Button>Create</Button>}
         />
         <Table class='old' className='new'>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Name</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            <TableRow data-testid='row'>
-              <TableCell muted>Issue</TableCell>
-            </TableRow>
-          </TableBody>
+          {renderTableAdapterHead()}
+          {renderTableAdapterBody()}
         </Table>
       </>,
     )
     expect(screen.getByText('Priority').getAttribute('data-slot')).toBe('badge')
     expect(screen.getByText('Priority').style.color).toBe('red')
-    expect(screen.getByRole('link', { name: 'Project' }).querySelector('[data-slot="card"]')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Project' }).querySelector('[data-slot="card"]')).toBeInstanceOf(Element)
     expect(screen.getByText('No issues').getAttribute('data-slot')).toBe('empty-title')
-    expect(screen.getByText('Create one')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy()
+    expect(screen.getByText('Create one')).toBeInstanceOf(Element)
+    expect(screen.getByRole('button', { name: 'Create' })).toBeInstanceOf(Element)
     expect(screen.getByRole('columnheader').tagName).toBe('TH')
     expect(screen.getByRole('cell').classList.contains('font-mono')).toBe(true)
     expect(screen.getByRole('table').classList.contains('old')).toBe(true)
     expect(screen.getByRole('table').classList.contains('new')).toBe(true)
   })
 
-  it('delegates controlled dialog close requests to Base UI', async () => {
-    const onClose = vi.fn()
+  test('delegates controlled dialog close requests to Base UI', async () => {
+    expect.hasAssertions()
+    const onClose = vi.fn<() => void>()
     const { rerender } = render(
       <Dialog open={false} onClose={onClose} title='Edit issue'>
         <Input aria-label='Issue title' />
@@ -130,14 +140,17 @@ describe('generated UI compatibility adapters', () => {
     expect(dialog.classList.contains('old')).toBe(true)
     expect(dialog.classList.contains('new')).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledOnce()
     onClose.mockClear()
     fireEvent.keyDown(dialog, { key: 'Escape' })
-    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce()
+    })
   })
 
-  it('maps old Select options to controlled string callbacks', async () => {
-    const onChange = vi.fn()
+  test('maps old Select options to controlled string callbacks', async () => {
+    expect.hasAssertions()
+    const onChange = vi.fn<(value: string) => void>()
     const options = [
       { value: '', label: 'None' },
       { value: 'todo', label: 'To do' },
@@ -150,13 +163,15 @@ describe('generated UI compatibility adapters', () => {
     const option = await screen.findByRole('option', { name: 'Done' })
     fireEvent.pointerDown(option, { pointerType: 'mouse' })
     fireEvent.click(option)
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith('done'))
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith('done')
+    })
     rerender(<Select options={options} value='done' onChange={onChange} ariaLabel='Status' disabled />)
     expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('Done')
-    expect((screen.getByRole('combobox', { name: 'Status' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('combobox', { name: 'Status' }).disabled).toBe(true)
   })
 
-  it('supports legacy positioned popovers, refs and named framework Portal', async () => {
+  test('supports legacy positioned popovers, refs and named framework Portal', async () => {
     const ref = createRef<HTMLDivElement>()
     const { container } = render(
       <Popover
