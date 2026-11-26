@@ -39,7 +39,7 @@ const seedSprint = async function seedSprint(
   workspaceId: string,
   projectId: string,
   opts: Readonly<{ name?: string; status?: string; startDate?: number; endDate?: number }> = {},
-) {
+): Promise<{ id: ReturnType<typeof crypto.randomUUID>; name: string }> {
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
   await env.DB.prepare(
@@ -66,7 +66,7 @@ const seedWikiPage = async function seedWikiPage(
   projectId: string,
   authorId: string,
   opts: Readonly<{ title?: string; slug?: string; updatedAt?: number; deletedAt?: number }> = {},
-) {
+): Promise<{ id: ReturnType<typeof crypto.randomUUID>; slug: string }> {
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
   const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replaceAll(/\s+/gu, '-')

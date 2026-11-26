@@ -42,7 +42,7 @@ const fixture = async function fixture(concurrentBatches = 1) {
     userId: testFixture.userId,
     role: 'owner',
   }
-  const seed = async () => {
+  const seed = async (): Promise<ReturnType<typeof crypto.randomUUID>> => {
     const id = crypto.randomUUID()
     await env.DB.prepare(`INSERT INTO feedback (id,source_id,workspace_id,project_id,body,created_at)
       VALUES (?,?,?,?,'Feedback',1)`)

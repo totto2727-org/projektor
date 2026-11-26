@@ -16,6 +16,7 @@ import { createTestDatabase } from '@/test/database.ts'
 
 import { renderWiki } from './server.tsx'
 import { WikiPageClient } from './wiki-page-client.tsx'
+import type { WikiSeed } from './wiki-page-model.ts'
 
 vi.mock(import('./actions.ts'), () => ({}))
 vi.mock('../../attachment-actions', () => ({
@@ -51,7 +52,7 @@ const scope: RequestScope = {
   projects: [project],
   selection: { kind: 'workspace', workspace },
 }
-const initialData = function initialData(rendered: ReactElement) {
+const initialData = function initialData(rendered: ReactElement): WikiSeed {
   if (!isValidElement<ComponentProps<typeof WikiPageClient>>(rendered) || rendered.type !== WikiPageClient) {
     throw new Error('Expected the Wiki page client with server-owned initial data')
   }
@@ -106,7 +107,8 @@ describe('wiki direct request-owned queries', () => {
 
   test('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
     const testFixture = await fixture()
-    const reopen = async () => initialData(await runTestEffect(testFixture.effect('https://app.test/wiki/guide/edit')))
+    const reopen = async (): Promise<WikiSeed> =>
+      initialData(await runTestEffect(testFixture.effect('https://app.test/wiki/guide/edit')))
     const initial = await reopen()
     expect(initial.draftRevision).toBeNull()
     expect(initial.draft).toMatchObject({ content: 'Personal body' })

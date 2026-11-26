@@ -245,7 +245,12 @@ describe('covers PROJ-866: D1 query bound at scale', () => {
 				VALUES (?, ?, NULL, NULL, 'bulk', 'agent', 'ended', ?, ?, ?)`,
       ).bind(agentSessionId, workspaceId, since, since, since),
     ]
-    const insertIssue = (number: number, createdAt: number, claimedAt: number, doneAt: number) => {
+    const insertIssue = (
+      number: number,
+      createdAt: number,
+      claimedAt: number,
+      doneAt: number,
+    ): ReturnType<typeof crypto.randomUUID> => {
       const id = crypto.randomUUID()
       statements.push(
         env.DB.prepare(
@@ -353,7 +358,7 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
     const insert = async (
       title: string,
       stamps: Readonly<{ createdAt: number; claimedAt: number; doneAt: number | null }>,
-    ) => {
+    ): Promise<ReturnType<typeof crypto.randomUUID>> => {
       const id = crypto.randomUUID()
       await env.DB.prepare(
         `INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, priority,

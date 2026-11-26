@@ -6,8 +6,12 @@ import { runTestEffect } from '#tests/run-effect.ts'
 
 import { transferCoreBinary } from './core-binary.ts'
 import { makeRequestServices, RequestServices } from './request.ts'
+import type { ApiError } from './server/errors.ts'
 
-const execute = function execute(request: Request, fetch: (request: Request) => Promise<Response>) {
+const execute = function execute(
+  request: Request,
+  fetch: (request: Request) => Promise<Response>,
+): Effect.Effect<Response, ApiError> {
   return Effect.gen(function* () {
     const services = yield* makeRequestServices(request, { CORE: { fetch }, ENVIRONMENT: 'production' })
     return yield* transferCoreBinary('/files/a?workspaceId=w').pipe(Effect.provideService(RequestServices, services))

@@ -97,7 +97,10 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     wikiFixture: { userId, workspaceId },
   }) => {
     const now = currentEpochSeconds()
-    const insert = (pageSlug: string, deletedAt: number | null) => {
+    const insert = (
+      pageSlug: string,
+      deletedAt: number | null,
+    ): { id: ReturnType<typeof crypto.randomUUID>; stmt: D1PreparedStatement } => {
       const id = crypto.randomUUID()
       return {
         id,

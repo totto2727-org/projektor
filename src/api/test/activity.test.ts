@@ -7,17 +7,19 @@ import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { IdResponse, readNativeJson } from './response-json.ts'
 
+interface ActivityRow {
+  entity_type: string
+  action: string
+  actor_id: string | null
+  diff: string | null
+  workspace_id: string
+}
+
 describe('activity audit log', () => {
-  const activityForEntity = async function activityForEntity(entityId: string) {
+  const activityForEntity = async function activityForEntity(entityId: string): Promise<ActivityRow[]> {
     const { results } = await env.DB.prepare('SELECT * FROM activity WHERE entity_id = ? ORDER BY created_at ASC')
       .bind(entityId)
-      .all<{
-        entity_type: string
-        action: string
-        actor_id: string | null
-        diff: string | null
-        workspace_id: string
-      }>()
+      .all<ActivityRow>()
     return results
   }
 

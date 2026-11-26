@@ -29,7 +29,12 @@ const runMigration0050 = async function runMigration0050(): Promise<void> {
   }
 }
 
-const insertPage = async function insertPage(workspaceId: string, userId: string, slug: string, createdAt: number) {
+const insertPage = async function insertPage(
+  workspaceId: string,
+  userId: string,
+  slug: string,
+  createdAt: number,
+): Promise<ReturnType<typeof crypto.randomUUID>> {
   const id = crypto.randomUUID()
   await env.DB.prepare(
     `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
