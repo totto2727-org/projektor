@@ -21,20 +21,24 @@ export type RequestRateLimitEnv = Pick<
   | 'RATE_LIMIT_TEST_NOW_MS'
 >
 
+const OAUTH_TOKEN_PART_COUNT = 3
+
 /*
  * PROJ-658: token rotation must not refresh an OAuth grant's budget. The random
  * grant id, rather than the guessable user id alone, prevents naming another bucket.
  */
-const oauthGrantKey = function oauthGrantKey(token: string): string | null {
+const oauthGrantKey = function oauthGrantKey(token: string): string | undefined {
   const parts = token.split(':')
-  if (parts.length !== 3 || !parts[0] || !parts[1]) {
-    return null
+  const [userId, grantId] = parts
+  if (parts.length !== OAUTH_TOKEN_PART_COUNT || !isNonEmptyText(userId) || !isNonEmptyText(grantId)) {
+    return undefined
   }
-  return `grant:${parts[0]}:${parts[1]}`
+  return `grant:${userId}:${grantId}`
 }
 
 const FIRST_DIGEST_BYTE = 0
 const RATE_LIMIT_DIGEST_PREFIX_BYTES = 8
+const NO_SECONDS_REMAINING = 0
 
 const sha256Prefix = async function sha256Prefix(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
@@ -81,7 +85,7 @@ export const checkRateLimit = async function checkRateLimit(
 
   if (count > limit) {
     const windowRemaining = slot + windowSecs - now
-    return { retryAfter: windowRemaining > 0 ? windowRemaining : windowSecs }
+    return { retryAfter: windowRemaining > NO_SECONDS_REMAINING ? windowRemaining : windowSecs }
   }
   return undefined
 }
@@ -106,6 +110,7 @@ export const bumpRateCounter = async function bumpRateCounter(
 // PROJ-361: opportunistic pruning of rows several windows older than active ones.
 const PRUNE_PROBABILITY = 0.01
 const PRUNE_RETENTION_WINDOWS = 10
+const FIRST_WINDOW_COUNT = 1
 
 const pruneStaleRateLimitRows = function pruneStaleRateLimitRows(
   db: D1Database,
@@ -145,7 +150,7 @@ const incrementD1Counter = async function incrementD1Counter(
   }
 
   const [, selected] = await db.batch<{ count: number }>(statements)
-  return selected.results[0]?.count ?? 1
+  return selected.results[0]?.count ?? FIRST_WINDOW_COUNT
 }
 
 async function incrementCounter(
