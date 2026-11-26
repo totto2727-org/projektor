@@ -298,6 +298,36 @@ interface EpicsTableProps {
   toggleSort: (key: SortKey) => void
 }
 
+const renderEpicTableHead = (
+  sortBy: SortKey,
+  sortDir: EpicsTableProps['sortDir'],
+  toggleSort: EpicsTableProps['toggleSort'],
+): JSX.Element => (
+  <thead>
+    <tr>
+      <th className={TH_CLASS}>Title</th>
+      <th className={TH_CLASS}>Status</th>
+      <th
+        className={`${TH_CLASS} cursor-pointer select-none hover:text-text-base`}
+        onClick={() => {
+          toggleSort('priority')
+        }}
+      >
+        Priority{sortIndicator('priority', sortBy, sortDir)}
+      </th>
+      <th className={TH_CLASS}>Children</th>
+    </tr>
+  </thead>
+)
+
+const renderEpicTableBody = (sorted: EpicItem[]): JSX.Element => (
+  <tbody>
+    {sorted.map((ep) => (
+      <EpicRow key={ep.id} ep={ep} rollup={ep.rollup} />
+    ))}
+  </tbody>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: EpicsTableProps): JSX.Element {
   if (Array.isArrayEmpty(epics)) {
@@ -309,30 +339,13 @@ function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: Epics
   /* The sortIssues signature is Issue[] => Issue[]; the sort is a pure reorder, so the
    * rollup field carried by EpicItem survives — safe to cast back. */
   const sorted = sortIssues(filteredEpics, sortBy, sortDir) as EpicItem[]
+
   return (
     <>
       <div className='overflow-x-auto max-sm:hidden'>
         <table className='w-full border-collapse text-sm' aria-label='Epics'>
-          <thead>
-            <tr>
-              <th className={TH_CLASS}>Title</th>
-              <th className={TH_CLASS}>Status</th>
-              <th
-                className={`${TH_CLASS} cursor-pointer select-none hover:text-text-base`}
-                onClick={() => {
-                  toggleSort('priority')
-                }}
-              >
-                Priority{sortIndicator('priority', sortBy, sortDir)}
-              </th>
-              <th className={TH_CLASS}>Children</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((ep) => (
-              <EpicRow key={ep.id} ep={ep} rollup={ep.rollup} />
-            ))}
-          </tbody>
+          {renderEpicTableHead(sortBy, sortDir, toggleSort)}
+          {renderEpicTableBody(sorted)}
         </table>
       </div>
       <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
@@ -448,6 +461,80 @@ function CreateEpicModal({
   if (!showCreate) {
     return undefined
   }
+  const renderEpicTitleField = (): JSX.Element => (
+    <div className='mb-[0.875rem]'>
+      <label
+        htmlFor='create-epic-title'
+        className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'
+      >
+        Title *
+      </label>
+      <Input
+        id='create-epic-title'
+        name='title'
+        maxLength={500}
+        type='text'
+        value={createTitle}
+        onInput={(event) => setCreateTitle((event.target as HTMLInputElement).value)}
+        placeholder='Epic title'
+        required
+      />
+    </div>
+  )
+
+  const renderEpicProjectField = (): JSX.Element => (
+    <div>
+      {/* Select uses ariaLabel for accessibility */}
+      <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
+        Project
+      </label>
+      <Select
+        ariaLabel='Select project'
+        value={createProjectId}
+        onChange={setCreateProjectId}
+        options={projects.map(({ id, name }) => ({ label: name, value: id }))}
+      />
+    </div>
+  )
+
+  const renderEpicPriorityField = (): JSX.Element => (
+    <div>
+      {/* Select uses ariaLabel for accessibility */}
+      <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
+        Priority
+      </label>
+      <Select
+        ariaLabel='Select priority'
+        value={createPriority}
+        onChange={setCreatePriority}
+        capitalize
+        options={PRIORITY_OPTIONS}
+        buttonStyle={{
+          background: `var(--priority-${createPriority}-bg, var(--priority-low-bg))`,
+          color: `var(--priority-${createPriority}-text, var(--text-muted))`,
+          fontWeight: 500,
+          borderColor: 'transparent',
+        }}
+      />
+    </div>
+  )
+
+  const renderEpicFormActions = (): JSX.Element => (
+    <div className='flex gap-2'>
+      <Button type='submit' variant='primary' disabled={submitting || !createValid}>
+        {submitting ? 'Creating…' : 'Create Epic'}
+      </Button>
+      <Button
+        variant='outline'
+        onClick={() => {
+          setShowCreate(false)
+        }}
+      >
+        Cancel
+      </Button>
+    </div>
+  )
+
   return (
     <Dialog
       open={showCreate}
@@ -470,75 +557,15 @@ function CreateEpicModal({
         <input type='hidden' name='projectId' value={createProjectId} />
         <input type='hidden' name='priority' value={createPriority} />
         {epicTypeId && <input type='hidden' name='typeId' value={epicTypeId} />}
-        <div className='mb-[0.875rem]'>
-          <label
-            htmlFor='create-epic-title'
-            className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'
-          >
-            Title *
-          </label>
-          <Input
-            id='create-epic-title'
-            name='title'
-            maxLength={500}
-            type='text'
-            value={createTitle}
-            onInput={(event) => setCreateTitle((event.target as HTMLInputElement).value)}
-            placeholder='Epic title'
-            required
-          />
-        </div>
+        {renderEpicTitleField()}
 
         <div className='flex gap-3 mb-5 flex-wrap items-end'>
-          {hasMultipleItems(projects) && (
-            <div>
-              {/* Select uses ariaLabel for accessibility */}
-              <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
-                Project
-              </label>
-              <Select
-                ariaLabel='Select project'
-                value={createProjectId}
-                onChange={setCreateProjectId}
-                options={projects.map(({ id, name }) => ({ label: name, value: id }))}
-              />
-            </div>
-          )}
+          {hasMultipleItems(projects) && renderEpicProjectField()}
 
-          <div>
-            {/* Select uses ariaLabel for accessibility */}
-            <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
-              Priority
-            </label>
-            <Select
-              ariaLabel='Select priority'
-              value={createPriority}
-              onChange={setCreatePriority}
-              capitalize
-              options={PRIORITY_OPTIONS}
-              buttonStyle={{
-                background: `var(--priority-${createPriority}-bg, var(--priority-low-bg))`,
-                color: `var(--priority-${createPriority}-text, var(--text-muted))`,
-                fontWeight: 500,
-                borderColor: 'transparent',
-              }}
-            />
-          </div>
+          {renderEpicPriorityField()}
         </div>
 
-        <div className='flex gap-2'>
-          <Button type='submit' variant='primary' disabled={submitting || !createValid}>
-            {submitting ? 'Creating…' : 'Create Epic'}
-          </Button>
-          <Button
-            variant='outline'
-            onClick={() => {
-              setShowCreate(false)
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
+        {renderEpicFormActions()}
       </form>
     </Dialog>
   )

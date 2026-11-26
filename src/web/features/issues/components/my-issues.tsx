@@ -93,6 +93,79 @@ function statusBadge(issue: Issue): JSX.Element {
   )
 }
 
+const renderMyIssueHead = (): JSX.Element => (
+  <thead>
+    <tr className='bg-surface'>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>#</th>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold w-full text-text-base'>Title</th>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
+        Priority
+      </th>
+      <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
+        Status
+      </th>
+    </tr>
+  </thead>
+)
+
+const renderMyIssueRow = (issue: ScopedIssue): JSX.Element => {
+  const pts = getStoryPoints(issue)
+  return (
+    <tr key={issue.id} className='border-b border-border'>
+      <td className='px-3 py-2 align-middle whitespace-nowrap'>
+        <a
+          href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
+          className='text-text-muted font-mono text-[0.8rem] no-underline hover:underline focus:underline'
+        >
+          {formatIssueRef(issue.project_key, issue.number)}
+        </a>
+      </td>
+      <td className='px-3 py-2 align-middle text-text-base'>
+        <a
+          href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
+          className='text-text-base no-underline hover:underline focus:underline'
+        >
+          {issue.title}
+        </a>
+        <ReviewTargetsSummary issue={issue} />
+      </td>
+      <td className='px-3 py-2 align-middle whitespace-nowrap'>
+        <div className='flex items-center gap-[0.375rem]'>
+          {priorityBadge(issue)}
+          {pts && spBadge(pts)}
+        </div>
+      </td>
+      <td className='px-3 py-2 align-middle whitespace-nowrap'>{statusBadge(issue)}</td>
+    </tr>
+  )
+}
+
+const renderMyIssueCard = (issue: ScopedIssue): JSX.Element => (
+  <div key={issue.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
+    <a
+      href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
+      className='inline-block font-mono text-[0.8rem] text-text-muted no-underline hover:underline focus:underline mb-1'
+    >
+      {formatIssueRef(issue.project_key, issue.number)}
+    </a>
+    <a
+      href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
+      className='no-underline'
+    >
+      <div className='text-[0.9rem] text-text-base font-medium mb-2'>{issue.title}</div>
+    </a>
+    <ReviewTargetsSummary issue={issue} />
+    <div className='flex gap-[0.375rem] flex-wrap items-center'>
+      {priorityBadge(issue)}
+      {statusBadge(issue)}
+    </div>
+  </div>
+)
+
+const renderMyIssueBody = (issues: ScopedIssue[]): JSX.Element => (
+  <tbody>{issues.map((issue) => renderMyIssueRow(issue))}</tbody>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function IssuesTable({ issues }: { issues: ScopedIssue[] }): JSX.Element {
   return (
@@ -100,81 +173,14 @@ function IssuesTable({ issues }: { issues: ScopedIssue[] }): JSX.Element {
       {/* Desktop table */}
       <div className='overflow-x-auto max-sm:hidden'>
         <table className='w-full border-collapse text-[0.9rem]'>
-          <thead>
-            <tr className='bg-surface'>
-              <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
-                #
-              </th>
-              <th className='text-left px-3 py-2 border-b-2 border-border font-semibold w-full text-text-base'>
-                Title
-              </th>
-              <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
-                Priority
-              </th>
-              <th className='text-left px-3 py-2 border-b-2 border-border font-semibold whitespace-nowrap text-text-base'>
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {issues.map((issue) => {
-              const pts = getStoryPoints(issue)
-              return (
-                <tr key={issue.id} className='border-b border-border'>
-                  <td className='px-3 py-2 align-middle whitespace-nowrap'>
-                    <a
-                      href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
-                      className='text-text-muted font-mono text-[0.8rem] no-underline hover:underline focus:underline'
-                    >
-                      {formatIssueRef(issue.project_key, issue.number)}
-                    </a>
-                  </td>
-                  <td className='px-3 py-2 align-middle text-text-base'>
-                    <a
-                      href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
-                      className='text-text-base no-underline hover:underline focus:underline'
-                    >
-                      {issue.title}
-                    </a>
-                    <ReviewTargetsSummary issue={issue} />
-                  </td>
-                  <td className='px-3 py-2 align-middle whitespace-nowrap'>
-                    <div className='flex items-center gap-[0.375rem]'>
-                      {priorityBadge(issue)}
-                      {pts && spBadge(pts)}
-                    </div>
-                  </td>
-                  <td className='px-3 py-2 align-middle whitespace-nowrap'>{statusBadge(issue)}</td>
-                </tr>
-              )
-            })}
-          </tbody>
+          {renderMyIssueHead()}
+          {renderMyIssueBody(issues)}
         </table>
       </div>
 
       {/* Mobile cards */}
       <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
-        {issues.map((issue) => (
-          <div key={issue.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-            <a
-              href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
-              className='inline-block font-mono text-[0.8rem] text-text-muted no-underline hover:underline focus:underline mb-1'
-            >
-              {formatIssueRef(issue.project_key, issue.number)}
-            </a>
-            <a
-              href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
-              className='no-underline'
-            >
-              <div className='text-[0.9rem] text-text-base font-medium mb-2'>{issue.title}</div>
-            </a>
-            <ReviewTargetsSummary issue={issue} />
-            <div className='flex gap-[0.375rem] flex-wrap items-center'>
-              {priorityBadge(issue)}
-              {statusBadge(issue)}
-            </div>
-          </div>
-        ))}
+        {issues.map((issue) => renderMyIssueCard(issue))}
       </div>
     </section>
   )
