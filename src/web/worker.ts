@@ -50,7 +50,11 @@ const logoResponse = function logoResponse(request: Request) {
   })
 }
 
-/** Runtime behavior lives here, independently of deployment resources and environments. */
+/**
+ * Runtime behavior lives here, independently of deployment resources and environments.
+ *
+ * @returns {ReturnType<typeof makeWebWorker>} An effect that creates the Web fetch handler with session, file, and application routing.
+ */
 export const makeWebWorker = () =>
   Effect.gen(function* () {
     const applicationHttpEffect = yield* makeApplicationHttpEffect<typeof application>()

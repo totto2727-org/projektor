@@ -30,9 +30,14 @@ const configuration = function configuration(value: string | undefined): Fixture
   return settings
 }
 
-/** Native RPC stubs are owned by their invocation. Construct the configured
+/**
+ * Native RPC stubs are owned by their invocation. Construct the configured
  * Core session inside the actual API request, never in the Vitest driver's
- * earlier setup context. This wrapper has no storage or production export. */
+ * earlier setup context. This wrapper has no storage or production export.
+ *
+ * @param {FixtureEnvironment} env The fixture bindings for the current native API request.
+ * @returns {Promise<ApiEnvironment>} The API environment configured with the request-local Core session.
+ */
 const requestEnvironment = async function requestEnvironment(env: FixtureEnvironment): Promise<ApiEnvironment> {
   const core = await env.CORE.fixtureSession(configuration(env.CORE_FIXTURE_CONFIGURATION))
   return { ...env, CORE: core }

@@ -92,7 +92,13 @@ export class RequestServices extends Context.Service<
   }>
 >()('projektor/ssr/RequestServices') {}
 
-/** Construct services without creating a nested runtime or any cross-request cache. */
+/**
+ * Construct services without creating a nested runtime or any cross-request cache.
+ *
+ * @param {Request} request The browser request for the lifetime of the request-local caches.
+ * @param {Env} env The Web Worker environment with its Core binding.
+ * @returns {ReturnType<typeof makeRequestServices>} An effect that constructs the request services and their scope and view caches.
+ */
 export const makeRequestServices = (request: Request, env: Env) =>
   Effect.gen(function* () {
     const url = new URL(request.url)

@@ -16,7 +16,13 @@ export type BrowserCommandClient = Readonly<{
   core: CoreRpcShape
 }>
 
-/** Local composition only. Neither a callback nor a capability crosses the native binding. */
+/**
+ * Local composition only. Neither a callback nor a capability crosses the native binding.
+ *
+ * @param {FunctionContext} context The browser function context resolved from the request.
+ * @param {(client: BrowserCommandClient) => Effect.Effect<A, E, R>} operation The local effect that calls the selected named Core operation.
+ * @returns {Effect.Effect<A, ApiError | ScopeError | E, RequestServices | R>} An effect that verifies the interactive browser session and runs the command.
+ */
 export const runBrowserCommand = function runBrowserCommand<A, E, R>(
   context: FunctionContext,
   operation: (client: BrowserCommandClient) => Effect.Effect<A, E, R>,

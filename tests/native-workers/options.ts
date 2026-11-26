@@ -50,7 +50,12 @@ const nativeCoreModuleType = function nativeCoreModuleType(
   }
 }
 
-/** Compile the same official native Core bridge used by production and browser acceptance. */
+/**
+ * Compile the same official native Core bridge used by production and browser acceptance.
+ *
+ * @param {string} runnerName The initialized native API runner that hosts the Durable Object classes.
+ * @returns {ReturnType<typeof nativeCoreWorker>} The native Core fixture options, including its compiled modules and storage bindings.
+ */
 export const nativeCoreWorker = async function nativeCoreWorker(runnerName: string) {
   if (!runnerName) {
     throw new Error('The native API runner must be initialized before its Core service.')

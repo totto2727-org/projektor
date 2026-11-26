@@ -8,7 +8,12 @@ interface ScopeSelectionProps {
   url: URL
 }
 
-/** Native GET forms also work without JavaScript and preserve explicit URL scope. */
+/**
+ * Native GET forms also work without JavaScript and preserve explicit URL scope.
+ *
+ * @param {ScopeSelectionProps} props The request scope and URL whose non-selection parameters are preserved.
+ * @returns {JSX.Element | false} The required workspace or project chooser, or false when no selection is required.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ScopeSelection = function ScopeSelection({ scope, url }: ScopeSelectionProps): JSX.Element | false {
   const { selection } = scope

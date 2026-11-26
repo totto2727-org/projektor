@@ -30,7 +30,13 @@ export type FunctionOptions = Readonly<{
 
 const decodeFunctionSelector = Schema.decodeUnknownEffect(FunctionSelectorSchema)
 
-/** Resolve only authentication and selection, including independently callable queries. */
+/**
+ * Resolve only authentication and selection, including independently callable queries.
+ *
+ * @param {FunctionSelector} selector The workspace and project selectors supplied to the server function.
+ * @param {FunctionOptions} options The workspace and project requirements of the function.
+ * @returns {Effect.Effect<FunctionContext, ApiError | ScopeError, RequestServices>} An effect yielding the verified scope and its canonical selectors.
+ */
 export const resolveFunctionContext = function resolveFunctionContext(
   selector: FunctionSelector,
   options: FunctionOptions = {},

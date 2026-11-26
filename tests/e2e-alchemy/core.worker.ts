@@ -26,7 +26,11 @@ export default class FixtureCore extends NativeCore {
     return initializing
   }
 
-  /** Re-enter migration application without resetting the database or its ledger. */
+  /**
+   * Re-enter migration application without resetting the database or its ledger.
+   *
+   * @returns {Promise<{ migrations: number }>} The reported migration count after checking the existing fixture database again.
+   */
   public async reinitializeFixture(): Promise<{ migrations: number }> {
     await this.initializeFixture()
     return this.applyFixtureMigrations()

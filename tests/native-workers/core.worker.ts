@@ -356,7 +356,12 @@ export default class NativeFixtureCore extends FixtureCore {
     }
   }
 
-  /** A native loopback binding keeps fixture policy request-local, without a custom RPC codec. */
+  /**
+   * A native loopback binding keeps fixture policy request-local, without a custom RPC codec.
+   *
+   * @param {FixtureConfiguration} settings The storage and policy settings isolated to this fixture session.
+   * @returns {Fetcher} The native session binding configured with the supplied settings.
+   */
   public fixtureSession(settings: FixtureConfiguration) {
     const exports = this.ctx.exports as unknown as {
       Session: (options: { props: FixtureConfiguration }) => Fetcher

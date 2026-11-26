@@ -21,7 +21,13 @@ export const PointsText = Schema.String.check(
 )
 export const UrlText = Schema.URLFromString
 
-/** TanStack owns editable values and Effect owns validation. Canonical DTO refreshes never reset unsaved input. */
+/**
+ * TanStack owns editable values and Effect owns validation. Canonical DTO refreshes never reset unsaved input.
+ *
+ * @param {Values} defaultValues The initial editable form values.
+ * @param {Schema.Codec<unknown, NoInfer<Values>>} schema The Effect codec used to validate changes and submissions.
+ * @returns {ReturnType<typeof useIssueForm>} The form state, typed field controls, and submit validation.
+ */
 export const useIssueForm = function useIssueForm<Values extends Record<string, unknown>>(
   defaultValues: Values,
   schema: Schema.Codec<unknown, NoInfer<Values>>,

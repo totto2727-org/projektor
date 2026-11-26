@@ -59,7 +59,12 @@ const openPreviewRuntime = async function openPreviewRuntime() {
   return { context, lifecycle }
 }
 
-/** Only preview allocates runtime services. A build must remain offline and exit. */
+/**
+ * Only preview allocates runtime services. A build must remain offline and exit.
+ *
+ * @param {boolean | undefined} isPreview Whether the application is running in browser acceptance preview.
+ * @returns {Promise<Awaited<ReturnType<typeof openPreviewRuntime>> | undefined>} The preview runtime services and lifecycle, or undefined during a build.
+ */
 export const makePreviewContext = async function makePreviewContext(
   isPreview: boolean | undefined,
 ): Promise<Awaited<ReturnType<typeof openPreviewRuntime>> | undefined> {

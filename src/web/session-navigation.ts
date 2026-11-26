@@ -12,7 +12,12 @@ const SessionForm = Schema.Struct({
 
 const decodeSessionForm = Schema.decodeUnknownEffect(SessionForm)
 
-/** Native POST forms bypass Flight and discard the previous identity's JS runtime. */
+/**
+ * Native POST forms bypass Flight and discard the previous identity's JS runtime.
+ *
+ * @param {Request} request The native browser POST carrying the session navigation form.
+ * @returns {Effect.Effect<HttpServerResponse.HttpServerResponse, ApiError>} An effect that returns the login or logout redirect or the corresponding request error.
+ */
 export const sessionNavigation = function sessionNavigation(
   request: Request,
 ): Effect.Effect<HttpServerResponse.HttpServerResponse, ApiError> {

@@ -54,7 +54,13 @@ const errorResponse = function errorResponse(error: PageFailure): HttpServerResp
   )
 }
 
-/** Prepare typed initial data before HTTP streaming, preserving denial/error statuses. */
+/**
+ * Prepare typed initial data before HTTP streaming, preserving denial/error statuses.
+ *
+ * @param {RouteRenderer | PublicRenderer} render The scoped or public route renderer that supplies the page content.
+ * @param {ScopeOptions & { public?: boolean; projectNav?: boolean }} options Route scope requirements and public-page or project-navigation settings.
+ * @returns {ReturnType<typeof pageRenderer>} The Effront page factory and the request-local render effect.
+ */
 export const pageRenderer = function pageRenderer(
   render: RouteRenderer | PublicRenderer,
   options: ScopeOptions & { public?: boolean; projectNav?: boolean } = {},

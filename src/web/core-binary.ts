@@ -10,7 +10,13 @@ const BinaryFailure = Schema.Struct({ error: Schema.String })
 
 const decodeBinaryFailure = Schema.decodeUnknownEffect(BinaryFailure)
 
-/** Same-binding binary transport, with request-local proof and no buffering of file bytes. */
+/**
+ * Same-binding binary transport, with request-local proof and no buffering of file bytes.
+ *
+ * @param {string} path The internal path on Core's binary fetch surface.
+ * @param {Readonly<{ method?: string; body?: BodyInit; headers?: HeadersInit }>} options The request method, headers, and optional upload body.
+ * @returns {Effect.Effect<Response, ApiError, RequestServices>} An effect with the original successful response or a public failure.
+ */
 export const transferCoreBinary = function transferCoreBinary(
   path: string,
   options: Readonly<{ method?: string; body?: BodyInit; headers?: HeadersInit }> = {},
