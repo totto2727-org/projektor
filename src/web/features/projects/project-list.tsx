@@ -10,10 +10,10 @@ import { useRuntime } from '@/client/runtime.tsx'
 import { FormErrors } from '@/components/form-errors.tsx'
 import { Input } from '@/components/generated/input.tsx'
 import { Button } from '@/components/ui/button.tsx'
-import { Card } from '@/components/ui/card.tsx'
 import { EmptyState } from '@/components/ui/empty-state.tsx'
 
 import { createProject } from './actions.ts'
+import { ProjectTile } from './project-tile.tsx'
 import { CreateProjectInputSchema } from './schemas.ts'
 import type { ProjectSummary } from './schemas.ts'
 
@@ -23,40 +23,45 @@ interface Membership {
   slug: string
   role: 'owner' | 'admin' | 'member' | 'viewer'
 }
-const badgeClass =
-  'font-mono text-[0.7rem] font-medium px-1.5 py-0.5 rounded bg-surface border border-border text-text-muted leading-6'
 const deriveKey = (name: string): string =>
   name
     .toUpperCase()
     .replaceAll(/[^A-Z0-9]/gu, '')
     .slice(0, 10)
 
-// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary }): JSX.Element {
-  const open = project.open_issue_count
-  const backlog = project.backlog_issue_count
-  const active = open - backlog
-  const count = open === 0 ? 'No open issues' : backlog === 0 ? `${active} open` : `${active} open · ${backlog} backlog`
-  const path = project.slug ? `/projects/view/${encodeURIComponent(project.slug)}` : '/projects/view'
-  return (
-    <Card interactive className={`shadow-xs${Predicate.isNotNullish(project.archived_at) ? ' opacity-60' : ''}`}>
-      <a
-        href={`${path}?${new URLSearchParams({ projectId: project.id, workspace: project.workspace_slug })}`}
-        className='block no-underline'
-      >
-        <div className='flex items-center gap-2'>
-          <span className='font-bold text-text-base text-base'>{project.name}</span>
-          <span className={badgeClass}>{project.key}</span>
-          {Predicate.isNotNullish(project.archived_at) && <span className={badgeClass}>Archived</span>}
-        </div>
-        <span className='text-xs text-text-muted'>{count}</span>
-        {project.description && (
-          <span className='text-sm text-text-muted overflow-hidden line-clamp-2'>{project.description}</span>
-        )}
-      </a>
-    </Card>
-  )
+interface ProjectCreationField {
+  handleBlur: () => void
+  handleChange: (value: string) => void
+  state: { value: string }
 }
+
+const renderProjectKeyInput = (field: ProjectCreationField): JSX.Element => (
+  <label className='grid min-w-0 gap-1'>
+    Key
+    <Input
+      name='key'
+      required
+      maxLength={10}
+      placeholder='MYPROJ'
+      value={field.state.value}
+      onBlur={field.handleBlur}
+      onChange={(event) => field.handleChange(event.currentTarget.value.toUpperCase())}
+    />
+  </label>
+)
+const renderProjectDescriptionInput = (field: ProjectCreationField): JSX.Element => (
+  <label className='grid min-w-0 gap-1'>
+    Description
+    <Input
+      name='description'
+      maxLength={500}
+      placeholder='Optional description'
+      value={field.state.value}
+      onBlur={field.handleBlur}
+      onChange={(event) => field.handleChange(event.currentTarget.value)}
+    />
+  </label>
+)
 
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ProjectList = function ProjectList({
@@ -119,30 +124,140 @@ export const ProjectList = function ProjectList({
       </div>
     )
   }
+  const renderArchiveOption = (): JSX.Element => (
+    <label className='flex items-center gap-1.5 text-xs text-text-muted'>
+      <input
+        type='checkbox'
+        name='includeArchived'
+        value='true'
+        defaultChecked={showArchived}
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
+      />
+      Show archived
+    </label>
+  )
+  const renderArchivedCatalogFilter = (): JSX.Element => (
+    <form method='get' action={url.pathname} className='flex items-center gap-2'>
+      {[...url.searchParams]
+        .filter(([name]) => name !== 'includeArchived')
+        .map(([name, value]) => (
+          <input key={`${name}:${value}`} type='hidden' name={name} value={value} />
+        ))}
+      {renderArchiveOption()}
+      <Button type='submit' variant='outline' size='sm'>
+        Apply
+      </Button>
+    </form>
+  )
+  const renderWorkspaceChoice = (field: ProjectCreationField): JSX.Element =>
+    hasMultipleItems(writable) ? (
+      <select
+        // Native selects otherwise size to their longest option, overflowing narrow forms.
+        className='w-full min-w-0'
+        name='workspaceSlug'
+        required
+        aria-label='Workspace'
+        value={field.state.value}
+        onChange={(event) => {
+          field.handleChange(event.currentTarget.value)
+        }}
+        onBlur={field.handleBlur}
+        disabled={pending}
+      >
+        <option value=''>Choose a workspace</option>
+        {writable.map((item) => (
+          <option key={item.id} value={item.slug}>
+            {item.name} ({item.slug})
+          </option>
+        ))}
+      </select>
+    ) : (
+      <>
+        <input type='hidden' name='workspaceSlug' value={field.state.value} />
+        <p className='m-0 text-sm text-text-muted'>
+          {writable[0].name} ({writable[0].slug})
+        </p>
+      </>
+    )
+  const renderProjectNameInput = (field: ProjectCreationField): JSX.Element => (
+    <label className='grid min-w-0 gap-1'>
+      Name
+      <Input
+        name='name'
+        required
+        maxLength={100}
+        placeholder='My Project'
+        value={field.state.value}
+        onBlur={field.handleBlur}
+        onChange={(event) => {
+          const { value } = event.currentTarget
+          field.handleChange(value)
+          if (form.getFieldMeta('key')?.isTouched !== true) {
+            form.setFieldValue('key', deriveKey(value))
+          }
+        }}
+      />
+    </label>
+  )
+  const renderWorkspaceField = (): JSX.Element => (
+    <div>
+      <p className='m-0 mb-1 text-xs font-semibold text-text-muted'>Workspace</p>
+      <form.Field name='workspaceSlug'>{renderWorkspaceChoice}</form.Field>
+    </div>
+  )
+  const renderProjectFields = (): JSX.Element => (
+    <div className='grid gap-3 sm:grid-cols-[2fr_1fr_3fr]'>
+      <form.Field name='name'>{renderProjectNameInput}</form.Field>
+      <form.Field name='key'>{renderProjectKeyInput}</form.Field>
+      <form.Field name='description'>{renderProjectDescriptionInput}</form.Field>
+    </div>
+  )
+  const renderCreateProjectActions = (canSubmit: boolean): JSX.Element => (
+    <div className='flex gap-2 justify-end'>
+      <Button
+        type='button'
+        variant='outline'
+        size='sm'
+        onClick={() => {
+          if (disclosure.current) {
+            disclosure.current.open = false
+          }
+        }}
+        disabled={pending}
+      >
+        Cancel
+      </Button>
+      <Button type='submit' variant='primary' size='sm' disabled={pending || !canSubmit}>
+        {pending ? 'Creating…' : 'Create project'}
+      </Button>
+    </div>
+  )
+  const renderCreateProjectForm = (): JSX.Element => (
+    <form
+      action={formAction}
+      onSubmit={(event) => {
+        if (!form.state.canSubmit) {
+          event.preventDefault()
+        }
+      }}
+      className='bg-surface border border-border rounded-lg p-4 mt-3 flex flex-col gap-3'
+    >
+      {renderWorkspaceField()}
+      {renderProjectFields()}
+      <FormErrors errors={form.state.errors} className='m-0 text-red-600' />
+      {result && !result.ok && (
+        <p role='alert' className='m-0 text-xs text-red-600'>
+          {result.message}
+        </p>
+      )}
+      <form.Subscribe<boolean> selector={(state) => state.canSubmit}>{renderCreateProjectActions}</form.Subscribe>
+    </form>
+  )
   return (
     <>
       <h1 className='mb-6 text-2xl font-semibold'>Projects</h1>
       <div className='flex justify-between items-center mb-4'>
-        <form method='get' action={url.pathname} className='flex items-center gap-2'>
-          {[...url.searchParams]
-            .filter(([name]) => name !== 'includeArchived')
-            .map(([name, value]) => (
-              <input key={`${name}:${value}`} type='hidden' name={name} value={value} />
-            ))}
-          <label className='flex items-center gap-1.5 text-xs text-text-muted'>
-            <input
-              type='checkbox'
-              name='includeArchived'
-              value='true'
-              defaultChecked={showArchived}
-              onChange={(event) => event.currentTarget.form?.requestSubmit()}
-            />
-            Show archived
-          </label>
-          <Button type='submit' variant='outline' size='sm'>
-            Apply
-          </Button>
-        </form>
+        {renderArchivedCatalogFilter()}
         {isPublicViewer ? (
           <p className='text-xs text-text-muted m-0'>Read-only demo — projects can't be created here.</p>
         ) : (
@@ -154,135 +269,7 @@ export const ProjectList = function ProjectList({
       {Array.isArrayNonEmpty(writable) && (
         <details ref={disclosure} className='mb-5'>
           <summary className='btn btn-primary text-xs w-fit ml-auto cursor-pointer'>+ New project</summary>
-          <form
-            action={formAction}
-            onSubmit={(event) => {
-              if (!form.state.canSubmit) {
-                event.preventDefault()
-              }
-            }}
-            className='bg-surface border border-border rounded-lg p-4 mt-3 flex flex-col gap-3'
-          >
-            <div>
-              <p className='m-0 mb-1 text-xs font-semibold text-text-muted'>Workspace</p>
-              <form.Field name='workspaceSlug'>
-                {(field) =>
-                  hasMultipleItems(writable) ? (
-                    <select
-                      // Native selects otherwise size to their longest option, overflowing narrow forms.
-                      className='w-full min-w-0'
-                      name='workspaceSlug'
-                      required
-                      aria-label='Workspace'
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.currentTarget.value)
-                      }}
-                      onBlur={field.handleBlur}
-                      disabled={pending}
-                    >
-                      <option value=''>Choose a workspace</option>
-                      {writable.map((item) => (
-                        <option key={item.id} value={item.slug}>
-                          {item.name} ({item.slug})
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <>
-                      <input type='hidden' name='workspaceSlug' value={field.state.value} />
-                      <p className='m-0 text-sm text-text-muted'>
-                        {writable[0].name} ({writable[0].slug})
-                      </p>
-                    </>
-                  )
-                }
-              </form.Field>
-            </div>
-            <div className='grid gap-3 sm:grid-cols-[2fr_1fr_3fr]'>
-              <form.Field name='name'>
-                {(field) => (
-                  <label className='grid min-w-0 gap-1'>
-                    Name
-                    <Input
-                      name='name'
-                      required
-                      maxLength={100}
-                      placeholder='My Project'
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => {
-                        const { value } = event.currentTarget
-                        field.handleChange(value)
-                        if (form.getFieldMeta('key')?.isTouched !== true) {
-                          form.setFieldValue('key', deriveKey(value))
-                        }
-                      }}
-                    />
-                  </label>
-                )}
-              </form.Field>
-              <form.Field name='key'>
-                {(field) => (
-                  <label className='grid min-w-0 gap-1'>
-                    Key
-                    <Input
-                      name='key'
-                      required
-                      maxLength={10}
-                      placeholder='MYPROJ'
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.currentTarget.value.toUpperCase())}
-                    />
-                  </label>
-                )}
-              </form.Field>
-              <form.Field name='description'>
-                {(field) => (
-                  <label className='grid min-w-0 gap-1'>
-                    Description
-                    <Input
-                      name='description'
-                      maxLength={500}
-                      placeholder='Optional description'
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.currentTarget.value)}
-                    />
-                  </label>
-                )}
-              </form.Field>
-            </div>
-            <FormErrors errors={form.state.errors} className='m-0 text-red-600' />
-            {result && !result.ok && (
-              <p role='alert' className='m-0 text-xs text-red-600'>
-                {result.message}
-              </p>
-            )}
-            <form.Subscribe selector={(state) => state.canSubmit}>
-              {(canSubmit) => (
-                <div className='flex gap-2 justify-end'>
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    onClick={() => {
-                      if (disclosure.current) {
-                        disclosure.current.open = false
-                      }
-                    }}
-                    disabled={pending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type='submit' variant='primary' size='sm' disabled={pending || !canSubmit}>
-                    {pending ? 'Creating…' : 'Create project'}
-                  </Button>
-                </div>
-              )}
-            </form.Subscribe>
-          </form>
+          {renderCreateProjectForm()}
         </details>
       )}
       {Array.isReadonlyArrayEmpty(initialProjects) ? (
