@@ -5,6 +5,7 @@ import type { Effect } from 'effect'
 
 import { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
 import { JSON_NULL } from '#contracts/json-null.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import {
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_DAY,
@@ -46,13 +47,23 @@ export interface Distribution {
 
 const summarize = function summarize(durations: Readonly<number[]>): Distribution {
   if (Array.isReadonlyArrayEmpty(durations)) {
-    return { count: 0, avg: JSON_NULL, p50: JSON_NULL, p90: JSON_NULL }
+    return fieldsInOrder([
+      ['count', NO_EVENTS],
+      ['avg', JSON_NULL],
+      ['p50', JSON_NULL],
+      ['p90', JSON_NULL],
+    ])
   }
   const sorted = [...durations].toSorted((left, right) => left - right)
   const avg = sorted.reduce((sum, duration) => sum + duration, MIN_DURATION_SECONDS) / sorted.length
   const percentile = (fraction: number): number =>
     sorted[Math.min(sorted.length - LAST_INDEX_OFFSET, Math.floor(fraction * sorted.length))]
-  return { count: sorted.length, avg, p50: percentile(MEDIAN_FRACTION), p90: percentile(P90_FRACTION) }
+  return fieldsInOrder([
+    ['count', sorted.length],
+    ['avg', avg],
+    ['p50', percentile(MEDIAN_FRACTION)],
+    ['p90', percentile(P90_FRACTION)],
+  ])
 }
 
 type FlowIssueRow = {
@@ -108,10 +119,12 @@ const bucketRanges = function bucketRanges(
   since: number,
   until: number,
 ): { start: number; end: number }[] {
-  return starts.map((bucketStart) => ({
-    start: Math.max(bucketStart, since),
-    end: Math.min(bucketStart + bucketSize, until + TIMESTAMP_STEP_SECONDS),
-  }))
+  return starts.map((bucketStart) =>
+    fieldsInOrder([
+      ['start', Math.max(bucketStart, since)],
+      ['end', Math.min(bucketStart + bucketSize, until + TIMESTAMP_STEP_SECONDS)],
+    ]),
+  )
 }
 
 /*
@@ -176,7 +189,12 @@ const buildWipOverTime = function buildWipOverTime(
       running += events[idx][1]
       idx++
     }
-    buckets.push({ date: dateLabel(dayStart), count: running })
+    buckets.push(
+      fieldsInOrder([
+        ['date', dateLabel(dayStart)],
+        ['count', running],
+      ]),
+    )
   }
   return buckets
 }
@@ -220,12 +238,12 @@ const buildBugShareOverTime = function buildBugShareOverTime(
   return starts.map((bucketStart, idx) => {
     const group = groups[idx]
     const bugCount = group.filter((issue) => issue.typeKey === 'bug').length
-    return {
-      bucketStart: dateLabel(bucketStart),
-      total: group.length,
-      bugCount,
-      bugSharePercent: Array.isArrayNonEmpty(group) ? bugCount / group.length : JSON_NULL,
-    }
+    return fieldsInOrder([
+      ['bucketStart', dateLabel(bucketStart)],
+      ['total', group.length],
+      ['bugCount', bugCount],
+      ['bugSharePercent', Array.isArrayNonEmpty(group) ? bugCount / group.length : JSON_NULL],
+    ])
   })
 }
 
@@ -275,7 +293,12 @@ const buildArrivalVsCompletion = function buildArrivalVsCompletion(
   return starts.map((bucketStart, idx) => {
     const created = createdGroups[idx].length
     const done = completedGroups[idx].length
-    return { bucketStart: dateLabel(bucketStart), created, completed: done, net: created - done }
+    return fieldsInOrder([
+      ['bucketStart', dateLabel(bucketStart)],
+      ['created', created],
+      ['completed', done],
+      ['net', created - done],
+    ])
   })
 }
 
@@ -335,10 +358,22 @@ const buildCfdEvents = function buildCfdEvents(issues: Readonly<FlowIssueRow[]>)
         return
       }
       if (prevBand !== 'excluded') {
-        events.push({ time: threshold, band: prevBand, delta: REMOVE_FROM_COUNT })
+        events.push(
+          fieldsInOrder([
+            ['time', threshold],
+            ['band', prevBand],
+            ['delta', REMOVE_FROM_COUNT],
+          ]),
+        )
       }
       if (band !== 'excluded') {
-        events.push({ time: threshold, band, delta: ADD_TO_COUNT })
+        events.push(
+          fieldsInOrder([
+            ['time', threshold],
+            ['band', band],
+            ['delta', ADD_TO_COUNT],
+          ]),
+        )
       }
       prevBand = band
     })
@@ -386,7 +421,12 @@ const buildCfdOverTime = function buildCfdOverTime(
    * are in the done band at every sample (each sample is >= that bound), so the band
    * starts from their count instead of zero.
    */
-  const counts = { backlogTodo: 0, inProgress: 0, inReview: 0, done: doneBeforeWindow }
+  const counts: Record<CfdEvent['band'], number> = fieldsInOrder([
+    ['backlogTodo', NO_EVENTS],
+    ['inProgress', NO_EVENTS],
+    ['inReview', NO_EVENTS],
+    ['done', doneBeforeWindow],
+  ])
   let idx = 0
   return starts.map((bucketStart) => {
     const sampleAt = Math.min(bucketStart + bucketSize - TIMESTAMP_STEP_SECONDS, until, now)
@@ -438,12 +478,14 @@ const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
   issueScope: SQL,
 ): Promise<Map<string, number>> {
   const rows = await orm
-    .select({
-      issueId: schema.issueLeases.issueId,
-      claimedAt: schema.issueLeases.claimedAt,
-      releasedAt: schema.issueLeases.releasedAt,
-      doneAt: schema.issues.doneAt,
-    })
+    .select(
+      fieldsInOrder([
+        ['issueId', schema.issueLeases.issueId],
+        ['claimedAt', schema.issueLeases.claimedAt],
+        ['releasedAt', schema.issueLeases.releasedAt],
+        ['doneAt', schema.issues.doneAt],
+      ]),
+    )
     .from(schema.issueLeases)
     .innerJoin(schema.issues, eq(schema.issueLeases.issueId, schema.issues.id))
     .where(and(eq(schema.issueLeases.workspaceId, workspaceId), issueScope))
@@ -498,7 +540,12 @@ const computeCoreDistributions = function computeCoreDistributions(
     )
     // Filtered above
     .map((issue) => (issue.inReviewAt ?? issue.doneAt!) - issue.claimedAt!)
-  return { leadTimes, cycleTimes, reviewLatencies, timeInProgress }
+  return fieldsInOrder([
+    ['leadTimes', leadTimes],
+    ['cycleTimes', cycleTimes],
+    ['reviewLatencies', reviewLatencies],
+    ['timeInProgress', timeInProgress],
+  ])
 }
 
 /*
@@ -586,11 +633,13 @@ const buildAgingWip = function buildAgingWip(
       (issue): issue is FlowIssueRow & { claimedAt: number } =>
         Predicate.isNotNullish(issue.claimedAt) && (issue.status === 'in_progress' || issue.status === 'in_review'),
     )
-    .map((issue) => ({
-      id: issue.id,
-      status: issue.status as 'in_progress' | 'in_review',
-      ageSeconds: now - issue.claimedAt,
-    }))
+    .map((issue) =>
+      fieldsInOrder([
+        ['id', issue.id],
+        ['status', issue.status as 'in_progress' | 'in_review'],
+        ['ageSeconds', now - issue.claimedAt],
+      ]),
+    )
 }
 
 /*
@@ -692,24 +741,29 @@ const fetchWindowCounts = async function fetchWindowCounts(
           ),
         )
   const row = await orm
-    .select({
-      leaseExpiries: countOf(leaseExpiriesQuery),
-      abandonedClaims: countOf(abandonedClaimsQuery),
-      gateRejections: countOf(gateRejectionsQuery),
-      wipCapPressure: countOf(wipCapPressureQuery),
-      doneBeforeWindow: Predicate.isNullish(doneBeforeWindowQuery) ? sql<number>`0` : countOf(doneBeforeWindowQuery),
-    })
+    .select(
+      fieldsInOrder([
+        ['leaseExpiries', countOf(leaseExpiriesQuery)],
+        ['abandonedClaims', countOf(abandonedClaimsQuery)],
+        ['gateRejections', countOf(gateRejectionsQuery)],
+        ['wipCapPressure', countOf(wipCapPressureQuery)],
+        [
+          'doneBeforeWindow',
+          Predicate.isNullish(doneBeforeWindowQuery) ? sql<number>`0` : countOf(doneBeforeWindowQuery),
+        ],
+      ]),
+    )
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, workspaceId)))
     .get()
 
-  return {
-    leaseExpiries: Number(row?.leaseExpiries ?? NO_EVENTS),
-    abandonedClaims: Number(row?.abandonedClaims ?? NO_EVENTS),
-    gateRejections: Number(row?.gateRejections ?? NO_EVENTS),
-    wipCapPressure: Number(row?.wipCapPressure ?? NO_EVENTS),
-    doneBeforeWindow: Number(row?.doneBeforeWindow ?? NO_EVENTS),
-  }
+  return fieldsInOrder([
+    ['leaseExpiries', Number(row?.leaseExpiries ?? NO_EVENTS)],
+    ['abandonedClaims', Number(row?.abandonedClaims ?? NO_EVENTS)],
+    ['gateRejections', Number(row?.gateRejections ?? NO_EVENTS)],
+    ['wipCapPressure', Number(row?.wipCapPressure ?? NO_EVENTS)],
+    ['doneBeforeWindow', Number(row?.doneBeforeWindow ?? NO_EVENTS)],
+  ])
 }
 
 const readFlowMetrics = async function readFlowMetrics(
@@ -762,17 +816,19 @@ const readFlowMetrics = async function readFlowMetrics(
   const windowOrOpenIssue = or(windowPredicate, inArray(schema.issues.status, ['in_progress', 'in_review']))
 
   const loaded = await orm
-    .select({
-      id: schema.issues.id,
-      createdAt: schema.issues.createdAt,
-      readyAt: schema.issues.readyAt,
-      claimedAt: schema.issues.claimedAt,
-      doneAt: schema.issues.doneAt,
-      inReviewAt: schema.issues.inReviewAt,
-      reviewBounceCount: schema.issues.reviewBounceCount,
-      status: schema.issues.status,
-      typeKey: schema.taskTypes.key,
-    })
+    .select(
+      fieldsInOrder([
+        ['id', schema.issues.id],
+        ['createdAt', schema.issues.createdAt],
+        ['readyAt', schema.issues.readyAt],
+        ['claimedAt', schema.issues.claimedAt],
+        ['doneAt', schema.issues.doneAt],
+        ['inReviewAt', schema.issues.inReviewAt],
+        ['reviewBounceCount', schema.issues.reviewBounceCount],
+        ['status', schema.issues.status],
+        ['typeKey', schema.taskTypes.key],
+      ]),
+    )
     .from(schema.issues)
     .leftJoin(schema.taskTypes, eq(schema.issues.typeId, schema.taskTypes.id))
     .where(and(projectScope, windowOrOpenIssue))
@@ -843,48 +899,51 @@ const readFlowMetrics = async function readFlowMetrics(
   const flowEfficiencies = computeFlowEfficiencies(issues, leaseHeldSeconds, inWindow)
   const agingWip = buildAgingWip(loaded, now)
 
-  return {
-    leadTime: summarize(leadTimes),
+  return fieldsInOrder([
+    ['leadTime', summarize(leadTimes)],
     /*
      * PROJ-921: issues done in the window that never sat in a ready status (straight from
      * backlog to in_progress/done). They have no lead time and are not in leadTime's
      * sample (leadTime.count); reported so a small or skewed sample is visible.
      */
-    leadTimeExcluded: issues.filter(
-      (issue) => Predicate.isNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-    ).length,
-    cycleTime: summarize(cycleTimes),
-    wipOverTime,
-    throughputOverTime,
+    [
+      'leadTimeExcluded',
+      issues.filter(
+        (issue) => Predicate.isNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+      ).length,
+    ],
+    ['cycleTime', summarize(cycleTimes)],
+    ['wipOverTime', wipOverTime],
+    ['throughputOverTime', throughputOverTime],
     /*
      * PROJ-331: bug share of throughput — a rising share signals the factory shipping
      * more defects, not just more work.
      */
-    bugShareOverTime,
+    ['bugShareOverTime', bugShareOverTime],
     /*
      * PROJ-341: whether a "bug"-keyed task type exists in the workspace at all —
      * distinguishes "tracked, 0 bugs" from "not tracked, no matching type".
      */
-    bugTypeTracked,
+    ['bugTypeTracked', bugTypeTracked],
     /*
      * PROJ-328: collaboration-shape metrics. reviewLatency is the primary human
      * choke point (in_review -> done); humanInterventions and autonomyRatio are
      * aggregated per completed issue.
      */
-    reviewLatency: summarize(reviewLatencies),
-    reviewLatencyOverTime,
-    humanInterventions: summarize(humanInterventions),
-    autonomyRatio: summarize(autonomyRatios),
+    ['reviewLatency', summarize(reviewLatencies)],
+    ['reviewLatencyOverTime', reviewLatencyOverTime],
+    ['humanInterventions', summarize(humanInterventions)],
+    ['autonomyRatio', summarize(autonomyRatios)],
     // PROJ-329: cumulative flow diagram + time-in-state breakdown.
-    cfdOverTime,
-    timeInProgress: summarize(timeInProgress),
+    ['cfdOverTime', cfdOverTime],
+    ['timeInProgress', summarize(timeInProgress)],
     // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
-    arrivalVsCompletionOverTime,
-    flowEfficiency: summarize(flowEfficiencies),
-    agingWip,
+    ['arrivalVsCompletionOverTime', arrivalVsCompletionOverTime],
+    ['flowEfficiency', summarize(flowEfficiencies)],
+    ['agingWip', agingWip],
     // PROJ-334: factory health — fault signals for the machinery itself.
-    factoryHealth,
-  }
+    ['factoryHealth', factoryHealth],
+  ])
 }
 
 export type FlowMetrics = Awaited<ReturnType<typeof readFlowMetrics>>
