@@ -55,7 +55,9 @@ const CONCURRENCY = 4
 type ReadFailure = ApiError | ScopeError
 
 const workspaceSelection = function workspaceSelection(scope: RequestScope) {
-  return scope.selection.kind === 'project' || scope.selection.kind === 'workspace' ? scope.selection.workspace : null
+  return scope.selection.kind === 'project' || scope.selection.kind === 'workspace'
+    ? scope.selection.workspace
+    : undefined
 }
 const selectedProject = function selectedProject(scope: RequestScope) {
   return scope.selection.kind === 'project' ? scope.selection.project : null
@@ -241,20 +243,20 @@ const issueIdentifier = function issueIdentifier(
   url: URL,
   scope: RequestScope,
   params: IssueRouteParams,
-): string | null {
+): string | undefined {
   const id = url.searchParams.get('id')
   if (Predicate.isNotNullish(id) && String.isNonEmpty(id)) {
     return id
   }
   if (!params.issueNumber || !params.projectSlug) {
-    return null
+    return undefined
   }
   const project = selectedProject(scope)
   if (
     !project ||
     (params.projectSlug !== project.slug && params.projectSlug.toLowerCase() !== project.key.toLowerCase())
   ) {
-    return null
+    return undefined
   }
   const number = Number(params.issueNumber)
   if (!/^\d+$/u.test(params.issueNumber) || !Number.isSafeInteger(number) || number < 1) {
@@ -276,7 +278,7 @@ export const loadIssue = function loadIssue(
     const workspace =
       Predicate.isNotNullish(hint) && String.isNonEmpty(hint)
         ? scope.workspaces.find((entry) => entry.slug === hint)
-        : (workspaceSelection(scope) ?? (hasSingleItem(scope.workspaces) ? scope.workspaces[0] : null))
+        : (workspaceSelection(scope) ?? (hasSingleItem(scope.workspaces) ? scope.workspaces[0] : undefined))
     if (!workspace) {
       return null
     }

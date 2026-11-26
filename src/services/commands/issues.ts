@@ -171,7 +171,7 @@ const validateParent = async function validateParent(
   })
 }
 
-function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
+const buildIssueUrl = function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
   return issueRecord.project_key
     ? issuePath(issueRecord.project_key as string, issueRecord.number as number, issueRecord.title as string)
     : null
@@ -199,7 +199,7 @@ export async function listIssues(ctx: ServiceCtx, raw: unknown): Promise<ListedI
   }
   const field = filters.cfKey
     ? await Effect.runPromise(issueQueries.findIssueCustomField(ctx.db, ctx.workspaceId, filters.cfKey))
-    : null
+    : undefined
   if (filters.cfKey && !field) {
     throw new ValidationError(validationIssues([`Unknown custom field key: ${filters.cfKey}`], {}))
   }
