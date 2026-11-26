@@ -47,6 +47,12 @@ const MIN_AGE_SECONDS = 0
 const EMPTY_AXIS_MAX_SECONDS = 1
 const AGE_AXIS_HEADROOM = 1.1
 
+const fractionAxisDomain: [number, number] = [MIN_FRACTION, MAX_FRACTION]
+const wipTimeDomain: ['dataMin', 'dataMax'] = ['dataMin', 'dataMax']
+const agingStatusDomain: [number, number] = [MIN_STATUS_AXIS, MAX_STATUS_AXIS]
+const agingStatusTicks = [IN_PROGRESS_COLUMN, IN_REVIEW_COLUMN]
+const seriesDot = { r: 3 }
+
 export const formatShortDate = function formatShortDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00Z`)
   return Number.isNaN(date.getTime())
@@ -150,6 +156,14 @@ const valueFormatter = function valueFormatter(
       </div>
     )
 }
+const formatTooltipDate = function formatTooltipDate(label: unknown): string {
+  return formatFullDate(String(label))
+}
+
+const formatCompletedCount = function formatCompletedCount(value: number): string {
+  return `${value} completed`
+}
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const DateTooltip = function DateTooltip({
   config,
@@ -162,7 +176,7 @@ const DateTooltip = function DateTooltip({
     <ChartTooltip
       content={
         <ChartTooltipContent
-          labelFormatter={(label) => formatFullDate(String(label))}
+          labelFormatter={formatTooltipDate}
           formatter={formatValue ? valueFormatter(config ?? {}, formatValue) : undefined}
         />
       }
@@ -185,7 +199,7 @@ export const ThroughputChart = function ThroughputChart({
         <CartesianGrid vertical={false} />
         <DateAxis />
         <CountAxis />
-        <DateTooltip config={throughputConfig} formatValue={(value) => `${value} completed`} />
+        <DateTooltip config={throughputConfig} formatValue={formatCompletedCount} />
         <Bar
           dataKey='count'
           fill='var(--color-count)'
@@ -267,13 +281,7 @@ export function BugShareChart({
       <LineChart accessibilityLayer data={data} margin={margin}>
         <CartesianGrid vertical={false} />
         <DateAxis />
-        <YAxis
-          domain={[MIN_FRACTION, MAX_FRACTION]}
-          tickFormatter={formatPercent}
-          tickLine={false}
-          axisLine={false}
-          width={42}
-        />
+        <YAxis domain={fractionAxisDomain} tickFormatter={formatPercent} tickLine={false} axisLine={false} width={42} />
         <DateTooltip config={bugConfig} formatValue={formatPercent} />
         <Line
           dataKey='bugSharePercent'
@@ -281,7 +289,7 @@ export function BugShareChart({
           connectNulls={false}
           stroke='var(--color-bugSharePercent)'
           strokeWidth={2}
-          dot={{ r: 3 }}
+          dot={seriesDot}
           isAnimationActive={false}
         />
       </LineChart>
@@ -307,7 +315,7 @@ export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyO
           connectNulls={false}
           stroke='var(--color-p50)'
           strokeWidth={2}
-          dot={{ r: 3 }}
+          dot={seriesDot}
           isAnimationActive={false}
         />
       </LineChart>
@@ -316,6 +324,17 @@ export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyO
 }
 const wipConfig = { count: chartSeries('WIP', accent) } satisfies ChartConfig
 const timestampDate = (value: number): string => formatUtcDatePrefix(new Date(value))
+
+const formatWipTick = function formatWipTick(value: number): string {
+  return formatShortDate(timestampDate(value))
+}
+
+const formatWipTooltipDate: NonNullable<ComponentProps<typeof ChartTooltipContent>['labelFormatter']> =
+  function formatWipTooltipDate(_label, payload): string {
+    const date: unknown = payload[0]?.payload?.date
+    return Predicate.isString(date) ? formatFullDate(date) : ''
+  }
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.Element {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])
@@ -330,8 +349,8 @@ export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.El
           dataKey='timestamp'
           type='number'
           scale='time'
-          domain={['dataMin', 'dataMax']}
-          tickFormatter={(value: number) => formatShortDate(timestampDate(value))}
+          domain={wipTimeDomain}
+          tickFormatter={formatWipTick}
           tickLine={false}
           axisLine={false}
           minTickGap={24}
@@ -340,10 +359,7 @@ export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }): JSX.El
         <ChartTooltip
           content={
             <ChartTooltipContent
-              labelFormatter={(_label, payload) => {
-                const date: unknown = payload[0]?.payload?.date
-                return Predicate.isString(date) ? formatFullDate(date) : ''
-              }}
+              labelFormatter={formatWipTooltipDate}
               formatter={valueFormatter(wipConfig, (value) => `${value} in progress`)}
             />
           }
@@ -457,6 +473,10 @@ const p90GuideLabel = fieldsInOrder([
   ['fontSize', GUIDE_LABEL_FONT_SIZE],
 ])
 
+const formatAgingStatus = function formatAgingStatus(value: number): string {
+  return value === IN_PROGRESS_COLUMN ? 'In progress' : 'In review'
+}
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function AgingWipScatter({
   data,
@@ -491,6 +511,10 @@ export function AgingWipScatter({
     p50 ?? MIN_AGE_SECONDS,
     p90 ?? MIN_AGE_SECONDS,
   )
+  const ageDomain = useMemo<[number, number]>(
+    () => [MIN_AGE_SECONDS, maxAge === MIN_AGE_SECONDS ? EMPTY_AXIS_MAX_SECONDS : maxAge * AGE_AXIS_HEADROOM],
+    [maxAge],
+  )
   if (!data.length) {
     return <EmptyChartState message='No issues currently in progress or review' />
   }
@@ -501,16 +525,16 @@ export function AgingWipScatter({
         <XAxis
           dataKey='x'
           type='number'
-          domain={[MIN_STATUS_AXIS, MAX_STATUS_AXIS]}
-          ticks={[IN_PROGRESS_COLUMN, IN_REVIEW_COLUMN]}
-          tickFormatter={(value: number) => (value === IN_PROGRESS_COLUMN ? 'In progress' : 'In review')}
+          domain={agingStatusDomain}
+          ticks={agingStatusTicks}
+          tickFormatter={formatAgingStatus}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
           dataKey='ageSeconds'
           type='number'
-          domain={[MIN_AGE_SECONDS, maxAge === MIN_AGE_SECONDS ? EMPTY_AXIS_MAX_SECONDS : maxAge * AGE_AXIS_HEADROOM]}
+          domain={ageDomain}
           tickFormatter={formatDuration}
           tickLine={false}
           axisLine={false}
