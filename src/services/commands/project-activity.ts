@@ -1,14 +1,18 @@
-import { Predicate } from 'effect'
+import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
 import { NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
+const MIN_ACTIVITY_PAGE_SIZE = 1
+const MAX_ACTIVITY_PAGE_SIZE = 200
+const DEFAULT_ACTIVITY_PAGE_SIZE = 50
+
 const ListProjectActivitySchema = z.object({
   projectId: z.uuid(),
   since: z.number().int().optional(),
-  limit: z.number().int().min(1).max(200).default(50),
+  limit: z.number().int().min(MIN_ACTIVITY_PAGE_SIZE).max(MAX_ACTIVITY_PAGE_SIZE).default(DEFAULT_ACTIVITY_PAGE_SIZE),
 })
 
 export interface ActivityEvent {
@@ -162,5 +166,5 @@ export const listProjectActivity = async function listProjectActivity(
 
   const all = await fetchActivityRows(ctx, projectId, since, limit)
   all.sort((left, right) => right.created_at - left.created_at)
-  return all.slice(0, limit)
+  return Array.take(all, limit)
 }

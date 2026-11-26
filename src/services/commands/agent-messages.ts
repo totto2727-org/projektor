@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, sql } from 'drizzle-orm'
-import { String, Array, Predicate } from 'effect'
+import { String, Array, Predicate, Number } from 'effect'
 import { flattenError } from 'zod'
 
 import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -18,6 +18,10 @@ import type { ServiceCtx } from './types.ts'
  * files, so importing back from here would cycle.
  */
 const SESSION_TTL_SECONDS = 120
+const MESSAGE_CURSOR_SEPARATOR = ':'
+const CURSOR_TIMESTAMP_START = 0
+const CURSOR_TIMESTAMP_RADIX = 10
+const LAST_ITEM_OFFSET = -1
 
 /*
  * PROJ-929: a post_message call that carries an already-live agentId implicitly
@@ -166,9 +170,9 @@ export const listMessages = async function listMessages(ctx: ServiceCtx, raw: un
    */
   let cursorFilter: ReturnType<typeof and> | undefined
   if (Predicate.isNotNullish(cursor)) {
-    const sep = cursor.lastIndexOf(':')
-    const cursorTime = parseInt(cursor.slice(0, sep), 10)
-    const cursorId = cursor.slice(sep + 1)
+    const sep = cursor.lastIndexOf(MESSAGE_CURSOR_SEPARATOR)
+    const cursorTime = parseInt(cursor.slice(CURSOR_TIMESTAMP_START, sep), CURSOR_TIMESTAMP_RADIX)
+    const cursorId = cursor.slice(sep + MESSAGE_CURSOR_SEPARATOR.length)
     cursorFilter = and(
       eq(schema.agentMessages.workspaceId, ctx.workspaceId),
       eq(schema.agentMessages.scope, scope),
@@ -186,11 +190,11 @@ export const listMessages = async function listMessages(ctx: ServiceCtx, raw: un
       cursorFilter ?? and(eq(schema.agentMessages.workspaceId, ctx.workspaceId), eq(schema.agentMessages.scope, scope)),
     )
     .orderBy(asc(schema.agentMessages.createdAt), asc(schema.agentMessages.id))
-    .limit(limit + 1)
+    .limit(Number.increment(limit))
 
   const hasMore = rows.length > limit
-  const items = hasMore ? rows.slice(0, limit) : rows
-  const lastItem = items[items.length - 1] as { createdAt: number; id: string } | undefined
+  const items = hasMore ? Array.take(rows, limit) : rows
+  const lastItem = items.at(LAST_ITEM_OFFSET)
   const nextCursor = hasMore && lastItem ? `${lastItem.createdAt}:${lastItem.id}` : null
 
   return { items, nextCursor }
