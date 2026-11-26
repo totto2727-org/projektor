@@ -15,7 +15,7 @@ import type { SavedView, SavedViewFilters } from '@/features/issues/components/s
 import { RequiredText, useIssueForm } from '@/features/issues/forms.ts'
 
 interface SavedViews {
-  activeViewName: string | null
+  activeViewName: string | undefined
   applyView: (view: SavedView) => void
   deleteView: (name: string) => void
   doSaveView: () => Promise<void>
@@ -45,7 +45,7 @@ export const useSavedViews = function useSavedViews(
 ): SavedViews {
   const storageKey = viewsStorageKey(`${userId}:${workspaceSlug}:${filterProject}`)
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
-  const [activeViewName, setActiveViewName] = useState<string | null>(null)
+  const [activeViewName, setActiveViewName] = useState<string>()
   const [showSaveInput, setShowSaveInput] = useState(false)
   const nameForm = useIssueForm({ name: '' }, Schema.Struct({ name: RequiredText }))
   const [saveViewName, setSaveViewName] = nameForm.field('name')
@@ -55,7 +55,7 @@ export const useSavedViews = function useSavedViews(
     } catch {
       setSavedViews([])
     }
-    setActiveViewName(null)
+    setActiveViewName(undefined)
   }, [storageKey])
   useEffect(() => {
     if (Predicate.isNullish(activeViewName) || String.isEmpty(activeViewName)) {
@@ -63,7 +63,7 @@ export const useSavedViews = function useSavedViews(
     }
     const active = savedViews.find((view) => view.name === activeViewName)
     if (!active || !filtersMatch(currentFilters, active.filters)) {
-      setActiveViewName(null)
+      setActiveViewName(undefined)
     }
   }, [currentFilters, activeViewName, savedViews])
   const persist = function persist(updated: SavedView[]): void {
@@ -87,7 +87,7 @@ export const useSavedViews = function useSavedViews(
   const deleteView = function deleteView(name: string): void {
     persist(removeView(savedViews, name))
     if (activeViewName === name) {
-      setActiveViewName(null)
+      setActiveViewName(undefined)
     }
   }
   const applyView = function applyView(view: SavedView): void {

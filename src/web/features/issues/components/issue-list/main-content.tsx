@@ -18,8 +18,8 @@ interface MainContentProps {
   view: ViewMode
   issues: Issue[]
   statuses: TaskStatus[]
-  updatingId: string | null
-  updatingPriorityId: string | null
+  updatingId: string | undefined
+  updatingPriorityId: string | undefined
   changeStatus: (issueId: string, statusId: string) => void
   changePriority: (issueId: string, priority: string) => void
   sortBy: SortKey

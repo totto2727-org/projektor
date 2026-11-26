@@ -14,8 +14,8 @@ import { StatusSelect } from './status-select.tsx'
 interface RowProps {
   issue: Issue
   statuses: TaskStatus[]
-  updatingId: string | null
-  updatingPriorityId: string | null
+  updatingId: string | undefined
+  updatingPriorityId: string | undefined
   changeStatus: (issueId: string, statusId: string) => void
   changePriority: (issueId: string, priority: string) => void
   isDragging: boolean

@@ -8,9 +8,9 @@ import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
 interface IssueMutations {
   changePriority: (issueId: string, priority: string) => Promise<void>
   changeStatus: (issueId: string, statusId: string) => Promise<void>
-  updateError: string | null
-  updatingId: string | null
-  updatingPriorityId: string | null
+  updateError: string | undefined
+  updatingId: string | undefined
+  updatingPriorityId: string | undefined
 }
 
 /**
@@ -24,33 +24,33 @@ export const useIssueMutations = function useIssueMutations(
   workspaceSlug: string | undefined,
   statuses: Readonly<TaskStatus[]>,
 ): IssueMutations {
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [updatingPriorityId, setUpdatingPriorityId] = useState<string | null>(null)
-  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [updatingId, setUpdatingId] = useState<string>()
+  const [updatingPriorityId, setUpdatingPriorityId] = useState<string>()
+  const [updateError, setUpdateError] = useState<string>()
 
   const changeStatus = async function changeStatus(issueId: string, statusId: string): Promise<void> {
     if (!statuses.some((status) => status.id === statusId)) {
       return
     }
-    setUpdateError(null)
+    setUpdateError(undefined)
     setUpdatingId(issueId)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { statusId } }))
     } catch (error) {
       setUpdateError(`Status update failed: ${String(error)}`)
     }
-    setUpdatingId(null)
+    setUpdatingId(undefined)
   }
 
   const changePriority = async function changePriority(issueId: string, priority: string): Promise<void> {
-    setUpdateError(null)
+    setUpdateError(undefined)
     setUpdatingPriorityId(issueId)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { priority } }))
     } catch (error) {
       setUpdateError(`Priority update failed: ${String(error)}`)
     }
-    setUpdatingPriorityId(null)
+    setUpdatingPriorityId(undefined)
   }
   return { updatingId, updatingPriorityId, updateError, changeStatus, changePriority }
 }

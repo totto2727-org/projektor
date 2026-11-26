@@ -334,7 +334,7 @@ export function FiltersPopover({
   const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const [popoverPos, setPopoverPos] = useState<FiltersPopoverPos | null>(null)
+  const [popoverPos, setPopoverPos] = useState<FiltersPopoverPos>()
 
   const reposition = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect()

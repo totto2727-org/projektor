@@ -12,7 +12,7 @@ import { PrioritySelect } from './priority-select.tsx'
 
 type MobileCardsProps = Readonly<{
   issues: Readonly<Issue[]>
-  updatingPriorityId: string | null
+  updatingPriorityId: string | undefined
   changePriority: (issueId: string, priority: string) => void
 }>
 
