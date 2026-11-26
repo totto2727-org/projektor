@@ -1,9 +1,13 @@
 'use client'
-import { Array } from 'effect'
+import { Array, Schema } from 'effect'
 
 import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 
 import type { ProjectMeta } from './types.ts'
+
+const hasStatusId = Schema.is(Schema.Struct({ status_id: Schema.NonEmptyString }))
+const hasProjectKey = Schema.is(Schema.Struct({ project_key: Schema.NonEmptyString }))
+const hasTypeKey = Schema.is(Schema.Struct({ type_key: Schema.NonEmptyString }))
 
 /**
  * Description of the active project filter, for the banner under the toolbar.
@@ -39,13 +43,11 @@ export const deriveStatusOptions = function deriveStatusOptions(
   return [
     ...new Map(
       issues
-        .filter((issue) => issue.status_id)
+        .filter((issue) => hasStatusId(issue))
         .map((issue) => [
-          // Filter above guarantees status_id is set
-          issue.status_id!,
+          issue.status_id,
           {
-            // Filter above guarantees status_id is set
-            id: issue.status_id!,
+            id: issue.status_id,
             key: issue.status_key ?? '',
             name: issue.status_name ?? issue.status_key ?? '',
             category: issue.status_category ?? '',
@@ -62,13 +64,8 @@ export const deriveProjectOptions = function deriveProjectOptions(
   return [
     ...new Map(
       issues
-        .filter((issue) => issue.project_key)
-        .map((issue) => [
-          // Filter above guarantees project_key is set
-          issue.project_key!,
-          // Filter above guarantees project_key is set
-          { key: issue.project_key!, name: issue.project_name ?? issue.project_key! },
-        ]),
+        .filter((issue) => hasProjectKey(issue))
+        .map((issue) => [issue.project_key, { key: issue.project_key, name: issue.project_name ?? issue.project_key }]),
     ).values(),
   ]
 }
@@ -76,14 +73,7 @@ export const deriveProjectOptions = function deriveProjectOptions(
 export const deriveTypeOptions = function deriveTypeOptions(issues: Readonly<Issue[]>): [string, string][] {
   return [
     ...new Map(
-      issues
-        .filter((issue) => issue.type_key)
-        .map((issue) => [
-          // Filter above guarantees type_key is set
-          issue.type_key!,
-          // Filter above guarantees type_key is set
-          issue.type_name ?? issue.type_key!,
-        ]),
+      issues.filter((issue) => hasTypeKey(issue)).map((issue) => [issue.type_key, issue.type_name ?? issue.type_key]),
     ).entries(),
   ]
 }
