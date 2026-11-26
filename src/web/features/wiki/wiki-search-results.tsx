@@ -26,7 +26,7 @@ export function SearchResultsList({
     <ul className='list-none m-0 p-0'>
       {results.map((result) => (
         <li key={result.id}>
-          <SearchResultButton r={result} onSelect={onSelect} />
+          <SearchResultButton result={result} onSelect={onSelect} />
         </li>
       ))}
     </ul>

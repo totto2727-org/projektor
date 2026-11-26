@@ -1,32 +1,20 @@
 'use client'
 
-import type { JSX } from 'react'
+import { useCallback } from 'react'
+import type { ChangeEvent, JSX } from 'react'
 
 import { Select } from '@/components/ui/select.tsx'
 import type { SelectOption } from '@/components/ui/select.tsx'
 
 const WIKI_STATUS_FILTER_OPTIONS: SelectOption[] = [
-  { value: '', label: 'All statuses' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'current', label: 'Current' },
-  { value: 'stale', label: 'Stale' },
-  { value: 'deprecated', label: 'Deprecated' },
+  { label: 'All statuses', value: '' },
+  { label: 'Draft', value: 'draft' },
+  { label: 'Current', value: 'current' },
+  { label: 'Stale', value: 'stale' },
+  { label: 'Deprecated', value: 'deprecated' },
 ]
 
-/*
- * PROJ-488: type/status dropdowns + a comma-separated tags text filter, shared between
- * the sidebar's filtered browse view and (via useWikiSearch) text search.
- */
-// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
-export function WikiFilterBar({
-  filterType,
-  onFilterTypeChange,
-  typeOptions,
-  filterStatus,
-  onFilterStatusChange,
-  filterTags,
-  onFilterTagsChange,
-}: {
+interface WikiFilterBarProps {
   filterType: string
   onFilterTypeChange: (type: string) => void
   typeOptions: SelectOption[]
@@ -34,7 +22,29 @@ export function WikiFilterBar({
   onFilterStatusChange: (selectedStatus: string) => void
   filterTags: string
   onFilterTagsChange: (tags: string) => void
-}): JSX.Element {
+}
+
+/*
+ * PROJ-488: type/status dropdowns + a comma-separated tags text filter, shared between
+ * the sidebar's filtered browse view and (via useWikiSearch) text search.
+ */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function WikiFilterBar(props: WikiFilterBarProps): JSX.Element {
+  const {
+    filterType,
+    onFilterTypeChange,
+    typeOptions,
+    filterStatus,
+    onFilterStatusChange,
+    filterTags,
+    onFilterTagsChange,
+  } = props
+  const handleTagChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>): void => {
+      onFilterTagsChange(event.target.value)
+    },
+    [onFilterTagsChange],
+  )
   return (
     <div className='mb-3 flex flex-col gap-1.5'>
       <input type='hidden' name='type' value={filterType} />
@@ -56,9 +66,7 @@ export function WikiFilterBar({
         name='tags'
         maxLength={2549}
         value={filterTags}
-        onChange={(event) => {
-          onFilterTagsChange(event.target.value)
-        }}
+        onChange={handleTagChange}
         placeholder='Filter by tags (comma-separated)…'
         className='w-full px-3 py-[0.375rem] border border-border rounded text-sm bg-bg text-text-base box-border'
         aria-label='Filter wiki pages by tags'

@@ -1,6 +1,7 @@
 'use client'
 
 import { Array } from 'effect'
+import { useCallback, useMemo } from 'react'
 import type { JSX } from 'react'
 
 import { WIKI_PAGE_LIST_ITEM_CLASS } from './wiki-page-list-style.ts'
@@ -27,18 +28,23 @@ export function TreeNodeItem({
   onNavigate: (slug: string) => void
 }): JSX.Element {
   const isActive = currentSlug === node.slug
+  const style = useMemo(
+    () => ({ paddingLeft: `${TREE_BASE_PADDING_REM + depth * TREE_PADDING_PER_LEVEL_REM}rem` }),
+    [depth],
+  )
+  const handleNavigate = useCallback((): void => {
+    onNavigate(node.slug)
+  }, [node.slug, onNavigate])
   return (
     <li>
       <button
         type='button'
         className={`${WIKI_PAGE_LIST_ITEM_CLASS} ${isActive ? '!bg-accent !text-white font-semibold' : ''}`}
-        style={{ paddingLeft: `${TREE_BASE_PADDING_REM + depth * TREE_PADDING_PER_LEVEL_REM}rem` }}
-        onClick={() => {
-          onNavigate(node.slug)
-        }}
+        style={style}
+        onClick={handleNavigate}
         aria-current={isActive ? 'page' : undefined}
       >
-        {depth > ROOT_TREE_DEPTH && <span className='text-text-muted mr-1'>{'›'}</span>}
+        {depth > ROOT_TREE_DEPTH && <span className='text-text-muted mr-1'>›</span>}
         {node.title}
       </button>
       {Array.isArrayNonEmpty(node.children) && (

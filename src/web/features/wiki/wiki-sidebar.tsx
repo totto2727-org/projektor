@@ -102,7 +102,7 @@ export function WikiSidebar({
       ref={sidebarRef}
       inert={isMobile && !drawerOpen}
     >
-      <ScopeControl workspaceSlug={workspaceSlug} projectId={projectId} />
+      <ScopeControl projectId={projectId} />
       {!isPublicViewer && (
         <Button variant='primary' onClick={onCreate} className='w-full mb-4 max-sm:min-h-[44px]'>
           + New page
