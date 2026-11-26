@@ -1,5 +1,7 @@
 import { assert, describe, expect, test } from 'vite-plus/test'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
@@ -55,10 +57,13 @@ describe('covers MCP prompts', () => {
 
   test('prompts/get with only epicRef returns the composed directive as a user message', async () => {
     const { epicNumber, mcpCall } = await seedPromptFixture()
-    const json = (await mcpCall('prompts/get', {
-      name: 'epic-goal',
-      arguments: { epicRef: `PROJ-${epicNumber}` },
-    })) as JsonRpcResult<{
+    const json = (await mcpCall(
+      'prompts/get',
+      fieldsInOrder([
+        ['name', 'epic-goal'],
+        ['arguments', { epicRef: `PROJ-${epicNumber}` }],
+      ]),
+    )) as JsonRpcResult<{
       description: string
       messages: { role: string; content: { type: string; text: string } }[]
     }>
@@ -73,16 +78,22 @@ describe('covers MCP prompts', () => {
 
   test('prompts/get honors string-valued variant/reviewModel/cadence/checkpointInterval arguments', async () => {
     const { epicNumber, mcpCall } = await seedPromptFixture()
-    const json = (await mcpCall('prompts/get', {
-      name: 'epic-goal',
-      arguments: {
-        epicRef: `PROJ-${epicNumber}`,
-        variant: 'full',
-        reviewModel: 'sonnet',
-        cadence: '5',
-        checkpointInterval: '3',
-      },
-    })) as JsonRpcResult<{ messages: { content: { text: string } }[] }>
+    const json = (await mcpCall(
+      'prompts/get',
+      fieldsInOrder([
+        ['name', 'epic-goal'],
+        [
+          'arguments',
+          {
+            epicRef: `PROJ-${epicNumber}`,
+            variant: 'full',
+            reviewModel: 'sonnet',
+            cadence: '5',
+            checkpointInterval: '3',
+          },
+        ],
+      ]),
+    )) as JsonRpcResult<{ messages: { content: { text: string } }[] }>
     const { text } = json.result.messages[0].content
     expect(text).toContain('Self-feed (full)')
     expect(text).toContain('every 5 completed tickets')

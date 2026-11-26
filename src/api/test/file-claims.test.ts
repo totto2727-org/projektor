@@ -2,6 +2,7 @@ import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { configureCore, env } from './fixture-api.ts'
@@ -257,7 +258,14 @@ describe('file Claims API', () => {
 
     // Second issue steals it
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue 2' })
-    const forceRes = await claimFiles({ issueId: issue2.id, paths: ['src/steal.ts'], force: true }, { slug, token })
+    const forceRes = await claimFiles(
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['paths', ['src/steal.ts']],
+        ['force', true],
+      ]),
+      { slug, token },
+    )
     expect(forceRes.status).toBe(201)
     const forceBody = await readNativeJson(forceRes, ApiResults.apiClaimFiles)
     expect(forceBody.created).toHaveLength(1)
@@ -284,7 +292,13 @@ describe('file Claims API', () => {
   }) => {
     await claimFiles({ issueId, paths: ['src/release-me.ts'] }, { slug, token })
 
-    const releaseRes = await releaseFiles({ paths: ['src/release-me.ts'], issueId }, { slug, token })
+    const releaseRes = await releaseFiles(
+      fieldsInOrder([
+        ['paths', ['src/release-me.ts']],
+        ['issueId', issueId],
+      ]),
+      { slug, token },
+    )
     expect(releaseRes.status).toBe(200)
     const releaseBodyShape = Schema.Struct({
       count: Schema.Number,
@@ -315,11 +329,11 @@ describe('file Claims API', () => {
 
     // Claim a file as that agent
     const agentClaimRes = await claimFiles(
-      {
-        issueId,
-        agentId: agent.id,
-        paths: ['src/agent-file.ts'],
-      },
+      fieldsInOrder([
+        ['issueId', issueId],
+        ['agentId', agent.id],
+        ['paths', ['src/agent-file.ts']],
+      ]),
       { slug, token },
     )
     expect(agentClaimRes.status).toBe(201)
@@ -431,11 +445,11 @@ describe('file Claims API', () => {
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Forcing issue' })
     const res = await claimFiles(
-      {
-        issueId: issue2.id,
-        paths: ['src/force-log.ts'],
-        force: true,
-      },
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['paths', ['src/force-log.ts']],
+        ['force', true],
+      ]),
       { slug, token },
     )
     expect(res.status).toBe(201)
@@ -492,11 +506,11 @@ describe('file Claims API', () => {
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Force claims' })
     const forceRes = await claimFiles(
-      {
-        issueId: issue2.id,
-        paths: ['src/message-on-force.ts'],
-        force: true,
-      },
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['paths', ['src/message-on-force.ts']],
+        ['force', true],
+      ]),
       { slug, token },
     )
     expect(forceRes.status).toBe(201)
@@ -525,11 +539,11 @@ describe('file Claims API', () => {
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Force claims' })
     const forceRes = await claimFiles(
-      {
-        issueId: issue2.id,
-        paths: ['src/multi-a.ts', 'src/multi-b.ts', 'src/multi-c.ts'],
-        force: true,
-      },
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['paths', ['src/multi-a.ts', 'src/multi-b.ts', 'src/multi-c.ts']],
+        ['force', true],
+      ]),
       { slug, token },
     )
     expect(forceRes.status).toBe(201)
@@ -561,7 +575,14 @@ describe('file Claims API', () => {
     }) => {
       // 200s > the 120s TTL. Status stays 'active' — that is the whole point.
       const dead = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 200 })
-      const result = await claimFiles({ issueId, agentId: dead, paths: ['src/abandoned.ts'] }, { slug, token })
+      const result = await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', dead],
+          ['paths', ['src/abandoned.ts']],
+        ]),
+        { slug, token },
+      )
       expect(result.status).toBe(201)
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Takes over' })
@@ -588,7 +609,14 @@ describe('file Claims API', () => {
       issueFixture: { issueId, projectId, slug, token, userId, workspaceId },
     }) => {
       const dead = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 200 })
-      await claimFiles({ issueId, agentId: dead, paths: ['src/reason.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', dead],
+          ['paths', ['src/reason.ts']],
+        ]),
+        { slug, token },
+      )
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Takes over' })
       await claimFiles({ issueId: issue2.id, paths: ['src/reason.ts'] }, { slug, token })
@@ -614,7 +642,14 @@ describe('file Claims API', () => {
        * would satisfy every other test in this block.
        */
       const live = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 5, name: 'live-agent' })
-      await claimFiles({ issueId, agentId: live, paths: ['src/held.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', live],
+          ['paths', ['src/held.ts']],
+        ]),
+        { slug, token },
+      )
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Blocked' })
       const resolvedValue = await claimFiles({ issueId: issue2.id, paths: ['src/held.ts'] }, { slug, token })
@@ -642,7 +677,14 @@ describe('file Claims API', () => {
       issueFixture: { issueId, projectId, slug, token, userId, workspaceId },
     }) => {
       const dead = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 200 })
-      await claimFiles({ issueId, agentId: dead, paths: ['src/no-conflict.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', dead],
+          ['paths', ['src/no-conflict.ts']],
+        ]),
+        { slug, token },
+      )
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Takes over' })
       await claimFiles({ issueId: issue2.id, paths: ['src/no-conflict.ts'] }, { slug, token })
@@ -664,7 +706,14 @@ describe('file Claims API', () => {
        * holder being dead, not from conflict recording having been broken outright.
        */
       const live = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 5 })
-      await claimFiles({ issueId, agentId: live, paths: ['src/live-conflict.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', live],
+          ['paths', ['src/live-conflict.ts']],
+        ]),
+        { slug, token },
+      )
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Rejected' })
       await claimFiles({ issueId: issue2.id, paths: ['src/live-conflict.ts'] }, { slug, token })
@@ -685,9 +734,23 @@ describe('file Claims API', () => {
        */
       const dead = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 200 })
       const live = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 5 })
-      await claimFiles({ issueId, agentId: dead, paths: ['src/dead-path.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', dead],
+          ['paths', ['src/dead-path.ts']],
+        ]),
+        { slug, token },
+      )
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Live holder' })
-      await claimFiles({ issueId: issue2.id, agentId: live, paths: ['src/live-path.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issue2.id],
+          ['agentId', live],
+          ['paths', ['src/live-path.ts']],
+        ]),
+        { slug, token },
+      )
 
       const issue3 = await seedIssue(workspaceId, projectId, userId, { title: 'Wants both' })
       const res = await claimFiles(
@@ -715,10 +778,24 @@ describe('file Claims API', () => {
       issueFixture: { issueId, projectId, slug, token, userId, workspaceId },
     }) => {
       const dead = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 200 })
-      await claimFiles({ issueId, agentId: dead, paths: ['src/listed-dead.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', dead],
+          ['paths', ['src/listed-dead.ts']],
+        ]),
+        { slug, token },
+      )
       const live = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 5 })
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Live' })
-      await claimFiles({ issueId: issue2.id, agentId: live, paths: ['src/listed-live.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issue2.id],
+          ['agentId', live],
+          ['paths', ['src/listed-live.ts']],
+        ]),
+        { slug, token },
+      )
 
       /*
        * PROJ-932: the default listing excludes stale holders outright — pass
@@ -742,7 +819,14 @@ describe('file Claims API', () => {
       issueFixture: { issueId, projectId, slug, token, userId, workspaceId },
     }) => {
       const live = await seedSession({ token, workspaceId }, { heartbeatAgeSecs: 5 })
-      await claimFiles({ issueId, agentId: live, paths: ['src/touch-live.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issueId],
+          ['agentId', live],
+          ['paths', ['src/touch-live.ts']],
+        ]),
+        { slug, token },
+      )
       const liveRow = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
         .bind(live)
         .first<{ last_heartbeat_at: number }>()
@@ -753,7 +837,14 @@ describe('file Claims API', () => {
         .bind(dead)
         .first<{ last_heartbeat_at: number }>()
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Dead claimer' })
-      await claimFiles({ issueId: issue2.id, agentId: dead, paths: ['src/touch-dead.ts'] }, { slug, token })
+      await claimFiles(
+        fieldsInOrder([
+          ['issueId', issue2.id],
+          ['agentId', dead],
+          ['paths', ['src/touch-dead.ts']],
+        ]),
+        { slug, token },
+      )
       const deadAfter = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
         .bind(dead)
         .first<{ last_heartbeat_at: number }>()
@@ -945,7 +1036,14 @@ describe('file Claims API', () => {
     }) => {
       const dead = await seedStaleAgentSession({ token, workspaceId })
       await expect(
-        claimFiles({ issueId, agentId: dead, paths: ['src/stale-agent-932.ts'] }, { slug, token }),
+        claimFiles(
+          fieldsInOrder([
+            ['issueId', issueId],
+            ['agentId', dead],
+            ['paths', ['src/stale-agent-932.ts']],
+          ]),
+          { slug, token },
+        ),
       ).resolves.toHaveProperty('status', 201)
 
       const withoutFlag = await listFileClaims({ path: 'src/stale-agent-932.ts' }, { slug, token })
@@ -953,10 +1051,10 @@ describe('file Claims API', () => {
       expect(activeClaims.items).toHaveLength(0)
 
       const withFlag = await listFileClaims(
-        {
-          path: 'src/stale-agent-932.ts',
-          includeStale: 'true',
-        },
+        fieldsInOrder([
+          ['path', 'src/stale-agent-932.ts'],
+          ['includeStale', 'true'],
+        ]),
         { slug, token },
       )
       const withBodyShape = Schema.Struct({
@@ -987,10 +1085,10 @@ describe('file Claims API', () => {
       expect(activeClaims.items).toHaveLength(0)
 
       const withFlag = await listFileClaims(
-        {
-          path: 'src/expired-agentless-932.ts',
-          includeStale: 'true',
-        },
+        fieldsInOrder([
+          ['path', 'src/expired-agentless-932.ts'],
+          ['includeStale', 'true'],
+        ]),
         { slug, token },
       )
       const withBodyShape = Schema.Struct({

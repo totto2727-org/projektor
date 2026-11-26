@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { ApiResults } from '#contracts/api-results.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { SQL_NULL } from '#db/sql-null.ts'
 
@@ -48,7 +49,10 @@ const mcpToolResult = async function mcpToolResult<T>(
   const res = await mcpCall<{ content: { text: string }[]; isError?: boolean }>(
     workspaceId,
     'tools/call',
-    { name, arguments: toolArgs },
+    fieldsInOrder([
+      ['name', name],
+      ['arguments', toolArgs],
+    ]),
     headers,
   )
   if ('error' in res) {
@@ -915,7 +919,10 @@ describe('files MCP tools', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_attachment', arguments: { id: crypto.randomUUID() } },
+      fieldsInOrder([
+        ['name', 'get_attachment'],
+        ['arguments', { id: crypto.randomUUID() }],
+      ]),
       authHeaders(token, slug),
     )
     expect('error' in (res as object)).toBe(false)
@@ -927,15 +934,18 @@ describe('files MCP tools', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      {
-        name: 'create_link_attachment',
-        arguments: {
-          kind: 'wiki_ref',
-          entityType: 'issue',
-          entityId: crypto.randomUUID(),
-          wikiPageId: crypto.randomUUID(),
-        },
-      },
+      fieldsInOrder([
+        ['name', 'create_link_attachment'],
+        [
+          'arguments',
+          {
+            kind: 'wiki_ref',
+            entityType: 'issue',
+            entityId: crypto.randomUUID(),
+            wikiPageId: crypto.randomUUID(),
+          },
+        ],
+      ]),
       authHeaders(token, slug),
     )
     expect('error' in (res as object)).toBe(false)
@@ -981,15 +991,18 @@ describe('files MCP tools', () => {
     const res = await mcpCall(
       workspace.id,
       'tools/call',
-      {
-        name: 'create_link_attachment',
-        arguments: {
-          kind: 'url',
-          entityType: 'issue',
-          entityId: crypto.randomUUID(),
-          url: 'https://example.com',
-        },
-      },
+      fieldsInOrder([
+        ['name', 'create_link_attachment'],
+        [
+          'arguments',
+          {
+            kind: 'url',
+            entityType: 'issue',
+            entityId: crypto.randomUUID(),
+            url: 'https://example.com',
+          },
+        ],
+      ]),
       authHeaders(viewer.token, workspace.slug),
     )
     expect('error' in (res as object)).toBe(false)
@@ -1014,7 +1027,10 @@ describe('files MCP tools', () => {
     const res = await mcpCall(
       workspace.id,
       'tools/call',
-      { name: 'delete_attachment', arguments: { id: created.id } },
+      fieldsInOrder([
+        ['name', 'delete_attachment'],
+        ['arguments', { id: created.id }],
+      ]),
       authHeaders(viewer.token, workspace.slug),
     )
     expect('error' in (res as object)).toBe(false)
@@ -1333,7 +1349,10 @@ describe('attachment project visibility', () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
-      { name: 'get_attachment', arguments: { id: hiddenAttachmentId } },
+      fieldsInOrder([
+        ['name', 'get_attachment'],
+        ['arguments', { id: hiddenAttachmentId }],
+      ]),
       asMember(visibilityFixture),
     )
     expect('error' in (res as object)).toBe(false)

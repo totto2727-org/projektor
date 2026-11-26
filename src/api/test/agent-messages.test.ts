@@ -1,6 +1,7 @@
 import { Predicate, Schema } from 'effect'
 import { assert, describe, expect, test } from 'vite-plus/test'
 
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
@@ -178,14 +179,31 @@ describe('agent Messages API', () => {
      * must be accepted back by the argument validator.
      */
     const token5 = await seedToken(workspaceId, userId)
-    const p1Res = await mcpCall('list_messages', { scope, limit: 2 }, token5, slug)
+    const p1Res = await mcpCall(
+      'list_messages',
+      fieldsInOrder([
+        ['scope', scope],
+        ['limit', 2],
+      ]),
+      token5,
+      slug,
+    )
     const p1Body = await readNativeJson(p1Res, RpcTextResponse)
     const p1 = parseNativeMcpText(
       p1Body.result.content[0].text,
       Schema.Struct({ nextCursor: Schema.Union([Schema.String, Schema.Null]) }),
     )
     expect(p1.nextCursor).toSatisfy(Predicate.isString)
-    const p2Res = await mcpCall('list_messages', { scope, limit: 2, cursor: p1.nextCursor }, token5, slug)
+    const p2Res = await mcpCall(
+      'list_messages',
+      fieldsInOrder([
+        ['scope', scope],
+        ['limit', 2],
+        ['cursor', p1.nextCursor],
+      ]),
+      token5,
+      slug,
+    )
     const p2BodyShape = Schema.Struct({
       error: Schema.optional(Schema.Struct({ message: Schema.String })),
       result: Schema.optional(
@@ -251,11 +269,14 @@ describe('agent Messages API', () => {
     const agent2 = parseNativeMcpText(a2Body.result.content[0].text, IdResponse)
 
     // Agent 1 claims path A
-    const claimRes = await mcpCall('claim_files', {
-      issueId: issue2.id,
-      agentId: agent1.id,
-      paths: ['src/coord.ts'],
-    })
+    const claimRes = await mcpCall(
+      'claim_files',
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['agentId', agent1.id],
+        ['paths', ['src/coord.ts']],
+      ]),
+    )
     expect(claimRes.status).toBe(200)
     const claimBody = await readNativeJson(claimRes, RpcTextResponse)
     expect(JSON.parse(claimBody.result.content[0].text)).toMatchObject({
@@ -263,23 +284,29 @@ describe('agent Messages API', () => {
     })
 
     // Agent 2 tries to claim path A without force — expect conflict
-    const conflictRes = await mcpCall('claim_files', {
-      issueId: issue2.id,
-      agentId: agent2.id,
-      paths: ['src/coord.ts'],
-      force: false,
-    })
+    const conflictRes = await mcpCall(
+      'claim_files',
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['agentId', agent2.id],
+        ['paths', ['src/coord.ts']],
+        ['force', false],
+      ]),
+    )
     expect(conflictRes.status).toBe(200)
     const conflictBody = await readNativeJson(conflictRes, Schema.Struct({ error: Schema.optional(Schema.Unknown) }))
     expect(conflictBody.error).toBeUndefined()
     expect(toolError(conflictBody)?.code).toBe('conflict')
 
     // Agent 2 posts a message to the issue channel
-    const postMsgRes = await mcpCall('post_message', {
-      scope,
-      agentId: agent2.id,
-      body: 'agent2 needs src/coord.ts — can you release?',
-    })
+    const postMsgRes = await mcpCall(
+      'post_message',
+      fieldsInOrder([
+        ['scope', scope],
+        ['agentId', agent2.id],
+        ['body', 'agent2 needs src/coord.ts — can you release?'],
+      ]),
+    )
     expect(postMsgRes.status).toBe(200)
 
     // A fleet session belongs to its credential, not every token owned by this user.
@@ -294,17 +321,25 @@ describe('agent Messages API', () => {
     expect(readData.items.some((item) => item.body.includes('can you release?'))).toBe(true)
 
     // Agent 1 releases path A
-    const releaseRes = await mcpCall('release_files', { paths: ['src/coord.ts'], issueId: issue2.id }, token2, slug)
+    const releaseRes = await mcpCall(
+      'release_files',
+      fieldsInOrder([
+        ['paths', ['src/coord.ts']],
+        ['issueId', issue2.id],
+      ]),
+      token2,
+      slug,
+    )
     expect(releaseRes.status).toBe(200)
 
     // Agent 2 re-claims path A successfully
     const reclaimRes = await mcpCall(
       'claim_files',
-      {
-        issueId: issue2.id,
-        agentId: agent2.id,
-        paths: ['src/coord.ts'],
-      },
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['agentId', agent2.id],
+        ['paths', ['src/coord.ts']],
+      ]),
       token2,
       slug,
     )
@@ -319,11 +354,11 @@ describe('agent Messages API', () => {
     // Agent 1 claims path B so agent2 can force-steal it
     const claimBRes = await mcpCall(
       'claim_files',
-      {
-        issueId: issue2.id,
-        agentId: agent1.id,
-        paths: ['src/forced.ts'],
-      },
+      fieldsInOrder([
+        ['issueId', issue2.id],
+        ['agentId', agent1.id],
+        ['paths', ['src/forced.ts']],
+      ]),
       token2,
       slug,
     )
@@ -336,12 +371,12 @@ describe('agent Messages API', () => {
 
     const forceRes = await mcpCall(
       'claim_files',
-      {
-        issueId: issue3.id,
-        agentId: agent2.id,
-        paths: ['src/forced.ts'],
-        force: true,
-      },
+      fieldsInOrder([
+        ['issueId', issue3.id],
+        ['agentId', agent2.id],
+        ['paths', ['src/forced.ts']],
+        ['force', true],
+      ]),
       token3,
       slug,
     )
