@@ -463,6 +463,10 @@ export const getWikiDraft = function getWikiDraft(
 
 // Bounded LCS preserves the existing wiki conflict/revision diff contract.
 const MAX_DIFF_CELLS = 1_000_000
+const EMPTY_LCS_LENGTH = 0
+const FIRST_LINE_INDEX = 0
+const CHANGE_AFTER_FIRST = 1
+const DIFF_CONTEXT_EDGES = 2
 interface DiffOp {
   type: 'equal' | 'add' | 'remove'
   line: string
@@ -472,13 +476,17 @@ const buildLcsTable = function buildLcsTable(oldLines: Readonly<string[]>, newLi
   const oldCount = oldLines.length
   const newCount = newLines.length
   const dp: number[][] = globalThis.Array.from({ length: Number.increment(oldCount) }, () =>
-    globalThis.Array.from({ length: Number.increment(newCount) }, () => 0),
+    globalThis.Array.from({ length: Number.increment(newCount) }, () => EMPTY_LCS_LENGTH),
   )
-  for (let index = Number.decrement(oldCount); index >= 0; index = Number.decrement(index)) {
-    for (let newIndex = Number.decrement(newCount); newIndex >= 0; newIndex = Number.decrement(newIndex)) {
+  for (let index = Number.decrement(oldCount); index >= FIRST_LINE_INDEX; index = Number.decrement(index)) {
+    for (
+      let newIndex = Number.decrement(newCount);
+      newIndex >= FIRST_LINE_INDEX;
+      newIndex = Number.decrement(newIndex)
+    ) {
       dp[index][newIndex] =
         oldLines[index] === newLines[newIndex]
-          ? dp[Number.increment(index)][Number.increment(newIndex)] + 1
+          ? Number.increment(dp[Number.increment(index)][Number.increment(newIndex)])
           : Math.max(dp[Number.increment(index)][newIndex], dp[index][Number.increment(newIndex)])
     }
   }
@@ -547,8 +555,8 @@ export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, c
   const groups: [number, number][] = []
   let groupStart = changeIdxs[0]
   let groupEnd = changeIdxs[0]
-  Iterable.forEach(changeIdxs.slice(1), (idx) => {
-    if (idx - groupEnd <= CONTEXT * 2) {
+  Iterable.forEach(changeIdxs.slice(CHANGE_AFTER_FIRST), (idx) => {
+    if (idx - groupEnd <= CONTEXT * DIFF_CONTEXT_EDGES) {
       groupEnd = idx
     } else {
       groups.push([groupStart, groupEnd])
@@ -559,7 +567,7 @@ export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, c
   groups.push([groupStart, groupEnd])
   const hunks: string[] = []
   Iterable.forEach(groups, ([gStart, gEnd]) => {
-    const sliceStart = Math.max(0, gStart - CONTEXT)
+    const sliceStart = Math.max(FIRST_LINE_INDEX, gStart - CONTEXT)
     const sliceEnd = Math.min(Number.decrement(ops.length), gEnd + CONTEXT)
     const slice = ops.slice(sliceStart, Number.increment(sliceEnd))
     let oldStart = 1

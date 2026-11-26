@@ -19,6 +19,8 @@ import { outlineOf, sectionOf, WIKI_DEFAULT_MAX_CHARS, WIKI_MAX_CHARS, windowTex
 
 const DEFAULT_WIKI_SEARCH_LIMIT = 10
 const DEFAULT_WIKI_SEARCH_OFFSET = 0
+const CURSOR_OFFSET_STEP = 1
+const MIN_WIKI_WINDOW_CHARS = 1
 
 export const wikiReadTools: MCPTool[] = [
   {
@@ -85,18 +87,18 @@ export const wikiReadTools: MCPTool[] = [
       const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
       if (!isOmittedArgument(cursor)) {
         const offset = Number(cursor)
-        if (!Number.isInteger(offset) || offset < 0) {
+        if (!Number.isInteger(offset) || offset < DEFAULT_WIKI_SEARCH_OFFSET) {
           throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
         }
         rest.offset = offset
       }
       const items = (await wikiService.searchWiki(ctx, rest)) as unknown[]
       // A full page means there may be more: the cursor is the next offset.
-      const limit = Predicate.isNumber(rest.limit) ? rest.limit : 10
-      const offset = Predicate.isNumber(rest.offset) ? rest.offset : 0
+      const limit = Predicate.isNumber(rest.limit) ? rest.limit : DEFAULT_WIKI_SEARCH_LIMIT
+      const offset = Predicate.isNumber(rest.offset) ? rest.offset : DEFAULT_WIKI_SEARCH_OFFSET
       const page = toPage(items, items.length >= limit ? offset + limit : undefined)
       // A cut page resumes at the first dropped result.
-      return capPage(page, { cursorOf: (index) => globalThis.String(offset + index + 1) })
+      return capPage(page, { cursorOf: (index) => globalThis.String(offset + index + CURSOR_OFFSET_STEP) })
     },
     inputSchema: requiredObjectInputSchema(
       ['query'],
@@ -166,9 +168,9 @@ export const wikiReadTools: MCPTool[] = [
         section?: string
       }
       const max = maxChars ?? WIKI_DEFAULT_MAX_CHARS
-      if (!Number.isInteger(max) || max < 1 || max > WIKI_MAX_CHARS) {
+      if (!Number.isInteger(max) || max < MIN_WIKI_WINDOW_CHARS || max > WIKI_MAX_CHARS) {
         throw new ValidationError(
-          validationIssues([], { maxChars: [`must be an integer from 1 to ${WIKI_MAX_CHARS}`] }),
+          validationIssues([], { maxChars: [`must be an integer from ${MIN_WIKI_WINDOW_CHARS} to ${WIKI_MAX_CHARS}`] }),
         )
       }
       const page = await wikiService.getWikiPage(ctx, slug)

@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { Array, Iterable, Predicate } from 'effect'
+import { Array, Iterable, Predicate, Number } from 'effect'
 import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
@@ -30,6 +30,7 @@ interface ExportedPage {
  * against pathological page counts / attachment totals.
  */
 const MAX_EXPORT_PAGES = 500
+const EMPTY_EXPORT_BYTES = 0
 const MAX_EXPORT_ATTACHMENT_MEBIBYTES = 100
 const MAX_EXPORT_ATTACHMENT_BYTES = MAX_EXPORT_ATTACHMENT_MEBIBYTES * BYTES_PER_MEBIBYTE
 
@@ -163,7 +164,7 @@ const collectDescendantIds = async function collectDescendantIds(
      * continuing to accumulate ids and only rejecting after pagesByIds fetches every body.
      * +1 accounts for the root page, which isn't in `descendants`.
      */
-    assertPageCountAllowed(descendants.length + 1)
+    assertPageCountAllowed(Number.increment(descendants.length))
   }
   return descendants
 }
@@ -276,7 +277,7 @@ const reserveUniqueName = function reserveUniqueName(
   let suffix = 1
   let alt = altFor(suffix)
   while (usedNames.has(alt)) {
-    suffix += 1
+    suffix = Number.increment(suffix)
     alt = altFor(suffix)
   }
   usedNames.add(alt)
@@ -292,7 +293,7 @@ const reserveUniqueName = function reserveUniqueName(
  */
 const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<ReadableStream<Uint8Array>> {
   const attachments = await collectAttachments(ctx, pages)
-  const totalAttachmentBytes = attachments.reduce((sum, attachment) => sum + attachment.size, 0)
+  const totalAttachmentBytes = attachments.reduce((sum, attachment) => sum + attachment.size, EMPTY_EXPORT_BYTES)
   assertExportSizeAllowed(pages.length, totalAttachmentBytes)
 
   return new ReadableStream<Uint8Array>({
@@ -311,7 +312,7 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
           failStream(err)
           return
         }
-        if (chunk && chunk.length > 0) {
+        if (chunk && chunk.length > EMPTY_EXPORT_BYTES) {
           controller.enqueue(chunk)
         }
         if (final) {
@@ -391,7 +392,7 @@ export const exportWiki = async function exportWiki(
        * Fetch one row past the cap so an oversized space can be rejected here, before
        * content bodies for the full (potentially huge) page set are ever loaded.
        */
-      .limit(MAX_EXPORT_PAGES + 1)
+      .limit(Number.increment(MAX_EXPORT_PAGES))
     assertPageCountAllowed(pages.length)
 
     const stream = await buildZip(ctx, pages)
