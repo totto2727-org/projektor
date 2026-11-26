@@ -276,131 +276,157 @@ function SprintForm({
     defaultValues: defaults,
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
   })
-  return (
-    <form action={formAction}>
-      <input type='hidden' name='workspaceSlug' value={defaults.workspaceSlug} />
-      <input type='hidden' name='projectId' value={defaults.projectId} />
-      {sprintId && <input type='hidden' name='sprintId' value={sprintId} />}
-      <form.Subscribe selector={(state) => [state.values.start, state.values.end] as const}>
+  const renderOffsetFields = (): JSX.Element => {
+    const { Subscribe } = form
+    return (
+      <Subscribe selector={(state) => [state.values.start, state.values.end] as const}>
         {([start, end]) => (
           <>
             <input type='hidden' name='startOffset' value={calendarOffset(start)} />
             <input type='hidden' name='endOffset' value={calendarOffset(end)} />
           </>
         )}
-      </form.Subscribe>
-      <form.Subscribe
+      </Subscribe>
+    )
+  }
+  interface SprintFormStatus {
+    canSubmit: boolean
+    errors: typeof form.state.errors
+    showErrors: boolean
+  }
+  const renderSprintFields = ({ canSubmit, errors, showErrors }: SprintFormStatus): JSX.Element => {
+    const renderSprintNameField = (): JSX.Element => (
+      <div className='mb-4'>
+        <label className={LABEL} htmlFor={`${id}-name`}>
+          Name *
+        </label>
+        <form.Field name='name'>
+          {(field) => (
+            <Input
+              id={`${id}-name`}
+              name='name'
+              type='text'
+              placeholder='e.g. Sprint 1'
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
+              required
+              maxLength={100}
+              disabled={busy}
+            />
+          )}
+        </form.Field>
+      </div>
+    )
+    const renderSprintGoalField = (): JSX.Element => (
+      <div className='mb-4'>
+        <label className={LABEL} htmlFor={`${id}-goal`}>
+          Goal (optional)
+        </label>
+        <form.Field name='goal'>
+          {(field) => (
+            <Input
+              id={`${id}-goal`}
+              name='goal'
+              type='text'
+              placeholder='What do you want to achieve this sprint?'
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
+              maxLength={280}
+              disabled={busy}
+            />
+          )}
+        </form.Field>
+      </div>
+    )
+    const renderSprintStartField = (): JSX.Element => (
+      <div className='flex-1'>
+        <label className={LABEL} htmlFor={`${id}-start`}>
+          Start date (optional)
+        </label>
+        <form.Field name='start'>
+          {(field) => (
+            <Input
+              id={`${id}-start`}
+              name='start'
+              type='date'
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
+              disabled={busy}
+            />
+          )}
+        </form.Field>
+      </div>
+    )
+    const renderSprintEndField = (): JSX.Element => (
+      <div className='flex-1'>
+        <label className={LABEL} htmlFor={`${id}-end`}>
+          End date (optional)
+        </label>
+        <form.Field name='end'>
+          {(field) => (
+            <Input
+              id={`${id}-end`}
+              name='end'
+              type='date'
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
+              disabled={busy}
+            />
+          )}
+        </form.Field>
+      </div>
+    )
+    return (
+      <>
+        {renderSprintNameField()}
+        {renderSprintGoalField()}
+        <div className='flex flex-col sm:flex-row gap-4 mb-4'>
+          {renderSprintStartField()}
+          {renderSprintEndField()}
+        </div>
+        {result?.ok === false && (
+          <p role='alert' className='text-danger-text text-[0.8rem] m-0 mb-3'>
+            {result.message}
+          </p>
+        )}
+        {showErrors && <FormErrors errors={errors} />}
+        <div className='flex gap-2 max-sm:flex-col'>
+          <Button type='submit' variant='primary' size='sm' className='max-sm:w-full' disabled={busy || !canSubmit}>
+            {busy ? 'Saving…' : submitLabel}
+          </Button>
+          <Button variant='outline' size='sm' className='max-sm:w-full' onClick={onCancel} disabled={busy}>
+            Cancel
+          </Button>
+        </div>
+      </>
+    )
+  }
+  return (
+    <form action={formAction}>
+      <input type='hidden' name='workspaceSlug' value={defaults.workspaceSlug} />
+      <input type='hidden' name='projectId' value={defaults.projectId} />
+      {sprintId && <input type='hidden' name='sprintId' value={sprintId} />}
+      {renderOffsetFields()}
+      <form.Subscribe<SprintFormStatus>
         selector={(state) => ({
           canSubmit: state.canSubmit,
           errors: state.errors,
           showErrors: state.isDirty || state.submissionAttempts > NO_SUBMISSION_ATTEMPTS,
         })}
       >
-        {({ canSubmit, errors, showErrors }) => (
-          <>
-            <div className='mb-4'>
-              <label className={LABEL} htmlFor={`${id}-name`}>
-                Name *
-              </label>
-              <form.Field name='name'>
-                {(field) => (
-                  <Input
-                    id={`${id}-name`}
-                    name='name'
-                    type='text'
-                    placeholder='e.g. Sprint 1'
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.currentTarget.value)
-                    }}
-                    required
-                    maxLength={100}
-                    disabled={busy}
-                  />
-                )}
-              </form.Field>
-            </div>
-            <div className='mb-4'>
-              <label className={LABEL} htmlFor={`${id}-goal`}>
-                Goal (optional)
-              </label>
-              <form.Field name='goal'>
-                {(field) => (
-                  <Input
-                    id={`${id}-goal`}
-                    name='goal'
-                    type='text'
-                    placeholder='What do you want to achieve this sprint?'
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.currentTarget.value)
-                    }}
-                    maxLength={280}
-                    disabled={busy}
-                  />
-                )}
-              </form.Field>
-            </div>
-            <div className='flex flex-col sm:flex-row gap-4 mb-4'>
-              <div className='flex-1'>
-                <label className={LABEL} htmlFor={`${id}-start`}>
-                  Start date (optional)
-                </label>
-                <form.Field name='start'>
-                  {(field) => (
-                    <Input
-                      id={`${id}-start`}
-                      name='start'
-                      type='date'
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => {
-                        field.handleChange(event.currentTarget.value)
-                      }}
-                      disabled={busy}
-                    />
-                  )}
-                </form.Field>
-              </div>
-              <div className='flex-1'>
-                <label className={LABEL} htmlFor={`${id}-end`}>
-                  End date (optional)
-                </label>
-                <form.Field name='end'>
-                  {(field) => (
-                    <Input
-                      id={`${id}-end`}
-                      name='end'
-                      type='date'
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => {
-                        field.handleChange(event.currentTarget.value)
-                      }}
-                      disabled={busy}
-                    />
-                  )}
-                </form.Field>
-              </div>
-            </div>
-            {result?.ok === false && (
-              <p role='alert' className='text-danger-text text-[0.8rem] m-0 mb-3'>
-                {result.message}
-              </p>
-            )}
-            {showErrors && <FormErrors errors={errors} />}
-            <div className='flex gap-2 max-sm:flex-col'>
-              <Button type='submit' variant='primary' size='sm' className='max-sm:w-full' disabled={busy || !canSubmit}>
-                {busy ? 'Saving…' : submitLabel}
-              </Button>
-              <Button variant='outline' size='sm' className='max-sm:w-full' onClick={onCancel} disabled={busy}>
-                Cancel
-              </Button>
-            </div>
-          </>
-        )}
+        {renderSprintFields}
       </form.Subscribe>
     </form>
   )
