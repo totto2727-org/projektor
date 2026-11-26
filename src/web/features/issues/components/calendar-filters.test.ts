@@ -12,14 +12,18 @@ const decodeMetricsQuery = Schema.decodeUnknownEffect(MetricsQuerySchema)
 describe('covers UTC calendar issue filters', () => {
   test('keeps inclusive UTC bounds through daylight-saving transition days', () => {
     const query = new URLSearchParams()
-    applyDateRangeParams(query, 'updated', '2026-03-08', '2026-03-08')
+    applyDateRangeParams(query, {
+      filterDateField: 'updated',
+      filterDateFrom: '2026-03-08',
+      filterDateTo: '2026-03-08',
+    })
     expect(query.get('updatedAfter')).toBe(String(Date.parse('2026-03-08T00:00:00Z') / 1000))
     expect(Number(query.get('updatedBefore')) - Number(query.get('updatedAfter'))).toBe(86_399)
   })
 
   test('does not normalize impossible dates to a different calendar day', () => {
     const query = new URLSearchParams()
-    applyDateRangeParams(query, 'completed', '2026-02-30', '')
+    applyDateRangeParams(query, { filterDateField: 'completed', filterDateFrom: '2026-02-30', filterDateTo: '' })
     expect(query.get('completedAfter')).toBe('NaN')
   })
 })

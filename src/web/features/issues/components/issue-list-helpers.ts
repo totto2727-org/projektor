@@ -28,8 +28,7 @@ const dateInputToTs = function dateInputToTs(dateStr: string, endOfDay: boolean)
 
 const applyEpicParams = function applyEpicParams(
   qs: URLSearchParams,
-  filterEpicId: string,
-  hideEpics: boolean,
+  { filterEpicId, hideEpics }: Pick<FilterQueryFilters, 'filterEpicId' | 'hideEpics'>,
   taskTypes: Readonly<KeyedById[]>,
 ): void {
   if (filterEpicId && filterEpicId !== 'none') {
@@ -55,9 +54,11 @@ const applyEpicParams = function applyEpicParams(
  */
 export const applyDateRangeParams = function applyDateRangeParams(
   qs: URLSearchParams,
-  filterDateField: FilterQueryFilters['filterDateField'],
-  filterDateFrom: string,
-  filterDateTo: string,
+  {
+    filterDateField,
+    filterDateFrom,
+    filterDateTo,
+  }: Pick<FilterQueryFilters, 'filterDateField' | 'filterDateFrom' | 'filterDateTo'>,
 ): void {
   if (!filterDateField || (!filterDateFrom && !filterDateTo)) {
     return
@@ -69,6 +70,30 @@ export const applyDateRangeParams = function applyDateRangeParams(
   }
   if (filterDateTo) {
     qs.set(beforeKey, globalThis.String(dateInputToTs(filterDateTo, true)))
+  }
+}
+
+const applyListFilters = function applyListFilters(
+  qs: URLSearchParams,
+  filterStatuses: string[],
+  filterPriorities: string[],
+): void {
+  if (filterStatuses.length) {
+    qs.set('statusIds', filterStatuses.join(','))
+  }
+  if (filterPriorities.length) {
+    qs.set('priorities', filterPriorities.join(','))
+  }
+}
+
+const applyKeyedFilter = function applyKeyedFilter(
+  qs: URLSearchParams,
+  options: Readonly<KeyedById[]>,
+  { key, parameter }: { key: string; parameter: 'project' | 'typeId' },
+): void {
+  const id = key ? options.find((option) => option.key === key)?.id : undefined
+  if (Predicate.isNotNullish(id) && String.isNonEmpty(id)) {
+    qs.set(parameter, id)
   }
 }
 
@@ -92,25 +117,14 @@ export const buildFilterQueryParams = function buildFilterQueryParams(
     filterDateTo,
   } = filters
   const qs = new URLSearchParams()
-  if (filterStatuses.length) {
-    qs.set('statusIds', filterStatuses.join(','))
-  }
-  if (filterPriorities.length) {
-    qs.set('priorities', filterPriorities.join(','))
-  }
-  const projectId = filterProject ? projects.find((project) => project.key === filterProject)?.id : undefined
-  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
-    qs.set('project', projectId)
-  }
-  const typeId = filterType ? taskTypes.find((taskType) => taskType.key === filterType)?.id : undefined
-  if (Predicate.isNotNullish(typeId) && String.isNonEmpty(typeId)) {
-    qs.set('typeId', typeId)
-  }
+  applyListFilters(qs, filterStatuses, filterPriorities)
+  applyKeyedFilter(qs, projects, { key: filterProject, parameter: 'project' })
+  applyKeyedFilter(qs, taskTypes, { key: filterType, parameter: 'typeId' })
   if (filterSprintId) {
     qs.set('sprintId', filterSprintId)
   }
-  applyEpicParams(qs, filterEpicId, hideEpics, taskTypes)
-  applyDateRangeParams(qs, filterDateField, filterDateFrom, filterDateTo)
+  applyEpicParams(qs, { filterEpicId, hideEpics }, taskTypes)
+  applyDateRangeParams(qs, { filterDateField, filterDateFrom, filterDateTo })
   return qs
 }
 
