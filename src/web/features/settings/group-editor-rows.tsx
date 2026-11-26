@@ -41,6 +41,12 @@ export const renderGroupMemberRows = function renderGroupMemberRows({
   )
 }
 
+const renderGrantProjectName = (grant: GroupDetail['grants'][number]): JSX.Element => (
+  <span className='text-[0.82rem] text-text-base min-w-[9rem]'>
+    {grant.projectName} <span className='text-text-muted'>({grant.projectKey})</span>
+  </span>
+)
+
 export const renderGroupGrantRows = function renderGroupGrantRows({
   busy,
   grants,
@@ -65,9 +71,7 @@ export const renderGroupGrantRows = function renderGroupGrantRows({
       )}
       {grants.map((grant) => (
         <div key={grant.projectId} className='flex flex-wrap items-center gap-2 mb-1'>
-          <span className='text-[0.82rem] text-text-base min-w-[9rem]'>
-            {grant.projectName} <span className='text-text-muted'>({grant.projectKey})</span>
-          </span>
+          {renderGrantProjectName(grant)}
           <GrantRoleForm
             grant={grant}
             workspaceSlug={workspaceSlug}

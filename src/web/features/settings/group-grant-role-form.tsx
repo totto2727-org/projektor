@@ -13,6 +13,12 @@ import { INPUT } from './group-styles.ts'
 import { GroupGrantInputSchema } from './input-schemas.ts'
 import type { GrantRole, GroupGrant } from './types.ts'
 
+const renderGrantRoleOption = (role: GrantRole): JSX.Element => (
+  <option key={role} value={role}>
+    {role}
+  </option>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function GrantRoleForm({
   grant,
@@ -73,11 +79,7 @@ export function GrantRoleForm({
               void form.handleSubmit()
             }}
           >
-            {ROLES.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
+            {ROLES.map((role) => renderGrantRoleOption(role))}
           </select>
         )}
       </form.Field>

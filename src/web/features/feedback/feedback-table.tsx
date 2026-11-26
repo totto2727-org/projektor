@@ -21,19 +21,21 @@ export interface FeedbackTableProps {
   onConvert: (id: string) => void
 }
 
+const renderFeedbackHeadingRow = (allSelected: boolean, onToggleSelectAll: () => void): JSX.Element => (
+  <tr>
+    <th className={TH}>
+      <input type='checkbox' aria-label='select all' checked={allSelected} onChange={onToggleSelectAll} />
+    </th>
+    <th className={TH}>Rating</th>
+    <th className={TH}>Feedback</th>
+    <th className={TH}>Status</th>
+    <th className={TH}>Received</th>
+    <th className={TH} />
+  </tr>
+)
+
 const renderTableHeader = function renderTableHeader(allSelected: boolean, onToggleSelectAll: () => void): JSX.Element {
-  const headingRow = (
-    <tr>
-      <th className={TH}>
-        <input type='checkbox' aria-label='select all' checked={allSelected} onChange={onToggleSelectAll} />
-      </th>
-      <th className={TH}>Rating</th>
-      <th className={TH}>Feedback</th>
-      <th className={TH}>Status</th>
-      <th className={TH}>Received</th>
-      <th className={TH} />
-    </tr>
-  )
+  const headingRow = renderFeedbackHeadingRow(allSelected, onToggleSelectAll)
   return <thead>{headingRow}</thead>
 }
 

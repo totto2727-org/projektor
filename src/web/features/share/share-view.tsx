@@ -100,6 +100,13 @@ const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }): JSX
   )
 }
 
+const renderSharedCustomField = (field: SharedIssue['customFields'][number]): JSX.Element => (
+  <Fragment key={field.key}>
+    <dt className='text-text-muted font-medium'>{field.label}</dt>
+    <dd className='m-0'>{field.value}</dd>
+  </Fragment>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const CustomFieldsSection = function CustomFieldsSection({
   fields,
@@ -113,12 +120,7 @@ const CustomFieldsSection = function CustomFieldsSection({
     <div className='border-t border-border pt-4'>
       <p className='text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-text-muted mb-3'>Fields</p>
       <dl className='grid grid-cols-[max-content_1fr] gap-[0.4rem_1rem] text-[0.8125rem]'>
-        {fields.map((field) => (
-          <Fragment key={field.key}>
-            <dt className='text-text-muted font-medium'>{field.label}</dt>
-            <dd className='m-0'>{field.value}</dd>
-          </Fragment>
-        ))}
+        {fields.map((field) => renderSharedCustomField(field))}
       </dl>
     </div>
   )

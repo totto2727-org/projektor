@@ -15,6 +15,13 @@ interface FeedbackMobileCardsProps {
   onConvert: (id: string) => void
 }
 
+const renderMobileFeedbackSummary = (selector: JSX.Element, details: JSX.Element): JSX.Element => (
+  <div className='flex items-start gap-2 mb-2'>
+    {selector}
+    {details}
+  </div>
+)
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FeedbackMobileCards = function FeedbackMobileCards({
   rows,
@@ -51,10 +58,7 @@ export const FeedbackMobileCards = function FeedbackMobileCards({
     )
     return (
       <div key={row.id} className='py-3 px-4 border border-border rounded-md bg-surface'>
-        <div className='flex items-start gap-2 mb-2'>
-          {selector}
-          {details}
-        </div>
+        {renderMobileFeedbackSummary(selector, details)}
         <FeedbackRowActions row={row} onMarkReviewed={onMarkReviewed} onConvert={onConvert} />
       </div>
     )
