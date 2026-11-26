@@ -41,6 +41,24 @@ const INFO =
   'flex items-center gap-2 border border-border rounded-lg bg-bg px-4 py-3 mb-4 text-[0.82rem] text-text-base'
 const ROLE_TAG =
   'inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold bg-accent text-white uppercase tracking-wide'
+interface GroupFormStatus<Errors> {
+  canSubmit: boolean
+  dirty: boolean
+  errors: Errors
+}
+
+interface GroupTextField {
+  handleBlur: () => void
+  handleChange: (value: string) => void
+  state: { value: string }
+}
+
+const renderGroupsTabPanel = (groups: JSX.Element): JSX.Element => (
+  <div role='tabpanel' id='group-tabpanel-groups' aria-labelledby='group-tab-groups'>
+    {groups}
+  </div>
+)
+
 /**
  * Details, membership and grant rows are prop-owned, while unsaved editor fields are local.
  *
@@ -142,104 +160,247 @@ const GroupDetailEditor = function GroupDetailEditor({
     }
     setBusy(false)
   }
+  const renderGroupNameField = (): JSX.Element => (
+    <nameForm.Field name='name'>
+      {(field) => (
+        <Input
+          id={`group-name-${detail.id}`}
+          name='name'
+          className='max-w-[22rem]'
+          value={field.state.value}
+          maxLength={100}
+          disabled={busy}
+          onBlur={field.handleBlur}
+          onChange={(event) => {
+            field.handleChange(event.currentTarget.value)
+          }}
+        />
+      )}
+    </nameForm.Field>
+  )
+  const renderRenameGroupSubmission = ({
+    canSubmit,
+    dirty,
+    errors,
+  }: GroupFormStatus<typeof nameForm.state.errors>): JSX.Element => (
+    <>
+      <Button type='submit' variant='primary' disabled={busy || !canSubmit || !dirty}>
+        Rename
+      </Button>
+      {dirty && <FormErrors errors={errors} />}
+    </>
+  )
+  const renderRenameGroupForm = (): JSX.Element => (
+    <form className='flex flex-wrap items-center gap-2 mb-4' action={nameAction}>
+      <input type='hidden' name='workspaceSlug' value={slug} />
+      <input type='hidden' name='groupId' value={detail.id} />
+      <label className='sr-only' htmlFor={`group-name-${detail.id}`}>
+        Group name
+      </label>
+      {renderGroupNameField()}
+      <nameForm.Subscribe<GroupFormStatus<typeof nameForm.state.errors>>
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          dirty: state.isDirty,
+          errors: state.errors,
+        })}
+      >
+        {renderRenameGroupSubmission}
+      </nameForm.Subscribe>
+      {nameResult?.ok === false && (
+        <p role='alert' className='text-danger-text text-xs'>
+          {nameResult.message}
+        </p>
+      )}
+      <Button variant='outline' disabled={busy} onClick={onClose}>
+        Close
+      </Button>
+    </form>
+  )
+  const renderGroupDescriptionField = (): JSX.Element => (
+    <descriptionForm.Field name='description'>
+      {(field) => (
+        <Textarea
+          id={`group-description-${detail.id}`}
+          name='description'
+          value={field.state.value}
+          maxLength={500}
+          disabled={busy}
+          onBlur={field.handleBlur}
+          onChange={(event) => {
+            field.handleChange(event.currentTarget.value)
+          }}
+        />
+      )}
+    </descriptionForm.Field>
+  )
+  const renderEditDescriptionSubmission = ({
+    canSubmit,
+    dirty,
+    errors,
+  }: GroupFormStatus<typeof descriptionForm.state.errors>): JSX.Element => (
+    <>
+      <Button type='submit' variant='outline' size='sm' className='mt-2' disabled={busy || !canSubmit || !dirty}>
+        Save description
+      </Button>
+      {dirty && <FormErrors errors={errors} />}
+    </>
+  )
+  const renderEditDescriptionForm = (): JSX.Element => (
+    <form className='mb-4' action={descriptionAction}>
+      <input type='hidden' name='workspaceSlug' value={slug} />
+      <input type='hidden' name='groupId' value={detail.id} />
+      <label className='text-[0.8rem] font-semibold text-text-muted' htmlFor={`group-description-${detail.id}`}>
+        Description
+      </label>
+      {renderGroupDescriptionField()}
+      <descriptionForm.Subscribe<GroupFormStatus<typeof descriptionForm.state.errors>>
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          dirty: state.isDirty,
+          errors: state.errors,
+        })}
+      >
+        {renderEditDescriptionSubmission}
+      </descriptionForm.Subscribe>
+      {descriptionResult?.ok === false && (
+        <p role='alert' className='text-danger-text text-xs'>
+          {descriptionResult.message}
+        </p>
+      )}
+    </form>
+  )
+  const renderAddableMemberSelect = (field: GroupTextField): JSX.Element => (
+    <select
+      className={INPUT}
+      aria-label='Add a member'
+      name='userId'
+      value={field.state.value}
+      disabled={busy}
+      onBlur={field.handleBlur}
+      onChange={(event) => {
+        field.handleChange(event.currentTarget.value)
+      }}
+    >
+      <option value=''>Add a member…</option>
+      {addable.map((member) => (
+        <option key={member.id} value={member.id}>
+          {member.name || member.email}
+        </option>
+      ))}
+    </select>
+  )
+  const renderAddGroupMemberSubmission = ({
+    canSubmit,
+    dirty,
+    errors,
+  }: GroupFormStatus<typeof memberForm.state.errors>): JSX.Element => (
+    <>
+      <Button type='submit' variant='primary' disabled={busy || !canSubmit}>
+        Add
+      </Button>
+      {dirty && <FormErrors errors={errors} />}
+    </>
+  )
+  const renderAddGroupMemberForm = (): JSX.Element => (
+    <form className='flex items-center gap-2 mb-4' action={memberAction}>
+      <input type='hidden' name='workspaceSlug' value={slug} />
+      <input type='hidden' name='groupId' value={detail.id} />
+      <memberForm.Field name='userId'>{renderAddableMemberSelect}</memberForm.Field>
+      <memberForm.Subscribe<GroupFormStatus<typeof memberForm.state.errors>>
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          dirty: state.isDirty,
+          errors: state.errors,
+        })}
+      >
+        {renderAddGroupMemberSubmission}
+      </memberForm.Subscribe>
+      {memberResult?.ok === false && (
+        <p role='alert' className='text-danger-text text-xs'>
+          {memberResult.message}
+        </p>
+      )}
+    </form>
+  )
+  const renderGrantableProjectSelect = (field: GroupTextField): JSX.Element => (
+    <select
+      id={`group-grant-project-${detail.id}`}
+      name='projectId'
+      className={INPUT}
+      aria-label='Grant a project'
+      value={field.state.value}
+      disabled={busy}
+      onBlur={field.handleBlur}
+      onChange={(event) => {
+        field.handleChange(event.currentTarget.value)
+      }}
+    >
+      <option value=''>Grant a project…</option>
+      {grantable.map((project) => (
+        <option key={project.id} value={project.id}>
+          {project.name} ({project.key})
+        </option>
+      ))}
+    </select>
+  )
+  const renderGrantRoleSelect = (field: GroupTextField): JSX.Element => (
+    <select
+      className={INPUT}
+      aria-label='New grant role'
+      name='role'
+      value={field.state.value}
+      disabled={busy}
+      onBlur={field.handleBlur}
+      onChange={(event) => {
+        field.handleChange(event.currentTarget.value)
+      }}
+    >
+      {ROLES.map((role) => (
+        <option key={role} value={role}>
+          {role}
+        </option>
+      ))}
+    </select>
+  )
+  const renderGrantProjectSubmission = ({
+    canSubmit,
+    dirty,
+    errors,
+  }: GroupFormStatus<typeof grantForm.state.errors>): JSX.Element => (
+    <>
+      <Button type='submit' variant='primary' disabled={busy || !canSubmit}>
+        Grant
+      </Button>
+      {dirty && <FormErrors errors={errors} />}
+    </>
+  )
+  const renderGrantProjectForm = (): JSX.Element => (
+    <form className='flex flex-wrap items-center gap-2' action={grantAction}>
+      <input type='hidden' name='workspaceSlug' value={slug} />
+      <input type='hidden' name='groupId' value={detail.id} />
+      <grantForm.Field name='projectId'>{renderGrantableProjectSelect}</grantForm.Field>
+      <grantForm.Field name='role'>{renderGrantRoleSelect}</grantForm.Field>
+      <grantForm.Subscribe<GroupFormStatus<typeof grantForm.state.errors>>
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          dirty: state.isDirty,
+          errors: state.errors,
+        })}
+      >
+        {renderGrantProjectSubmission}
+      </grantForm.Subscribe>
+      {grantResult?.ok === false && (
+        <p role='alert' className='text-danger-text text-xs'>
+          {grantResult.message}
+        </p>
+      )}
+    </form>
+  )
   return (
     <section className={CARD}>
-      <form className='flex flex-wrap items-center gap-2 mb-4' action={nameAction}>
-        <input type='hidden' name='workspaceSlug' value={slug} />
-        <input type='hidden' name='groupId' value={detail.id} />
-        <label className='sr-only' htmlFor={`group-name-${detail.id}`}>
-          Group name
-        </label>
-        <nameForm.Field name='name'>
-          {(field) => (
-            <Input
-              id={`group-name-${detail.id}`}
-              name='name'
-              className='max-w-[22rem]'
-              value={field.state.value}
-              maxLength={100}
-              disabled={busy}
-              onBlur={field.handleBlur}
-              onChange={(event) => {
-                field.handleChange(event.currentTarget.value)
-              }}
-            />
-          )}
-        </nameForm.Field>
-        <nameForm.Subscribe
-          selector={(state) => ({
-            canSubmit: state.canSubmit,
-            dirty: state.isDirty,
-            errors: state.errors,
-          })}
-        >
-          {({ canSubmit, dirty, errors }) => (
-            <>
-              <Button type='submit' variant='primary' disabled={busy || !canSubmit || !dirty}>
-                Rename
-              </Button>
-              {dirty && <FormErrors errors={errors} />}
-            </>
-          )}
-        </nameForm.Subscribe>
-        {nameResult?.ok === false && (
-          <p role='alert' className='text-danger-text text-xs'>
-            {nameResult.message}
-          </p>
-        )}
-        <Button variant='outline' disabled={busy} onClick={onClose}>
-          Close
-        </Button>
-      </form>
-      <form className='mb-4' action={descriptionAction}>
-        <input type='hidden' name='workspaceSlug' value={slug} />
-        <input type='hidden' name='groupId' value={detail.id} />
-        <label className='text-[0.8rem] font-semibold text-text-muted' htmlFor={`group-description-${detail.id}`}>
-          Description
-        </label>
-        <descriptionForm.Field name='description'>
-          {(field) => (
-            <Textarea
-              id={`group-description-${detail.id}`}
-              name='description'
-              value={field.state.value}
-              maxLength={500}
-              disabled={busy}
-              onBlur={field.handleBlur}
-              onChange={(event) => {
-                field.handleChange(event.currentTarget.value)
-              }}
-            />
-          )}
-        </descriptionForm.Field>
-        <descriptionForm.Subscribe
-          selector={(state) => ({
-            canSubmit: state.canSubmit,
-            dirty: state.isDirty,
-            errors: state.errors,
-          })}
-        >
-          {({ canSubmit, dirty, errors }) => (
-            <>
-              <Button
-                type='submit'
-                variant='outline'
-                size='sm'
-                className='mt-2'
-                disabled={busy || !canSubmit || !dirty}
-              >
-                Save description
-              </Button>
-              {dirty && <FormErrors errors={errors} />}
-            </>
-          )}
-        </descriptionForm.Subscribe>
-        {descriptionResult?.ok === false && (
-          <p role='alert' className='text-danger-text text-xs'>
-            {descriptionResult.message}
-          </p>
-        )}
-      </form>
+      {renderRenameGroupForm()}
+      {renderEditDescriptionForm()}
       {error && (
         <div role='alert' className='text-danger-text text-[0.8rem] mb-2'>
           {error}
@@ -247,53 +408,7 @@ const GroupDetailEditor = function GroupDetailEditor({
       )}
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Members</h3>
       {renderGroupMemberRows({ busy, members: detail.members, onRemove: removeMember })}
-      <form className='flex items-center gap-2 mb-4' action={memberAction}>
-        <input type='hidden' name='workspaceSlug' value={slug} />
-        <input type='hidden' name='groupId' value={detail.id} />
-        <memberForm.Field name='userId'>
-          {(field) => (
-            <select
-              className={INPUT}
-              aria-label='Add a member'
-              name='userId'
-              value={field.state.value}
-              disabled={busy}
-              onBlur={field.handleBlur}
-              onChange={(event) => {
-                field.handleChange(event.currentTarget.value)
-              }}
-            >
-              <option value=''>Add a member…</option>
-              {addable.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name || member.email}
-                </option>
-              ))}
-            </select>
-          )}
-        </memberForm.Field>
-        <memberForm.Subscribe
-          selector={(state) => ({
-            canSubmit: state.canSubmit,
-            dirty: state.isDirty,
-            errors: state.errors,
-          })}
-        >
-          {({ canSubmit, dirty, errors }) => (
-            <>
-              <Button type='submit' variant='primary' disabled={busy || !canSubmit}>
-                Add
-              </Button>
-              {dirty && <FormErrors errors={errors} />}
-            </>
-          )}
-        </memberForm.Subscribe>
-        {memberResult?.ok === false && (
-          <p role='alert' className='text-danger-text text-xs'>
-            {memberResult.message}
-          </p>
-        )}
-      </form>
+      {renderAddGroupMemberForm()}
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Project grants</h3>
       {renderGroupGrantRows({
         busy,
@@ -304,75 +419,7 @@ const GroupDetailEditor = function GroupDetailEditor({
         onRemove: removeGrant,
         workspaceSlug: slug,
       })}
-      <form className='flex flex-wrap items-center gap-2' action={grantAction}>
-        <input type='hidden' name='workspaceSlug' value={slug} />
-        <input type='hidden' name='groupId' value={detail.id} />
-        <grantForm.Field name='projectId'>
-          {(field) => (
-            <select
-              id={`group-grant-project-${detail.id}`}
-              name='projectId'
-              className={INPUT}
-              aria-label='Grant a project'
-              value={field.state.value}
-              disabled={busy}
-              onBlur={field.handleBlur}
-              onChange={(event) => {
-                field.handleChange(event.currentTarget.value)
-              }}
-            >
-              <option value=''>Grant a project…</option>
-              {grantable.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name} ({project.key})
-                </option>
-              ))}
-            </select>
-          )}
-        </grantForm.Field>
-        <grantForm.Field name='role'>
-          {(field) => (
-            <select
-              className={INPUT}
-              aria-label='New grant role'
-              name='role'
-              value={field.state.value}
-              disabled={busy}
-              onBlur={field.handleBlur}
-              onChange={(event) => {
-                field.handleChange(event.currentTarget.value)
-              }}
-            >
-              {ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-          )}
-        </grantForm.Field>
-        <grantForm.Subscribe
-          selector={(state) => ({
-            canSubmit: state.canSubmit,
-            dirty: state.isDirty,
-            errors: state.errors,
-          })}
-        >
-          {({ canSubmit, dirty, errors }) => (
-            <>
-              <Button type='submit' variant='primary' disabled={busy || !canSubmit}>
-                Grant
-              </Button>
-              {dirty && <FormErrors errors={errors} />}
-            </>
-          )}
-        </grantForm.Subscribe>
-        {grantResult?.ok === false && (
-          <p role='alert' className='text-danger-text text-xs'>
-            {grantResult.message}
-          </p>
-        )}
-      </form>
+      {renderGrantProjectForm()}
     </section>
   )
 }
@@ -424,47 +471,56 @@ export const GroupManager = function GroupManager({
     }
     setBusy(false)
   }
+  const renderNewGroupNameField = (): JSX.Element => (
+    <form.Field name='name'>
+      {(field) => (
+        <Input
+          aria-label='New group name'
+          name='name'
+          placeholder='New group name'
+          value={field.state.value}
+          maxLength={100}
+          disabled={busy}
+          onBlur={field.handleBlur}
+          onChange={(event) => {
+            field.handleChange(event.currentTarget.value)
+          }}
+        />
+      )}
+    </form.Field>
+  )
+  const renderCreateGroupSubmission = ({
+    canSubmit,
+    dirty,
+    errors,
+  }: GroupFormStatus<typeof form.state.errors>): JSX.Element => (
+    <>
+      <Button type='submit' variant='primary' disabled={busy || !canSubmit}>
+        Create group
+      </Button>
+      {dirty && <FormErrors errors={errors} />}
+    </>
+  )
+  const renderCreateGroupForm = (): JSX.Element => (
+    <form className='flex items-center gap-2 mb-4' action={createAction}>
+      <input type='hidden' name='workspaceSlug' value={workspaceSlug} />
+      {renderNewGroupNameField()}
+      <form.Subscribe<GroupFormStatus<typeof form.state.errors>>
+        selector={(state) => ({
+          canSubmit: state.canSubmit,
+          dirty: state.isDirty,
+          errors: state.errors,
+        })}
+      >
+        {renderCreateGroupSubmission}
+      </form.Subscribe>
+    </form>
+  )
   const groups = (
     <>
       <section className={CARD}>
         <h2 className={H2}>{admin ? 'Groups' : 'Your groups'}</h2>
-        {admin && (
-          <form className='flex items-center gap-2 mb-4' action={createAction}>
-            <input type='hidden' name='workspaceSlug' value={workspaceSlug} />
-            <form.Field name='name'>
-              {(field) => (
-                <Input
-                  aria-label='New group name'
-                  name='name'
-                  placeholder='New group name'
-                  value={field.state.value}
-                  maxLength={100}
-                  disabled={busy}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => {
-                    field.handleChange(event.currentTarget.value)
-                  }}
-                />
-              )}
-            </form.Field>
-            <form.Subscribe
-              selector={(state) => ({
-                canSubmit: state.canSubmit,
-                dirty: state.isDirty,
-                errors: state.errors,
-              })}
-            >
-              {({ canSubmit, dirty, errors }) => (
-                <>
-                  <Button type='submit' variant='primary' disabled={busy || !canSubmit}>
-                    Create group
-                  </Button>
-                  {dirty && <FormErrors errors={errors} />}
-                </>
-              )}
-            </form.Subscribe>
-          </form>
-        )}
+        {admin && renderCreateGroupForm()}
         {createResult?.ok === false && (
           <div role='alert' className='text-danger-text text-[0.8rem] mb-2'>
             {createResult.message}
@@ -522,14 +578,7 @@ export const GroupManager = function GroupManager({
           <MembersOverview members={data.members} memberGroups={data.memberGroups} />
         </div>
       )}
-      {activeTab === 'groups' &&
-        (admin ? (
-          <div role='tabpanel' id='group-tabpanel-groups' aria-labelledby='group-tab-groups'>
-            {groups}
-          </div>
-        ) : (
-          groups
-        ))}
+      {activeTab === 'groups' && (admin ? renderGroupsTabPanel(groups) : groups)}
     </div>
   )
 }
