@@ -4,6 +4,7 @@ import { cva } from 'class-variance-authority'
 import type { VariantProps } from 'class-variance-authority'
 import { useMemo } from 'react'
 
+import { hasSingleItem } from '#contracts/item-count.ts'
 import { Label } from '@/components/generated/label'
 import { Separator } from '@/components/generated/separator'
 // Projektor customization: route class merging through the configured app utility alias.
@@ -211,7 +212,7 @@ export const FieldError = function FieldError({
 
     const uniqueErrors = [...new Map(errors.map((error) => [error?.message, error])).values()]
 
-    if (uniqueErrors?.length == 1) {
+    if (hasSingleItem(uniqueErrors)) {
       return uniqueErrors[0]?.message
     }
 
