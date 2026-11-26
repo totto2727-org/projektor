@@ -419,6 +419,44 @@ const agingConfig = {
   p50: chartSeries('p50 cycle time', muted),
   p90: chartSeries('p90 cycle time', muted),
 } satisfies ChartConfig
+interface AgingLegendEntry {
+  value: string
+  dataKey: string
+  type: 'circle' | 'line'
+  color: string
+}
+
+const agingLegendEntry = function agingLegendEntry(
+  metric: keyof typeof agingConfig,
+  type: AgingLegendEntry['type'],
+  color: string,
+): AgingLegendEntry {
+  return fieldsInOrder([
+    ['value', metric],
+    ['dataKey', metric],
+    ['type', type],
+    ['color', color],
+  ])
+}
+
+const ageLegend = agingLegendEntry('ageSeconds', 'circle', sequential.inProgress)
+const p50Legend = agingLegendEntry('p50', 'line', muted)
+const p90Legend = agingLegendEntry('p90', 'line', muted)
+
+const GUIDE_LABEL_FONT_SIZE = 10
+const p50GuideLabel = fieldsInOrder([
+  ['value', 'p50 cycle time'],
+  ['position', 'insideTopRight'],
+  ['fill', muted],
+  ['fontSize', GUIDE_LABEL_FONT_SIZE],
+])
+const p90GuideLabel = fieldsInOrder([
+  ['value', 'p90 cycle time'],
+  ['position', 'insideTopRight'],
+  ['fill', muted],
+  ['fontSize', GUIDE_LABEL_FONT_SIZE],
+])
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function AgingWipScatter({
   data,
@@ -440,6 +478,12 @@ export function AgingWipScatter({
         }))
         .toSorted((left, right) => left.x - right.x),
     [data],
+  )
+  const hasP50 = Predicate.isNotNullish(p50)
+  const hasP90 = Predicate.isNotNullish(p90)
+  const legendPayload = useMemo(
+    () => [ageLegend, ...(hasP50 ? [p50Legend] : []), ...(hasP90 ? [p90Legend] : [])],
+    [hasP50, hasP90],
   )
   const maxAge = Math.max(
     MIN_AGE_SECONDS,
@@ -479,37 +523,12 @@ export function AgingWipScatter({
         />
         <ChartLegend
           content={() => (
-            <ChartLegendContent
-              className='flex-wrap gap-x-3 gap-y-1 text-[10px]'
-              payload={[
-                { value: 'ageSeconds', dataKey: 'ageSeconds', type: 'circle', color: sequential.inProgress },
-                ...(Predicate.isNullish(p50)
-                  ? []
-                  : [{ value: 'p50', dataKey: 'p50', type: 'line' as const, color: muted }]),
-                ...(Predicate.isNullish(p90)
-                  ? []
-                  : [{ value: 'p90', dataKey: 'p90', type: 'line' as const, color: muted }]),
-              ]}
-            />
+            <ChartLegendContent className='flex-wrap gap-x-3 gap-y-1 text-[10px]' payload={legendPayload} />
           )}
         />
         <Scatter dataKey='ageSeconds' name='ageSeconds' fill='var(--color-ageSeconds)' isAnimationActive={false} />
-        {Predicate.isNotNullish(p50) && (
-          <ReferenceLine
-            y={p50}
-            stroke='var(--color-p50)'
-            strokeDasharray='4 4'
-            label={{ value: 'p50 cycle time', position: 'insideTopRight', fill: muted, fontSize: 10 }}
-          />
-        )}
-        {Predicate.isNotNullish(p90) && (
-          <ReferenceLine
-            y={p90}
-            stroke='var(--color-p90)'
-            strokeDasharray='2 2'
-            label={{ value: 'p90 cycle time', position: 'insideTopRight', fill: muted, fontSize: 10 }}
-          />
-        )}
+        {hasP50 && <ReferenceLine y={p50} stroke='var(--color-p50)' strokeDasharray='4 4' label={p50GuideLabel} />}
+        {hasP90 && <ReferenceLine y={p90} stroke='var(--color-p90)' strokeDasharray='2 2' label={p90GuideLabel} />}
       </ComposedChart>
     </FlowChart>
   )
