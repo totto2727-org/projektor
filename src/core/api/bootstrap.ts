@@ -9,12 +9,20 @@ import { coreFailure } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { buildMcpAddCommand } from '#types'
 
+interface DevelopmentBootstrap {
+  workspace: { id: string; name: string; slug: string }
+  user: { id: string; email: string; name: string }
+  token: string
+  mcpUrl: string
+  mcpAddCommand: ReturnType<typeof buildMcpAddCommand>
+}
+
 /** Development provisioning stays private and rechecks its secret in Core. */
 export const bootstrapDevelopment = async function bootstrapDevelopment(
   env: CoreEnvironment,
   provided: string | undefined,
   requestUrl: string,
-) {
+): Promise<DevelopmentBootstrap> {
   if (env.ENVIRONMENT !== 'development') {
     throw coreFailure(HTTP_FORBIDDEN, 'Not available in production')
   }

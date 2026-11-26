@@ -54,7 +54,31 @@ export const webRead = function webRead<A, E>(
   }).pipe(Effect.mapError(publicWebFailure))
 }
 
-export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
+type IssueReadArguments = [request: WebRequest, workspaceId: string, identifier: string, projectId?: string]
+
+type IssueSearchArguments = [
+  request: WebRequest,
+  workspaceId: string,
+  query: string,
+  projectId?: string,
+  review?: ReviewFilter,
+]
+
+interface IssueReadHandlers<R> {
+  webIssue: (...args: IssueReadArguments) => CoreReply<R>
+  webIssuePage: (request: WebRequest, workspaceId: string, query: string) => CoreReply<R>
+  webIssueSearch: (...args: IssueSearchArguments) => CoreReply<R>
+  webIssueComments: (...args: IssueReadArguments) => CoreReply<R>
+  webIssueLinks: (...args: IssueReadArguments) => CoreReply<R>
+  webIssueAttachments: (...args: IssueReadArguments) => CoreReply<R>
+  webWikiAttachmentSearch: (request: WebRequest, workspaceId: string, query: string) => CoreReply<R>
+  webIssueLookups: (request: WebRequest, workspaceId: string) => CoreReply<R>
+  webIssueMembers: (request: WebRequest, workspaceId: string) => CoreReply<R>
+  webSprints: (request: WebRequest, workspaceId: string, projectId: string) => CoreReply<R>
+  webSprint: (request: WebRequest, workspaceId: string, sprintId: string) => CoreReply<R>
+}
+
+export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>): IssueReadHandlers<R> => {
   const reply = function reply<S extends Schema.Top, A, E>(
     operation: string,
     schema: S,

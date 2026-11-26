@@ -19,10 +19,17 @@ import { coreFailure, coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
+interface ApiPublicHandlers<R> {
+  apiConsentWorkspace: (actor: CoreActor, workspaceId: string) => CoreReply<R>
+  apiSubmitFeedback: (token: string, body: unknown, origin: string | null) => CoreReply<R>
+  apiGetSharedIssue: (token: string) => CoreReply<R>
+  apiRealtimeSnapshot: (actor: CoreActor, workspaceId: string) => CoreReply<R>
+}
+
 /** Public credentials are resolved here, never treated as preauthenticated adapter IDs. */
 export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
-) {
+): ApiPublicHandlers<R> {
   const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>): Effect.Effect<A, unknown, R> {
     return Effect.flatMap(envSource, (env) =>
       Effect.tryPromise({ catch: publicDomainFailure, try: () => operation(env) }),
