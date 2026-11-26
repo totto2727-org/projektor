@@ -14,6 +14,12 @@ import {
 } from '#contracts/time.ts'
 import type { AuthInfo, Env } from '#types'
 
+const JWT_SEGMENT_COUNT = 3
+const MIN_JWT_EMAIL_LENGTH = 1
+const BASE64_QUANTUM_WIDTH = 4
+const BASE64_PADDING_START = 0
+const DECODED_BYTE_INDEX = 0
+
 /** Only browser verification/provisioning capabilities, never OAuth signing secrets. */
 export type BrowserAuthEnvironment = Pick<
   Env,
@@ -74,7 +80,7 @@ export const authenticateBrowser = async function authenticateBrowser(
 
 export async function authenticateAccessJwt(jwt: string, env: BrowserAuthEnvironment): Promise<BrowserPrincipal> {
   const parts = jwt.split('.')
-  const decoded = parts.length === 3 ? decodeJwtFields(parts) : null
+  const decoded = parts.length === JWT_SEGMENT_COUNT ? decodeJwtFields(parts) : null
   const issuer = `https://${env.CF_ACCESS_TEAM_DOMAIN}`
   if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, env.CF_ACCESS_AUDIENCE, issuer)) {
     throw new BrowserAuthenticationError(HTTP_UNAUTHORIZED, 'Invalid Access token')
@@ -111,12 +117,14 @@ const JwtPayloadSchema = z.object({
   iat: z.number().optional(),
   aud: z.union([z.string(), z.array(z.string())]),
   iss: z.string(),
-  email: z.string().min(1).optional(),
+  email: z.string().min(MIN_JWT_EMAIL_LENGTH).optional(),
 })
 type JwtHeader = z.infer<typeof JwtHeaderSchema>
 type JwtPayload = z.infer<typeof JwtPayloadSchema>
 function base64urlDecode(value: string): string {
-  const padded = value.replaceAll('-', '+').replaceAll('_', '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
+  const standardBase64 = value.replaceAll('-', '+').replaceAll('_', '/')
+  const paddingLength = (BASE64_QUANTUM_WIDTH - (value.length % BASE64_QUANTUM_WIDTH)) % BASE64_QUANTUM_WIDTH
+  const padded = standardBase64 + '=='.slice(BASE64_PADDING_START, paddingLength)
   return atob(padded)
 }
 function decodeJwtFields(parts: Readonly<string[]>): { header: JwtHeader; payload: JwtPayload } | null {
@@ -156,7 +164,7 @@ export async function verifyJwtPayload(
   issuer: string,
 ): Promise<{ email: string } | null> {
   const parts = jwt.split('.')
-  if (parts.length !== 3) {
+  if (parts.length !== JWT_SEGMENT_COUNT) {
     return null
   }
   const decoded = decodeJwtFields(parts)
@@ -165,7 +173,7 @@ export async function verifyJwtPayload(
   }
   let sig: Uint8Array<ArrayBuffer>
   try {
-    sig = Uint8Array.from(base64urlDecode(parts[2]), (character) => character.charCodeAt(0))
+    sig = Uint8Array.from(base64urlDecode(parts[2]), (character) => character.charCodeAt(DECODED_BYTE_INDEX))
   } catch {
     return null
   }
