@@ -1,5 +1,5 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
-import type { SQL, SQLWrapper } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { Iterable, Array, Function, Option, Predicate, Result } from 'effect'
 import type { Effect } from 'effect'
 
@@ -18,6 +18,7 @@ import { SQL_NULL } from '#db/sql-null.ts'
 
 import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
+import { fetchWindowCounts } from './flow-metrics-factory.ts'
 
 const MIN_DURATION_SECONDS = 0
 const FIRST_ARRAY_INDEX = 0
@@ -452,7 +453,7 @@ const fetchHumanCommentCounts = async function fetchHumanCommentCounts(
   issueScope: SQL,
 ): Promise<Map<string, number>> {
   const rows = await orm
-    .select({ issueId: schema.issueComments.issueId, n: sql<number>`count(*)` })
+    .select({ issueId: schema.issueComments.issueId, n: sql`count(*)` })
     .from(schema.issueComments)
     .innerJoin(schema.issues, eq(schema.issueComments.issueId, schema.issues.id))
     .where(and(issueScope, eq(schema.issueComments.authorKind, 'human')))
@@ -632,130 +633,6 @@ const buildAgingWip = function buildAgingWip(
   })
 }
 
-/*
- * PROJ-334: factory-health tiles — fault signals for the machinery itself, not the
- * work. Each count is windowed by when the fault EVENT happened (released_at /
- * occurred_at), not by an issue's doneAt like the distribution tiles above, since a
- * lease expiry or abandoned claim can happen on an issue that never completes in this
- * window (or ever). All counts are project-scoped the same way the rest of this
- * endpoint is.
- */
-interface FactoryHealth {
-  leaseExpiries: number
-  abandonedClaims: number
-  gateRejections: number
-  wipCapPressure: number
-}
-
-/*
- * PROJ-866: the four factory-health counts and the CFD's done-before-window count are
- * independent scalar COUNT(*)s, so they run as subqueries of one statement (anchored on
- * the project row) instead of five round trips that each fetched every matching row.
- */
-const fetchWindowCounts = async function fetchWindowCounts(
-  orm: ReturnType<typeof drizzle>,
-  workspaceId: string,
-  projectId: string,
-  opts: Readonly<{
-    since: number
-    until: number
-    doneBefore: number | undefined
-    createdUntil: number
-  }>,
-): Promise<FactoryHealth & { doneBeforeWindow: number }> {
-  const { since, until } = opts
-  const countOf = (query: SQLWrapper): SQL<number> => sql<number>`(${query})`
-  const count = sql<number>`count(*)`
-  const leaseExpiriesQuery = orm
-    .select({ n: count })
-    .from(schema.issueLeases)
-    .innerJoin(schema.issues, eq(schema.issueLeases.issueId, schema.issues.id))
-    .where(
-      and(
-        eq(schema.issueLeases.workspaceId, workspaceId),
-        eq(schema.issues.projectId, projectId),
-        eq(schema.issueLeases.releaseReason, 'expired'),
-        gte(schema.issueLeases.releasedAt, since),
-        lte(schema.issueLeases.releasedAt, until),
-      ),
-    )
-  const abandonedClaimsQuery = orm
-    .select({ n: count })
-    .from(schema.issueFileClaims)
-    .innerJoin(schema.issues, eq(schema.issueFileClaims.issueId, schema.issues.id))
-    .where(
-      and(
-        eq(schema.issueFileClaims.workspaceId, workspaceId),
-        eq(schema.issues.projectId, projectId),
-        eq(schema.issueFileClaims.releaseReason, 'agent_ended'),
-        gte(schema.issueFileClaims.releasedAt, since),
-        lte(schema.issueFileClaims.releasedAt, until),
-      ),
-    )
-  const gateRejectionsQuery = orm
-    .select({ n: count })
-    .from(schema.issueGateRejections)
-    .innerJoin(schema.issues, eq(schema.issueGateRejections.issueId, schema.issues.id))
-    .where(
-      and(
-        eq(schema.issueGateRejections.workspaceId, workspaceId),
-        eq(schema.issues.projectId, projectId),
-        gte(schema.issueGateRejections.occurredAt, since),
-        lte(schema.issueGateRejections.occurredAt, until),
-      ),
-    )
-  // PROJ-342: WIP-cap denials — claims rejected for hitting the per-project agent
-  // WIP cap. Recorded at the denial site in claimIssue (services/issue-leases.ts).
-  const wipCapPressureQuery = orm
-    .select({ n: count })
-    .from(schema.wipCapDenials)
-    .where(
-      and(
-        eq(schema.wipCapDenials.workspaceId, workspaceId),
-        eq(schema.wipCapDenials.projectId, projectId),
-        gte(schema.wipCapDenials.occurredAt, since),
-        lte(schema.wipCapDenials.occurredAt, until),
-      ),
-    )
-  const doneBeforeWindowQuery = Predicate.isNullish(opts.doneBefore)
-    ? undefined
-    : orm
-        .select({ n: count })
-        .from(schema.issues)
-        .where(
-          and(
-            eq(schema.issues.workspaceId, workspaceId),
-            eq(schema.issues.projectId, projectId),
-            lte(schema.issues.createdAt, opts.createdUntil),
-            sql`${schema.issues.doneAt} < ${opts.doneBefore}`,
-          ),
-        )
-  const row = await orm
-    .select(
-      fieldsInOrder([
-        ['leaseExpiries', countOf(leaseExpiriesQuery)],
-        ['abandonedClaims', countOf(abandonedClaimsQuery)],
-        ['gateRejections', countOf(gateRejectionsQuery)],
-        ['wipCapPressure', countOf(wipCapPressureQuery)],
-        [
-          'doneBeforeWindow',
-          Predicate.isNullish(doneBeforeWindowQuery) ? sql<number>`0` : countOf(doneBeforeWindowQuery),
-        ],
-      ]),
-    )
-    .from(schema.projects)
-    .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, workspaceId)))
-    .get()
-
-  return fieldsInOrder([
-    ['leaseExpiries', Number(row?.leaseExpiries ?? NO_EVENTS)],
-    ['abandonedClaims', Number(row?.abandonedClaims ?? NO_EVENTS)],
-    ['gateRejections', Number(row?.gateRejections ?? NO_EVENTS)],
-    ['wipCapPressure', Number(row?.wipCapPressure ?? NO_EVENTS)],
-    ['doneBeforeWindow', Number(row?.doneBeforeWindow ?? NO_EVENTS)],
-  ])
-}
-
 const readFlowMetrics = async function readFlowMetrics(
   db: D1Database,
   workspaceId: string,
@@ -868,11 +745,13 @@ const readFlowMetrics = async function readFlowMetrics(
      * PROJ-334: same window as the throughput/CFD/etc. buckets below — the "selected
      * window" the tile row is scoped to.
      */
-    fetchWindowCounts(orm, workspaceId, projectId, {
+    fetchWindowCounts(orm, {
       createdUntil,
       doneBefore,
+      projectId,
       since: throughputSince,
       until: throughputUntil,
+      workspaceId,
     }),
   ])
   const { doneBeforeWindow, ...factoryHealth } = windowCounts
