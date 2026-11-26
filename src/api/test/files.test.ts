@@ -888,7 +888,10 @@ describe('files MCP tools', () => {
     const list = await mcpToolResult<{ id: string; filename: string; url: string | null }[]>(
       workspaceId,
       'list_attachments',
-      { entityType: 'issue', entityId },
+      fieldsInOrder([
+        ['entityType', 'issue'],
+        ['entityId', entityId],
+      ]),
       headers,
     )
     expect(list).toHaveLength(1)
@@ -908,7 +911,10 @@ describe('files MCP tools', () => {
     const afterDelete = await mcpToolResult<unknown[]>(
       workspaceId,
       'list_attachments',
-      { entityType: 'issue', entityId },
+      fieldsInOrder([
+        ['entityType', 'issue'],
+        ['entityId', entityId],
+      ]),
       headers,
     )
     expect(afterDelete).toHaveLength(0)
@@ -979,7 +985,10 @@ describe('files MCP tools', () => {
     const result = await mcpToolResult<unknown[]>(
       other.workspace.id,
       'list_attachments',
-      { entityType: 'issue', entityId: ENTITY_ID },
+      fieldsInOrder([
+        ['entityType', 'issue'],
+        ['entityId', ENTITY_ID],
+      ]),
       authHeaders(other.token, other.workspace.slug),
     )
     expect(result).toStrictEqual([])

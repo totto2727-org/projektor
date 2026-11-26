@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { ConflictError } from '#commands/errors.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWikiPage } from '#commands/wiki.ts'
+import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
@@ -24,7 +25,13 @@ const setup = async function setup(): Promise<{ ctx: ServiceCtx; slug: string; t
     userId: user.id,
     role: 'owner',
   }
-  const created = (await createWikiPage(ctx, { title: 'Doc', content: 'v0' })) as { slug: string }
+  const created = (await createWikiPage(
+    ctx,
+    fieldsInOrder([
+      ['title', 'Doc'],
+      ['content', 'v0'],
+    ]),
+  )) as { slug: string }
   // One edit so the page has a revision pointer.
   await updateWikiPage(ctx, created.slug, { content: 'v1' })
   return { ctx, slug: created.slug, token, wsSlug: workspace.slug }
@@ -61,14 +68,28 @@ describe('covers PROJ-809: get_wiki_page returns the revision it read', () => {
     const readByA = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
     expect(readByA.revisionId).toSatisfy(Predicate.isString)
 
-    await updateWikiPage(ctx, slug, { content: "B's edit", baseRevisionId: readByA.revisionId })
+    await updateWikiPage(
+      ctx,
+      slug,
+      fieldsInOrder([
+        ['content', "B's edit"],
+        ['baseRevisionId', readByA.revisionId],
+      ]),
+    )
 
     // The old way: A fetches the revision list AFTER B's save and gets B's pointer.
     const listed = (await listWikiRevisions(ctx, slug)) as { id: string }[]
     expect(listed[0].id).not.toBe(readByA.revisionId)
 
     await expect(
-      updateWikiPage(ctx, slug, { content: "A's stale copy", baseRevisionId: readByA.revisionId }),
+      updateWikiPage(
+        ctx,
+        slug,
+        fieldsInOrder([
+          ['content', "A's stale copy"],
+          ['baseRevisionId', readByA.revisionId],
+        ]),
+      ),
     ).rejects.toBeInstanceOf(ConflictError)
     await expect(contentOf(ctx, slug)).resolves.toBe("B's edit")
   })
@@ -100,11 +121,15 @@ describe('covers PROJ-810: guarded writes', () => {
     interleaveBeforeNextBatch(1, async () => {
       await env.DB.prepare("UPDATE wiki_pages SET content = 'concurrent body' WHERE slug = ?").bind(slug).run()
     })
-    await patchWikiPage(ctx, slug, {
-      op: 'set_frontmatter',
-      values: { status: 'draft' },
-      baseRevisionId: revisionId,
-    })
+    await patchWikiPage(
+      ctx,
+      slug,
+      fieldsInOrder([
+        ['op', 'set_frontmatter'],
+        ['values', { status: 'draft' }],
+        ['baseRevisionId', revisionId],
+      ]),
+    )
     const content = await contentOf(ctx, slug)
     expect(content).toContain('concurrent body')
     expect(content).toContain('status: draft')
@@ -116,11 +141,15 @@ describe('covers PROJ-810: guarded writes', () => {
     interleaveBeforeNextBatch(1, async () => {
       await env.DB.prepare("UPDATE wiki_pages SET content = 'v1\nfrom B' WHERE slug = ?").bind(slug).run()
     })
-    await patchWikiPage(ctx, slug, {
-      op: 'append_to_page',
-      text: 'from A',
-      baseRevisionId: revisionId,
-    })
+    await patchWikiPage(
+      ctx,
+      slug,
+      fieldsInOrder([
+        ['op', 'append_to_page'],
+        ['text', 'from A'],
+        ['baseRevisionId', revisionId],
+      ]),
+    )
     const content = await contentOf(ctx, slug)
     expect(content).toContain('from B')
     expect(content).toContain('from A')
@@ -137,7 +166,15 @@ describe('covers PROJ-810: guarded writes', () => {
         .run()
     })
     await expect(
-      patchWikiPage(ctx, slug, { op: 'append_to_page', text: 'x', baseRevisionId: revisionId }),
+      patchWikiPage(
+        ctx,
+        slug,
+        fieldsInOrder([
+          ['op', 'append_to_page'],
+          ['text', 'x'],
+          ['baseRevisionId', revisionId],
+        ]),
+      ),
     ).rejects.toBeInstanceOf(ConflictError)
     expect(revisionIndex).toBe(3)
   })
@@ -155,7 +192,13 @@ describe('covers PROJ-919: metadata-only writes are guarded too', () => {
 
   test("a move racing a rename → 409 for the move; the rename isn't reverted", async () => {
     const { ctx, slug } = await setup()
-    const parent = (await createWikiPage(ctx, { title: 'Parent', content: 'p' })) as {
+    const parent = (await createWikiPage(
+      ctx,
+      fieldsInOrder([
+        ['title', 'Parent'],
+        ['content', 'p'],
+      ]),
+    )) as {
       id: string
     }
     interleaveBeforeNextBatch(1, async () => {
@@ -172,7 +215,16 @@ describe('covers PROJ-919: metadata-only writes are guarded too', () => {
     interleaveBeforeNextBatch(1, async () => {
       await updateWikiPage(ctx, slug, { title: 'Concurrent title' })
     })
-    await expect(updateWikiPage(ctx, slug, { title: 'Doc', content: 'mine' })).rejects.toBeInstanceOf(ConflictError)
+    await expect(
+      updateWikiPage(
+        ctx,
+        slug,
+        fieldsInOrder([
+          ['title', 'Doc'],
+          ['content', 'mine'],
+        ]),
+      ),
+    ).rejects.toBeInstanceOf(ConflictError)
     const page = (await getWikiPage(ctx, slug)) as { title: string; content: string }
     expect(page.title).toBe('Concurrent title')
     expect(page.content).toBe('v1')
@@ -195,11 +247,15 @@ describe('covers PROJ-919: metadata-only writes are guarded too', () => {
     await updateWikiPage(ctx, slug, { title: 'Bumped' })
     await expect(versionOf()).resolves.toBe(before + 1)
     const { revisionId } = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
-    await patchWikiPage(ctx, slug, {
-      op: 'append_to_page',
-      text: 'more',
-      baseRevisionId: revisionId,
-    })
+    await patchWikiPage(
+      ctx,
+      slug,
+      fieldsInOrder([
+        ['op', 'append_to_page'],
+        ['text', 'more'],
+        ['baseRevisionId', revisionId],
+      ]),
+    )
     await expect(versionOf()).resolves.toBe(before + 2)
   })
 })
