@@ -92,8 +92,10 @@ describe('request-scoped native services', () => {
       Effect.gen(function* () {
         const first = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'first@example.test'))
         const second = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'second@example.test'))
-        const [a, repeated, b] = yield* Effect.all([first.scope(), first.scope(), second.scope()], { concurrency: 3 })
-        return { a, repeated, b, first }
+        const [firstScope, repeated, secondScope] = yield* Effect.all([first.scope(), first.scope(), second.scope()], {
+          concurrency: 3,
+        })
+        return { a: firstScope, repeated, b: secondScope, first }
       }),
     )
     expect(result.a).toBe(result.repeated)
@@ -157,10 +159,10 @@ describe('request-scoped native services', () => {
           return `${current.url.pathname}:${++renders}`
         })
         const prepare = services.prepare(view).pipe(Effect.provideService(RequestServices, services))
-        const [a, cached] = yield* Effect.all([prepare, prepare], { concurrency: 2 })
+        const [prepared, cached] = yield* Effect.all([prepare, prepare], { concurrency: 2 })
         yield* services.invalidate
         const refreshed = yield* prepare
-        return { a, cached, refreshed }
+        return { a: prepared, cached, refreshed }
       }),
     )
     expect(actual.a).toBe(actual.cached)

@@ -167,7 +167,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
 describe('covers PROJ-891 review fixes (unit)', () => {
   test('capPage backs off to a cut the tool allows (no splitting a shared timestamp)', () => {
     const ts = [1, 1, 2, 2, 2, 3, 3, 4]
-    const items = ts.map((t) => ({ t, pad: 'x'.repeat(100) }))
+    const items = ts.map((timestamp) => ({ t: timestamp, pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'orig'), {
       max: 600,
       cursorOf: (index) => globalThis.String(items[index].t),
