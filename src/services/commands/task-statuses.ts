@@ -6,7 +6,7 @@ import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '#contracts/inputs/task-statuses.ts'
 import { isNonEmptyText } from '#contracts/non-empty-text.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
-import { SQLITE_FALSE, SQLITE_TRUE, drizzle, schema } from '#db'
+import { SQL_NULL, SQLITE_FALSE, SQLITE_TRUE, drizzle, schema } from '#db'
 import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
 
 import * as cache from './cache.ts'
@@ -91,7 +91,7 @@ export const createTaskStatus = async function createTaskStatus(
       ['key', key],
       ['name', name],
       ['category', category],
-      ['color', color ?? null],
+      ['color', color ?? SQL_NULL],
       ['position', position ?? INITIAL_TASK_POSITION],
       ['isDefault', isDefault === true ? SQLITE_TRUE : SQLITE_FALSE],
       ['isReviewStep', isReviewStep === true ? SQLITE_TRUE : SQLITE_FALSE],
@@ -113,7 +113,7 @@ const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpd
     setObj.category = data.category
   }
   if ('color' in data) {
-    setObj.color = data.color ?? null
+    setObj.color = data.color ?? SQL_NULL
   }
   if (Predicate.isNotNullish(data.position)) {
     setObj.position = data.position
@@ -288,7 +288,7 @@ export const buildDefaultTaskStatusStatements = function buildDefaultTaskStatusS
           key: selectedStatus.key,
           name: selectedStatus.name,
           category: selectedStatus.category as 'todo' | 'in_progress' | 'done' | 'cancelled',
-          color: null,
+          color: SQL_NULL,
           position: selectedStatus.position,
           isDefault: selectedStatus.isDefault,
           isReviewStep: selectedStatus.isReviewStep,

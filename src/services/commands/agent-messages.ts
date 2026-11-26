@@ -4,7 +4,7 @@ import { flattenError } from 'zod'
 
 import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
 import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
-import { drizzle, schema } from '#db'
+import { SQL_NULL, drizzle, schema } from '#db'
 
 import { assertIssueAccess } from './access.ts'
 import { assertAgentSessionAccess } from './agent-identity.ts'
@@ -84,7 +84,7 @@ export const buildPostMessageStatements = function buildPostMessageStatements(
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
     scope: message.scope,
-    agentId: message.agentId ?? null,
+    agentId: message.agentId ?? SQL_NULL,
     body: message.body,
     createdAt: now,
   }))
@@ -141,7 +141,7 @@ export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unkn
     id,
     workspaceId: ctx.workspaceId,
     scope,
-    agentId: agentId ?? null,
+    agentId: agentId ?? SQL_NULL,
     body,
     createdAt: now,
   })
