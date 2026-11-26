@@ -1,4 +1,3 @@
-import { and, eq, gte, lte } from 'drizzle-orm'
 import { Iterable } from 'effect'
 import type { Effect } from 'effect'
 
@@ -6,9 +5,13 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
+import { readHeatmapClaims, readHeatmapConflicts } from './code-heatmap-source.ts'
+import type { HeatmapClaimRow, HeatmapConflictRow, HeatmapQueryScope } from './code-heatmap-source.ts'
 import { queryEffect } from './errors.ts'
 import type { DataQueryError } from './errors.ts'
 
+const DEFAULT_HEATMAP_WINDOW_DAYS = 42
+const DEFAULT_HEATMAP_WINDOW_SECONDS = DEFAULT_HEATMAP_WINDOW_DAYS * SECONDS_PER_DAY
 const EMPTY_SEGMENT_COUNT = 0
 const PATH_SEGMENT_START = 0
 const NO_PATH_SEPARATOR = -1
@@ -139,7 +142,7 @@ const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { pat
 }
 
 const groupClaimsByNextSegment = function groupClaimsByNextSegment(
-  claims: Readonly<{ path: string; issueId: string }[]>,
+  claims: Readonly<HeatmapClaimRow[]>,
   prefix: string,
 ): CodeHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
@@ -161,7 +164,7 @@ const groupClaimsByNextSegment = function groupClaimsByNextSegment(
 }
 
 const groupConflictsByNextSegment = function groupConflictsByNextSegment(
-  conflicts: Readonly<{ path: string; rejectedIssueId: string }[]>,
+  conflicts: Readonly<HeatmapConflictRow[]>,
   prefix: string,
 ): ContentionHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
@@ -183,85 +186,42 @@ const groupConflictsByNextSegment = function groupConflictsByNextSegment(
     )
 }
 
-const readCodeHeatmap = async function readCodeHeatmap(
-  db: D1Database,
-  workspaceId: string,
-  range: CodeHeatmapRange,
-  now: number,
-) {
-  const { projectId, since, until, prefix, mode } = range
-  const orm = drizzle(db, { schema })
+interface HeatmapResult<Mode extends 'claims' | 'contention', Entry> {
+  prefix: string
+  mode: Mode
+  totalDistinctIssues: number
+  entries: Entry[]
+}
 
-  /*
-   * Default window mirrors flow-metrics' throughput default (current ISO week plus the
-   * preceding 5 weeks) so the heatmap agrees with the rest of the dashboard when no
-   * explicit range is passed.
-   */
-  const windowSince = since ?? now - DEFAULT_HEATMAP_WINDOW_SECONDS
-  const windowUntil = until ?? now
+export type CodeHeatmap =
+  | HeatmapResult<'claims', CodeHeatmapEntry>
+  | HeatmapResult<'contention', ContentionHeatmapEntry>
 
-  const resolvedMode = mode ?? 'claims'
+const buildContentionResult = function buildContentionResult(
+  conflicts: HeatmapConflictRow[],
+  prefix: string | undefined,
+  resolvedMode: 'contention',
+): HeatmapResult<'contention', ContentionHeatmapEntry> {
+  const entries = groupConflictsByNextSegment(conflicts, prefix ?? '')
 
-  if (resolvedMode === 'contention') {
+  return fieldsInOrder([
+    ['prefix', prefix ?? ''],
+    ['mode', resolvedMode],
     /*
-     * PROJ-338: same window predicate as claims mode, but over claim_conflicts —
-     * occurredAt within [since, until], joined to issues (via rejectedIssueId) to scope
-     * by project.
+     * Reuses the claims-mode field name so the response shape doesn't fork in two —
+     * here it's the distinct count of *rejected* issues, i.e. issues whose claim
+     * attempt lost.
      */
-    const conflicts = await orm
-      .select({
-        path: schema.claimConflicts.path,
-        rejectedIssueId: schema.claimConflicts.rejectedIssueId,
-      })
-      .from(schema.claimConflicts)
-      .innerJoin(schema.issues, eq(schema.claimConflicts.rejectedIssueId, schema.issues.id))
-      .where(
-        and(
-          eq(schema.claimConflicts.workspaceId, workspaceId),
-          eq(schema.issues.projectId, projectId),
-          gte(schema.claimConflicts.occurredAt, windowSince),
-          lte(schema.claimConflicts.occurredAt, windowUntil),
-        ),
-      )
+    ['totalDistinctIssues', new Set(conflicts.map((conflict) => conflict.rejectedIssueId)).size],
+    ['entries', entries],
+  ])
+}
 
-    const entries = groupConflictsByNextSegment(conflicts, prefix ?? '')
-
-    return fieldsInOrder([
-      ['prefix', prefix ?? ''],
-      ['mode', resolvedMode],
-      /*
-       * Reuses the claims-mode field name so the response shape doesn't fork in two —
-       * here it's the distinct count of *rejected* issues, i.e. issues whose claim
-       * attempt lost.
-       */
-      ['totalDistinctIssues', new Set(conflicts.map((conflict) => conflict.rejectedIssueId)).size],
-      ['entries', entries],
-    ])
-  }
-
-  /*
-   * PROJ-332: window predicate matches the rest of flow-metrics — claimedAt within
-   * [since, until], not claim overlap. issue_file_claims has no project column, so join
-   * issues to scope by project.
-   */
-  const claims = await orm
-    .select(
-      fieldsInOrder([
-        ['path', schema.issueFileClaims.path],
-        ['issueId', schema.issueFileClaims.issueId],
-      ]),
-    )
-    .from(schema.issueFileClaims)
-    .innerJoin(schema.issues, eq(schema.issueFileClaims.issueId, schema.issues.id))
-    .where(
-      and(
-        eq(schema.issueFileClaims.workspaceId, workspaceId),
-        eq(schema.issues.projectId, projectId),
-        gte(schema.issueFileClaims.claimedAt, windowSince),
-        lte(schema.issueFileClaims.claimedAt, windowUntil),
-      ),
-    )
-
+const buildClaimsResult = function buildClaimsResult(
+  claims: HeatmapClaimRow[],
+  prefix: string | undefined,
+  resolvedMode: 'claims',
+): HeatmapResult<'claims', CodeHeatmapEntry> {
   const entries = groupClaimsByNextSegment(claims, prefix ?? '')
 
   return fieldsInOrder([
@@ -272,17 +232,51 @@ const readCodeHeatmap = async function readCodeHeatmap(
   ])
 }
 
-export type CodeHeatmap = Awaited<ReturnType<typeof readCodeHeatmap>>
+const resolveHeatmapScope = function resolveHeatmapScope(
+  range: Pick<CodeHeatmapRange, 'projectId' | 'since' | 'until'>,
+  workspaceId: string,
+  now: number,
+): HeatmapQueryScope {
+  // Keep the default six-week window aligned with the throughput view.
+  return {
+    projectId: range.projectId,
+    windowSince: range.since ?? now - DEFAULT_HEATMAP_WINDOW_SECONDS,
+    windowUntil: range.until ?? now,
+    workspaceId,
+  }
+}
 
-/** The caller validates input and authorizes project access before running this Effect. */
-const DEFAULT_HEATMAP_WINDOW_DAYS = 42
-const DEFAULT_HEATMAP_WINDOW_SECONDS = DEFAULT_HEATMAP_WINDOW_DAYS * SECONDS_PER_DAY
+const readCodeHeatmap = async function readCodeHeatmap({
+  db,
+  now,
+  range,
+  workspaceId,
+}: {
+  db: D1Database
+  now?: number
+  range: CodeHeatmapRange
+  workspaceId: string
+}): Promise<CodeHeatmap> {
+  const clock = now ?? currentEpochSeconds()
+  const { projectId, since, until, prefix, mode } = range
+  const orm = drizzle(db, { schema })
+  const scope = resolveHeatmapScope({ projectId, since, until }, workspaceId, clock)
+  const resolvedMode = mode ?? 'claims'
+  if (resolvedMode === 'contention') {
+    const conflicts = await readHeatmapConflicts(orm, scope)
+    return buildContentionResult(conflicts, prefix, resolvedMode)
+  }
+  const claims = await readHeatmapClaims(orm, scope)
+  return buildClaimsResult(claims, prefix, resolvedMode)
+}
 
+// The caller validates input and authorizes project access before running this Effect.
+// oxlint-disable-next-line eslint/max-params -- The existing service contract accepts the database, workspace, range, and optional clock positionally.
 export const getCodeHeatmap = function getCodeHeatmap(
   db: D1Database,
   workspaceId: string,
   range: CodeHeatmapRange,
   now?: number,
 ): Effect.Effect<CodeHeatmap, DataQueryError> {
-  return queryEffect('getCodeHeatmap', () => readCodeHeatmap(db, workspaceId, range, now ?? currentEpochSeconds()))
+  return queryEffect('getCodeHeatmap', readCodeHeatmap.bind(undefined, { db, now, range, workspaceId }))
 }
