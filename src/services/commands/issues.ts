@@ -112,11 +112,11 @@ const issueChildrenInWorkspace = function issueChildrenInWorkspace(
 }
 
 // Validates a candidate parentId: checks workspace scope, cycle prevention, and depth cap (max 5).
-// Pass issueId=null on create (no cycle possible yet); pass the existing issue's id on update.
+// Creation has no issue ID. Updates pass the existing issue ID.
 const validateParent = async function validateParent(
   ctx: ServiceCtx,
   parentId: string,
-  issueId: string | null,
+  issueId?: string,
 ): Promise<void> {
   if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId) && parentId === issueId) {
     throw new ValidationError(validationIssues(['An issue cannot be its own parent'], {}))
@@ -384,7 +384,7 @@ const resolveTypeId = async function resolveTypeId(
   typeId: string | null | undefined,
 ): Promise<string | null> {
   if (typeId === null) {
-    return null
+    return SQL_NULL
   }
   const orm = drizzle(ctx.db, { schema })
   if (Predicate.isNotNullish(typeId) && String.isNonEmpty(typeId)) {
@@ -403,7 +403,7 @@ const resolveTypeId = async function resolveTypeId(
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.isDefault, SQLITE_TRUE)))
     .get()
-  return def?.id ?? null
+  return def?.id ?? SQL_NULL
 }
 
 type CreateIssueData = z.infer<typeof CreateIssueSchema>
@@ -560,7 +560,7 @@ const buildActivityInsertStatement = function buildActivityInsertStatement(
         ['entityId', opts.entityId],
         ['actorId', ctx.userId],
         ['action', opts.action],
-        ['diff', opts.diff ?? null],
+        ['diff', opts.diff ?? SQL_NULL],
         ['createdAt', now()],
       ]),
     )
@@ -581,7 +581,7 @@ const resolveCreateIssueDeps = async function resolveCreateIssueDeps(
   data: CreateIssueData,
 ): Promise<IssueCreationDependencies> {
   if (data.parentId) {
-    await validateParent(ctx, data.parentId, null)
+    await validateParent(ctx, data.parentId)
   }
 
   const resolvedTypeId = await resolveTypeId(ctx, data.typeId)
@@ -1047,7 +1047,7 @@ const applyStatusFields = async function applyStatusFields(
 ): Promise<{
   setValues: SetValues
   reviewOrDoneTransition: boolean
-  gateRejectionStatement: D1PreparedStatement | null
+  gateRejectionStatement: D1PreparedStatement | undefined
   /*
    * PROJ-928: resolved to done/cancelled by category OR legacy key — a workspace with
    * no custom task_statuses row backing this key has category === null (see
@@ -1059,7 +1059,7 @@ const applyStatusFields = async function applyStatusFields(
     return fieldsInOrder([
       ['setValues', {}],
       ['reviewOrDoneTransition', false],
-      ['gateRejectionStatement', null],
+      ['gateRejectionStatement', undefined],
       ['closing', false],
     ])
   }
@@ -1112,7 +1112,7 @@ const applyStatusFields = async function applyStatusFields(
     ? ctx.db
         .prepare('INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)')
         .bind(crypto.randomUUID(), ctx.workspaceId, existing.id, now())
-    : null
+    : undefined
 
   return fieldsInOrder([
     ['setValues', setValues],
@@ -1204,7 +1204,7 @@ const buildUpdateSetValues = async function buildUpdateSetValues(
 ): Promise<{
   setValues: SetValues
   recordCompletionReport: boolean
-  gateRejectionStatement: D1PreparedStatement | null
+  gateRejectionStatement: D1PreparedStatement | undefined
   closing: boolean
 }> {
   const setValues: SetValues = { updatedAt: now(), ...buildSimpleFields(data) }
