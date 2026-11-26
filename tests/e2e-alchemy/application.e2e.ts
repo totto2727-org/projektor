@@ -1154,7 +1154,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await expect(page.locator('.markdown-content pre.shiki')).toBeVisible()
   await expect(page.locator('strong').filter({ hasText: /^strong$/u })).toBeVisible()
   await expect(page.getByRole('link', { exact: true, name: 'Scoped project' })).toHaveAttribute('href', projectUrl)
-  expect(await page.evaluate(() => '__acceptanceInjected' in window)).toBe(false)
+  expect(await page.evaluate(() => '__acceptanceInjected' in globalThis)).toBe(false)
   await checkpoint(page, testInfo, 'wiki-created-comark-render')
   await expect(page).toHaveURL((url) => url.pathname.startsWith('/wiki/'))
   const wikiUrl = page.url()
@@ -1163,7 +1163,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await page.reload()
   await expect(page.getByRole('heading', { exact: true, level: 1, name: wikiTitle })).toBeVisible()
   await expect(page.getByRole('heading', { exact: true, level: 2, name: `Comark acceptance ${suffix}` })).toBeVisible()
-  expect(await page.evaluate(() => '__acceptanceInjected' in window)).toBe(false)
+  expect(await page.evaluate(() => '__acceptanceInjected' in globalThis)).toBe(false)
   await checkpoint(page, testInfo, 'wiki-reload-comark-render')
   const timeOrigin = await page.evaluate(() => performance.timeOrigin)
   const refreshPost = page.waitForResponse(
