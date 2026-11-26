@@ -3,12 +3,14 @@ import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { NotFoundError } from './errors.ts'
 import { PLAYBOOKS } from './playbook-content.ts'
 
-export const listPlaybooks = function listPlaybooks(): {
+interface PlaybookSummary {
   name: string
   title: string
   description: string
   whenToUse: string
-}[] {
+}
+
+export const listPlaybooks = function listPlaybooks(): PlaybookSummary[] {
   return PLAYBOOKS.map(({ name, title, description, whenToUse }) => ({
     name,
     title,
@@ -17,7 +19,7 @@ export const listPlaybooks = function listPlaybooks(): {
   }))
 }
 
-export const getPlaybook = function getPlaybook(name: string) {
+export const getPlaybook = function getPlaybook(name: string): PlaybookSummary & { content: string } {
   const playbook = PLAYBOOKS.find((selectedPlaybook) => selectedPlaybook.name === name)
   if (!playbook) {
     throw new NotFoundError(`Unknown playbook "${name}"`, {

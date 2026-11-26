@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { String, Array, Iterable, Predicate, Effect, Number } from 'effect'
 import { flattenError } from 'zod'
 
@@ -507,7 +508,7 @@ const buildWikiPageUpdateDiff = function buildWikiPageUpdateDiff(
 }
 
 // The app composes its authorization policy, including workspace-level pages.
-const wikiReadVisibility = function wikiReadVisibility(ctx: ServiceCtx) {
+const wikiReadVisibility = function wikiReadVisibility(ctx: ServiceCtx): SQL | undefined {
   const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId)
   return visible ? or(isNull(schema.wikiPages.projectId), visible) : undefined
 }

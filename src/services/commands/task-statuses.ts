@@ -47,7 +47,16 @@ const invalidateTaskStatusesCache = async function invalidateTaskStatusesCache(c
   localCache.invalidate(cacheKey)
 }
 
-export const createTaskStatus = async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
+interface CreatedTaskStatus {
+  id: ReturnType<typeof crypto.randomUUID>
+  key: string
+  name: string
+}
+
+export const createTaskStatus = async function createTaskStatus(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<CreatedTaskStatus> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }

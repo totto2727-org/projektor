@@ -618,7 +618,16 @@ export async function createIssueFromFeedback(
   return createIssueInternal(ctx, { projectId, title, body, priority }, feedbackIds)
 }
 
-async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: Readonly<string[]>) {
+interface CreatedIssue {
+  id: ReturnType<typeof crypto.randomUUID>
+  number: number | undefined
+}
+
+async function createIssueInternal(
+  ctx: ServiceCtx,
+  raw: unknown,
+  feedbackIds?: Readonly<string[]>,
+): Promise<CreatedIssue> {
   const result = CreateIssueSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))

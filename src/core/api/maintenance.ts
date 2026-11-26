@@ -158,7 +158,13 @@ export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void>
   }
 }
 
-const createSubrequestBudget = function createSubrequestBudget(limit: number) {
+interface SubrequestBudget {
+  spend: (count?: number) => void
+  remaining: () => number
+  used: () => number
+}
+
+const createSubrequestBudget = function createSubrequestBudget(limit: number): SubrequestBudget {
   let used = 0
   return {
     spend: (count = 1) => {
@@ -168,7 +174,6 @@ const createSubrequestBudget = function createSubrequestBudget(limit: number) {
     used: () => used,
   }
 }
-type SubrequestBudget = ReturnType<typeof createSubrequestBudget>
 
 /**
  * Count database requests as they execute.

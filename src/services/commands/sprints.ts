@@ -123,15 +123,17 @@ export const createSprint = async function createSprint(
 
 type SprintUpdateData = z.infer<typeof UpdateSprintSchema>
 
-const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, now: number) {
-  const setData: {
-    updatedAt: number
-    name?: string
-    goal?: string | null
-    status?: 'planned' | 'active' | 'completed'
-    startDate?: number | null
-    endDate?: number | null
-  } = { updatedAt: now }
+interface SprintSetData {
+  updatedAt: number
+  name?: string
+  goal?: string | null
+  status?: 'planned' | 'active' | 'completed'
+  startDate?: number | null
+  endDate?: number | null
+}
+
+const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, now: number): SprintSetData {
+  const setData: SprintSetData = { updatedAt: now }
 
   if (Predicate.isNotNullish(data.name)) {
     setData.name = data.name
