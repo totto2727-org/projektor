@@ -2300,18 +2300,23 @@ export const seedDefaultWikiTemplates = async function seedDefaultWikiTemplates(
   await db.batch(buildDefaultWikiTemplateStatements(db, workspaceId, userId))
 }
 
-/*
- * PROJ-238: breadth-first walk of parent_id children, chunked to stay under D1's
- * bound-parameter cap regardless of subtree size.
- * PROJ-496: only walks LIVE descendants — an already-trashed descendant (trashed
- * independently, or a leftover from an earlier soft-delete) is left with its own
- * deleted_at untouched rather than being folded into this cascade and having its
- * retention clock reset.
- */
-const collectDescendantIds = async function collectDescendantIds(
+type WikiDescendantScope =
+  | Readonly<{ kind: 'live'; workspaceId: string }>
+  | Readonly<{ kind: 'trashBatch'; trashBatchId: string | null; workspaceId: string }>
+
+const wikiDescendantCondition = function wikiDescendantCondition(scope: WikiDescendantScope): SQL | undefined {
+  if (scope.kind === 'live') {
+    return isNull(schema.wikiPages.deletedAt)
+  }
+  const { trashBatchId } = scope
+  return Predicate.isNullish(trashBatchId) ? undefined : eq(schema.wikiPages.trashBatchId, trashBatchId)
+}
+
+// PROJ-238: read children breadth-first in chunks under D1's bind limit.
+const walkWikiDescendants = async function walkWikiDescendants(
   db: D1Database,
   rootId: string,
-  workspaceId: string,
+  { condition, workspaceId }: Readonly<{ condition: SQL; workspaceId: string }>,
 ): Promise<string[]> {
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
@@ -2322,11 +2327,7 @@ const collectDescendantIds = async function collectDescendantIds(
         .select({ id: schema.wikiPages.id })
         .from(schema.wikiPages)
         .where(
-          and(
-            inArray(schema.wikiPages.parentId, chunk),
-            eq(schema.wikiPages.workspaceId, workspaceId),
-            isNull(schema.wikiPages.deletedAt),
-          ),
+          and(inArray(schema.wikiPages.parentId, chunk), eq(schema.wikiPages.workspaceId, workspaceId), condition),
         ),
     )
     frontier = children.map((child) => child.id)
@@ -2336,44 +2337,19 @@ const collectDescendantIds = async function collectDescendantIds(
 }
 
 /*
- * PROJ-496 follow-up: mirror of collectDescendantIds for the undelete path — walks
- * parent_id children that are IN THE TRASH and share the exact same trash_batch_id as
- * the root being restored (deleteWikiPage's cascade branch stamps the whole subtree
- * with one batch id in a single call). Batch id — not deleted_at — is what identifies
- * "trashed together": two independent single-page trashes can land in the same
- * wall-clock second and would otherwise be mistaken for one cascade batch. A
- * descendant trashed independently (different batch id) is left out, same as
- * collectDescendantIds leaves it out of a subsequent cascade delete.
+ * PROJ-496: deletion visits live children and preserves each prior trash retention clock.
+ * Restoration visits children in the root's exact trash batch. Independent deletions
+ * can share a timestamp, so restoration uses the batch identifier.
  */
-const collectCascadeTrashedDescendantIds = async function collectCascadeTrashedDescendantIds(
+const collectDescendantIds = async function collectDescendantIds(
   db: D1Database,
   rootId: string,
-  workspaceId: string,
-  trashBatchId: string | null,
+  scope: WikiDescendantScope,
 ): Promise<string[]> {
-  if (Predicate.isNullish(trashBatchId)) {
-    return []
-  }
-  const orm = drizzle(db, { schema })
-  const descendants: string[] = []
-  let frontier = [rootId]
-  while (Array.isArrayNonEmpty(frontier)) {
-    const children = await inChunks(frontier, (chunk) =>
-      orm
-        .select({ id: schema.wikiPages.id })
-        .from(schema.wikiPages)
-        .where(
-          and(
-            inArray(schema.wikiPages.parentId, chunk),
-            eq(schema.wikiPages.workspaceId, workspaceId),
-            eq(schema.wikiPages.trashBatchId, trashBatchId),
-          ),
-        ),
-    )
-    frontier = children.map((child) => child.id)
-    descendants.push(...frontier)
-  }
-  return descendants
+  const condition = wikiDescendantCondition(scope)
+  return Predicate.isNullish(condition)
+    ? []
+    : walkWikiDescendants(db, rootId, { condition, workspaceId: scope.workspaceId })
 }
 
 /*
@@ -2505,9 +2481,9 @@ export const deleteWikiPage = async function deleteWikiPage(
      * the same deleted_at AND trash_batch_id stamp, so undeleting the root later doesn't
      * leave descendants behind (undeleting a descendant independently is still possible,
      * see undeleteWikiPage's "orphan-in-trash" note). trash_batch_id (not deleted_at) is
-     * what identifies batch membership — see collectCascadeTrashedDescendantIds.
+     * what identifies batch membership in collectDescendantIds.
      */
-    const descendantIds = await collectDescendantIds(ctx.db, page.id, ctx.workspaceId)
+    const descendantIds = await collectDescendantIds(ctx.db, page.id, { kind: 'live', workspaceId: ctx.workspaceId })
     const allIds = [page.id, ...descendantIds]
     const trashBatchId = crypto.randomUUID()
     /*
@@ -2701,10 +2677,18 @@ export const undeleteWikiPage = async function undeleteWikiPage(
    * PROJ-496 follow-up: restore the whole cascade-trashed subtree, not just the root —
    * a page trashed via deleteWikiPage's cascade branch stamps every descendant with the
    * same trash_batch_id, so walking descendants that share that exact id recovers
-   * exactly the batch that was trashed together (see collectCascadeTrashedDescendantIds).
+   * exactly the batch that was trashed together (see collectDescendantIds).
    * Independently-trashed descendants (a different batch id) are left alone.
    */
-  const descendantIds = await collectCascadeTrashedDescendantIds(ctx.db, page.id, ctx.workspaceId, page.trashBatchId)
+  const descendantIds = await collectDescendantIds(
+    ctx.db,
+    page.id,
+    fieldsInOrder([
+      ['kind', 'trashBatch'],
+      ['workspaceId', ctx.workspaceId],
+      ['trashBatchId', page.trashBatchId],
+    ]),
+  )
   const allIds = [page.id, ...descendantIds]
 
   const descendantRows = Array.isArrayNonEmpty(descendantIds)
