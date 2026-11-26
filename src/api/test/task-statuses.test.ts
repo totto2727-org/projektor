@@ -586,10 +586,7 @@ const mcpCall = async function mcpCall(
       ]),
     ),
   )
-  return res.json() as Promise<{
-    result?: { content: { text: string }[] }
-    error?: { message: string }
-  }>
+  return res.json()
 }
 
 describe('task Statuses — MCP parity', () => {

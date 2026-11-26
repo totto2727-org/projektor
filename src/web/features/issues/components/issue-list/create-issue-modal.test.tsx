@@ -77,7 +77,7 @@ describe('covers CreateIssueModal — Select field captions (PROJ-566)', () => {
   Iterable.forEach(['Project', 'Priority', 'Type', 'Status'], (caption) => {
     test(`renders the ${caption} label as a caption with no implicit control`, () => {
       render(<FieldsHarness />)
-      const label = screen.getByText(caption, { selector: 'label' }) as HTMLLabelElement
+      const label = screen.getByText<HTMLLabelElement>(caption, { selector: 'label' })
       expect(label.control).toBeNull()
     })
   })
