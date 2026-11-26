@@ -892,7 +892,7 @@ interface PageArticleProps {
   saveError: string | undefined
   // PROJ-797: set only after a 409 — rebases the user's text onto the current revision.
   onOverwriteWithMine: (() => void) | null
-  draftBanner: ServerDraft | null
+  draftBanner: ServerDraft | undefined
   draftWarning: string | undefined
   onRestoreDraft: () => void
   onDiscardDraft: () => void
@@ -1295,10 +1295,10 @@ function useWikiSearch(
 
 function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   const seed = useWikiSeed()
-  const [deletedPageId, setDeletedPageId] = useState<string | null>(null)
-  const page = seed.page?.id === deletedPageId ? null : seed.page
+  const [deletedPageId, setDeletedPageId] = useState<string>()
+  const page = seed.page?.id === deletedPageId && Predicate.isNotNullish(deletedPageId) ? null : seed.page
   const setPage = (value: WikiPageData | null): void => {
-    setDeletedPageId(value ? null : (seed.page?.id ?? null))
+    setDeletedPageId(value ? undefined : seed.page?.id)
   }
   const loading = false
   const error = seed.slug && !seed.page ? '404' : null
@@ -1346,7 +1346,7 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
    */
   useEffect(() => {
     if (seed.page) {
-      setDeletedPageId(null)
+      setDeletedPageId(undefined)
     }
   }, [seed.page])
 
@@ -1704,13 +1704,13 @@ function useWikiEditing(
   const [saveError, setSaveError] = useState<string>()
   // PROJ-797: the last save hit a 409 (someone else saved first).
   const [conflict, setConflict] = useState(false)
-  const [draftBanner, setDraftBanner] = useState<ServerDraft | null>(
+  const [draftBanner, setDraftBanner] = useState<ServerDraft | undefined>(
     seed.mode === 'edit' &&
       seed.draft &&
       seed.page &&
       differsFromPublished(seed.page, seed.draft.title, seed.draft.content)
       ? { ...seed.draft, pageChangedSince: seed.draft.baseRevisionId !== seed.page.revisionId }
-      : null,
+      : undefined,
   )
   /*
    * PROJ-507: the revision id of the content the user actually started editing,
@@ -1765,7 +1765,7 @@ function useWikiEditing(
     }
     const session = ++sessionRef.current
     setSaveError(undefined)
-    setDraftBanner(null)
+    setDraftBanner(undefined)
     setDraftStatus('loading')
     serverHasDraftRef.current = false
     /*
@@ -1820,7 +1820,7 @@ function useWikiEditing(
     setEditTitle(draftBanner.title)
     setEditContent(draftBanner.content)
     setBaseRevisionId(draftBanner.baseRevisionId)
-    setDraftBanner(null)
+    setDraftBanner(undefined)
     serverHasDraftRef.current = true
   }
 
@@ -1842,7 +1842,7 @@ function useWikiEditing(
           setEditTitle(page.title)
           setEditContent(page.content)
         }
-        setDraftBanner(null)
+        setDraftBanner(undefined)
         setDraftStatus('ready')
       } catch (error) {
         if (sessionRef.current === session) {
@@ -1870,7 +1870,7 @@ function useWikiEditing(
     setEditing(false)
     setSaveError(undefined)
     setConflict(false)
-    setDraftBanner(null)
+    setDraftBanner(undefined)
   }
 
   const saveWithBase = async function saveWithBase(baseOverride?: string | null): Promise<void> {
@@ -2305,7 +2305,7 @@ function createWikiActions(
      * PROJ-807: shown after a successful delete, with an Undo action that calls the
      * existing trash-undelete endpoint. null dismisses whatever toast is showing.
      */
-    showUndoToast: (toast: UndoToast | null) => void
+    showUndoToast: (toast: UndoToast) => void
     navigate: (path: string) => void
   }>,
 ) {
@@ -2719,7 +2719,7 @@ function buildArticleProps(
     latestRevision: WikiRevision | null
     saveError: string | undefined
     overwriteWithMine: (() => void) | null
-    draftBanner: ServerDraft | null
+    draftBanner: ServerDraft | undefined
     draftWarning: string | undefined
     restoreDraft: () => void
     discardDraft: () => void
@@ -2802,7 +2802,7 @@ function useWikiPageState(
   const scope = useWikiScope(workspaceSlug, projectIdProp)
   const projectId = scope ?? ''
   // PROJ-807: the "moved to trash" Undo toast shown after a delete.
-  const [undoToast, setUndoToast] = useState<UndoToast | null>(null)
+  const [undoToast, setUndoToast] = useState<UndoToast>()
   const { pageTree, pageMap, treeLoading } = useWikiTree(workspaceSlug, scope)
   const filters = useWikiFilters(workspaceSlug, scope, pageTree)
   const stale = useWikiStalePages(workspaceSlug, scope)
@@ -3000,7 +3000,7 @@ function UndoToastView({
   toast,
   onDismiss,
 }: {
-  toast: UndoToast | null
+  toast: UndoToast | undefined
   onDismiss: () => void
 }): undefined | JSX.Element {
   if (!toast) {
@@ -3130,7 +3130,7 @@ function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugPr
   } = state
   const { navigateTo, startCreate, createProps, articleProps } = useAssembledWikiPageProps(state, workspaceSlug)
   const dismissUndoToast = useCallback(() => {
-    setUndoToast(null)
+    setUndoToast(undefined)
   }, [setUndoToast])
 
   return (

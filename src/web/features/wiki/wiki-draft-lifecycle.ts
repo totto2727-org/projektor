@@ -27,7 +27,7 @@ export interface DraftAutosaveOptions {
   editTitle: string
   editContent: string
   page: WikiPageData | null
-  draftBanner: ServerDraft | null
+  draftBanner: ServerDraft | null | undefined
   baseRevisionId: string | null | undefined
   saving: boolean
   draftStatus: DraftStatus
