@@ -125,7 +125,7 @@ export const useFilterUrlSync = function useFilterUrlSync(
     } else {
       params.delete('type')
     }
-    navigateIssues(`${window.location.pathname}?${params}`)
+    navigateIssues(`${globalThis.location.pathname}?${params}`)
   }, [
     state.filterProject,
     state.filterType,

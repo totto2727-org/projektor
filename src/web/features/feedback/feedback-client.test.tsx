@@ -166,7 +166,7 @@ describe('feedback hydrated original controls', () => {
   })
 
   test('does not revoke a source when its danger confirmation is cancelled', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
     render(
       <FeedbackSourceSettings
         workspaceSlug='team'
@@ -176,7 +176,7 @@ describe('feedback hydrated original controls', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Revoke source' }))
-    expect(window.confirm).toHaveBeenCalled()
+    expect(globalThis.confirm).toHaveBeenCalled()
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Rotate token' }))

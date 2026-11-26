@@ -151,7 +151,7 @@ export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onCha
   }
 
   const revoke = async function revoke(): Promise<void> {
-    if (!window.confirm(`Revoke ${source.name}? Its token will stop accepting feedback.`)) {
+    if (!globalThis.confirm(`Revoke ${source.name}? Its token will stop accepting feedback.`)) {
       return
     }
     try {

@@ -103,7 +103,7 @@ export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: strin
   const [copiedRef, setCopiedRef] = useState(false)
 
   const copyLink = function copyLink(): void {
-    navigator.clipboard.writeText(new URL(copyUrl, window.location.origin).href).catch(Function.constVoid)
+    navigator.clipboard.writeText(new URL(copyUrl, globalThis.location.origin).href).catch(Function.constVoid)
     setCopiedRef(true)
     setTimeout(() => {
       setCopiedRef(false)
@@ -174,7 +174,7 @@ export const ShareButton = function ShareButton({
     setSharingLoading(true)
     try {
       const data = unwrapResult(await shareIssue({ workspaceSlug, issueId }))
-      setShareUrl(`${window.location.origin}${data.url}`)
+      setShareUrl(`${globalThis.location.origin}${data.url}`)
     } catch {
       // Non-fatal
     }
@@ -1638,7 +1638,7 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
   }
 
   const doDeleteComment = async function doDeleteComment(commentId: string): Promise<void> {
-    if (!window.confirm('Delete this comment?')) {
+    if (!globalThis.confirm('Delete this comment?')) {
       return
     }
     try {

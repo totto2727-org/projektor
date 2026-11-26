@@ -21,7 +21,7 @@ export class ViewErrorBoundary extends Component<{ children: ReactNode }, { fail
           type='button'
           className='btn btn-secondary'
           onClick={() => {
-            window.location.reload()
+            globalThis.location.reload()
           }}
         >
           Reload page
