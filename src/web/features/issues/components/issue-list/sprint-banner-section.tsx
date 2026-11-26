@@ -319,7 +319,12 @@ interface SprintBannerSectionProps {
   issues: Issue[]
 }
 
-/** Wraps SprintBanner with its own edit-form state, isolated from the parent list. */
+/**
+ * Wraps SprintBanner with its own edit-form state, isolated from the parent list.
+ *
+ * @param {SprintBannerSectionProps} props The selected sprint's details, filter controls, workspace, and issues.
+ * @returns {false | JSX.Element} The sprint summary or editor, or false when the selection has no details.
+ */
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function SprintBannerSection({
   filterSprintId,

@@ -18,7 +18,12 @@ export type ButtonProps = CommonProps &
     | { as: 'span'; href?: never }
   )
 
-/** Compatibility props only. Base UI owns button interaction and native form semantics. */
+/**
+ * Compatibility props only. Base UI owns button interaction and native form semantics.
+ *
+ * @param {ButtonProps} props The element kind, presentation, content, and native button or link attributes.
+ * @returns {JSX.Element} The chosen button, anchor, or span with the configured presentation.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Button = function Button({
   variant,

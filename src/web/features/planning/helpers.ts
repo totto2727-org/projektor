@@ -21,7 +21,12 @@ const DEFAULT_STORY_POINTS = 0
 const DISPLAY_DECIMAL_PLACES = 1
 const PERCENT_SCALE = 100
 
-/** Original local-midnight date input contract, including timezone-safe round trips. */
+/**
+ * Original local-midnight date input contract, including timezone-safe round trips.
+ *
+ * @param {string} value The date input in year-month-day form.
+ * @returns {number | null} The Unix timestamp in seconds at local midnight, or null if the input cannot be parsed.
+ */
 export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value.trim())
   if (!match) {

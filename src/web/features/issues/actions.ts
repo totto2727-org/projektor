@@ -48,7 +48,13 @@ const dataWorkspaceId = function dataWorkspaceId(context: FunctionContext): Effe
   })
 }
 
-/** Entity references are resolved under the authorized membership, then checked against the authorized catalog. */
+/**
+ * Entity references are resolved under the authorized membership, then checked against the authorized catalog.
+ *
+ * @param {FunctionContext} context The browser function context containing the authorized scope.
+ * @param {string} issueId The issue reference to resolve within that scope.
+ * @returns {ReturnType<typeof authorizedIssue>} An effect that reads the issue using the verified workspace and project.
+ */
 const authorizedIssue = function authorizedIssue(context: FunctionContext, issueId: string) {
   return Effect.gen(function* () {
     return yield* readDataIssue(yield* dataWorkspaceId(context), issueId, context.projectId)

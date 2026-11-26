@@ -33,7 +33,14 @@ const selectedProject = function selectedProject(scope: RequestScope, projectId:
   })
 }
 
-/** Fully page scoped issue DTOs on the server, including completed velocity history. */
+/**
+ * Fully page scoped issue DTOs on the server, including completed velocity history.
+ *
+ * @param {string} projectId The project whose sprint issues to load.
+ * @param {string} workspaceSlug The workspace that owns the project.
+ * @param {RequestScope} scope The request scope used to authorize the project and workspace.
+ * @returns {ReturnType<typeof loadSprintIssues>} An effect that loads the project's issues with their sprint and velocity fields.
+ */
 export const loadSprintIssues = function loadSprintIssues(
   projectId: string,
   workspaceSlug: string,

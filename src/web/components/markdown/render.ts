@@ -45,7 +45,12 @@ export type MarkdownOptions = Readonly<{
   projectId?: string
 }>
 
-/** Final allowlist applies equally to authored HTML and plugin-generated HTML/SVG. */
+/**
+ * Final allowlist applies equally to authored HTML and plugin-generated HTML/SVG.
+ *
+ * @param {string} html The HTML produced from authored Markdown and its rendering plugins.
+ * @returns {string} The HTML after the Markdown output allowlist is applied.
+ */
 export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
@@ -230,7 +235,13 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
   }
 }
 
-/** Runtime rendering, not an Effront build-time Markdown resource. Parser defaults stay enabled. */
+/**
+ * Runtime rendering, not an Effront build-time Markdown resource. Parser defaults stay enabled.
+ *
+ * @param {string} markdown The Markdown document to parse and render.
+ * @param {MarkdownOptions} options The optional Wiki page catalog and scope used for links.
+ * @returns {Promise<RenderedMarkdown>} The sanitized HTML and the flattened table of contents.
+ */
 export const renderMarkdownDocument = async function renderMarkdownDocument(
   markdown: string,
   options: MarkdownOptions = {},

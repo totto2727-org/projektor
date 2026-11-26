@@ -41,7 +41,12 @@ const INFO =
   'flex items-center gap-2 border border-border rounded-lg bg-bg px-4 py-3 mb-4 text-[0.82rem] text-text-base'
 const ROLE_TAG =
   'inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold bg-accent text-white uppercase tracking-wide'
-/** Details, membership and grant rows are prop-owned, while unsaved editor fields are local. */
+/**
+ * Details, membership and grant rows are prop-owned, while unsaved editor fields are local.
+ *
+ * @param {{ slug: string; detail: GroupDetail; members: WorkspaceMember[]; projects: ProjectLite[]; onClose: () => void }} props The selected group's details, workspace members, projects, and close action.
+ * @returns {JSX.Element} The editor for the group's properties, membership, and project grants.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const GroupDetailEditor = function GroupDetailEditor({
   slug,

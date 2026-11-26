@@ -69,7 +69,11 @@ const readPrefs = function readPrefs(): Prefs {
   }
 }
 
-/** Safe-ls: cosmetic theme, density and navigation preferences never reach an API request. */
+/**
+ * Safe-ls: cosmetic theme, density and navigation preferences never reach an API request.
+ *
+ * @param {Prefs} prefs The theme, density, and sidebar preferences to apply to the document root.
+ */
 const applyPrefs = function applyPrefs(prefs: Prefs): void {
   const root = document.documentElement
   if (prefs.theme === 'system') {
@@ -351,7 +355,12 @@ function ShellContent({
   )
 }
 
-/** Request-local scope stays in props. Generated Base UI owns drawer, menu positioning and sidebar controls. */
+/**
+ * Request-local scope stays in props. Generated Base UI owns drawer, menu positioning and sidebar controls.
+ *
+ * @param {ShellProps} props The page content, request scope, and navigation data for the surrounding layout.
+ * @returns {JSX.Element} The page shell with its sidebar, navigation, and main content.
+ */
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function Shell(props: ShellProps): JSX.Element {
   const [prefs, setPrefs] = useState(DEFAULT_PREFS)

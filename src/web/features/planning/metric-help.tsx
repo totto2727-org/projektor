@@ -29,7 +29,12 @@ export const computeMetricHelpPosition = function computeMetricHelpPosition(rect
       : rect.bottom + HELP_TRIGGER_GAP_PX
   return { top, left }
 }
-/** Original viewport-clamped toggletip, dismissed by Escape, outside clicks and scroll. */
+/**
+ * Original viewport-clamped toggletip, dismissed by Escape, outside clicks and scroll.
+ *
+ * @param {{ id: MetricId }} props The ID of the metric whose definition should be shown.
+ * @returns {JSX.Element} The accessible help trigger and its positioned definition when open.
+ */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Element {
   const definition = METRIC_DEFINITIONS[id]

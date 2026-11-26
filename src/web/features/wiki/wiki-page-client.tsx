@@ -1351,8 +1351,14 @@ function excerptOf(content: string, maxLength = 200): string {
   return plain.length > maxLength ? `${plain.slice(EXCERPT_START, maxLength).trimEnd()}…` : plain
 }
 
-/** Persisted content and compiler-owned ToC arrive in canonical server props.
- * Only local unsaved previews need a bounded asynchronous client render. */
+/**
+ * Persisted content and compiler-owned ToC arrive in canonical server props.
+ * Only local unsaved previews need a bounded asynchronous client render.
+ *
+ * @param {string | undefined} content The current Wiki Markdown, when a page is available.
+ * @param {Readonly<{ title: string; slug: string }[]>} wikiPages The available page titles and slugs used to resolve Wiki links.
+ * @returns {RenderedMarkdown} The canonical or locally rendered HTML and table of contents.
+ */
 function useRenderedPageMarkdown(
   content: string | undefined,
   wikiPages: Readonly<{ title: string; slug: string }[]>,
