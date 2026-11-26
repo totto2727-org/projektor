@@ -109,11 +109,11 @@ const undeleteWikiPage = async function undeleteWikiPage(
 }
 
 const WIKI_TYPE_FILTER_OPTIONS: SelectOption[] = [
-  { value: '', label: 'All types' },
-  { value: 'runbook', label: 'Runbook' },
-  { value: 'adr', label: 'ADR' },
-  { value: 'spec', label: 'Spec' },
-  { value: 'note', label: 'Note' },
+  { label: 'All types', value: '' },
+  { label: 'Runbook', value: 'runbook' },
+  { label: 'ADR', value: 'adr' },
+  { label: 'Spec', value: 'spec' },
+  { label: 'Note', value: 'note' },
 ]
 
 const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((option) => option.value).filter(Boolean))
@@ -141,7 +141,7 @@ const buildTypeFilterOptions = function buildTypeFilterOptions(discoveredTypes: 
     extras.push(wikiType)
   })
   extras.sort((left, right) => left.localeCompare(right))
-  return [...WIKI_TYPE_FILTER_OPTIONS, ...extras.map((wikiType) => ({ value: wikiType, label: wikiType }))]
+  return [...WIKI_TYPE_FILTER_OPTIONS, ...extras.map((wikiType) => ({ label: wikiType, value: wikiType }))]
 }
 
 interface FlatEntry {
@@ -262,10 +262,10 @@ function CreatePageForm({
   onCancel: () => void
 }): JSX.Element {
   const templateOptions: SelectOption[] = [
-    { value: '', label: 'No template (blank page)' },
-    ...templates.map((template) => ({ value: template.slug, label: template.title })),
+    { label: 'No template (blank page)', value: '' },
+    ...templates.map(({ slug: value, title: label }) => ({ label, value })),
   ]
-  const selectedTemplate = templates.find((template) => template.slug === templateSlug) ?? null
+  const selectedTemplate = templates.find((template) => template.slug === templateSlug)
 
   const renderCreatePageEditor = (): JSX.Element => (
     <>
@@ -2529,10 +2529,10 @@ function deriveWikiPageState(
   const showToc = !editState.editing && !createForm.creating && toc.length >= MIN_TOC_ENTRIES
   const createParentTitle = createForm.createParentId ? (pageMap[createForm.createParentId]?.title ?? null) : null
   const moveOptions: SelectOption[] = [
-    { value: '', label: 'No parent (root)' },
+    { label: 'No parent (root)', value: '' },
     ...wikiPages
       .filter((candidatePage) => candidatePage.id !== pageData.page?.id)
-      .map((candidatePage) => ({ value: candidatePage.id, label: candidatePage.title })),
+      .map(({ id: value, title: label }) => ({ label, value })),
   ]
   return { latestRevision, breadcrumbs, showToc, createParentTitle, moveOptions }
 }
