@@ -1,9 +1,8 @@
-import { and, eq, gte, inArray, isNotNull, isNull, lte, or } from 'drizzle-orm'
 import { Predicate } from 'effect'
 import type { Effect } from 'effect'
 
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
-import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -26,7 +25,8 @@ import {
   buildWipOverTime,
   resolveFlowMetricWindows,
 } from './flow-metrics-series.ts'
-import { fetchHumanCommentCounts, fetchLeaseHeldSeconds, fetchWindowCounts } from './flow-metrics-storage.ts'
+import { assembleFlowWindowQueries, createFlowIssueWindow, selectFlowIssues } from './flow-metrics-storage.ts'
+import type { BugTypeMarker, FlowIssueWindow, fetchWindowCounts } from './flow-metrics-storage.ts'
 
 export type { Distribution } from './flow-metrics-distributions.ts'
 
@@ -58,6 +58,143 @@ export interface FlowMetrics {
   factoryHealth: Omit<Awaited<ReturnType<typeof fetchWindowCounts>>, 'doneBeforeWindow'>
 }
 
+interface IssueActivity {
+  durations: ReturnType<typeof computeCoreDistributions>
+  inWindow: (timestamp: number) => boolean
+  issues: FlowIssueRow[]
+}
+
+interface FlowSeries {
+  arrivalVsCompletionOverTime: FlowMetrics['arrivalVsCompletionOverTime']
+  bugShareOverTime: FlowMetrics['bugShareOverTime']
+  bugTypeTracked: boolean
+  cfdOverTime: FlowMetrics['cfdOverTime']
+  reviewLatencyOverTime: FlowMetrics['reviewLatencyOverTime']
+  throughputOverTime: FlowMetrics['throughputOverTime']
+  wipOverTime: FlowMetrics['wipOverTime']
+}
+
+type MetricWindows = ReturnType<typeof resolveFlowMetricWindows>
+type FlowWindowQueries = ReturnType<typeof assembleFlowWindowQueries>
+
+type FlowWindowData = Awaited<ReturnType<typeof Promise.all<FlowWindowQueries>>>
+
+const collectIssueActivity = function collectIssueActivity(
+  loaded: FlowIssueRow[],
+  { inSqlWindow }: FlowIssueWindow,
+  { since, until }: Pick<FlowMetricsRange, 'since' | 'until'>,
+): IssueActivity {
+  const issues = loaded.filter((issue) => inSqlWindow(issue))
+
+  /*
+   * Scope by project only, not created_at: since/until describe an activity window
+   * (claimed/done), and an issue created before the window but active inside it must
+   * still count (e.g. WIP). The SQL filter bounds the row count by the window.
+   */
+  const inWindow = (timestamp: number): boolean =>
+    (Predicate.isNullish(since) || timestamp >= since) && (Predicate.isNullish(until) || timestamp <= until)
+
+  return { durations: computeCoreDistributions(issues, inWindow), inWindow, issues }
+}
+
+const buildFlowSeries = function buildFlowSeries(
+  issues: FlowIssueRow[],
+  { throughputSince, throughputUntil, wipSince, wipUntil }: MetricWindows,
+  {
+    bugTypeExists,
+    doneBeforeWindow,
+    granularity,
+    now,
+  }: {
+    bugTypeExists: BugTypeMarker | undefined
+    doneBeforeWindow: number
+    granularity: FlowMetricsRange['granularity']
+    now: number
+  },
+): FlowSeries {
+  const wipOverTime = buildWipOverTime(issues, wipSince, wipUntil)
+  const throughputWindow = { granularity, since: throughputSince, until: throughputUntil }
+  const throughputOverTime = buildThroughputOverTime(issues, throughputWindow)
+  const reviewLatencyOverTime = buildReviewLatencyOverTime(issues, throughputWindow)
+  const cfdOverTime = buildCfdOverTime(issues, throughputWindow, { doneBeforeWindow, now })
+
+  // PROJ-331: A rising bug share signals more shipped defects, alongside work throughput.
+  const bugShareOverTime = buildBugShareOverTime(issues, throughputWindow)
+  const bugTypeTracked = Predicate.isNotNullish(bugTypeExists)
+  const arrivalVsCompletionOverTime = buildArrivalVsCompletion(issues, throughputWindow)
+  return {
+    arrivalVsCompletionOverTime,
+    bugShareOverTime,
+    bugTypeTracked,
+    cfdOverTime,
+    reviewLatencyOverTime,
+    throughputOverTime,
+    wipOverTime,
+  }
+}
+
+/*
+ * PROJ-921: report completed issues with no ready timestamp separately so a small
+ * or skewed lead-time sample remains visible.
+ */
+const countMissingLeadTimes = function countMissingLeadTimes(
+  issues: FlowIssueRow[],
+  inWindow: IssueActivity['inWindow'],
+): number {
+  return issues.filter(
+    (issue) => Predicate.isNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
+  ).length
+}
+
+const summarizeFlowMetrics = function summarizeFlowMetrics(
+  { durations, inWindow, issues }: IssueActivity,
+  [humanCommentCounts, leaseHeldSeconds, bugTypeExists, windowCounts]: FlowWindowData,
+  {
+    granularity,
+    loaded,
+    now,
+    windows,
+  }: {
+    granularity: FlowMetricsRange['granularity']
+    loaded: FlowIssueRow[]
+    now: number
+    windows: MetricWindows
+  },
+): FlowMetrics {
+  const { doneBeforeWindow, ...factoryHealth } = windowCounts
+  const humanInterventions = computeHumanInterventions(issues, humanCommentCounts, inWindow)
+  const autonomyRatios = computeAutonomyRatios(issues, leaseHeldSeconds, inWindow)
+  const series = buildFlowSeries(issues, windows, { bugTypeExists, doneBeforeWindow, granularity, now })
+  const flowEfficiencies = computeFlowEfficiencies(issues, leaseHeldSeconds, inWindow)
+  const agingWip = buildAgingWip(loaded, now)
+  const { leadTimes, cycleTimes, reviewLatencies, timeInProgress } = durations
+
+  return fieldsInOrder([
+    ['leadTime', summarize(leadTimes)],
+    ['leadTimeExcluded', countMissingLeadTimes(issues, inWindow)],
+    ['cycleTime', summarize(cycleTimes)],
+    ['wipOverTime', series.wipOverTime],
+    ['throughputOverTime', series.throughputOverTime],
+    ['bugShareOverTime', series.bugShareOverTime],
+    ['bugTypeTracked', series.bugTypeTracked],
+    // PROJ-328: review latency measures the in_review to done handoff.
+    // Human interventions and autonomy ratios use completed issues.
+    ['reviewLatency', summarize(reviewLatencies)],
+    ['reviewLatencyOverTime', series.reviewLatencyOverTime],
+    ['humanInterventions', summarize(humanInterventions)],
+    ['autonomyRatio', summarize(autonomyRatios)],
+    // PROJ-329: cumulative flow diagram + time-in-state breakdown.
+    ['cfdOverTime', series.cfdOverTime],
+    ['timeInProgress', summarize(timeInProgress)],
+    // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
+    ['arrivalVsCompletionOverTime', series.arrivalVsCompletionOverTime],
+    ['flowEfficiency', summarize(flowEfficiencies)],
+    ['agingWip', agingWip],
+    // PROJ-334: factory health — fault signals for the machinery itself.
+    ['factoryHealth', factoryHealth],
+  ])
+}
+
 const readFlowMetrics = async function readFlowMetrics({
   db,
   now: fixedNow,
@@ -72,174 +209,22 @@ const readFlowMetrics = async function readFlowMetrics({
   const now = fixedNow ?? currentEpochSeconds()
   const { projectId, since, until, granularity } = range
   const orm = drizzle(db, { schema })
-
-  const { throughputSince, throughputUntil, wipSince, wipUntil } = resolveFlowMetricWindows({ since, until }, now)
-
-  /*
-   * PROJ-866: scope the issue SELECT to the window instead of loading every issue in
-   * the project.
-   * - created_at <= until (or now): an issue created later can't have entered any
-   *   stage by `until`, so no windowed series wants it.
-   * - done_at >= doneBefore, only when `since` is given (when it's omitted, leadTime/
-   *   cycleTime are deliberately unbounded, see inWindow below). doneBefore is the
-   *   start of wipOverTime's first day bucket, not `since` itself: that bucket samples
-   *   at the day start, so an issue done between it and `since` still counts as WIP
-   *   there. Issues done before doneBefore are in the CFD done band at every sample;
-   *   they're counted (fetchWindowCounts) rather than loaded.
-   */
-  const createdUntil = until ?? now
-  const doneBefore = Predicate.isNullish(since) ? undefined : Math.min(since, since - (since % SECONDS_PER_DAY))
-  const windowPredicate = and(
-    lte(schema.issues.createdAt, createdUntil),
-    Predicate.isNullish(doneBefore)
-      ? undefined
-      : or(isNull(schema.issues.doneAt), gte(schema.issues.doneAt, doneBefore)),
-  )
-  const inSqlWindow = (issue: FlowIssueRow): boolean =>
-    issue.createdAt <= createdUntil &&
-    (Predicate.isNullish(doneBefore) || Predicate.isNullish(issue.doneAt) || issue.doneAt >= doneBefore)
-  const projectScope = and(eq(schema.issues.workspaceId, workspaceId), eq(schema.issues.projectId, projectId))
-
-  /*
-   * Currently open issues are also loaded whatever their dates, for the
-   * present-state agingWip snapshot only (a reopened issue keeps its old
-   * write-once done_at, and one created after a past `until` is still open
-   * now). They're filtered back out below for every windowed series.
-   */
-  const windowOrOpenIssue = or(windowPredicate, inArray(schema.issues.status, ['in_progress', 'in_review']))
-
-  const loaded = await orm
-    .select(
-      fieldsInOrder([
-        ['id', schema.issues.id],
-        ['createdAt', schema.issues.createdAt],
-        ['readyAt', schema.issues.readyAt],
-        ['claimedAt', schema.issues.claimedAt],
-        ['doneAt', schema.issues.doneAt],
-        ['inReviewAt', schema.issues.inReviewAt],
-        ['reviewBounceCount', schema.issues.reviewBounceCount],
-        ['status', schema.issues.status],
-        ['typeKey', schema.taskTypes.key],
-      ]),
-    )
-    .from(schema.issues)
-    .leftJoin(schema.taskTypes, eq(schema.issues.typeId, schema.taskTypes.id))
-    .where(and(projectScope, windowOrOpenIssue))
-  const issues = loaded.filter((issue) => inSqlWindow(issue))
-
-  /*
-   * Scope by project only, not created_at: since/until describe an activity window
-   * (claimed/done), and an issue created before the window but active inside it must
-   * still count (e.g. WIP). Row count stays bounded by the window (via the SQL filter
-   * above) rather than total project size.
-   */
-  const inWindow = (timestamp: number): boolean =>
-    (Predicate.isNullish(since) || timestamp >= since) && (Predicate.isNullish(until) || timestamp <= until)
-
-  const { leadTimes, cycleTimes, reviewLatencies, timeInProgress } = computeCoreDistributions(issues, inWindow)
-
-  // The issues the per-issue comment/lease lookups serve: done inside the window.
-  const doneInWindowScope = and(
-    projectScope,
-    isNotNull(schema.issues.doneAt),
-    Predicate.isNullish(since) ? undefined : gte(schema.issues.doneAt, since),
-    Predicate.isNullish(until) ? undefined : lte(schema.issues.doneAt, until),
-  )
-  // Never let the per-issue lookups run without a tenant scope.
-  if (!doneInWindowScope) {
-    throw new Error('flow-metrics: missing issue scope')
-  }
-
-  const bugTypeFilter = and(eq(schema.taskTypes.workspaceId, workspaceId), eq(schema.taskTypes.key, 'bug'))
-
-  /*
-   * PROJ-446: everything below depends only on the window bounds plus ctx/projectId —
-   * none of these reads depend on each other, so run them concurrently instead of one
-   * round trip at a time.
-   */
-  const [humanCommentCounts, leaseHeldSeconds, bugTypeExists, windowCounts] = await Promise.all([
-    fetchHumanCommentCounts(orm, doneInWindowScope),
-    fetchLeaseHeldSeconds(orm, workspaceId, doneInWindowScope),
-    /*
-     * PROJ-341: buildBugShareOverTime identifies bugs via typeKey === "bug" — if the
-     * workspace has no type keyed "bug" (renamed/deleted default), that always reads 0%
-     * with no indication anything's wrong. Surface whether the type exists at all so the
-     * frontend can show a distinguishable "not tracked" state instead of a silent 0%.
-     */
-    orm.select({ id: schema.taskTypes.id }).from(schema.taskTypes).where(bugTypeFilter).get(),
-    /*
-     * PROJ-334: same window as the throughput/CFD/etc. buckets below — the "selected
-     * window" the tile row is scoped to.
-     */
-    fetchWindowCounts(orm, {
-      createdUntil,
-      doneBefore,
+  const windows = resolveFlowMetricWindows({ since, until }, now)
+  const issueWindow = createFlowIssueWindow({ now, projectId, since, until, workspaceId })
+  const loaded = await selectFlowIssues(orm, issueWindow)
+  const activity = collectIssueActivity(loaded, issueWindow, { since, until })
+  const details = await Promise.all(
+    assembleFlowWindowQueries(orm, {
+      issueWindow,
       projectId,
-      since: throughputSince,
-      until: throughputUntil,
+      since,
+      throughputSince: windows.throughputSince,
+      throughputUntil: windows.throughputUntil,
+      until,
       workspaceId,
     }),
-  ])
-  const { doneBeforeWindow, ...factoryHealth } = windowCounts
-
-  const humanInterventions = computeHumanInterventions(issues, humanCommentCounts, inWindow)
-  const autonomyRatios = computeAutonomyRatios(issues, leaseHeldSeconds, inWindow)
-  const wipOverTime = buildWipOverTime(issues, wipSince, wipUntil)
-  const throughputWindow = { granularity, since: throughputSince, until: throughputUntil }
-  const throughputOverTime = buildThroughputOverTime(issues, throughputWindow)
-  const reviewLatencyOverTime = buildReviewLatencyOverTime(issues, throughputWindow)
-  const cfdOverTime = buildCfdOverTime(issues, throughputWindow, { doneBeforeWindow, now })
-  const bugShareOverTime = buildBugShareOverTime(issues, throughputWindow)
-  const bugTypeTracked = Predicate.isNotNullish(bugTypeExists)
-  const arrivalVsCompletionOverTime = buildArrivalVsCompletion(issues, throughputWindow)
-  const flowEfficiencies = computeFlowEfficiencies(issues, leaseHeldSeconds, inWindow)
-  const agingWip = buildAgingWip(loaded, now)
-
-  return fieldsInOrder([
-    ['leadTime', summarize(leadTimes)],
-    /*
-     * PROJ-921: issues done in the window that never sat in a ready status (straight from
-     * backlog to in_progress/done). They have no lead time and are not in leadTime's
-     * sample (leadTime.count); reported so a small or skewed sample is visible.
-     */
-    [
-      'leadTimeExcluded',
-      issues.filter(
-        (issue) => Predicate.isNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-      ).length,
-    ],
-    ['cycleTime', summarize(cycleTimes)],
-    ['wipOverTime', wipOverTime],
-    ['throughputOverTime', throughputOverTime],
-    /*
-     * PROJ-331: bug share of throughput — a rising share signals the factory shipping
-     * more defects, not just more work.
-     */
-    ['bugShareOverTime', bugShareOverTime],
-    /*
-     * PROJ-341: whether a "bug"-keyed task type exists in the workspace at all —
-     * distinguishes "tracked, 0 bugs" from "not tracked, no matching type".
-     */
-    ['bugTypeTracked', bugTypeTracked],
-    /*
-     * PROJ-328: collaboration-shape metrics. reviewLatency is the primary human
-     * choke point (in_review -> done); humanInterventions and autonomyRatio are
-     * aggregated per completed issue.
-     */
-    ['reviewLatency', summarize(reviewLatencies)],
-    ['reviewLatencyOverTime', reviewLatencyOverTime],
-    ['humanInterventions', summarize(humanInterventions)],
-    ['autonomyRatio', summarize(autonomyRatios)],
-    // PROJ-329: cumulative flow diagram + time-in-state breakdown.
-    ['cfdOverTime', cfdOverTime],
-    ['timeInProgress', summarize(timeInProgress)],
-    // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
-    ['arrivalVsCompletionOverTime', arrivalVsCompletionOverTime],
-    ['flowEfficiency', summarize(flowEfficiencies)],
-    ['agingWip', agingWip],
-    // PROJ-334: factory health — fault signals for the machinery itself.
-    ['factoryHealth', factoryHealth],
-  ])
+  )
+  return summarizeFlowMetrics(activity, details, { granularity, loaded, now, windows })
 }
 
 /**
