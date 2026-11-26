@@ -20,7 +20,7 @@ import {
   readProjectHint,
   resolveScope,
 } from './request-context.ts'
-import type { AuthSession, ProjectSummary } from './request-context.ts'
+import type { AuthSession, ProjectSummary, RequestScope } from './request-context.ts'
 import { testEnvironment } from './test/resources.ts'
 
 const session: AuthSession = {
@@ -178,43 +178,70 @@ describe('request scope selection', () => {
   })
 })
 
+interface ScopeLoaderFixture {
+  catalogReads: () => number
+  db: D1Database
+  env: BrowserAuthEnvironment
+  externalFetch: ReturnType<typeof vi.fn<typeof fetch>>
+  load: (request?: Request, database?: D1Database) => Promise<RequestScope>
+  prepare: ReturnType<typeof vi.fn>
+  sqlite: DatabaseSync
+}
+
+interface ScopeLoaderTestContext {
+  closeDatabase?: () => void
+  restoreFetch?: () => void
+  scopeFixture: ScopeLoaderFixture
+}
+
+const verifyPreAuthRejection = async function verifyPreAuthRejection(
+  { externalFetch, load, prepare }: ScopeLoaderFixture,
+  authorization: string,
+): Promise<void> {
+  await expect(
+    load(new Request(page('/'), { headers: { authorization, 'cf-access-jwt-assertion': 'access' } })),
+  ).rejects.toMatchObject({ _tag: 'ScopeError', status: 403 })
+  expect(externalFetch).not.toHaveBeenCalled()
+  expect(prepare).not.toHaveBeenCalled()
+}
+
+const createScopeEnvironment = function createScopeEnvironment(db: D1Database): BrowserAuthEnvironment {
+  const cache = new Map<string, string>()
+  return {
+    DB: db,
+    KV: {
+      get: async (key: string, type?: string) => {
+        const value = cache.get(key)
+        if (Predicate.isNullish(value)) {
+          return null
+        }
+        if (type === 'json') {
+          return JSON.parse(value)
+        }
+        return value
+      },
+      put: async (key: string, value: string) => {
+        cache.set(key, value)
+      },
+    } as unknown as KVNamespace,
+    ENVIRONMENT: 'development',
+    DEV_USER_EMAIL: session.user.email,
+    CF_ACCESS_TEAM_DOMAIN: 'team.example.test',
+    CF_ACCESS_AUDIENCE: 'audience',
+    DEFAULT_WORKSPACE_SLUG: 'alpha',
+  }
+}
+
 describe('server scope loading', () => {
-  let sqlite: DatabaseSync
-  let db: D1Database
-  let prepare: ReturnType<typeof vi.fn>
-  let env: BrowserAuthEnvironment
-  let externalFetch: ReturnType<typeof vi.fn<typeof fetch>>
-  beforeEach(() => {
+  beforeEach<ScopeLoaderTestContext>((context) => {
     resetAuthCachesForTests()
     resetProvisioningCacheForTests()
-    const fixture = createTestDatabase()
-    sqlite = fixture.sqlite
-    db = fixture.db
-    prepare = vi.spyOn(db, 'prepare')
-    const cache = new Map<string, string>()
-    env = {
-      DB: db,
-      KV: {
-        get: async (key: string, type?: string) => {
-          const value = cache.get(key)
-          if (Predicate.isNullish(value)) {
-            return null
-          }
-          if (type === 'json') {
-            return JSON.parse(value)
-          }
-          return value
-        },
-        put: async (key: string, value: string) => {
-          cache.set(key, value)
-        },
-      } as unknown as KVNamespace,
-      ENVIRONMENT: 'development',
-      DEV_USER_EMAIL: session.user.email,
-      CF_ACCESS_TEAM_DOMAIN: 'team.example.test',
-      CF_ACCESS_AUDIENCE: 'audience',
-      DEFAULT_WORKSPACE_SLUG: 'alpha',
+    const { db, sqlite } = createTestDatabase()
+    context.closeDatabase = () => {
+      sqlite.close()
     }
+    const prepare = vi.spyOn(db, 'prepare')
+    const env = createScopeEnvironment(db)
     sqlite.exec(`
       INSERT INTO users (id,email,name,created_at) VALUES ('user-a','a@example.test','A',1);
       INSERT INTO workspaces (id,name,slug,created_at) VALUES
@@ -230,22 +257,41 @@ describe('server scope loading', () => {
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('group-a','user-a','user-a',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('group-a','project-a','viewer');
     `)
-    externalFetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('No external/API fetch'))
+    const externalFetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('No external/API fetch'))
+    context.restoreFetch = () => {
+      externalFetch.mockRestore()
+    }
+    context.scopeFixture = {
+      catalogReads() {
+        return prepare.mock.calls.filter(([query]) => Predicate.isString(query) && query.includes('COUNT(CASE')).length
+      },
+      db,
+      env,
+      externalFetch,
+      load(request = new Request(page('/')), database = db) {
+        return runTestEffect(
+          loadRequestScope(
+            new URL(request.url),
+            {},
+            { request, env: testEnvironment(database, env.DEV_USER_EMAIL, env) },
+          ),
+        )
+      },
+      prepare,
+      sqlite,
+    }
   })
-  afterEach(() => {
-    externalFetch.mockRestore()
-    sqlite.close()
+  afterEach<ScopeLoaderTestContext>(({ closeDatabase, restoreFetch }) => {
+    try {
+      restoreFetch?.()
+    } finally {
+      closeDatabase?.()
+    }
   })
-  const load = function load(request = new Request(page('/')), database = db) {
-    return runTestEffect(
-      loadRequestScope(new URL(request.url), {}, { request, env: testEnvironment(database, env.DEV_USER_EMAIL, env) }),
-    )
-  }
-  const catalogReads = function catalogReads(): number {
-    return prepare.mock.calls.filter(([query]) => Predicate.isString(query) && query.includes('COUNT(CASE')).length
-  }
 
-  test('verifies browser auth then reads only granted projects directly, without inherited workspace header', async () => {
+  test<ScopeLoaderTestContext>('verifies browser auth then reads only granted projects directly, without inherited workspace header', async ({
+    scopeFixture: { catalogReads, externalFetch, load },
+  }) => {
     const scope = await load(
       new Request(page('/issues?projectId=project-a'), { headers: { 'x-workspace-slug': 'unrelated' } }),
     )
@@ -257,7 +303,9 @@ describe('server scope loading', () => {
     expect(scope.workspaces).toStrictEqual(session.workspaces)
   })
 
-  test('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async () => {
+  test<ScopeLoaderTestContext>('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async ({
+    scopeFixture: { catalogReads, load, prepare, sqlite },
+  }) => {
     sqlite.exec("UPDATE projects SET archived_at = 42 WHERE id = 'project-a'")
     const result = await load()
     expect(result.projects).toStrictEqual([])
@@ -267,18 +315,37 @@ describe('server scope loading', () => {
     expect(catalogReads()).toBe(2)
   })
 
-  test.each(['Bearer workspace-restricted', 'Bearer read-restricted', 'Basic other', ''])(
-    'rejects Authorization %s before auth or DB even with Access credentials',
-    async (authorization) => {
-      await expect(
-        load(new Request(page('/'), { headers: { authorization, 'cf-access-jwt-assertion': 'access' } })),
-      ).rejects.toMatchObject({ _tag: 'ScopeError', status: 403 })
-      expect(externalFetch).not.toHaveBeenCalled()
-      expect(prepare).not.toHaveBeenCalled()
-    },
-  )
+  test<ScopeLoaderTestContext>('rejects Authorization Bearer workspace-restricted before auth or DB even with Access credentials', async ({
+    scopeFixture,
+  }) => {
+    expect.hasAssertions()
+    await verifyPreAuthRejection(scopeFixture, 'Bearer workspace-restricted')
+  })
 
-  test('fails closed on invalid Access credentials without falling back to development', async () => {
+  test<ScopeLoaderTestContext>('rejects Authorization Bearer read-restricted before auth or DB even with Access credentials', async ({
+    scopeFixture,
+  }) => {
+    expect.hasAssertions()
+    await verifyPreAuthRejection(scopeFixture, 'Bearer read-restricted')
+  })
+
+  test<ScopeLoaderTestContext>('rejects Authorization Basic other before auth or DB even with Access credentials', async ({
+    scopeFixture,
+  }) => {
+    expect.hasAssertions()
+    await verifyPreAuthRejection(scopeFixture, 'Basic other')
+  })
+
+  test<ScopeLoaderTestContext>('rejects Authorization  before auth or DB even with Access credentials', async ({
+    scopeFixture,
+  }) => {
+    expect.hasAssertions()
+    await verifyPreAuthRejection(scopeFixture, '')
+  })
+
+  test<ScopeLoaderTestContext>('fails closed on invalid Access credentials without falling back to development', async ({
+    scopeFixture: { externalFetch, load, prepare },
+  }) => {
     await expect(
       load(new Request(page('/'), { headers: { cookie: 'CF_Authorization=invalid-token' } })),
     ).rejects.toMatchObject({ _tag: 'ApiError', message: 'Invalid Access token', status: 401 })
@@ -286,13 +353,17 @@ describe('server scope loading', () => {
     expect(externalFetch).not.toHaveBeenCalled()
   })
 
-  test('rejects anonymous public-viewer identity before private catalog retrieval', async () => {
+  test<ScopeLoaderTestContext>('rejects anonymous public-viewer identity before private catalog retrieval', async ({
+    scopeFixture: { catalogReads, env, load },
+  }) => {
     env.DEV_USER_EMAIL = 'public-viewer@projektor.local'
     await expect(load()).rejects.toMatchObject({ _tag: 'ScopeError', status: 403 })
     expect(catalogReads()).toBe(0)
   })
 
-  test('uses actual membership roles and refreshes grant visibility each request', async () => {
+  test<ScopeLoaderTestContext>('uses actual membership roles and refreshes grant visibility each request', async ({
+    scopeFixture: { load, sqlite },
+  }) => {
     const result = await load()
     expect(result.projects.map((item) => item.id)).toStrictEqual(['project-a'])
     sqlite.exec(
@@ -307,13 +378,17 @@ describe('server scope loading', () => {
     })
   })
 
-  test('retains current DB membership as an additional boundary even with valid identity', async () => {
+  test<ScopeLoaderTestContext>('retains current DB membership as an additional boundary even with valid identity', async ({
+    scopeFixture: { load, sqlite },
+  }) => {
     sqlite.exec('DELETE FROM workspace_members')
     const resolvedValue = await load()
     expect(resolvedValue.projects).toStrictEqual([])
   })
 
-  test('applies the web app grant predicate to shared workspace-scoped list queries', async () => {
+  test<ScopeLoaderTestContext>('applies the web app grant predicate to shared workspace-scoped list queries', async ({
+    scopeFixture: { db, load, sqlite },
+  }) => {
     const scope = await load()
     const rows = await runTestEffect(
       listProjects(db, 'workspace-a', {
@@ -331,7 +406,9 @@ describe('server scope loading', () => {
     ).resolves.toStrictEqual([])
   })
 
-  test('fails closed on missing DB and redacts SQL failures without API catalog fallback', async () => {
+  test<ScopeLoaderTestContext>('fails closed on missing DB and redacts SQL failures without API catalog fallback', async ({
+    scopeFixture: { load, prepare },
+  }) => {
     await expect(load(new Request(page('/')), null as unknown as D1Database)).rejects.toMatchObject({
       _tag: 'ApiError',
       kind: 'request',
