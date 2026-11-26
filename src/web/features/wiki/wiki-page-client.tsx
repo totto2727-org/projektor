@@ -123,7 +123,7 @@ const WIKI_TYPE_FILTER_OPTIONS: SelectOption[] = [
   { value: 'note', label: 'Note' },
 ]
 
-const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((o) => o.value).filter(Boolean))
+const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((option) => option.value).filter(Boolean))
 
 /*
  * PROJ-514: frontmatter `type` is freeform (PROJ-513) — merge in any other distinct
@@ -134,21 +134,21 @@ const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((o) => o.valu
  * lowercase `runbook`.
  */
 const buildTypeFilterOptions = function buildTypeFilterOptions(discoveredTypes: Readonly<string[]>): SelectOption[] {
-  const seen = new Set(globalThis.Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
+  const seen = new Set(globalThis.Array.from(WIKI_WELL_KNOWN_TYPES).map((wikiType) => wikiType.toLowerCase()))
   const extras: string[] = []
-  Iterable.forEach(discoveredTypes, (t) => {
-    if (!t) {
+  Iterable.forEach(discoveredTypes, (wikiType) => {
+    if (!wikiType) {
       return
     }
-    const key = t.toLowerCase()
+    const key = wikiType.toLowerCase()
     if (seen.has(key)) {
       return
     }
     seen.add(key)
-    extras.push(t)
+    extras.push(wikiType)
   })
   extras.sort((left, right) => left.localeCompare(right))
-  return [...WIKI_TYPE_FILTER_OPTIONS, ...extras.map((t) => ({ value: t, label: t }))]
+  return [...WIKI_TYPE_FILTER_OPTIONS, ...extras.map((wikiType) => ({ value: wikiType, label: wikiType }))]
 }
 
 interface FlatEntry {
@@ -208,8 +208,8 @@ const flattenTree = function flattenTree(
   Iterable.forEach(nodes, (node) => {
     map[node.id] = { id: node.id, slug: node.slug, title: node.title, parentId }
     const childMap = flattenTree(node.children, node.id)
-    Iterable.forEach(Object.entries(childMap), ([k, v]) => {
-      map[k] = v
+    Iterable.forEach(Object.entries(childMap), ([childId, child]) => {
+      map[childId] = child
     })
   })
   return map
@@ -1310,7 +1310,7 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   const setContentRef = useCallback((node: HTMLDivElement | null) => {
     contentRef.current = node
     if (node) {
-      setContentMountToken((t) => t + CONTENT_MOUNT_TOKEN_STEP)
+      setContentMountToken((mountToken) => mountToken + CONTENT_MOUNT_TOKEN_STEP)
     }
   }, [])
 
@@ -1613,18 +1613,20 @@ function useUnsavedChangesGuard(
  * than the generic failure message, so the user knows to reload instead of retrying the
  * A typed ServerFn conflict is distinct from a protocol/network failure.
  */
-function isWikiSaveConflict(e: unknown): boolean {
-  return e instanceof FunctionError ? e.status === HTTP_CONFLICT : globalThis.String(e).endsWith('failed: 409')
+function isWikiSaveConflict(failure: unknown): boolean {
+  return failure instanceof FunctionError
+    ? failure.status === HTTP_CONFLICT
+    : globalThis.String(failure).endsWith('failed: 409')
 }
 
-function wikiSaveErrorMessage(e: unknown): string {
-  if (isWikiSaveConflict(e)) {
+function wikiSaveErrorMessage(failure: unknown): string {
+  if (isWikiSaveConflict(failure)) {
     return (
       'This page was changed by someone else since you started editing. Overwrite it with ' +
       'your version, or copy your text and reload to merge by hand.'
     )
   }
-  return `Save failed: ${globalThis.String(e)}`
+  return `Save failed: ${globalThis.String(failure)}`
 }
 
 function useWikiEditing(
@@ -2257,10 +2259,10 @@ function createWikiActions(
   args: Readonly<{
     workspaceSlug: string | undefined
     page: WikiPageData | null
-    setSlug: (s: string) => void
-    setEditing: (v: boolean) => void
+    setSlug: (nextSlug: string) => void
+    setEditing: (isEditing: boolean) => void
     flushDraftNow: () => void
-    setPage: (p: WikiPageData | null) => void
+    setPage: (nextPage: WikiPageData | null) => void
     rawStartCreate: (parentId: string | null) => void
     rawSubmitCreate: () => Promise<string | undefined>
     cancelMove: () => void
@@ -2274,9 +2276,9 @@ function createWikiActions(
 ) {
   const { workspaceSlug, page, setSlug, setEditing, setPage, showUndoToast } = args
 
-  const navigateTo = function navigateTo(s: string): void {
+  const navigateTo = function navigateTo(slug: string): void {
     args.flushDraftNow()
-    args.navigate(s ? `/wiki/${encodeURIComponent(s)}` : '/wiki')
+    args.navigate(slug ? `/wiki/${encodeURIComponent(slug)}` : '/wiki')
   }
 
   const startCreate = function startCreate(parentId: string | null = null): void {
@@ -2477,7 +2479,7 @@ function WikiPageShell(
     workspaceSlug: string | undefined
     projectId: string
     searchQuery: string
-    onSearchQueryChange: (v: string) => void
+    onSearchQueryChange: (nextQuery: string) => void
     searchResults: SearchResult[]
     searchLoading: boolean
     treeLoading: boolean
@@ -2506,9 +2508,9 @@ function WikiPageShell(
    * tapping a page in the tree leaves the drawer covering the page just opened.
    */
   const navigateAndClose = useCallback(
-    (s: string) => {
+    (slug: string) => {
       close()
-      onNavigate(s)
+      onNavigate(slug)
     },
     [close, onNavigate],
   )
@@ -2528,7 +2530,7 @@ function WikiPageShell(
           aria-expanded={open}
           aria-controls='wiki-page-tree'
           onClick={() => {
-            setOpen((o) => !o)
+            setOpen((currentlyOpen) => !currentlyOpen)
           }}
         >
           <svg
@@ -2612,7 +2614,9 @@ function deriveWikiPageState(
   const createParentTitle = createForm.createParentId ? (pageMap[createForm.createParentId]?.title ?? null) : null
   const moveOptions: SelectOption[] = [
     { value: '', label: 'No parent (root)' },
-    ...wikiPages.filter((p) => p.id !== pageData.page?.id).map((p) => ({ value: p.id, label: p.title })),
+    ...wikiPages
+      .filter((candidatePage) => candidatePage.id !== pageData.page?.id)
+      .map((candidatePage) => ({ value: candidatePage.id, label: candidatePage.title })),
   ]
   return { latestRevision, breadcrumbs, showToc, createParentTitle, moveOptions }
 }
@@ -2629,7 +2633,7 @@ function buildCreateFormProps(
     createTemplateSlug: string
     onCreateTitleChange: (title: string) => void
     onCreateSlugChange: (slug: string) => void
-    setCreateContent: (v: string) => void
+    setCreateContent: (content: string) => void
     onCreateTemplateChange: (templateSlug: string) => void
     submitCreate: () => void
     cancelCreate: () => void
@@ -2663,7 +2667,7 @@ function buildArticleProps(
     setContentRef: (node: HTMLDivElement | null) => void
     editing: boolean
     editTitle: string
-    setEditTitle: (v: string) => void
+    setEditTitle: (title: string) => void
     saving: boolean
     save: () => void
     cancelEdit: () => void
@@ -2681,11 +2685,11 @@ function buildArticleProps(
     restoreDraft: () => void
     discardDraft: () => void
     editContent: string
-    setEditContent: (v: string) => void
+    setEditContent: (content: string) => void
     renderedHtml: string
     revisions: WikiRevision[]
     showHistory: boolean
-    setShowHistory: (updater: (h: boolean) => boolean) => void
+    setShowHistory: (updater: (isShown: boolean) => boolean) => void
     onRestoreRevision: (revision: WikiRevision) => void
     restoringRevisionId: string | undefined
     attach: ReturnType<typeof useWikiAttachments>
@@ -2726,7 +2730,7 @@ function buildArticleProps(
     revisions: article.revisions,
     showHistory: article.showHistory,
     onToggleHistory: () => {
-      article.setShowHistory((h) => !h)
+      article.setShowHistory((isShown) => !isShown)
     },
     onRestoreRevision: article.onRestoreRevision,
     restoringRevisionId: article.restoringRevisionId,
