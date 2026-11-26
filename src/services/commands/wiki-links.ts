@@ -30,6 +30,16 @@ import { ForbiddenError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
+const SORT_BEFORE = -1
+const SORT_AFTER = 1
+const SORT_EQUAL = 0
+const MAX_TITLE_HEAL_ROUNDS = 20
+const NO_TITLE_FOLDS_HEALED = 0
+const FIRST_REPOINT_PAGE_BIND = 2
+const NO_BACKLINK_SOURCES = 0
+const MISSING_SNIPPET_MATCH = -1
+const SNIPPET_START_OFFSET = 0
+
 type Orm = ReturnType<typeof drizzle<typeof schema>>
 
 /*
@@ -196,7 +206,9 @@ const resolveTitleTargets = async function resolveTitleTargets(
       ),
     )
   const candidates = [...rows, ...unhealed.filter((row) => wanted.has(foldWikiTitle(row.title)))].toSorted(
-    (left, right) => left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+    (left, right) =>
+      left.createdAt - right.createdAt ||
+      (left.id < right.id ? SORT_BEFORE : left.id > right.id ? SORT_AFTER : SORT_EQUAL),
   )
   /*
    * Duplicate titles: the oldest page wins (created_at, then id) — the same order the
@@ -572,7 +584,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
   const { cursor, pageBudget, updatedSince } = parsed.data
   // PROJ-818: drain unhealed folds (bounded) so this backfill resolves against them.
   let healRounds = 0
-  while (healRounds < 20 && (await healTitleFolds(ctx)) > 0) {
+  while (healRounds < MAX_TITLE_HEAL_ROUNDS && (await healTitleFolds(ctx)) > NO_TITLE_FOLDS_HEALED) {
     healRounds = Number.increment(healRounds)
   }
 
@@ -778,7 +790,7 @@ export const repointIncomingLinks = async function repointIncomingLinks(
   pageIds: string[],
 ): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
-    const placeholders = chunk.map((_page, index) => `?${index + 2}`).join(',')
+    const placeholders = chunk.map((_page, index) => `?${index + FIRST_REPOINT_PAGE_BIND}`).join(',')
     await ctx.db
       .prepare(
         `UPDATE wiki_links SET target_page_id = (${repointSubquery('?1')})
@@ -800,7 +812,7 @@ export const countBacklinkSources = async function countBacklinkSources(
   pageIds: string[],
 ): Promise<number> {
   if (Array.isArrayEmpty(pageIds)) {
-    return 0
+    return NO_BACKLINK_SOURCES
   }
   const orm = drizzle(ctx.db, { schema })
   /*
@@ -840,14 +852,14 @@ export const countBacklinkSources = async function countBacklinkSources(
 const extractSnippet = function extractSnippet(content: string, targetTitle: string): string | null {
   const marker = `[[${targetTitle.toLowerCase()}`
   const idx = content.toLowerCase().indexOf(marker)
-  if (idx === -1) {
+  if (idx === MISSING_SNIPPET_MATCH) {
     return null
   }
   const SNIPPET_RADIUS = 60
-  const start = Math.max(0, idx - SNIPPET_RADIUS)
+  const start = Math.max(SNIPPET_START_OFFSET, idx - SNIPPET_RADIUS)
   const end = Math.min(content.length, idx + marker.length + SNIPPET_RADIUS)
   const text = content.slice(start, end).replaceAll(/\s+/gu, ' ').trim()
-  return `${start > 0 ? '…' : ''}${text}${end < content.length ? '…' : ''}`
+  return `${start > SNIPPET_START_OFFSET ? '…' : ''}${text}${end < content.length ? '…' : ''}`
 }
 
 export interface WikiBacklink {
