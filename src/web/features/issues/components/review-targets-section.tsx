@@ -16,6 +16,26 @@ const STATUS_OPTIONS = [
   { value: 'done', label: '完了', color: 'text-text-base bg-success-bg' },
 ] satisfies { value: ReviewStatus; label: string; color: string }[]
 
+interface ReviewTargetDisplay {
+  href: Attachment['url']
+  name: string
+  option: (typeof STATUS_OPTIONS)[number] | undefined
+}
+
+const getReviewTargetDisplay = (
+  attachment: Attachment,
+  status: Attachment['reviewStatus'],
+  workspaceSlug: string,
+): ReviewTargetDisplay => {
+  const name = firstNonEmptyText(attachment.filename, attachment.url) ?? 'Attachment'
+  const option = STATUS_OPTIONS.find((entry) => entry.value === status)
+  const href =
+    attachment.kind === 'file'
+      ? `/api/files/${encodeURIComponent(attachment.id)}?${new URLSearchParams({ workspace: workspaceSlug })}`
+      : attachment.url
+  return { href, name, option }
+}
+
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const ReviewTargetRow = function ReviewTargetRow({
   attachment,
@@ -30,12 +50,7 @@ const ReviewTargetRow = function ReviewTargetRow({
   const [pending, setPending] = useState<{ attachment: Attachment; saved: boolean } | null>(null)
   const [error, setError] = useState<string>()
   const busy = useRef(false)
-  const name = firstNonEmptyText(attachment.filename, attachment.url) ?? 'Attachment'
-  const option = STATUS_OPTIONS.find((entry) => entry.value === status)
-  const href =
-    attachment.kind === 'file'
-      ? `/api/files/${encodeURIComponent(attachment.id)}?${new URLSearchParams({ workspace: workspaceSlug })}`
-      : attachment.url
+  const { href, name, option } = getReviewTargetDisplay(attachment, status, workspaceSlug)
 
   useEffect(() => {
     if (pending?.saved === true && pending.attachment !== attachment) {
@@ -72,23 +87,52 @@ const ReviewTargetRow = function ReviewTargetRow({
     }
   }
 
+  const renderReviewTargetToggle = (): JSX.Element => (
+    <label className='flex items-center gap-2 min-h-[44px]'>
+      <input
+        type='checkbox'
+        checked={Predicate.isNotNullish(status)}
+        disabled={Predicate.isNotNullish(pending)}
+        aria-label={`${name}をレビュー対象にする`}
+        onChange={(event) => void changeStatus(event.currentTarget.checked ? 'fixing' : null)}
+        className='size-4 accent-accent'
+      />
+      <span className='text-sm'>対象</span>
+    </label>
+  )
+
+  const renderReviewStatusControls = (selectedStatus: (typeof STATUS_OPTIONS)[number]): JSX.Element => (
+    <>
+      <span className={`rounded px-2 py-1 text-sm font-medium ${selectedStatus.color}`}>{selectedStatus.label}</span>
+      {status !== 'in_review' && <span className='text-xs text-text-muted'>レビュー不要</span>}
+      <select
+        aria-label={`${name}のレビューステータス`}
+        value={status ?? ''}
+        disabled={Predicate.isNotNullish(pending)}
+        onChange={(event) => {
+          const selected = STATUS_OPTIONS.find((entry) => entry.value === event.currentTarget.value)
+          if (selected) {
+            void changeStatus(selected.value)
+          }
+        }}
+        className='min-h-[44px] max-w-full rounded border border-border bg-bg px-2 text-sm text-text-base'
+      >
+        {STATUS_OPTIONS.map((entry) => (
+          <option key={entry.value} value={entry.value}>
+            {entry.label}
+          </option>
+        ))}
+      </select>
+    </>
+  )
+
   return (
     <li
       className={`border rounded-md p-3 min-w-0 ${status === 'in_review' ? 'border-accent bg-accent/10' : 'border-border bg-surface text-text-muted'}`}
       aria-busy={Predicate.isNotNullish(pending)}
     >
       <div className='flex flex-wrap items-center gap-3'>
-        <label className='flex items-center gap-2 min-h-[44px]'>
-          <input
-            type='checkbox'
-            checked={Predicate.isNotNullish(status)}
-            disabled={Predicate.isNotNullish(pending)}
-            aria-label={`${name}をレビュー対象にする`}
-            onChange={(event) => void changeStatus(event.currentTarget.checked ? 'fixing' : null)}
-            className='size-4 accent-accent'
-          />
-          <span className='text-sm'>対象</span>
-        </label>
+        {renderReviewTargetToggle()}
         {Predicate.isNotNullish(href) && String.isNonEmpty(href) && Predicate.isNotNullish(status) ? (
           <a
             href={href}
@@ -101,32 +145,7 @@ const ReviewTargetRow = function ReviewTargetRow({
         ) : (
           <span className='break-words flex-1 min-w-0 order-first basis-full sm:order-none sm:basis-auto'>{name}</span>
         )}
-        {option ? (
-          <>
-            <span className={`rounded px-2 py-1 text-sm font-medium ${option.color}`}>{option.label}</span>
-            {status !== 'in_review' && <span className='text-xs text-text-muted'>レビュー不要</span>}
-            <select
-              aria-label={`${name}のレビューステータス`}
-              value={status ?? ''}
-              disabled={Predicate.isNotNullish(pending)}
-              onChange={(event) => {
-                const selected = STATUS_OPTIONS.find((entry) => entry.value === event.currentTarget.value)
-                if (selected) {
-                  void changeStatus(selected.value)
-                }
-              }}
-              className='min-h-[44px] max-w-full rounded border border-border bg-bg px-2 text-sm text-text-base'
-            >
-              {STATUS_OPTIONS.map((entry) => (
-                <option key={entry.value} value={entry.value}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
-          </>
-        ) : (
-          <span className='text-sm text-text-muted'>対象外</span>
-        )}
+        {option ? renderReviewStatusControls(option) : <span className='text-sm text-text-muted'>対象外</span>}
       </div>
       {pending && (
         <p role='status' className='mt-2 text-sm text-text-muted'>

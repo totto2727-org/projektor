@@ -1,3 +1,5 @@
+import type { JSX } from 'react'
+
 const sections = [
   ['Project', 'A named body of work (e.g. “Website Redesign”). Every issue lives inside a project.'],
   [
@@ -19,13 +21,51 @@ const sections = [
   ],
 ] as const
 
+const renderHelpKeyConcepts = (): JSX.Element => (
+  <dl style={{ margin: 0, display: 'grid', gap: '1rem' }}>
+    {sections.map(([term, body]) => (
+      <div key={term}>
+        <dt style={{ fontWeight: 600, color: 'var(--text-strong)' }}>{term}</dt>
+        <dd
+          style={{
+            margin: '0.25rem 0 0',
+            color: 'var(--text)',
+            fontSize: '0.9375rem',
+            lineHeight: 1.5,
+          }}
+        >
+          {body}
+        </dd>
+      </div>
+    ))}
+  </dl>
+)
+
+const renderHelpWorkflow = (): JSX.Element => (
+  <ol
+    style={{
+      margin: 0,
+      paddingLeft: '1.25rem',
+      color: 'var(--text)',
+      fontSize: '0.9375rem',
+      lineHeight: 1.7,
+    }}
+  >
+    <li>Someone creates an issue describing work to do.</li>
+    <li>Issues are triaged and moved out of the Backlog once they're ready to start.</li>
+    <li>Someone — or an AI agent — picks it up and works on it (In Progress).</li>
+    <li>When the work's done, it moves to In Review for a check.</li>
+    <li>Once accepted, it's marked Done.</li>
+  </ol>
+)
+
 /**
  * The original help route is intentionally static, so it is fully meaningful in SSR HTML.
  *
  * @returns {ReturnType<typeof HelpPage>} The static getting-started glossary and its introductory text.
  */
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
-export const HelpPage = function HelpPage() {
+export const HelpPage = function HelpPage(): JSX.Element {
   return (
     <div className='page-container' style={{ maxWidth: '42rem' }}>
       <header style={{ marginBottom: '1.5rem' }}>
@@ -46,41 +86,11 @@ export const HelpPage = function HelpPage() {
       </header>
       <section style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.0625rem', margin: '0 0 0.75rem' }}>Key concepts</h2>
-        <dl style={{ margin: 0, display: 'grid', gap: '1rem' }}>
-          {sections.map(([term, body]) => (
-            <div key={term}>
-              <dt style={{ fontWeight: 600, color: 'var(--text-strong)' }}>{term}</dt>
-              <dd
-                style={{
-                  margin: '0.25rem 0 0',
-                  color: 'var(--text)',
-                  fontSize: '0.9375rem',
-                  lineHeight: 1.5,
-                }}
-              >
-                {body}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {renderHelpKeyConcepts()}
       </section>
       <section>
         <h2 style={{ fontSize: '1.0625rem', margin: '0 0 0.75rem' }}>Typical workflow</h2>
-        <ol
-          style={{
-            margin: 0,
-            paddingLeft: '1.25rem',
-            color: 'var(--text)',
-            fontSize: '0.9375rem',
-            lineHeight: 1.7,
-          }}
-        >
-          <li>Someone creates an issue describing work to do.</li>
-          <li>Issues are triaged and moved out of the Backlog once they're ready to start.</li>
-          <li>Someone — or an AI agent — picks it up and works on it (In Progress).</li>
-          <li>When the work's done, it moves to In Review for a check.</li>
-          <li>Once accepted, it's marked Done.</li>
-        </ol>
+        {renderHelpWorkflow()}
       </section>
     </div>
   )

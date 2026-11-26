@@ -23,6 +23,20 @@ const versionMetric = function versionMetric(version: FeedbackVersionSummary): s
   return Array.isArrayEmpty(parts) ? 'No ratings' : parts.join(' · ')
 }
 
+const renderFeedbackTotal = (summary: SourceSummary): JSX.Element => (
+  <div className='flex items-baseline gap-2 mb-2'>
+    <span className='text-[0.8rem] text-text-muted'>{summary.totalCount} total</span>
+  </div>
+)
+
+const renderFeedbackVersion = (version: FeedbackVersionSummary): JSX.Element => (
+  <li key={version.appVersion ?? 'unknown'} className='flex flex-wrap gap-x-3 text-[0.875rem] text-text-muted'>
+    <span className='font-medium text-text-base'>{version.appVersion ?? 'Unknown version'}</span>
+    <span>{versionMetric(version)}</span>
+    {version.withCommentCount > 0 && <span>{version.withCommentCount} with comments</span>}
+  </li>
+)
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function FeedbackSummary({ initialSummary: summary }: Props): JSX.Element {
   if (!summary || Array.isArrayEmpty(summary.versions)) {
@@ -34,21 +48,8 @@ export function FeedbackSummary({ initialSummary: summary }: Props): JSX.Element
   return (
     <section className='flex flex-col gap-4'>
       <div className='bg-surface rounded-lg border border-border p-4'>
-        <div className='flex items-baseline gap-2 mb-2'>
-          <span className='text-[0.8rem] text-text-muted'>{summary.totalCount} total</span>
-        </div>
-        <ul className='flex flex-col gap-1'>
-          {summary.versions.map((version) => (
-            <li
-              key={version.appVersion ?? 'unknown'}
-              className='flex flex-wrap gap-x-3 text-[0.875rem] text-text-muted'
-            >
-              <span className='font-medium text-text-base'>{version.appVersion ?? 'Unknown version'}</span>
-              <span>{versionMetric(version)}</span>
-              {version.withCommentCount > 0 && <span>{version.withCommentCount} with comments</span>}
-            </li>
-          ))}
-        </ul>
+        {renderFeedbackTotal(summary)}
+        <ul className='flex flex-col gap-1'>{summary.versions.map((version) => renderFeedbackVersion(version))}</ul>
       </div>
     </section>
   )
