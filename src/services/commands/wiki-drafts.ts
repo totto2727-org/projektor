@@ -10,6 +10,7 @@ import {
 import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
 /*
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
  * autosave so an in-progress edit survives a device switch.
@@ -23,16 +24,13 @@ import { SQL_NULL } from '#db/sql-null.ts'
 import { ConflictError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
-import { advanceHead, requireAdvanced } from './wiki-draft-head.ts'
+import { requireAdvanced } from './wiki-draft-head.ts'
 import { resolveDraftTarget } from './wiki-draft-target.ts'
+
+export { readWikiDraftState } from './wiki-draft-head.ts'
 
 type WikiDraft = Pick<typeof schema.wikiDrafts.$inferSelect, 'title' | 'content' | 'baseRevisionId' | 'updatedAt'>
 type DraftRevision = ReturnType<typeof crypto.randomUUID>
-
-interface DraftState {
-  revision: string | null
-  draft: WikiDraft | null
-}
 
 interface ChangedDraft {
   ok: true
@@ -80,53 +78,37 @@ export const getWikiDraft = async function getWikiDraft(ctx: ServiceCtx, idOrSlu
   return row ?? JSON_NULL
 }
 
-interface DraftIdentity {
-  workspaceId: string
-  pageId: string
-  userId: string
+interface DraftHeadAdvance {
+  expected: string | null | undefined
+  revision: string
 }
 
-/*
- * The head and scratch snapshot are read together, including after a discard removed
- * the scratch row. Only Core calls this after authorizing the page and current user.
- */
-export const readWikiDraftState = async function readWikiDraftState(
-  db: D1Database,
-  { workspaceId, pageId, userId }: DraftIdentity,
-): Promise<DraftState> {
-  const row = await db
-    .prepare(`
-    SELECT h.revision, d.title, d.content, d.base_revision_id AS baseRevisionId, d.updated_at AS updatedAt
-    FROM wiki_pages p
-    LEFT JOIN wiki_draft_heads h ON h.workspace_id = p.workspace_id AND h.page_id = p.id AND h.user_id = ?
-    LEFT JOIN wiki_drafts d ON d.workspace_id = p.workspace_id AND d.page_id = p.id AND d.user_id = ?
-    WHERE p.workspace_id = ? AND p.id = ?
-  `)
-    .bind(userId, userId, workspaceId, pageId)
-    .first<{
-      revision: string | null
-      title: string | null
-      content: string | null
-      baseRevisionId: string | null
-      updatedAt: number | null
-    }>()
-  return fieldsInOrder([
-    ['revision', row?.revision ?? JSON_NULL],
-    [
-      'draft',
-      row &&
-      Predicate.isNotNullish(row.title) &&
-      Predicate.isNotNullish(row.content) &&
-      Predicate.isNotNullish(row.updatedAt)
-        ? fieldsInOrder([
-            ['title', row.title],
-            ['content', row.content],
-            ['baseRevisionId', row.baseRevisionId],
-            ['updatedAt', row.updatedAt],
-          ])
-        : JSON_NULL,
-    ],
-  ])
+const advanceHead = function advanceHead(
+  ctx: ServiceCtx,
+  pageId: string,
+  { expected, revision }: DraftHeadAdvance,
+): D1PreparedStatement {
+  const key = [ctx.workspaceId, ctx.userId, pageId]
+  if (!isWikiRevisionSpecified(expected)) {
+    /*
+     * Existing REST/MCP callers remain last-write-wins, but invalidate any older
+     * versioned browser request rather than bypassing the head.
+     */
+    return ctx.db
+      .prepare(`INSERT INTO wiki_draft_heads(workspace_id,user_id,page_id,revision) VALUES (?,?,?,?)
+      ON CONFLICT(workspace_id,user_id,page_id) DO UPDATE SET revision = excluded.revision RETURNING revision`)
+      .bind(...key, revision)
+  }
+  if (Predicate.isNullish(expected)) {
+    return ctx.db
+      .prepare(`INSERT INTO wiki_draft_heads(workspace_id,user_id,page_id,revision) VALUES (?,?,?,?)
+      ON CONFLICT(workspace_id,user_id,page_id) DO NOTHING RETURNING revision`)
+      .bind(...key, revision)
+  }
+  return ctx.db
+    .prepare(`UPDATE wiki_draft_heads SET revision = ?
+    WHERE workspace_id = ? AND user_id = ? AND page_id = ? AND revision = ? RETURNING revision`)
+    .bind(revision, ...key, expected)
 }
 
 export const saveWikiDraft = async function saveWikiDraft(
