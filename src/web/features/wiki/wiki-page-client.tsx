@@ -218,7 +218,7 @@ const getBreadcrumbs = function getBreadcrumbs(pageId: string, map: Record<strin
   }
   return crumbs
 }
-function useWikiTemplates(_workspaceSlug: string | undefined): TemplateOption[] {
+const useWikiTemplates = function useWikiTemplates(_workspaceSlug: string | undefined): TemplateOption[] {
   return useWikiSeed().templates
 }
 
@@ -490,7 +490,7 @@ function TocList({
  * the viewport and crushed the title. Below 640px only Edit stays inline;
  * the rest move behind this menu. Mirrors AccountMenu's trigger+Popover shape.
  */
-function useDuplicateWikiPage() {
+const useDuplicateWikiPage = function useDuplicateWikiPage() {
   const seed = useWikiSeed()
   const [duplicating, setDuplicating] = useState(false)
   const duplicate = async function duplicate(): Promise<void> {
@@ -1188,7 +1188,7 @@ function WikiMainContent(
 }
 
 // The server route DTO owns identity. The local empty-slug transition only supports optimistic deletion before native navigation completes.
-function useWikiUrlState(_slugProp: string | undefined) {
+const useWikiUrlState = function useWikiUrlState(_slugProp: string | undefined) {
   const seed = useWikiSeed()
   const [slug, setSlug] = useState(seed.slug)
   useEffect(() => {
@@ -1196,11 +1196,14 @@ function useWikiUrlState(_slugProp: string | undefined) {
   }, [seed.slug])
   return { slug, setSlug }
 }
-function useWikiScope(_workspaceSlug: string | undefined, _projectIdProp: string | undefined): string {
+const useWikiScope = function useWikiScope(
+  _workspaceSlug: string | undefined,
+  _projectIdProp: string | undefined,
+): string {
   return useWikiSeed().projectId
 }
 
-function useWikiTree(
+const useWikiTree = function useWikiTree(
   _workspaceSlug: string | undefined,
   _projectId: string | undefined,
 ): { pageTree: TreeNode[]; pageMap: Record<string, FlatEntry>; treeLoading: boolean } {
@@ -1211,7 +1214,10 @@ function useWikiTree(
 }
 
 // Preserve the original collapsible maintenance queue, seeded with request-owned stale-page DTOs.
-function useWikiStalePages(_workspaceSlug: string | undefined, _projectId: string | undefined) {
+const useWikiStalePages = function useWikiStalePages(
+  _workspaceSlug: string | undefined,
+  _projectId: string | undefined,
+) {
   const seed = useWikiSeed()
   const [staleOpen, setStaleOpen] = useState(false)
   return { staleOpen, setStaleOpen, stalePages: seed.stalePages, staleLoading: false }
@@ -1222,7 +1228,7 @@ function useWikiStalePages(_workspaceSlug: string | undefined, _projectId: strin
  * (no search query — a flat list from listWikiPages) and text search below (combined
  * with the FTS query via search_wiki's own type/status/tags params).
  */
-function useWikiFilters(
+const useWikiFilters = function useWikiFilters(
   _workspaceSlug: string | undefined,
   _projectId: string | undefined,
   pageTree: Readonly<TreeNode[]>,
@@ -1261,7 +1267,7 @@ function useWikiFilters(
   }
 }
 
-function useWikiSearch(
+const useWikiSearch = function useWikiSearch(
   _workspaceSlug: string | undefined,
   _projectId: string | undefined,
   _filters: Readonly<{ filterType: string; filterStatus: string; filterTags: string }>,
@@ -1285,7 +1291,7 @@ function useWikiSearch(
   }
 }
 
-function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
+const useWikiPageData = function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   const seed = useWikiSeed()
   const [deletedPageId, setDeletedPageId] = useState<string>()
   const page = seed.page?.id === deletedPageId && Predicate.isNotNullish(deletedPageId) ? null : seed.page
@@ -1357,7 +1363,7 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   }
 }
 
-function excerptOf(content: string, maxLength = 200): string {
+const excerptOf = function excerptOf(content: string, maxLength = 200): string {
   // PROJ-488: never let a page's frontmatter YAML become its og:description.
   const plain = stripFrontmatter(content)
     .replaceAll(/```[\s\S]*?```/gu, ' ')
@@ -1367,7 +1373,7 @@ function excerptOf(content: string, maxLength = 200): string {
   return plain.length > maxLength ? `${plain.slice(EXCERPT_START, maxLength).trimEnd()}…` : plain
 }
 
-function useTableOfContents(
+const useTableOfContents = function useTableOfContents(
   _page: WikiPageData | null,
   contentRef: RefObject<HTMLDivElement | null>,
   rendered: RenderedMarkdown,
@@ -1413,7 +1419,7 @@ function useTableOfContents(
   return { toc, activeHeadingId }
 }
 
-function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageData | null) {
+const useWikiAttachments = function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const seed = useWikiSeed()
   const [uploadFormOpen, setUploadFormOpen] = useState(false)
   const [uploadError, setUploadError] = useState<string>()
@@ -1475,7 +1481,7 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
  * PROJ-800: closing or reloading the tab mid-edit asks first when there are unsaved
  * changes — a debounced draft can't be flushed from an unloading page reliably.
  */
-function useUnsavedChangesGuard(
+const useUnsavedChangesGuard = function useUnsavedChangesGuard(
   editing: boolean,
   page: WikiPageData | null,
   editTitle: string,
@@ -1523,13 +1529,13 @@ function useUnsavedChangesGuard(
  * than the generic failure message, so the user knows to reload instead of retrying the
  * A typed ServerFn conflict is distinct from a protocol/network failure.
  */
-function isWikiSaveConflict(failure: unknown): boolean {
+const isWikiSaveConflict = function isWikiSaveConflict(failure: unknown): boolean {
   return failure instanceof FunctionError
     ? failure.status === HTTP_CONFLICT
     : globalThis.String(failure).endsWith('failed: 409')
 }
 
-function wikiSaveErrorMessage(failure: unknown): string {
+const wikiSaveErrorMessage = function wikiSaveErrorMessage(failure: unknown): string {
   if (isWikiSaveConflict(failure)) {
     return (
       'This page was changed by someone else since you started editing. Overwrite it with ' +
@@ -1539,7 +1545,7 @@ function wikiSaveErrorMessage(failure: unknown): string {
   return `Save failed: ${globalThis.String(failure)}`
 }
 
-function useWikiEditing(
+const useWikiEditing = function useWikiEditing(
   workspaceSlug: string | undefined,
   page: WikiPageData | null,
   latestRevisionId: string | null | undefined,
@@ -1892,7 +1898,7 @@ function useWikiEditing(
  * frontmatter/FTS/link-reindex treatment for free and creates a new revision rather than
  * rewriting history. No dedicated restore endpoint.
  */
-function useWikiRestore(
+const useWikiRestore = function useWikiRestore(
   workspaceSlug: string | undefined,
   page: WikiPageData | null,
   latestRevisionId: string | null | undefined,
@@ -1947,7 +1953,7 @@ function useWikiRestore(
  * PROJ-237: re-parent a page from the page menu. Backend validation (cycle guard,
  * workspace scoping) already exists on PUT /api/wiki/:slug — this is UI-only.
  */
-function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | null) {
+const useMovePage = function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const [moving, setMoving] = useState(false)
   const moveForm = useForm({
     defaultValues: { parentId: '' },
@@ -2006,7 +2012,7 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
  * identity — nothing to pass here) and refetches the page so the header reflects the
  * new freshness state immediately.
  */
-function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | null) {
+const useWikiVerify = function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const [verifying, setVerifying] = useState(false)
   const [verifyError, setVerifyError] = useState<string>()
 
@@ -2027,7 +2033,7 @@ function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | n
   return { verifying, verifyError, verifyPage }
 }
 
-function useCreatePageForm(workspaceSlug: string | undefined, projectId: string) {
+const useCreatePageForm = function useCreatePageForm(workspaceSlug: string | undefined, projectId: string) {
   const seed = useWikiSeed()
   const [creating, setCreating] = useState(seed.mode === 'create' || Boolean(seed.createTitle))
   const createForm = useForm({
@@ -2166,7 +2172,7 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
   }
 }
 
-function createWikiActions(
+const createWikiActions = function createWikiActions(
   args: Readonly<{
     workspaceSlug: string | undefined
     page: WikiPageData | null
@@ -2509,7 +2515,7 @@ function WikiPageShell(
   )
 }
 
-function deriveWikiPageState(
+const deriveWikiPageState = function deriveWikiPageState(
   pageData: ReturnType<typeof useWikiPageData>,
   pageMap: Record<string, FlatEntry>,
   /*
@@ -2536,7 +2542,7 @@ function deriveWikiPageState(
   return { latestRevision, breadcrumbs, showToc, createParentTitle, moveOptions }
 }
 
-function buildCreateFormProps(
+const buildCreateFormProps = function buildCreateFormProps(
   create: Readonly<{
     createParentTitle: string | undefined
     createTitle: string
@@ -2572,7 +2578,7 @@ function buildCreateFormProps(
   }
 }
 
-function buildArticleProps(
+const buildArticleProps = function buildArticleProps(
   article: Readonly<{
     breadcrumbs: FlatEntry[]
     navigateTo: (slug: string) => void
@@ -2669,7 +2675,7 @@ function buildArticleProps(
   }
 }
 
-function useWikiPageState(
+const useWikiPageState = function useWikiPageState(
   workspaceSlug: string | undefined,
   projectIdProp: string | undefined,
   slugProp: string | undefined,
@@ -2749,7 +2755,10 @@ function useWikiPageState(
   }
 }
 
-function useAssembledWikiPageProps(state: ReturnType<typeof useWikiPageState>, workspaceSlug?: string) {
+const useAssembledWikiPageProps = function useAssembledWikiPageProps(
+  state: ReturnType<typeof useWikiPageState>,
+  workspaceSlug?: string,
+) {
   const seed = useWikiSeed()
   const {
     setSlug,
