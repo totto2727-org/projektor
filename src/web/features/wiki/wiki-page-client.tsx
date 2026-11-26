@@ -12,7 +12,6 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { isWikiRevisionSpecified } from '#contracts/wiki-revision.ts'
 import { uploadInlineImage as uploadEditorImage } from '@/attachment-actions.ts'
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
-import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover } from '@/components/ui/popover.tsx'
@@ -53,6 +52,8 @@ import type {
   WikiPageData,
   WikiSeed,
 } from './wiki-page-model.ts'
+import { useHashScroll, useRenderedPageMarkdown } from './wiki-page-reading.ts'
+import type { NavigationWindow } from './wiki-page-reading.ts'
 import { SeedContext, usePublicViewer, useWikiSeed } from './wiki-seed-context.ts'
 import { useIsMobileViewport, useWikiSidebarDrawer } from './wiki-sidebar-drawer.ts'
 import { WikiSidebar } from './wiki-sidebar.tsx'
@@ -71,7 +72,6 @@ const INITIAL_CONTENT_MOUNT_TOKEN = 0
 const CONTENT_MOUNT_TOKEN_STEP = 1
 const EXCERPT_START = 0
 const MIN_TOC_ENTRIES = 3
-const HASH_CONTENT_START = 1
 const INITIAL_EDIT_VERSION = 0
 const INITIAL_EDIT_SESSION = 0
 
@@ -100,13 +100,6 @@ const slugify = function slugify(title: string): string {
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/gu, '-')
     .replaceAll(/^-|-$/gu, '')
-}
-const safeDecodeURIComponent = function safeDecodeURIComponent(raw: string): string | null {
-  try {
-    return decodeURIComponent(raw)
-  } catch {
-    return null
-  }
 }
 const undeleteWikiPage = async function undeleteWikiPage(
   id: string,
@@ -1375,30 +1368,6 @@ function excerptOf(content: string, maxLength = 200): string {
   return plain.length > maxLength ? `${plain.slice(EXCERPT_START, maxLength).trimEnd()}…` : plain
 }
 
-/**
- * Persisted content and compiler-owned ToC arrive in canonical server props.
- * Only local unsaved previews need a bounded asynchronous client render.
- *
- * @param {string | undefined} content The current Wiki Markdown, when a page is available.
- * @param {Readonly<{ title: string; slug: string }[]>} wikiPages The available page titles and slugs used to resolve Wiki links.
- * @returns {RenderedMarkdown} The canonical or locally rendered HTML and table of contents.
- */
-function useRenderedPageMarkdown(
-  content: string | undefined,
-  wikiPages: Readonly<{ title: string; slug: string }[]>,
-): RenderedMarkdown {
-  const seed = useWikiSeed()
-  return useMarkdownPreview(
-    stripFrontmatter(content ?? ''),
-    {
-      pages: wikiPages.map(({ title, slug }) => ({ title, slug })),
-      workspaceSlug: seed.workspaceSlug,
-      projectId: seed.projectId,
-    },
-    Predicate.isNullish(content) ? undefined : seed.renderedMarkdown,
-  )
-}
-
 function useTableOfContents(
   _page: WikiPageData | null,
   contentRef: RefObject<HTMLDivElement | null>,
@@ -1444,98 +1413,6 @@ function useTableOfContents(
 
   return { toc, activeHeadingId }
 }
-
-/*
- * PROJ-802: heading ids are only assigned once the content has rendered (the effects
- * above), so a link like /wiki/foo#setup used to always open at the top of the page —
- * nothing ever re-checked location.hash once the target id actually existed. `toc`
- * changing covers first load and framework navigation, which rebuild the
- * page and its TOC); hashchange covers clicking a same-page #anchor (including a TOC
- * link) without a full navigation. Native currententrychange covers Back/Forward.
- *
- * A TOC rebuild is *not* a navigation, though: Cancel edit, Verify, Move and a late tree
- * load all rebuild it on the same page and hash. Re-scrolling on each of those yanked the
- * reader back to the anchor and stole focus from whatever they were doing, so each
- * page-slug + hash pair is handled once. Only hash or native entry changes (navigation,
- * even back to the same hash) clear that and allow another scroll.
- */
-function findInContent(container: HTMLElement, id: string): HTMLElement | null {
-  /*
-   * Only the rendered page body counts — an id elsewhere (the sidebar's
-   * `wiki-page-tree`, the TOC nav, …) must not hijack the anchor. Matched by property
-   * rather than a `#id` selector so ids needing CSS escaping still work.
-   */
-  for (const el of container.querySelectorAll<HTMLElement>('[id]')) {
-    if (el.id === id) {
-      return el
-    }
-  }
-  return null
-}
-
-function useHashScroll(
-  toc: Readonly<TocItem[]>,
-  contentRef: RefObject<HTMLDivElement | null>,
-  pageSlug: string | undefined,
-): void {
-  const handledRef = useRef('')
-
-  const scrollToHash = useCallback(() => {
-    // PROJ-802: some call sites (and this file's own tests, see PROJ-487) swap
-    // `window.location` for a partial stand-in that may not define `hash` at all.
-    const raw = (window.location.hash ?? '').slice(HASH_CONTENT_START)
-    if (!raw) {
-      return
-    }
-    const key = `${pageSlug ?? ''}#${raw}`
-    if (handledRef.current === key) {
-      return
-    }
-    const container = contentRef.current
-    if (!container) {
-      return
-    }
-    const heading = findInContent(container, safeDecodeURIComponent(raw) ?? raw)
-    /*
-     * Not rendered yet (or not on this page) — leave it unhandled so the next TOC
-     * build, once the target exists, can still scroll to it.
-     */
-    if (!heading) {
-      return
-    }
-    handledRef.current = key
-    heading.scrollIntoView()
-    /*
-     * Headings aren't focusable by default — tabindex=-1 lets focus() target them
-     * programmatically (screen reader users land there too) without adding them to
-     * the normal Tab order.
-     */
-    heading.setAttribute('tabindex', '-1')
-    heading.focus({ preventScroll: true })
-  }, [contentRef, pageSlug])
-
-  useEffect(() => {
-    if (Array.isReadonlyArrayNonEmpty(toc)) {
-      scrollToHash()
-    }
-  }, [toc, scrollToHash])
-
-  useEffect(() => {
-    const onNavigate = function onNavigate(): void {
-      handledRef.current = ''
-      scrollToHash()
-    }
-    const browserWindow: NavigationWindow = window
-    window.addEventListener('hashchange', onNavigate)
-    browserWindow.navigation?.addEventListener('currententrychange', onNavigate)
-    return () => {
-      window.removeEventListener('hashchange', onNavigate)
-      browserWindow.navigation?.removeEventListener('currententrychange', onNavigate)
-    }
-  }, [scrollToHash])
-}
-
-type NavigationWindow = Partial<Pick<Window, 'navigation'>>
 
 function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const seed = useWikiSeed()
