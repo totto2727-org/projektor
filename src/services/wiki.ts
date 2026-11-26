@@ -366,6 +366,47 @@ const decodeJsonArrayColumn = function decodeJsonArrayColumn(value: unknown): st
     return []
   }
 }
+
+const appendWikiSearchScope = function appendWikiSearchScope(
+  clauses: string[],
+  params: unknown[],
+  opts: WikiSearchOptions,
+): void {
+  if (isNonEmptyText(opts.projectId)) {
+    clauses.push(
+      opts.includeWorkspacePages === true ? ' AND (p.project_id = ? OR p.project_id IS NULL)' : ' AND p.project_id = ?',
+    )
+    params.push(opts.projectId)
+  }
+  if (opts.visibilitySql) {
+    clauses.push(` AND (${opts.visibilitySql.sql})`)
+    params.push(...opts.visibilitySql.params)
+  }
+  if (Predicate.isNotNullish(opts.updatedSince)) {
+    clauses.push(' AND p.updated_at >= ?')
+    params.push(opts.updatedSince)
+  }
+}
+
+const appendWikiSearchMetadata = function appendWikiSearchMetadata(
+  clauses: string[],
+  params: unknown[],
+  opts: WikiSearchOptions,
+): void {
+  if (isNonEmptyText(opts.type)) {
+    clauses.push(' AND p.type = ?')
+    params.push(opts.type)
+  }
+  if (isNonEmptyText(opts.status)) {
+    clauses.push(' AND p.status = ?')
+    params.push(opts.status)
+  }
+  if (opts.tags?.length) {
+    clauses.push(` AND EXISTS (SELECT 1 FROM json_each(p.tags) WHERE value IN (${opts.tags.map(() => '?').join(',')}))`)
+    params.push(...opts.tags)
+  }
+}
+
 /**
  * FTS sanitization and permission decisions belong to the app.
  *
@@ -385,42 +426,21 @@ export const searchWiki = function searchWiki(
     if (!ftsQuery) {
       return []
     }
-    let query = `SELECT p.id, p.slug, p.title, p.project_id, p.type, p.tags, p.status, p.verified_at, p.verified_by, p.owners, p.verify_interval,
+    const clauses = [
+      `SELECT p.id, p.slug, p.title, p.project_id, p.type, p.tags, p.status, p.verified_at, p.verified_by, p.owners, p.verify_interval,
 		 snippet(wiki_fts, -1, '**', '**', '…', 24) as excerpt, bm25(wiki_fts, 0, 0, 10.0, 1.0, 5.0) as rank
 		 FROM wiki_fts JOIN wiki_pages p ON p.id = wiki_fts.page_id
-		 WHERE wiki_fts MATCH ? AND wiki_fts.workspace_id = ? AND p.workspace_id = ? AND p.is_template = 0 AND p.deleted_at IS NULL`
+		 WHERE wiki_fts MATCH ? AND wiki_fts.workspace_id = ? AND p.workspace_id = ? AND p.is_template = 0 AND p.deleted_at IS NULL`,
+    ]
     const params: unknown[] = [ftsQuery, workspaceId, workspaceId]
-    if (isNonEmptyText(opts.projectId)) {
-      query +=
-        opts.includeWorkspacePages === true
-          ? ' AND (p.project_id = ? OR p.project_id IS NULL)'
-          : ' AND p.project_id = ?'
-      params.push(opts.projectId)
-    }
-    if (opts.visibilitySql) {
-      query += ` AND (${opts.visibilitySql.sql})`
-      params.push(...opts.visibilitySql.params)
-    }
-    if (Predicate.isNotNullish(opts.updatedSince)) {
-      query += ' AND p.updated_at >= ?'
-      params.push(opts.updatedSince)
-    }
-    if (isNonEmptyText(opts.type)) {
-      query += ' AND p.type = ?'
-      params.push(opts.type)
-    }
-    if (isNonEmptyText(opts.status)) {
-      query += ' AND p.status = ?'
-      params.push(opts.status)
-    }
-    if (opts.tags?.length) {
-      query += ` AND EXISTS (SELECT 1 FROM json_each(p.tags) WHERE value IN (${opts.tags.map(() => '?').join(',')}))`
-      params.push(...opts.tags)
-    }
-    query += ` ORDER BY (CASE WHEN (p.status IN ('stale', 'deprecated') OR (p.verify_interval IS NOT NULL AND p.verified_at IS NOT NULL AND (p.verified_at + p.verify_interval * 86400) <= ?)) THEN 1 ELSE 0 END), bm25(wiki_fts, 0, 0, 10.0, 1.0, 5.0), p.id LIMIT ? OFFSET ?`
+    appendWikiSearchScope(clauses, params, opts)
+    appendWikiSearchMetadata(clauses, params, opts)
+    clauses.push(
+      ` ORDER BY (CASE WHEN (p.status IN ('stale', 'deprecated') OR (p.verify_interval IS NOT NULL AND p.verified_at IS NOT NULL AND (p.verified_at + p.verify_interval * 86400) <= ?)) THEN 1 ELSE 0 END), bm25(wiki_fts, 0, 0, 10.0, 1.0, 5.0), p.id LIMIT ? OFFSET ?`,
+    )
     params.push(opts.now, opts.limit, opts.offset)
     const { results } = await db
-      .prepare(query)
+      .prepare(clauses.join(''))
       .bind(...params)
       .all<Omit<WikiSearchResult, 'tags' | 'owners'> & { tags: unknown; owners: unknown }>()
     return results.map((row) => ({
