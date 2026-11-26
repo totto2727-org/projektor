@@ -40,6 +40,22 @@ type AgentMessagesFixture = Awaited<ReturnType<typeof seedIssueFixture>> &
     postMessage: (body: Record<string, unknown>, bearerToken?: string, workspaceSlug?: string) => Promise<Response>
   }>
 
+const MessagePageResponse = Schema.Struct({
+  ...MessageBodiesResponse.fields,
+  nextCursor: Schema.Union([Schema.String, Schema.Null]),
+})
+
+const OptionalMessageResult = Schema.Struct({
+  error: Schema.optional(Schema.Struct({ message: Schema.String })),
+  result: Schema.optional(RpcTextResponse.fields.result),
+})
+
+const readOptionalMessageResult = function readOptionalMessageResult(
+  body: typeof OptionalMessageResult.Type,
+): typeof MessageBodiesResponse.Type {
+  return parseNativeMcpText(body.result?.content[0].text ?? '{}', MessageBodiesResponse)
+}
+
 const seedAgentMessagesFixture = async function seedAgentMessagesFixture(): Promise<AgentMessagesFixture> {
   const fixture = await seedIssueFixture()
   const { slug, token, workspaceId } = fixture
@@ -113,11 +129,26 @@ describe('agent Messages API', () => {
     const scope = `issue:${issueId}`
 
     // Post 3 messages so we can page with limit=2
-    const r1 = await postMessage({ scope, body: 'message one' })
+    const r1 = await postMessage(
+      fieldsInOrder([
+        ['scope', scope],
+        ['body', 'message one'],
+      ]),
+    )
     expect(r1.status).toBe(201)
-    const r2 = await postMessage({ scope, body: 'message two' })
+    const r2 = await postMessage(
+      fieldsInOrder([
+        ['scope', scope],
+        ['body', 'message two'],
+      ]),
+    )
     expect(r2.status).toBe(201)
-    const res3 = await postMessage({ scope, body: 'message three' })
+    const res3 = await postMessage(
+      fieldsInOrder([
+        ['scope', scope],
+        ['body', 'message three'],
+      ]),
+    )
     expect(res3.status).toBe(201)
     const msg3 = await readNativeJson(
       res3,
@@ -131,39 +162,29 @@ describe('agent Messages API', () => {
     // Confirm all 3 messages land in the scope before testing pagination
     const allRes = await listMessages({ scope }, token2, slug)
     expect(allRes.status).toBe(200)
-    const allShape = Schema.Struct({
-      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
-      nextCursor: Schema.Union([Schema.String, Schema.Null]),
-    })
-    const all = await readNativeJson(allRes, allShape)
+    const all = await readNativeJson(allRes, MessagePageResponse)
     expect(all.items).toHaveLength(3)
 
     // Use token3 for page 1 (fresh budget)
     const token3 = await seedToken(workspaceId, userId)
 
     // Page 1: limit=2 — composite cursor is "createdAt:id" for same-second stability
-    const page1Res = await listMessages({ scope, limit: '2' }, token3, slug)
+    const pageScope = fieldsInOrder([
+      ['scope', scope],
+      ['limit', '2'],
+    ])
+    const page1Res = await listMessages(pageScope, token3, slug)
     expect(page1Res.status).toBe(200)
-    const page1Shape = Schema.Struct({
-      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
-      nextCursor: Schema.Union([Schema.String, Schema.Null]),
-    })
-    const page1 = await readNativeJson(page1Res, page1Shape)
-    expect(page1.items).toHaveLength(2)
-    expect(page1.items[0].body).toBe('message one')
-    expect(page1.items[1].body).toBe('message two')
-    expect(page1.nextCursor).not.toBeNull()
+    const page1 = await readNativeJson(page1Res, MessagePageResponse)
+    expect(page1.items.map((item) => item.body)).toStrictEqual(['message one', 'message two'])
+    const cursor = page1.nextCursor
+    assert(Predicate.isString(cursor))
 
     // Page 2: cursor from page 1 (uses token2's remaining budget)
-    const page2Res = await listMessages({ scope, limit: '2', cursor: page1.nextCursor! }, token2, slug)
+    const page2Res = await listMessages({ ...pageScope, cursor }, token2, slug)
     expect(page2Res.status).toBe(200)
-    const page2Shape = Schema.Struct({
-      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
-      nextCursor: Schema.Union([Schema.String, Schema.Null]),
-    })
-    const page2 = await readNativeJson(page2Res, page2Shape)
-    expect(page2.items).toHaveLength(1)
-    expect(page2.items[0].body).toBe('message three')
+    const page2 = await readNativeJson(page2Res, MessagePageResponse)
+    expect(page2.items.map((item) => item.body)).toStrictEqual(['message three'])
     expect(page2.nextCursor).toBeNull()
 
     // Verify via MCP
@@ -204,15 +225,9 @@ describe('agent Messages API', () => {
       token5,
       slug,
     )
-    const p2BodyShape = Schema.Struct({
-      error: Schema.optional(Schema.Struct({ message: Schema.String })),
-      result: Schema.optional(
-        Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
-      ),
-    })
-    const p2Body = await readNativeJson(p2Res, p2BodyShape)
+    const p2Body = await readNativeJson(p2Res, OptionalMessageResult)
     expect(p2Body.error).toBeUndefined()
-    const p2 = parseNativeMcpText(p2Body.result?.content[0].text ?? '{}', MessageBodiesResponse)
+    const p2 = readOptionalMessageResult(p2Body)
     expect(p2.items.map((item) => item.body)).toStrictEqual(['message three'])
   })
 
