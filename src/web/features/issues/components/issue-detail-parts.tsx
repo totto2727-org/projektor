@@ -378,8 +378,8 @@ const useBodyEditor = function useBodyEditor(
   const bodyForm = useIssueForm({ body: '' }, Schema.Struct({ body: BodyText }))
   const [editBody, setEditBody] = bodyForm.field('body')
   const [savingBody, setSavingBody] = useState(false)
-  const [awaitingBody, setAwaitingBody] = useState<{ body: string; revision: number } | null>(null)
-  const [saveBodyError, setSaveBodyError] = useState<string | null>(null)
+  const [awaitingBody, setAwaitingBody] = useState<{ body: string; revision: number }>()
+  const [saveBodyError, setSaveBodyError] = useState<string>()
   useUnsavedUnloadGuard(editingBody && editBody !== (issue.body ?? ''))
   const key = draftKey(workspaceSlug, `${currentUserId ?? '-'}:${issueId}`, 'body')
   const [hasDraft, setHasDraft] = useState(false)
@@ -399,7 +399,7 @@ const useBodyEditor = function useBodyEditor(
       return
     }
     if (bodyRevision.current !== awaitingBody.revision) {
-      setAwaitingBody(null)
+      setAwaitingBody(undefined)
       setSavingBody(false)
       return
     }
@@ -410,12 +410,12 @@ const useBodyEditor = function useBodyEditor(
     setHasDraft(false)
     setEditingBody(false)
     setSavingBody(false)
-    setAwaitingBody(null)
+    setAwaitingBody(undefined)
   }, [awaitingBody, editBody, issue.body, key])
 
   const startEditBody = function startEditBody(fromDraft = false): void {
     setEditBody((fromDraft ? loadDraft(key) : null) ?? issue.body ?? '')
-    setSaveBodyError(null)
+    setSaveBodyError(undefined)
     setEditingBody(true)
   }
 
@@ -428,7 +428,7 @@ const useBodyEditor = function useBodyEditor(
 
   const cancelEditBody = function cancelEditBody(): void {
     setEditingBody(false)
-    setSaveBodyError(null)
+    setSaveBodyError(undefined)
     clearDraft(key)
     setHasDraft(false)
   }
@@ -440,7 +440,7 @@ const useBodyEditor = function useBodyEditor(
       return
     }
     setSavingBody(true)
-    setSaveBodyError(null)
+    setSaveBodyError(undefined)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { body: submittedBody } }))
       // Native ServerFn results settle before the refreshed React tree commits.
@@ -724,8 +724,8 @@ const LinkForm = function LinkForm({
   setLinkFormType: (linkType: string) => void
   linkFormRef: string
   setLinkFormRef: (issueRef: string) => void
-  linkFormError: string | null
-  setLinkFormError: (error: string | null) => void
+  linkFormError: string | undefined
+  setLinkFormError: (error: string | undefined) => void
   addingLink: boolean
   onAdd: () => void
   onCancel: () => void
@@ -738,7 +738,7 @@ const LinkForm = function LinkForm({
         value={linkFormRef}
         onInput={(event) => {
           setLinkFormRef((event.target as HTMLInputElement).value)
-          setLinkFormError(null)
+          setLinkFormError(undefined)
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
@@ -811,7 +811,7 @@ export const RelationsSection = function RelationsSection({
   const [linkFormType, setLinkFormType] = relationForm.field('type')
   const [linkFormRef, setLinkFormRef] = relationForm.field('ref')
   const [addingLink, setAddingLink] = useState(false)
-  const [linkFormError, setLinkFormError] = useState<string | null>(null)
+  const [linkFormError, setLinkFormError] = useState<string>()
 
   const linksByType = (['blocked_by', 'blocks', 'relates_to', 'duplicates'] as const)
     .map((type) => ({
@@ -830,7 +830,7 @@ export const RelationsSection = function RelationsSection({
     }
 
     setAddingLink(true)
-    setLinkFormError(null)
+    setLinkFormError(undefined)
     try {
       let resolved: { id: string }
       try {
@@ -1114,8 +1114,8 @@ const WikiPageLinkForm = function WikiPageLinkForm({
 }: {
   workspaceSlug?: string
   linking: boolean
-  linkError: string | null
-  setLinkError: (error: string | null) => void
+  linkError: string | undefined
+  setLinkError: (error: string | undefined) => void
   onLink: (wikiPageId: string) => void
   onCancel: () => void
 }): JSX.Element {
@@ -1181,7 +1181,7 @@ const WikiPageLinkForm = function WikiPageLinkForm({
         value={query}
         onInput={(event) => {
           setQuery((event.target as HTMLInputElement).value)
-          setLinkError(null)
+          setLinkError(undefined)
         }}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
@@ -1232,8 +1232,8 @@ const UrlLinkForm = function UrlLinkForm({
   setUrlValue: (url: string) => void
   labelValue: string
   setLabelValue: (label: string) => void
-  linkError: string | null
-  setLinkError: (error: string | null) => void
+  linkError: string | undefined
+  setLinkError: (error: string | undefined) => void
   linking: boolean
   onAdd: () => void
   onCancel: () => void
@@ -1245,7 +1245,7 @@ const UrlLinkForm = function UrlLinkForm({
         value={urlValue}
         onInput={(event) => {
           setUrlValue((event.target as HTMLInputElement).value)
-          setLinkError(null)
+          setLinkError(undefined)
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
@@ -1311,20 +1311,20 @@ const useAttachmentLinks = function useAttachmentLinks(
   onDone: () => void,
 ) {
   const [linking, setLinking] = useState(false)
-  const [linkError, setLinkError] = useState<string | null>(null)
+  const [linkError, setLinkError] = useState<string>()
   const urlForm = useIssueForm({ url: '', label: '' }, Schema.Struct({ url: UrlText, label: Text }))
   const [urlValue, setUrlValue] = urlForm.field('url')
   const [labelValue, setLabelValue] = urlForm.field('label')
 
   const reset = function reset(): void {
-    setLinkError(null)
+    setLinkError(undefined)
     setUrlValue('')
     setLabelValue('')
   }
 
   const linkWikiPage = async function linkWikiPage(wikiPageId: string): Promise<void> {
     setLinking(true)
-    setLinkError(null)
+    setLinkError(undefined)
     try {
       unwrapResult(await addAttachmentLink({ workspaceSlug, issueId, link: { kind: 'wiki_ref', wikiPageId } }))
       reset()
@@ -1341,7 +1341,7 @@ const useAttachmentLinks = function useAttachmentLinks(
       return
     }
     setLinking(true)
-    setLinkError(null)
+    setLinkError(undefined)
     try {
       unwrapResult(
         await addAttachmentLink({
@@ -1385,9 +1385,9 @@ const useAttachmentForms = function useAttachmentForms(issueId: string, workspac
   }
 
   // PROJ-876: a failed delete is shown, not swallowed.
-  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string>()
   const deleteAttachment = async function deleteAttachment(attachmentId: string): Promise<void> {
-    setDeleteError(null)
+    setDeleteError(undefined)
     try {
       unwrapResult(await deleteIssueAttachment({ workspaceSlug, issueId, attachmentId }))
     } catch (caughtError) {
@@ -1523,7 +1523,7 @@ const CommentItem = function CommentItem({
   comment: Comment
   isEditing: boolean
   editBody: string
-  editError: string | null
+  editError: string | undefined
   saving: boolean
   canModify: boolean
   onStartEdit: () => void
@@ -1590,11 +1590,11 @@ const CommentItem = function CommentItem({
 }
 
 const useCommentEditing = function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingCommentId, setEditingCommentId] = useState<string>()
   const editForm = useIssueForm({ body: '' }, Schema.Struct({ body: CommentText }))
   const [editCommentBody, setEditCommentBody] = editForm.field('body')
   const [savingComment, setSavingComment] = useState(false)
-  const [editCommentError, setEditCommentError] = useState<string | null>(null)
+  const [editCommentError, setEditCommentError] = useState<string>()
   const commentRevision = useRef(INITIAL_DRAFT_REVISION)
   const [originalCommentBody, setOriginalCommentBody] = useState('')
   useUnsavedUnloadGuard(Predicate.isNotNullish(editingCommentId) && editCommentBody !== originalCommentBody)
@@ -1604,12 +1604,12 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
     setOriginalCommentBody(comment.body)
     setEditingCommentId(comment.id)
     setEditCommentBody(comment.body)
-    setEditCommentError(null)
+    setEditCommentError(undefined)
   }
 
   const cancelEditComment = function cancelEditComment(): void {
-    setEditingCommentId(null)
-    setEditCommentError(null)
+    setEditingCommentId(undefined)
+    setEditCommentError(undefined)
   }
 
   const updateEditComment = function updateEditComment(value: string): void {
@@ -1625,11 +1625,11 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
       return
     }
     setSavingComment(true)
-    setEditCommentError(null)
+    setEditCommentError(undefined)
     try {
       unwrapResult(await editComment({ workspaceSlug, issueId, commentId, body: submittedBody }))
       if (commentRevision.current === revision) {
-        setEditingCommentId(null)
+        setEditingCommentId(undefined)
       }
     } catch (caughtError) {
       setEditCommentError(`Save failed: ${globalThis.String(caughtError)}`)
@@ -1670,7 +1670,7 @@ const useNewCommentForm = function useNewCommentForm(
   const [newComment, setNewComment] = commentForm.field('body')
   const newCommentRevision = useRef(INITIAL_DRAFT_REVISION)
   const [postingComment, setPostingComment] = useState(false)
-  const [commentError, setCommentError] = useState<string | null>(null)
+  const [commentError, setCommentError] = useState<string>()
   useUnsavedUnloadGuard(String.isNonEmpty(newComment.trim()))
   const key = draftKey(workspaceSlug, `${currentUserId ?? '-'}:${issueId}`, 'comment')
 
@@ -1697,7 +1697,7 @@ const useNewCommentForm = function useNewCommentForm(
       return
     }
     setPostingComment(true)
-    setCommentError(null)
+    setCommentError(undefined)
     try {
       unwrapResult(await addComment({ workspaceSlug, issueId, body: submittedBody }))
       if (newCommentRevision.current === revision) {
