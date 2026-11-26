@@ -19,6 +19,7 @@ const STATUS_LABELS = {
   fixing: '修正中',
   in_review: 'レビュー中',
 }
+const FIRST_TARGET_INDEX = 0
 const VISIBLE_TARGET_COUNT = 1
 
 /**
@@ -30,7 +31,7 @@ const VISIBLE_TARGET_COUNT = 1
 // oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ReviewTargetsSummary = function ReviewTargetsSummary({ issue }: { issue: ReviewableIssue }): JSX.Element {
   const targets = issue.reviewTargets.filter((entry) => entry.status !== 'done')
-  const target = targets.find((entry) => entry.status === 'in_review') ?? targets[0]
+  const target = targets.find((entry) => entry.status === 'in_review') ?? targets.at(FIRST_TARGET_INDEX)
   const needsReview = target?.status === 'in_review'
   const label = target ? (firstNonEmptyText(target.filename, target.url) ?? 'File') : '対象なし'
   const url = new URL(

@@ -179,7 +179,7 @@ export function ChartTooltipContent({
       return null
     }
 
-    const [item] = payload
+    const [item]: Readonly<((typeof payload)[number] | undefined)[]> = payload
     const key = String(labelKey ?? item?.dataKey ?? item?.name ?? 'value')
     const itemConfig = getPayloadConfigFromPayload(config, item, key)
     const value = !labelKey && Predicate.isString(label) ? (config[label]?.label ?? label) : itemConfig?.label
@@ -226,7 +226,7 @@ export function ChartTooltipContent({
                 )}
               >
                 {/* oxlint-disable-next-line rules/prefer-is-nullish -- Pass explicit null data through to the registered formatter. */}
-                {formatter && Predicate.isNotUndefined(item?.value) && item.name ? (
+                {formatter && Predicate.isNotUndefined(item.value) && item.name ? (
                   formatter(item.value, item.name, item, index, item.payload)
                 ) : (
                   <>

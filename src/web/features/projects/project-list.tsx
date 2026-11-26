@@ -192,7 +192,7 @@ export const ProjectList = function ProjectList({
                     <>
                       <input type='hidden' name='workspaceSlug' value={field.state.value} />
                       <p className='m-0 text-sm text-text-muted'>
-                        {writable[0]?.name} ({writable[0]?.slug})
+                        {writable[0].name} ({writable[0].slug})
                       </p>
                     </>
                   )
