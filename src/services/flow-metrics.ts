@@ -497,6 +497,32 @@ const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
   return held
 }
 
+type IssueStartTimeField = 'readyAt' | 'claimedAt' | 'inReviewAt'
+
+interface CompletedIssueTiming {
+  completedAt: number
+  duration: number
+  issue: FlowIssueRow
+  startedAt: number
+}
+
+const completedIssueTimings = function completedIssueTimings(
+  issues: Readonly<FlowIssueRow[]>,
+  startField: IssueStartTimeField,
+  inWindow: (timestamp: number) => boolean,
+): CompletedIssueTiming[] {
+  return Array.filterMap(issues, (issue) => {
+    const startedAt = issue[startField]
+    if (Predicate.isNullish(startedAt)) {
+      return Result.failVoid
+    }
+    const completedAt = issue.doneAt
+    return Predicate.isNotNullish(completedAt) && inWindow(completedAt)
+      ? Result.succeed({ completedAt, duration: completedAt - startedAt, issue, startedAt })
+      : Result.failVoid
+  })
+}
+
 const computeCoreDistributions = function computeCoreDistributions(
   issues: Readonly<FlowIssueRow[]>,
   inWindow: (timestamp: number) => boolean,
@@ -506,36 +532,14 @@ const computeCoreDistributions = function computeCoreDistributions(
   reviewLatencies: number[]
   timeInProgress: number[]
 } {
-  const leadTimes = issues
-    .filter(
-      (issue) =>
-        Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-    )
-    // Filtered above
-    .map((issue) => issue.doneAt! - issue.readyAt!)
-  const cycleTimes = issues
-    .filter(
-      (issue) =>
-        Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-    )
-    // Filtered above
-    .map((issue) => issue.doneAt! - issue.claimedAt!)
-  const reviewLatencies = issues
-    .filter(
-      (issue) =>
-        Predicate.isNotNullish(issue.inReviewAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-    )
-    // Filtered above
-    .map((issue) => issue.doneAt! - issue.inReviewAt!)
+  const leadTimes = completedIssueTimings(issues, 'readyAt', inWindow).map((timing) => timing.duration)
+  const cycleTimes = completedIssueTimings(issues, 'claimedAt', inWindow).map((timing) => timing.duration)
+  const reviewLatencies = completedIssueTimings(issues, 'inReviewAt', inWindow).map((timing) => timing.duration)
   // PROJ-329: time in in_progress = claimed -> the issue's next recorded stage
   // (entering review, or done directly for issues that skipped review).
-  const timeInProgress = issues
-    .filter(
-      (issue) =>
-        Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-    )
-    // Filtered above
-    .map((issue) => (issue.inReviewAt ?? issue.doneAt!) - issue.claimedAt!)
+  const timeInProgress = completedIssueTimings(issues, 'claimedAt', inWindow).map(
+    ({ completedAt, issue, startedAt }) => (issue.inReviewAt ?? completedAt) - startedAt,
+  )
   return fieldsInOrder([
     ['leadTimes', leadTimes],
     ['cycleTimes', cycleTimes],
@@ -558,6 +562,17 @@ const computeHumanInterventions = function computeHumanInterventions(
     .map((issue) => (humanCommentCounts.get(issue.id) ?? NO_EVENTS) + issue.reviewBounceCount)
 }
 
+const leaseRatio = function leaseRatio(
+  { duration, issue }: CompletedIssueTiming,
+  leaseHeldSeconds: ReadonlyMap<string, number>,
+): number {
+  if (duration <= MIN_DURATION_SECONDS) {
+    return EMPTY_RATIO
+  }
+  const held = leaseHeldSeconds.get(issue.id) ?? MIN_DURATION_SECONDS
+  return Math.min(FULL_RATIO, held / duration)
+}
+
 /*
  * PROJ-328: autonomy ratio per completed issue = lease-held time / cycle time. Clamped
  * to [0, 1] — sequential re-leases can sum close to the full cycle but shouldn't exceed it.
@@ -567,20 +582,7 @@ const computeAutonomyRatios = function computeAutonomyRatios(
   leaseHeldSeconds: Map<string, number>,
   inWindow: (timestamp: number) => boolean,
 ): number[] {
-  return issues
-    .filter(
-      (issue) =>
-        Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-    )
-    .map((issue) => {
-      // Filtered above
-      const cycle = issue.doneAt! - issue.claimedAt!
-      if (cycle <= MIN_DURATION_SECONDS) {
-        return EMPTY_RATIO
-      }
-      const held = leaseHeldSeconds.get(issue.id) ?? MIN_DURATION_SECONDS
-      return Math.min(FULL_RATIO, held / cycle)
-    })
+  return completedIssueTimings(issues, 'claimedAt', inWindow).map((timing) => leaseRatio(timing, leaseHeldSeconds))
 }
 
 /*
@@ -596,20 +598,7 @@ const computeFlowEfficiencies = function computeFlowEfficiencies(
   leaseHeldSeconds: Map<string, number>,
   inWindow: (timestamp: number) => boolean,
 ): number[] {
-  return issues
-    .filter(
-      (issue) =>
-        Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
-    )
-    .map((issue) => {
-      // Filtered above
-      const leadTime = issue.doneAt! - issue.readyAt!
-      if (leadTime <= MIN_DURATION_SECONDS) {
-        return EMPTY_RATIO
-      }
-      const held = leaseHeldSeconds.get(issue.id) ?? MIN_DURATION_SECONDS
-      return Math.min(FULL_RATIO, held / leadTime)
-    })
+  return completedIssueTimings(issues, 'readyAt', inWindow).map((timing) => leaseRatio(timing, leaseHeldSeconds))
 }
 
 /*
