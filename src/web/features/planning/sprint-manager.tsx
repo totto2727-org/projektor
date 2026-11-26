@@ -468,6 +468,63 @@ function SprintRow({
     setBusy(false)
   }
   const query = new URLSearchParams({ projectId, workspace: workspaceSlug, sprintId: sprint.id })
+  const renderSprintFacts = (): JSX.Element => (
+    <div className='text-[0.8rem] text-text-muted flex gap-4 flex-wrap mb-2'>
+      <span>
+        Start: <strong className='text-text-base'>{formatUnixDate(sprint.startDate)}</strong>
+      </span>
+      <span>
+        End: <strong className='text-text-base'>{formatUnixDate(sprint.endDate)}</strong>
+      </span>
+      <span>
+        Issues:{' '}
+        <strong className='text-text-base'>
+          {done.length}/{sprintIssues.length}
+        </strong>
+      </span>
+      <span>
+        Story points:{' '}
+        <strong className='text-text-base'>
+          {done.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)}/
+          {sprintIssues.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)}
+        </strong>
+      </span>
+    </div>
+  )
+  const renderCompletionPrompt = (): JSX.Element => (
+    <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
+      <span className='text-[0.8rem] text-text-muted'>Mark complete?</span>
+      <Button variant='danger' size='sm' disabled={completing} onClick={onConfirmComplete}>
+        {completing ? '…' : 'Yes, complete'}
+      </Button>
+      <Button variant='outline' size='sm' disabled={completing} onClick={onCancelComplete}>
+        Cancel
+      </Button>
+      {completeError && (
+        <span role='alert' className='text-danger-text text-xs'>
+          {completeError}
+        </span>
+      )}
+    </span>
+  )
+  const renderArchivePrompt = (): JSX.Element => (
+    <span className='inline-flex gap-2 items-center'>
+      <span className='text-[0.8rem] text-text-muted'>Archive sprint? Issues will be unassigned.</span>
+      <Button variant='danger' size='sm' disabled={busy} onClick={archiveConfirmed}>
+        Yes, archive
+      </Button>
+      <Button
+        variant='outline'
+        size='sm'
+        disabled={busy}
+        onClick={() => {
+          setArchive(false)
+        }}
+      >
+        Cancel
+      </Button>
+    </span>
+  )
   return (
     <div className={CARD}>
       <div className='flex items-center gap-3 flex-wrap mb-[0.375rem]'>
@@ -475,27 +532,7 @@ function SprintRow({
         <StatusBadge status={sprint.status} />
       </div>
       {sprint.goal && <p className='text-sm text-text-muted italic mb-2'>{sprint.goal}</p>}
-      <div className='text-[0.8rem] text-text-muted flex gap-4 flex-wrap mb-2'>
-        <span>
-          Start: <strong className='text-text-base'>{formatUnixDate(sprint.startDate)}</strong>
-        </span>
-        <span>
-          End: <strong className='text-text-base'>{formatUnixDate(sprint.endDate)}</strong>
-        </span>
-        <span>
-          Issues:{' '}
-          <strong className='text-text-base'>
-            {done.length}/{sprintIssues.length}
-          </strong>
-        </span>
-        <span>
-          Story points:{' '}
-          <strong className='text-text-base'>
-            {done.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)}/
-            {sprintIssues.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)}
-          </strong>
-        </span>
-      </div>
+      {renderSprintFacts()}
       {editing ? (
         <SprintForm
           id={`edit-${sprint.id}`}
@@ -537,20 +574,7 @@ function SprintRow({
           )}
           {sprint.status === 'active' &&
             (completeId === sprint.id ? (
-              <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
-                <span className='text-[0.8rem] text-text-muted'>Mark complete?</span>
-                <Button variant='danger' size='sm' disabled={completing} onClick={onConfirmComplete}>
-                  {completing ? '…' : 'Yes, complete'}
-                </Button>
-                <Button variant='outline' size='sm' disabled={completing} onClick={onCancelComplete}>
-                  Cancel
-                </Button>
-                {completeError && (
-                  <span role='alert' className='text-danger-text text-xs'>
-                    {completeError}
-                  </span>
-                )}
-              </span>
+              renderCompletionPrompt()
             ) : (
               <Button variant='outline' size='sm' disabled={busy} onClick={onStartComplete}>
                 Complete sprint
@@ -572,22 +596,7 @@ function SprintRow({
             Move issues
           </Button>
           {archive ? (
-            <span className='inline-flex gap-2 items-center'>
-              <span className='text-[0.8rem] text-text-muted'>Archive sprint? Issues will be unassigned.</span>
-              <Button variant='danger' size='sm' disabled={busy} onClick={archiveConfirmed}>
-                Yes, archive
-              </Button>
-              <Button
-                variant='outline'
-                size='sm'
-                disabled={busy}
-                onClick={() => {
-                  setArchive(false)
-                }}
-              >
-                Cancel
-              </Button>
-            </span>
+            renderArchivePrompt()
           ) : (
             <Button
               variant='outline'
@@ -773,6 +782,32 @@ function CompletionSummaryPanel({
   const done = issues.filter((issue) => issue.status_category === 'done')
   const totalSP = issues.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)
   const doneSP = done.reduce((sum, issue) => sum + getStoryPoints(issue), NO_STORY_POINTS)
+  const renderCompletionTotals = (): JSX.Element => (
+    <div className='flex gap-6 mb-4 text-sm flex-wrap'>
+      <div>
+        <span className='text-text-muted'>Issues:</span>{' '}
+        <strong className='text-text-base'>
+          {done.length}/{issues.length}
+        </strong>
+      </div>
+      {totalSP > NO_STORY_POINTS && (
+        <div>
+          <span className='text-text-muted'>Story points:</span>{' '}
+          <strong className='text-text-base'>
+            {doneSP}/{totalSP}
+          </strong>
+        </div>
+      )}
+    </div>
+  )
+  const renderCompletedIssueLinks = (): JSX.Element[] =>
+    done.map((issue) => (
+      <li key={issue.id}>
+        <a href={issueHref(issue, workspaceSlug)} className='text-sm text-accent no-underline hover:underline'>
+          {issue.title}
+        </a>
+      </li>
+    ))
   return (
     <div className='mb-6 px-5 py-4 bg-success-bg border border-success-border rounded-lg'>
       <div className='flex justify-between items-start mb-3'>
@@ -786,41 +821,33 @@ function CompletionSummaryPanel({
           {formatUnixDate(sprint.startDate)} – {formatUnixDate(sprint.endDate)}
         </p>
       )}
-      <div className='flex gap-6 mb-4 text-sm flex-wrap'>
-        <div>
-          <span className='text-text-muted'>Issues:</span>{' '}
-          <strong className='text-text-base'>
-            {done.length}/{issues.length}
-          </strong>
-        </div>
-        {totalSP > NO_STORY_POINTS && (
-          <div>
-            <span className='text-text-muted'>Story points:</span>{' '}
-            <strong className='text-text-base'>
-              {doneSP}/{totalSP}
-            </strong>
-          </div>
-        )}
-      </div>
+      {renderCompletionTotals()}
       {Array.isArrayNonEmpty(done) && (
         <div>
           <p className='m-0 mb-2 text-[0.78rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
             Completed issues
           </p>
-          <ul className='m-0 p-0 list-none flex flex-col gap-1'>
-            {done.map((issue) => (
-              <li key={issue.id}>
-                <a href={issueHref(issue, workspaceSlug)} className='text-sm text-accent no-underline hover:underline'>
-                  {issue.title}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <ul className='m-0 p-0 list-none flex flex-col gap-1'>{renderCompletedIssueLinks()}</ul>
         </div>
       )}
     </div>
   )
 }
+const renderVelocityLegend = function renderVelocityLegend(): JSX.Element {
+  return (
+    <div className='mt-3 flex gap-4 text-xs text-text-muted'>
+      <span className='inline-flex items-center gap-1'>
+        <span className='inline-block w-3 h-2 rounded-xs bg-status-done opacity-80' />
+        Completed SP
+      </span>
+      <span className='inline-flex items-center gap-1'>
+        <span className='inline-block w-3 h-2 rounded-xs bg-velocity-bar-bg' />
+        Total SP
+      </span>
+    </div>
+  )
+}
+
 // oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 function VelocityChart({ sprints, issues }: { sprints: Sprint[]; issues: SprintIssue[] }): JSX.Element {
   const data = sprints.map((sprint) => {
@@ -834,51 +861,42 @@ function VelocityChart({ sprints, issues }: { sprints: Sprint[]; issues: SprintI
     }
   })
   const max = Math.max(MIN_POINT_AXIS_MAX, ...data.map((row) => row.pointsTotal))
+  const renderVelocityBars = (): JSX.Element[] =>
+    data.map(({ sprint, pointsCompleted, pointsTotal }) => {
+      const totalH = Math.round((pointsTotal / max) * BAR_AREA_HEIGHT_PX)
+      const doneH =
+        totalH > ZERO_BAR_HEIGHT_PX ? Math.round((pointsCompleted / pointsTotal) * totalH) : ZERO_BAR_HEIGHT_PX
+      return (
+        <div key={sprint.id} className='flex-1 flex flex-col items-center justify-end min-w-0 h-[148px]'>
+          <div className='text-[0.7rem] font-semibold text-text-base mb-1'>
+            {pointsCompleted}
+            {pointsTotal > NO_STORY_POINTS && pointsCompleted !== pointsTotal && (
+              <span className='font-normal text-text-muted'>/{pointsTotal}</span>
+            )}
+          </div>
+          <div
+            className='relative w-full rounded-t bg-velocity-bar-bg'
+            style={{ height: `${Math.max(totalH, MIN_VISIBLE_BAR_HEIGHT_PX)}px` }}
+          >
+            {doneH > ZERO_BAR_HEIGHT_PX && (
+              <div
+                className='absolute bottom-0 left-0 right-0 rounded-t bg-status-done opacity-80'
+                style={{ height: `${doneH}px` }}
+              />
+            )}
+          </div>
+          <div className='mt-1 text-[0.65rem] text-text-muted truncate w-full text-center leading-tight px-1'>
+            {sprint.name}
+          </div>
+        </div>
+      )
+    })
   return (
     <div className='mt-8 p-5 bg-surface border border-border rounded-lg'>
       <h2 className='m-0 mb-4 text-base font-semibold text-text-base'>Velocity</h2>
       <div>
-        <div className='flex items-end gap-2 h-[148px]'>
-          {data.map(({ sprint, pointsCompleted, pointsTotal }) => {
-            const totalH = Math.round((pointsTotal / max) * BAR_AREA_HEIGHT_PX)
-            const doneH =
-              totalH > ZERO_BAR_HEIGHT_PX ? Math.round((pointsCompleted / pointsTotal) * totalH) : ZERO_BAR_HEIGHT_PX
-            return (
-              <div key={sprint.id} className='flex-1 flex flex-col items-center justify-end min-w-0 h-[148px]'>
-                <div className='text-[0.7rem] font-semibold text-text-base mb-1'>
-                  {pointsCompleted}
-                  {pointsTotal > NO_STORY_POINTS && pointsCompleted !== pointsTotal && (
-                    <span className='font-normal text-text-muted'>/{pointsTotal}</span>
-                  )}
-                </div>
-                <div
-                  className='relative w-full rounded-t bg-velocity-bar-bg'
-                  style={{ height: `${Math.max(totalH, MIN_VISIBLE_BAR_HEIGHT_PX)}px` }}
-                >
-                  {doneH > ZERO_BAR_HEIGHT_PX && (
-                    <div
-                      className='absolute bottom-0 left-0 right-0 rounded-t bg-status-done opacity-80'
-                      style={{ height: `${doneH}px` }}
-                    />
-                  )}
-                </div>
-                <div className='mt-1 text-[0.65rem] text-text-muted truncate w-full text-center leading-tight px-1'>
-                  {sprint.name}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <div className='mt-3 flex gap-4 text-xs text-text-muted'>
-          <span className='inline-flex items-center gap-1'>
-            <span className='inline-block w-3 h-2 rounded-xs bg-status-done opacity-80' />
-            Completed SP
-          </span>
-          <span className='inline-flex items-center gap-1'>
-            <span className='inline-block w-3 h-2 rounded-xs bg-velocity-bar-bg' />
-            Total SP
-          </span>
-        </div>
+        <div className='flex items-end gap-2 h-[148px]'>{renderVelocityBars()}</div>
+        {renderVelocityLegend()}
       </div>
     </div>
   )
