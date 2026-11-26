@@ -1,18 +1,12 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Iterable, Array, Function, Option, Predicate, Result } from 'effect'
+import { Iterable, Array, DateTime, Function, Option, Predicate, Result } from 'effect'
 import type { Effect } from 'effect'
 
 import { flowMetricsDefaultStarts, mondayAtOrBefore } from '#contracts/flow-metrics-range.ts'
 import { JSON_NULL } from '#contracts/json-null.ts'
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
-import {
-  MILLISECONDS_PER_SECOND,
-  SECONDS_PER_DAY,
-  SECONDS_PER_WEEK,
-  currentEpochSeconds,
-  formatUtcDatePrefix,
-} from '#contracts/time.ts'
+import { SECONDS_PER_DAY, SECONDS_PER_WEEK, currentEpochSeconds, formatUtcDatePrefix } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import { SQL_NULL } from '#db/sql-null.ts'
 
@@ -93,7 +87,7 @@ interface FlowIssueRow {
 }
 
 const dateLabel = function dateLabel(timestamp: number): string {
-  return formatUtcDatePrefix(new Date(timestamp * MILLISECONDS_PER_SECOND))
+  return formatUtcDatePrefix(DateTime.toDateUtc(DateTime.fromEpochSeconds(timestamp)))
 }
 
 const bucketSizeFor = function bucketSizeFor(granularity: 'day' | 'week'): number {
@@ -633,12 +627,38 @@ const buildAgingWip = function buildAgingWip(
   })
 }
 
-const readFlowMetrics = async function readFlowMetrics(
-  db: D1Database,
-  workspaceId: string,
-  range: FlowMetricsRange,
-  now: number,
-) {
+export interface FlowMetrics {
+  leadTime: Distribution
+  leadTimeExcluded: number
+  cycleTime: Distribution
+  wipOverTime: ReturnType<typeof buildWipOverTime>
+  throughputOverTime: ReturnType<typeof buildThroughputOverTime>
+  bugShareOverTime: ReturnType<typeof buildBugShareOverTime>
+  bugTypeTracked: boolean
+  reviewLatency: Distribution
+  reviewLatencyOverTime: ReturnType<typeof buildReviewLatencyOverTime>
+  humanInterventions: Distribution
+  autonomyRatio: Distribution
+  cfdOverTime: ReturnType<typeof buildCfdOverTime>
+  timeInProgress: Distribution
+  arrivalVsCompletionOverTime: ReturnType<typeof buildArrivalVsCompletion>
+  flowEfficiency: Distribution
+  agingWip: ReturnType<typeof buildAgingWip>
+  factoryHealth: Omit<Awaited<ReturnType<typeof fetchWindowCounts>>, 'doneBeforeWindow'>
+}
+
+const readFlowMetrics = async function readFlowMetrics({
+  db,
+  now: fixedNow,
+  range,
+  workspaceId,
+}: {
+  db: D1Database
+  now?: number
+  range: FlowMetricsRange
+  workspaceId: string
+}): Promise<FlowMetrics> {
+  const now = fixedNow ?? currentEpochSeconds()
   const { projectId, since, until, granularity } = range
   const orm = drizzle(db, { schema })
 
@@ -816,14 +836,21 @@ const readFlowMetrics = async function readFlowMetrics(
   ])
 }
 
-export type FlowMetrics = Awaited<ReturnType<typeof readFlowMetrics>>
-
-/** Pure reads and domain calculations, executed only when the caller runs the Effect. */
+/**
+ * Read flow metrics when the caller executes the Effect. The caller validates the range and authorizes project access.
+ *
+ * @param {D1Database} db The target database.
+ * @param {string} workspaceId The workspace that owns the project.
+ * @param {FlowMetricsRange} range The project, date window and bucket granularity.
+ * @param {number} [now] The optional clock value in epoch seconds.
+ * @returns {Effect.Effect<FlowMetrics, DataQueryError>} The metrics or their named query error.
+ */
+// oxlint-disable-next-line eslint/max-params -- Existing callers pass the database, workspace, range and optional clock positionally.
 export const getFlowMetrics = function getFlowMetrics(
   db: D1Database,
   workspaceId: string,
   range: FlowMetricsRange,
   now?: number,
 ): Effect.Effect<FlowMetrics, DataQueryError> {
-  return queryEffect('getFlowMetrics', () => readFlowMetrics(db, workspaceId, range, now ?? currentEpochSeconds()))
+  return queryEffect('getFlowMetrics', readFlowMetrics.bind(undefined, { db, now, range, workspaceId }))
 }
