@@ -31,14 +31,14 @@ const fixture = function fixture() {
   `)
   const prepare = function prepare(query: string, bindings: SQLInputValue[] = []) {
     return {
-      bind: (...values: SQLInputValue[]) => prepare(query, values),
       all: async () => ({ success: true, results: sqlite.prepare(query).all(...bindings), meta: {} }),
+      bind: (...values: SQLInputValue[]) => prepare(query, values),
+      first: async () => sqlite.prepare(query).get(...bindings) ?? null,
       raw: async () => {
         const statement = sqlite.prepare(query)
         statement.setReturnArrays(true)
         return statement.all(...bindings)
       },
-      first: async () => sqlite.prepare(query).get(...bindings) ?? null,
       run: async () => ({
         success: true,
         results: [],
@@ -49,7 +49,6 @@ const fixture = function fixture() {
   // D1 batches execute atomically. Use a real SQLite transaction rather than a
   // Promise.all facade so failed scratch writes exercise the head rollback too.
   const db = {
-    prepare,
     batch: async (statements: ReturnType<typeof prepare>[]) => {
       sqlite.exec('BEGIN')
       try {
@@ -64,23 +63,24 @@ const fixture = function fixture() {
         throw error
       }
     },
+    prepare,
   } as unknown as D1Database
   const ctx = {
     db,
-    workspaceId: 'w',
-    userId: 'u',
-    role: 'owner',
     kv: { delete: async () => {} },
+    role: 'owner',
+    userId: 'u',
+    workspaceId: 'w',
   } as unknown as ServiceCtx
   const state = (): ReturnType<typeof readWikiDraftState> =>
     readWikiDraftState(db, { pageId: 'page', userId: 'u', workspaceId: 'w' })
-  return { sqlite, ctx, state }
+  return { ctx, sqlite, state }
 }
 const snapshot = (content: string, expectedDraftRevision: string | null) => ({
-  title: 'Draft',
-  content,
   baseRevisionId: 'page-revision',
+  content,
   expectedDraftRevision,
+  title: 'Draft',
 })
 
 describe('durable Wiki draft lifecycle preconditions', () => {
@@ -100,7 +100,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(
       finishWikiDraftPublish({ ...ctx, role: 'member' }, 'page', publication.revision),
     ).rejects.toBeInstanceOf(NotFoundError)
-    await expect(state()).resolves.toMatchObject({ revision: publication.revision, draft: { content: 'A' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'A' }, revision: publication.revision })
   })
 
   test.each(['page', 'project', 'workspace'] as const)(
@@ -142,7 +142,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     sqlite.exec(readFileSync(new URL('../../../migrations/0068_wiki_draft_heads.sql', import.meta.url), 'utf8'))
     await expect(state()).resolves.toMatchObject({ draft: { content: 'Recover me' }, revision: JSON_NULL })
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('New', JSON_NULL))
-    await expect(state()).resolves.toMatchObject({ revision: saved.revision, draft: { content: 'New' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'New' }, revision: saved.revision })
   })
 
   test('rejects late A after B and rejects stale deletes without changing B', async () => {
@@ -153,7 +153,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(discardWikiDraft(ctx, 'guide', { expectedDraftRevision: a.revision })).rejects.toBeInstanceOf(
       ConflictError,
     )
-    await expect(state()).resolves.toMatchObject({ revision: b.revision, draft: { content: 'B' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'B' }, revision: b.revision })
   })
 
   test('retains a tombstone after discard so old requests cannot resurrect the draft', async () => {
@@ -166,7 +166,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Old initial request', JSON_NULL))).rejects.toBeInstanceOf(
       ConflictError,
     )
-    await expect(state()).resolves.toStrictEqual({ revision: discarded.revision, draft: JSON_NULL })
+    await expect(state()).resolves.toStrictEqual({ draft: JSON_NULL, revision: discarded.revision })
     await saveWikiDraft(ctx, 'guide', snapshot('New intentional edit', discarded.revision))
     await expect(state()).resolves.toMatchObject({ draft: { content: 'New intentional edit' } })
   })
@@ -179,8 +179,8 @@ describe('durable Wiki draft lifecycle preconditions', () => {
       ConflictError,
     )
     await expect(state()).resolves.toMatchObject({
-      revision: publication.revision,
       draft: { content: 'Recoverable A' },
+      revision: publication.revision,
     })
   })
 
@@ -193,7 +193,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
       draftRevision: JSON_NULL,
       ok: true,
     })
-    await expect(state()).resolves.toMatchObject({ revision: b.revision, draft: { content: 'B' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'B' }, revision: b.revision })
   })
 
   test('retains a new head after successful publish cleanup and rejects pre-publication requests', async () => {
@@ -202,7 +202,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     const publication = await beginWikiDraftPublish(ctx, 'guide', snapshot('A', saved.revision))
     const completed = await finishWikiDraftPublish(ctx, 'page', publication.revision)
     expect(completed.draftRevision).toStrictEqual(expect.any(String))
-    await expect(state()).resolves.toStrictEqual({ revision: completed.draftRevision, draft: JSON_NULL })
+    await expect(state()).resolves.toStrictEqual({ draft: JSON_NULL, revision: completed.draftRevision })
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Late A', saved.revision))).rejects.toBeInstanceOf(ConflictError)
     const result = await state()
     expect(result.draft).toBeNull()
@@ -215,15 +215,15 @@ describe('durable Wiki draft lifecycle preconditions', () => {
       "CREATE TRIGGER reject_draft_update BEFORE UPDATE ON wiki_drafts BEGIN SELECT RAISE(ABORT, 'storage failed'); END",
     )
     await expect(saveWikiDraft(ctx, 'guide', snapshot('B', saved.revision))).rejects.toThrow('storage failed')
-    await expect(state()).resolves.toMatchObject({ revision: saved.revision, draft: { content: 'A' } })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'A' }, revision: saved.revision })
   })
 
   test('advances heads for legacy writes while keeping user scopes independent', async () => {
     const { ctx, state } = fixture()
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('A', JSON_NULL))
     await saveWikiDraft({ ...ctx, userId: 'other' }, 'guide', snapshot('Other user', JSON_NULL))
-    await expect(state()).resolves.toMatchObject({ revision: saved.revision, draft: { content: 'A' } })
-    await saveWikiDraft(ctx, 'guide', { title: 'Legacy client', content: 'New legacy snapshot' })
+    await expect(state()).resolves.toMatchObject({ draft: { content: 'A' }, revision: saved.revision })
+    await saveWikiDraft(ctx, 'guide', { content: 'New legacy snapshot', title: 'Legacy client' })
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Stale browser', saved.revision))).rejects.toBeInstanceOf(
       ConflictError,
     )

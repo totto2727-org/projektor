@@ -15,79 +15,79 @@ import type { ConnectorGrant, GroupData, Token } from './types.ts'
 const request = vi.hoisted(() => vi.fn<(operation: string, input: unknown) => unknown>())
 const nativeSubmitted = vi.hoisted(() => vi.fn<(operation: string, previous: unknown, data: FormData) => void>())
 vi.mock('./actions', () => ({
-  createGroup: (previous: unknown, data: FormData) => {
-    nativeSubmitted('createGroup', previous, data)
-    return request('createGroup', Object.fromEntries(data))
-  },
-  deleteGroup: (input: unknown) => request('deleteGroup', input),
-  renameGroup: (previous: unknown, data: FormData) => {
-    nativeSubmitted('renameGroup', previous, data)
-    return request('renameGroup', Object.fromEntries(data))
-  },
-  describeGroup: (previous: unknown, data: FormData) => {
-    nativeSubmitted('describeGroup', previous, data)
-    return request('describeGroup', Object.fromEntries(data))
-  },
   addGroupMember: (previous: unknown, data: FormData) => {
     nativeSubmitted('addMember', previous, data)
     return request('addMember', Object.fromEntries(data))
+  },
+  createGroup: (previous: unknown, data: FormData) => {
+    nativeSubmitted('createGroup', previous, data)
+    return request('createGroup', Object.fromEntries(data))
   },
   createGroupGrant: (previous: unknown, data: FormData) => {
     nativeSubmitted('createGrant', previous, data)
     return request('setGrant', Object.fromEntries(data))
   },
-  removeGroupMember: (input: unknown) => request('removeMember', input),
-  setGroupGrant: (input: unknown) => request('setGrant', input),
-  removeGroupGrant: (input: unknown) => request('removeGrant', input),
   createToken: (previous: unknown, data: FormData) => {
     nativeSubmitted('createToken', previous, data)
     return request('createToken', Object.fromEntries(data))
   },
-  revokeToken: (input: unknown) => request('revokeToken', input),
+  deleteGroup: (input: unknown) => request('deleteGroup', input),
+  describeGroup: (previous: unknown, data: FormData) => {
+    nativeSubmitted('describeGroup', previous, data)
+    return request('describeGroup', Object.fromEntries(data))
+  },
   disconnectConnector: (input: unknown) => request('disconnect', input),
+  removeGroupGrant: (input: unknown) => request('removeGrant', input),
+  removeGroupMember: (input: unknown) => request('removeMember', input),
+  renameGroup: (previous: unknown, data: FormData) => {
+    nativeSubmitted('renameGroup', previous, data)
+    return request('renameGroup', Object.fromEntries(data))
+  },
+  revokeToken: (input: unknown) => request('revokeToken', input),
+  setGroupGrant: (input: unknown) => request('setGrant', input),
 }))
 const groupData = (): GroupData => ({
-  role: 'admin',
-  groups: [{ id: 'g1', name: 'Team', description: 'Original', memberCount: 1, grantCount: 1 }],
   details: [
     {
-      id: 'g1',
-      name: 'Team',
       description: 'Original',
-      memberCount: 1,
       grantCount: 1,
-      members: [{ userId: 'u1', name: 'Alice', email: 'alice@example.test' }],
-      grants: [{ projectId: 'p1', projectName: 'Project One', projectKey: 'ONE', role: 'viewer' }],
+      grants: [{ projectId: 'p1', projectKey: 'ONE', projectName: 'Project One', role: 'viewer' }],
+      id: 'g1',
+      memberCount: 1,
+      members: [{ email: 'alice@example.test', name: 'Alice', userId: 'u1' }],
+      name: 'Team',
     },
   ],
+  groups: [{ description: 'Original', grantCount: 1, id: 'g1', memberCount: 1, name: 'Team' }],
+  memberGroups: [{ groups: [{ id: 'g1', name: 'Team' }], userId: 'u1' }],
   members: [
-    { id: 'u1', name: 'Alice', email: 'alice@example.test', role: 'member' },
-    { id: 'u2', name: 'Bob', email: 'bob@example.test', role: 'member' },
-    { id: 'admin', name: 'Admin', email: 'admin@example.test', role: 'admin' },
+    { email: 'alice@example.test', id: 'u1', name: 'Alice', role: 'member' },
+    { email: 'bob@example.test', id: 'u2', name: 'Bob', role: 'member' },
+    { email: 'admin@example.test', id: 'admin', name: 'Admin', role: 'admin' },
   ],
-  memberGroups: [{ userId: 'u1', groups: [{ id: 'g1', name: 'Team' }] }],
   projects: [
-    { id: 'p1', name: 'Project One', key: 'ONE', workspace_slug: 'alpha' },
-    { id: 'p2', name: 'Project Two', key: 'TWO', workspace_slug: 'alpha' },
+    { id: 'p1', key: 'ONE', name: 'Project One', workspace_slug: 'alpha' },
+    { id: 'p2', key: 'TWO', name: 'Project Two', workspace_slug: 'alpha' },
   ],
+  role: 'admin',
 })
 const token = (name = 'Agent'): Token => ({
+  createdAt: 1,
+  expiresAt: JSON_NULL,
   id: 't1',
+  lastUsedAt: JSON_NULL,
   name,
   scopes: '["read","write"]',
-  lastUsedAt: JSON_NULL,
-  expiresAt: JSON_NULL,
-  createdAt: 1,
 })
 const grant = (client = 'Claude'): ConnectorGrant => ({
-  id: 'c1',
   client,
   clientId: 'client',
-  scopes: ['projektor:read', 'projektor:write'],
-  grantedAt: 1,
   expiresAt: 2_000_000_000,
+  grantedAt: 1,
+  id: 'c1',
+  scopes: ['projektor:read', 'projektor:write'],
 })
-const groupScope = { workspaceSlug: 'alpha', groupId: 'g1' }
+const groupScope = { groupId: 'g1', workspaceSlug: 'alpha' }
 const writeText = vi.fn<Clipboard['writeText']>(async () => {
   // Record the copied text without writing to the host clipboard.
 })
@@ -138,7 +138,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
 
   test('keeps native group creation drafts after typed failure and clears them only after success', async () => {
     expect.hasAssertions()
-    request.mockResolvedValueOnce({ ok: false, status: 409, message: 'Group conflict' })
+    request.mockResolvedValueOnce({ message: 'Group conflict', ok: false, status: 409 })
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     submitNewGroup('Retry team')
     await waitFor(() => {
@@ -164,7 +164,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     const next = groupData()
     next.groups[0].name = 'Server Team'
     next.details[0].name = 'Server Team'
-    next.details[0].members = [{ userId: 'u2', name: 'Bob', email: 'bob@example.test' }]
+    next.details[0].members = [{ email: 'bob@example.test', name: 'Bob', userId: 'u2' }]
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={next} />)
     expect(screen.getAllByRole('button', { name: 'Server Team' })).toHaveLength(2)
     expect(screen.getByLabelText('Remove Bob')).toBeInstanceOf(Element)
@@ -240,7 +240,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   test('retains accessible tabs, member chips/pending/admin bypass and read-only groups', () => {
     const data = groupData()
     const view = render(<GroupManager workspaceSlug='alpha' initialData={data} />)
-    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeInstanceOf(Element)
+    expect(screen.getByRole('heading', { level: 1, name: 'Groups' })).toBeInstanceOf(Element)
     expect(screen.getByText(/Groups grant members access to projects/u)).toBeInstanceOf(Element)
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Groups' }), { key: 'ArrowRight' })
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Members' }))
@@ -257,7 +257,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.getAllByText('Pending: no access')).toHaveLength(2)
     expect(screen.getAllByText('All projects (bypasses groups)')).toHaveLength(2)
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={{ ...data, role: 'viewer', details: [] }} />)
-    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeInstanceOf(Element)
+    expect(screen.getByRole('heading', { level: 1, name: 'Groups' })).toBeInstanceOf(Element)
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create group' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Team' })).toBeNull()
@@ -284,11 +284,11 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     request.mockResolvedValueOnce({
       ok: true,
       value: {
+        expiresAt: JSON_NULL,
         id: 'new',
         name: 'Unsaved agent',
-        token: 'pk_test_secret',
         scopes: ['read'],
-        expiresAt: JSON_NULL,
+        token: 'pk_test_secret',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create token' }))
@@ -344,7 +344,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     render(<TokenManager workspaceSlug='alpha' mcpUrl={null} initialTokens={[token()]} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Revoke' })[0])
     expect(request).not.toHaveBeenCalled()
-    request.mockResolvedValueOnce({ ok: false, status: 403, message: 'Denied' })
+    request.mockResolvedValueOnce({ message: 'Denied', ok: false, status: 403 })
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
     await waitFor(() => {
       expect(screen.getAllByRole('alert')[0].textContent).toContain('Denied')
@@ -366,7 +366,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(request).not.toHaveBeenCalled()
     fireEvent.click(screen.getAllByRole('button', { name: 'Disconnect' })[0])
     expect(request).not.toHaveBeenCalled()
-    request.mockResolvedValueOnce({ ok: false, status: 403, message: 'Denied' })
+    request.mockResolvedValueOnce({ message: 'Denied', ok: false, status: 403 })
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
     await waitFor(() => {
       expect(screen.getAllByRole('alert')[0].textContent).toContain('Denied')

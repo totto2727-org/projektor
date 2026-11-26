@@ -14,6 +14,7 @@ import type { Sprint, SprintIssue } from './types.ts'
 const request = vi.hoisted(() => vi.fn<(operation: string, input: unknown) => unknown>())
 const nativeSubmitted = vi.hoisted(() => vi.fn<(previous: unknown, data: FormData) => void>())
 vi.mock('./actions', () => ({
+  archiveSprint: (input: unknown) => request('archive', input),
   createSprint: (previous: unknown, data: FormData) => {
     nativeSubmitted(previous, data)
     return request('create', {
@@ -30,31 +31,30 @@ vi.mock('./actions', () => ({
       endOffset: Number(data.get('endOffset')),
     })
   },
-  setSprintStatus: (input: unknown) => request('status', input),
-  archiveSprint: (input: unknown) => request('archive', input),
   moveSprintIssues: (input: unknown) => request('move', input),
+  setSprintStatus: (input: unknown) => request('status', input),
 }))
 const sprint = (id = 'sprint-a', status: Sprint['status'] = 'active', name = 'Sprint A'): Sprint => ({
+  createdAt: 1,
+  endDate: JSON_NULL,
+  goal: 'Ship safely',
   id,
-  status,
   name,
   projectId: 'project-a',
-  goal: 'Ship safely',
   startDate: JSON_NULL,
-  endDate: JSON_NULL,
-  createdAt: 1,
+  status,
 })
 const issue = (id: string, category: string, points: string): SprintIssue => ({
+  customFields: [{ key: 'story_points', value: points }],
   id,
-  title: `Issue ${id}`,
   number: 1,
   project_key: 'PROJ',
-  status_category: category,
   sprint_id: 'sprint-a',
-  customFields: [{ key: 'story_points', value: points }],
+  status_category: category,
+  title: `Issue ${id}`,
 })
 const rows = [issue('done', 'done', '5'), issue('open', 'in_progress', '3')]
-const scope = { workspaceSlug: 'alpha', projectId: 'project-a' }
+const scope = { projectId: 'project-a', workspaceSlug: 'alpha' }
 const props = { ...scope, initialIssues: rows }
 
 const openSprintCreation = function openSprintCreation(): void {
@@ -121,7 +121,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
 
   test('keeps native create drafts and exposes typed failure until a successful retry', async () => {
     expect.hasAssertions()
-    request.mockResolvedValueOnce({ ok: false, status: 409, message: 'Sprint conflict' })
+    request.mockResolvedValueOnce({ message: 'Sprint conflict', ok: false, status: 409 })
     openSprintCreation()
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Retry iteration' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create sprint' }))
@@ -286,7 +286,7 @@ describe('original SprintManager with TanStack schemas and semantic Effront call
     render(<SprintManager {...props} initialSprints={[sprint()]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Complete sprint' }))
     expect(request).not.toHaveBeenCalled()
-    request.mockResolvedValueOnce({ ok: false, status: 403, message: 'Completion denied' })
+    request.mockResolvedValueOnce({ message: 'Completion denied', ok: false, status: 403 })
     fireEvent.click(screen.getByRole('button', { name: 'Yes, complete' }))
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('Completion denied')
