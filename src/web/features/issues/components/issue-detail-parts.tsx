@@ -192,6 +192,25 @@ export const ShareButton = function ShareButton({
     }, COPY_CONFIRMATION_MS)
   }
 
+  const renderShareLinkControls = (): JSX.Element => (
+    <div className='flex items-center gap-1'>
+      <input
+        type='text'
+        readOnly
+        value={shareUrl}
+        className='flex-1 text-xs bg-surface border border-border rounded px-2 py-1 font-mono truncate'
+      />
+      <Button
+        onClick={copyShareUrl}
+        variant='outline'
+        size='sm'
+        className='shrink-0'
+        title={copiedShare ? 'Copied!' : 'Copy'}
+      >
+        {copiedShare ? '✓' : 'Copy'}
+      </Button>
+    </div>
+  )
   return (
     <div className='relative'>
       <Button onClick={createShareLink} disabled={sharingLoading} variant='outline' size='sm' title='Share issue'>
@@ -203,23 +222,7 @@ export const ShareButton = function ShareButton({
 						shadow-elevation-sm p-3 w-72'
         >
           <p className='text-xs text-text-muted mb-2'>Share link · Expires in 3 days</p>
-          <div className='flex items-center gap-1'>
-            <input
-              type='text'
-              readOnly
-              value={shareUrl}
-              className='flex-1 text-xs bg-surface border border-border rounded px-2 py-1 font-mono truncate'
-            />
-            <Button
-              onClick={copyShareUrl}
-              variant='outline'
-              size='sm'
-              className='shrink-0'
-              title={copiedShare ? 'Copied!' : 'Copy'}
-            >
-              {copiedShare ? '✓' : 'Copy'}
-            </Button>
-          </div>
+          {renderShareLinkControls()}
         </div>
       )}
     </div>
@@ -1049,38 +1052,41 @@ const AttachmentUploadForm = function AttachmentUploadForm({
 }): JSX.Element {
   const selectionForm = useIssueForm({ filename: '' }, Schema.Struct({ filename: Text }))
   const [filename, setFilename] = selectionForm.field('filename')
+  const renderUploadControls = (): JSX.Element => (
+    <div className='flex flex-wrap gap-2 items-center max-sm:flex-col max-sm:items-stretch'>
+      <label className='relative cursor-pointer max-sm:w-full'>
+        <input
+          type='file'
+          name='file'
+          required
+          aria-label='Choose file'
+          className='sr-only'
+          onChange={(event) => {
+            setFilename(event.currentTarget.files?.[0]?.name ?? '')
+          }}
+        />
+        <Button
+          as='span'
+          variant='outline'
+          size='sm'
+          className='max-sm:w-full max-sm:min-h-[44px] truncate block text-center'
+        >
+          {filename || 'Choose file'}
+        </Button>
+      </label>
+      <div className='flex gap-2 max-sm:w-full'>
+        <Button type='submit' disabled={!filename} variant='primary' className='max-sm:flex-1 max-sm:min-h-[44px]'>
+          Upload
+        </Button>
+        <Button type='button' onClick={onCancel} variant='outline' className='max-sm:flex-1 max-sm:min-h-[44px]'>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  )
   return (
     <AttachmentUpload workspaceSlug={workspaceSlug ?? ''} entityType='issue' entityId={issueId}>
-      <div className='flex flex-wrap gap-2 items-center max-sm:flex-col max-sm:items-stretch'>
-        <label className='relative cursor-pointer max-sm:w-full'>
-          <input
-            type='file'
-            name='file'
-            required
-            aria-label='Choose file'
-            className='sr-only'
-            onChange={(event) => {
-              setFilename(event.currentTarget.files?.[0]?.name ?? '')
-            }}
-          />
-          <Button
-            as='span'
-            variant='outline'
-            size='sm'
-            className='max-sm:w-full max-sm:min-h-[44px] truncate block text-center'
-          >
-            {filename || 'Choose file'}
-          </Button>
-        </label>
-        <div className='flex gap-2 max-sm:w-full'>
-          <Button type='submit' disabled={!filename} variant='primary' className='max-sm:flex-1 max-sm:min-h-[44px]'>
-            Upload
-          </Button>
-          <Button type='button' onClick={onCancel} variant='outline' className='max-sm:flex-1 max-sm:min-h-[44px]'>
-            Cancel
-          </Button>
-        </div>
-      </div>
+      {renderUploadControls()}
     </AttachmentUpload>
   )
 }
@@ -1992,84 +1998,84 @@ export const SidebarPanel = function SidebarPanel({
   const priorityStyle = PRIORITY_COLORS[issue.priority] ?? PRIORITY_COLORS.none
   const storyPointsField = (issue.customFields ?? []).find((field) => field.key === 'story_points')
 
-  return (
-    <div className='w-[240px] shrink-0 max-sm:w-full sticky top-4 self-start'>
-      <div className='rounded-lg border border-border bg-surface px-4 py-2 divide-y divide-border'>
-        <SidebarField label='Status'>
-          <StatusField issue={issue} statuses={statuses} updatingStatus={updatingStatus} changeStatus={changeStatus} />
-        </SidebarField>
+  const renderPriorityField = (): JSX.Element => (
+    <SidebarField label='Priority'>
+      <Select
+        ariaLabel='Change priority'
+        value={issue.priority}
+        disabled={updatingPriority}
+        capitalize
+        onChange={(value) => {
+          changePriority(value)
+        }}
+        options={PRIORITY_OPTIONS}
+        buttonStyle={{
+          color: priorityStyle.text,
+          background: priorityStyle.bg,
+          fontWeight: 500,
+          borderColor: 'transparent',
+        }}
+      />
+    </SidebarField>
+  )
+  const renderAssigneeField = (): JSX.Element => (
+    <SidebarField label='Assignee'>
+      {Array.isArrayNonEmpty(members) ? (
+        <Select
+          ariaLabel='Change assignee'
+          value={issue.assignee_id ?? ''}
+          disabled={updatingAssignee}
+          onChange={changeAssignee}
+          options={[
+            { label: 'Unassigned', value: '' },
+            ...members.map((member) => ({ value: member.id, label: member.name ?? member.email })),
+          ]}
+        />
+      ) : (
+        <span className='text-sm text-text-base'>{issue.assignee_name ?? '—'}</span>
+      )}
+    </SidebarField>
+  )
+  const renderProjectIdentity = (): JSX.Element => (
+    <span className='text-sm text-text-base'>
+      {issue.project_name}
+      {issue.project_key && <span className='text-text-muted'> ({issue.project_key})</span>}
+    </span>
+  )
+  const renderSidebarFields = (): JSX.Element => (
+    <div className='rounded-lg border border-border bg-surface px-4 py-2 divide-y divide-border'>
+      <SidebarField label='Status'>
+        <StatusField issue={issue} statuses={statuses} updatingStatus={updatingStatus} changeStatus={changeStatus} />
+      </SidebarField>
 
-        <SidebarField label='Type'>
-          <TypeField
-            issue={issue}
-            taskTypes={taskTypes}
-            updatingType={updatingType}
-            typeChangeError={typeChangeError}
-            changeType={changeType}
-          />
-        </SidebarField>
+      <SidebarField label='Type'>
+        <TypeField
+          issue={issue}
+          taskTypes={taskTypes}
+          updatingType={updatingType}
+          typeChangeError={typeChangeError}
+          changeType={changeType}
+        />
+      </SidebarField>
 
-        <SidebarField label='Priority'>
-          <Select
-            ariaLabel='Change priority'
-            value={issue.priority}
-            disabled={updatingPriority}
-            capitalize
-            onChange={(value) => {
-              changePriority(value)
-            }}
-            options={PRIORITY_OPTIONS}
-            buttonStyle={{
-              color: priorityStyle.text,
-              background: priorityStyle.bg,
-              fontWeight: 500,
-              borderColor: 'transparent',
-            }}
-          />
-        </SidebarField>
+      {renderPriorityField()}
 
-        <SidebarField label='Assignee'>
-          {Array.isArrayNonEmpty(members) ? (
-            <Select
-              ariaLabel='Change assignee'
-              value={issue.assignee_id ?? ''}
-              disabled={updatingAssignee}
-              onChange={changeAssignee}
-              options={[
-                { label: 'Unassigned', value: '' },
-                ...members.map((member) => ({ value: member.id, label: member.name ?? member.email })),
-              ]}
-            />
-          ) : (
-            <span className='text-sm text-text-base'>{issue.assignee_name ?? '—'}</span>
-          )}
-        </SidebarField>
+      {renderAssigneeField()}
 
-        <SidebarField label='Points'>
-          <PointsField
-            issueId={issueId}
-            workspaceSlug={workspaceSlug}
-            storyPointsValue={storyPointsField?.value ?? ''}
-          />
-        </SidebarField>
+      <SidebarField label='Points'>
+        <PointsField issueId={issueId} workspaceSlug={workspaceSlug} storyPointsValue={storyPointsField?.value ?? ''} />
+      </SidebarField>
 
-        {issue.project_name && (
-          <SidebarField label='Project'>
-            <span className='text-sm text-text-base'>
-              {issue.project_name}
-              {issue.project_key && <span className='text-text-muted'> ({issue.project_key})</span>}
-            </span>
-          </SidebarField>
-        )}
+      {issue.project_name && <SidebarField label='Project'>{renderProjectIdentity()}</SidebarField>}
 
-        <SidebarField label='Created'>
-          <span className='text-sm text-text-base'>{formatDate(issue.created_at)}</span>
-        </SidebarField>
+      <SidebarField label='Created'>
+        <span className='text-sm text-text-base'>{formatDate(issue.created_at)}</span>
+      </SidebarField>
 
-        <SidebarField label='Updated'>
-          <span className='text-sm text-text-base'>{formatDate(issue.updated_at)}</span>
-        </SidebarField>
-      </div>
+      <SidebarField label='Updated'>
+        <span className='text-sm text-text-base'>{formatDate(issue.updated_at)}</span>
+      </SidebarField>
     </div>
   )
+  return <div className='w-[240px] shrink-0 max-sm:w-full sticky top-4 self-start'>{renderSidebarFields()}</div>
 }
