@@ -197,7 +197,13 @@ describe('server scope loading', () => {
       KV: {
         get: async (key: string, type?: string) => {
           const value = cache.get(key)
-          return Predicate.isNullish(value) ? null : type === 'json' ? JSON.parse(value) : value
+          if (Predicate.isNullish(value)) {
+            return null
+          }
+          if (type === 'json') {
+            return JSON.parse(value)
+          }
+          return value
         },
         put: async (key: string, value: string) => {
           cache.set(key, value)

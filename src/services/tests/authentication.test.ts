@@ -85,7 +85,13 @@ describe('shared browser authentication without API transport or signing secrets
       KV: {
         get: async (name: string, type?: string) => {
           const value = cache.get(name)
-          return Predicate.isNullish(value) ? null : type === 'json' ? JSON.parse(value) : value
+          if (Predicate.isNullish(value)) {
+            return null
+          }
+          if (type === 'json') {
+            return JSON.parse(value)
+          }
+          return value
         },
         put: async (name: string, value: string) => {
           cache.set(name, value)

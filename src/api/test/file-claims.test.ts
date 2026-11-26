@@ -432,7 +432,13 @@ describe('file Claims API', () => {
       .toSorted((selectedLeft, selectedRight) => {
         const left = String(selectedLeft)
         const right = String(selectedRight)
-        return left < right ? -1 : left > right ? 1 : 0
+        if (left < right) {
+          return -1
+        }
+        if (left > right) {
+          return 1
+        }
+        return 0
       })
     expect(paths).toStrictEqual(['src/multi-a.ts', 'src/multi-b.ts'])
   })

@@ -359,18 +359,22 @@ const valueOf = function valueOf(node: ts.Node, context: BinaryContext): BinaryV
       right = valueOf(node.right, context)
     switch (node.operatorToken.kind) {
       case ts.SyntaxKind.AmpersandAmpersandToken: {
-        return left === false || right === false
-          ? false
-          : Predicate.isNullish(left) || Predicate.isNullish(right)
-            ? undefined
-            : isTruthyBinaryValue(left) && isTruthyBinaryValue(right)
+        if (left === false || right === false) {
+          return false
+        }
+        if (Predicate.isNullish(left) || Predicate.isNullish(right)) {
+          return undefined
+        }
+        return isTruthyBinaryValue(left) && isTruthyBinaryValue(right)
       }
       case ts.SyntaxKind.BarBarToken: {
-        return left === true || right === true
-          ? true
-          : Predicate.isNullish(left) || Predicate.isNullish(right)
-            ? undefined
-            : isTruthyBinaryValue(left) || isTruthyBinaryValue(right)
+        if (left === true || right === true) {
+          return true
+        }
+        if (Predicate.isNullish(left) || Predicate.isNullish(right)) {
+          return undefined
+        }
+        return isTruthyBinaryValue(left) || isTruthyBinaryValue(right)
       }
       case ts.SyntaxKind.EqualsEqualsEqualsToken: {
         return Predicate.isNullish(left) || Predicate.isNullish(right) ? undefined : left === right
@@ -479,11 +483,13 @@ const domainOperations = function domainOperations(
     if (binary && ts.isIfStatement(child)) {
       const condition = valueOf(child.expression, binary)
       if (Predicate.isNotNullish(condition)) {
-        return isTruthyBinaryValue(condition)
-          ? visit(child.thenStatement, method)
-          : child.elseStatement
-            ? visit(child.elseStatement, method)
-            : false
+        if (isTruthyBinaryValue(condition)) {
+          return visit(child.thenStatement, method)
+        }
+        if (child.elseStatement) {
+          return visit(child.elseStatement, method)
+        }
+        return false
       }
       const thenReturns = visit(child.thenStatement, method)
       const elseReturns = child.elseStatement ? visit(child.elseStatement, method) : false

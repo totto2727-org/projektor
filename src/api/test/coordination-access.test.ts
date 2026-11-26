@@ -21,7 +21,13 @@ interface ListResult {
 const lexicalCompare = function lexicalCompare(leftValue: unknown, rightValue: unknown): number {
   const left = String(leftValue)
   const right = String(rightValue)
-  return left < right ? -1 : left > right ? 1 : 0
+  if (left < right) {
+    return -1
+  }
+  if (left > right) {
+    return 1
+  }
+  return 0
 }
 
 const mcpList = async function mcpList(

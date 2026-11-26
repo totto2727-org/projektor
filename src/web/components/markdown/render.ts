@@ -21,7 +21,13 @@ const WIKI_LINK_PREFIX = '[['
 const wikiLinkNesting = function wikiLinkNesting(
   token: Readonly<{ type: string }>,
 ): typeof OPEN_NESTING | typeof CLOSE_NESTING | typeof NO_NESTING {
-  return token.type === 'link_open' ? OPEN_NESTING : token.type === 'link_close' ? CLOSE_NESTING : NO_NESTING
+  if (token.type === 'link_open') {
+    return OPEN_NESTING
+  }
+  if (token.type === 'link_close') {
+    return CLOSE_NESTING
+  }
+  return NO_NESTING
 }
 
 export type MarkdownHeading = Readonly<{
