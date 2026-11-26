@@ -1,5 +1,5 @@
 import { Predicate, Schema } from 'effect'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { afterEach, assert, describe, expect, test, vi } from 'vite-plus/test'
 
 import { ConflictError } from '#commands/errors.ts'
 import type { ServiceCtx } from '#commands/types.ts'
@@ -17,14 +17,14 @@ import { readNativeJson } from './response-json.ts'
 
 const setup = async function setup(): Promise<{ ctx: ServiceCtx; slug: string; token: string; wsSlug: string }> {
   const { workspace, user, token } = await seedFixture({ role: 'owner' })
-  const ctx: ServiceCtx = {
-    db: env.DB,
-    kv: env.KV,
-    r2: env.R2,
-    workspaceId: workspace.id,
-    userId: user.id,
-    role: 'owner',
-  }
+  const ctx: ServiceCtx = fieldsInOrder([
+    ['db', env.DB],
+    ['kv', env.KV],
+    ['r2', env.R2],
+    ['workspaceId', workspace.id],
+    ['userId', user.id],
+    ['role', 'owner'],
+  ])
   const created = (await createWikiPage(
     ctx,
     fieldsInOrder([
@@ -60,9 +60,9 @@ const contentOf = async function contentOf(ctx: ServiceCtx, slug: string): Promi
   return ((await getWikiPage(ctx, slug)) as { content: string }).content
 }
 
-afterEach(() => vi.restoreAllMocks())
-
 describe('covers PROJ-809: get_wiki_page returns the revision it read', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   test("a stale reader using the GET's revisionId gets a 409, not a silent overwrite", async () => {
     const { ctx, slug } = await setup()
     const readByA = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
@@ -106,6 +106,8 @@ describe('covers PROJ-809: get_wiki_page returns the revision it read', () => {
 })
 
 describe('covers PROJ-810: guarded writes', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   test('update_wiki_page without a base: a write landing between read and write → 409', async () => {
     const { ctx, slug } = await setup()
     interleaveBeforeNextBatch(1, async () => {
@@ -181,6 +183,8 @@ describe('covers PROJ-810: guarded writes', () => {
 })
 
 describe('covers PROJ-919: metadata-only writes are guarded too', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   test('two interleaved title-only updates → one 409, the first title survives', async () => {
     const { ctx, slug } = await setup()
     interleaveBeforeNextBatch(1, async () => {
@@ -240,9 +244,14 @@ describe('covers PROJ-919: metadata-only writes are guarded too', () => {
   test('every write bumps the page version', async () => {
     const { ctx, slug } = await setup()
     const { id } = (await getWikiPage(ctx, slug)) as { id: string }
-    const versionOf = async (): Promise<number> =>
-      (await env.DB.prepare('SELECT version FROM wiki_pages WHERE id = ?').bind(id).first<{ version: number }>())
-        ?.version as number
+    const versionOf = async (): Promise<number> => {
+      const row = await env.DB.prepare('SELECT version FROM wiki_pages WHERE id = ?')
+        .bind(id)
+        .first<{ version: number }>()
+      const version = row?.version
+      assert(Predicate.isNumber(version))
+      return version
+    }
     const before = await versionOf()
     await updateWikiPage(ctx, slug, { title: 'Bumped' })
     await expect(versionOf()).resolves.toBe(before + 1)
