@@ -130,20 +130,20 @@ const URL_SYNC_KEYS = [
   [
     'status',
     (filters: UrlSyncFilters) =>
-      Array.isArrayNonEmpty(filters.filterStatuses) ? filters.filterStatuses.join(',') : null,
+      Array.isArrayNonEmpty(filters.filterStatuses) ? filters.filterStatuses.join(',') : undefined,
   ],
   [
     'priority',
     (filters: UrlSyncFilters) =>
-      Array.isArrayNonEmpty(filters.filterPriorities) ? filters.filterPriorities.join(',') : null,
+      Array.isArrayNonEmpty(filters.filterPriorities) ? filters.filterPriorities.join(',') : undefined,
   ],
-  ['epic', (filters: UrlSyncFilters) => filters.filterEpicId || null],
-  ['sprintId', (filters: UrlSyncFilters) => filters.filterSprintId || null],
-  ['hideEpics', (filters: UrlSyncFilters) => (filters.hideEpics ? '1' : null)],
-  ['dateField', (filters: UrlSyncFilters) => filters.filterDateField || null],
-  ['dateFrom', (filters: UrlSyncFilters) => filters.filterDateFrom || null],
-  ['dateTo', (filters: UrlSyncFilters) => filters.filterDateTo || null],
-] as const satisfies Readonly<[string, (filters: UrlSyncFilters) => string | null][]>
+  ['epic', (filters: UrlSyncFilters) => filters.filterEpicId || undefined],
+  ['sprintId', (filters: UrlSyncFilters) => filters.filterSprintId || undefined],
+  ['hideEpics', (filters: UrlSyncFilters) => (filters.hideEpics ? '1' : undefined)],
+  ['dateField', (filters: UrlSyncFilters) => filters.filterDateField || undefined],
+  ['dateFrom', (filters: UrlSyncFilters) => filters.filterDateFrom || undefined],
+  ['dateTo', (filters: UrlSyncFilters) => filters.filterDateTo || undefined],
+] as const satisfies Readonly<[string, (filters: UrlSyncFilters) => string | undefined][]>
 
 // Build canonical filter navigation while retaining unrelated scoped query parameters.
 // Effront owns navigation through ordinary anchors, not a parallel history router.
