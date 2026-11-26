@@ -2,14 +2,16 @@ import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { fieldsInOrder } from '#contracts/ordered-fields.ts'
+import {
+  MAX_PAGE_CONTENT_LENGTH,
+  MAX_PAGE_TITLE_LENGTH,
+  MAX_SLUG_LENGTH,
+  MAX_WIKI_TYPE_LENGTH,
+} from '#contracts/wiki-limits.ts'
 
 import { objectInOrder, BooleanQueryParam, PathSlugPattern } from './common.ts'
 
-const MAX_SLUG_LENGTH = 200
-const MAX_PAGE_TITLE_LENGTH = 300
-const MAX_PAGE_CONTENT_LENGTH = 500_000
 const MAX_REVISION_SUMMARY_LENGTH = 2000
-const MAX_WIKI_TYPE_LENGTH = 50
 const MAX_TAG_LENGTH = 50
 const MAX_TAG_COUNT = 50
 const MAX_VERIFIER_LENGTH = 200
