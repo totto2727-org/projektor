@@ -125,8 +125,8 @@ describe('schema constraints', () => {
     const migrationFiles = readdirSync(MIGRATIONS_DIR)
       .filter((file) => file.endsWith('.sql'))
       .toSorted()
-    const preSlugFiles = migrationFiles.filter((f) => f < '0035')
-    const slugFile = migrationFiles.find((f) => f.startsWith('0035'))
+    const preSlugFiles = migrationFiles.filter((file) => file < '0035')
+    const slugFile = migrationFiles.find((file) => file.startsWith('0035'))
     if (Predicate.isNullish(slugFile) || String.isEmpty(slugFile)) {
       throw new Error('expected a 0035 migration file')
     }

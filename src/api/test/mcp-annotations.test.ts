@@ -43,8 +43,8 @@ describe('covers MCP tool annotations (PROJ-887)', () => {
   })
 
   test('update_wiki_page is not claimed idempotent (each save adds a revision)', () => {
-    const t = coreMCPTools.find((tool) => tool.name === 'update_wiki_page')
-    expect(t?.annotations?.idempotentHint).not.toBe(true)
+    const updateTool = coreMCPTools.find((tool) => tool.name === 'update_wiki_page')
+    expect(updateTool?.annotations?.idempotentHint).not.toBe(true)
   })
 
   test('every non-read (write-capability) tool declares destructiveHint', () => {
@@ -68,7 +68,7 @@ describe('covers MCP tool annotations (PROJ-887)', () => {
     const mismatched = coreMCPTools.filter(
       (tool) => Boolean(tool.annotations?.destructiveHint) !== destructiveSet.has(tool.name),
     )
-    expect(mismatched.map((t) => t.name)).toStrictEqual([])
+    expect(mismatched.map((tool) => tool.name)).toStrictEqual([])
   })
 })
 

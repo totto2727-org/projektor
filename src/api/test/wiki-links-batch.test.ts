@@ -94,7 +94,9 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
       .bind(hubId)
       .all<{ target_page_id: string | null; target_title: string }>()
     const resolvedIds = new Set(
-      (rows.results ?? []).map((result) => result.target_page_id).filter((x): x is string => Predicate.isNotNullish(x)),
+      (rows.results ?? [])
+        .map((result) => result.target_page_id)
+        .filter((pageId): pageId is string => Predicate.isNotNullish(pageId)),
     )
     const unresolved = (rows.results ?? []).filter((result) => Predicate.isNullish(result.target_page_id))
 

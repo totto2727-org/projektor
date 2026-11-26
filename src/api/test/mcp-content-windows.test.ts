@@ -164,8 +164,8 @@ describe('covers PROJ-892: MCP tools', () => {
   })
 
   const makeWiki = async function makeWiki(content: string): Promise<string> {
-    const p = await tool<{ slug: string }>('create_wiki_page', { title: 'Long Doc', content })
-    return p.slug
+    const createdPage = await tool<{ slug: string }>('create_wiki_page', { title: 'Long Doc', content })
+    return createdPage.slug
   }
 
   test('get_wiki_page: windows by maxChars with totalChars/outline, and the cursor reassembles the page', async () => {
@@ -186,13 +186,13 @@ describe('covers PROJ-892: MCP tools', () => {
     let text = first.content
     let { next } = first
     while (Predicate.isNotNullish(next) && String.isNonEmpty(next)) {
-      const w = await tool<{ content: string; next?: string }>('get_wiki_page', {
+      const segment = await tool<{ content: string; next?: string }>('get_wiki_page', {
         slug,
         maxChars: 40,
         cursor: next,
       })
-      text += w.content
-      ;({ next } = w)
+      text += segment.content
+      ;({ next } = segment)
     }
     expect(text).toBe(content)
   })
@@ -237,11 +237,11 @@ describe('covers PROJ-892: MCP tools', () => {
     const slug = await makeWiki('😀'.repeat(10))
     const bad = await call('get_wiki_page', { slug, maxChars: 99_999 })
     expect(bad.result?.isError).toBe(true)
-    const w = await tool<{ content: string; next?: string }>('get_wiki_page', {
+    const segment = await tool<{ content: string; next?: string }>('get_wiki_page', {
       slug,
       maxChars: 3,
     })
-    expect(w.content).toBe('😀')
-    expect(w.next).toBe('2')
+    expect(segment.content).toBe('😀')
+    expect(segment.next).toBe('2')
   })
 })

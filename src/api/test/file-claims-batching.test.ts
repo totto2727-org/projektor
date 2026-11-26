@@ -42,12 +42,12 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
         }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
-            wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
+            wrapStmt((value as (...parameters: unknown[]) => D1PreparedStatement).apply(target, args))
         }
         if (Predicate.isString(prop) && EXEC_METHODS.has(prop)) {
           return (...args: unknown[]) => {
             count += 1
-            return (value as (...a: unknown[]) => unknown).apply(target, args)
+            return (value as (...parameters: unknown[]) => unknown).apply(target, args)
           }
         }
         return value.bind(target)
@@ -309,7 +309,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     vi.restoreAllMocks()
 
     expect(body.count).toBe(4)
-    expect(body.released.map((r) => r.path)).not.toContain('src/race-0.ts')
+    expect(body.released.map((claim) => claim.path)).not.toContain('src/race-0.ts')
     const raced = await env.DB.prepare('SELECT released_at, release_reason FROM issue_file_claims WHERE path = ?')
       .bind('src/race-0.ts')
       .first()
@@ -337,7 +337,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       created: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
     })
     const body = await readNativeJson(res, bodyShape)
-    expect(body.created.map((c) => c.path)).toStrictEqual(['src/b.ts', 'src/a.ts'])
+    expect(body.created.map((claim) => claim.path)).toStrictEqual(['src/b.ts', 'src/a.ts'])
   })
 
   test('force-claim notifications stay within the 5,000-char message cap', async () => {

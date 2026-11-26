@@ -57,7 +57,7 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
     'preserves exact 64 KiB bytes and concrete metadata without API transfer (%s)',
     async (kind) => {
       const fixture = fileFixture()
-      const bytes = Uint8Array.from({ length: 64 * 1024 }, (_, index) => index % 256)
+      const bytes = Uint8Array.from({ length: 64 * 1024 }, (_byte, index) => index % 256)
       const upload = file(bytes)
       const result = await invoke(fixture, kind, upload)
       expect(result).toStrictEqual({

@@ -14,7 +14,7 @@ describe('covers PROJ-857: issue list cursor', () => {
     const testFixture = await seedIssueFixture()
     // The fixture issue plus 34 more, all stamped with the same created_at.
     const createdAt = currentEpochSeconds()
-    for (let n = 2; n <= 35; n += 1) {
+    for (let issueNumber = 2; issueNumber <= 35; issueNumber += 1) {
       await env.DB.prepare(
         `INSERT INTO issues (id, workspace_id, project_id, number, title, status, priority, labels, created_by_id, created_at, updated_at)
 				 VALUES (?, ?, ?, ?, ?, 'todo', 'none', '[]', ?, ?, ?)`,
@@ -23,8 +23,8 @@ describe('covers PROJ-857: issue list cursor', () => {
           crypto.randomUUID(),
           testFixture.workspaceId,
           testFixture.projectId,
-          n,
-          `same-second ${n}`,
+          issueNumber,
+          `same-second ${issueNumber}`,
           testFixture.userId,
           createdAt,
           createdAt,
@@ -107,8 +107,8 @@ describe('covers PROJ-857: hot queries use an index (no table scan, no temp sort
       'SELECT i.id FROM issues i JOIN projects p ON p.id = i.project_id WHERE p.workspace_id = ? AND p.key = ? AND i.number = ?',
       ['w', 'PROJ', 1],
     ],
-  ])('%s', async (_name, q, binds) => {
-    const detail = await plan(q, ...(binds as unknown[]))
+  ])('%s', async (_name, sql, binds) => {
+    const detail = await plan(sql, ...(binds as unknown[]))
     expect(detail).not.toMatch(/TEMP B-TREE/u)
     expect(detail).not.toMatch(/SCAN (?:i|issues|p|projects)\b/u)
   })

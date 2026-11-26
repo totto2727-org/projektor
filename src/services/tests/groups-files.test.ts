@@ -75,7 +75,7 @@ describe('groups and attachment pure retrieval', () => {
       { createdAt: 3, description: SQL_NULL, grantCount: 1, id: 'g1', memberCount: 2, name: 'Zeta' },
     ])
     const result = await runTestEffect(listGroups(db, 'wa', { memberUserId: 'u1' }))
-    expect(result.map((g) => g.id)).toStrictEqual(['g1'])
+    expect(result.map((group) => group.id)).toStrictEqual(['g1'])
     await expect(runTestEffect(listGroups(db, 'wa', { memberUserId: 'missing' }))).resolves.toStrictEqual([])
   })
 
@@ -138,7 +138,7 @@ describe('groups and attachment pure retrieval', () => {
       runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'missing' })),
     ).resolves.toStrictEqual([])
     const result = await runTestEffect(listAttachments(db, 'wa', { entityType: 'wiki_page', entityId: 'same' }))
-    expect(result.map((a) => a.id)).toStrictEqual(['a4'])
+    expect(result.map((attachment) => attachment.id)).toStrictEqual(['a4'])
   })
 
   test('applies app-owned owner and linked-page predicates without losing unavailable refs', async () => {

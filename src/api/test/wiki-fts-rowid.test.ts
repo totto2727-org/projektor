@@ -50,27 +50,27 @@ describe("covers PROJ-816: wiki_fts is keyed by the page's search_rowid", () => 
 
   test("each save keeps exactly one FTS row per page, under the page's search_rowid", async () => {
     const ctx = await ctxFor()
-    const a = (await createWikiPage(ctx, { title: 'Alpha', content: 'one' })) as {
+    const alphaPage = (await createWikiPage(ctx, { title: 'Alpha', content: 'one' })) as {
       id: string
       slug: string
     }
-    const b = (await createWikiPage(ctx, { title: 'Beta', content: 'two' })) as {
+    const betaPage = (await createWikiPage(ctx, { title: 'Beta', content: 'two' })) as {
       id: string
       slug: string
     }
     await runInOrder(['three', 'four', 'five'], async (content): Promise<void> => {
-      await updateWikiPage(ctx, a.slug, { content })
+      await updateWikiPage(ctx, alphaPage.slug, { content })
     })
     const rows = await env.DB.prepare(
       `SELECT f.page_id, f.content, f.rowid = p.search_rowid AS keyed
 			 FROM wiki_fts f JOIN wiki_pages p ON p.id = f.page_id WHERE p.id IN (?, ?) ORDER BY f.page_id`,
     )
-      .bind(a.id, b.id)
+      .bind(alphaPage.id, betaPage.id)
       .all<{ page_id: string; content: string; keyed: number }>()
     const byPage = Object.fromEntries(rows.results.map((result) => [result.page_id, result]))
     expect(rows.results).toHaveLength(2)
-    expect(byPage[a.id].content).toBe('five')
-    expect(byPage[b.id].content).toBe('two')
+    expect(byPage[alphaPage.id].content).toBe('five')
+    expect(byPage[betaPage.id].content).toBe('two')
     expect(rows.results.every((result) => result.keyed === 1)).toBe(true)
   })
 

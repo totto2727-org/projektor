@@ -129,15 +129,17 @@ describe('covers PROJ-810: guarded writes', () => {
   test('append gives up with a 409 after bounded retries', async () => {
     const { ctx, slug } = await setup()
     const { revisionId } = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
-    let n = 0
+    let revisionIndex = 0
     interleaveBeforeNextBatch(10, async () => {
-      n += 1
-      await env.DB.prepare('UPDATE wiki_pages SET content = ? WHERE slug = ?').bind(`churn ${n}`, slug).run()
+      revisionIndex += 1
+      await env.DB.prepare('UPDATE wiki_pages SET content = ? WHERE slug = ?')
+        .bind(`churn ${revisionIndex}`, slug)
+        .run()
     })
     await expect(
       patchWikiPage(ctx, slug, { op: 'append_to_page', text: 'x', baseRevisionId: revisionId }),
     ).rejects.toBeInstanceOf(ConflictError)
-    expect(n).toBe(3)
+    expect(revisionIndex).toBe(3)
   })
 })
 

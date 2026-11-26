@@ -141,9 +141,9 @@ describe('project/workspace pure queries', () => {
     ])
     // Even a permissive caller predicate never drops the membership relation.
     const projectSummaries = await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }))
-    expect(projectSummaries.map((p) => p.id)).toStrictEqual(['p3', 'p1'])
+    expect(projectSummaries.map((project) => project.id)).toStrictEqual(['p3', 'p1'])
     const archivedSummaries = await runTestEffect(listProjectSummaries(db, 'u1', { sql: '1 = 1', bindings: [] }, true))
-    expect(archivedSummaries.map((p) => p.id)).toStrictEqual(['p2', 'p3', 'p1'])
+    expect(archivedSummaries.map((project) => project.id)).toStrictEqual(['p2', 'p3', 'p1'])
     await expect(
       runTestEffect(listProjectSummaries(db, 'unknown', { sql: '1 = 1', bindings: [] })),
     ).resolves.toStrictEqual([])

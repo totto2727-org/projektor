@@ -55,7 +55,7 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedProject(roles.workspace.id, 'P2')
 
     const owned = await listProjects(roles.owner.token, slug)
-    expect(owned.body.map((p) => p.key).toSorted()).toStrictEqual(['P1', 'P2'])
+    expect(owned.body.map((project) => project.key).toSorted()).toStrictEqual(['P1', 'P2'])
   })
 
   test('a grant makes exactly one project visible; others stay hidden', async () => {
@@ -66,7 +66,7 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, granted.id, 'member')
 
     const projects = await listProjects(roles.member.token, slug)
-    expect(projects.body.map((p) => p.key)).toStrictEqual(['SEEN'])
+    expect(projects.body.map((project) => project.key)).toStrictEqual(['SEEN'])
   })
 
   test('a direct fetch of an ungranted project or issue 404s (existence hidden)', async () => {

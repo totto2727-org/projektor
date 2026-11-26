@@ -18,9 +18,9 @@ interface ListResult {
   items: Record<string, unknown>[]
 }
 
-const lexicalCompare = function lexicalCompare(a: unknown, b: unknown): number {
-  const left = String(a)
-  const right = String(b)
+const lexicalCompare = function lexicalCompare(leftValue: unknown, rightValue: unknown): number {
+  const left = String(leftValue)
+  const right = String(rightValue)
   return left < right ? -1 : left > right ? 1 : 0
 }
 

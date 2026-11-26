@@ -54,7 +54,7 @@ describe('covers PROJ-319 admin bypass pinning', () => {
     const result = await search(roles.owner.token, slug, 'sentinel-bypass-token')
     expect(result.status).toBe(200)
     const compareProjectIds = Order.mapInput(Order.String, globalThis.String)
-    const projectIds = result.body.map((i) => i.project_id).toSorted(compareProjectIds)
+    const projectIds = result.body.map((issue) => issue.project_id).toSorted(compareProjectIds)
     expect(projectIds).toStrictEqual([p1.id, p2.id].toSorted(compareProjectIds))
   })
 
@@ -85,7 +85,7 @@ describe('covers PROJ-319 admin bypass pinning', () => {
 
     const result = await search(roles.member.token, slug, 'sentinel-scoped-token')
     expect(result.status).toBe(200)
-    expect(result.body.map((i) => i.project_id)).toStrictEqual([p1.id])
+    expect(result.body.map((issue) => issue.project_id)).toStrictEqual([p1.id])
   })
 
   test('get_flow_metrics 404s for a non-admin member with no grant on the project', async () => {

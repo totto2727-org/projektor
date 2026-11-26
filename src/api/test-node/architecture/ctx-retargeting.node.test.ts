@@ -24,7 +24,7 @@ const tsFiles = function tsFiles(dir: string): string[] {
 describe('no ServiceCtx workspace retargeting', () => {
   test('covers API MCP handlers and shared commands never spread ctx with a new workspaceId', () => {
     const offenders = [...tsFiles(join(SRC, 'mcp')), ...tsFiles(COMMANDS), ...tsFiles(join(SRC, 'services'))].filter(
-      (f) => RETARGET.test(readFileSync(f, 'utf8')),
+      (file) => RETARGET.test(readFileSync(file, 'utf8')),
     )
     expect(offenders).toStrictEqual([])
   })

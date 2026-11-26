@@ -46,14 +46,14 @@ const seed0027Backfill = async function seed0027Backfill() {
   )
     .bind(memberGroupId, ws.id, now)
     .run()
-  for (const p of [pX, pY]) {
+  for (const project of [pX, pY]) {
     await env.DB.prepare("INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'member')")
-      .bind(memberGroupId, p.id)
+      .bind(memberGroupId, project.id)
       .run()
   }
-  for (const u of [viewer, member]) {
+  for (const user of [viewer, member]) {
     await env.DB.prepare('INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)')
-      .bind(memberGroupId, u.id, u.id, now)
+      .bind(memberGroupId, user.id, user.id, now)
       .run()
   }
   return { ws, memberGroupId, viewersGroupId: `grp-allproj-viewers-${ws.id}`, viewer, member }

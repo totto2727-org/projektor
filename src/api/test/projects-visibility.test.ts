@@ -21,8 +21,8 @@ const viewerCtx = function viewerCtx(workspaceId: string, userId: string): Servi
   return { db: env.DB, kv: env.KV, r2: env.R2, workspaceId, userId, role: 'viewer' }
 }
 
-const ids = async function ids(p: Promise<unknown>): Promise<string[]> {
-  return ((await p) as { id: string }[]).map((r) => r.id).toSorted()
+const ids = async function ids(pending: Promise<unknown>): Promise<string[]> {
+  return ((await pending) as { id: string }[]).map((project) => project.id).toSorted()
 }
 
 describe('covers PROJ-581: viewers see projects only through grants, consistently on both lists', () => {
@@ -94,11 +94,11 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
     await env.DB.prepare('INSERT INTO user_groups (id, workspace_id, name, created_at) VALUES (?, ?, ?, 0)')
       .bind(existing, ws.id, PUBLIC_VIEWERS_GROUP_NAME)
       .run()
-    const e = { ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env
-    await provisionPublicViewer(e, pub)
+    const scopedEnv = { ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env
+    await provisionPublicViewer(scopedEnv, pub)
     // Force a second real run
     await env.KV.delete(`provisioned:${pub.id}:public-v2`)
-    await provisionPublicViewer(e, pub)
+    await provisionPublicViewer(scopedEnv, pub)
     const rows = await env.DB.prepare(
       'SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND m.user_id = ?',
     )

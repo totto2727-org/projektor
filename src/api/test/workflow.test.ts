@@ -197,10 +197,10 @@ describe('workflow spec', () => {
     await seedTestData()
     const a1 = await hashWorkflowContent('some spec content')
     const a2 = await hashWorkflowContent('some spec content')
-    const b = await hashWorkflowContent('some different spec content')
+    const differentHash = await hashWorkflowContent('some different spec content')
 
     expect(a1).toBe(a2)
-    expect(a1).not.toBe(b)
+    expect(a1).not.toBe(differentHash)
   })
 
   test('version is the hash of the whole returned payload (title, description, content)', async () => {

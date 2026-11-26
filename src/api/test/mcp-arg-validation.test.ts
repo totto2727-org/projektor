@@ -195,7 +195,9 @@ describe('validateToolArgs', () => {
   test('stays as lenient as the services: numeric/boolean strings and null for optional fields', () => {
     expect(validateToolArgs(schema, { status: 'done', limit: '3', labels: null, title: null })).toStrictEqual([])
     expect(validateToolArgs({ properties: { flag: { type: 'boolean' } } }, { flag: 'true' })).toStrictEqual([])
-    expect(validateToolArgs(schema, { status: null }).map((i) => i.path)).toStrictEqual(['status'])
-    expect(validateToolArgs(schema, { status: 'todo', limit: 'ten' }).map((i) => i.path)).toStrictEqual(['limit'])
+    expect(validateToolArgs(schema, { status: null }).map((issue) => issue.path)).toStrictEqual(['status'])
+    expect(validateToolArgs(schema, { status: 'todo', limit: 'ten' }).map((issue) => issue.path)).toStrictEqual([
+      'limit',
+    ])
   })
 })

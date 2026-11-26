@@ -422,8 +422,8 @@ describe('covers PROJ-433: provisioning query count', () => {
   test('costs one query for an already-owning admin, regardless of workspace count', async () => {
     const admin = await seedUser('count-admin@example.com')
     const slug = 'prov-count-default'
-    for (const s of [slug, 'prov-count-a', 'prov-count-b', 'prov-count-c']) {
-      await seedWorkspace(s)
+    for (const workspaceSlug of [slug, 'prov-count-a', 'prov-count-b', 'prov-count-c']) {
+      await seedWorkspace(workspaceSlug)
     }
     const config = envWith({
       ADMIN_EMAILS: 'count-admin@example.com',

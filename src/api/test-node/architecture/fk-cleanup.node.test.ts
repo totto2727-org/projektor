@@ -68,7 +68,7 @@ const declarationSource = function declarationSource(ref: string): string | null
 }
 
 const camel = function camel(snake: string): string {
-  return snake.replaceAll(/_([a-z])/gu, (_match, c: string) => c.toUpperCase())
+  return snake.replaceAll(/_([a-z])/gu, (_match, letter: string) => letter.toUpperCase())
 }
 
 describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {
@@ -80,7 +80,7 @@ describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () =
   })
 
   test('every FK with ON DELETE has an allowlist entry', () => {
-    const missing = [...declared].filter((k) => !(k in FK_CLEANUP_ALLOWLIST))
+    const missing = [...declared].filter((declarationKey) => !(declarationKey in FK_CLEANUP_ALLOWLIST))
     expect(
       missing,
       "New FK with ON DELETE: D1 won't reliably run it. Clean up explicitly in the parent's delete path and add an entry to fk-cleanup-allowlist.ts (AGENTS.md: 'Deletes never rely on FK cascades').",

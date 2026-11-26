@@ -9,12 +9,12 @@ import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
 import { readNativeJson } from './response-json.ts'
 
 const mintSource = async function mintSource(
-  f: Readonly<{ projectId: string; token: string; slug: string }>,
+  fixture: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<void> {
   await fetchNativeApi(
-    `http://localhost/api/projects/${f.projectId}/feedback-sources`,
-    requestOptionsWithBody('POST', authHeaders(f.token, f.slug), JSON.stringify(body)),
+    `http://localhost/api/projects/${fixture.projectId}/feedback-sources`,
+    requestOptionsWithBody('POST', authHeaders(fixture.token, fixture.slug), JSON.stringify(body)),
   )
 }
 

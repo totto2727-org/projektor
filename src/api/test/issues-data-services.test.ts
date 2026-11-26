@@ -95,7 +95,7 @@ describe('shared issue queries over the API D1 pool', () => {
     expect(next.total).toBeNull()
     expect(next.items).toHaveLength(1)
     expect(next.items[0]).toHaveProperty('body', '')
-    expect(new Set([...page.items, ...next.items].map((r) => r.id)).size).toBe(3)
+    expect(new Set([...page.items, ...next.items].map((issue) => issue.id)).size).toBe(3)
     const actual = await api('issues?limit=2&includeRollups=1')
     expect({
       ...actual,

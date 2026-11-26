@@ -42,9 +42,9 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
                       get(boundTarget, boundProp, boundReceiver) {
                         const orig = Reflect.get(boundTarget, boundProp, boundReceiver)
                         if (Predicate.isString(boundProp) && ['all', 'first', 'raw', 'run'].includes(boundProp)) {
-                          return async (...a: unknown[]) => {
+                          return async (...parameters: unknown[]) => {
                             bump()
-                            return await orig.apply(boundTarget, a)
+                            return await orig.apply(boundTarget, parameters)
                           }
                         }
                         return Predicate.isFunction(orig) ? orig.bind(boundTarget) : orig
@@ -71,14 +71,14 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
     })
   const wrapCalls = <T extends object>(target: T): T =>
     new Proxy(target, {
-      get(t, prop, receiver) {
-        const orig = Reflect.get(t, prop, receiver)
+      get(proxyTarget, prop, receiver) {
+        const orig = Reflect.get(proxyTarget, prop, receiver)
         if (!Predicate.isFunction(orig)) {
           return orig
         }
         return (...args: unknown[]) => {
           bump()
-          return orig.apply(t, args)
+          return orig.apply(proxyTarget, args)
         }
       },
     })
